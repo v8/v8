@@ -215,9 +215,14 @@ class AstNode: public ZoneObject {
   int position() const { return position_; }
 
   // Type testing & conversion functions overridden by concrete subclasses.
-#define DECLARE_NODE_FUNCTIONS(type)                  \
-  bool Is##type() { return node_type() == AstNode::k##type; }          \
-  type* As##type() { return Is##type() ? reinterpret_cast<type*>(this) : NULL; }
+#define DECLARE_NODE_FUNCTIONS(type) \
+  bool Is##type() const { return node_type() == AstNode::k##type; } \
+  type* As##type() { \
+    return Is##type() ? reinterpret_cast<type*>(this) : NULL; \
+  } \
+  const type* As##type() const { \
+    return Is##type() ? reinterpret_cast<const type*>(this) : NULL; \
+  }
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
@@ -325,35 +330,35 @@ class Expression : public AstNode {
     kTest
   };
 
-  virtual bool IsValidLeftHandSide() { return false; }
+  virtual bool IsValidReferenceExpression() const { return false; }
 
   // Helpers for ToBoolean conversion.
-  virtual bool ToBooleanIsTrue() { return false; }
-  virtual bool ToBooleanIsFalse() { return false; }
+  virtual bool ToBooleanIsTrue() const { return false; }
+  virtual bool ToBooleanIsFalse() const { return false; }
 
   // Symbols that cannot be parsed as array indices are considered property
   // names.  We do not treat symbols that can be array indexes as property
   // names because [] for string objects is handled only by keyed ICs.
-  virtual bool IsPropertyName() { return false; }
+  virtual bool IsPropertyName() const { return false; }
 
   // True iff the result can be safely overwritten (to avoid allocation).
   // False for operations that can return one of their operands.
-  virtual bool ResultOverwriteAllowed() { return false; }
+  virtual bool ResultOverwriteAllowed() const { return false; }
 
   // True iff the expression is a literal represented as a smi.
-  bool IsSmiLiteral();
+  bool IsSmiLiteral() const;
 
   // True iff the expression is a string literal.
-  bool IsStringLiteral();
+  bool IsStringLiteral() const;
 
   // True iff the expression is the null literal.
-  bool IsNullLiteral();
+  bool IsNullLiteral() const;
 
   // True if we can prove that the expression is the undefined literal.
-  bool IsUndefinedLiteral(Isolate* isolate);
+  bool IsUndefinedLiteral(Isolate* isolate) const;
 
   // Expression type bounds
-  Bounds bounds() { return bounds_; }
+  Bounds bounds() const { return bounds_; }
   void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
   // Type feedback information for assignments and properties.
@@ -1346,7 +1351,7 @@ class Literal V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Literal)
 
-  virtual bool IsPropertyName() V8_OVERRIDE {
+  virtual bool IsPropertyName() const V8_OVERRIDE {
     if (value_->IsInternalizedString()) {
       uint32_t ignored;
       return !String::cast(*value_)->AsArrayIndex(&ignored);
@@ -1359,10 +1364,10 @@ class Literal V8_FINAL : public Expression {
     return Handle<String>::cast(value_);
   }
 
-  virtual bool ToBooleanIsTrue() V8_OVERRIDE {
+  virtual bool ToBooleanIsTrue() const V8_OVERRIDE {
     return value_->BooleanValue();
   }
-  virtual bool ToBooleanIsFalse() V8_OVERRIDE {
+  virtual bool ToBooleanIsFalse() const V8_OVERRIDE {
     return !value_->BooleanValue();
   }
 
@@ -1637,19 +1642,17 @@ class VariableProxy V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(VariableProxy)
 
-  virtual bool IsValidLeftHandSide() V8_OVERRIDE {
-    return var_ == NULL ? true : var_->IsValidLeftHandSide();
+  virtual bool IsValidReferenceExpression() const V8_OVERRIDE {
+    return var_ == NULL ? true : var_->IsValidReference();
   }
 
-  bool IsVariable(Handle<String> n) {
+  bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool IsArguments() { return var_ != NULL && var_->is_arguments(); }
+  bool IsArguments() const { return var_ != NULL && var_->is_arguments(); }
 
-  bool IsLValue() {
-    return is_lvalue_;
-  }
+  bool IsLValue() const { return is_lvalue_; }
 
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
@@ -1687,7 +1690,7 @@ class Property V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Property)
 
-  virtual bool IsValidLeftHandSide() V8_OVERRIDE { return true; }
+  virtual bool IsValidReferenceExpression() const V8_OVERRIDE { return true; }
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
@@ -1970,7 +1973,7 @@ class BinaryOperation V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(BinaryOperation)
 
-  virtual bool ResultOverwriteAllowed();
+  virtual bool ResultOverwriteAllowed() const V8_OVERRIDE;
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }

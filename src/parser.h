@@ -461,6 +461,11 @@ class ParserTraits {
 
   static bool IsIdentifier(Expression* expression);
 
+  static Handle<String> AsIdentifier(Expression* expression) {
+    ASSERT(IsIdentifier(expression));
+    return expression->AsVariableProxy()->name();
+  }
+
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
@@ -500,10 +505,6 @@ class ParserTraits {
   // used on for the statically checking assignments to harmony const bindings.
   static Expression* MarkExpressionAsLValue(Expression* expression);
 
-  // Checks LHS expression for assignment and prefix/postfix increment/decrement
-  // in strict mode.
-  void CheckStrictModeLValue(Expression* expression, bool* ok);
-
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
   // computed value.
@@ -525,6 +526,25 @@ class ParserTraits {
   Expression* BuildUnaryExpression(
       Expression* expression, Token::Value op, int pos,
       AstNodeFactory<AstConstructionVisitor>* factory);
+
+  // Generate AST node that throws a ReferenceError with the given type.
+  Expression* NewThrowReferenceError(const char* type, int pos);
+
+  // Generate AST node that throws a SyntaxError with the given
+  // type. The first argument may be null (in the handle sense) in
+  // which case no arguments are passed to the constructor.
+  Expression* NewThrowSyntaxError(
+      const char* type, Handle<Object> arg, int pos);
+
+  // Generate AST node that throws a TypeError with the given
+  // type. Both arguments must be non-null (in the handle sense).
+  Expression* NewThrowTypeError(
+      const char* type, Handle<Object> arg1, Handle<Object> arg2, int pos);
+
+  // Generic AST generator for throwing errors from compiled code.
+  Expression* NewThrowError(
+      Handle<String> constructor, const char* type,
+      Vector<Handle<Object> > arguments, int pos);
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -776,25 +796,6 @@ class Parser : public ParserBase<ParserTraits> {
   Scope* NewScope(Scope* parent, ScopeType type);
 
   Handle<String> LookupCachedSymbol(int symbol_id);
-
-  // Generate AST node that throw a ReferenceError with the given type.
-  Expression* NewThrowReferenceError(Handle<String> type);
-
-  // Generate AST node that throw a SyntaxError with the given
-  // type. The first argument may be null (in the handle sense) in
-  // which case no arguments are passed to the constructor.
-  Expression* NewThrowSyntaxError(Handle<String> type, Handle<Object> first);
-
-  // Generate AST node that throw a TypeError with the given
-  // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(Handle<String> type,
-                                Handle<Object> first,
-                                Handle<Object> second);
-
-  // Generic AST generator for throwing errors from compiled code.
-  Expression* NewThrowError(Handle<String> constructor,
-                            Handle<String> type,
-                            Vector< Handle<Object> > arguments);
 
   PreParser::PreParseResult LazyParseFunctionLiteral(
        SingletonLogger* logger);

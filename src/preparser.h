@@ -425,6 +425,13 @@ class ParserBase : public Traits {
   ExpressionT ParseMemberExpressionContinuation(ExpressionT expression,
                                                 bool* ok);
 
+  // Checks if the expression is a valid reference expression (e.g., on the
+  // left-hand side of assignments). Although ruled out by ECMA as early errors,
+  // we allow calls for web compatibility and rewrite them to a runtime throw.
+  ExpressionT CheckAndRewriteReferenceExpression(
+      ExpressionT expression,
+      Scanner::Location location, const char* message, bool* ok);
+
   // Used to detect duplicates in object literals. Each of the values
   // kGetterProperty, kSetterProperty and kValueProperty represents
   // a type of object literal property. When parsing a property, its
@@ -589,10 +596,14 @@ class PreParserExpression {
     return PreParserExpression(kPropertyExpression);
   }
 
+  static PreParserExpression Call() {
+    return PreParserExpression(kCallExpression);
+  }
+
   bool IsIdentifier() { return (code_ & kIdentifierFlag) != 0; }
 
-  // Only works corretly if it is actually an identifier expression.
   PreParserIdentifier AsIdentifier() {
+    ASSERT(IsIdentifier());
     return PreParserIdentifier(
         static_cast<PreParserIdentifier::Type>(code_ >> kIdentifierShift));
   }
@@ -611,13 +622,14 @@ class PreParserExpression {
     return code_ == kPropertyExpression || code_ == kThisPropertyExpression;
   }
 
-  bool IsValidLeftHandSide() {
+  bool IsCall() { return code_ == kCallExpression; }
+
+  bool IsValidReferenceExpression() {
     return IsIdentifier() || IsProperty();
   }
 
   // At the moment PreParser doesn't track these expression types.
   bool IsFunctionLiteral() const { return false; }
-  bool IsCall() const { return false; }
   bool IsCallNew() const { return false; }
 
   PreParserExpression AsFunctionLiteral() { return *this; }
@@ -651,7 +663,8 @@ class PreParserExpression {
     // 2 least significant bits for flags.
     kThisExpression = 1 << 2,
     kThisPropertyExpression = 2 << 2,
-    kPropertyExpression = 3 << 2
+    kPropertyExpression = 3 << 2,
+    kCallExpression = 4 << 2
   };
 
   explicit PreParserExpression(int expression_code) : code_(expression_code) {}
@@ -782,7 +795,7 @@ class PreParserFactory {
   PreParserExpression NewCall(PreParserExpression expression,
                               PreParserExpressionList arguments,
                               int pos) {
-    return PreParserExpression::Default();
+    return PreParserExpression::Call();
   }
   PreParserExpression NewCallNew(PreParserExpression expression,
                                  PreParserExpressionList arguments,
@@ -845,6 +858,10 @@ class PreParserTraits {
     return expression.IsIdentifier();
   }
 
+  static PreParserIdentifier AsIdentifier(PreParserExpression expression) {
+    return expression.AsIdentifier();
+  }
+
   static bool IsBoilerplateProperty(PreParserExpression property) {
     // PreParser doesn't count boilerplate properties.
     return false;
@@ -883,10 +900,6 @@ class PreParserTraits {
     return expression;
   }
 
-  // Checks LHS expression for assignment and prefix/postfix increment/decrement
-  // in strict mode.
-  void CheckStrictModeLValue(PreParserExpression expression, bool* ok);
-
   bool ShortcutNumericLiteralBinaryExpression(PreParserExpression* x,
                                               PreParserExpression y,
                                               Token::Value op,
@@ -898,6 +911,18 @@ class PreParserTraits {
   PreParserExpression BuildUnaryExpression(PreParserExpression expression,
                                            Token::Value op, int pos,
                                            PreParserFactory* factory) {
+    return PreParserExpression::Default();
+  }
+
+  PreParserExpression NewThrowReferenceError(const char* type, int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewThrowSyntaxError(
+      const char* type, Handle<Object> arg, int pos) {
+    return PreParserExpression::Default();
+  }
+  PreParserExpression NewThrowTypeError(
+      const char* type, Handle<Object> arg1, Handle<Object> arg2, int pos) {
     return PreParserExpression::Default();
   }
 
@@ -1695,16 +1720,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     return expression;
   }
 
-  if (!expression->IsValidLeftHandSide()) {
-    this->ReportMessageAt(lhs_location, "invalid_lhs_in_assignment", true);
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  if (strict_mode() == STRICT) {
-    // Assignment to eval or arguments is disallowed in strict mode.
-    this->CheckStrictModeLValue(expression, CHECK_OK);
-  }
+  expression = this->CheckAndRewriteReferenceExpression(
+      expression, lhs_location, "invalid_lhs_in_assignment", CHECK_OK);
   expression = this->MarkExpressionAsLValue(expression);
 
   Token::Value op = Next();  // Get assignment operator.
@@ -1864,17 +1881,9 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
   } else if (Token::IsCountOp(op)) {
     op = Next();
     Scanner::Location lhs_location = scanner()->peek_location();
-    ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    if (!expression->IsValidLeftHandSide()) {
-      ReportMessageAt(lhs_location, "invalid_lhs_in_prefix_op", true);
-      *ok = false;
-      return this->EmptyExpression();
-    }
-
-    if (strict_mode() == STRICT) {
-      // Prefix expression operand in strict mode may not be eval or arguments.
-      this->CheckStrictModeLValue(expression, CHECK_OK);
-    }
+    ExpressionT expression = this->ParseUnaryExpression(CHECK_OK);
+    expression = this->CheckAndRewriteReferenceExpression(
+        expression, lhs_location, "invalid_lhs_in_prefix_op", CHECK_OK);
     this->MarkExpressionAsLValue(expression);
 
     return factory()->NewCountOperation(op,
@@ -1898,16 +1907,8 @@ ParserBase<Traits>::ParsePostfixExpression(bool* ok) {
   ExpressionT expression = this->ParseLeftHandSideExpression(CHECK_OK);
   if (!scanner()->HasAnyLineTerminatorBeforeNext() &&
       Token::IsCountOp(peek())) {
-    if (!expression->IsValidLeftHandSide()) {
-      ReportMessageAt(lhs_location, "invalid_lhs_in_postfix_op", true);
-      *ok = false;
-      return this->EmptyExpression();
-    }
-
-    if (strict_mode() == STRICT) {
-      // Postfix expression operand in strict mode may not be eval or arguments.
-      this->CheckStrictModeLValue(expression, CHECK_OK);
-    }
+    expression = this->CheckAndRewriteReferenceExpression(
+        expression, lhs_location, "invalid_lhs_in_postfix_op", CHECK_OK);
     expression = this->MarkExpressionAsLValue(expression);
 
     Token::Value next = Next();
@@ -2114,6 +2115,32 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
   }
   ASSERT(false);
   return this->EmptyExpression();
+}
+
+
+template <typename Traits>
+typename ParserBase<Traits>::ExpressionT
+ParserBase<Traits>::CheckAndRewriteReferenceExpression(
+    ExpressionT expression,
+    Scanner::Location location, const char* message, bool* ok) {
+  if (strict_mode() == STRICT && this->IsIdentifier(expression) &&
+      this->IsEvalOrArguments(this->AsIdentifier(expression))) {
+    this->ReportMessageAt(location, "strict_eval_arguments", false);
+    *ok = false;
+    return this->EmptyExpression();
+  } else if (expression->IsValidReferenceExpression()) {
+    return expression;
+  } else if (expression->IsCall()) {
+    // If it is a call, make it a runtime error for legacy web compatibility.
+    // Rewrite `expr' to `expr[throw ReferenceError]'.
+    int pos = location.beg_pos;
+    ExpressionT error = this->NewThrowReferenceError(message, pos);
+    return factory()->NewProperty(expression, error, pos);
+  } else {
+    this->ReportMessageAt(location, message, true);
+    *ok = false;
+    return this->EmptyExpression();
+  }
 }
 
 

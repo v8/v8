@@ -423,10 +423,9 @@ class TargetScope BASE_EMBEDDED {
 // Implementation of Parser
 
 bool ParserTraits::IsEvalOrArguments(Handle<String> identifier) const {
-  return identifier.is_identical_to(
-             parser_->isolate()->factory()->eval_string()) ||
-         identifier.is_identical_to(
-             parser_->isolate()->factory()->arguments_string());
+  Factory* factory = parser_->isolate()->factory();
+  return identifier.is_identical_to(factory->eval_string())
+      || identifier.is_identical_to(factory->arguments_string());
 }
 
 
@@ -482,19 +481,6 @@ Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
       : NULL;
   if (proxy != NULL) proxy->MarkAsLValue();
   return expression;
-}
-
-
-void ParserTraits::CheckStrictModeLValue(Expression* expression,
-                                         bool* ok) {
-  VariableProxy* lhs = expression != NULL
-      ? expression->AsVariableProxy()
-      : NULL;
-  if (lhs != NULL && !lhs->is_this() && IsEvalOrArguments(lhs->name())) {
-    parser_->ReportMessage("strict_eval_arguments",
-                           Vector<const char*>::empty());
-    *ok = false;
-  }
 }
 
 
@@ -604,6 +590,62 @@ Expression* ParserTraits::BuildUnaryExpression(
 }
 
 
+Expression* ParserTraits::NewThrowReferenceError(
+    const char* message, int pos) {
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeReferenceError_string(),
+      message, HandleVector<Object>(NULL, 0), pos);
+}
+
+
+Expression* ParserTraits::NewThrowSyntaxError(
+    const char* message, Handle<Object> arg, int pos) {
+  int argc = arg.is_null() ? 0 : 1;
+  Vector< Handle<Object> > arguments = HandleVector<Object>(&arg, argc);
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeSyntaxError_string(),
+      message, arguments, pos);
+}
+
+
+Expression* ParserTraits::NewThrowTypeError(
+    const char* message, Handle<Object> arg1, Handle<Object> arg2, int pos) {
+  ASSERT(!arg1.is_null() && !arg2.is_null());
+  Handle<Object> elements[] = { arg1, arg2 };
+  Vector< Handle<Object> > arguments =
+      HandleVector<Object>(elements, ARRAY_SIZE(elements));
+  return NewThrowError(
+      parser_->isolate()->factory()->MakeTypeError_string(),
+      message, arguments, pos);
+}
+
+
+Expression* ParserTraits::NewThrowError(
+    Handle<String> constructor, const char* message,
+    Vector<Handle<Object> > arguments, int pos) {
+  Zone* zone = parser_->zone();
+  Factory* factory = parser_->isolate()->factory();
+  int argc = arguments.length();
+  Handle<FixedArray> elements = factory->NewFixedArray(argc, TENURED);
+  for (int i = 0; i < argc; i++) {
+    Handle<Object> element = arguments[i];
+    if (!element.is_null()) {
+      elements->set(i, *element);
+    }
+  }
+  Handle<JSArray> array =
+      factory->NewJSArrayWithElements(elements, FAST_ELEMENTS, TENURED);
+
+  ZoneList<Expression*>* args = new(zone) ZoneList<Expression*>(2, zone);
+  Handle<String> type = factory->InternalizeUtf8String(message);
+  args->Add(parser_->factory()->NewLiteral(type, pos), zone);
+  args->Add(parser_->factory()->NewLiteral(array, pos), zone);
+  CallRuntime* call_constructor =
+      parser_->factory()->NewCallRuntime(constructor, NULL, args, pos);
+  return parser_->factory()->NewThrow(call_constructor, pos);
+}
+
+
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
                                    Vector<const char*> args,
@@ -680,7 +722,7 @@ Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
     }
   }
   Handle<String> result =
-      parser_->scanner()->AllocateInternalizedString(parser_->isolate_);
+      parser_->scanner()->AllocateInternalizedString(parser_->isolate());
   ASSERT(!result.is_null());
   return result;
 }
@@ -1722,8 +1764,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
           isolate()->factory()->InternalizeOneByteString(
               STATIC_ASCII_VECTOR("Variable"));
       Expression* expression =
-          NewThrowTypeError(isolate()->factory()->redeclaration_string(),
-                            message_string, name);
+          NewThrowTypeError("redeclaration",
+                            message_string, name, declaration->position());
       declaration_scope->SetIllegalRedeclaration(expression);
     }
   }
@@ -2511,9 +2553,8 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   Scope* declaration_scope = scope_->DeclarationScope();
   if (declaration_scope->is_global_scope() ||
       declaration_scope->is_eval_scope()) {
-    Handle<String> message = isolate()->factory()->illegal_return_string();
     Expression* throw_error =
-        NewThrowSyntaxError(message, Handle<Object>::null());
+        NewThrowSyntaxError("illegal_return", Handle<Object>::null(), pos);
     return factory()->NewExpressionStatement(throw_error, pos);
   }
   return result;
@@ -2992,11 +3033,9 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       bool accept_OF = expression->AsVariableProxy();
 
       if (CheckInOrOf(accept_OF, &mode)) {
-        if (expression == NULL || !expression->IsValidLeftHandSide()) {
-          ReportMessageAt(lhs_location, "invalid_lhs_in_for", true);
-          *ok = false;
-          return NULL;
-        }
+        expression = this->CheckAndRewriteReferenceExpression(
+            expression, lhs_location, "invalid_lhs_in_for", CHECK_OK);
+
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, pos);
         Target target(&this->target_stack_, loop);
@@ -3696,58 +3735,6 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
     TargetCollector* collector = t->node()->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target, zone());
   }
-}
-
-
-Expression* Parser::NewThrowReferenceError(Handle<String> message) {
-  return NewThrowError(isolate()->factory()->MakeReferenceError_string(),
-                       message, HandleVector<Object>(NULL, 0));
-}
-
-
-Expression* Parser::NewThrowSyntaxError(Handle<String> message,
-                                        Handle<Object> first) {
-  int argc = first.is_null() ? 0 : 1;
-  Vector< Handle<Object> > arguments = HandleVector<Object>(&first, argc);
-  return NewThrowError(
-      isolate()->factory()->MakeSyntaxError_string(), message, arguments);
-}
-
-
-Expression* Parser::NewThrowTypeError(Handle<String> message,
-                                      Handle<Object> first,
-                                      Handle<Object> second) {
-  ASSERT(!first.is_null() && !second.is_null());
-  Handle<Object> elements[] = { first, second };
-  Vector< Handle<Object> > arguments =
-      HandleVector<Object>(elements, ARRAY_SIZE(elements));
-  return NewThrowError(
-      isolate()->factory()->MakeTypeError_string(), message, arguments);
-}
-
-
-Expression* Parser::NewThrowError(Handle<String> constructor,
-                                  Handle<String> message,
-                                  Vector< Handle<Object> > arguments) {
-  int argc = arguments.length();
-  Handle<FixedArray> elements = isolate()->factory()->NewFixedArray(argc,
-                                                                    TENURED);
-  for (int i = 0; i < argc; i++) {
-    Handle<Object> element = arguments[i];
-    if (!element.is_null()) {
-      elements->set(i, *element);
-    }
-  }
-  Handle<JSArray> array = isolate()->factory()->NewJSArrayWithElements(
-      elements, FAST_ELEMENTS, TENURED);
-
-  int pos = position();
-  ZoneList<Expression*>* args = new(zone()) ZoneList<Expression*>(2, zone());
-  args->Add(factory()->NewLiteral(message, pos), zone());
-  args->Add(factory()->NewLiteral(array, pos), zone());
-  CallRuntime* call_constructor =
-      factory()->NewCallRuntime(constructor, NULL, args, pos);
-  return factory()->NewThrow(call_constructor, pos);
 }
 
 
