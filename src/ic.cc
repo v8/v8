@@ -248,12 +248,7 @@ static void LookupForRead(Handle<Object> object,
 
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  if (target()->is_keyed_stub()) {
-    // Determine whether the failure is due to a name failure.
-    if (!name->IsName()) return false;
-    Name* stub_name = target()->FindFirstName();
-    if (*name != stub_name) return false;
-  }
+  if (!IsNameCompatibleWithMonomorphicPrototypeFailure(name)) return false;
 
   InlineCacheHolderFlag cache_holder =
       Code::ExtractCacheHolderFromFlags(target()->flags());
@@ -336,6 +331,18 @@ void IC::TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name) {
 }
 
 
+bool IC::IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name) {
+  if (target()->is_keyed_stub()) {
+    // Determine whether the failure is due to a name failure.
+    if (!name->IsName()) return false;
+    Name* stub_name = target()->FindFirstName();
+    if (*name != stub_name) return false;
+  }
+
+  return true;
+}
+
+
 void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   if (!name->IsString()) return;
   if (state() != MONOMORPHIC) {
@@ -352,8 +359,9 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   // because of changes in the prototype chain to avoid hitting it
   // again.
   if (TryRemoveInvalidPrototypeDependentStub(
-          receiver, Handle<String>::cast(name))) {
-    return MarkMonomorphicPrototypeFailure();
+          receiver, Handle<String>::cast(name)) &&
+      TryMarkMonomorphicPrototypeFailure(name)) {
+    return;
   }
 
   // The builtins object is special.  It only changes when JavaScript
@@ -634,7 +642,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
     if (current_type->IsClass() && current_type->AsClass()->is_deprecated()) {
       // Filter out deprecated maps to ensure their instances get migrated.
       ++deprecated_types;
-    } else if (type->IsCurrently(current_type)) {
+    } else if (type->NowIs(current_type)) {
       // If the receiver type is already in the polymorphic IC, this indicates
       // there was a prototoype chain failure. In that case, just overwrite the
       // handler.
@@ -658,7 +666,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   number_of_valid_types++;
   if (handler_to_overwrite >= 0) {
     handlers.Set(handler_to_overwrite, code);
-    if (!type->IsCurrently(types.at(handler_to_overwrite))) {
+    if (!type->NowIs(types.at(handler_to_overwrite))) {
       types.Set(handler_to_overwrite, type);
     }
   } else {
@@ -676,7 +684,7 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
 Handle<HeapType> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
   return object->IsJSGlobalObject()
       ? HeapType::Constant(Handle<JSGlobalObject>::cast(object), isolate)
-      : HeapType::OfCurrently(object, isolate);
+      : HeapType::NowOf(object, isolate);
 }
 
 
@@ -1184,8 +1192,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);
     if (!lookup->IsTransition()) return false;
-    ic->MarkMonomorphicPrototypeFailure();
+    return ic->TryMarkMonomorphicPrototypeFailure(name);
   }
+
   return true;
 }
 

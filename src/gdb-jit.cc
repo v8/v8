@@ -252,8 +252,8 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
       segment_(segment),
       align_(align),
       flags_(flags) {
-    ASSERT(IsPowerOf2(align));
     if (align_ != 0) {
+      ASSERT(IsPowerOf2(align));
       align_ = WhichPowerOf2(align_);
     }
   }

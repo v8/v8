@@ -43,10 +43,10 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
-#define IS_POWER_OF_TWO(x) (((x) & ((x) - 1)) == 0)
+#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
-// Returns true iff x is a power of 2 (or zero). Cannot be used with the
-// maximally negative value of the type T (the -1 overflows).
+// Returns true iff x is a power of 2. Cannot be used with the maximally
+// negative value of the type T (the -1 overflows).
 template <typename T>
 inline bool IsPowerOf2(T x) {
   return IS_POWER_OF_TWO(x);
@@ -56,7 +56,6 @@ inline bool IsPowerOf2(T x) {
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
   ASSERT(IsPowerOf2(x));
-  ASSERT(x != 0);
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;

@@ -96,8 +96,14 @@ class IC {
 
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
-  void MarkMonomorphicPrototypeFailure() {
-    state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
+
+  bool IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name);
+  bool TryMarkMonomorphicPrototypeFailure(Handle<Object> name) {
+    if (IsNameCompatibleWithMonomorphicPrototypeFailure(name)) {
+      state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
+      return true;
+    }
+    return false;
   }
 
   // Clear the inline cache to initial state.

@@ -711,7 +711,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                                                 executable,
                                                 owner);
   result->set_reserved_memory(&reservation);
-  MSAN_MEMORY_IS_INITIALIZED(base, chunk_size);
+  MSAN_MEMORY_IS_INITIALIZED_IN_JIT(base, chunk_size);
   return result;
 }
 
@@ -1195,7 +1195,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       VerifyObject(object);
 
       // The object itself should look OK.
-      object->Verify();
+      object->ObjectVerify();
 
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
@@ -1478,7 +1478,7 @@ void NewSpace::Verify() {
       CHECK(!object->IsCode());
 
       // The object itself should look OK.
-      object->Verify();
+      object->ObjectVerify();
 
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor;
@@ -3119,7 +3119,7 @@ void LargeObjectSpace::Verify() {
            object->IsFixedDoubleArray() || object->IsByteArray());
 
     // The object itself should look OK.
-    object->Verify();
+    object->ObjectVerify();
 
     // Byte arrays and strings don't have interior pointers.
     if (object->IsCode()) {

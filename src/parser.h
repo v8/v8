@@ -104,9 +104,10 @@ class ScriptDataImpl : public ScriptData {
   int GetSymbolIdentifier();
   bool SanityCheck();
 
-  Scanner::Location MessageLocation();
-  const char* BuildMessage();
-  Vector<const char*> BuildArgs();
+  Scanner::Location MessageLocation() const;
+  bool IsReferenceError() const;
+  const char* BuildMessage() const;
+  Vector<const char*> BuildArgs() const;
 
   int symbol_count() {
     return (store_.length() > PreparseDataConstants::kHeaderSize)
@@ -127,8 +128,8 @@ class ScriptDataImpl : public ScriptData {
   int function_index_;
   bool owns_store_;
 
-  unsigned Read(int position);
-  unsigned* ReadAddress(int position);
+  unsigned Read(int position) const;
+  unsigned* ReadAddress(int position) const;
   // Reads a number from the current symbols
   int ReadNumber(byte** source);
 

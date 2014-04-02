@@ -533,7 +533,7 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
   LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef DEBUG
-  (*obj)->Verify();
+  (*obj)->ObjectVerify();
 #endif  // DEBUG
   return result.location();
 }
@@ -542,7 +542,7 @@ i::Object** V8::GlobalizeReference(i::Isolate* isolate, i::Object** obj) {
 i::Object** V8::CopyPersistent(i::Object** obj) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
 #ifdef DEBUG
-  (*obj)->Verify();
+  (*obj)->ObjectVerify();
 #endif  // DEBUG
   return result.location();
 }
@@ -3597,8 +3597,7 @@ void v8::Object::TurnOnAccessCheck() {
   // as optimized code does not always handle access checks.
   i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
-  i::Handle<i::Map> new_map =
-      isolate->factory()->CopyMap(i::Handle<i::Map>(obj->map()));
+  i::Handle<i::Map> new_map = i::Map::Copy(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }

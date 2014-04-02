@@ -5409,8 +5409,6 @@ void BreakpointsDebuggerThread::Run() {
 
 
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
-  i::FLAG_debugger_auto_break = true;
-
   BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
   BreakpointsV8Thread breakpoints_v8_thread;
 
@@ -5881,7 +5879,6 @@ void HostDispatchDebuggerThread::Run() {
 TEST(DebuggerHostDispatch) {
   HostDispatchDebuggerThread host_dispatch_debugger_thread;
   HostDispatchV8Thread host_dispatch_v8_thread;
-  i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
   Barriers stack_allocated_host_dispatch_barriers;
@@ -5947,8 +5944,6 @@ void DebugMessageDispatchDebuggerThread::Run() {
 TEST(DebuggerDebugMessageDispatch) {
   DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
   DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
-
-  i::FLAG_debugger_auto_break = true;
 
   // Create a V8 environment
   Barriers stack_allocated_debug_message_dispatch_barriers;

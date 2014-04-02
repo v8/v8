@@ -1205,11 +1205,64 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoDivI.
+void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
+  HBinaryOperation* hdiv = instr->hydrogen();
+  Register dividend = ToRegister(instr->dividend());
+  Register divisor = ToRegister(instr->divisor());
+  Register remainder = ToRegister(instr->temp());
+  Register result = ToRegister(instr->result());
+  ASSERT(dividend.is(rax));
+  ASSERT(remainder.is(rdx));
+  ASSERT(result.is(rax));
+  ASSERT(!divisor.is(rax));
+  ASSERT(!divisor.is(rdx));
+
+  // Check for x / 0.
+  if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
+    __ testl(divisor, divisor);
+    DeoptimizeIf(zero, instr->environment());
+  }
+
+  // Check for (0 / -x) that will produce negative zero.
+  if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    Label dividend_not_zero;
+    __ testl(dividend, dividend);
+    __ j(not_zero, &dividend_not_zero, Label::kNear);
+    __ testl(divisor, divisor);
+    DeoptimizeIf(sign, instr->environment());
+    __ bind(&dividend_not_zero);
+  }
+
+  // Check for (kMinInt / -1).
+  if (hdiv->CheckFlag(HValue::kCanOverflow)) {
+    Label dividend_not_min_int;
+    __ cmpl(dividend, Immediate(kMinInt));
+    __ j(not_zero, &dividend_not_min_int, Label::kNear);
+    __ cmpl(divisor, Immediate(-1));
+    DeoptimizeIf(zero, instr->environment());
+    __ bind(&dividend_not_min_int);
+  }
+
+  // Sign extend to rdx (= remainder).
+  __ cdq();
+  __ idivl(divisor);
+
+  Label done;
+  __ testl(remainder, remainder);
+  __ j(zero, &done, Label::kNear);
+  __ xorl(remainder, divisor);
+  __ sarl(remainder, Immediate(31));
+  __ addl(result, remainder);
+  __ bind(&done);
+}
+
+
 void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
   Register dividend = ToRegister(instr->dividend());
   int32_t divisor = instr->divisor();
   Register result = ToRegister(instr->result());
-  ASSERT(divisor == kMinInt || (divisor != 0 && IsPowerOf2(Abs(divisor))));
+  ASSERT(divisor == kMinInt || IsPowerOf2(Abs(divisor)));
   ASSERT(!result.is(dividend));
 
   // Check for (0 / -x) that will produce negative zero.
@@ -1272,15 +1325,15 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
 }
 
 
+// TODO(svenpanne) Refactor this to avoid code duplication with DoFlooringDivI.
 void LCodeGen::DoDivI(LDivI* instr) {
   HBinaryOperation* hdiv = instr->hydrogen();
-  Register dividend = ToRegister(instr->left());
-  Register divisor = ToRegister(instr->right());
+  Register dividend = ToRegister(instr->dividend());
+  Register divisor = ToRegister(instr->divisor());
   Register remainder = ToRegister(instr->temp());
-  Register result = ToRegister(instr->result());
   ASSERT(dividend.is(rax));
   ASSERT(remainder.is(rdx));
-  ASSERT(result.is(rax));
+  ASSERT(ToRegister(instr->result()).is(rax));
   ASSERT(!divisor.is(rax));
   ASSERT(!divisor.is(rdx));
 
@@ -1314,15 +1367,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   __ cdq();
   __ idivl(divisor);
 
-  if (hdiv->IsMathFloorOfDiv()) {
-    Label done;
-    __ testl(remainder, remainder);
-    __ j(zero, &done, Label::kNear);
-    __ xorl(remainder, divisor);
-    __ sarl(remainder, Immediate(31));
-    __ addl(result, remainder);
-    __ bind(&done);
-  } else if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
+  if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Deoptimize if remainder is not 0.
     __ testl(remainder, remainder);
     DeoptimizeIf(not_zero, instr->environment());
@@ -1775,6 +1820,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
+      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
       int32_t offset = ToInteger32(LConstantOperand::cast(right));
       if (is_p) {
         __ leap(ToRegister(instr->result()),
@@ -1793,6 +1839,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
+      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
       if (is_p) {
         __ addp(ToRegister(left),
                 Immediate(ToInteger32(LConstantOperand::cast(right))));

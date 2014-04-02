@@ -989,7 +989,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   }
   if (FLAG_enable_ool_constant_pool) {
     str(pp, MemOperand(fp, ExitFrameConstants::kConstantPoolOffset));
-    LoadConstantPoolPointerRegister();
   }
   mov(ip, Operand(CodeObject()));
   str(ip, MemOperand(fp, ExitFrameConstants::kCodeOffset));

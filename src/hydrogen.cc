@@ -5488,16 +5488,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     Handle<JSFunction> accessor = handle(JSFunction::cast(raw_accessor));
     if (accessor->shared()->IsApiFunction()) {
       CallOptimization call_optimization(accessor);
-      if (!call_optimization.is_simple_api_call()) return false;
-      CallOptimization::HolderLookup holder_lookup;
-      api_holder_ = call_optimization.LookupHolderOfExpectedType(
-          map, &holder_lookup);
-      switch (holder_lookup) {
-        case CallOptimization::kHolderNotFound:
-          return false;
-        case CallOptimization::kHolderIsReceiver:
-        case CallOptimization::kHolderFound:
-          break;
+      if (call_optimization.is_simple_api_call()) {
+        CallOptimization::HolderLookup holder_lookup;
+        Handle<Map> receiver_map = this->map();
+        api_holder_ = call_optimization.LookupHolderOfExpectedType(
+            receiver_map, &holder_lookup);
       }
     }
     accessor_ = accessor;
@@ -7069,6 +7064,11 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
   // Always inline builtins marked for inlining.
   if (target->IsBuiltin()) {
     return target_shared->inline_builtin() ? 0 : kNotInlinable;
+  }
+
+  if (target_shared->IsApiFunction()) {
+    TraceInline(target, caller, "target is api function");
+    return kNotInlinable;
   }
 
   // Do a quick check on source code length to avoid parsing large

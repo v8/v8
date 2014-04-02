@@ -13872,9 +13872,6 @@ class InternalizedStringKey : public HashTableKey {
   }
 
   MaybeObject* AsObject(Heap* heap) {
-    // Attempt to flatten the string, so that internalized strings will most
-    // often be flat strings.
-    string_ = string_->TryFlattenGetString();
     // Internalize the string if possible.
     Map* map = heap->InternalizedStringMapForString(string_);
     if (map != NULL) {
@@ -13914,7 +13911,7 @@ MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
                                              int at_least_space_for,
                                              MinimumCapacity capacity_option,
                                              PretenureFlag pretenure) {
-  ASSERT(!capacity_option || IS_POWER_OF_TWO(at_least_space_for));
+  ASSERT(!capacity_option || IsPowerOf2(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);

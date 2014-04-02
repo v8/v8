@@ -109,8 +109,6 @@ namespace internal {
     ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
-  V(Map, cons_internalized_string_map, ConsInternalizedStringMap)              \
-  V(Map, cons_ascii_internalized_string_map, ConsAsciiInternalizedStringMap)   \
   V(Map,                                                                       \
     external_internalized_string_map,                                          \
     ExternalInternalizedStringMap)                                             \
@@ -376,7 +374,9 @@ namespace internal {
   V(next_string, "next")                                                 \
   V(byte_length_string, "byteLength")                                    \
   V(byte_offset_string, "byteOffset")                                    \
-  V(buffer_string, "buffer")
+  V(buffer_string, "buffer")                                             \
+  V(intl_initialized_marker_string, "v8::intl_initialized_marker")       \
+  V(intl_impl_object_string, "v8::intl_object")
 
 // Forward declarations.
 class GCTracer;

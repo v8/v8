@@ -1648,7 +1648,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ sub(r6, r6, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  FrameAndConstantPoolScope scope(masm, StackFrame::MANUAL);
+  FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
   // Set up argc and the builtin function in callee-saved registers.
@@ -5377,7 +5377,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
-  FrameAndConstantPoolScope frame_scope(masm, StackFrame::MANUAL);
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   ASSERT(!api_function_address.is(r0) && !scratch.is(r0));
@@ -5437,7 +5437,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ add(r1, r0, Operand(1 * kPointerSize));  // r1 = PCA
 
   const int kApiStackSpace = 1;
-  FrameAndConstantPoolScope frame_scope(masm, StackFrame::MANUAL);
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   // Create PropertyAccessorInfo instance on the stack above the exit frame with

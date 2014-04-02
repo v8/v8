@@ -1263,6 +1263,7 @@ class HInstruction : public HValue {
     position_.set_operand_position(index, pos);
   }
 
+  bool CanTruncateToSmi() const { return CheckFlag(kTruncatingToSmi); }
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
   virtual LInstruction* CompileToLithium(LChunkBuilder* builder) = 0;
@@ -1733,7 +1734,7 @@ class HChange V8_FINAL : public HUnaryOperation {
     set_representation(to);
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
-    if (is_truncating_to_smi) {
+    if (is_truncating_to_smi && to.IsSmi()) {
       SetFlag(kTruncatingToSmi);
       SetFlag(kTruncatingToInt32);
     }
@@ -3761,7 +3762,7 @@ class HBinaryOperation : public HTemplateInstruction<3> {
   bool RightIsPowerOf2() {
     if (!right()->IsInteger32Constant()) return false;
     int32_t value = right()->GetInteger32Constant();
-    return value != 0 && (IsPowerOf2(value) || IsPowerOf2(-value));
+    return IsPowerOf2(value) || IsPowerOf2(-value);
   }
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)

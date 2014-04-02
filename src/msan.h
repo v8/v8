@@ -30,6 +30,8 @@
 #ifndef V8_MSAN_H_
 #define V8_MSAN_H_
 
+#include "globals.h"
+
 #ifndef __has_feature
 # define __has_feature(x) 0
 #endif
@@ -38,12 +40,12 @@
 # define MEMORY_SANITIZER
 #endif
 
-#ifdef MEMORY_SANITIZER
-# include <sanitizer/msan_interface.h>
+#if defined(MEMORY_SANITIZER) && !defined(USE_SIMULATOR)
+# include <sanitizer/msan_interface.h>  // NOLINT
 // Marks a memory range as fully initialized.
-# define MSAN_MEMORY_IS_INITIALIZED(p, s) __msan_unpoison((p), (s))
+# define MSAN_MEMORY_IS_INITIALIZED_IN_JIT(p, s) __msan_unpoison((p), (s))
 #else
-# define MSAN_MEMORY_IS_INITIALIZED(p, s)
+# define MSAN_MEMORY_IS_INITIALIZED_IN_JIT(p, s)
 #endif
 
 #endif  // V8_MSAN_H_

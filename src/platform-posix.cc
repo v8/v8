@@ -214,6 +214,11 @@ void* OS::GetRandomMmapAddr() {
   // See http://code.google.com/p/nativeclient/issues/3341
   return NULL;
 #endif
+#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER)
+  // Dynamic tools do not support custom mmap addresses.
+  return NULL;
+#endif
   Isolate* isolate = Isolate::UncheckedCurrent();
   // Note that the current isolate isn't set up in a call path via
   // CpuFeatures::Probe. We don't care about randomization in this case because

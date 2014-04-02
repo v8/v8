@@ -1,3 +1,16 @@
+2014-04-02: Version 3.26.3
+
+        Support typed arrays in IsMoreGeneralElementsKindTransition (Chromium
+        issue 357054).
+
+        Remove debugger_auto_break flag.
+
+        Store i18n meta data in hidden symbols instead of js accessible
+        properties (Chromium issue 354967).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-01: Version 3.26.2
 
         Performance and stability improvements on all platforms.

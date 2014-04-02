@@ -2048,37 +2048,39 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetTemplateField) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DisableAccessChecks) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, object, 0);
-  Map* old_map = object->map();
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+  Handle<Map> old_map(object->map());
   bool needs_access_checks = old_map->is_access_check_needed();
   if (needs_access_checks) {
     // Copy map so it won't interfere constructor's initial map.
-    Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+    Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_is_access_check_needed(false);
-    object->set_map(new_map);
+    if (object->IsJSObject()) {
+      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+    } else {
+      object->set_map(*new_map);
+    }
   }
   return isolate->heap()->ToBoolean(needs_access_checks);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_EnableAccessChecks) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, object, 0);
-  Map* old_map = object->map();
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+  Handle<Map> old_map(object->map());
   if (!old_map->is_access_check_needed()) {
     // Copy map so it won't interfere constructor's initial map.
-    Map* new_map;
-    MaybeObject* maybe_new_map = old_map->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-
+    Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_is_access_check_needed(true);
-    object->set_map(new_map);
+    if (object->IsJSObject()) {
+      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+    } else {
+      object->set_map(*new_map);
+    }
   }
   return isolate->heap()->undefined_value();
 }
@@ -2945,9 +2947,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   String* name = isolate->heap()->prototype_string();
 
@@ -2970,9 +2972,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
             instance_desc, &new_desc, index, OMIT_TRANSITION);
     if (!maybe_map->To(&new_map)) return maybe_map;
 
-    function->set_map(new_map);
+    JSObject::MigrateToMap(function, handle(new_map));
   } else {  // Dictionary properties.
     // Directly manipulate the property details.
+    DisallowHeapAllocation no_gc;
     int entry = function->property_dictionary()->FindEntry(name);
     ASSERT(entry != NameDictionary::kNotFound);
     PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
@@ -2982,7 +2985,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
         details.dictionary_index());
     function->property_dictionary()->DetailsAtPut(entry, new_details);
   }
-  return function;
+  return *function;
 }
 
 
@@ -3084,9 +3087,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetExpectedNumberOfProperties) {
   if (!func->shared()->live_objects_may_exist()) {
     func->shared()->set_expected_nof_properties(num);
     if (func->has_initial_map()) {
-      Handle<Map> new_initial_map =
-          func->GetIsolate()->factory()->CopyMap(
-              Handle<Map>(func->initial_map()));
+      Handle<Map> new_initial_map = Map::Copy(handle(func->initial_map()));
       new_initial_map->set_unused_property_fields(num);
       func->set_initial_map(*new_initial_map);
     }
@@ -7990,11 +7991,10 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewArgumentsFast) {
       parameter_map->set_map(
           isolate->heap()->sloppy_arguments_elements_map());
 
-      Handle<Map> old_map(result->map());
-      Handle<Map> new_map = isolate->factory()->CopyMap(old_map);
-      new_map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
+      Handle<Map> map = Map::Copy(handle(result->map()));
+      map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
 
-      result->set_map(*new_map);
+      result->set_map(*map);
       result->set_elements(*parameter_map);
 
       // Store the context and the arguments array at the beginning of the
@@ -13896,6 +13896,87 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(output);
   result->set_length(Smi::FromInt(length));
   return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+
+  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(!tag->IsTheHole());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
+
+  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(*marker), isolate);
+  return isolate->heap()->ToBoolean(
+      tag->IsString() && String::cast(*tag)->Equals(*expected_type));
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MarkAsInitializedIntlObjectOfType) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, impl, 2);
+
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  JSObject::SetHiddenProperty(input, marker, type);
+
+  marker = isolate->factory()->intl_impl_object_string();
+  JSObject::SetHiddenProperty(input, marker, impl);
+
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetImplFromInitializedIntlObject) {
+  HandleScope scope(isolate);
+
+  ASSERT(args.length() == 1);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
+
+  if (!input->IsJSObject()) {
+    Vector< Handle<Object> > arguments = HandleVector(&input, 1);
+    Handle<Object> type_error =
+        isolate->factory()->NewTypeError("not_intl_object", arguments);
+    return isolate->Throw(*type_error);
+  }
+
+  Handle<JSObject> obj = Handle<JSObject>::cast(input);
+
+  Handle<String> marker = isolate->factory()->intl_impl_object_string();
+  Handle<Object> impl(obj->GetHiddenProperty(*marker), isolate);
+  if (impl->IsTheHole()) {
+    Vector< Handle<Object> > arguments = HandleVector(&obj, 1);
+    Handle<Object> type_error =
+        isolate->factory()->NewTypeError("not_intl_object", arguments);
+    return isolate->Throw(*type_error);
+  }
+  return *impl;
 }
 
 

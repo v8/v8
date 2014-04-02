@@ -83,8 +83,8 @@ void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* type,
                                       const char* name_opt,
                                       bool is_reference_error) {
-  pre_parser_->log_
-      ->LogMessage(location.beg_pos, location.end_pos, type, name_opt);
+  pre_parser_->log_->LogMessage(location.beg_pos, location.end_pos, type,
+                                name_opt, is_reference_error);
 }
 
 
@@ -93,7 +93,8 @@ void PreParserTraits::ReportMessageAt(int start_pos,
                                       const char* type,
                                       const char* name_opt,
                                       bool is_reference_error) {
-  pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt);
+  pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt,
+                                is_reference_error);
 }
 
 

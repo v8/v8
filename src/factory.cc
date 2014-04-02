@@ -845,11 +845,6 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 }
 
 
-Handle<Map> Factory::CopyMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->Copy(), Map);
-}
-
-
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
 }

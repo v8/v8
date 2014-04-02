@@ -41,13 +41,18 @@ namespace internal {
 void MaybeObject::Verify() {
   Object* this_as_object;
   if (ToObject(&this_as_object)) {
-    if (this_as_object->IsSmi()) {
-      Smi::cast(this_as_object)->SmiVerify();
-    } else {
-      HeapObject::cast(this_as_object)->HeapObjectVerify();
-    }
+    this_as_object->ObjectVerify();
   } else {
     Failure::cast(this)->FailureVerify();
+  }
+}
+
+
+void Object::ObjectVerify() {
+  if (IsSmi()) {
+    Smi::cast(this)->SmiVerify();
+  } else {
+    HeapObject::cast(this)->HeapObjectVerify();
   }
 }
 
@@ -380,11 +385,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryVerify() {
 void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
-    if (e->IsHeapObject()) {
-      VerifyHeapPointer(e);
-    } else {
-      e->Verify();
-    }
+    VerifyPointer(e);
   }
 }
 
@@ -626,7 +627,7 @@ void PropertyCell::PropertyCellVerify() {
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
-  relocation_info()->Verify();
+  relocation_info()->ObjectVerify();
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();
@@ -811,7 +812,7 @@ void Foreign::ForeignVerify() {
 
 void Box::BoxVerify() {
   CHECK(IsBox());
-  value()->Verify();
+  value()->ObjectVerify();
 }
 
 
@@ -947,7 +948,7 @@ void Script::ScriptVerify() {
 
 
 void JSFunctionResultCache::JSFunctionResultCacheVerify() {
-  JSFunction::cast(get(kFactoryIndex))->Verify();
+  JSFunction::cast(get(kFactoryIndex))->ObjectVerify();
 
   int size = Smi::cast(get(kCacheSizeIndex))->value();
   CHECK(kEntriesIndex <= size);
@@ -962,18 +963,18 @@ void JSFunctionResultCache::JSFunctionResultCacheVerify() {
   if (FLAG_enable_slow_asserts) {
     for (int i = kEntriesIndex; i < size; i++) {
       CHECK(!get(i)->IsTheHole());
-      get(i)->Verify();
+      get(i)->ObjectVerify();
     }
     for (int i = size; i < length(); i++) {
       CHECK(get(i)->IsTheHole());
-      get(i)->Verify();
+      get(i)->ObjectVerify();
     }
   }
 }
 
 
 void NormalizedMapCache::NormalizedMapCacheVerify() {
-  FixedArray::cast(this)->Verify();
+  FixedArray::cast(this)->FixedArrayVerify();
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
       Object* e = get(i);

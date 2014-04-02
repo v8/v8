@@ -1513,11 +1513,8 @@ void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
 
 
 void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
+  if (unit_size == 0) return;
   ASSERT(IsPowerOf2(unit_size));
-
-  if (unit_size == 0) {
-    return;
-  }
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1535,7 +1532,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
 
 
 void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
-  ASSERT(IsPowerOf2(unit_size));
+  ASSERT(unit_size == 0 || IsPowerOf2(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),
@@ -1574,11 +1571,8 @@ void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
 
 
 void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
+  if (unit_size == 0) return;
   ASSERT(IsPowerOf2(unit_size));
-
-  if (unit_size == 0) {
-    return;
-  }
 
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits);
   const Operand size(count, LSL, shift);
@@ -1599,7 +1593,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
 
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
-  ASSERT(IsPowerOf2(unit_size));
+  ASSERT(unit_size == 0 || IsPowerOf2(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;
   const Operand size(count_smi,
                      (shift >= 0) ? (LSL) : (LSR),

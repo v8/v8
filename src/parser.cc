@@ -304,20 +304,25 @@ const char* ScriptDataImpl::ReadString(unsigned* start, int* chars) {
 }
 
 
-Scanner::Location ScriptDataImpl::MessageLocation() {
+Scanner::Location ScriptDataImpl::MessageLocation() const {
   int beg_pos = Read(PreparseDataConstants::kMessageStartPos);
   int end_pos = Read(PreparseDataConstants::kMessageEndPos);
   return Scanner::Location(beg_pos, end_pos);
 }
 
 
-const char* ScriptDataImpl::BuildMessage() {
+bool ScriptDataImpl::IsReferenceError() const {
+  return Read(PreparseDataConstants::kIsReferenceErrorPos);
+}
+
+
+const char* ScriptDataImpl::BuildMessage() const {
   unsigned* start = ReadAddress(PreparseDataConstants::kMessageTextPos);
   return ReadString(start, NULL);
 }
 
 
-Vector<const char*> ScriptDataImpl::BuildArgs() {
+Vector<const char*> ScriptDataImpl::BuildArgs() const {
   int arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
   const char** array = NewArray<const char*>(arg_count);
   // Position after text found by skipping past length field and
@@ -333,12 +338,12 @@ Vector<const char*> ScriptDataImpl::BuildArgs() {
 }
 
 
-unsigned ScriptDataImpl::Read(int position) {
+unsigned ScriptDataImpl::Read(int position) const {
   return store_[PreparseDataConstants::kHeaderSize + position];
 }
 
 
-unsigned* ScriptDataImpl::ReadAddress(int position) {
+unsigned* ScriptDataImpl::ReadAddress(int position) const {
   return &store_[PreparseDataConstants::kHeaderSize + position];
 }
 
@@ -3385,8 +3390,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           }
           ParserTraits::ReportMessageAt(
               Scanner::Location(logger.start(), logger.end()),
-              logger.message(),
-              args);
+              logger.message(), args, logger.is_reference_error());
           *ok = false;
           return NULL;
         }
@@ -4688,7 +4692,8 @@ bool Parser::Parse() {
       Scanner::Location loc = cached_data->MessageLocation();
       const char* message = cached_data->BuildMessage();
       Vector<const char*> args = cached_data->BuildArgs();
-      ParserTraits::ReportMessageAt(loc, message, args);
+      ParserTraits::ReportMessageAt(loc, message, args,
+                                    cached_data->IsReferenceError());
       DeleteArray(message);
       for (int i = 0; i < args.length(); i++) {
         DeleteArray(args[i]);

@@ -210,7 +210,7 @@ class PersistentValueMap {
   /**
    * Return value for key and remove it from the map.
    */
-  V8_INLINE UniquePersistent<V> Remove(const K& key) {
+  UniquePersistent<V> Remove(const K& key) {
     return Release(Traits::Remove(&impl_, key)).Pass();
   }
 
@@ -357,7 +357,7 @@ class PersistentValueMap {
    * callback is properly disposed of. All remove functionality should go
    * through this.
    */
-  V8_INLINE static UniquePersistent<V> Release(PersistentContainerValue v) {
+  static UniquePersistent<V> Release(PersistentContainerValue v) {
     UniquePersistent<V> p;
     p.val_ = FromVal(v);
     if (Traits::kCallbackType != kNotWeak && !p.IsEmpty()) {
