@@ -241,8 +241,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ movq(rdx, register_location(start_reg));  // Offset of start of capture
-  __ movq(rbx, register_location(start_reg + 1));  // Offset of end of capture
+  ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
+  ReadPositionFromRegister(rbx, start_reg + 1);  // Offset of end of capture
   __ subp(rbx, rdx);  // Length of capture.
 
   // -----------------------
@@ -390,8 +390,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReference(
   Label fallthrough;
 
   // Find length of back-referenced capture.
-  __ movq(rdx, register_location(start_reg));
-  __ movq(rax, register_location(start_reg + 1));
+  ReadPositionFromRegister(rdx, start_reg);  // Offset of start of capture
+  ReadPositionFromRegister(rax, start_reg + 1);  // Offset of end of capture
   __ subp(rax, rdx);  // Length to check.
 
   // Fail on partial or illegal capture (start of capture after end of capture).
@@ -747,7 +747,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Load input position.
   __ movp(rdi, Operand(rbp, kInputStart));
   // Set up rdi to be negative offset from string end.
-  __ subp(rdi, rsi);
+  __ subq(rdi, rsi);
   // Set rax to address of char before start of the string
   // (effectively string position -1).
   __ movp(rbx, Operand(rbp, kStartIndex));
@@ -831,7 +831,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         __ addp(rcx, rdx);
       }
       for (int i = 0; i < num_saved_registers_; i++) {
-        __ movq(rax, register_location(i));
+        __ movp(rax, register_location(i));
         if (i == 0 && global_with_zero_length_check()) {
           // Keep capture start in rdx for the zero-length check later.
           __ movp(rdx, rax);
@@ -1084,13 +1084,31 @@ void RegExpMacroAssemblerX64::PushRegister(int register_index,
 }
 
 
+STATIC_ASSERT(kPointerSize == kInt64Size || kPointerSize == kInt32Size);
+
+
 void RegExpMacroAssemblerX64::ReadCurrentPositionFromRegister(int reg) {
-  __ movq(rdi, register_location(reg));
+  if (kPointerSize == kInt64Size) {
+    __ movq(rdi, register_location(reg));
+  } else {
+    // Need sign extension for x32 as rdi might be used as an index register.
+    __ movsxlq(rdi, register_location(reg));
+  }
+}
+
+
+void RegExpMacroAssemblerX64::ReadPositionFromRegister(Register dst, int reg) {
+  if (kPointerSize == kInt64Size) {
+    __ movq(dst, register_location(reg));
+  } else {
+    // Need sign extension for x32 as dst might be used as an index register.
+    __ movsxlq(dst, register_location(reg));
+  }
 }
 
 
 void RegExpMacroAssemblerX64::ReadStackPointerFromRegister(int reg) {
-  __ movq(backtrack_stackpointer(), register_location(reg));
+  __ movp(backtrack_stackpointer(), register_location(reg));
   __ addp(backtrack_stackpointer(), Operand(rbp, kStackHighEnd));
 }
 

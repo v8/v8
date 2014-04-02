@@ -269,6 +269,8 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Increments the stack pointer (rcx) by a word size.
   inline void Drop();
 
+  inline void ReadPositionFromRegister(Register dst, int reg);
+
   Isolate* isolate() const { return masm_.isolate(); }
 
   MacroAssembler masm_;
