@@ -523,7 +523,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 }
 
 
-Handle<String> Factory::NewExternalStringFromAscii(
+MaybeHandle<String> Factory::NewExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -532,7 +532,7 @@ Handle<String> Factory::NewExternalStringFromAscii(
 }
 
 
-Handle<String> Factory::NewExternalStringFromTwoByte(
+MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),

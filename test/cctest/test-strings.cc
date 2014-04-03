@@ -1137,7 +1137,8 @@ TEST(SliceFromExternal) {
   v8::HandleScope scope(CcTest::isolate());
   AsciiVectorResource resource(
       i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
-  Handle<String> string = factory->NewExternalStringFromAscii(&resource);
+  Handle<String> string =
+      factory->NewExternalStringFromAscii(&resource).ToHandleChecked();
   CHECK(string->IsExternalString());
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());

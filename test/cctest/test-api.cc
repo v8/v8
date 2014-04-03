@@ -15122,9 +15122,11 @@ THREADED_TEST(MorphCompositeStringTest) {
                                   i::StrLength(c_string)));
 
     Local<String> lhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)));
+        factory->NewExternalStringFromAscii(&ascii_resource)
+            .ToHandleChecked()));
     Local<String> rhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)));
+        factory->NewExternalStringFromAscii(&ascii_resource)
+            .ToHandleChecked()));
 
     env->Global()->Set(v8_str("lhs"), lhs);
     env->Global()->Set(v8_str("rhs"), rhs);

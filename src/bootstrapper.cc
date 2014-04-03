@@ -53,10 +53,10 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
         new NativesExternalStringResource(this,
                                           source.start(),
                                           source.length());
-    Handle<String> source_code =
-        isolate_->factory()->NewExternalStringFromAscii(resource);
     // We do not expect this to throw an exception. Change this if it does.
-    CHECK_NOT_EMPTY_HANDLE(isolate_, source_code);
+    Handle<String> source_code =
+        isolate_->factory()->NewExternalStringFromAscii(
+            resource).ToHandleChecked();
     heap->natives_source_cache()->set(index, *source_code);
   }
   Handle<Object> cached_source(heap->natives_source_cache()->get(index),
@@ -2319,10 +2319,10 @@ bool Genesis::InstallExtension(Isolate* isolate,
       return false;
     }
   }
-  Handle<String> source_code =
-      isolate->factory()->NewExternalStringFromAscii(extension->source());
   // We do not expect this to throw an exception. Change this if it does.
-  CHECK_NOT_EMPTY_HANDLE(isolate, source_code);
+  Handle<String> source_code =
+      isolate->factory()->NewExternalStringFromAscii(
+          extension->source()).ToHandleChecked();
   bool result = CompileScriptCached(isolate,
                                     CStrVector(extension->name()),
                                     source_code,

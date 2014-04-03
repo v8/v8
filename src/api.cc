@@ -5469,22 +5469,18 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
 static i::Handle<i::String> NewExternalStringHandle(
     i::Isolate* isolate,
     v8::String::ExternalStringResource* resource) {
-  i::Handle<i::String> result =
-      isolate->factory()->NewExternalStringFromTwoByte(resource);
   // We do not expect this to fail. Change this if it does.
-  CHECK(!result.is_null());
-  return result;
+  return isolate->factory()->NewExternalStringFromTwoByte(
+      resource).ToHandleChecked();
 }
 
 
 static i::Handle<i::String> NewExternalAsciiStringHandle(
     i::Isolate* isolate,
     v8::String::ExternalAsciiStringResource* resource) {
-  i::Handle<i::String> result =
-      isolate->factory()->NewExternalStringFromAscii(resource);
   // We do not expect this to fail. Change this if it does.
-  CHECK(!result.is_null());
-  return result;
+  return isolate->factory()->NewExternalStringFromAscii(
+      resource).ToHandleChecked();
 }
 
 

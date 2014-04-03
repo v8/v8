@@ -166,9 +166,9 @@ class Factory V8_FINAL {
   // in the system: ASCII and two byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.
-  Handle<String> NewExternalStringFromAscii(
+  MaybeHandle<String> NewExternalStringFromAscii(
       const ExternalAsciiString::Resource* resource);
-  Handle<String> NewExternalStringFromTwoByte(
+  MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
   // Create a symbol.
