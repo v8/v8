@@ -985,7 +985,9 @@ deps = {
       return lambda: self.assertEquals(patch,
           FileToText(TEST_CONFIG[TEMPORARY_PATCH_FILE]))
 
-    msg = """Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
+    msg = """Version 3.22.5.1
+
+Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
 
 Title4
 

@@ -158,7 +158,6 @@ class FindGitRevisions(Step):
     bug_aggregate = ",".join(sorted(bugs))
     if bug_aggregate:
       self["new_commit_msg"] += "BUG=%s\nLOG=N\n" % bug_aggregate
-    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
 
 
 class ApplyPatches(Step):
@@ -181,7 +180,7 @@ class PrepareVersion(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    # These version numbers are used again for creating the tag
+    # This is used to calculate the patch level increment.
     self.ReadAndPersistVersion()
 
 
@@ -204,12 +203,20 @@ class IncrementVersion(Step):
     else:
       self.Editor(self.Config(VERSION_FILE))
     self.ReadAndPersistVersion("new_")
+    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
+                                       self["new_minor"],
+                                       self["new_build"],
+                                       self["new_patch"])
 
 
 class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
+    if not self._options.revert_bleeding_edge:
+      self["new_commit_msg"] = "Version %s\n\n%s" % (self["version"],
+                                                     self["new_commit_msg"])
+    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
     self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
 
 
@@ -244,10 +251,6 @@ class TagRevision(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
-                                       self["new_minor"],
-                                       self["new_build"],
-                                       self["new_patch"])
     print "Creating tag svn/tags/%s" % self["version"]
     if self["merge_to_branch"] == "trunk":
       self["to_url"] = "trunk"
