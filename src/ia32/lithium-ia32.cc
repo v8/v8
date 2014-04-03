@@ -688,6 +688,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
       !hinstr->HasObservableSideEffects();
   if (needs_environment && !instr->HasEnvironment()) {
     instr = AssignEnvironment(instr);
+    // We can't really figure out if the environment is needed or not.
+    instr->environment()->set_has_been_used();
   }
 
   return instr;
@@ -1934,10 +1936,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
                 ? FixedTemp(xmm1) : NULL;
         LInstruction* result =
             DefineSameAsFirst(new(zone()) LTaggedToI(value, xmm_temp));
-        if (!val->representation().IsSmi()) {
-          // Note: Only deopts in deferred code.
-          result = AssignEnvironment(result);
-        }
+        if (!val->representation().IsSmi()) result = AssignEnvironment(result);
         return result;
       }
     }
@@ -2043,11 +2042,10 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
     value = UseRegisterAtStart(instr->value());
     if (instr->has_migration_target()) info()->MarkAsDeferredCalling();
   }
-  LCheckMaps* result = new(zone()) LCheckMaps(value);
+  LInstruction* result = new(zone()) LCheckMaps(value);
   if (!instr->CanOmitMapChecks()) {
-    // Note: Only deopts in deferred code.
-    AssignEnvironment(result);
-    if (instr->has_migration_target()) return AssignPointerMap(result);
+    result = AssignEnvironment(result);
+    if (instr->has_migration_target()) result = AssignPointerMap(result);
   }
   return result;
 }

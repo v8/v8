@@ -2800,17 +2800,19 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // indicate that the value is not an instance.
 
   static const int kOffsetToMapCheckValue = 2;
-  static const int kOffsetToResultValue = 18;
+  static const int kOffsetToResultValue = kPointerSize == kInt64Size ? 18 : 14;
   // The last 4 bytes of the instruction sequence
-  //   movq(rdi, FieldOperand(rax, HeapObject::kMapOffset))
+  //   movp(rdi, FieldOperand(rax, HeapObject::kMapOffset))
   //   Move(kScratchRegister, Factory::the_hole_value())
   // in front of the hole value address.
-  static const unsigned int kWordBeforeMapCheckValue = 0xBA49FF78;
+  static const unsigned int kWordBeforeMapCheckValue =
+      kPointerSize == kInt64Size ? 0xBA49FF78 : 0xBA41FF78;
   // The last 4 bytes of the instruction sequence
   //   __ j(not_equal, &cache_miss);
   //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
   // before the offset of the hole value in the root array.
-  static const unsigned int kWordBeforeResultValue = 0x458B4906;
+  static const unsigned int kWordBeforeResultValue =
+      kPointerSize == kInt64Size ? 0x458B4906 : 0x458B4106;
   // Only the inline check flag is supported on X64.
   ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
   int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;

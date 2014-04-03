@@ -141,33 +141,33 @@ class DefaultPersistentValueMapTraits : public StdMapTraits<K, V> {
 template<typename K, typename V, typename Traits>
 class PersistentValueMap {
  public:
-  V8_INLINE explicit PersistentValueMap(Isolate* isolate) : isolate_(isolate) {}
+  explicit PersistentValueMap(Isolate* isolate) : isolate_(isolate) {}
 
-  V8_INLINE ~PersistentValueMap() { Clear(); }
+  ~PersistentValueMap() { Clear(); }
 
-  V8_INLINE Isolate* GetIsolate() { return isolate_; }
+  Isolate* GetIsolate() { return isolate_; }
 
   /**
    * Return size of the map.
    */
-  V8_INLINE size_t Size() { return Traits::Size(&impl_); }
+  size_t Size() { return Traits::Size(&impl_); }
 
   /**
    * Return whether the map holds weak persistents.
    */
-  V8_INLINE bool IsWeak() { return Traits::kCallbackType != kNotWeak; }
+  bool IsWeak() { return Traits::kCallbackType != kNotWeak; }
 
   /**
    * Get value stored in map.
    */
-  V8_INLINE Local<V> Get(const K& key) {
+  Local<V> Get(const K& key) {
     return Local<V>::New(isolate_, FromVal(Traits::Get(&impl_, key)));
   }
 
   /**
    * Check whether a value is contained in the map.
    */
-  V8_INLINE bool Contains(const K& key) {
+  bool Contains(const K& key) {
     return Traits::Get(&impl_, key) != kPersistentContainerNotFound;
   }
 
@@ -175,7 +175,7 @@ class PersistentValueMap {
    * Get value stored in map and set it in returnValue.
    * Return true if a value was found.
    */
-  V8_INLINE bool SetReturnValue(const K& key,
+  bool SetReturnValue(const K& key,
       ReturnValue<Value> returnValue) {
     return SetReturnValueFromVal(returnValue, Traits::Get(&impl_, key));
   }
@@ -183,7 +183,7 @@ class PersistentValueMap {
   /**
    * Call Isolate::SetReference with the given parent and the map value.
    */
-  V8_INLINE void SetReference(const K& key,
+  void SetReference(const K& key,
       const Persistent<Object>& parent) {
     GetIsolate()->SetReference(
       reinterpret_cast<internal::Object**>(parent.val_),
@@ -282,7 +282,7 @@ class PersistentValueMap {
    * key; as a result of the weak callback for the same key; or as a
    * result of calling Clear() or destruction of the map.
    */
-  V8_INLINE PersistentValueReference GetReference(const K& key) {
+  PersistentValueReference GetReference(const K& key) {
     return PersistentValueReference(Traits::Get(&impl_, key));
   }
 
@@ -326,11 +326,11 @@ class PersistentValueMap {
     }
   }
 
-  V8_INLINE static V* FromVal(PersistentContainerValue v) {
+  static V* FromVal(PersistentContainerValue v) {
     return reinterpret_cast<V*>(v);
   }
 
-  V8_INLINE static bool SetReturnValueFromVal(
+  static bool SetReturnValueFromVal(
       ReturnValue<Value>& returnValue, PersistentContainerValue value) {
     bool hasValue = value != kPersistentContainerNotFound;
     if (hasValue) {
@@ -340,14 +340,14 @@ class PersistentValueMap {
     return hasValue;
   }
 
-  V8_INLINE static PersistentContainerValue ClearAndLeak(
+  static PersistentContainerValue ClearAndLeak(
       UniquePersistent<V>* persistent) {
     V* v = persistent->val_;
     persistent->val_ = 0;
     return reinterpret_cast<PersistentContainerValue>(v);
   }
 
-  V8_INLINE static PersistentContainerValue Leak(
+  static PersistentContainerValue Leak(
       UniquePersistent<V>* persistent) {
     return reinterpret_cast<PersistentContainerValue>(persistent->val_);
   }

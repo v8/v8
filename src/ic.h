@@ -253,6 +253,25 @@ class IC {
     extra_ic_state_ = state;
   }
 
+  void TargetMaps(MapHandleList* list) {
+    FindTargetMaps();
+    for (int i = 0; i < target_maps_.length(); i++) {
+      list->Add(target_maps_.at(i));
+    }
+  }
+
+  void TargetTypes(TypeHandleList* list) {
+    FindTargetMaps();
+    for (int i = 0; i < target_maps_.length(); i++) {
+      list->Add(IC::MapToType<HeapType>(target_maps_.at(i), isolate_));
+    }
+  }
+
+  Map* FirstTargetMap() {
+    FindTargetMaps();
+    return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
+  }
+
  protected:
   void UpdateTarget() {
     target_ = handle(raw_target(), isolate_);
@@ -264,6 +283,17 @@ class IC {
   }
   inline ConstantPoolArray* constant_pool() const;
   inline ConstantPoolArray* raw_constant_pool() const;
+
+  void FindTargetMaps() {
+    if (target_maps_set_) return;
+    target_maps_set_ = true;
+    if (state_ == MONOMORPHIC) {
+      Map* map = target_->FindFirstMap();
+      if (map != NULL) target_maps_.Add(handle(map));
+    } else if (state_ != UNINITIALIZED && state_ != PREMONOMORPHIC) {
+      target_->FindAllMaps(&target_maps_);
+    }
+  }
 
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
@@ -286,6 +316,8 @@ class IC {
   bool target_set_;
 
   ExtraICState extra_ic_state_;
+  MapHandleList target_maps_;
+  bool target_maps_set_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };

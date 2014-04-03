@@ -426,7 +426,8 @@ class LEnvironment V8_FINAL : public ZoneObject {
         object_mapping_(0, zone),
         outer_(outer),
         entry_(entry),
-        zone_(zone) { }
+        zone_(zone),
+        has_been_used_(false) { }
 
   Handle<JSFunction> closure() const { return closure_; }
   FrameType frame_type() const { return frame_type_; }
@@ -441,6 +442,9 @@ class LEnvironment V8_FINAL : public ZoneObject {
   LEnvironment* outer() const { return outer_; }
   HEnterInlined* entry() { return entry_; }
   Zone* zone() const { return zone_; }
+
+  bool has_been_used() const { return has_been_used_; }
+  void set_has_been_used() { has_been_used_ = true; }
 
   void AddValue(LOperand* operand,
                 Representation representation,
@@ -541,6 +545,7 @@ class LEnvironment V8_FINAL : public ZoneObject {
   LEnvironment* outer_;
   HEnterInlined* entry_;
   Zone* zone_;
+  bool has_been_used_;
 };
 
 

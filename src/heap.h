@@ -347,11 +347,7 @@ namespace internal {
   V(MakeReferenceError_string, "MakeReferenceError")                     \
   V(MakeSyntaxError_string, "MakeSyntaxError")                           \
   V(MakeTypeError_string, "MakeTypeError")                               \
-  V(illegal_return_string, "illegal_return")                             \
-  V(illegal_break_string, "illegal_break")                               \
-  V(illegal_continue_string, "illegal_continue")                         \
   V(unknown_label_string, "unknown_label")                               \
-  V(redeclaration_string, "redeclaration")                               \
   V(space_string, " ")                                                   \
   V(exec_string, "exec")                                                 \
   V(zero_string, "0")                                                    \

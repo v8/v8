@@ -47,7 +47,8 @@ var kMessages = {
   incompatible_method_receiver:  ["Method ", "%0", " called on incompatible receiver ", "%1"],
   multiple_defaults_in_switch:   ["More than one default clause in switch statement"],
   newline_after_throw:           ["Illegal newline after throw"],
-  redeclaration:                 ["%0", " '", "%1", "' has already been declared"],
+  label_redeclaration:           ["Label '", "%0", "' has already been declared"],
+  var_redeclaration:             ["Identifier '", "%0", "' has already been declared"],
   no_catch_or_finally:           ["Missing catch or finally after try"],
   unknown_label:                 ["Undefined label '", "%0", "'"],
   uncaught_exception:            ["Uncaught ", "%0"],
@@ -198,8 +199,8 @@ function FormatString(format, args) {
         try {
           str = NoSideEffectToString(args[arg_num]);
           if (str.length > 256) {
-            str = %SubString(str, 0, 239) + "...<omitted>..." +
-                  %SubString(str, str.length - 2, str.length);
+            str = %_SubString(str, 0, 239) + "...<omitted>..." +
+                  %_SubString(str, str.length - 2, str.length);
           }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))

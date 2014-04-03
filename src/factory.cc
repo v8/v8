@@ -813,38 +813,6 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(
-      isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
-}
-
-
-Handle<Map> Factory::CopyMap(Handle<Map> src,
-                             int extra_inobject_properties) {
-  Handle<Map> copy = CopyWithPreallocatedFieldDescriptors(src);
-  // Check that we do not overflow the instance size when adding the
-  // extra inobject properties.
-  int instance_size_delta = extra_inobject_properties * kPointerSize;
-  int max_instance_size_delta =
-      JSObject::kMaxInstanceSize - copy->instance_size();
-  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
-  if (extra_inobject_properties > max_extra_properties) {
-    // If the instance size overflows, we allocate as many properties
-    // as we can as inobject properties.
-    instance_size_delta = max_instance_size_delta;
-    extra_inobject_properties = max_extra_properties;
-  }
-  // Adjust the map with the extra inobject properties.
-  int inobject_properties =
-      copy->inobject_properties() + extra_inobject_properties;
-  copy->set_inobject_properties(inobject_properties);
-  copy->set_unused_property_fields(inobject_properties);
-  copy->set_instance_size(copy->instance_size() + instance_size_delta);
-  copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
-  return copy;
-}
-
-
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
 }
@@ -1911,11 +1879,10 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   Handle<Object> result = Handle<Object>(cache->Lookup(*keys), isolate());
   if (result->IsMap()) return Handle<Map>::cast(result);
   // Create a new map and add it to the cache.
-  Handle<Map> map =
-      CopyMap(Handle<Map>(context->object_function()->initial_map()),
-              keys->length());
+  Handle<Map> map = Map::Create(
+      handle(context->object_function()), keys->length());
   AddToMapCache(context, keys, map);
-  return Handle<Map>(map);
+  return map;
 }
 
 

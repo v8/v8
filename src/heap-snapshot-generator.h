@@ -376,6 +376,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   static HeapObject* const kInternalRootObject;
 
  private:
+  typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
+                                                          HeapObject* object);
+
   HeapEntry* AddEntry(HeapObject* object);
   HeapEntry* AddEntry(HeapObject* object,
                       HeapEntry::Type type,
@@ -383,7 +386,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   const char* GetSystemEntryName(HeapObject* object);
 
-  void ExtractReferences(HeapObject* obj);
+  template<V8HeapExplorer::ExtractReferencesMethod extractor>
+  bool IterateAndExtractSinglePass();
+
+  bool ExtractReferencesPass1(int entry, HeapObject* obj);
+  bool ExtractReferencesPass2(int entry, HeapObject* obj);
   void ExtractJSGlobalProxyReferences(int entry, JSGlobalProxy* proxy);
   void ExtractJSObjectReferences(int entry, JSObject* js_obj);
   void ExtractStringReferences(int entry, String* obj);
@@ -400,12 +407,14 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractPropertyCellReferences(int entry, PropertyCell* cell);
   void ExtractAllocationSiteReferences(int entry, AllocationSite* site);
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
+  void ExtractFixedArrayReferences(int entry, FixedArray* array);
   void ExtractClosureReferences(JSObject* js_obj, int entry);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   bool ExtractAccessorPairProperty(JSObject* js_obj, int entry,
                                    Object* key, Object* callback_obj);
   void ExtractElementReferences(JSObject* js_obj, int entry);
   void ExtractInternalReferences(JSObject* js_obj, int entry);
+
   bool IsEssentialObject(Object* object);
   void SetContextReference(HeapObject* parent_obj,
                            int parent,
@@ -439,6 +448,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                         const char* reference_name,
                         Object* child_obj,
                         int field_offset);
+  void SetWeakReference(HeapObject* parent_obj,
+                        int parent,
+                        int index,
+                        Object* child_obj,
+                        int field_offset);
   void SetPropertyReference(HeapObject* parent_obj,
                             int parent,
                             Name* reference_name,
@@ -452,6 +466,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
       VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
+  void MarkAsWeakContainer(Object* object);
 
   HeapEntry* GetEntry(Object* obj);
 
@@ -467,6 +482,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
   HeapObjectsSet user_roots_;
+  HeapObjectsSet weak_containers_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   static HeapObject* const kGcRootsObject;

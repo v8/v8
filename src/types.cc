@@ -249,13 +249,13 @@ int TypeImpl<Config>::GlbBitset() {
 // Most precise _current_ type of a value (usually its class).
 template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::NowOf(
-    i::Handle<i::Object> value, Region* region) {
+    i::Object* value, Region* region) {
   if (value->IsSmi() ||
-      i::HeapObject::cast(*value)->map()->instance_type() == HEAP_NUMBER_TYPE ||
-      i::HeapObject::cast(*value)->map()->instance_type() == ODDBALL_TYPE) {
+      i::HeapObject::cast(value)->map()->instance_type() == HEAP_NUMBER_TYPE ||
+      i::HeapObject::cast(value)->map()->instance_type() == ODDBALL_TYPE) {
     return Of(value, region);
   }
-  return Class(i::handle(i::HeapObject::cast(*value)->map()), region);
+  return Class(i::handle(i::HeapObject::cast(value)->map()), region);
 }
 
 

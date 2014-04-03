@@ -1794,7 +1794,8 @@ HValue* HGraphBuilder::BuildAddStringLengths(HValue* left_length,
                                              HValue* right_length) {
   // Compute the combined string length and check against max string length.
   HValue* length = AddUncasted<HAdd>(left_length, right_length);
-  HValue* max_length = Add<HConstant>(String::kMaxLength);
+  // Check that length <= kMaxLength <=> length < MaxLength + 1.
+  HValue* max_length = Add<HConstant>(String::kMaxLength + 1);
   Add<HBoundsCheck>(length, max_length);
   return length;
 }

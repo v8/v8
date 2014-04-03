@@ -376,6 +376,7 @@ int LCodeGen::DefineDeoptimizationLiteral(Handle<Object> literal) {
 
 void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                                     Safepoint::DeoptMode mode) {
+  environment->set_has_been_used();
   if (!environment->HasBeenRegistered()) {
     int frame_count = 0;
     int jsframe_count = 0;
