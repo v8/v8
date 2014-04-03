@@ -134,16 +134,8 @@ class FindGitRevisions(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    if self._options.revert:
-      if not self._options.revert_bleeding_edge:
-        self["new_commit_msg"] = ("Rollback of %s in %s branch."
-            % (self["revision_list"], self["merge_to_branch"]))
-      else:
-        self["new_commit_msg"] = "Revert %s." % self["revision_list"]
-    else:
-      self["new_commit_msg"] = ("Merged %s into %s branch."
-          % (self["revision_list"], self["merge_to_branch"]))
-    self["new_commit_msg"] += "\n\n"
+    # The commit message title is added below after the version is specified.
+    self["new_commit_msg"] = ""
 
     for commit_hash in self["patch_commit_hashes"]:
       patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
@@ -213,9 +205,17 @@ class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
-    if not self._options.revert_bleeding_edge:
-      self["new_commit_msg"] = "Version %s\n\n%s" % (self["version"],
-                                                     self["new_commit_msg"])
+    # Add a commit message title.
+    if self._options.revert:
+      if not self._options.revert_bleeding_edge:
+        title = ("Version %s (rollback of %s)"
+                 % (self["version"], self["revision_list"]))
+      else:
+        title = "Revert %s." % self["revision_list"]
+    else:
+      title = ("Version %s (merged %s)"
+               % (self["version"], self["revision_list"]))
+    self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
     self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
 
