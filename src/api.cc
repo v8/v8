@@ -6684,6 +6684,20 @@ void Isolate::SetEventLogger(LogEventCallback that) {
   isolate->set_event_logger(that);
 }
 
+
+void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
+  if (callback == NULL) return;
+  // TODO(jochen): Make this per isolate.
+  i::V8::AddCallCompletedCallback(callback);
+}
+
+
+void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  // TODO(jochen): Make this per isolate.
+  i::V8::RemoveCallCompletedCallback(callback);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
