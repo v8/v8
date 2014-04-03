@@ -42,7 +42,6 @@ const int kMaxKeyedPolymorphism = 4;
 #define IC_UTIL_LIST(ICU)                             \
   ICU(LoadIC_Miss)                                    \
   ICU(KeyedLoadIC_Miss)                               \
-  ICU(CallIC_Miss)                                    \
   ICU(StoreIC_Miss)                                   \
   ICU(StoreIC_ArrayLength)                            \
   ICU(StoreIC_Slow)                                   \
@@ -119,10 +118,6 @@ class IC {
 
   bool IsStoreStub() const {
     return target()->is_store_stub() || target()->is_keyed_store_stub();
-  }
-
-  bool IsCallStub() const {
-    return target()->is_call_stub();
   }
 #endif
 
@@ -341,128 +336,6 @@ class IC_Utility {
  private:
   Address address_;
   IC::UtilityId id_;
-};
-
-
-class CallIC: public IC {
- public:
-  enum CallType { METHOD, FUNCTION };
-  enum StubType { DEFAULT, MONOMORPHIC };
-  enum ArgumentCheck { ARGUMENTS_MUST_MATCH, ARGUMENTS_COUNT_UNKNOWN };
-
-  class State V8_FINAL BASE_EMBEDDED {
-   public:
-    explicit State(ExtraICState extra_ic_state);
-
-    static State MonomorphicCallState(int argc, CallType call_type,
-                                      ArgumentCheck argument_check,
-                                      StrictMode strict_mode) {
-      return State(argc, call_type, MONOMORPHIC, argument_check, strict_mode);
-    }
-
-    static State SlowCallState(int argc, CallType call_type) {
-      return State(argc, call_type, DEFAULT, ARGUMENTS_COUNT_UNKNOWN,
-                   SLOPPY);
-    }
-
-    static State DefaultCallState(int argc, CallType call_type) {
-      return State(argc, call_type, DEFAULT, ARGUMENTS_MUST_MATCH,
-                   SLOPPY);
-    }
-
-    // Transition from the current state to another.
-    State ToGenericState();
-    State ToMonomorphicState(Handle<JSFunction> function);
-
-    InlineCacheState GetICState() const {
-      return stub_type_ == CallIC::MONOMORPHIC
-          ? ::v8::internal::MONOMORPHIC
-          : ::v8::internal::GENERIC;
-    }
-
-    ExtraICState GetExtraICState() const;
-
-    static void GenerateAheadOfTime(
-        Isolate*, void (*Generate)(Isolate*, const State&));
-
-    int arg_count() const { return argc_; }
-    CallType call_type() const { return call_type_; }
-    StubType stub_type() const { return stub_type_; }
-    ArgumentCheck argument_check() const { return argument_check_; }
-    StrictMode strict_mode() const {
-      return strict_mode_;
-    }
-
-    bool ArgumentsMustMatch() const {
-      return argument_check_ == ARGUMENTS_MUST_MATCH;
-    }
-    bool IsGeneric() const { return stub_type_ == DEFAULT; }
-    bool CallAsMethod() const { return call_type_ == METHOD; }
-    bool IsSloppy() const {
-      return strict_mode_ == SLOPPY;
-    }
-
-    void Print(StringStream* stream) const;
-
-    bool operator==(const State& other_state) const {
-      return (argc_ == other_state.argc_ &&
-              call_type_ == other_state.call_type_ &&
-              stub_type_ == other_state.stub_type_ &&
-              argument_check_ == other_state.argument_check_ &&
-              strict_mode_ == other_state.strict_mode_);
-    }
-
-    bool operator!=(const State& other_state) const {
-      return !(*this == other_state);
-    }
-
-   private:
-    State(int argc,
-          CallType call_type,
-          StubType stub_type,
-          ArgumentCheck argument_check,
-          StrictMode strict_mode)
-        : argc_(argc),
-        call_type_(call_type),
-        stub_type_(stub_type),
-        argument_check_(argument_check),
-        strict_mode_(strict_mode) {
-    }
-
-    class ArgcBits: public BitField<int, 0, Code::kArgumentsBits> {};
-    class CallTypeBits: public BitField<CallType, Code::kArgumentsBits, 1> {};
-    class StubTypeBits:
-        public BitField<StubType, Code::kArgumentsBits + 1, 1> {};  // NOLINT
-    class ArgumentCheckBits:
-        public BitField<ArgumentCheck,
-            Code::kArgumentsBits + 2, 1> {};  // NOLINT
-    class StrictModeBits:
-        public BitField<StrictMode,
-            Code::kArgumentsBits + 3, 1> {};  // NOLINT
-
-    const int argc_;
-    const CallType call_type_;
-    const StubType stub_type_;
-    const ArgumentCheck argument_check_;
-    const StrictMode strict_mode_;
-  };
-
-  explicit CallIC(Isolate* isolate)
-      : IC(EXTRA_CALL_FRAME, isolate) {
-  }
-
-  void HandleMiss(Handle<Object> receiver,
-                  Handle<Object> function,
-                  Handle<FixedArray> vector,
-                  Handle<Smi> slot);
-
-  // Code generator routines.
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      int argc,
-                                      CallType call_type);
-
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    ConstantPoolArray* constant_pool);
 };
 
 

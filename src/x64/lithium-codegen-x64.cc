@@ -3880,7 +3880,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   __ Set(rax, instr->arity());
   // No cell in ebx for construct type feedback in optimized code
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
-  CallConstructStub stub(NO_CALL_CONSTRUCTOR_FLAGS);
+  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   CallCode(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL, instr);
 }
 
