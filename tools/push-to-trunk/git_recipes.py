@@ -85,7 +85,7 @@ class GitRecipesMixin(object):
     if format:
       args.append("--format=%s" % format)
     if grep:
-      args.append("--grep=\"%s\"" % grep)
+      args.append("--grep=\"%s\"" % grep.replace("\"", "\\\""))
     if reverse:
       args.append("--reverse")
     if git_hash:

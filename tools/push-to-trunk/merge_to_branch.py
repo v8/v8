@@ -147,7 +147,7 @@ class FindGitRevisions(Step):
       for bug in re.findall(r"^[ \t]*BUG[ \t]*=[ \t]*(.*?)[ \t]*$", msg,
                             re.M):
         bugs.extend(map(lambda s: s.strip(), bug.split(",")))
-    bug_aggregate = ",".join(sorted(bugs))
+    bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
     if bug_aggregate:
       self["new_commit_msg"] += "BUG=%s\nLOG=N\n" % bug_aggregate
 
