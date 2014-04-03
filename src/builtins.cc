@@ -278,6 +278,7 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
 static bool ArrayPrototypeHasNoElements(Heap* heap,
                                         Context* native_context,
                                         JSObject* array_proto) {
+  DisallowHeapAllocation no_gc;
   // This method depends on non writability of Object and Array prototype
   // fields.
   if (array_proto->elements() != heap->empty_fixed_array()) return false;
@@ -324,16 +325,19 @@ static inline Handle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   ElementsKind origin_kind = array->map()->elements_kind();
   ASSERT(!IsFastObjectElementsKind(origin_kind));
   ElementsKind target_kind = origin_kind;
-  int arg_count = args->length() - first_added_arg;
-  Object** arguments = args->arguments() - first_added_arg - (arg_count - 1);
-  for (int i = 0; i < arg_count; i++) {
-    Object* arg = arguments[i];
-    if (arg->IsHeapObject()) {
-      if (arg->IsHeapNumber()) {
-        target_kind = FAST_DOUBLE_ELEMENTS;
-      } else {
-        target_kind = FAST_ELEMENTS;
-        break;
+  {
+    DisallowHeapAllocation no_gc;
+    int arg_count = args->length() - first_added_arg;
+    Object** arguments = args->arguments() - first_added_arg - (arg_count - 1);
+    for (int i = 0; i < arg_count; i++) {
+      Object* arg = arguments[i];
+      if (arg->IsHeapObject()) {
+        if (arg->IsHeapNumber()) {
+          target_kind = FAST_DOUBLE_ELEMENTS;
+        } else {
+          target_kind = FAST_ELEMENTS;
+          break;
+        }
       }
     }
   }
@@ -345,10 +349,10 @@ static inline Handle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
 }
 
 
-// TODO(ishell): Handlify when all Array* builtins are handlified.
 static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
                                                      JSArray* receiver) {
   if (!FLAG_clever_optimizations) return false;
+  DisallowHeapAllocation no_gc;
   Context* native_context = heap->isolate()->context()->native_context();
   JSObject* array_proto =
       JSObject::cast(native_context->array_function()->prototype());
@@ -987,53 +991,56 @@ BUILTIN(ArraySplice) {
 
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
-  Heap* heap = isolate->heap();
-  Handle<Context> native_context(isolate->context()->native_context(), isolate);
-  Handle<JSObject> array_proto(
-      JSObject::cast(native_context->array_function()->prototype()), isolate);
-  if (!ArrayPrototypeHasNoElements(heap, *native_context, *array_proto)) {
-    return CallJsBuiltin(isolate, "ArrayConcat", args);
-  }
 
-  // Iterate through all the arguments performing checks
-  // and calculating total length.
   int n_arguments = args.length();
   int result_len = 0;
   ElementsKind elements_kind = GetInitialFastElementsKind();
   bool has_double = false;
-  bool is_holey = false;
-  for (int i = 0; i < n_arguments; i++) {
+  {
     DisallowHeapAllocation no_gc;
-    Object* arg = args[i];
-    if (!arg->IsJSArray() ||
-        !JSArray::cast(arg)->HasFastElements() ||
-        JSArray::cast(arg)->GetPrototype() != *array_proto) {
-      AllowHeapAllocation allow_allocation;
-      return CallJsBuiltin(isolate, "ArrayConcat", args);
-    }
-    int len = Smi::cast(JSArray::cast(arg)->length())->value();
-
-    // We shouldn't overflow when adding another len.
-    const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
-    STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
-    USE(kHalfOfMaxInt);
-    result_len += len;
-    ASSERT(result_len >= 0);
-
-    if (result_len > FixedDoubleArray::kMaxLength) {
+    Heap* heap = isolate->heap();
+    Context* native_context = isolate->context()->native_context();
+    JSObject* array_proto =
+        JSObject::cast(native_context->array_function()->prototype());
+    if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
       AllowHeapAllocation allow_allocation;
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
-    ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
-    has_double = has_double || IsFastDoubleElementsKind(arg_kind);
-    is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
-    if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
-      elements_kind = arg_kind;
+    // Iterate through all the arguments performing checks
+    // and calculating total length.
+    bool is_holey = false;
+    for (int i = 0; i < n_arguments; i++) {
+      Object* arg = args[i];
+      if (!arg->IsJSArray() ||
+          !JSArray::cast(arg)->HasFastElements() ||
+          JSArray::cast(arg)->GetPrototype() != array_proto) {
+        AllowHeapAllocation allow_allocation;
+        return CallJsBuiltin(isolate, "ArrayConcat", args);
+      }
+      int len = Smi::cast(JSArray::cast(arg)->length())->value();
+
+      // We shouldn't overflow when adding another len.
+      const int kHalfOfMaxInt = 1 << (kBitsPerInt - 2);
+      STATIC_ASSERT(FixedArray::kMaxLength < kHalfOfMaxInt);
+      USE(kHalfOfMaxInt);
+      result_len += len;
+      ASSERT(result_len >= 0);
+
+      if (result_len > FixedDoubleArray::kMaxLength) {
+        AllowHeapAllocation allow_allocation;
+        return CallJsBuiltin(isolate, "ArrayConcat", args);
+      }
+
+      ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
+      has_double = has_double || IsFastDoubleElementsKind(arg_kind);
+      is_holey = is_holey || IsFastHoleyElementsKind(arg_kind);
+      if (IsMoreGeneralElementsKindTransition(elements_kind, arg_kind)) {
+        elements_kind = arg_kind;
+      }
     }
+    if (is_holey) elements_kind = GetHoleyElementsKind(elements_kind);
   }
-
-  if (is_holey) elements_kind = GetHoleyElementsKind(elements_kind);
 
   // If a double array is concatted into a fast elements array, the fast
   // elements array needs to be initialized to contain proper holes, since
