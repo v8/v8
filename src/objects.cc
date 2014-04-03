@@ -5507,8 +5507,11 @@ static void FreezeDictionary(Dictionary* dictionary) {
       PropertyDetails details = dictionary->DetailsAt(i);
       int attrs = DONT_DELETE;
       // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() != CALLBACKS ||
-          !dictionary->ValueAt(i)->IsAccessorPair()) {
+      if (details.type() == CALLBACKS) {
+        Object* v = dictionary->ValueAt(i);
+        if (v->IsPropertyCell()) v = PropertyCell::cast(v)->value();
+        if (!v->IsAccessorPair()) attrs |= READ_ONLY;
+      } else {
         attrs |= READ_ONLY;
       }
       details = details.CopyAddAttributes(
