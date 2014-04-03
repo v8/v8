@@ -129,9 +129,8 @@ Handle<String> URIUnescape::UnescapeSlow(
   Handle<String> second_part;
   ASSERT(unescaped_length <= String::kMaxLength);
   if (one_byte) {
-    Handle<SeqOneByteString> dest =
-        isolate->factory()->NewRawOneByteString(unescaped_length);
-    ASSERT(!dest.is_null());
+    Handle<SeqOneByteString> dest = isolate->factory()->NewRawOneByteString(
+        unescaped_length).ToHandleChecked();
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -142,9 +141,8 @@ Handle<String> URIUnescape::UnescapeSlow(
     }
     second_part = dest;
   } else {
-    Handle<SeqTwoByteString> dest =
-        isolate->factory()->NewRawTwoByteString(unescaped_length);
-    ASSERT(!dest.is_null());
+    Handle<SeqTwoByteString> dest = isolate->factory()->NewRawTwoByteString(
+        unescaped_length).ToHandleChecked();
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -203,7 +201,7 @@ int URIUnescape::UnescapeChar(Vector<const Char> vector,
 class URIEscape : public AllStatic {
  public:
   template<typename Char>
-  static Handle<String> Escape(Isolate* isolate, Handle<String> string);
+  static MaybeHandle<String> Escape(Isolate* isolate, Handle<String> string);
 
  private:
   static const char kHexChars[17];
@@ -247,7 +245,7 @@ const char URIEscape::kNotEscaped[] = {
 
 
 template<typename Char>
-Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
+MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
   ASSERT(string->IsFlat());
   int escaped_length = 0;
   int length = string->length();
@@ -273,9 +271,11 @@ Handle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
   // No length change implies no change.  Return original string if no change.
   if (escaped_length == length) return string;
 
-  Handle<SeqOneByteString> dest =
-      isolate->factory()->NewRawOneByteString(escaped_length);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, dest, Handle<String>());
+  Handle<SeqOneByteString> dest;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, dest,
+      isolate->factory()->NewRawOneByteString(escaped_length),
+      String);
   int dest_position = 0;
 
   { DisallowHeapAllocation no_allocation;

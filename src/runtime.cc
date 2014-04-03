@@ -3434,15 +3434,20 @@ class ReplacementStringBuilder {
   }
 
 
-  Handle<String> ToString() {
+  MaybeHandle<String> ToString() {
+    Isolate* isolate = heap_->isolate();
     if (array_builder_.length() == 0) {
-      return heap_->isolate()->factory()->empty_string();
+      return isolate->factory()->empty_string();
     }
 
     Handle<String> joined_string;
     if (is_ascii_) {
-      Handle<SeqOneByteString> seq = NewRawOneByteString(character_count_);
-      RETURN_IF_EMPTY_HANDLE_VALUE(heap_->isolate(), seq, Handle<String>());
+      Handle<SeqOneByteString> seq;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, seq,
+          isolate->factory()->NewRawOneByteString(character_count_),
+          String);
+
       DisallowHeapAllocation no_gc;
       uint8_t* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
@@ -3452,8 +3457,12 @@ class ReplacementStringBuilder {
       joined_string = Handle<String>::cast(seq);
     } else {
       // Non-ASCII.
-      Handle<SeqTwoByteString> seq = NewRawTwoByteString(character_count_);
-      RETURN_IF_EMPTY_HANDLE_VALUE(heap_->isolate(), seq, Handle<String>());
+      Handle<SeqTwoByteString> seq;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, seq,
+          isolate->factory()->NewRawTwoByteString(character_count_),
+          String);
+
       DisallowHeapAllocation no_gc;
       uc16* char_buffer = seq->GetChars();
       StringBuilderConcatHelper(*subject_,
@@ -3476,16 +3485,6 @@ class ReplacementStringBuilder {
   }
 
  private:
-  Handle<SeqOneByteString> NewRawOneByteString(int length) {
-    return heap_->isolate()->factory()->NewRawOneByteString(length);
-  }
-
-
-  Handle<SeqTwoByteString> NewRawTwoByteString(int length) {
-    return heap_->isolate()->factory()->NewRawTwoByteString(length);
-  }
-
-
   void AddElement(Object* element) {
     ASSERT(element->IsSmi() || element->IsString());
     ASSERT(array_builder_.capacity() > array_builder_.length());
@@ -3964,14 +3963,15 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalAtomRegExpWithString(
   int subject_pos = 0;
   int result_pos = 0;
 
-  Handle<String> result_seq;
+  MaybeHandle<SeqString> maybe_res;
   if (ResultSeqString::kHasAsciiEncoding) {
-    result_seq = isolate->factory()->NewRawOneByteString(result_len);
+    maybe_res = isolate->factory()->NewRawOneByteString(result_len);
   } else {
-    result_seq = isolate->factory()->NewRawTwoByteString(result_len);
+    maybe_res = isolate->factory()->NewRawTwoByteString(result_len);
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, result_seq);
-  Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(result_seq);
+  Handle<SeqString> untyped_res;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, untyped_res, maybe_res);
+  Handle<ResultSeqString> result = Handle<ResultSeqString>::cast(untyped_res);
 
   for (int i = 0; i < matches; i++) {
     // Copy non-matched subject content.
@@ -4100,8 +4100,8 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithString(
                                capture_count,
                                global_cache.LastSuccessfulMatch());
 
-  Handle<String> result = builder.ToString();
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, builder.ToString());
   return *result;
 }
 
@@ -4146,12 +4146,11 @@ MUST_USE_RESULT static MaybeObject* StringReplaceGlobalRegExpWithEmptyString(
   Handle<ResultSeqString> answer;
   if (ResultSeqString::kHasAsciiEncoding) {
     answer = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawOneByteString(new_length));
+        isolate->factory()->NewRawOneByteString(new_length).ToHandleChecked());
   } else {
     answer = Handle<ResultSeqString>::cast(
-        isolate->factory()->NewRawTwoByteString(new_length));
+        isolate->factory()->NewRawTwoByteString(new_length).ToHandleChecked());
   }
-  ASSERT(!answer.is_null());
 
   int prev = 0;
   int position = 0;
@@ -6281,10 +6280,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
   ASSERT(string->IsFlat());
-  Handle<String> result = string->IsOneByteRepresentationUnderneath()
-      ? URIEscape::Escape<uint8_t>(isolate, source)
-      : URIEscape::Escape<uc16>(isolate, source);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      string->IsOneByteRepresentationUnderneath()
+            ? URIEscape::Escape<uint8_t>(isolate, source)
+            : URIEscape::Escape<uc16>(isolate, source));
   return *result;
 }
 
@@ -6595,9 +6596,9 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   if (s->IsOneByteRepresentationUnderneath()) {
+    // Same length as input.
     Handle<SeqOneByteString> result =
-        isolate->factory()->NewRawOneByteString(length);
-    ASSERT(!result.is_null());  // Same length as input.
+        isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
     DisallowHeapAllocation no_gc;
     String::FlatContent flat_content = s->GetFlatContent();
     ASSERT(flat_content.IsFlat());
@@ -6611,13 +6612,12 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     if (is_ascii)  return has_changed_character ? *result : *s;
   }
 
-  Handle<SeqString> result;
+  Handle<SeqString> result;  // Same length as input.
   if (s->IsOneByteRepresentation()) {
-    result = isolate->factory()->NewRawOneByteString(length);
+    result = isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
   } else {
-    result = isolate->factory()->NewRawTwoByteString(length);
+    result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
   }
-  ASSERT(!result.is_null());  // Same length as input.
 
   MaybeObject* maybe = ConvertCaseHelper(isolate, *s, *result, length, mapping);
   Object* answer;
@@ -6627,12 +6627,13 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   ASSERT(answer->IsSmi());
   length = Smi::cast(answer)->value();
   if (s->IsOneByteRepresentation() && length > 0) {
-    result = isolate->factory()->NewRawOneByteString(length);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawOneByteString(length));
   } else {
     if (length < 0) length = -length;
-    result = isolate->factory()->NewRawTwoByteString(length);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawTwoByteString(length));
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return ConvertCaseHelper(isolate, *s, *result, length, mapping);
 }
 
@@ -7266,9 +7267,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
     length += increment;
   }
 
-  Handle<SeqTwoByteString> answer =
-      isolate->factory()->NewRawTwoByteString(length);
-  RETURN_IF_EMPTY_HANDLE(isolate, answer);
+  Handle<SeqTwoByteString> answer;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, answer,
+      isolate->factory()->NewRawTwoByteString(length));
 
   DisallowHeapAllocation no_gc;
 

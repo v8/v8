@@ -132,10 +132,10 @@ class Factory V8_FINAL {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  Handle<SeqOneByteString> NewRawOneByteString(
+  MaybeHandle<SeqOneByteString> NewRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  Handle<SeqTwoByteString> NewRawTwoByteString(
+  MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 

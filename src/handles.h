@@ -72,7 +72,8 @@ class MaybeHandle {
     return Handle<T>(location_);
   }
 
-  INLINE(bool ToHandle(Handle<T>* out)) {
+  // Convert to a Handle with a type that can be upcasted to.
+  template <class S> INLINE(bool ToHandle(Handle<S>* out)) {
     if (location_ == NULL) {
       *out = Handle<T>::null();
       return false;
@@ -81,6 +82,8 @@ class MaybeHandle {
       return true;
     }
   }
+
+  bool is_null() const { return location_ == NULL; }
 
  protected:
   T** location_;
