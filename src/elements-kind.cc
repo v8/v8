@@ -178,6 +178,11 @@ static bool IsTypedArrayElementsKind(ElementsKind elements_kind) {
 }
 
 
+static inline bool IsFastTransitionTarget(ElementsKind elements_kind) {
+  return IsFastElementsKind(elements_kind) ||
+      elements_kind == DICTIONARY_ELEMENTS;
+}
+
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
   if (IsTypedArrayElementsKind(from_kind) ||
@@ -193,26 +198,29 @@ bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
         return false;
     }
   }
-  switch (from_kind) {
-    case FAST_SMI_ELEMENTS:
-      return to_kind != FAST_SMI_ELEMENTS;
-    case FAST_HOLEY_SMI_ELEMENTS:
-      return to_kind != FAST_SMI_ELEMENTS &&
-          to_kind != FAST_HOLEY_SMI_ELEMENTS;
-    case FAST_DOUBLE_ELEMENTS:
-      return to_kind != FAST_SMI_ELEMENTS &&
-          to_kind != FAST_HOLEY_SMI_ELEMENTS &&
-          to_kind != FAST_DOUBLE_ELEMENTS;
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-      return to_kind == FAST_ELEMENTS ||
-          to_kind == FAST_HOLEY_ELEMENTS;
-    case FAST_ELEMENTS:
-      return to_kind == FAST_HOLEY_ELEMENTS;
-    case FAST_HOLEY_ELEMENTS:
-      return false;
-    default:
-      return false;
+  if (IsFastElementsKind(from_kind) && IsFastTransitionTarget(to_kind)) {
+    switch (from_kind) {
+      case FAST_SMI_ELEMENTS:
+        return to_kind != FAST_SMI_ELEMENTS;
+      case FAST_HOLEY_SMI_ELEMENTS:
+        return to_kind != FAST_SMI_ELEMENTS &&
+            to_kind != FAST_HOLEY_SMI_ELEMENTS;
+      case FAST_DOUBLE_ELEMENTS:
+        return to_kind != FAST_SMI_ELEMENTS &&
+            to_kind != FAST_HOLEY_SMI_ELEMENTS &&
+            to_kind != FAST_DOUBLE_ELEMENTS;
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+        return to_kind == FAST_ELEMENTS ||
+            to_kind == FAST_HOLEY_ELEMENTS;
+      case FAST_ELEMENTS:
+        return to_kind == FAST_HOLEY_ELEMENTS;
+      case FAST_HOLEY_ELEMENTS:
+        return false;
+      default:
+        return false;
+    }
   }
+  return false;
 }
 
 
