@@ -387,6 +387,7 @@ class MacroAssembler : public Assembler {
                      const FPRegister& fm,
                      const FPRegister& fa);
   inline void Frinta(const FPRegister& fd, const FPRegister& fn);
+  inline void Frintm(const FPRegister& fd, const FPRegister& fn);
   inline void Frintn(const FPRegister& fd, const FPRegister& fn);
   inline void Frintz(const FPRegister& fd, const FPRegister& fn);
   inline void Fsqrt(const FPRegister& fd, const FPRegister& fn);

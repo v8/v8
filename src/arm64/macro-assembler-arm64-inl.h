@@ -833,6 +833,12 @@ void MacroAssembler::Frinta(const FPRegister& fd, const FPRegister& fn) {
 }
 
 
+void MacroAssembler::Frintm(const FPRegister& fd, const FPRegister& fn) {
+  ASSERT(allow_macro_instructions_);
+  frintm(fd, fn);
+}
+
+
 void MacroAssembler::Frintn(const FPRegister& fd, const FPRegister& fn) {
   ASSERT(allow_macro_instructions_);
   frintn(fd, fn);

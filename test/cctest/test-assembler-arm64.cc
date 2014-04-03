@@ -6032,6 +6032,7 @@ TEST(frinta) {
   __ Fmov(s24, kFP32NegativeInfinity);
   __ Fmov(s25, 0.0);
   __ Fmov(s26, -0.0);
+  __ Fmov(s27, -0.2);
 
   __ Frinta(s0, s16);
   __ Frinta(s1, s17);
@@ -6044,6 +6045,7 @@ TEST(frinta) {
   __ Frinta(s8, s24);
   __ Frinta(s9, s25);
   __ Frinta(s10, s26);
+  __ Frinta(s11, s27);
 
   __ Fmov(d16, 1.0);
   __ Fmov(d17, 1.1);
@@ -6056,18 +6058,20 @@ TEST(frinta) {
   __ Fmov(d24, kFP32NegativeInfinity);
   __ Fmov(d25, 0.0);
   __ Fmov(d26, -0.0);
+  __ Fmov(d27, -0.2);
 
-  __ Frinta(d11, d16);
-  __ Frinta(d12, d17);
-  __ Frinta(d13, d18);
-  __ Frinta(d14, d19);
-  __ Frinta(d15, d20);
-  __ Frinta(d16, d21);
-  __ Frinta(d17, d22);
-  __ Frinta(d18, d23);
-  __ Frinta(d19, d24);
-  __ Frinta(d20, d25);
-  __ Frinta(d21, d26);
+  __ Frinta(d12, d16);
+  __ Frinta(d13, d17);
+  __ Frinta(d14, d18);
+  __ Frinta(d15, d19);
+  __ Frinta(d16, d20);
+  __ Frinta(d17, d21);
+  __ Frinta(d18, d22);
+  __ Frinta(d19, d23);
+  __ Frinta(d20, d24);
+  __ Frinta(d21, d25);
+  __ Frinta(d22, d26);
+  __ Frinta(d23, d27);
   END();
 
   RUN();
@@ -6083,17 +6087,108 @@ TEST(frinta) {
   ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s8);
   ASSERT_EQUAL_FP32(0.0, s9);
   ASSERT_EQUAL_FP32(-0.0, s10);
-  ASSERT_EQUAL_FP64(1.0, d11);
+  ASSERT_EQUAL_FP32(-0.0, s11);
   ASSERT_EQUAL_FP64(1.0, d12);
-  ASSERT_EQUAL_FP64(2.0, d13);
+  ASSERT_EQUAL_FP64(1.0, d13);
   ASSERT_EQUAL_FP64(2.0, d14);
-  ASSERT_EQUAL_FP64(3.0, d15);
-  ASSERT_EQUAL_FP64(-2.0, d16);
-  ASSERT_EQUAL_FP64(-3.0, d17);
-  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d18);
-  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d19);
-  ASSERT_EQUAL_FP64(0.0, d20);
-  ASSERT_EQUAL_FP64(-0.0, d21);
+  ASSERT_EQUAL_FP64(2.0, d15);
+  ASSERT_EQUAL_FP64(3.0, d16);
+  ASSERT_EQUAL_FP64(-2.0, d17);
+  ASSERT_EQUAL_FP64(-3.0, d18);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d19);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d20);
+  ASSERT_EQUAL_FP64(0.0, d21);
+  ASSERT_EQUAL_FP64(-0.0, d22);
+  ASSERT_EQUAL_FP64(-0.0, d23);
+
+  TEARDOWN();
+}
+
+
+TEST(frintm) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Fmov(s16, 1.0);
+  __ Fmov(s17, 1.1);
+  __ Fmov(s18, 1.5);
+  __ Fmov(s19, 1.9);
+  __ Fmov(s20, 2.5);
+  __ Fmov(s21, -1.5);
+  __ Fmov(s22, -2.5);
+  __ Fmov(s23, kFP32PositiveInfinity);
+  __ Fmov(s24, kFP32NegativeInfinity);
+  __ Fmov(s25, 0.0);
+  __ Fmov(s26, -0.0);
+  __ Fmov(s27, -0.2);
+
+  __ Frintm(s0, s16);
+  __ Frintm(s1, s17);
+  __ Frintm(s2, s18);
+  __ Frintm(s3, s19);
+  __ Frintm(s4, s20);
+  __ Frintm(s5, s21);
+  __ Frintm(s6, s22);
+  __ Frintm(s7, s23);
+  __ Frintm(s8, s24);
+  __ Frintm(s9, s25);
+  __ Frintm(s10, s26);
+  __ Frintm(s11, s27);
+
+  __ Fmov(d16, 1.0);
+  __ Fmov(d17, 1.1);
+  __ Fmov(d18, 1.5);
+  __ Fmov(d19, 1.9);
+  __ Fmov(d20, 2.5);
+  __ Fmov(d21, -1.5);
+  __ Fmov(d22, -2.5);
+  __ Fmov(d23, kFP32PositiveInfinity);
+  __ Fmov(d24, kFP32NegativeInfinity);
+  __ Fmov(d25, 0.0);
+  __ Fmov(d26, -0.0);
+  __ Fmov(d27, -0.2);
+
+  __ Frintm(d12, d16);
+  __ Frintm(d13, d17);
+  __ Frintm(d14, d18);
+  __ Frintm(d15, d19);
+  __ Frintm(d16, d20);
+  __ Frintm(d17, d21);
+  __ Frintm(d18, d22);
+  __ Frintm(d19, d23);
+  __ Frintm(d20, d24);
+  __ Frintm(d21, d25);
+  __ Frintm(d22, d26);
+  __ Frintm(d23, d27);
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_FP32(1.0, s0);
+  ASSERT_EQUAL_FP32(1.0, s1);
+  ASSERT_EQUAL_FP32(1.0, s2);
+  ASSERT_EQUAL_FP32(1.0, s3);
+  ASSERT_EQUAL_FP32(2.0, s4);
+  ASSERT_EQUAL_FP32(-2.0, s5);
+  ASSERT_EQUAL_FP32(-3.0, s6);
+  ASSERT_EQUAL_FP32(kFP32PositiveInfinity, s7);
+  ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s8);
+  ASSERT_EQUAL_FP32(0.0, s9);
+  ASSERT_EQUAL_FP32(-0.0, s10);
+  ASSERT_EQUAL_FP32(-1.0, s11);
+  ASSERT_EQUAL_FP64(1.0, d12);
+  ASSERT_EQUAL_FP64(1.0, d13);
+  ASSERT_EQUAL_FP64(1.0, d14);
+  ASSERT_EQUAL_FP64(1.0, d15);
+  ASSERT_EQUAL_FP64(2.0, d16);
+  ASSERT_EQUAL_FP64(-2.0, d17);
+  ASSERT_EQUAL_FP64(-3.0, d18);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d19);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d20);
+  ASSERT_EQUAL_FP64(0.0, d21);
+  ASSERT_EQUAL_FP64(-0.0, d22);
+  ASSERT_EQUAL_FP64(-1.0, d23);
 
   TEARDOWN();
 }
@@ -6115,6 +6210,7 @@ TEST(frintn) {
   __ Fmov(s24, kFP32NegativeInfinity);
   __ Fmov(s25, 0.0);
   __ Fmov(s26, -0.0);
+  __ Fmov(s27, -0.2);
 
   __ Frintn(s0, s16);
   __ Frintn(s1, s17);
@@ -6127,6 +6223,7 @@ TEST(frintn) {
   __ Frintn(s8, s24);
   __ Frintn(s9, s25);
   __ Frintn(s10, s26);
+  __ Frintn(s11, s27);
 
   __ Fmov(d16, 1.0);
   __ Fmov(d17, 1.1);
@@ -6139,18 +6236,20 @@ TEST(frintn) {
   __ Fmov(d24, kFP32NegativeInfinity);
   __ Fmov(d25, 0.0);
   __ Fmov(d26, -0.0);
+  __ Fmov(d27, -0.2);
 
-  __ Frintn(d11, d16);
-  __ Frintn(d12, d17);
-  __ Frintn(d13, d18);
-  __ Frintn(d14, d19);
-  __ Frintn(d15, d20);
-  __ Frintn(d16, d21);
-  __ Frintn(d17, d22);
-  __ Frintn(d18, d23);
-  __ Frintn(d19, d24);
-  __ Frintn(d20, d25);
-  __ Frintn(d21, d26);
+  __ Frintn(d12, d16);
+  __ Frintn(d13, d17);
+  __ Frintn(d14, d18);
+  __ Frintn(d15, d19);
+  __ Frintn(d16, d20);
+  __ Frintn(d17, d21);
+  __ Frintn(d18, d22);
+  __ Frintn(d19, d23);
+  __ Frintn(d20, d24);
+  __ Frintn(d21, d25);
+  __ Frintn(d22, d26);
+  __ Frintn(d23, d27);
   END();
 
   RUN();
@@ -6166,17 +6265,19 @@ TEST(frintn) {
   ASSERT_EQUAL_FP32(kFP32NegativeInfinity, s8);
   ASSERT_EQUAL_FP32(0.0, s9);
   ASSERT_EQUAL_FP32(-0.0, s10);
-  ASSERT_EQUAL_FP64(1.0, d11);
+  ASSERT_EQUAL_FP32(-0.0, s11);
   ASSERT_EQUAL_FP64(1.0, d12);
-  ASSERT_EQUAL_FP64(2.0, d13);
+  ASSERT_EQUAL_FP64(1.0, d13);
   ASSERT_EQUAL_FP64(2.0, d14);
   ASSERT_EQUAL_FP64(2.0, d15);
-  ASSERT_EQUAL_FP64(-2.0, d16);
+  ASSERT_EQUAL_FP64(2.0, d16);
   ASSERT_EQUAL_FP64(-2.0, d17);
-  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d18);
-  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d19);
-  ASSERT_EQUAL_FP64(0.0, d20);
-  ASSERT_EQUAL_FP64(-0.0, d21);
+  ASSERT_EQUAL_FP64(-2.0, d18);
+  ASSERT_EQUAL_FP64(kFP64PositiveInfinity, d19);
+  ASSERT_EQUAL_FP64(kFP64NegativeInfinity, d20);
+  ASSERT_EQUAL_FP64(0.0, d21);
+  ASSERT_EQUAL_FP64(-0.0, d22);
+  ASSERT_EQUAL_FP64(-0.0, d23);
 
   TEARDOWN();
 }

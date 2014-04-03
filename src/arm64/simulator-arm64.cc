@@ -2390,6 +2390,10 @@ void Simulator::VisitFPDataProcessing1Source(Instruction* instr) {
     case FSQRT_d: set_dreg(fd, FPSqrt(dreg(fn))); break;
     case FRINTA_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieAway)); break;
     case FRINTA_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieAway)); break;
+    case FRINTM_s:
+        set_sreg(fd, FPRoundInt(sreg(fn), FPNegativeInfinity)); break;
+    case FRINTM_d:
+        set_dreg(fd, FPRoundInt(dreg(fn), FPNegativeInfinity)); break;
     case FRINTN_s: set_sreg(fd, FPRoundInt(sreg(fn), FPTieEven)); break;
     case FRINTN_d: set_dreg(fd, FPRoundInt(dreg(fn), FPTieEven)); break;
     case FRINTZ_s: set_sreg(fd, FPRoundInt(sreg(fn), FPZero)); break;
@@ -2656,17 +2660,27 @@ double Simulator::FPRoundInt(double value, FPRounding round_mode) {
   double error = value - int_result;
   switch (round_mode) {
     case FPTieAway: {
-      // If the error is greater than 0.5, or is equal to 0.5 and the integer
-      // result is positive, round up.
-      if ((error > 0.5) || ((error == 0.5) && (int_result >= 0.0))) {
+      // Take care of correctly handling the range ]-0.5, -0.0], which must
+      // yield -0.0.
+      if ((-0.5 < value) && (value < 0.0)) {
+        int_result = -0.0;
+
+      } else if ((error > 0.5) || ((error == 0.5) && (int_result >= 0.0))) {
+        // If the error is greater than 0.5, or is equal to 0.5 and the integer
+        // result is positive, round up.
         int_result++;
       }
       break;
     }
     case FPTieEven: {
+      // Take care of correctly handling the range [-0.5, -0.0], which must
+      // yield -0.0.
+      if ((-0.5 <= value) && (value < 0.0)) {
+        int_result = -0.0;
+
       // If the error is greater than 0.5, or is equal to 0.5 and the integer
       // result is odd, round up.
-      if ((error > 0.5) ||
+      } else if ((error > 0.5) ||
           ((error == 0.5) && (fmod(int_result, 2) != 0))) {
         int_result++;
       }

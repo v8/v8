@@ -1660,6 +1660,13 @@ void Assembler::frinta(const FPRegister& fd,
 }
 
 
+void Assembler::frintm(const FPRegister& fd,
+                       const FPRegister& fn) {
+  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  FPDataProcessing1Source(fd, fn, FRINTM);
+}
+
+
 void Assembler::frintn(const FPRegister& fd,
                        const FPRegister& fn) {
   ASSERT(fd.SizeInBits() == fn.SizeInBits());
