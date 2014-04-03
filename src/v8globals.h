@@ -128,6 +128,7 @@ class MemoryChunk;
 class SeededNumberDictionary;
 class UnseededNumberDictionary;
 class NameDictionary;
+template <typename T> class MaybeHandle;
 template <typename T> class Handle;
 class Heap;
 class HeapObject;

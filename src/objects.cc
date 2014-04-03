@@ -5519,7 +5519,7 @@ static void FreezeDictionary(Dictionary* dictionary) {
 }
 
 
-Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
+MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // Freezing sloppy arguments should be handled elsewhere.
   ASSERT(!object->HasSloppyArgumentsElements());
   ASSERT(!object->map()->is_observed());
@@ -5532,7 +5532,7 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
                                       isolate->factory()->undefined_value(),
                                       v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
 
@@ -5550,8 +5550,7 @@ Handle<Object> JSObject::Freeze(Handle<JSObject> object) {
         isolate->factory()->NewTypeError(
             "cant_prevent_ext_external_array_elements",
             HandleVector(&object, 1));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
