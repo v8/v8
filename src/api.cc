@@ -5459,9 +5459,10 @@ Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
   LOG_API(isolate, "String::New(char)");
   ENTER_V8(isolate);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
+  i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
+                                                                  right_string);
   // We do not expect this to fail. Change this if it does.
-  i::Handle<i::String> result = isolate->factory()->NewConsString(
-      left_string, right_string).ToHandleChecked();
+  CHECK(!result.is_null());
   return Utils::ToLocal(result);
 }
 
@@ -7032,15 +7033,15 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
   i::Isolate* isolate = i::Isolate::Current();
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
-  i::Handle<i::String> name =
-      isolate->factory()->InternalizeUtf8String(entry->name());
   if (!entry->has_name_prefix()) {
-    return ToApiHandle<String>(name);
+    return ToApiHandle<String>(
+        isolate->factory()->InternalizeUtf8String(entry->name()));
   } else {
-    // We do not expect this to fail. Change this if it does.
     i::Handle<i::String> cons = isolate->factory()->NewConsString(
         isolate->factory()->InternalizeUtf8String(entry->name_prefix()),
-        name).ToHandleChecked();
+        isolate->factory()->InternalizeUtf8String(entry->name()));
+    // We do not expect this to fail. Change this if it does.
+    CHECK(!cons.is_null());
     return ToApiHandle<String>(cons);
   }
 }

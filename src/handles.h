@@ -37,7 +37,6 @@ namespace internal {
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
 // into a Handle requires checking that it does not point to NULL.  This
 // ensures NULL checks before use.
-// Do not use MaybeHandle as argument type.
 
 template<typename T>
 class MaybeHandle {

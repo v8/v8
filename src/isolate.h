@@ -179,7 +179,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 #define RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
   do {                                                             \
-    if ((call).is_null()) {                                        \
+    if (call.is_null()) {                                          \
       ASSERT((isolate)->has_pending_exception());                  \
       return value;                                                \
     }                                                              \

@@ -86,9 +86,10 @@ Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
       Handle<String> name = names_stack_.at(pos).name;
       if (prev->length() + name->length() + 1 > String::kMaxLength) return prev;
       Factory* factory = isolate()->factory();
-      Handle<String> curr =
-          factory->NewConsString(factory->dot_string(), name).ToHandleChecked();
-      curr = factory->NewConsString(prev, curr).ToHandleChecked();
+      Handle<String> curr = factory->NewConsString(factory->dot_string(), name);
+      CHECK_NOT_EMPTY_HANDLE(isolate(), curr);
+      curr = factory->NewConsString(prev, curr);
+      CHECK_NOT_EMPTY_HANDLE(isolate(), curr);
       return MakeNameFromStackHelper(pos + 1, curr);
     } else {
       return MakeNameFromStackHelper(pos + 1, names_stack_.at(pos).name);

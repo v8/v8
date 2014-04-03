@@ -4236,34 +4236,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
 }
 
 
-// This may return an empty MaybeHandle if an exception is thrown or
-// we abort due to reaching the recursion limit.
-MaybeHandle<String> StringReplaceOneCharWithString(Isolate* isolate,
-                                                   Handle<String> subject,
-                                                   Handle<String> search,
-                                                   Handle<String> replace,
-                                                   bool* found,
-                                                   int recursion_limit) {
-  if (recursion_limit == 0) return MaybeHandle<String>();
-  recursion_limit--;
+Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
+                                              Handle<String> subject,
+                                              Handle<String> search,
+                                              Handle<String> replace,
+                                              bool* found,
+                                              int recursion_limit) {
+  if (recursion_limit == 0) return Handle<String>::null();
   if (subject->IsConsString()) {
     ConsString* cons = ConsString::cast(*subject);
     Handle<String> first = Handle<String>(cons->first());
     Handle<String> second = Handle<String>(cons->second());
-    Handle<String> new_first;
-    if (!StringReplaceOneCharWithString(
-            isolate, first, search, replace, found, recursion_limit)
-            .ToHandle(&new_first)) {
-      return MaybeHandle<String>();
-    }
+    Handle<String> new_first =
+        StringReplaceOneCharWithString(isolate,
+                                       first,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (new_first.is_null()) return new_first;
     if (*found) return isolate->factory()->NewConsString(new_first, second);
 
-    Handle<String> new_second;
-    if (!StringReplaceOneCharWithString(
-            isolate, second, search, replace, found, recursion_limit)
-            .ToHandle(&new_second)) {
-      return MaybeHandle<String>();
-    }
+    Handle<String> new_second =
+        StringReplaceOneCharWithString(isolate,
+                                       second,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (new_second.is_null()) return new_second;
     if (*found) return isolate->factory()->NewConsString(first, new_second);
 
     return subject;
@@ -4272,11 +4273,8 @@ MaybeHandle<String> StringReplaceOneCharWithString(Isolate* isolate,
     if (index == -1) return subject;
     *found = true;
     Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
-    Handle<String> cons1;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons1,
-        isolate->factory()->NewConsString(first, replace),
-        String);
+    Handle<String> cons1 = isolate->factory()->NewConsString(first, replace);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, cons1, Handle<String>());
     Handle<String> second =
         isolate->factory()->NewSubString(subject, index + 1, subject->length());
     return isolate->factory()->NewConsString(cons1, second);
@@ -4295,20 +4293,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
   // retry with a flattened subject string.
   const int kRecursionLimit = 0x1000;
   bool found = false;
-  Handle<String> result;
-  if (StringReplaceOneCharWithString(
-          isolate, subject, search, replace, &found, kRecursionLimit)
-          .ToHandle(&result)) {
-    return *result;
-  }
+  Handle<String> result = StringReplaceOneCharWithString(isolate,
+                                                         subject,
+                                                         search,
+                                                         replace,
+                                                         &found,
+                                                         kRecursionLimit);
+  if (!result.is_null()) return *result;
   if (isolate->has_pending_exception()) return Failure::Exception();
-
-  subject = FlattenGetString(subject);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      StringReplaceOneCharWithString(
-          isolate, subject, search, replace, &found, kRecursionLimit));
-  return *result;
+  return *StringReplaceOneCharWithString(isolate,
+                                         FlattenGetString(subject),
+                                         search,
+                                         replace,
+                                         &found,
+                                         kRecursionLimit);
 }
 
 
@@ -6297,13 +6295,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   Handle<String> string = FlattenGetString(source);
   ASSERT(string->IsFlat());
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      string->IsOneByteRepresentationUnderneath()
-            ? URIUnescape::Unescape<uint8_t>(isolate, source)
-            : URIUnescape::Unescape<uc16>(isolate, source));
-  return *result;
+  return string->IsOneByteRepresentationUnderneath()
+      ? *URIUnescape::Unescape<uint8_t>(isolate, source)
+      : *URIUnescape::Unescape<uc16>(isolate, source);
 }
 
 
@@ -7073,9 +7067,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringAdd) {
   CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
   isolate->counters()->string_add_runtime()->Increment();
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewConsString(str1, str2));
+  Handle<String> result = isolate->factory()->NewConsString(str1, str2);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 

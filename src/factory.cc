@@ -334,8 +334,8 @@ Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
 }
 
 
-MaybeHandle<String> Factory::NewConsString(Handle<String> left,
-                                           Handle<String> right) {
+Handle<String> Factory::NewConsString(Handle<String> left,
+                                      Handle<String> right) {
   int left_length = left->length();
   if (left_length == 0) return right;
   int right_length = right->length();
@@ -352,8 +352,8 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    return isolate()->Throw<String>(
-        isolate()->factory()->NewInvalidStringLengthError());
+    isolate()->ThrowInvalidStringLength();
+    return Handle<String>::null();
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
