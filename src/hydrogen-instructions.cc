@@ -509,6 +509,7 @@ bool HValue::CanReplaceWithDummyUses() {
       !(block()->IsReachable() ||
         IsBlockEntry() ||
         IsControlInstruction() ||
+        IsCapturedObject() ||
         IsSimulate() ||
         IsEnterInlined() ||
         IsLeaveInlined());
