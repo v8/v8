@@ -61,13 +61,13 @@ Vector<const uc16> GetCharVector(Handle<String> string) {
 class URIUnescape : public AllStatic {
  public:
   template<typename Char>
-  static Handle<String> Unescape(Isolate* isolate, Handle<String> source);
+  static MaybeHandle<String> Unescape(Isolate* isolate, Handle<String> source);
 
  private:
   static const signed char kHexValue['g'];
 
   template<typename Char>
-  static Handle<String> UnescapeSlow(
+  static MaybeHandle<String> UnescapeSlow(
       Isolate* isolate, Handle<String> string, int start_index);
 
   static INLINE(int TwoDigitHex(uint16_t character1, uint16_t character2));
@@ -91,7 +91,8 @@ const signed char URIUnescape::kHexValue[] = {
 
 
 template<typename Char>
-Handle<String> URIUnescape::Unescape(Isolate* isolate, Handle<String> source) {
+MaybeHandle<String> URIUnescape::Unescape(Isolate* isolate,
+                                          Handle<String> source) {
   int index;
   { DisallowHeapAllocation no_allocation;
     StringSearch<uint8_t, Char> search(isolate, STATIC_ASCII_VECTOR("%"));
@@ -103,7 +104,7 @@ Handle<String> URIUnescape::Unescape(Isolate* isolate, Handle<String> source) {
 
 
 template <typename Char>
-Handle<String> URIUnescape::UnescapeSlow(
+MaybeHandle<String> URIUnescape::UnescapeSlow(
     Isolate* isolate, Handle<String> string, int start_index) {
   bool one_byte = true;
   int length = string->length();
