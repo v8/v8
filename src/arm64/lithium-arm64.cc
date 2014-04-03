@@ -1171,9 +1171,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 
 LInstruction* LChunkBuilder::DoCheckValue(HCheckValue* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LInstruction* result = new(zone()) LCheckNonSmi(value);
-  if (!instr->value()->IsHeapObject()) result = AssignEnvironment(result);
-  return result;
+  return AssignEnvironment(new(zone()) LCheckValue(value));
 }
 
 
