@@ -336,6 +336,9 @@ class Factory V8_FINAL {
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED) {
+    if (capacity != 0) {
+      elements_kind = GetHoleyElementsKind(elements_kind);
+    }
     return NewJSArray(elements_kind, 0, capacity,
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }

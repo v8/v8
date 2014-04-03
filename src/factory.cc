@@ -1369,9 +1369,6 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  if (capacity != 0) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSArrayAndStorage(
                          elements_kind,

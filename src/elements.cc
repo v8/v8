@@ -302,10 +302,11 @@ static void CopyDoubleToObjectElements(Handle<FixedArrayBase> from_base,
   ASSERT((copy_size + static_cast<int>(to_start)) <= to_base->length() &&
          (copy_size + static_cast<int>(from_start)) <= from_base->length());
   if (copy_size == 0) return;
+  Isolate* isolate = from_base->GetIsolate();
   Handle<FixedDoubleArray> from = Handle<FixedDoubleArray>::cast(from_base);
   Handle<FixedArray> to = Handle<FixedArray>::cast(to_base);
   for (int i = 0; i < copy_size; ++i) {
-    HandleScope scope(from_base->GetIsolate());
+    HandleScope scope(isolate);
     if (IsFastSmiElementsKind(to_kind)) {
       UNIMPLEMENTED();
     } else {
@@ -639,9 +640,17 @@ class ElementsAccessorBase : public ElementsAccessor {
       uint32_t key,
       Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
     CALL_HEAP_FUNCTION(holder->GetIsolate(),
-                       Get(*receiver, *holder, key,
-                           backing_store.is_null()
-                           ? NULL : *backing_store),
+                       Get(*receiver, *holder, key, *backing_store),
+                       Object);
+  }
+
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT virtual Handle<Object> Get(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) V8_FINAL V8_OVERRIDE {
+    CALL_HEAP_FUNCTION(holder->GetIsolate(),
+                       Get(*receiver, *holder, key, NULL),
                        Object);
   }
 
@@ -787,29 +796,36 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   virtual void CopyElements(
-      Handle<JSObject> from_holder,
+      Handle<FixedArrayBase> from,
       uint32_t from_start,
       ElementsKind from_kind,
       Handle<FixedArrayBase> to,
       uint32_t to_start,
-      int copy_size,
-      Handle<FixedArrayBase> from) V8_FINAL V8_OVERRIDE {
-    int packed_size = kPackedSizeNotKnown;
-    if (from.is_null()) {
-      from = handle(from_holder->elements());
-    }
+      int copy_size) V8_FINAL V8_OVERRIDE {
+    ASSERT(!from.is_null());
+    ElementsAccessorSubclass::CopyElementsImpl(
+        from, from_start, to, from_kind, to_start, kPackedSizeNotKnown,
+        copy_size);
+  }
 
-    if (!from_holder.is_null()) {
-      bool is_packed = IsFastPackedElementsKind(from_kind) &&
-          from_holder->IsJSArray();
-      if (is_packed) {
-        packed_size =
-            Smi::cast(Handle<JSArray>::cast(from_holder)->length())->value();
-        if (copy_size >= 0 && packed_size > copy_size) {
-          packed_size = copy_size;
-        }
+  virtual void CopyElements(
+      JSObject* from_holder,
+      uint32_t from_start,
+      ElementsKind from_kind,
+      Handle<FixedArrayBase> to,
+      uint32_t to_start,
+      int copy_size) V8_FINAL V8_OVERRIDE {
+    int packed_size = kPackedSizeNotKnown;
+    bool is_packed = IsFastPackedElementsKind(from_kind) &&
+        from_holder->IsJSArray();
+    if (is_packed) {
+      packed_size =
+          Smi::cast(JSArray::cast(from_holder)->length())->value();
+      if (copy_size >= 0 && packed_size > copy_size) {
+        packed_size = copy_size;
       }
     }
+    Handle<FixedArrayBase> from(from_holder->elements());
     ElementsAccessorSubclass::CopyElementsImpl(
         from, from_start, to, from_kind, to_start, packed_size, copy_size);
   }
