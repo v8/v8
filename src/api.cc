@@ -2315,13 +2315,11 @@ Local<Value> JSON::Parse(Local<String> json_string) {
   i::Handle<i::String> source = i::Handle<i::String>(
       FlattenGetString(Utils::OpenHandle(*json_string)));
   EXCEPTION_PREAMBLE(isolate);
+  i::MaybeHandle<i::Object> maybe_result =
+      source->IsSeqOneByteString() ? i::JsonParser<true>::Parse(source)
+                                   : i::JsonParser<false>::Parse(source);
   i::Handle<i::Object> result;
-  if (source->IsSeqOneByteString()) {
-    result = i::JsonParser<true>::Parse(source);
-  } else {
-    result = i::JsonParser<false>::Parse(source);
-  }
-  has_pending_exception = result.is_null();
+  has_pending_exception = !maybe_result.ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(
       i::Handle<i::Object>::cast(scope.CloseAndEscape(result)));

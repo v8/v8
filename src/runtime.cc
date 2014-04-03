@@ -9769,16 +9769,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   source = Handle<String>(FlattenGetString(source));
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
-  if (source->IsSeqOneByteString()) {
-    result = JsonParser<true>::Parse(source);
-  } else {
-    result = JsonParser<false>::Parse(source);
-  }
-  if (result.is_null()) {
-    // Syntax error or stack overflow in scanner.
-    ASSERT(isolate->has_pending_exception());
-    return Failure::Exception();
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      source->IsSeqOneByteString() ? JsonParser<true>::Parse(source)
+                                   : JsonParser<false>::Parse(source));
   return *result;
 }
 

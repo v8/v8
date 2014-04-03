@@ -43,7 +43,7 @@ namespace internal {
 template <bool seq_ascii>
 class JsonParser BASE_EMBEDDED {
  public:
-  static Handle<Object> Parse(Handle<String> source) {
+  static MaybeHandle<Object> Parse(Handle<String> source) {
     return JsonParser(source).ParseJson();
   }
 
@@ -69,7 +69,7 @@ class JsonParser BASE_EMBEDDED {
   }
 
   // Parse a string containing a single JSON value.
-  Handle<Object> ParseJson();
+  MaybeHandle<Object> ParseJson();
 
   inline void Advance() {
     position_++;
@@ -219,7 +219,7 @@ class JsonParser BASE_EMBEDDED {
 };
 
 template <bool seq_ascii>
-Handle<Object> JsonParser<seq_ascii>::ParseJson() {
+MaybeHandle<Object> JsonParser<seq_ascii>::ParseJson() {
   // Advance to the first character (possibly EOS)
   AdvanceSkipWhitespace();
   Handle<Object> result = ParseJsonValue();
@@ -268,9 +268,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson() {
     MessageLocation location(factory->NewScript(source_),
                              position_,
                              position_ + 1);
-    Handle<Object> result = factory->NewSyntaxError(message, array);
-    isolate()->Throw(*result, &location);
-    return Handle<Object>::null();
+    Handle<Object> error = factory->NewSyntaxError(message, array);
+    return isolate()->template Throw<Object>(error, &location);
   }
   return result;
 }
