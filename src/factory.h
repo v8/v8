@@ -140,8 +140,8 @@ class Factory V8_FINAL {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Create a new cons string object which consists of a pair of strings.
-  Handle<String> NewConsString(Handle<String> left,
-                               Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
+                                                    Handle<String> right);
 
   Handle<ConsString> NewRawConsString(String::Encoding encoding);
 
@@ -435,6 +435,11 @@ class Factory V8_FINAL {
   Handle<Object> NewRangeError(const char* message,
                                Vector< Handle<Object> > args);
   Handle<Object> NewRangeError(Handle<String> message);
+
+  Handle<Object> NewInvalidStringLengthError() {
+    return NewRangeError("invalid_string_length",
+                         HandleVector<Object>(NULL, 0));
+  }
 
   Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
   Handle<Object> NewSyntaxError(Handle<String> message);

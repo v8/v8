@@ -501,8 +501,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
   part_length_ = kInitialPartLength;  // Allocate conservatively.
   Extend();             // Attach current part and allocate new part.
   // Attach result string to the accumulator.
-  Handle<String> cons = factory_->NewConsString(accumulator(), result_string);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, cons, EXCEPTION);
+  Handle<String> cons;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, cons,
+      factory_->NewConsString(accumulator(), result_string),
+      EXCEPTION);
   set_accumulator(cons);
   return SUCCESS;
 }
@@ -731,7 +734,8 @@ void BasicJsonStringifier::Accumulate() {
     set_accumulator(factory_->empty_string());
     overflowed_ = true;
   } else {
-    set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+    set_accumulator(factory_->NewConsString(accumulator(),
+                                            current_part_).ToHandleChecked());
   }
 }
 
