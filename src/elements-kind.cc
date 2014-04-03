@@ -172,8 +172,27 @@ ElementsKind GetNextMoreGeneralFastElementsKind(ElementsKind elements_kind,
 }
 
 
+static bool IsTypedArrayElementsKind(ElementsKind elements_kind) {
+  return IsFixedTypedArrayElementsKind(elements_kind) ||
+      IsExternalArrayElementsKind(elements_kind);
+}
+
+
 bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
                                          ElementsKind to_kind) {
+  if (IsTypedArrayElementsKind(from_kind) ||
+      IsTypedArrayElementsKind(to_kind)) {
+    switch (from_kind) {
+#define FIXED_TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+      case TYPE##_ELEMENTS:                                   \
+        return to_kind == EXTERNAL_##TYPE##_ELEMENTS;
+
+      TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE);
+#undef FIXED_TYPED_ARRAY_CASE
+      default:
+        return false;
+    }
+  }
   switch (from_kind) {
     case FAST_SMI_ELEMENTS:
       return to_kind != FAST_SMI_ELEMENTS;
