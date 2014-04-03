@@ -36,9 +36,9 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-TEST_262_ARCHIVE_REVISION = "99aac3bc1cad"  # This is the r365 revision.
-TEST_262_ARCHIVE_MD5 = "aadbd720ce9bdb4f8f3de066f4d7eea1"
-TEST_262_URL = "http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2"
+TEST_262_ARCHIVE_REVISION = "fbba29f"  # This is the r365 revision.
+TEST_262_ARCHIVE_MD5 = "e1ff0db438cc12de8fb6da80621b4ef6"
+TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js", "testIntl.js"]
 
 
@@ -91,7 +91,7 @@ class Test262TestSuite(testsuite.TestSuite):
   def DownloadData(self):
     revision = TEST_262_ARCHIVE_REVISION
     archive_url = TEST_262_URL % revision
-    archive_name = os.path.join(self.root, "test262-%s.tar.bz2" % revision)
+    archive_name = os.path.join(self.root, "tc39-test262-%s.tar.gz" % revision)
     directory_name = os.path.join(self.root, "data")
     directory_old_name = os.path.join(self.root, "data.old")
     if not os.path.exists(archive_name):
@@ -108,13 +108,13 @@ class Test262TestSuite(testsuite.TestSuite):
       if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
         os.remove(archive_name)
         raise Exception("Hash mismatch of test data file")
-      archive = tarfile.open(archive_name, "r:bz2")
+      archive = tarfile.open(archive_name, "r:gz")
       if sys.platform in ("win32", "cygwin"):
         # Magic incantation to allow longer path names on Windows.
         archive.extractall(u"\\\\?\\%s" % self.root)
       else:
         archive.extractall(self.root)
-      os.rename(os.path.join(self.root, "test262-%s" % revision),
+      os.rename(os.path.join(self.root, "tc39-test262-%s" % revision),
                 directory_name)
 
 
