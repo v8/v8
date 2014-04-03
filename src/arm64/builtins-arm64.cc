@@ -785,7 +785,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       // No type feedback cell is available.
       __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
 
-      CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
+      CallConstructStub stub(NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
       ParameterCount actual(x0);
