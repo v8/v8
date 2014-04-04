@@ -51,7 +51,6 @@ namespace internal {
   V(CompareIC)                           \
   V(CompareNilIC)                        \
   V(MathPow)                             \
-  V(CallIC)                              \
   V(FunctionPrototype)                   \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
@@ -837,59 +836,6 @@ class ICStub: public PlatformCodeStub {
 
  private:
   Code::Kind kind_;
-};
-
-
-class CallICStub: public PlatformCodeStub {
- public:
-  explicit CallICStub(const CallIC::State& state)
-      : state_(state) {}
-
-  bool CallAsMethod() const { return state_.CallAsMethod(); }
-  bool IsGeneric() const {
-    return state_.IsGeneric();
-  }
-  bool ArgumentsMustMatch() const {
-    return state_.ArgumentsMustMatch();
-  }
-  bool IsSloppy() const {
-    return state_.IsSloppy();
-  }
-
-  int arg_count() const { return state_.arg_count(); }
-
-  static int ExtractArgcFromMinorKey(int minor_key) {
-    CallIC::State state((ExtraICState) minor_key);
-    return state.arg_count();
-  }
-
-  virtual void Generate(MacroAssembler* masm);
-
-  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
-    return Code::CALL_IC;
-  }
-
-  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
-    return state_.GetICState();
-  }
-
-  virtual ExtraICState GetExtraICState() V8_FINAL V8_OVERRIDE {
-    return state_.GetExtraICState();
-  }
-
- protected:
-  virtual int MinorKey() { return GetExtraICState(); }
-  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
-
- private:
-  virtual CodeStub::Major MajorKey() { return CallIC; }
-
-  // Code generation helpers.
-  void GenerateMonomorphicCall(MacroAssembler* masm);
-  void GenerateSlowCall(MacroAssembler* masm);
-  void GenerateMiss(MacroAssembler* masm);
-
-  CallIC::State state_;
 };
 
 
@@ -1684,6 +1630,10 @@ class CallFunctionStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_has_function_cache(RecordCallTarget());
+  }
+
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
@@ -1704,6 +1654,10 @@ class CallFunctionStub: public PlatformCodeStub {
     return FlagBits::encode(flags_) | ArgcBits::encode(argc_);
   }
 
+  bool RecordCallTarget() {
+    return flags_ == RECORD_CALL_TARGET;
+  }
+
   bool CallAsMethod() {
     return flags_ == CALL_AS_METHOD || flags_ == WRAP_AND_CALL;
   }
@@ -1716,7 +1670,7 @@ class CallFunctionStub: public PlatformCodeStub {
 
 class CallConstructStub: public PlatformCodeStub {
  public:
-  explicit CallConstructStub(CallConstructorFlags flags) : flags_(flags) {}
+  explicit CallConstructStub(CallFunctionFlags flags) : flags_(flags) {}
 
   void Generate(MacroAssembler* masm);
 
@@ -1725,7 +1679,7 @@ class CallConstructStub: public PlatformCodeStub {
   }
 
  private:
-  CallConstructorFlags flags_;
+  CallFunctionFlags flags_;
 
   virtual void PrintName(StringStream* stream);
 
@@ -1733,7 +1687,11 @@ class CallConstructStub: public PlatformCodeStub {
   int MinorKey() { return flags_; }
 
   bool RecordCallTarget() {
-    return (flags_ & RECORD_CONSTRUCTOR_TARGET) != 0;
+    return (flags_ & RECORD_CALL_TARGET) != 0;
+  }
+
+  bool CallAsMethod() {
+    return (flags_ & CALL_AS_METHOD) != 0;
   }
 };
 

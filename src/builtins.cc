@@ -1441,11 +1441,6 @@ static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
 
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallICStubDebugBreak(masm);
-}
-
-
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateLoadICDebugBreak(masm);
 }
@@ -1478,6 +1473,12 @@ static void Generate_Return_DebugBreak(MacroAssembler* masm) {
 
 static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateCallFunctionStubDebugBreak(masm);
+}
+
+
+static void Generate_CallFunctionStub_Recording_DebugBreak(
+    MacroAssembler* masm) {
+  Debug::GenerateCallFunctionStubRecordDebugBreak(masm);
 }
 
 
