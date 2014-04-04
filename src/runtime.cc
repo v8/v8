@@ -10716,7 +10716,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
           isolate->factory()->NewFixedArray(
               current->NumberOfLocalElements(NONE));
       current->GetLocalElementKeys(*current_keys, NONE);
-      keys = UnionOfKeys(keys, current_keys);
+      keys = FixedArray::UnionOfKeys(keys, current_keys);
     }
     // Erase any keys >= length.
     // TODO(adamk): Remove this step when the contract of %GetArrayKeys

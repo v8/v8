@@ -3060,10 +3060,13 @@ class FixedArray: public FixedArrayBase {
                                         PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
-  MUST_USE_RESULT MaybeObject* AddKeysFromJSArray(JSArray* array);
+  static Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
+                                               Handle<JSArray> array);
 
-  // Compute the union of this and other.
-  MUST_USE_RESULT MaybeObject* UnionOfKeys(FixedArray* other);
+  // Computes the union of keys and return the result.
+  // Used for implementing "for (n in object) { }"
+  static Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
+                                        Handle<FixedArray> second);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);

@@ -7906,14 +7906,15 @@ void FixedArray::Shrink(int new_length) {
 }
 
 
-MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
+Handle<FixedArray> FixedArray::AddKeysFromJSArray(Handle<FixedArray> content,
+                                                  Handle<JSArray> array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  MaybeObject* maybe_result =
-      accessor->AddElementsToFixedArray(array, array, this);
-  FixedArray* result;
-  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
+  Handle<FixedArray> result =
+      accessor->AddElementsToFixedArray(array, array, content);
+
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
+    DisallowHeapAllocation no_allocation;
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
       ASSERT(current->IsNumber() || current->IsName());
@@ -7924,14 +7925,19 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
 }
 
 
-MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
-  ElementsAccessor* accessor = ElementsAccessor::ForArray(other);
-  MaybeObject* maybe_result =
-      accessor->AddElementsToFixedArray(NULL, NULL, this, other);
-  FixedArray* result;
-  if (!maybe_result->To(&result)) return maybe_result;
+Handle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
+                                           Handle<FixedArray> second) {
+  ElementsAccessor* accessor = ElementsAccessor::ForArray(second);
+  Handle<FixedArray> result =
+      accessor->AddElementsToFixedArray(
+          Handle<Object>::null(),     // receiver
+          Handle<JSObject>::null(),   // holder
+          first,
+          Handle<FixedArrayBase>::cast(second));
+
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
+    DisallowHeapAllocation no_allocation;
     for (int i = 0; i < result->length(); i++) {
       Object* current = result->get(i);
       ASSERT(current->IsNumber() || current->IsName());

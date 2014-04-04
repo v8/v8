@@ -55,10 +55,18 @@ class ElementsAccessor {
   // in the backing store to use for the check, which must be compatible with
   // the ElementsKind of the ElementsAccessor. If backing_store is NULL, the
   // holder->elements() is used as the backing store.
-  virtual bool HasElement(Object* receiver,
-                          JSObject* holder,
-                          uint32_t key,
-                          FixedArrayBase* backing_store = NULL) = 0;
+  virtual bool HasElement(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) = 0;
+
+  inline bool HasElement(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return HasElement(receiver, holder, key, handle(holder->elements()));
+  }
 
   // Returns the element with the specified key or undefined if there is no such
   // element. This method doesn't iterate up the prototype chain.  The caller
@@ -181,11 +189,19 @@ class ElementsAccessor {
       *from_holder, 0, from_kind, to, 0, kCopyToEndAndInitializeToHole);
   }
 
-  MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
-      Object* receiver,
-      JSObject* holder,
-      FixedArray* to,
-      FixedArrayBase* from = NULL) = 0;
+  virtual Handle<FixedArray> AddElementsToFixedArray(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      Handle<FixedArray> to,
+      Handle<FixedArrayBase> from) = 0;
+
+  inline Handle<FixedArray> AddElementsToFixedArray(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      Handle<FixedArray> to) {
+    return AddElementsToFixedArray(
+        receiver, holder, to, handle(holder->elements()));
+  }
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -193,6 +209,10 @@ class ElementsAccessor {
     return elements_accessors_[elements_kind];
   }
 
+  // TODO(ishell): Temporary wrapper until handlified.
+  inline static ElementsAccessor* ForArray(Handle<FixedArrayBase> array) {
+    return ForArray(*array);
+  }
   static ElementsAccessor* ForArray(FixedArrayBase* array);
 
   static void InitializeOncePerProcess();
@@ -211,7 +231,7 @@ class ElementsAccessor {
   // keys are equivalent to indexes, and GetKeyForIndex returns the same value
   // it is passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps
   // the index to a key using the KeyAt method on the NumberDictionary.
-  virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
+  virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
                                   uint32_t index) = 0;
 
  private:

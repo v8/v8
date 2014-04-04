@@ -515,7 +515,7 @@ BUILTIN(ArrayPop) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
   Handle<Object> element;
-  if (accessor->HasElement(*array, *array, new_length, *elms_obj)) {
+  if (accessor->HasElement(array, array, new_length, elms_obj)) {
     element = accessor->Get(
         array, array, new_length, elms_obj);
   } else {
@@ -756,7 +756,7 @@ BUILTIN(ArraySlice) {
     bool packed = true;
     ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     for (int i = k; i < final; i++) {
-      if (!accessor->HasElement(*object, *object, i, *elms)) {
+      if (!accessor->HasElement(object, object, i, elms)) {
         packed = false;
         break;
       }

@@ -305,9 +305,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
 
-Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
-                                      Handle<JSArray> array);
-
 // Get the JS object corresponding to the given script; create it
 // if none exists.
 Handle<JSValue> GetScriptWrapper(Handle<Script> script);
@@ -343,11 +340,6 @@ Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
 Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
-
-// Computes the union of keys and return the result.
-// Used for implementing "for (n in object) { }"
-Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                               Handle<FixedArray> second);
 
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
