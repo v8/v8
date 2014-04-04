@@ -6001,6 +6001,7 @@ class Map: public HeapObject {
       Map* transitioned_map);
   inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
+  inline int SearchTransition(Name* name);
 
   static Handle<TransitionArray> AddTransition(Handle<Map> map,
                                                Handle<Name> key,

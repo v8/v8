@@ -2629,15 +2629,9 @@ void Map::LookupDescriptor(JSObject* holder,
 void Map::LookupTransition(JSObject* holder,
                            Name* name,
                            LookupResult* result) {
-  if (HasTransitionArray()) {
-    TransitionArray* transition_array = transitions();
-    int number = transition_array->Search(name);
-    if (number != TransitionArray::kNotFound) {
-      return result->TransitionResult(
-          holder, transition_array->GetTarget(number));
-    }
-  }
-  result->NotFound();
+  int transition_index = this->SearchTransition(name);
+  if (transition_index == TransitionArray::kNotFound) return result->NotFound();
+  result->TransitionResult(holder, this->GetTransition(transition_index));
 }
 
 
@@ -4901,6 +4895,12 @@ void Map::SetTransition(int transition_index, Map* target) {
 
 Map* Map::GetTransition(int transition_index) {
   return transitions()->GetTarget(transition_index);
+}
+
+
+int Map::SearchTransition(Name* name) {
+  if (HasTransitionArray()) return transitions()->Search(name);
+  return TransitionArray::kNotFound;
 }
 
 

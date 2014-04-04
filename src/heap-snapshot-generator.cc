@@ -1671,7 +1671,6 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
           break;
-        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;

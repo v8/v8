@@ -5217,23 +5217,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDataProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   LookupResult lookup(isolate);
   object->LookupRealNamedProperty(*key, &lookup);
-  if (!lookup.IsFound()) return isolate->heap()->undefined_value();
-  switch (lookup.type()) {
-    case NORMAL:
-      return lookup.holder()->GetNormalizedProperty(&lookup);
-    case FIELD:
-      return lookup.holder()->FastPropertyAt(
-          lookup.representation(),
-          lookup.GetFieldIndex().field_index());
-    case CONSTANT:
-      return lookup.GetConstant();
-    case CALLBACKS:
-    case HANDLER:
-    case INTERCEPTOR:
-    case TRANSITION:
-      return isolate->heap()->undefined_value();
-    case NONEXISTENT:
-      UNREACHABLE();
+  if (lookup.IsFound() && !lookup.IsTransition()) {
+    switch (lookup.type()) {
+      case NORMAL:
+        return lookup.holder()->GetNormalizedProperty(&lookup);
+      case FIELD:
+        return lookup.holder()->FastPropertyAt(
+            lookup.representation(),
+            lookup.GetFieldIndex().field_index());
+      case CONSTANT:
+        return lookup.GetConstant();
+      case CALLBACKS:
+      case HANDLER:
+      case INTERCEPTOR:
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
+    }
   }
   return isolate->heap()->undefined_value();
 }
@@ -10783,6 +10783,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
                                            LookupResult* result,
                                            bool* caught_exception) {
   Object* value;
+  if (result->IsTransition()) return heap->undefined_value();
   switch (result->type()) {
     case NORMAL:
       value = result->holder()->GetNormalizedProperty(result);
@@ -10826,7 +10827,6 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       }
     }
     case INTERCEPTOR:
-    case TRANSITION:
       return heap->undefined_value();
     case HANDLER:
     case NONEXISTENT:

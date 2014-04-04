@@ -670,7 +670,6 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       }
 
       case HANDLER:
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
     }
@@ -944,7 +943,6 @@ MaybeObject* Object::GetProperty(Object* receiver,
       RETURN_IF_EMPTY_HANDLE(isolate, value);
       return *value;
     }
-    case TRANSITION:
     case NONEXISTENT:
       UNREACHABLE();
       break;
@@ -3077,7 +3075,6 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
         return JSProxy::SetPropertyViaPrototypesWithHandler(
             proxy, object, name, value, attributes, strict_mode, done);
       }
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
         break;
@@ -3915,7 +3912,7 @@ Handle<Object> JSObject::SetPropertyUsingTransition(
   // Keep the target CONSTANT if the same value is stored.
   // TODO(verwaest): Also support keeping the placeholder
   // (value->IsUninitialized) as constant.
-  if (!value->FitsRepresentation(details.representation()) ||
+  if (!lookup->CanHoldValue(value) ||
       (details.type() == CONSTANT &&
        descriptors->GetValue(descriptor) != *value)) {
     transition_map = Map::GeneralizeRepresentation(transition_map,
@@ -3948,7 +3945,7 @@ static void SetPropertyToField(LookupResult* lookup,
                                Handle<Name> name,
                                Handle<Object> value) {
   Representation representation = lookup->representation();
-  if (!value->FitsRepresentation(representation) ||
+  if (!lookup->CanHoldValue(value) ||
       lookup->type() == CONSTANT) {
     JSObject::GeneralizeFieldRepresentation(handle(lookup->holder()),
                                             lookup->GetDescriptorIndex(),
@@ -4091,34 +4088,35 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
   // This is a real property that is not read-only, or it is a
   // transition or null descriptor and there are no setters in the prototypes.
   Handle<Object> result = value;
-  switch (lookup->type()) {
-    case NORMAL:
-      SetNormalizedProperty(handle(lookup->holder()), lookup, value);
-      break;
-    case FIELD:
-      SetPropertyToField(lookup, name, value);
-      break;
-    case CONSTANT:
-      // Only replace the constant if necessary.
-      if (*value == lookup->GetConstant()) return value;
-      SetPropertyToField(lookup, name, value);
-      break;
-    case CALLBACKS: {
-      Handle<Object> callback_object(lookup->GetCallbackObject(), isolate);
-      return SetPropertyWithCallback(object, callback_object, name, value,
-                                     handle(lookup->holder()), strict_mode);
+  if (lookup->IsTransition()) {
+    result = SetPropertyUsingTransition(handle(lookup->holder()), lookup,
+                                        name, value, attributes);
+  } else {
+    switch (lookup->type()) {
+      case NORMAL:
+        SetNormalizedProperty(handle(lookup->holder()), lookup, value);
+        break;
+      case FIELD:
+        SetPropertyToField(lookup, name, value);
+        break;
+      case CONSTANT:
+        // Only replace the constant if necessary.
+        if (*value == lookup->GetConstant()) return value;
+        SetPropertyToField(lookup, name, value);
+        break;
+      case CALLBACKS: {
+        Handle<Object> callback_object(lookup->GetCallbackObject(), isolate);
+        return SetPropertyWithCallback(object, callback_object, name, value,
+                                      handle(lookup->holder()), strict_mode);
+      }
+      case INTERCEPTOR:
+        result = SetPropertyWithInterceptor(
+            handle(lookup->holder()), name, value, attributes, strict_mode);
+        break;
+      case HANDLER:
+      case NONEXISTENT:
+        UNREACHABLE();
     }
-    case INTERCEPTOR:
-      result = SetPropertyWithInterceptor(handle(lookup->holder()), name, value,
-                                          attributes, strict_mode);
-      break;
-    case TRANSITION:
-      result = SetPropertyUsingTransition(handle(lookup->holder()), lookup,
-                                          name, value, attributes);
-      break;
-    case HANDLER:
-    case NONEXISTENT:
-      UNREACHABLE();
   }
 
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
@@ -4216,33 +4214,33 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
   }
 
   // Check of IsReadOnly removed from here in clone.
-  switch (lookup.type()) {
-    case NORMAL:
-      ReplaceSlowProperty(object, name, value, attributes);
-      break;
-    case FIELD:
-      SetPropertyToFieldWithAttributes(&lookup, name, value, attributes);
-      break;
-    case CONSTANT:
-      // Only replace the constant if necessary.
-      if (lookup.GetAttributes() != attributes ||
-          *value != lookup.GetConstant()) {
+  if (lookup.IsTransition()) {
+    Handle<Object> result = SetPropertyUsingTransition(
+        handle(lookup.holder()), &lookup, name, value, attributes);
+    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  } else {
+    switch (lookup.type()) {
+      case NORMAL:
+        ReplaceSlowProperty(object, name, value, attributes);
+        break;
+      case FIELD:
         SetPropertyToFieldWithAttributes(&lookup, name, value, attributes);
-      }
-      break;
-    case CALLBACKS:
-      ConvertAndSetLocalProperty(&lookup, name, value, attributes);
-      break;
-    case TRANSITION: {
-      Handle<Object> result = SetPropertyUsingTransition(
-          handle(lookup.holder()), &lookup, name, value, attributes);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
-      break;
+        break;
+      case CONSTANT:
+        // Only replace the constant if necessary.
+        if (lookup.GetAttributes() != attributes ||
+            *value != lookup.GetConstant()) {
+          SetPropertyToFieldWithAttributes(&lookup, name, value, attributes);
+        }
+        break;
+      case CALLBACKS:
+        ConvertAndSetLocalProperty(&lookup, name, value, attributes);
+        break;
+      case NONEXISTENT:
+      case HANDLER:
+      case INTERCEPTOR:
+        UNREACHABLE();
     }
-    case NONEXISTENT:
-    case HANDLER:
-    case INTERCEPTOR:
-      UNREACHABLE();
   }
 
   if (is_observed) {
@@ -4386,7 +4384,6 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
             Handle<JSObject>::cast(receiver),
             name,
             continue_search);
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
     }
@@ -4629,7 +4626,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         break;
       case HANDLER:
       case NORMAL:
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
         break;
@@ -5579,11 +5575,11 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     }
   }
 
-  LookupResult result(isolate);
-  Handle<Map> old_map(object->map());
-  old_map->LookupTransition(*object, isolate->heap()->frozen_symbol(), &result);
-  if (result.IsTransition()) {
-    Handle<Map> transition_map(result.GetTransitionTarget());
+  Handle<Map> old_map(object->map(), isolate);
+  int transition_index = old_map->SearchTransition(
+      isolate->heap()->frozen_symbol());
+  if (transition_index != TransitionArray::kNotFound) {
+    Handle<Map> transition_map(old_map->GetTransition(transition_index));
     ASSERT(transition_map->has_dictionary_elements());
     ASSERT(transition_map->is_frozen());
     ASSERT(!transition_map->is_extensible());
@@ -5635,22 +5631,19 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
 
 void JSObject::SetObserved(Handle<JSObject> object) {
-  ASSERT(!object->map()->is_observed());
   Isolate* isolate = object->GetIsolate();
-
-  LookupResult result(isolate);
-  object->map()->LookupTransition(*object,
-                                  isolate->heap()->observed_symbol(),
-                                  &result);
-
   Handle<Map> new_map;
-  if (result.IsTransition()) {
-    new_map = handle(result.GetTransitionTarget());
+  Handle<Map> old_map(object->map(), isolate);
+  ASSERT(!old_map->is_observed());
+  int transition_index = old_map->SearchTransition(
+      isolate->heap()->observed_symbol());
+  if (transition_index != TransitionArray::kNotFound) {
+    new_map = handle(old_map->GetTransition(transition_index), isolate);
     ASSERT(new_map->is_observed());
-  } else if (object->map()->CanHaveMoreTransitions()) {
-    new_map = Map::CopyForObserved(handle(object->map()));
+  } else if (old_map->CanHaveMoreTransitions()) {
+    new_map = Map::CopyForObserved(old_map);
   } else {
-    new_map = Map::Copy(handle(object->map()));
+    new_map = Map::Copy(old_map);
     new_map->set_is_observed();
   }
   JSObject::MigrateToMap(object, new_map);

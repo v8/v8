@@ -1167,9 +1167,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   // chain check. This avoids a double lookup, but requires us to pass in the
   // receiver when trying to fetch extra information from the transition.
   receiver->map()->LookupTransition(*holder, *name, lookup);
-  if (!lookup->IsTransition()) return false;
-  PropertyDetails target_details = lookup->GetTransitionDetails();
-  if (target_details.IsReadOnly()) return false;
+  if (!lookup->IsTransition() || lookup->IsReadOnly()) return false;
 
   // If the value that's being stored does not fit in the field that the
   // instance would transition to, create a new transition that fits the value.
@@ -1178,7 +1176,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   // Ensure the instance and its map were migrated before trying to update the
   // transition target.
   ASSERT(!receiver->map()->is_deprecated());
-  if (!value->FitsRepresentation(target_details.representation())) {
+  if (!lookup->CanHoldValue(value)) {
     Handle<Map> target(lookup->GetTransitionTarget());
     Map::GeneralizeRepresentation(
         target, target->LastAdded(),
@@ -1327,93 +1325,94 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
   Handle<JSObject> holder(lookup->holder());
   // Handlers do not use strict mode.
   StoreStubCompiler compiler(isolate(), SLOPPY, kind());
-  switch (lookup->type()) {
-    case FIELD:
-      return compiler.CompileStoreField(receiver, lookup, name);
-    case TRANSITION: {
-      // Explicitly pass in the receiver map since LookupForWrite may have
-      // stored something else than the receiver in the holder.
-      Handle<Map> transition(lookup->GetTransitionTarget());
-      PropertyDetails details = transition->GetLastDescriptorDetails();
+  if (lookup->IsTransition()) {
+    // Explicitly pass in the receiver map since LookupForWrite may have
+    // stored something else than the receiver in the holder.
+    Handle<Map> transition(lookup->GetTransitionTarget());
+    PropertyDetails details = lookup->GetPropertyDetails();
 
-      if (details.type() == CALLBACKS || details.attributes() != NONE) break;
-
+    if (details.type() != CALLBACKS && details.attributes() == NONE) {
       return compiler.CompileStoreTransition(
           receiver, lookup, transition, name);
     }
-    case NORMAL:
-      if (kind() == Code::KEYED_STORE_IC) break;
-      if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
-        // The stub generated for the global object picks the value directly
-        // from the property cell. So the property must be directly on the
-        // global object.
-        Handle<GlobalObject> global = receiver->IsJSGlobalProxy()
-            ? handle(GlobalObject::cast(receiver->GetPrototype()))
-            : Handle<GlobalObject>::cast(receiver);
-        Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
-        Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
-        StoreGlobalStub stub(
-            union_type->IsConstant(), receiver->IsJSGlobalProxy());
-        Handle<Code> code = stub.GetCodeCopyFromTemplate(
-            isolate(), global, cell);
-        // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-        HeapObject::UpdateMapCodeCache(receiver, name, code);
-        return code;
-      }
-      ASSERT(holder.is_identical_to(receiver));
-      return isolate()->builtins()->StoreIC_Normal();
-    case CALLBACKS: {
-      Handle<Object> callback(lookup->GetCallbackObject(), isolate());
-      if (callback->IsExecutableAccessorInfo()) {
-        Handle<ExecutableAccessorInfo> info =
-            Handle<ExecutableAccessorInfo>::cast(callback);
-        if (v8::ToCData<Address>(info->setter()) == 0) break;
-        if (!holder->HasFastProperties()) break;
-        if (!info->IsCompatibleReceiver(*receiver)) break;
-        return compiler.CompileStoreCallback(receiver, holder, name, info);
-      } else if (callback->IsAccessorPair()) {
-        Handle<Object> setter(
-            Handle<AccessorPair>::cast(callback)->setter(), isolate());
-        if (!setter->IsJSFunction()) break;
-        if (holder->IsGlobalObject()) break;
-        if (!holder->HasFastProperties()) break;
-        Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
-        CallOptimization call_optimization(function);
-        if (call_optimization.is_simple_api_call() &&
-            call_optimization.IsCompatibleReceiver(receiver, holder)) {
-          return compiler.CompileStoreCallback(
-              receiver, holder, name, call_optimization);
+  } else {
+    switch (lookup->type()) {
+      case FIELD:
+        return compiler.CompileStoreField(receiver, lookup, name);
+      case NORMAL:
+        if (kind() == Code::KEYED_STORE_IC) break;
+        if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
+          // The stub generated for the global object picks the value directly
+          // from the property cell. So the property must be directly on the
+          // global object.
+          Handle<GlobalObject> global = receiver->IsJSGlobalProxy()
+              ? handle(GlobalObject::cast(receiver->GetPrototype()))
+              : Handle<GlobalObject>::cast(receiver);
+          Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
+          Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
+          StoreGlobalStub stub(
+              union_type->IsConstant(), receiver->IsJSGlobalProxy());
+          Handle<Code> code = stub.GetCodeCopyFromTemplate(
+              isolate(), global, cell);
+          // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+          HeapObject::UpdateMapCodeCache(receiver, name, code);
+          return code;
         }
-        return compiler.CompileStoreViaSetter(
-            receiver, holder, name, Handle<JSFunction>::cast(setter));
-      }
-      // TODO(dcarney): Handle correctly.
-      if (callback->IsDeclaredAccessorInfo()) break;
-      ASSERT(callback->IsForeign());
+        ASSERT(holder.is_identical_to(receiver));
+        return isolate()->builtins()->StoreIC_Normal();
+      case CALLBACKS: {
+        Handle<Object> callback(lookup->GetCallbackObject(), isolate());
+        if (callback->IsExecutableAccessorInfo()) {
+          Handle<ExecutableAccessorInfo> info =
+              Handle<ExecutableAccessorInfo>::cast(callback);
+          if (v8::ToCData<Address>(info->setter()) == 0) break;
+          if (!holder->HasFastProperties()) break;
+          if (!info->IsCompatibleReceiver(*receiver)) break;
+          return compiler.CompileStoreCallback(receiver, holder, name, info);
+        } else if (callback->IsAccessorPair()) {
+          Handle<Object> setter(
+              Handle<AccessorPair>::cast(callback)->setter(), isolate());
+          if (!setter->IsJSFunction()) break;
+          if (holder->IsGlobalObject()) break;
+          if (!holder->HasFastProperties()) break;
+          Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
+          CallOptimization call_optimization(function);
+          if (call_optimization.is_simple_api_call() &&
+              call_optimization.IsCompatibleReceiver(receiver, holder)) {
+            return compiler.CompileStoreCallback(
+                receiver, holder, name, call_optimization);
+          }
+          return compiler.CompileStoreViaSetter(
+              receiver, holder, name, Handle<JSFunction>::cast(setter));
+        }
+        // TODO(dcarney): Handle correctly.
+        if (callback->IsDeclaredAccessorInfo()) break;
+        ASSERT(callback->IsForeign());
 
-      // Use specialized code for setting the length of arrays with fast
-      // properties. Slow properties might indicate redefinition of the length
-      // property.
-      if (receiver->IsJSArray() &&
-          name->Equals(isolate()->heap()->length_string()) &&
-          Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-          receiver->HasFastProperties()) {
-        return compiler.CompileStoreArrayLength(receiver, lookup, name);
-      }
+        // Use specialized code for setting the length of arrays with fast
+        // properties. Slow properties might indicate redefinition of the length
+        // property.
+        if (receiver->IsJSArray() &&
+            name->Equals(isolate()->heap()->length_string()) &&
+            Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
+            receiver->HasFastProperties()) {
+          return compiler.CompileStoreArrayLength(receiver, lookup, name);
+        }
 
-      // No IC support for old-style native accessors.
-      break;
+        // No IC support for old-style native accessors.
+        break;
+      }
+      case INTERCEPTOR:
+        if (kind() == Code::KEYED_STORE_IC) break;
+        ASSERT(HasInterceptorSetter(*holder));
+        return compiler.CompileStoreInterceptor(receiver, name);
+      case CONSTANT:
+        break;
+      case NONEXISTENT:
+      case HANDLER:
+        UNREACHABLE();
+        break;
     }
-    case INTERCEPTOR:
-      if (kind() == Code::KEYED_STORE_IC) break;
-      ASSERT(HasInterceptorSetter(*holder));
-      return compiler.CompileStoreInterceptor(receiver, name);
-    case CONSTANT:
-      break;
-    case NONEXISTENT:
-    case HANDLER:
-      UNREACHABLE();
-      break;
   }
   return slow_stub();
 }
