@@ -2363,36 +2363,32 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 }
 
 
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  // ebx : feedback vector
-  // edx : (only if ebx is not the megamorphic symbol) slot in feedback
-  //       vector (Smi)
+static void GenericCallHelper(MacroAssembler* masm,
+                              const CallIC::State& state,
+                              bool wrap_and_call = false) {
   // edi : the function to call
+
+  // wrap_and_call can only be true if we are compiling a monomorphic method.
+  ASSERT(!(wrap_and_call && state.IsGeneric()));
+  ASSERT(!wrap_and_call || state.CallAsMethod());
   Isolate* isolate = masm->isolate();
   Label slow, non_function, wrap, cont;
 
-  if (NeedsChecks()) {
+  if (state.IsGeneric()) {
     // Check that the function really is a JavaScript function.
     __ JumpIfSmi(edi, &non_function);
 
     // Goto slow case if we do not have a function.
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(not_equal, &slow);
-
-    if (RecordCallTarget()) {
-      GenerateRecordCallTarget(masm);
-      // Type information was updated. Because we may call Array, which
-      // expects either undefined or an AllocationSite in ebx we need
-      // to set ebx to undefined.
-      __ mov(ebx, Immediate(isolate->factory()->undefined_value()));
-    }
   }
 
   // Fast-case: Just invoke the function.
-  ParameterCount actual(argc_);
+  int argc = state.arg_count();
+  ParameterCount actual(argc);
 
-  if (CallAsMethod()) {
-    if (NeedsChecks()) {
+  if (state.CallAsMethod()) {
+    if (state.IsGeneric()) {
       // Do not transform the receiver for strict mode functions.
       __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
       __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
@@ -2405,41 +2401,39 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ j(not_equal, &cont);
     }
 
-    // Load the receiver from the stack.
-    __ mov(eax, Operand(esp, (argc_ + 1) * kPointerSize));
+    if (state.IsGeneric() || state.IsSloppy() || wrap_and_call) {
+      // Load the receiver from the stack.
+      __ mov(eax, Operand(esp, (argc + 1) * kPointerSize));
 
-    if (NeedsChecks()) {
-      __ JumpIfSmi(eax, &wrap);
+      if (state.IsGeneric()) {
+        __ JumpIfSmi(eax, &wrap);
 
-      __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
-      __ j(below, &wrap);
-    } else {
-      __ jmp(&wrap);
+        __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
+        __ j(below, &wrap);
+      } else {
+        __ jmp(&wrap);
+      }
     }
 
     __ bind(&cont);
   }
 
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
+  if (state.ArgumentsMustMatch()) {
+    __ InvokeFunction(edi, actual, actual, JUMP_FUNCTION, NullCallWrapper());
+  } else {
+    __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
+  }
 
-  if (NeedsChecks()) {
+  if (state.IsGeneric()) {
     // Slow-case: Non-function called.
     __ bind(&slow);
-    if (RecordCallTarget()) {
-      // If there is a call target cache, mark it megamorphic in the
-      // non-function case.  MegamorphicSentinel is an immortal immovable
-      // object (megamorphic symbol) so no write barrier is needed.
-      __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                          FixedArray::kHeaderSize),
-             Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
-    }
     // Check for function proxy.
     __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
     __ j(not_equal, &non_function);
     __ pop(ecx);
     __ push(edi);  // put proxy as additional argument under return address
     __ push(ecx);
-    __ Move(eax, Immediate(argc_ + 1));
+    __ Move(eax, Immediate(argc + 1));
     __ Move(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
     {
@@ -2450,16 +2444,25 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
     // of the original receiver from the call site).
     __ bind(&non_function);
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
-    __ Move(eax, Immediate(argc_));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edi);
+    __ Move(eax, Immediate(argc));
     __ Move(ebx, Immediate(0));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
     __ jmp(adaptor, RelocInfo::CODE_TARGET);
   }
 
-  if (CallAsMethod()) {
+  if (state.CallAsMethod()) {
     __ bind(&wrap);
+
+    if (!state.IsGeneric() && !wrap_and_call) {
+      // Do not transform the receiver for natives (shared already in ecx).
+      __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+      __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+                1 << SharedFunctionInfo::kNativeBitWithinByte);
+      __ j(not_equal, &cont);
+    }
+
     // Wrap the receiver and patch it back onto the stack.
     { FrameScope frame_scope(masm, StackFrame::INTERNAL);
       __ push(edi);
@@ -2467,8 +2470,32 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
       __ pop(edi);
     }
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), eax);
     __ jmp(&cont);
+  }
+}
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  // edi : the function to call
+
+  // GenericCallHelper expresses it's options in terms of CallIC::State.
+  CallIC::CallType call_type = CallAsMethod() ?
+      CallIC::METHOD : CallIC::FUNCTION;
+
+  if (NeedsChecks()) {
+    GenericCallHelper(masm,
+                      CallIC::State::SlowCallState(
+                          argc_,
+                          call_type));
+  } else {
+    GenericCallHelper(masm,
+                      CallIC::State::MonomorphicCallState(
+                          argc_,
+                          call_type,
+                          CallIC::ARGUMENTS_COUNT_UNKNOWN,
+                          SLOPPY),
+                      true);
   }
 }
 
@@ -2538,6 +2565,90 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   Handle<Code> arguments_adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
   __ jmp(arguments_adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+void CallICStub::GenerateMonomorphicCall(MacroAssembler* masm) {
+  GenericCallHelper(masm,
+                    CallIC::State::MonomorphicCallState(
+                        state_.arg_count(),
+                        state_.call_type(),
+                        state_.argument_check(),
+                        state_.strict_mode()));
+}
+
+
+void CallICStub::GenerateSlowCall(MacroAssembler* masm) {
+  GenericCallHelper(masm,
+                    CallIC::State::SlowCallState(
+                        state_.arg_count(),
+                        state_.call_type()));
+}
+
+
+void CallICStub::Generate(MacroAssembler* masm) {
+  // edi - function
+  // ebx - vector
+  // edx - slot id
+  Isolate* isolate = masm->isolate();
+  Label extra_checks_or_miss, slow;
+
+  // The checks. First, does edi match the recorded monomorphic target?
+  __ cmp(edi, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  __ j(not_equal, &extra_checks_or_miss);
+
+  GenerateMonomorphicCall(masm);
+
+  __ bind(&extra_checks_or_miss);
+  if (IsGeneric()) {
+    Label miss_uninit;
+
+    __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
+                             FixedArray::kHeaderSize));
+    __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+    __ j(equal, &slow);
+    __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
+    __ j(equal, &miss_uninit);
+    // If we get here, go from monomorphic to megamorphic, Don't bother missing,
+    // just update.
+    __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                        FixedArray::kHeaderSize),
+           Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+    __ jmp(&slow);
+
+    __ bind(&miss_uninit);
+  }
+
+  GenerateMiss(masm);
+
+  // the slow case
+  __ bind(&slow);
+  GenerateSlowCall(masm);
+}
+
+
+void CallICStub::GenerateMiss(MacroAssembler* masm) {
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ mov(ecx, Operand(esp, (state_.arg_count() + 1) * kPointerSize));
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Push the receiver and the function and feedback info.
+    __ push(ecx);
+    __ push(edi);
+    __ push(ebx);
+    __ push(edx);
+
+    // Call the entry.
+    ExternalReference miss = ExternalReference(IC_Utility(IC::kCallIC_Miss),
+                                               masm->isolate());
+    __ CallExternalReference(miss, 4);
+
+    // Move result to edi and exit the internal frame.
+    __ mov(edi, eax);
+  }
 }
 
 

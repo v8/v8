@@ -177,6 +177,18 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- rbx    : type feedback vector
+  //  -- rdx    : type feedback slot (smi)
+  //  -- rdi    : function
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
+                                0, false);
+}
+
+
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-x64.cc).
   // ----------- S t a t e -------------
@@ -230,15 +242,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Register state for IC call call (from ic-x64.cc)
-  // ----------- S t a t e -------------
-  //  -- rcx: function name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rcx.bit(), 0, false);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-x64.cc).
   // ----------- S t a t e -------------
@@ -254,18 +257,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- rdi : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, rdi.bit(), 0, false);
-}
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-x64.cc).
-  // ----------- S t a t e -------------
-  //  -- rdi : function
-  //  -- rbx: feedback array
-  //  -- rdx: slot in feedback array
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, rbx.bit() | rdx.bit() | rdi.bit(),
-                                0, false);
 }
 
 

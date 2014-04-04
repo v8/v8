@@ -122,14 +122,14 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code size multiplier.
 #if V8_TARGET_ARCH_IA32
-  static const int kCodeSizeMultiplier = 100;
+  static const int kCodeSizeMultiplier = 116;
 #elif V8_TARGET_ARCH_X64
-  static const int kCodeSizeMultiplier = 162;
+  static const int kCodeSizeMultiplier = 188;
 #elif V8_TARGET_ARCH_ARM
-  static const int kCodeSizeMultiplier = 142;
+  static const int kCodeSizeMultiplier = 165;
 #elif V8_TARGET_ARCH_ARM64
 // TODO(all): Copied ARM value. Check this is sensible for ARM64.
-  static const int kCodeSizeMultiplier = 142;
+  static const int kCodeSizeMultiplier = 165;
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 142;
 #else
@@ -485,9 +485,9 @@ class FullCodeGenerator: public AstVisitor {
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr);
-  void EmitCallWithIC(Call* expr);
-  void EmitKeyedCallWithIC(Call* expr, Expression* key);
+  void EmitCall(Call* expr, CallIC::CallType = CallIC::FUNCTION);
+  void EmitCallWithLoadIC(Call* expr);
+  void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);

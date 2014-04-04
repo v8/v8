@@ -4433,6 +4433,7 @@ bool Code::has_major_key() {
       kind() == LOAD_IC ||
       kind() == KEYED_LOAD_IC ||
       kind() == STORE_IC ||
+      kind() == CALL_IC ||
       kind() == KEYED_STORE_IC ||
       kind() == TO_BOOLEAN_IC;
 }
@@ -5877,7 +5878,7 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
-         kind() == BINARY_OP_IC || kind() == LOAD_IC);
+         kind() == BINARY_OP_IC || kind() == LOAD_IC || kind() == CALL_IC);
   return Smi::cast(raw_type_feedback_info())->value();
 }
 
@@ -5888,6 +5889,7 @@ void Code::set_stub_info(int value) {
          kind() == BINARY_OP_IC ||
          kind() == STUB ||
          kind() == LOAD_IC ||
+         kind() == CALL_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);

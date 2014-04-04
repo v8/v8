@@ -10199,6 +10199,9 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   code()->ClearInlineCaches();
+  // If we clear ICs, we need to clear the type feedback vector too, since
+  // CallICs are synced with a feedback vector slot.
+  code()->ClearTypeFeedbackInfo(map()->GetHeap());
   set_ic_age(new_ic_age);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_profiler_ticks(0);
