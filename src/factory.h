@@ -57,6 +57,9 @@ class Factory V8_FINAL {
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
+  Handle<OrderedHashSet> NewOrderedHashSet();
+  Handle<OrderedHashMap> NewOrderedHashMap();
+
   Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,

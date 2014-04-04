@@ -15902,6 +15902,197 @@ void WeakHashTable::AddEntry(int entry, Object* key, Object* value) {
 }
 
 
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
+    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+  // Capacity must be a power of two, since we depend on being able
+  // to divide and multiple by 2 (kLoadFactor) to derive capacity
+  // from number of buckets. If we decide to change kLoadFactor
+  // to something other than 2, capacity should be stored as another
+  // field of this object.
+  const int kMinCapacity = 4;
+  capacity = RoundUpToPowerOf2(Max(kMinCapacity, capacity));
+  if (capacity > kMaxCapacity) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
+  }
+  int num_buckets = capacity / kLoadFactor;
+  Handle<Derived> table =
+      Handle<Derived>::cast(
+          isolate->factory()->NewFixedArray(
+              kHashTableStartIndex + num_buckets + (capacity * kEntrySize),
+              pretenure));
+  for (int i = 0; i < num_buckets; ++i) {
+    table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
+  }
+  table->SetNumberOfBuckets(num_buckets);
+  table->SetNumberOfElements(0);
+  table->SetNumberOfDeletedElements(0);
+  return table;
+}
+
+
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
+    Handle<Derived> table) {
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int capacity = table->Capacity();
+  if ((nof + nod) < capacity) return table;
+  // Don't need to grow if we can simply clear out deleted entries instead.
+  // Note that we can't compact in place, though, so we always allocate
+  // a new table.
+  return Rehash(table, (nod < (capacity >> 1)) ? capacity << 1 : capacity);
+}
+
+
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Shrink(
+    Handle<Derived> table) {
+  int nof = table->NumberOfElements();
+  int capacity = table->Capacity();
+  if (nof > (capacity >> 2)) return table;
+  return Rehash(table, capacity / 2);
+}
+
+
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
+    Handle<Derived> table, int new_capacity) {
+  Handle<Derived> new_table =
+      Allocate(table->GetIsolate(),
+               new_capacity,
+               table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
+  int nof = table->NumberOfElements();
+  int nod = table->NumberOfDeletedElements();
+  int new_buckets = new_table->NumberOfBuckets();
+  int new_entry = 0;
+  for (int old_entry = 0; old_entry < (nof + nod); ++old_entry) {
+    Object* key = table->KeyAt(old_entry);
+    if (key->IsTheHole()) continue;
+    Object* hash = key->GetHash();
+    int bucket = Smi::cast(hash)->value() & (new_buckets - 1);
+    Object* chain_entry = new_table->get(kHashTableStartIndex + bucket);
+    new_table->set(kHashTableStartIndex + bucket, Smi::FromInt(new_entry));
+    int new_index = new_table->EntryToIndex(new_entry);
+    int old_index = table->EntryToIndex(old_entry);
+    for (int i = 0; i < entrysize; ++i) {
+      Object* value = table->get(old_index + i);
+      new_table->set(new_index + i, value);
+    }
+    new_table->set(new_index + kChainOffset, chain_entry);
+    ++new_entry;
+  }
+  new_table->SetNumberOfElements(nof);
+  return new_table;
+}
+
+
+template<class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::FindEntry(Object* key) {
+  ASSERT(!key->IsTheHole());
+  Object* hash = key->GetHash();
+  if (hash->IsUndefined()) return kNotFound;
+  for (int entry = HashToEntry(Smi::cast(hash)->value());
+       entry != kNotFound;
+       entry = ChainAt(entry)) {
+    Object* candidate = KeyAt(entry);
+    if (candidate->SameValue(key))
+      return entry;
+  }
+  return kNotFound;
+}
+
+
+template<class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::AddEntry(int hash) {
+  int entry = NumberOfElements() + NumberOfDeletedElements();
+  int bucket = HashToBucket(hash);
+  int index = EntryToIndex(entry);
+  Object* chain_entry = get(kHashTableStartIndex + bucket);
+  set(kHashTableStartIndex + bucket, Smi::FromInt(entry));
+  set(index + kChainOffset, chain_entry);
+  SetNumberOfElements(NumberOfElements() + 1);
+  return index;
+}
+
+
+template<class Derived, int entrysize>
+void OrderedHashTable<Derived, entrysize>::RemoveEntry(int entry) {
+  int index = EntryToIndex(entry);
+  for (int i = 0; i < entrysize; ++i) {
+    set_the_hole(index + i);
+  }
+  SetNumberOfElements(NumberOfElements() - 1);
+  SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
+}
+
+
+template class OrderedHashTable<OrderedHashSet, 1>;
+template class OrderedHashTable<OrderedHashMap, 2>;
+
+
+bool OrderedHashSet::Contains(Object* key) {
+  return FindEntry(key) != kNotFound;
+}
+
+
+Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
+                                           Handle<Object> key) {
+  if (table->FindEntry(*key) != kNotFound) return table;
+
+  table = EnsureGrowable(table);
+
+  Handle<Object> hash = GetOrCreateHash(key, table->GetIsolate());
+  int index = table->AddEntry(Smi::cast(*hash)->value());
+  table->set(index, *key);
+  return table;
+}
+
+
+Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
+                                              Handle<Object> key) {
+  int entry = table->FindEntry(*key);
+  if (entry == kNotFound) return table;
+  table->RemoveEntry(entry);
+  // TODO(adamk): Don't shrink if we're being iterated over
+  return Shrink(table);
+}
+
+
+Object* OrderedHashMap::Lookup(Object* key) {
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return GetHeap()->the_hole_value();
+  return ValueAt(entry);
+}
+
+
+Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
+                                           Handle<Object> key,
+                                           Handle<Object> value) {
+  int entry = table->FindEntry(*key);
+
+  if (value->IsTheHole()) {
+    if (entry == kNotFound) return table;
+    table->RemoveEntry(entry);
+    // TODO(adamk): Only shrink if not iterating
+    return Shrink(table);
+  }
+
+  if (entry != kNotFound) {
+    table->set(table->EntryToIndex(entry) + kValueOffset, *value);
+    return table;
+  }
+
+  table = EnsureGrowable(table);
+
+  Handle<Object> hash = GetOrCreateHash(key, table->GetIsolate());
+  int index = table->AddEntry(Smi::cast(*hash)->value());
+  table->set(index, *key);
+  table->set(index + kValueOffset, *value);
+  return table;
+}
+
+
 DeclaredAccessorDescriptorIterator::DeclaredAccessorDescriptorIterator(
     DeclaredAccessorDescriptor* descriptor)
     : array_(descriptor->serialized_data()->GetDataStartAddress()),

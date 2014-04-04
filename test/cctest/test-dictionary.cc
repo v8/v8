@@ -38,16 +38,17 @@
 
 using namespace v8::internal;
 
+namespace {
 
-TEST(ObjectHashTable) {
-  LocalContext context;
+
+template<typename HashMap>
+static void TestHashMap(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashTable> table = factory->NewObjectHashTable(23);
+
   Handle<JSObject> a = factory->NewJSArray(7);
   Handle<JSObject> b = factory->NewJSArray(11);
-  table = ObjectHashTable::Put(table, a, b);
+  table = HashMap::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
   CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
@@ -59,14 +60,13 @@ TEST(ObjectHashTable) {
   CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
-  table = ObjectHashTable::Put(table, a, factory->NewJSArray(13));
+  table = HashMap::Put(table, a, factory->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(*a), *b);
 
   // Keys mapped to the hole should be removed permanently.
-  table = ObjectHashTable::Put(table, a, factory->the_hole_value());
+  table = HashMap::Put(table, a, factory->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
-  CHECK_EQ(table->NumberOfDeletedElements(), 1);
   CHECK_EQ(table->Lookup(*a), CcTest::heap()->the_hole_value());
 
   // Keys should map back to their respective values and also should get
@@ -74,9 +74,9 @@ TEST(ObjectHashTable) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     Handle<JSObject> value = factory->NewJSArray(11);
-    table = ObjectHashTable::Put(table, key, value);
+    table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(*key), ObjectHashTable::kNotFound);
+    CHECK_NE(table->FindEntry(*key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(*key), *value);
     CHECK(key->GetIdentityHash()->IsSmi());
   }
@@ -86,7 +86,7 @@ TEST(ObjectHashTable) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
-    CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
+    CHECK_EQ(table->FindEntry(*key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
     CHECK(key->GetIdentityHash()->IsSmi());
   }
@@ -99,6 +99,15 @@ TEST(ObjectHashTable) {
     CHECK_EQ(key->GetIdentityHash(),
              CcTest::heap()->undefined_value());
   }
+}
+
+
+TEST(HashMap) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashMap(isolate->factory()->NewObjectHashTable(23));
+  TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
 
@@ -154,13 +163,11 @@ TEST(HashTableRehash) {
 
 
 #ifdef DEBUG
-TEST(ObjectHashSetCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
+template<class HashSet>
+static void TestHashSetCausesGC(Handle<HashSet> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashSet> table = factory->NewObjectHashSet(1);
+
   Handle<JSObject> key = factory->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
 
@@ -180,24 +187,32 @@ TEST(ObjectHashSetCausesGC) {
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.
-  table = ObjectHashSet::Remove(table, key);
+  table = HashSet::Remove(table, key);
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Add() should cause GC.
-  table = ObjectHashSet::Add(table, key);
+  table = HashSet::Add(table, key);
   CHECK(gc_count < isolate->heap()->gc_count());
+}
+
+
+TEST(ObjectHashSetCausesGC) {
+  i::FLAG_stress_compaction = false;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashSetCausesGC(isolate->factory()->NewObjectHashSet(1));
+  TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
 }
 #endif
 
 
 #ifdef DEBUG
-TEST(ObjectHashTableCausesGC) {
-  i::FLAG_stress_compaction = false;
-  LocalContext context;
+template<class HashMap>
+static void TestHashMapCausesGC(Handle<HashMap> table) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  v8::HandleScope scope(context->GetIsolate());
-  Handle<ObjectHashTable> table = factory->NewObjectHashTable(1);
+
   Handle<JSObject> key = factory->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
 
@@ -216,7 +231,20 @@ TEST(ObjectHashTableCausesGC) {
 
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();
-  ObjectHashTable::Put(table, key, key);
+  HashMap::Put(table, key, key);
   CHECK(gc_count < isolate->heap()->gc_count());
 }
+
+
+TEST(ObjectHashTableCausesGC) {
+  i::FLAG_stress_compaction = false;
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+  Isolate* isolate = CcTest::i_isolate();
+  TestHashMapCausesGC(isolate->factory()->NewObjectHashTable(1));
+  TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
+}
 #endif
+
+
+}
