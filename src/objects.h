@@ -4700,9 +4700,6 @@ class ExternalArray: public FixedArrayBase {
   // Casting.
   static inline ExternalArray* cast(Object* obj);
 
-  // Maximal acceptable length for an external array.
-  static const int kMaxLength = 0x3fffffff;
-
   // ExternalArray headers are not quadword aligned.
   static const int kExternalPointerOffset =
       POINTER_SIZE_ALIGN(FixedArrayBase::kLengthOffset + kPointerSize);
