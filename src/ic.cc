@@ -1197,9 +1197,11 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
                             Handle<Object> value,
                             JSReceiver::StoreFromKeyed store_mode) {
   if (MigrateDeprecated(object) || object->IsJSProxy()) {
-    Handle<Object> result = JSReceiver::SetProperty(
-        Handle<JSReceiver>::cast(object), name, value, NONE, strict_mode());
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate(), result,
+        JSReceiver::SetProperty(receiver, name, value, NONE, strict_mode()));
     return *result;
   }
 
@@ -1232,9 +1234,11 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
 
   // Observed objects are always modified through the runtime.
   if (receiver->map()->is_observed()) {
-    Handle<Object> result = JSReceiver::SetProperty(
-        receiver, name, value, NONE, strict_mode(), store_mode);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate(), result,
+        JSReceiver::SetProperty(
+            receiver, name, value, NONE, strict_mode(), store_mode));
     return *result;
   }
 
@@ -1263,9 +1267,11 @@ MaybeObject* StoreIC::Store(Handle<Object> object,
   }
 
   // Set the property.
-  Handle<Object> result = JSReceiver::SetProperty(
-      receiver, name, value, NONE, strict_mode(), store_mode);
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate(), result,
+      JSReceiver::SetProperty(
+          receiver, name, value, NONE, strict_mode(), store_mode));
   return *result;
 }
 
@@ -1661,12 +1667,11 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
                                  Handle<Object> key,
                                  Handle<Object> value) {
   if (MigrateDeprecated(object)) {
-    Handle<Object> result = Runtime::SetObjectProperty(isolate(), object,
-                                                       key,
-                                                       value,
-                                                       NONE,
-                                                       strict_mode());
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate(), result,
+        Runtime::SetObjectProperty(
+            isolate(), object, key, value, NONE, strict_mode()));
     return *result;
   }
 
@@ -1734,11 +1739,11 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (maybe_object) return maybe_object;
-  Handle<Object> result = Runtime::SetObjectProperty(isolate(), object, key,
-                                                     value,
-                                                     NONE,
-                                                     strict_mode());
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate(), result,
+      Runtime::SetObjectProperty(
+          isolate(), object, key, value,  NONE, strict_mode()));
   return *result;
 }
 
@@ -1910,11 +1915,11 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictMode strict_mode = ic.strict_mode();
-  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
-                                                     value,
-                                                     NONE,
-                                                     strict_mode);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Runtime::SetObjectProperty(
+          isolate, object, key, value, NONE, strict_mode));
   return *result;
 }
 
@@ -1927,11 +1932,11 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_Slow) {
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
   StrictMode strict_mode = ic.strict_mode();
-  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
-                                                     value,
-                                                     NONE,
-                                                     strict_mode);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Runtime::SetObjectProperty(
+          isolate, object, key, value, NONE, strict_mode));
   return *result;
 }
 
@@ -1949,11 +1954,11 @@ RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
   }
-  Handle<Object> result = Runtime::SetObjectProperty(isolate, object, key,
-                                                     value,
-                                                     NONE,
-                                                     strict_mode);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Runtime::SetObjectProperty(
+          isolate, object, key, value, NONE, strict_mode));
   return *result;
 }
 

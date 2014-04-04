@@ -2119,16 +2119,17 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
-                                     Handle<Name> name,
-                                     Handle<Object> value,
-                                     PropertyAttributes attributes,
-                                     StrictMode strict_mode,
-                                     JSReceiver::StoreFromKeyed store_mode,
-                                     ExtensibilityCheck extensibility_check,
-                                     ValueType value_type,
-                                     StoreMode mode,
-                                     TransitionFlag transition_flag) {
+MaybeHandle<Object> JSObject::AddProperty(
+    Handle<JSObject> object,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode,
+    JSReceiver::StoreFromKeyed store_mode,
+    ExtensibilityCheck extensibility_check,
+    ValueType value_type,
+    StoreMode mode,
+    TransitionFlag transition_flag) {
   ASSERT(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
 
@@ -2145,8 +2146,7 @@ Handle<Object> JSObject::AddProperty(Handle<JSObject> object,
       Handle<Object> args[1] = { name };
       Handle<Object> error = isolate->factory()->NewTypeError(
           "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
   }
 
@@ -2206,14 +2206,15 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetPropertyPostInterceptor(
+MaybeHandle<Object> JSObject::SetPropertyPostInterceptor(
     Handle<JSObject> object,
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
     StrictMode strict_mode) {
   // Check local property, ignore interceptor.
-  LookupResult result(object->GetIsolate());
+  Isolate* isolate = object->GetIsolate();
+  LookupResult result(isolate);
   object->LocalLookupRealNamedProperty(*name, &result);
   if (!result.IsFound()) {
     object->map()->LookupTransition(*object, *name, &result);
@@ -2225,8 +2226,12 @@ Handle<Object> JSObject::SetPropertyPostInterceptor(
                                 strict_mode, MAY_BE_STORE_FROM_KEYED);
   }
   bool done = false;
-  Handle<Object> result_object = SetPropertyViaPrototypes(
-      object, name, value, attributes, strict_mode, &done);
+  Handle<Object> result_object;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result_object,
+      SetPropertyViaPrototypes(
+          object, name, value, attributes, strict_mode, &done),
+      Object);
   if (done) return result_object;
   // Add a new real property.
   return AddProperty(object, name, value, attributes, strict_mode);
@@ -2837,7 +2842,7 @@ Handle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> map) {
 }
 
 
-Handle<Object> JSObject::SetPropertyWithInterceptor(
+MaybeHandle<Object> JSObject::SetPropertyWithInterceptor(
     Handle<JSObject> object,
     Handle<Name> name,
     Handle<Object> value,
@@ -2860,22 +2865,20 @@ Handle<Object> JSObject::SetPropertyWithInterceptor(
     v8::Handle<v8::Value> result = args.Call(setter,
                                              v8::Utils::ToLocal(name_string),
                                              v8::Utils::ToLocal(value_unhole));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) return value;
   }
-  Handle<Object> result =
-      SetPropertyPostInterceptor(object, name, value, attributes, strict_mode);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  return result;
+  return SetPropertyPostInterceptor(
+      object, name, value, attributes, strict_mode);
 }
 
 
-Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
-                                       Handle<Name> name,
-                                       Handle<Object> value,
-                                       PropertyAttributes attributes,
-                                       StrictMode strict_mode,
-                                       StoreFromKeyed store_mode) {
+MaybeHandle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
+                                            Handle<Name> name,
+                                            Handle<Object> value,
+                                            PropertyAttributes attributes,
+                                            StrictMode strict_mode,
+                                            StoreFromKeyed store_mode) {
   LookupResult result(object->GetIsolate());
   object->LocalLookup(*name, &result, true);
   if (!result.IsFound()) {
@@ -2886,12 +2889,12 @@ Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
 }
 
 
-Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
-                                                 Handle<Object> structure,
-                                                 Handle<Name> name,
-                                                 Handle<Object> value,
-                                                 Handle<JSObject> holder,
-                                                 StrictMode strict_mode) {
+MaybeHandle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
+                                                      Handle<Object> structure,
+                                                      Handle<Name> name,
+                                                      Handle<Object> value,
+                                                      Handle<JSObject> holder,
+                                                      StrictMode strict_mode) {
   Isolate* isolate = object->GetIsolate();
 
   // We should never get here to initialize a const with the hole
@@ -2910,7 +2913,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
                               isolate, *object, *value, callback->data),
                           break,
                           return Handle<Object>());
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return value;
   }
 
@@ -2923,8 +2926,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
           isolate->factory()->NewTypeError("incompatible_method_receiver",
                                            HandleVector(args,
                                                         ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
     // TODO(rossberg): Support symbols in the API.
     if (name->IsSymbol()) return value;
@@ -2939,7 +2941,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
     args.Call(call_fun,
               v8::Utils::ToLocal(key),
               v8::Utils::ToLocal(value));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return value;
   }
 
@@ -2955,8 +2957,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
       Handle<Object> error =
           isolate->factory()->NewTypeError("no_setter_in_callback",
                                            HandleVector(args, 2));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
   }
 
@@ -2966,7 +2967,7 @@ Handle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
   }
 
   UNREACHABLE();
-  return Handle<Object>();
+  return MaybeHandle<Object>();
 }
 
 
@@ -3037,12 +3038,13 @@ Handle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
 }
 
 
-Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
-                                                  Handle<Name> name,
-                                                  Handle<Object> value,
-                                                  PropertyAttributes attributes,
-                                                  StrictMode strict_mode,
-                                                  bool* done) {
+MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
+    Handle<JSObject> object,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode,
+    bool* done) {
   Isolate* isolate = object->GetIsolate();
 
   *done = false;
@@ -3087,8 +3089,7 @@ Handle<Object> JSObject::SetPropertyViaPrototypes(Handle<JSObject> object,
     Handle<Object> args[] = { name, object };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
   return isolate->factory()->the_hole_value();
 }
@@ -3457,7 +3458,7 @@ void JSObject::LookupRealNamedPropertyInPrototypes(Name* name,
 
 
 // We only need to deal with CALLBACKS and INTERCEPTORS
-Handle<Object> JSObject::SetPropertyWithFailedAccessCheck(
+MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
     Handle<JSObject> object,
     LookupResult* result,
     Handle<Name> name,
@@ -3520,18 +3521,18 @@ Handle<Object> JSObject::SetPropertyWithFailedAccessCheck(
 
   Isolate* isolate = object->GetIsolate();
   isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return value;
 }
 
 
-Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
-                                       LookupResult* result,
-                                       Handle<Name> key,
-                                       Handle<Object> value,
-                                       PropertyAttributes attributes,
-                                       StrictMode strict_mode,
-                                       StoreFromKeyed store_mode) {
+MaybeHandle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
+                                            LookupResult* result,
+                                            Handle<Name> key,
+                                            Handle<Object> value,
+                                            PropertyAttributes attributes,
+                                            StrictMode strict_mode,
+                                            StoreFromKeyed store_mode) {
   if (result->IsHandler()) {
     return JSProxy::SetPropertyWithHandler(handle(result->proxy()),
         object, key, value, attributes, strict_mode);
@@ -3886,7 +3887,7 @@ Handle<Object> JSObject::TryMigrateInstance(Handle<JSObject> object) {
 }
 
 
-Handle<Object> JSObject::SetPropertyUsingTransition(
+MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
     Handle<JSObject> object,
     LookupResult* lookup,
     Handle<Name> name,
@@ -4012,13 +4013,14 @@ static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
 }
 
 
-Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
-                                              LookupResult* lookup,
-                                              Handle<Name> name,
-                                              Handle<Object> value,
-                                              PropertyAttributes attributes,
-                                              StrictMode strict_mode,
-                                              StoreFromKeyed store_mode) {
+MaybeHandle<Object> JSObject::SetPropertyForResult(
+    Handle<JSObject> object,
+    LookupResult* lookup,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode,
+    StoreFromKeyed store_mode) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4054,8 +4056,12 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   if (!lookup->IsProperty() && !object->IsJSContextExtensionObject()) {
     bool done = false;
-    Handle<Object> result_object = SetPropertyViaPrototypes(
-        object, name, value, attributes, strict_mode, &done);
+    Handle<Object> result_object;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result_object,
+        SetPropertyViaPrototypes(
+            object, name, value, attributes, strict_mode, &done),
+        Object);
     if (done) return result_object;
   }
 
@@ -4070,8 +4076,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
       Handle<Object> args[] = { name, object };
       Handle<Object> error = isolate->factory()->NewTypeError(
           "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     } else {
       return value;
     }
@@ -4087,10 +4092,10 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 
   // This is a real property that is not read-only, or it is a
   // transition or null descriptor and there are no setters in the prototypes.
-  Handle<Object> result = value;
+  MaybeHandle<Object> maybe_result = value;
   if (lookup->IsTransition()) {
-    result = SetPropertyUsingTransition(handle(lookup->holder()), lookup,
-                                        name, value, attributes);
+    maybe_result = SetPropertyUsingTransition(handle(lookup->holder()), lookup,
+                                              name, value, attributes);
   } else {
     switch (lookup->type()) {
       case NORMAL:
@@ -4110,7 +4115,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
                                       handle(lookup->holder()), strict_mode);
       }
       case INTERCEPTOR:
-        result = SetPropertyWithInterceptor(
+        maybe_result = SetPropertyWithInterceptor(
             handle(lookup->holder()), name, value, attributes, strict_mode);
         break;
       case HANDLER:
@@ -4119,7 +4124,8 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
     }
   }
 
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, maybe_result, Object);
 
   if (is_observed) {
     if (lookup->IsTransition()) {
@@ -4150,7 +4156,7 @@ Handle<Object> JSObject::SetPropertyForResult(Handle<JSObject> object,
 // Note that this method cannot be used to set the prototype of a function
 // because ConvertDescriptorToField() which is called in "case CALLBACKS:"
 // doesn't handle function prototypes correctly.
-Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
+MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<Name> name,
     Handle<Object> value,
@@ -4215,9 +4221,12 @@ Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Check of IsReadOnly removed from here in clone.
   if (lookup.IsTransition()) {
-    Handle<Object> result = SetPropertyUsingTransition(
-        handle(lookup.holder()), &lookup, name, value, attributes);
-    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        SetPropertyUsingTransition(
+            handle(lookup.holder()), &lookup, name, value, attributes),
+        Object);
   } else {
     switch (lookup.type()) {
       case NORMAL:
@@ -5012,7 +5021,7 @@ Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
       DONT_ENUM,
       OPTIMAL_REPRESENTATION,
       ALLOW_AS_CONSTANT,
-      OMIT_EXTENSIBILITY_CHECK);
+      OMIT_EXTENSIBILITY_CHECK).Assert();
 
   return hashtable;
 }
@@ -5051,7 +5060,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
                                    DONT_ENUM,
                                    OPTIMAL_REPRESENTATION,
                                    ALLOW_AS_CONSTANT,
-                                   OMIT_EXTENSIBILITY_CHECK);
+                                   OMIT_EXTENSIBILITY_CHECK).Assert();
   return object;
 }
 
@@ -5790,8 +5799,8 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
           if (copying) {
             // Creating object copy for literals. No strict mode needed.
-            CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetProperty(
-                copy, key_string, result, NONE, SLOPPY));
+            JSObject::SetProperty(
+                copy, key_string, result, NONE, SLOPPY).Assert();
           }
         }
       }
@@ -11436,7 +11445,7 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
 
     SetProperty(deleted, isolate->factory()->length_string(),
                 isolate->factory()->NewNumberFromUint(delete_count),
-                NONE, SLOPPY);
+                NONE, SLOPPY).Assert();
   }
 
   EnqueueSpliceRecord(array, index, deleted, add_count);

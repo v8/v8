@@ -61,13 +61,14 @@ Vector<const uc16> GetCharVector(Handle<String> string) {
 class URIUnescape : public AllStatic {
  public:
   template<typename Char>
-  static MaybeHandle<String> Unescape(Isolate* isolate, Handle<String> source);
+  MUST_USE_RESULT static MaybeHandle<String> Unescape(Isolate* isolate,
+                                                      Handle<String> source);
 
  private:
   static const signed char kHexValue['g'];
 
   template<typename Char>
-  static MaybeHandle<String> UnescapeSlow(
+  MUST_USE_RESULT static MaybeHandle<String> UnescapeSlow(
       Isolate* isolate, Handle<String> string, int start_index);
 
   static INLINE(int TwoDigitHex(uint16_t character1, uint16_t character2));
@@ -202,7 +203,8 @@ int URIUnescape::UnescapeChar(Vector<const Char> vector,
 class URIEscape : public AllStatic {
  public:
   template<typename Char>
-  static MaybeHandle<String> Escape(Isolate* isolate, Handle<String> string);
+  MUST_USE_RESULT static MaybeHandle<String> Escape(Isolate* isolate,
+                                                    Handle<String> string);
 
  private:
   static const char kHexChars[17];

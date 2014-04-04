@@ -68,8 +68,11 @@ class MaybeHandle {
     location_ = reinterpret_cast<T**>(maybe_handle.location_);
   }
 
+  INLINE(void Assert()) { ASSERT(location_ != NULL); }
+  INLINE(void Check()) { CHECK(location_ != NULL); }
+
   INLINE(Handle<T> ToHandleChecked()) {
-    CHECK(location_ != NULL);
+    Check();
     return Handle<T>(location_);
   }
 
@@ -290,11 +293,6 @@ void FlattenString(Handle<String> str);
 // Flattens a string and returns the underlying external or sequential
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
-
-Handle<Object> ForceSetProperty(Handle<JSObject> object,
-                                Handle<Object> key,
-                                Handle<Object> value,
-                                PropertyAttributes attributes);
 
 Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key);
 

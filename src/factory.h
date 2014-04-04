@@ -132,10 +132,10 @@ class Factory V8_FINAL {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  MaybeHandle<SeqOneByteString> NewRawOneByteString(
+  MUST_USE_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
+  MUST_USE_RESULT MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -166,9 +166,9 @@ class Factory V8_FINAL {
   // in the system: ASCII and two byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.
-  MaybeHandle<String> NewExternalStringFromAscii(
+  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromAscii(
       const ExternalAsciiString::Resource* resource);
-  MaybeHandle<String> NewExternalStringFromTwoByte(
+  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
   // Create a symbol.

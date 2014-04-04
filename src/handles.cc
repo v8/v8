@@ -158,15 +158,6 @@ Handle<String> FlattenGetString(Handle<String> string) {
 }
 
 
-Handle<Object> ForceSetProperty(Handle<JSObject> object,
-                                Handle<Object> key,
-                                Handle<Object> value,
-                                PropertyAttributes attributes) {
-  return Runtime::ForceSetObjectProperty(object->GetIsolate(), object, key,
-                                        value, attributes);
-}
-
-
 Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,

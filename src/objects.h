@@ -2039,13 +2039,13 @@ class JSReceiver: public HeapObject {
   static inline JSReceiver* cast(Object* obj);
 
   // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
-  static Handle<Object> SetProperty(Handle<JSReceiver> object,
-                                    Handle<Name> key,
-                                    Handle<Object> value,
-                                    PropertyAttributes attributes,
-                                    StrictMode strict_mode,
-                                    StoreFromKeyed store_mode =
-                                        MAY_BE_STORE_FROM_KEYED);
+  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
+      Handle<JSReceiver> object,
+      Handle<Name> key,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictMode strict_mode,
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
   static Handle<Object> SetElement(Handle<JSReceiver> object,
                                    uint32_t index,
                                    Handle<Object> value,
@@ -2130,13 +2130,14 @@ class JSReceiver: public HeapObject {
       Handle<Name> name,
       bool continue_search);
 
-  static Handle<Object> SetProperty(Handle<JSReceiver> receiver,
-                                    LookupResult* result,
-                                    Handle<Name> key,
-                                    Handle<Object> value,
-                                    PropertyAttributes attributes,
-                                    StrictMode strict_mode,
-                                    StoreFromKeyed store_from_keyed);
+  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
+      Handle<JSReceiver> receiver,
+      LookupResult* result,
+      Handle<Name> key,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictMode strict_mode,
+      StoreFromKeyed store_from_keyed);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
@@ -2252,7 +2253,7 @@ class JSObject: public JSReceiver {
                                                 Handle<Object> structure,
                                                 Handle<Name> name);
 
-  static Handle<Object> SetPropertyWithCallback(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithCallback(
       Handle<JSObject> object,
       Handle<Object> structure,
       Handle<Name> name,
@@ -2260,14 +2261,14 @@ class JSObject: public JSReceiver {
       Handle<JSObject> holder,
       StrictMode strict_mode);
 
-  static Handle<Object> SetPropertyWithInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
       StrictMode strict_mode);
 
-  static Handle<Object> SetPropertyForResult(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyForResult(
       Handle<JSObject> object,
       LookupResult* result,
       Handle<Name> name,
@@ -2276,7 +2277,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
-  static Handle<Object> SetLocalPropertyIgnoreAttributes(
+  MUST_USE_RESULT static MaybeHandle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
       Handle<Name> key,
       Handle<Object> value,
@@ -2640,7 +2641,7 @@ class JSObject: public JSReceiver {
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
 
   // ES5 Object.freeze
-  static MaybeHandle<Object> Freeze(Handle<JSObject> object);
+  MUST_USE_RESULT static MaybeHandle<Object> Freeze(Handle<JSObject> object);
 
   // Called the first time an object is observed with ES7 Object.observe.
   static void SetObserved(Handle<JSObject> object);
@@ -2842,26 +2843,26 @@ class JSObject: public JSReceiver {
   // has a setter, invoke it and set '*done' to true. If it is found and is
   // read-only, reject and set '*done' to true. Otherwise, set '*done' to
   // false. Can throw and return an empty handle with '*done==true'.
-  static Handle<Object> SetPropertyViaPrototypes(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyViaPrototypes(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
       StrictMode strict_mode,
       bool* done);
-  static Handle<Object> SetPropertyPostInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyPostInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes,
       StrictMode strict_mode);
-  static Handle<Object> SetPropertyUsingTransition(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
       Handle<JSObject> object,
       LookupResult* lookup,
       Handle<Name> name,
       Handle<Object> value,
       PropertyAttributes attributes);
-  static Handle<Object> SetPropertyWithFailedAccessCheck(
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       Handle<JSObject> object,
       LookupResult* result,
       Handle<Name> name,
@@ -2870,7 +2871,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode);
 
   // Add a property to an object.
-  static Handle<Object> AddProperty(
+  MUST_USE_RESULT static MaybeHandle<Object> AddProperty(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,

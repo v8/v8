@@ -190,9 +190,11 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(object,
-        isolate->factory()->length_string(), value, NONE);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            object, isolate->factory()->length_string(), value, NONE));
     return *result;
   }
 
@@ -591,9 +593,11 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
   Handle<Object> value(value_raw, isolate);
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    Handle<Object> result = JSObject::SetLocalPropertyIgnoreAttributes(object,
-        isolate->factory()->prototype_string(), value, NONE);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            object, isolate->factory()->prototype_string(), value, NONE));
     return *result;
   }
 

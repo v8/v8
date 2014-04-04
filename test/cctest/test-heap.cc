@@ -285,11 +285,13 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    JSReceiver::SetProperty(global, name, function, NONE, SLOPPY);
+    JSReceiver::SetProperty(global, name, function, NONE, SLOPPY).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
-    JSReceiver::SetProperty(obj, prop_namex, twenty_four, NONE, SLOPPY);
+    JSReceiver::SetProperty(
+        obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(
+        obj, prop_namex, twenty_four, NONE, SLOPPY).Check();
 
     CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
     CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
@@ -309,8 +311,9 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY);
-    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
+    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(
+        obj, prop_name, twenty_three, NONE, SLOPPY).Check();
   }
 
   // After gc, it should survive.
@@ -645,10 +648,11 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
   // Check that we can add properties to function objects.
-  JSReceiver::SetProperty(function, prop_name, twenty_four, NONE, SLOPPY);
+  JSReceiver::SetProperty(
+      function, prop_name, twenty_four, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
 }
 
@@ -675,7 +679,7 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
   CHECK(JSReceiver::HasLocalProperty(obj, first));
 
   // delete first
@@ -683,8 +687,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
   CHECK(JSReceiver::HasLocalProperty(obj, first));
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
@@ -696,8 +700,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasLocalProperty(obj, second));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
   CHECK(JSReceiver::HasLocalProperty(obj, first));
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
@@ -711,14 +715,14 @@ TEST(ObjectProperties) {
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAscii(CStrVector(string1));
-  JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY).Check();
   Handle<String> s2 = factory->NewStringFromAscii(CStrVector(string2));
   CHECK(JSReceiver::HasLocalProperty(obj, s2));
 }
@@ -742,7 +746,7 @@ TEST(JSObjectMaps) {
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
 
   // Check the map has changed
@@ -817,8 +821,8 @@ TEST(JSObjectCopy) {
   Handle<Smi> one(Smi::FromInt(1), isolate);
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY);
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY);
+  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
 
   JSReceiver::SetElement(obj, 0, first, NONE, SLOPPY);
   JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY);
@@ -836,8 +840,8 @@ TEST(JSObjectCopy) {
   CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
 
   // Flip the values.
-  JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY);
-  JSReceiver::SetProperty(clone, second, one, NONE, SLOPPY);
+  JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(clone, second, one, NONE, SLOPPY).Check();
 
   JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY);
   JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY);

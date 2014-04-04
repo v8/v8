@@ -811,7 +811,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
     JSObject::SetLocalPropertyIgnoreAttributes(prototype,
                                                constructor_string(),
                                                function,
-                                               DONT_ENUM);
+                                               DONT_ENUM).Assert();
   }
 
   return prototype;

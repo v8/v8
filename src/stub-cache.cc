@@ -656,9 +656,11 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   Handle<Object> value = args.at<Object>(2);
   ASSERT(receiver->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Handle<Object> result = JSObject::SetPropertyWithInterceptor(
-      receiver, name, value, attr, ic.strict_mode());
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::SetPropertyWithInterceptor(
+          receiver, name, value, attr, ic.strict_mode()));
   return *result;
 }
 

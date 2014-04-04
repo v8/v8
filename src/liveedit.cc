@@ -956,11 +956,11 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
       Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
       JSReceiver::SetProperty(
-          rethrow_exception, start_pos_key, start_pos, NONE, SLOPPY);
+          rethrow_exception, start_pos_key, start_pos, NONE, SLOPPY).Assert();
       JSReceiver::SetProperty(
-          rethrow_exception, end_pos_key, end_pos, NONE, SLOPPY);
+          rethrow_exception, end_pos_key, end_pos, NONE, SLOPPY).Assert();
       JSReceiver::SetProperty(
-          rethrow_exception, script_obj_key, script_obj, NONE, SLOPPY);
+          rethrow_exception, script_obj_key, script_obj, NONE, SLOPPY).Assert();
     }
   }
 

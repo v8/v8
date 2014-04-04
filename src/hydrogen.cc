@@ -5213,11 +5213,12 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<JSObject> boilerplate_object;
   if (literals_cell->IsUndefined()) {
     uninitialized = true;
-    Handle<Object> raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
-        isolate(), literals, expr->constant_elements());
-    if (raw_boilerplate.is_null()) {
-      return Bailout(kArrayBoilerplateCreationFailed);
-    }
+    Handle<Object> raw_boilerplate;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate(), raw_boilerplate,
+        Runtime::CreateArrayLiteralBoilerplate(
+            isolate(), literals, expr->constant_elements()),
+        Bailout(kArrayBoilerplateCreationFailed));
 
     boilerplate_object = Handle<JSObject>::cast(raw_boilerplate);
     AllocationSiteCreationContext creation_context(isolate());
