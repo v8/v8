@@ -1438,7 +1438,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     if (IsTransitionStoreMode(store_mode)) {
       transitioned_receiver_map = ComputeTransitionedMap(receiver, store_mode);
     }
-    if (receiver_map.is_identical_to(previous_receiver_map) ||
+    if ((receiver_map.is_identical_to(previous_receiver_map) &&
+         IsTransitionStoreMode(store_mode)) ||
         IsTransitionOfMonomorphicTarget(
             MapToType<HeapType>(transitioned_receiver_map, isolate()))) {
       // If the "old" and "new" maps are in the same elements map family, or
