@@ -114,6 +114,13 @@ class ScriptDataImpl : public ScriptData {
         ? store_[PreparseDataConstants::kSymbolCountOffset]
         : 0;
   }
+  int function_count() {
+    int functions_size =
+        static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
+    if (functions_size < 0) return 0;
+    if (functions_size % FunctionEntry::kSize != 0) return 0;
+    return functions_size / FunctionEntry::kSize;
+  }
   // The following functions should only be called if SanityCheck has
   // returned true.
   bool has_error() { return store_[PreparseDataConstants::kHasErrorOffset]; }

@@ -14823,74 +14823,32 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
 }
 
 
-// This test verifies that pre-compilation (aka preparsing) can be called
-// without initializing the whole VM. Thus we cannot run this test in a
-// multi-threaded setup.
-TEST(PreCompile) {
-  // TODO(155): This test would break without the initialization of V8. This is
-  // a workaround for now to make this test not fail.
-  v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope handle_scope(isolate);
-  const char* script = "function foo(a) { return a+1; }";
-  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
-  CHECK_NE(sd->Length(), 0);
-  CHECK_NE(sd->Data(), NULL);
-  CHECK(!sd->HasError());
-  delete sd;
-}
-
-
-TEST(PreCompileWithError) {
-  v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope handle_scope(isolate);
-  const char* script = "function foo(a) { return 1 * * 2; }";
-  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
-  CHECK(sd->HasError());
-  delete sd;
-}
-
-
-TEST(Regress31661) {
-  v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope handle_scope(isolate);
-  const char* script = " The Definintive Guide";
-  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
-  CHECK(sd->HasError());
-  delete sd;
-}
-
-
 // Tests that ScriptData can be serialized and deserialized.
 TEST(PreCompileSerialization) {
   v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
   HandleScope handle_scope(isolate);
-  const char* script = "function foo(a) { return a+1; }";
-  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
 
+  i::FLAG_min_preparse_length = 0;
+  const char* script = "function foo(a) { return a+1; }";
+  v8::ScriptCompiler::Source source(v8_str(script));
+  v8::ScriptCompiler::Compile(isolate, &source,
+                              v8::ScriptCompiler::kProduceDataToCache);
   // Serialize.
-  int serialized_data_length = sd->Length();
-  char* serialized_data = i::NewArray<char>(serialized_data_length);
-  i::OS::MemCopy(serialized_data, sd->Data(), serialized_data_length);
+  const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
+  char* serialized_data = i::NewArray<char>(cd->length);
+  i::OS::MemCopy(serialized_data, cd->data, cd->length);
 
   // Deserialize.
-  v8::ScriptData* deserialized_sd =
-      v8::ScriptData::New(serialized_data, serialized_data_length);
+  v8::ScriptData* deserialized =
+      v8::ScriptData::New(serialized_data, cd->length);
 
   // Verify that the original is the same as the deserialized.
-  CHECK_EQ(sd->Length(), deserialized_sd->Length());
-  CHECK_EQ(0, memcmp(sd->Data(), deserialized_sd->Data(), sd->Length()));
-  CHECK_EQ(sd->HasError(), deserialized_sd->HasError());
+  CHECK_EQ(cd->length, deserialized->Length());
+  CHECK_EQ(0, memcmp(cd->data, deserialized->Data(), cd->length));
 
-  delete sd;
-  delete deserialized_sd;
+  delete deserialized;
   i::DeleteArray(serialized_data);
 }
 
@@ -14908,17 +14866,25 @@ TEST(PreCompileDeserializationError) {
 }
 
 
-// Attempts to deserialize bad data.
-TEST(PreCompileInvalidPreparseDataError) {
+TEST(CompileWithInvalidCachedData) {
   v8::V8::Initialize();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
+  i::FLAG_min_preparse_length = 0;
 
   const char* script = "function foo(){ return 5;}\n"
       "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptData* sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
+  v8::ScriptCompiler::Source source(v8_str(script));
+  v8::ScriptCompiler::Compile(isolate, &source,
+                              v8::ScriptCompiler::kProduceDataToCache);
+  // source owns its cached data. Create a ScriptData based on it. The user
+  // never needs to create ScriptDatas any more; we only need it here because we
+  // want to modify the data before passing it back.
+  const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
+  // ScriptData does not take ownership of the buffers passed to it.
+  v8::ScriptData* sd =
+      v8::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
   CHECK(!sd->HasError());
   // ScriptDataImpl private implementation details
   const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
@@ -14932,12 +14898,18 @@ TEST(PreCompileInvalidPreparseDataError) {
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
   v8::TryCatch try_catch;
 
-  v8::ScriptCompiler::Source script_source(
-      String::NewFromUtf8(isolate, script),
+  // Make the script slightly different so that we don't hit the compilation
+  // cache. Don't change the lenghts of tokens.
+  const char* script2 = "function foo(){ return 6;}\n"
+      "function bar(){ return 6 + 7;}  foo();";
+  v8::ScriptCompiler::Source source2(
+      v8_str(script2),
+      // CachedData doesn't take ownership of the buffers, Source takes
+      // ownership of CachedData.
       new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   Local<v8::UnboundScript> compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
+      v8::ScriptCompiler::CompileUnbound(isolate, &source2);
 
   CHECK(try_catch.HasCaught());
   String::Utf8Value exception_value(try_catch.Message()->Get());
@@ -14950,19 +14922,20 @@ TEST(PreCompileInvalidPreparseDataError) {
   // Overwrite function bar's start position with 200.  The function entry
   // will not be found when searching for it by position and we should fall
   // back on eager compilation.
-  sd = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, script, v8::String::kNormalString, i::StrLength(script)));
+  // ScriptData does not take ownership of the buffers passed to it.
+  sd = v8::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
-  v8::ScriptCompiler::Source script_source2(
-      String::NewFromUtf8(isolate, script),
+  const char* script3 = "function foo(){ return 7;}\n"
+      "function bar(){ return 6 + 7;}  foo();";
+  v8::ScriptCompiler::Source source3(
+      v8_str(script3),
       new v8::ScriptCompiler::CachedData(
           reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
   compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, &script_source2);
+      v8::ScriptCompiler::CompileUnbound(isolate, &source3);
   CHECK(!try_catch.HasCaught());
-
   delete sd;
 }
 

@@ -144,24 +144,36 @@ TEST(ScanHTMLEndComments) {
   int marker;
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
+  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
-    v8::Handle<v8::String> source = v8::String::NewFromUtf8(
-        isolate, tests[i], v8::String::kNormalString, i::StrLength(tests[i]));
-    v8::ScriptData* data = v8::ScriptData::PreCompile(source);
-    CHECK(data != NULL && !data->HasError());
-    delete data;
+    const i::byte* source =
+        reinterpret_cast<const i::byte*>(tests[i]);
+    i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(tests[i]));
+    i::CompleteParserRecorder log;
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    scanner.Initialize(&stream);
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    preparser.set_allow_lazy(true);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::ScriptDataImpl data(log.ExtractData());
+    CHECK(!data.has_error());
   }
 
   for (int i = 0; fail_tests[i]; i++) {
-    v8::Handle<v8::String> source =
-        v8::String::NewFromUtf8(isolate,
-                                fail_tests[i],
-                                v8::String::kNormalString,
-                                i::StrLength(fail_tests[i]));
-    v8::ScriptData* data = v8::ScriptData::PreCompile(source);
-    CHECK(data == NULL || data->HasError());
-    delete data;
+    const i::byte* source =
+        reinterpret_cast<const i::byte*>(fail_tests[i]);
+    i::Utf8ToUtf16CharacterStream stream(source, i::StrLength(fail_tests[i]));
+    i::CompleteParserRecorder log;
+    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+    scanner.Initialize(&stream);
+    i::PreParser preparser(&scanner, &log, stack_limit);
+    preparser.set_allow_lazy(true);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
+    // Even in the case of a syntax error, kPreParseSuccess is returned.
+    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+    i::ScriptDataImpl data(log.ExtractData());
+    CHECK(data.has_error());
   }
 }
 
@@ -180,7 +192,7 @@ class ScriptResource : public v8::String::ExternalAsciiStringResource {
 };
 
 
-TEST(Preparsing) {
+TEST(UsingCachedData) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
@@ -203,60 +215,22 @@ TEST(Preparsing) {
       "var y = { get getter() { return 42; }, "
       "          set setter(v) { this.value = v; }};";
   int source_length = i::StrLength(source);
-  const char* error_source = "var x = y z;";
-  int error_source_length = i::StrLength(error_source);
 
-  v8::ScriptData* preparse = v8::ScriptData::PreCompile(v8::String::NewFromUtf8(
-      isolate, source, v8::String::kNormalString, source_length));
-  CHECK(!preparse->HasError());
+  // ScriptResource will be deleted when the corresponding String is GCd.
+  v8::ScriptCompiler::Source script_source(v8::String::NewExternal(
+      isolate, new ScriptResource(source, source_length)));
+  i::FLAG_min_preparse_length = 0;
+  v8::ScriptCompiler::Compile(isolate, &script_source,
+                              v8::ScriptCompiler::kProduceDataToCache);
+  CHECK(script_source.GetCachedData());
+
+  // Compile the script again, using the cached data.
   bool lazy_flag = i::FLAG_lazy;
-  {
-    i::FLAG_lazy = true;
-    ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::ScriptCompiler::Source script_source(
-        v8::String::NewExternal(isolate, resource),
-        new v8::ScriptCompiler::CachedData(
-            reinterpret_cast<const uint8_t*>(preparse->Data()),
-            preparse->Length()));
-    v8::ScriptCompiler::Compile(isolate,
-                                &script_source);
-  }
-
-  {
-    i::FLAG_lazy = false;
-
-    ScriptResource* resource = new ScriptResource(source, source_length);
-    v8::ScriptCompiler::Source script_source(
-        v8::String::NewExternal(isolate, resource),
-        new v8::ScriptCompiler::CachedData(
-            reinterpret_cast<const uint8_t*>(preparse->Data()),
-            preparse->Length()));
-    v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
-  }
-  delete preparse;
+  i::FLAG_lazy = true;
+  v8::ScriptCompiler::Compile(isolate, &script_source);
+  i::FLAG_lazy = false;
+  v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
   i::FLAG_lazy = lazy_flag;
-
-  // Syntax error.
-  v8::ScriptData* error_preparse = v8::ScriptData::PreCompile(
-      v8::String::NewFromUtf8(isolate,
-                              error_source,
-                              v8::String::kNormalString,
-                              error_source_length));
-  CHECK(error_preparse->HasError());
-  i::ScriptDataImpl *pre_impl =
-      reinterpret_cast<i::ScriptDataImpl*>(error_preparse);
-  i::Scanner::Location error_location =
-      pre_impl->MessageLocation();
-  // Error is at "z" in source, location 10..11.
-  CHECK_EQ(10, error_location.beg_pos);
-  CHECK_EQ(11, error_location.end_pos);
-  // Should not crash.
-  const char* message = pre_impl->BuildMessage();
-  i::Vector<const char*> args = pre_impl->BuildArgs();
-  CHECK_GT(strlen(message), 0);
-  args.Dispose();
-  i::DeleteArray(message);
-  delete error_preparse;
 }
 
 
@@ -472,15 +446,6 @@ struct CompleteParserRecorderFriend {
       log->symbol_id_ = number + 1;
     }
   }
-  static int symbol_position(CompleteParserRecorder* log) {
-    return log->symbol_store_.size();
-  }
-  static int symbol_ids(CompleteParserRecorder* log) {
-    return log->symbol_id_;
-  }
-  static int function_position(CompleteParserRecorder* log) {
-    return log->function_store_.size();
-  }
 };
 
 }
@@ -536,9 +501,17 @@ TEST(RegressChromium62639) {
   i::Utf8ToUtf16CharacterStream stream(
       reinterpret_cast<const i::byte*>(program),
       static_cast<unsigned>(strlen(program)));
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
-  CHECK(data->HasError());
-  delete data;
+  i::CompleteParserRecorder log;
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  scanner.Initialize(&stream);
+  i::PreParser preparser(&scanner, &log,
+                         CcTest::i_isolate()->stack_guard()->real_climit());
+  preparser.set_allow_lazy(true);
+  i::PreParser::PreParseResult result = preparser.PreParseProgram();
+  // Even in the case of a syntax error, kPreParseSuccess is returned.
+  CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+  i::ScriptDataImpl data(log.ExtractData());
+  CHECK(data.has_error());
 }
 
 
@@ -563,16 +536,23 @@ TEST(Regress928) {
   i::Handle<i::String> source(
       factory->NewStringFromAscii(i::CStrVector(program)));
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
-  i::ScriptDataImpl* data = i::PreParserApi::PreParse(isolate, &stream);
-  CHECK(!data->HasError());
-
-  data->Initialize();
+  i::CompleteParserRecorder log;
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
+  scanner.Initialize(&stream);
+  i::PreParser preparser(&scanner, &log,
+                         CcTest::i_isolate()->stack_guard()->real_climit());
+  preparser.set_allow_lazy(true);
+  i::PreParser::PreParseResult result = preparser.PreParseProgram();
+  CHECK_EQ(i::PreParser::kPreParseSuccess, result);
+  i::ScriptDataImpl data(log.ExtractData());
+  CHECK(!data.has_error());
+  data.Initialize();
 
   int first_function =
       static_cast<int>(strstr(program, "function") - program);
   int first_lbrace = first_function + i::StrLength("function () ");
   CHECK_EQ('{', program[first_lbrace]);
-  i::FunctionEntry entry1 = data->GetFunctionEntry(first_lbrace);
+  i::FunctionEntry entry1 = data.GetFunctionEntry(first_lbrace);
   CHECK(!entry1.is_valid());
 
   int second_function =
@@ -580,10 +560,9 @@ TEST(Regress928) {
   int second_lbrace =
       second_function + i::StrLength("function () ");
   CHECK_EQ('{', program[second_lbrace]);
-  i::FunctionEntry entry2 = data->GetFunctionEntry(second_lbrace);
+  i::FunctionEntry entry2 = data.GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
-  delete data;
 }
 
 
@@ -1556,10 +1535,9 @@ TEST(ParserSync) {
 }
 
 
-TEST(PreparserStrictOctal) {
+TEST(StrictOctal) {
   // Test that syntax error caused by octal literal is reported correctly as
   // such (issue 2220).
-  v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(
@@ -2086,9 +2064,12 @@ TEST(NoErrorsIdentifierNames) {
 
 
 TEST(DontRegressPreParserDataSizes) {
-  // These tests make sure that PreParser doesn't start producing less data.
-
+  // These tests make sure that Parser doesn't start producing less "preparse
+  // data" (data which the embedder can cache).
   v8::V8::Initialize();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handles(isolate);
+
   int marker;
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
@@ -2118,45 +2099,37 @@ TEST(DontRegressPreParserDataSizes) {
      1},
     {NULL, 0, 0}
   };
-  // Each function adds 5 elements to the preparse function data.
-  const int kDataPerFunction = 5;
 
-  typedef i::CompleteParserRecorderFriend F;
-  uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; test_cases[i].program; i++) {
     const char* program = test_cases[i].program;
-    i::Utf8ToUtf16CharacterStream stream(
-        reinterpret_cast<const i::byte*>(program),
-        static_cast<unsigned>(strlen(program)));
-    i::CompleteParserRecorder log;
-    i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
-    scanner.Initialize(&stream);
+    i::Factory* factory = CcTest::i_isolate()->factory();
+    i::Handle<i::String> source(
+        factory->NewStringFromUtf8(i::CStrVector(program)));
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::CompilationInfoWithZone info(script);
+    i::ScriptDataImpl* data = NULL;
+    info.SetCachedData(&data, i::PRODUCE_CACHED_DATA);
+    i::Parser::Parse(&info, true);
+    CHECK(data);
+    CHECK(!data->HasError());
 
-    i::PreParser preparser(&scanner, &log, stack_limit);
-    preparser.set_allow_lazy(true);
-    preparser.set_allow_natives_syntax(true);
-    i::PreParser::PreParseResult result = preparser.PreParseProgram();
-    CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    if (F::symbol_ids(&log) != test_cases[i].symbols) {
+    if (data->symbol_count() != test_cases[i].symbols) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d symbols, however, received %d symbols.\n",
-          program, test_cases[i].symbols, F::symbol_ids(&log));
+          program, test_cases[i].symbols, data->symbol_count());
       CHECK(false);
     }
-    if (F::function_position(&log) !=
-          test_cases[i].functions * kDataPerFunction) {
+    if (data->function_count() != test_cases[i].functions) {
       i::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
           program, test_cases[i].functions,
-          F::function_position(&log) / kDataPerFunction);
+          data->function_count());
       CHECK(false);
     }
-    i::ScriptDataImpl data(log.ExtractData());
-    CHECK(!data.has_error());
   }
 }
 
