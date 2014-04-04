@@ -292,9 +292,9 @@ TEST(4) {
     __ vstr(d4, r4, OFFSET_OF(T, f));
 
     // Convert from fixed point to floating point.
-    __ mov(lr, Operand(1234));
+    __ mov(lr, Operand(2468));
     __ vmov(s8, lr);
-    __ vcvt_f64_s32(d4, 1);
+    __ vcvt_f64_s32(d4, 2);
     __ vstr(d4, r4, OFFSET_OF(T, j));
 
     // Test vabs.

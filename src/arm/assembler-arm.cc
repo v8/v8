@@ -2827,8 +2827,9 @@ void Assembler::vcvt_f64_s32(const DwVfpRegister dst,
   ASSERT(CpuFeatures::IsSupported(VFP3));
   int vd, d;
   dst.split_code(&vd, &d);
-  int i = ((32 - fraction_bits) >> 4) & 1;
-  int imm4 = (32 - fraction_bits) & 0xf;
+  int imm5 = 32 - fraction_bits;
+  int i = imm5 & 1;
+  int imm4 = (imm5 >> 1) & 0xf;
   emit(cond | 0xE*B24 | B23 | d*B22 | 0x3*B20 | B19 | 0x2*B16 |
        vd*B12 | 0x5*B9 | B8 | B7 | B6 | i*B5 | imm4);
 }

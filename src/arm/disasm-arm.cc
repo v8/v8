@@ -1272,7 +1272,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0xA) && (instr->Opc3Value() == 0x3) &&
                  (instr->Bit(8) == 1)) {
         // vcvt.f64.s32 Dd, Dd, #<fbits>
-        int fraction_bits = 32 - ((instr->Bit(5) << 4) | instr->Bits(3, 0));
+        int fraction_bits = 32 - ((instr->Bits(3, 0) << 1) | instr->Bit(5));
         Format(instr, "vcvt'cond.f64.s32 'Dd, 'Dd");
         out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                         ", #%d", fraction_bits);
