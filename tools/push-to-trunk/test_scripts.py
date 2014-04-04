@@ -784,7 +784,7 @@ Performance and stability improvements on all platforms.""", commit)
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
       Git(("log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "svn/trunk"), "push_hash\n"),
       Git("svn find-rev push_hash", "123455\n"),
       Git("log -1 --format=%s push_hash",
@@ -944,7 +944,7 @@ deps = {
 
     self.ExpectGit([
       Git(("log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "svn/trunk"), "push_hash\n"),
       Git("svn find-rev push_hash", "123455\n"),
     ])
@@ -964,7 +964,7 @@ deps = {
 
     self.ExpectGit([
       Git(("log -1 --format=%H --grep="
-           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]* (based\" "
+           "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "svn/trunk"), "push_hash\n"),
       Git("svn find-rev push_hash", "123456\n"),
     ])

@@ -47,7 +47,7 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of the last push to trunk."
 
   def RunStep(self):
-    push_hash = self.FindLastTrunkPush()
+    push_hash = self.FindLastTrunkPush(include_patches=True)
     self["last_push"] = self.GitSVNFindSVNRev(push_hash)
 
 
