@@ -615,12 +615,9 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   // array to prevent visiting it later. Skip recording the transition
   // array slot, since it will be implicitly recorded when the pointer
   // fields of this map are visited.
-  TransitionArray* transitions = map->unchecked_transition_array();
-  if (transitions->IsTransitionArray()) {
+  if (map->HasTransitionArray()) {
+    TransitionArray* transitions = map->transitions();
     MarkTransitionArray(heap, transitions);
-  } else {
-    // Already marked by marking map->GetBackPointer() above.
-    ASSERT(transitions->IsMap() || transitions->IsUndefined());
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the

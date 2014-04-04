@@ -6123,9 +6123,6 @@ class Map: public HeapObject {
       FixedArray* prototype_transitions);
   inline bool HasPrototypeTransitions();
 
-  inline HeapObject* UncheckedPrototypeTransitions();
-  inline TransitionArray* unchecked_transition_array();
-
   static const int kProtoTransitionHeaderSize = 1;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
   static const int kProtoTransitionElementsPerEntry = 2;

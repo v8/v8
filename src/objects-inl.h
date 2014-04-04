@@ -5002,23 +5002,6 @@ void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
 }
 
 
-// Can either be Smi (no transitions), normal transition array, or a transition
-// array with the header overwritten as a Smi (thus iterating).
-TransitionArray* Map::unchecked_transition_array() {
-  Object* object = *HeapObject::RawField(this,
-                                         Map::kTransitionsOrBackPointerOffset);
-  TransitionArray* transition_array = static_cast<TransitionArray*>(object);
-  return transition_array;
-}
-
-
-HeapObject* Map::UncheckedPrototypeTransitions() {
-  ASSERT(HasTransitionArray());
-  ASSERT(unchecked_transition_array()->HasPrototypeTransitions());
-  return unchecked_transition_array()->UncheckedPrototypeTransitions();
-}
-
-
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
