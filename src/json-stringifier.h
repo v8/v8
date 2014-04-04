@@ -265,8 +265,7 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
   accumulator_store_ = Handle<JSValue>::cast(
                            factory_->ToObject(factory_->empty_string()));
   part_length_ = kInitialPartLength;
-  current_part_ = factory_->NewRawOneByteString(part_length_);
-  ASSERT(!current_part_.is_null());
+  current_part_ = factory_->NewRawOneByteString(part_length_).ToHandleChecked();
   tojson_string_ = factory_->toJSON_string();
   stack_ = factory_->NewJSArray(8);
 }
@@ -308,18 +307,16 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
   FlattenString(object);
   ASSERT(object->IsFlat());
   if (object->IsOneByteRepresentationUnderneath()) {
-    Handle<String> result =
-        isolate->factory()->NewRawOneByteString(worst_case_length);
-    ASSERT(!result.is_null());
+    Handle<String> result = isolate->factory()->NewRawOneByteString(
+        worst_case_length).ToHandleChecked();
     DisallowHeapAllocation no_gc;
     return StringifyString_<SeqOneByteString>(
         isolate,
         object->GetFlatContent().ToOneByteVector(),
         result);
   } else {
-    Handle<String> result =
-        isolate->factory()->NewRawTwoByteString(worst_case_length);
-    ASSERT(!result.is_null());
+    Handle<String> result = isolate->factory()->NewRawTwoByteString(
+        worst_case_length).ToHandleChecked();
     DisallowHeapAllocation no_gc;
     return StringifyString_<SeqTwoByteString>(
         isolate,
@@ -501,8 +498,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
   part_length_ = kInitialPartLength;  // Allocate conservatively.
   Extend();             // Attach current part and allocate new part.
   // Attach result string to the accumulator.
-  Handle<String> cons = factory_->NewConsString(accumulator(), result_string);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, cons, EXCEPTION);
+  Handle<String> cons;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, cons,
+      factory_->NewConsString(accumulator(), result_string),
+      EXCEPTION);
   set_accumulator(cons);
   return SUCCESS;
 }
@@ -731,7 +731,8 @@ void BasicJsonStringifier::Accumulate() {
     set_accumulator(factory_->empty_string());
     overflowed_ = true;
   } else {
-    set_accumulator(factory_->NewConsString(accumulator(), current_part_));
+    set_accumulator(factory_->NewConsString(accumulator(),
+                                            current_part_).ToHandleChecked());
   }
 }
 
@@ -742,9 +743,11 @@ void BasicJsonStringifier::Extend() {
     part_length_ *= kPartLengthGrowthFactor;
   }
   if (is_ascii_) {
-    current_part_ = factory_->NewRawOneByteString(part_length_);
+    current_part_ =
+        factory_->NewRawOneByteString(part_length_).ToHandleChecked();
   } else {
-    current_part_ = factory_->NewRawTwoByteString(part_length_);
+    current_part_ =
+        factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
   }
   ASSERT(!current_part_.is_null());
   current_index_ = 0;
@@ -754,7 +757,8 @@ void BasicJsonStringifier::Extend() {
 void BasicJsonStringifier::ChangeEncoding() {
   ShrinkCurrentPart();
   Accumulate();
-  current_part_ = factory_->NewRawTwoByteString(part_length_);
+  current_part_ =
+      factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
   ASSERT(!current_part_.is_null());
   current_index_ = 0;
   is_ascii_ = false;

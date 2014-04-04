@@ -655,7 +655,7 @@ void TestCharacterStream(const char* ascii_source,
       factory->NewStringFromAscii(ascii_vector));
   TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
-      factory->NewExternalStringFromTwoByte(&resource));
+      factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
 
   i::ExternalTwoByteStringUtf16CharacterStream uc16_stream(
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string), start, end);

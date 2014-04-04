@@ -255,8 +255,8 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Handle<SeqOneByteString> Factory::NewRawOneByteString(int length,
-                                                      PretenureFlag pretenure) {
+MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
+    int length, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawOneByteString(length, pretenure),
@@ -264,8 +264,8 @@ Handle<SeqOneByteString> Factory::NewRawOneByteString(int length,
 }
 
 
-Handle<SeqTwoByteString> Factory::NewRawTwoByteString(int length,
-                                                      PretenureFlag pretenure) {
+MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
+    int length, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
@@ -298,13 +298,15 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
   if (static_cast<unsigned>(c1 | c2) <= String::kMaxOneByteCharCodeU) {
     // We can do this.
     ASSERT(IsPowerOf2(String::kMaxOneByteCharCodeU + 1));  // because of this.
-    Handle<SeqOneByteString> str = isolate->factory()->NewRawOneByteString(2);
+    Handle<SeqOneByteString> str =
+        isolate->factory()->NewRawOneByteString(2).ToHandleChecked();
     uint8_t* dest = str->GetChars();
     dest[0] = static_cast<uint8_t>(c1);
     dest[1] = static_cast<uint8_t>(c2);
     return str;
   } else {
-    Handle<SeqTwoByteString> str = isolate->factory()->NewRawTwoByteString(2);
+    Handle<SeqTwoByteString> str =
+        isolate->factory()->NewRawTwoByteString(2).ToHandleChecked();
     uc16* dest = str->GetChars();
     dest[0] = c1;
     dest[1] = c2;
@@ -334,8 +336,8 @@ Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
 }
 
 
-Handle<String> Factory::NewConsString(Handle<String> left,
-                                      Handle<String> right) {
+MaybeHandle<String> Factory::NewConsString(Handle<String> left,
+                                           Handle<String> right) {
   int left_length = left->length();
   if (left_length == 0) return right;
   int right_length = right->length();
@@ -352,8 +354,8 @@ Handle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    isolate()->ThrowInvalidStringLength();
-    return Handle<String>::null();
+    return isolate()->Throw<String>(
+        isolate()->factory()->NewInvalidStringLengthError());
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -380,7 +382,8 @@ Handle<String> Factory::NewConsString(Handle<String> left,
 
     STATIC_ASSERT(ConsString::kMinLength <= String::kMaxLength);
     if (is_one_byte) {
-      Handle<SeqOneByteString> result = NewRawOneByteString(length);
+      Handle<SeqOneByteString> result =
+          NewRawOneByteString(length).ToHandleChecked();
       DisallowHeapAllocation no_gc;
       uint8_t* dest = result->GetChars();
       // Copy left part.
@@ -397,8 +400,10 @@ Handle<String> Factory::NewConsString(Handle<String> left,
     }
 
     return (is_one_byte_data_in_two_byte_string)
-        ? ConcatStringContent<uint8_t>(NewRawOneByteString(length), left, right)
-        : ConcatStringContent<uc16>(NewRawTwoByteString(length), left, right);
+        ? ConcatStringContent<uint8_t>(
+            NewRawOneByteString(length).ToHandleChecked(), left, right)
+        : ConcatStringContent<uc16>(
+            NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
   Handle<ConsString> result = NewRawConsString(
@@ -422,10 +427,10 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
   int total_length = first->length() + second->length();
   if (first->IsOneByteRepresentation() && second->IsOneByteRepresentation()) {
     return ConcatStringContent<uint8_t>(
-        NewRawOneByteString(total_length), first, second);
+        NewRawOneByteString(total_length).ToHandleChecked(), first, second);
   } else {
     return ConcatStringContent<uc16>(
-        NewRawTwoByteString(total_length), first, second);
+        NewRawTwoByteString(total_length).ToHandleChecked(), first, second);
   }
 }
 
@@ -463,15 +468,15 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 
   if (!FLAG_string_slices || length < SlicedString::kMinLength) {
     if (str->IsOneByteRepresentation()) {
-      Handle<SeqOneByteString> result = NewRawOneByteString(length);
-      ASSERT(!result.is_null());
+      Handle<SeqOneByteString> result =
+          NewRawOneByteString(length).ToHandleChecked();
       uint8_t* dest = result->GetChars();
       DisallowHeapAllocation no_gc;
       String::WriteToFlat(*str, dest, begin, end);
       return result;
     } else {
-      Handle<SeqTwoByteString> result = NewRawTwoByteString(length);
-      ASSERT(!result.is_null());
+      Handle<SeqTwoByteString> result =
+          NewRawTwoByteString(length).ToHandleChecked();
       uc16* dest = result->GetChars();
       DisallowHeapAllocation no_gc;
       String::WriteToFlat(*str, dest, begin, end);
@@ -518,7 +523,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 }
 
 
-Handle<String> Factory::NewExternalStringFromAscii(
+MaybeHandle<String> Factory::NewExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -527,7 +532,7 @@ Handle<String> Factory::NewExternalStringFromAscii(
 }
 
 
-Handle<String> Factory::NewExternalStringFromTwoByte(
+MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1369,9 +1374,6 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  if (capacity != 0) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSArrayAndStorage(
                          elements_kind,

@@ -34,6 +34,66 @@
 namespace v8 {
 namespace internal {
 
+// A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
+// into a Handle requires checking that it does not point to NULL.  This
+// ensures NULL checks before use.
+// Do not use MaybeHandle as argument type.
+
+template<typename T>
+class MaybeHandle {
+ public:
+  INLINE(MaybeHandle()) : location_(NULL) { }
+
+  // Constructor for handling automatic up casting from Handle.
+  // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
+  template <class S> MaybeHandle(Handle<S> handle) {
+#ifdef DEBUG
+    T* a = NULL;
+    S* b = NULL;
+    a = b;  // Fake assignment to enforce type checks.
+    USE(a);
+#endif
+    this->location_ = reinterpret_cast<T**>(handle.location());
+  }
+
+  // Constructor for handling automatic up casting.
+  // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
+  template <class S> MaybeHandle(MaybeHandle<S> maybe_handle) {
+#ifdef DEBUG
+    T* a = NULL;
+    S* b = NULL;
+    a = b;  // Fake assignment to enforce type checks.
+    USE(a);
+#endif
+    location_ = reinterpret_cast<T**>(maybe_handle.location_);
+  }
+
+  INLINE(Handle<T> ToHandleChecked()) {
+    CHECK(location_ != NULL);
+    return Handle<T>(location_);
+  }
+
+  // Convert to a Handle with a type that can be upcasted to.
+  template <class S> INLINE(bool ToHandle(Handle<S>* out)) {
+    if (location_ == NULL) {
+      *out = Handle<T>::null();
+      return false;
+    } else {
+      *out = Handle<T>(location_);
+      return true;
+    }
+  }
+
+  bool is_null() const { return location_ == NULL; }
+
+ protected:
+  T** location_;
+
+  // MaybeHandles of different classes are allowed to access each
+  // other's location_.
+  template<class S> friend class MaybeHandle;
+};
+
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
@@ -47,7 +107,9 @@ class Handle {
   INLINE(explicit Handle(T* obj));
   INLINE(Handle(T* obj, Isolate* isolate));
 
-  INLINE(Handle()) : location_(NULL) {}
+  // TODO(yangguo): Values that contain empty handles should be declared as
+  // MaybeHandle to force validation before being used as handles.
+  INLINE(Handle()) : location_(NULL) { }
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
@@ -77,6 +139,8 @@ class Handle {
     return Handle<T>(reinterpret_cast<T**>(that.location_));
   }
 
+  // TODO(yangguo): Values that contain empty handles should be declared as
+  // MaybeHandle to force validation before being used as handles.
   static Handle<T> null() { return Handle<T>(); }
   bool is_null() const { return location_ == NULL; }
 

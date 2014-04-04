@@ -985,7 +985,7 @@ deps = {
       return lambda: self.assertEquals(patch,
           FileToText(TEST_CONFIG[TEMPORARY_PATCH_FILE]))
 
-    msg = """Merged r12345, r23456, r34567, r45678, r56789 into trunk branch.
+    msg = """Version 3.22.5.1 (merged r12345, r23456, r34567, r45678, r56789)
 
 Title4
 
@@ -995,7 +995,7 @@ Title3
 
 Title1
 
-Title5
+Revert "Something"
 
 BUG=123,234,345,456,567,v8:123
 LOG=N
@@ -1043,12 +1043,12 @@ LOG=N
       Git("log -1 --format=%s hash2", "Title2"),
       Git("log -1 --format=%s hash3", "Title3"),
       Git("log -1 --format=%s hash1", "Title1"),
-      Git("log -1 --format=%s hash5", "Title5"),
+      Git("log -1 --format=%s hash5", "Revert \"Something\""),
       Git("log -1 hash4", "Title4\nBUG=123\nBUG=234"),
       Git("log -1 hash2", "Title2\n BUG = v8:123,345"),
       Git("log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"),
-      Git("log -1 hash1", "Title1"),
-      Git("log -1 hash5", "Title5"),
+      Git("log -1 hash1", "Title1\nBUG="),
+      Git("log -1 hash5", "Revert \"Something\"\nBUG=none"),
       Git("log -1 -p hash4", "patch4"),
       Git("apply --index --reject \"%s\"" % TEST_CONFIG[TEMPORARY_PATCH_FILE],
           "", cb=VerifyPatch("patch4")),
@@ -1071,7 +1071,8 @@ LOG=N
       Git("cl presubmit", "Presubmit successfull\n"),
       Git("cl dcommit -f --bypass-hooks", "Closing issue\n", cb=VerifySVNCommit),
       Git("svn fetch", ""),
-      Git("log -1 --format=%%H --grep=\"%s\" svn/trunk" % msg, "hash6"),
+      Git(("log -1 --format=%%H --grep=\"%s\" svn/trunk"
+           % msg.replace("\"", "\\\"")), "hash6"),
       Git("svn find-rev hash6", "1324"),
       Git(("copy -r 1324 https://v8.googlecode.com/svn/trunk "
            "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "

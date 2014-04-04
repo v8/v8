@@ -69,8 +69,12 @@ class ElementsAccessor {
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
-      Handle<FixedArrayBase> backing_store =
-          Handle<FixedArrayBase>::null()) = 0;
+      Handle<FixedArrayBase> backing_store) = 0;
+
+  MUST_USE_RESULT virtual Handle<Object> Get(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) = 0;
 
   MUST_USE_RESULT virtual MaybeObject* Get(
       Object* receiver,
@@ -151,21 +155,30 @@ class ElementsAccessor {
   // store is available, it can be passed in source and source_holder is
   // ignored.
   virtual void CopyElements(
-      Handle<JSObject> source_holder,
+      Handle<FixedArrayBase> source,
       uint32_t source_start,
       ElementsKind source_kind,
       Handle<FixedArrayBase> destination,
       uint32_t destination_start,
-      int copy_size,
-      Handle<FixedArrayBase> source = Handle<FixedArrayBase>::null()) = 0;
+      int copy_size) = 0;
 
-  void CopyElements(
+  // TODO(ishell): Keeping |source_holder| parameter in a non-handlified form
+  // helps avoiding ArrayConcat() builtin performance degradation.
+  // Revisit this later.
+  virtual void CopyElements(
+      JSObject* source_holder,
+      uint32_t source_start,
+      ElementsKind source_kind,
+      Handle<FixedArrayBase> destination,
+      uint32_t destination_start,
+      int copy_size) = 0;
+
+  inline void CopyElements(
       Handle<JSObject> from_holder,
       Handle<FixedArrayBase> to,
-      ElementsKind from_kind,
-      Handle<FixedArrayBase> from = Handle<FixedArrayBase>::null()) {
-    CopyElements(from_holder, 0, from_kind, to, 0,
-                 kCopyToEndAndInitializeToHole, from);
+      ElementsKind from_kind) {
+    CopyElements(
+      *from_holder, 0, from_kind, to, 0, kCopyToEndAndInitializeToHole);
   }
 
   MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(

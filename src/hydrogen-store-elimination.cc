@@ -129,7 +129,7 @@ void HStoreEliminationPhase::ProcessInstr(HInstruction* instr,
     unobserved_.Rewind(0);
     return;
   }
-  if (instr->ChangesFlags().ContainsAnyOf(flags)) {
+  if (instr->DependsOnFlags().ContainsAnyOf(flags)) {
     TRACE(("-- Observed stores at I%d (GVN flags)\n", instr->id()));
     unobserved_.Rewind(0);
     return;

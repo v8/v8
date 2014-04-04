@@ -447,7 +447,7 @@ static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
     left = ConstructRandomString(data, max_recursion - 1);
   }
   // Build the cons string.
-  Handle<String> root = factory->NewConsString(left, right);
+  Handle<String> root = factory->NewConsString(left, right).ToHandleChecked();
   CHECK(root->IsConsString() && !root->IsFlat());
   // Special work needed for flat string.
   if (flat) {
@@ -467,7 +467,8 @@ static Handle<String> ConstructLeft(
   data->stats_.leaves_++;
   for (int i = 0; i < depth; i++) {
     Handle<String> block = data->block(i);
-    Handle<String> next = factory->NewConsString(answer, block);
+    Handle<String> next =
+        factory->NewConsString(answer, block).ToHandleChecked();
     if (next->IsConsString()) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
@@ -485,7 +486,8 @@ static Handle<String> ConstructRight(
   data->stats_.leaves_++;
   for (int i = depth - 1; i >= 0; i--) {
     Handle<String> block = data->block(i);
-    Handle<String> next = factory->NewConsString(block, answer);
+    Handle<String> next =
+        factory->NewConsString(block, answer).ToHandleChecked();
     if (next->IsConsString()) data->stats_.leaves_++;
     data->stats_.chars_ += block->length();
     answer = next;
@@ -508,7 +510,8 @@ static Handle<String> ConstructBalancedHelper(
   if (to - from == 2) {
     data->stats_.chars_ += data->block(from)->length();
     data->stats_.chars_ += data->block(from+1)->length();
-    return factory->NewConsString(data->block(from), data->block(from+1));
+    return factory->NewConsString(data->block(from), data->block(from+1))
+        .ToHandleChecked();
   }
   Handle<String> part1 =
     ConstructBalancedHelper(data, from, from + ((to - from) / 2));
@@ -516,7 +519,7 @@ static Handle<String> ConstructBalancedHelper(
     ConstructBalancedHelper(data, from + ((to - from) / 2), to);
   if (part1->IsConsString()) data->stats_.left_traversals_++;
   if (part2->IsConsString()) data->stats_.right_traversals_++;
-  return factory->NewConsString(part1, part2);
+  return factory->NewConsString(part1, part2).ToHandleChecked();
 }
 
 
@@ -710,7 +713,8 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.chars_ += data->block(0)->length();
       data->stats_.chars_ += data->block(1)->length();
       data->stats_.leaves_ += 2;
-      return factory->NewConsString(data->block(0), data->block(1));
+      return factory->NewConsString(data->block(0), data->block(1))
+                 .ToHandleChecked();
     case 6:
       // Simple flattened tree.
       data->stats_.chars_ += data->block(0)->length();
@@ -719,7 +723,8 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.empty_leaves_ += 1;
       {
         Handle<String> string =
-            factory->NewConsString(data->block(0), data->block(1));
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
         FlattenString(string);
         return string;
       }
@@ -733,9 +738,10 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.left_traversals_ += 1;
       {
         Handle<String> left =
-            factory->NewConsString(data->block(0), data->block(1));
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
         FlattenString(left);
-        return factory->NewConsString(left, data->block(2));
+        return factory->NewConsString(left, data->block(2)).ToHandleChecked();
       }
     case 8:
       // Left node and right node flattened.
@@ -749,12 +755,14 @@ static Handle<String> BuildEdgeCaseConsString(
       data->stats_.right_traversals_ += 1;
       {
         Handle<String> left =
-            factory->NewConsString(data->block(0), data->block(1));
+            factory->NewConsString(data->block(0), data->block(1))
+                .ToHandleChecked();
         FlattenString(left);
         Handle<String> right =
-            factory->NewConsString(data->block(2), data->block(2));
+            factory->NewConsString(data->block(2), data->block(2))
+                .ToHandleChecked();
         FlattenString(right);
-        return factory->NewConsString(left, right);
+        return factory->NewConsString(left, right).ToHandleChecked();
       }
   }
   UNREACHABLE();
@@ -866,9 +874,10 @@ TEST(DeepAscii) {
       factory->NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
   Handle<String> foo_string = factory->NewStringFromAscii(CStrVector("foo"));
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
-    string = factory->NewConsString(string, foo_string);
+    string = factory->NewConsString(string, foo_string).ToHandleChecked();
   }
-  Handle<String> flat_string = factory->NewConsString(string, foo_string);
+  Handle<String> flat_string =
+      factory->NewConsString(string, foo_string).ToHandleChecked();
   FlattenString(flat_string);
 
   for (int i = 0; i < 500; i++) {
@@ -1092,7 +1101,8 @@ TEST(SliceFromCons) {
   v8::HandleScope scope(CcTest::isolate());
   Handle<String> string =
       factory->NewStringFromAscii(CStrVector("parentparentparent"));
-  Handle<String> parent = factory->NewConsString(string, string);
+  Handle<String> parent =
+      factory->NewConsString(string, string).ToHandleChecked();
   CHECK(parent->IsConsString());
   CHECK(!parent->IsFlat());
   Handle<String> slice = factory->NewSubString(parent, 1, 25);
@@ -1127,7 +1137,8 @@ TEST(SliceFromExternal) {
   v8::HandleScope scope(CcTest::isolate());
   AsciiVectorResource resource(
       i::Vector<const char>("abcdefghijklmnopqrstuvwxyz", 26));
-  Handle<String> string = factory->NewExternalStringFromAscii(&resource);
+  Handle<String> string =
+      factory->NewExternalStringFromAscii(&resource).ToHandleChecked();
   CHECK(string->IsExternalString());
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());

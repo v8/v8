@@ -43,7 +43,7 @@ namespace internal {
 template <bool seq_ascii>
 class JsonParser BASE_EMBEDDED {
  public:
-  static Handle<Object> Parse(Handle<String> source) {
+  static MaybeHandle<Object> Parse(Handle<String> source) {
     return JsonParser(source).ParseJson();
   }
 
@@ -69,7 +69,7 @@ class JsonParser BASE_EMBEDDED {
   }
 
   // Parse a string containing a single JSON value.
-  Handle<Object> ParseJson();
+  MaybeHandle<Object> ParseJson();
 
   inline void Advance() {
     position_++;
@@ -219,7 +219,7 @@ class JsonParser BASE_EMBEDDED {
 };
 
 template <bool seq_ascii>
-Handle<Object> JsonParser<seq_ascii>::ParseJson() {
+MaybeHandle<Object> JsonParser<seq_ascii>::ParseJson() {
   // Advance to the first character (possibly EOS)
   AdvanceSkipWhitespace();
   Handle<Object> result = ParseJsonValue();
@@ -268,9 +268,8 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson() {
     MessageLocation location(factory->NewScript(source_),
                              position_,
                              position_ + 1);
-    Handle<Object> result = factory->NewSyntaxError(message, array);
-    isolate()->Throw(*result, &location);
-    return Handle<Object>::null();
+    Handle<Object> error = factory->NewSyntaxError(message, array);
+    return isolate()->template Throw<Object>(error, &location);
   }
   return result;
 }
@@ -583,14 +582,14 @@ template <>
 inline Handle<SeqTwoByteString> NewRawString(Factory* factory,
                                              int length,
                                              PretenureFlag pretenure) {
-  return factory->NewRawTwoByteString(length, pretenure);
+  return factory->NewRawTwoByteString(length, pretenure).ToHandleChecked();
 }
 
 template <>
 inline Handle<SeqOneByteString> NewRawString(Factory* factory,
                                            int length,
                                            PretenureFlag pretenure) {
-  return factory->NewRawOneByteString(length, pretenure);
+  return factory->NewRawOneByteString(length, pretenure).ToHandleChecked();
 }
 
 
@@ -606,7 +605,6 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
   int length = Min(max_length, Max(kInitialSpecialStringLength, 2 * count));
   Handle<StringType> seq_string =
       NewRawString<StringType>(factory(), length, pretenure_);
-  ASSERT(!seq_string.is_null());
   // Copy prefix into seq_str.
   SinkChar* dest = seq_string->GetChars();
   String::WriteToFlat(*prefix, dest, start, end);
@@ -793,8 +791,8 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     }
   } while (c0_ != '"');
   int length = position_ - beg_pos;
-  Handle<String> result = factory()->NewRawOneByteString(length, pretenure_);
-  ASSERT(!result.is_null());
+  Handle<String> result =
+      factory()->NewRawOneByteString(length, pretenure_).ToHandleChecked();
   uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
   String::WriteToFlat(*source_, dest, beg_pos, position_);
 

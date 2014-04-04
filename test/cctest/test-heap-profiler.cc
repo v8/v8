@@ -445,7 +445,8 @@ TEST(HeapSnapshotConsString) {
       factory->NewStringFromAscii(i::CStrVector("0123456789"));
   i::Handle<i::String> second =
       factory->NewStringFromAscii(i::CStrVector("0123456789"));
-  i::Handle<i::String> cons_string = factory->NewConsString(first, second);
+  i::Handle<i::String> cons_string =
+      factory->NewConsString(first, second).ToHandleChecked();
 
   global->SetInternalField(0, v8::ToApiHandle<v8::String>(cons_string));
 

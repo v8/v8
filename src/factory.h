@@ -132,16 +132,16 @@ class Factory V8_FINAL {
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
-  Handle<SeqOneByteString> NewRawOneByteString(
+  MaybeHandle<SeqOneByteString> NewRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
-  Handle<SeqTwoByteString> NewRawTwoByteString(
+  MaybeHandle<SeqTwoByteString> NewRawTwoByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Create a new cons string object which consists of a pair of strings.
-  Handle<String> NewConsString(Handle<String> left,
-                               Handle<String> right);
+  MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
+                                                    Handle<String> right);
 
   Handle<ConsString> NewRawConsString(String::Encoding encoding);
 
@@ -166,9 +166,9 @@ class Factory V8_FINAL {
   // in the system: ASCII and two byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.
-  Handle<String> NewExternalStringFromAscii(
+  MaybeHandle<String> NewExternalStringFromAscii(
       const ExternalAsciiString::Resource* resource);
-  Handle<String> NewExternalStringFromTwoByte(
+  MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
   // Create a symbol.
@@ -336,6 +336,9 @@ class Factory V8_FINAL {
       int capacity,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED) {
+    if (capacity != 0) {
+      elements_kind = GetHoleyElementsKind(elements_kind);
+    }
     return NewJSArray(elements_kind, 0, capacity,
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
@@ -432,6 +435,11 @@ class Factory V8_FINAL {
   Handle<Object> NewRangeError(const char* message,
                                Vector< Handle<Object> > args);
   Handle<Object> NewRangeError(Handle<String> message);
+
+  Handle<Object> NewInvalidStringLengthError() {
+    return NewRangeError("invalid_string_length",
+                         HandleVector<Object>(NULL, 0));
+  }
 
   Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
   Handle<Object> NewSyntaxError(Handle<String> message);

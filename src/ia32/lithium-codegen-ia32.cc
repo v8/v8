@@ -5952,7 +5952,13 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
     __ push(size);
   } else {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    __ push(Immediate(Smi::FromInt(size)));
+    if (size >= 0 && size <= Smi::kMaxValue) {
+      __ push(Immediate(Smi::FromInt(size)));
+    } else {
+      // We should never get here at runtime => abort
+      __ int3();
+      return;
+    }
   }
 
   int flags = AllocateDoubleAlignFlag::encode(

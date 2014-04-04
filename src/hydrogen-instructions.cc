@@ -509,6 +509,7 @@ bool HValue::CanReplaceWithDummyUses() {
       !(block()->IsReachable() ||
         IsBlockEntry() ||
         IsControlInstruction() ||
+        IsCapturedObject() ||
         IsSimulate() ||
         IsEnterInlined() ||
         IsLeaveInlined());
@@ -841,104 +842,133 @@ void HInstruction::Verify() {
 #endif
 
 
-static bool HasPrimitiveRepresentation(HValue* instr) {
-  return instr->representation().IsInteger32() ||
-    instr->representation().IsDouble();
-}
-
-
 bool HInstruction::CanDeoptimize() {
   // TODO(titzer): make this a virtual method?
   switch (opcode()) {
+    case HValue::kAbnormalExit:
     case HValue::kAccessArgumentsAt:
-    case HValue::kApplyArguments:
+    case HValue::kAllocate:
     case HValue::kArgumentsElements:
     case HValue::kArgumentsLength:
     case HValue::kArgumentsObject:
+    case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
+    case HValue::kCallFunction:
+    case HValue::kCallJSFunction:
+    case HValue::kCallNew:
+    case HValue::kCallNewArray:
+    case HValue::kCallStub:
+    case HValue::kCallWithDescriptor:
     case HValue::kCapturedObject:
-    case HValue::kClampToUint8:
+    case HValue::kClassOfTestAndBranch:
+    case HValue::kCompareGeneric:
+    case HValue::kCompareHoleAndBranch:
+    case HValue::kCompareMap:
+    case HValue::kCompareMinusZeroAndBranch:
+    case HValue::kCompareNumericAndBranch:
+    case HValue::kCompareObjectEqAndBranch:
     case HValue::kConstant:
+    case HValue::kConstructDouble:
     case HValue::kContext:
-    case HValue::kDateField:
     case HValue::kDebugBreak:
     case HValue::kDeclareGlobals:
-    case HValue::kDiv:
+    case HValue::kDoubleBits:
     case HValue::kDummyUse:
     case HValue::kEnterInlined:
     case HValue::kEnvironmentMarker:
-    case HValue::kForInCacheArray:
-    case HValue::kForInPrepareMap:
-    case HValue::kFunctionLiteral:
+    case HValue::kForceRepresentation:
     case HValue::kGetCachedArrayIndex:
     case HValue::kGoto:
+    case HValue::kHasCachedArrayIndexAndBranch:
+    case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kInstanceOf:
     case HValue::kInstanceOfKnownGlobal:
-    case HValue::kInvokeFunction:
+    case HValue::kIsConstructCallAndBranch:
+    case HValue::kIsObjectAndBranch:
+    case HValue::kIsSmiAndBranch:
+    case HValue::kIsStringAndBranch:
+    case HValue::kIsUndetectableAndBranch:
     case HValue::kLeaveInlined:
-    case HValue::kLoadContextSlot:
     case HValue::kLoadFieldByIndex:
-    case HValue::kLoadFunctionPrototype:
-    case HValue::kLoadGlobalCell:
     case HValue::kLoadGlobalGeneric:
-    case HValue::kLoadKeyed:
-    case HValue::kLoadKeyedGeneric:
     case HValue::kLoadNamedField:
     case HValue::kLoadNamedGeneric:
     case HValue::kLoadRoot:
     case HValue::kMapEnumLength:
-    case HValue::kMathFloorOfDiv:
     case HValue::kMathMinMax:
-    case HValue::kMod:
-    case HValue::kMul:
-    case HValue::kOsrEntry:
     case HValue::kParameter:
-    case HValue::kPower:
+    case HValue::kPhi:
     case HValue::kPushArgument:
+    case HValue::kRegExpLiteral:
+    case HValue::kReturn:
     case HValue::kRor:
     case HValue::kSar:
     case HValue::kSeqStringGetChar:
+    case HValue::kStoreCodeEntry:
+    case HValue::kStoreKeyed:
+    case HValue::kStoreNamedGeneric:
+    case HValue::kStringCharCodeAt:
+    case HValue::kStringCharFromCode:
+    case HValue::kThisFunction:
+    case HValue::kTypeofIsAndBranch:
+    case HValue::kUnknownOSRValue:
+    case HValue::kUseConst:
+      return false;
+
+    case HValue::kAdd:
+    case HValue::kApplyArguments:
+    case HValue::kBitwise:
+    case HValue::kBoundsCheck:
+    case HValue::kBranch:
+    case HValue::kCallRuntime:
+    case HValue::kChange:
+    case HValue::kCheckHeapObject:
+    case HValue::kCheckInstanceType:
+    case HValue::kCheckMapValue:
+    case HValue::kCheckMaps:
+    case HValue::kCheckSmi:
+    case HValue::kCheckValue:
+    case HValue::kClampToUint8:
+    case HValue::kDateField:
+    case HValue::kDeoptimize:
+    case HValue::kDiv:
+    case HValue::kForInCacheArray:
+    case HValue::kForInPrepareMap:
+    case HValue::kFunctionLiteral:
+    case HValue::kInvokeFunction:
+    case HValue::kLoadContextSlot:
+    case HValue::kLoadFunctionPrototype:
+    case HValue::kLoadGlobalCell:
+    case HValue::kLoadKeyed:
+    case HValue::kLoadKeyedGeneric:
+    case HValue::kMathFloorOfDiv:
+    case HValue::kMod:
+    case HValue::kMul:
+    case HValue::kOsrEntry:
+    case HValue::kPower:
     case HValue::kSeqStringSetChar:
     case HValue::kShl:
     case HValue::kShr:
     case HValue::kSimulate:
     case HValue::kStackCheck:
-    case HValue::kStoreCodeEntry:
     case HValue::kStoreContextSlot:
     case HValue::kStoreGlobalCell:
-    case HValue::kStoreKeyed:
     case HValue::kStoreKeyedGeneric:
     case HValue::kStoreNamedField:
-    case HValue::kStoreNamedGeneric:
     case HValue::kStringAdd:
-    case HValue::kStringCharCodeAt:
-    case HValue::kStringCharFromCode:
+    case HValue::kStringCompareAndBranch:
     case HValue::kSub:
-    case HValue::kThisFunction:
     case HValue::kToFastProperties:
     case HValue::kTransitionElementsKind:
     case HValue::kTrapAllocationMemento:
     case HValue::kTypeof:
     case HValue::kUnaryMathOperation:
-    case HValue::kUseConst:
     case HValue::kWrapReceiver:
-      return false;
-    case HValue::kForceRepresentation:
-    case HValue::kAdd:
-    case HValue::kBitwise:
-    case HValue::kChange:
-    case HValue::kCompareGeneric:
-      // These instructions might deoptimize if they are not primitive.
-      if (!HasPrimitiveRepresentation(this)) return true;
-      for (int i = 0; i < OperandCount(); i++) {
-        HValue* input = OperandAt(i);
-        if (!HasPrimitiveRepresentation(input)) return true;
-      }
-      return false;
-    default:
       return true;
   }
+  UNREACHABLE();
+  return true;
 }
 
 

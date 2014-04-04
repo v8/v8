@@ -309,7 +309,7 @@ inline Atomic64 NoBarrier_Load(volatile const Atomic64* ptr) {
 }
 
 inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
-  Atomic32 value;
+  Atomic64 value;
 
   __asm__ __volatile__ (  // NOLINT
     "ldar %x[value], %[ptr]  \n\t"

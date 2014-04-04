@@ -419,7 +419,7 @@ function ArrayPop() {
     return;
   }
 
-  if ($Object.isSealed(this)) {
+  if (ObjectIsSealed(this)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.pop"]);
   }
@@ -460,7 +460,7 @@ function ArrayPush() {
 
   var n = TO_UINT32(this.length);
   var m = %_ArgumentsLength();
-  if (m > 0 && $Object.isSealed(this)) {
+  if (m > 0 && ObjectIsSealed(this)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.push"]);
   }
@@ -596,7 +596,7 @@ function ArrayShift() {
     return;
   }
 
-  if ($Object.isSealed(this)) {
+  if (ObjectIsSealed(this)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.shift"]);
   }
@@ -641,7 +641,7 @@ function ArrayUnshift(arg1) {  // length == 1
 
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
-  var is_sealed = $Object.isSealed(this);
+  var is_sealed = ObjectIsSealed(this);
 
   if (num_arguments > 0 && is_sealed) {
     throw MakeTypeError("array_functions_change_sealed",
@@ -654,7 +654,7 @@ function ArrayUnshift(arg1) {  // length == 1
   if (IS_ARRAY(this) && !is_sealed) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
-    if (num_arguments == 0 && $Object.isFrozen(this)) {
+    if (num_arguments == 0 && ObjectIsFrozen(this)) {
       // In the zero argument case, values from the prototype come into the
       // object. This can't be allowed on frozen arrays.
       for (var i = 0; i < len; i++) {
@@ -807,10 +807,10 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && $Object.isSealed(this)) {
+  if (del_count != num_elements_to_add && ObjectIsSealed(this)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.splice"]);
-  } else if (del_count > 0 && $Object.isFrozen(this)) {
+  } else if (del_count > 0 && ObjectIsFrozen(this)) {
     throw MakeTypeError("array_functions_on_frozen",
                         ["Array.prototype.splice"]);
   }
