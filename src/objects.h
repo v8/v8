@@ -1536,10 +1536,11 @@ class Object : public MaybeObject {
       PropertyAttributes* attributes);
 
   // TODO(yangguo): this should eventually replace the non-handlified version.
-  static Handle<Object> GetPropertyWithReceiver(Handle<Object> object,
-                                                Handle<Object> receiver,
-                                                Handle<Name> name,
-                                                PropertyAttributes* attributes);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
+      Handle<Object> object,
+      Handle<Object> receiver,
+      Handle<Name> name,
+      PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
       Object* receiver,
       Name* key,
@@ -1550,11 +1551,12 @@ class Object : public MaybeObject {
 
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Name> key);
-  static Handle<Object> GetProperty(Handle<Object> object,
-                                    Handle<Object> receiver,
-                                    LookupResult* result,
-                                    Handle<Name> key,
-                                    PropertyAttributes* attributes);
+  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
+      Handle<Object> object,
+      Handle<Object> receiver,
+      LookupResult* result,
+      Handle<Name> key,
+      PropertyAttributes* attributes);
 
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
@@ -2248,10 +2250,11 @@ class JSObject: public JSReceiver {
                                                    uint32_t limit);
   MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
-  static Handle<Object> GetPropertyWithCallback(Handle<JSObject> object,
-                                                Handle<Object> receiver,
-                                                Handle<Object> structure,
-                                                Handle<Name> name);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Object> structure,
+      Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithCallback(
       Handle<JSObject> object,
@@ -2371,12 +2374,12 @@ class JSObject: public JSReceiver {
   static Handle<Object> SetAccessor(Handle<JSObject> object,
                                     Handle<AccessorInfo> info);
 
-  static Handle<Object> GetPropertyWithInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Name> name,
       PropertyAttributes* attributes);
-  static Handle<Object> GetPropertyPostInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyPostInterceptor(
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Name> name,
@@ -2774,7 +2777,7 @@ class JSObject: public JSReceiver {
                                    ElementsKind to_kind);
 
   // Used from Object::GetProperty().
-  static Handle<Object> GetPropertyWithFailedAccessCheck(
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
       Handle<JSObject> object,
       Handle<Object> receiver,
       LookupResult* result,

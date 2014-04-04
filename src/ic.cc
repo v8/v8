@@ -598,11 +598,11 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
 
   PropertyAttributes attr;
   // Get the property.
-  Handle<Object> result =
-      Object::GetProperty(object, object, &lookup, name, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
-  // If the property is not present, check if we need to throw an
-  // exception.
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate(), result,
+      Object::GetProperty(object, object, &lookup, name, &attr));
+  // If the property is not present, check if we need to throw an exception.
   if ((lookup.IsInterceptor() || lookup.IsHandler()) &&
       attr == ABSENT && IsUndeclaredGlobal(object)) {
     return ReferenceError("not_defined", name);

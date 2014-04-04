@@ -3541,10 +3541,9 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
   PropertyAttributes ignored;
-  i::Handle<i::Object> result =
-      i::Object::GetProperty(receiver, receiver, lookup, name,
-                             &ignored);
-  has_pending_exception = result.is_null();
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Object::GetProperty(
+      receiver, receiver, lookup, name, &ignored).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 
   return Utils::ToLocal(result);

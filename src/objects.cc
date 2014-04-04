@@ -156,14 +156,14 @@ void Object::Lookup(Name* name, LookupResult* result) {
 }
 
 
-Handle<Object> Object::GetPropertyWithReceiver(
+MaybeHandle<Object> Object::GetPropertyWithReceiver(
     Handle<Object> object,
     Handle<Object> receiver,
     Handle<Name> name,
     PropertyAttributes* attributes) {
   LookupResult lookup(name->GetIsolate());
   object->Lookup(*name, &lookup);
-  Handle<Object> result =
+  MaybeHandle<Object> result =
       GetProperty(object, receiver, &lookup, name, attributes);
   ASSERT(*attributes <= ABSENT);
   return result;
@@ -389,10 +389,10 @@ Handle<FixedArray> JSObject::EnsureWritableFastElements(
 }
 
 
-Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
-                                                 Handle<Object> receiver,
-                                                 Handle<Object> structure,
-                                                 Handle<Name> name) {
+MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
+                                                      Handle<Object> receiver,
+                                                      Handle<Object> structure,
+                                                      Handle<Name> name) {
   Isolate* isolate = name->GetIsolate();
   // To accommodate both the old and the new api we switch on the
   // data structure used to store the callbacks.  Eventually foreign
@@ -415,8 +415,7 @@ Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
           isolate->factory()->NewTypeError("incompatible_method_receiver",
                                            HandleVector(args,
                                                         ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>::null();
+      return isolate->Throw<Object>(error);
     }
     // TODO(rossberg): Handling symbols in the API requires changing the API,
     // so we do not support it for now.
@@ -443,7 +442,7 @@ Handle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     PropertyCallbackArguments args(isolate, data->data(), *self, *object);
     v8::Handle<v8::Value> result =
         args.Call(call_fun, v8::Utils::ToLocal(key));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
       return isolate->factory()->undefined_value();
     }
@@ -556,7 +555,7 @@ MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
 
 
 // Only deal with CALLBACKS and INTERCEPTOR
-Handle<Object> JSObject::GetPropertyWithFailedAccessCheck(
+MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
     Handle<JSObject> object,
     Handle<Object> receiver,
     LookupResult* result,
@@ -829,11 +828,11 @@ bool JSObject::IsDirty() {
 }
 
 
-Handle<Object> Object::GetProperty(Handle<Object> object,
-                                   Handle<Object> receiver,
-                                   LookupResult* result,
-                                   Handle<Name> key,
-                                   PropertyAttributes* attributes) {
+MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
+                                        Handle<Object> receiver,
+                                        LookupResult* result,
+                                        Handle<Name> key,
+                                        PropertyAttributes* attributes) {
   Isolate* isolate = result->isolate();
   CALL_HEAP_FUNCTION(
       isolate,
@@ -883,13 +882,15 @@ MaybeObject* Object::GetProperty(Object* receiver,
         JSObject* checked = JSObject::cast(current);
         if (!isolate->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
           HandleScope scope(isolate);
-          Handle<Object> value = JSObject::GetPropertyWithFailedAccessCheck(
-              handle(checked, isolate),
-              handle(receiver, isolate),
-              result,
-              handle(name, isolate),
-              attributes);
-          RETURN_IF_EMPTY_HANDLE(isolate, value);
+          Handle<Object> value;
+          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+              isolate, value,
+              JSObject::GetPropertyWithFailedAccessCheck(
+                  handle(checked, isolate),
+                  handle(receiver, isolate),
+                  result,
+                  handle(name, isolate),
+                  attributes));
           return *value;
         }
       }
@@ -923,24 +924,28 @@ MaybeObject* Object::GetProperty(Object* receiver,
       return result->GetConstant();
     case CALLBACKS: {
       HandleScope scope(isolate);
-      Handle<Object> value = JSObject::GetPropertyWithCallback(
-          handle(result->holder(), isolate),
-          handle(receiver, isolate),
-          handle(result->GetCallbackObject(), isolate),
-          handle(name, isolate));
-      RETURN_IF_EMPTY_HANDLE(isolate, value);
+      Handle<Object> value;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, value,
+          JSObject::GetPropertyWithCallback(
+              handle(result->holder(), isolate),
+              handle(receiver, isolate),
+              handle(result->GetCallbackObject(), isolate),
+              handle(name, isolate)));
       return *value;
     }
     case HANDLER:
       return result->proxy()->GetPropertyWithHandler(receiver, name);
     case INTERCEPTOR: {
       HandleScope scope(isolate);
-      Handle<Object> value = JSObject::GetPropertyWithInterceptor(
-          handle(result->holder(), isolate),
-          handle(receiver, isolate),
-          handle(name, isolate),
-          attributes);
-      RETURN_IF_EMPTY_HANDLE(isolate, value);
+      Handle<Object> value;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, value,
+          JSObject::GetPropertyWithInterceptor(
+              handle(result->holder(), isolate),
+              handle(receiver, isolate),
+              handle(name, isolate),
+              attributes));
       return *value;
     }
     case NONEXISTENT:
@@ -13206,7 +13211,7 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 }
 
 
-Handle<Object> JSObject::GetPropertyPostInterceptor(
+MaybeHandle<Object> JSObject::GetPropertyPostInterceptor(
     Handle<JSObject> object,
     Handle<Object> receiver,
     Handle<Name> name,
@@ -13215,17 +13220,15 @@ Handle<Object> JSObject::GetPropertyPostInterceptor(
   Isolate* isolate = object->GetIsolate();
   LookupResult lookup(isolate);
   object->LocalLookupRealNamedProperty(*name, &lookup);
-  Handle<Object> result;
   if (lookup.IsFound()) {
-    result = GetProperty(object, receiver, &lookup, name, attributes);
+    return GetProperty(object, receiver, &lookup, name, attributes);
   } else {
     // Continue searching via the prototype chain.
     Handle<Object> prototype(object->GetPrototype(), isolate);
     *attributes = ABSENT;
     if (prototype->IsNull()) return isolate->factory()->undefined_value();
-    result = GetPropertyWithReceiver(prototype, receiver, name, attributes);
+    return GetPropertyWithReceiver(prototype, receiver, name, attributes);
   }
-  return result;
 }
 
 
@@ -13243,7 +13246,7 @@ MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
 }
 
 
-Handle<Object> JSObject::GetPropertyWithInterceptor(
+MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
     Handle<JSObject> object,
     Handle<Object> receiver,
     Handle<Name> name,
@@ -13265,7 +13268,7 @@ Handle<Object> JSObject::GetPropertyWithInterceptor(
         args(isolate, interceptor->data(), *receiver, *object);
     v8::Handle<v8::Value> result =
         args.Call(getter, v8::Utils::ToLocal(name_string));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       *attributes = NONE;
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);

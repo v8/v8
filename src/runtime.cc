@@ -10828,18 +10828,17 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
         Isolate* isolate = heap->isolate();
         HandleScope scope(isolate);
-        Handle<Object> value = JSObject::GetPropertyWithCallback(
+        MaybeHandle<Object> maybe_value = JSObject::GetPropertyWithCallback(
             handle(result->holder(), isolate),
             handle(receiver, isolate),
             handle(structure, isolate),
             handle(name, isolate));
-        if (value.is_null()) {
-          MaybeObject* exception = heap->isolate()->pending_exception();
-          heap->isolate()->clear_pending_exception();
-          if (caught_exception != NULL) *caught_exception = true;
-          return exception;
-        }
-        return *value;
+        Handle<Object> value;
+        if (maybe_value.ToHandle(&value)) return *value;
+        MaybeObject* exception = heap->isolate()->pending_exception();
+        heap->isolate()->clear_pending_exception();
+        if (caught_exception != NULL) *caught_exception = true;
+        return exception;
       } else {
         return heap->undefined_value();
       }
@@ -11022,9 +11021,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugNamedInterceptorPropertyValue) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   PropertyAttributes attributes;
-  Handle<Object> result =
-      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes));
   return *result;
 }
 
