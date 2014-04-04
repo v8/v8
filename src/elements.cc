@@ -643,25 +643,11 @@ class ElementsAccessorBase : public ElementsAccessor {
                        Object);
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT virtual Handle<Object> Get(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key) V8_FINAL V8_OVERRIDE {
-    CALL_HEAP_FUNCTION(holder->GetIsolate(),
-                       Get(*receiver, *holder, key, NULL),
-                       Object);
-  }
-
   MUST_USE_RESULT virtual MaybeObject* Get(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
-
     if (!IsExternalArrayElementsKind(ElementsTraits::Kind) &&
         FLAG_trace_js_array_abuse) {
       CheckArrayAbuse(holder, "elements read", key);
@@ -686,13 +672,20 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+    return ElementsAccessorSubclass::GetAttributesImpl(
+        *receiver, *holder, key, *backing_store);
+  }
+
+  // TODO(ishell): To be removed once elements.cc is handlified.
+  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
     return ElementsAccessorSubclass::GetAttributesImpl(
         receiver, holder, key, backing_store);
   }
@@ -709,13 +702,20 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyType GetType(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+    return ElementsAccessorSubclass::GetTypeImpl(
+        *receiver, *holder, key, *backing_store);
+  }
+
+  // TODO(ishell): To be removed once elements.cc is handlified.
+  MUST_USE_RESULT virtual PropertyType GetType(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
     return ElementsAccessorSubclass::GetTypeImpl(
         receiver, holder, key, backing_store);
   }

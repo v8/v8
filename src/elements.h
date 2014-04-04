@@ -79,16 +79,12 @@ class ElementsAccessor {
       uint32_t key,
       Handle<FixedArrayBase> backing_store) = 0;
 
-  MUST_USE_RESULT virtual Handle<Object> Get(
+  MUST_USE_RESULT inline Handle<Object> Get(
       Handle<Object> receiver,
       Handle<JSObject> holder,
-      uint32_t key) = 0;
-
-  MUST_USE_RESULT virtual MaybeObject* Get(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
+      uint32_t key) {
+    return Get(receiver, holder, key, handle(holder->elements()));
+  }
 
   // Returns an element's attributes, or ABSENT if there is no such
   // element. This method doesn't iterate up the prototype chain.  The caller
@@ -96,10 +92,17 @@ class ElementsAccessor {
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      Object* receiver,
-      JSObject* holder,
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
       uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
+      Handle<FixedArrayBase> backing_store) = 0;
+
+  MUST_USE_RESULT inline PropertyAttributes GetAttributes(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return GetAttributes(receiver, holder, key, handle(holder->elements()));
+  }
 
   // Returns an element's type, or NONEXISTENT if there is no such
   // element. This method doesn't iterate up the prototype chain.  The caller
@@ -107,10 +110,17 @@ class ElementsAccessor {
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
   MUST_USE_RESULT virtual PropertyType GetType(
-      Object* receiver,
-      JSObject* holder,
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
       uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
+      Handle<FixedArrayBase> backing_store) = 0;
+
+  MUST_USE_RESULT inline PropertyType GetType(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return GetType(receiver, holder, key, handle(holder->elements()));
+  }
 
   // Returns an element's accessors, or NULL if the element does not exist or
   // is plain. This method doesn't iterate up the prototype chain.  The caller
@@ -233,6 +243,26 @@ class ElementsAccessor {
   // the index to a key using the KeyAt method on the NumberDictionary.
   virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
                                   uint32_t index) = 0;
+
+  // TODO(ishell): Non-handlified versions, used only by accessors'
+  // implementations. To be removed once elements.cc is handlified.
+  MUST_USE_RESULT virtual MaybeObject* Get(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) = 0;
+
+  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) = 0;
+
+  MUST_USE_RESULT virtual PropertyType GetType(
+      Object* receiver,
+      JSObject* holder,
+      uint32_t key,
+      FixedArrayBase* backing_store) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;

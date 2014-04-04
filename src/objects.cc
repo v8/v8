@@ -4498,7 +4498,7 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
     uint32_t index,
     bool continue_search) {
   PropertyAttributes attr = object->GetElementsAccessor()->GetAttributes(
-      *receiver, *object, index);
+      receiver, object, index);
   if (attr != ABSENT) return attr;
 
   // Handle [] on String objects.
