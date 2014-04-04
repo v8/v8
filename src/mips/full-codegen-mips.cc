@@ -127,10 +127,14 @@ static void EmitStackCheck(MacroAssembler* masm_,
   Isolate* isolate = masm_->isolate();
   Label ok;
   ASSERT(scratch.is(sp) == (pointers == 0));
+  Heap::RootListIndex index;
   if (pointers != 0) {
     __ Subu(scratch, sp, Operand(pointers * kPointerSize));
+    index = Heap::kRealStackLimitRootIndex;
+  } else {
+    index = Heap::kStackLimitRootIndex;
   }
-  __ LoadRoot(stack_limit_scratch, Heap::kStackLimitRootIndex);
+  __ LoadRoot(stack_limit_scratch, index);
   __ Branch(&ok, hs, scratch, Operand(stack_limit_scratch));
   PredictableCodeSizeScope predictable(masm_, 4 * Assembler::kInstrSize);
   __ Call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);

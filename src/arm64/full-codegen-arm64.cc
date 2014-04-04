@@ -117,10 +117,14 @@ static void EmitStackCheck(MacroAssembler* masm_,
   Label ok;
   ASSERT(jssp.Is(__ StackPointer()));
   ASSERT(scratch.Is(jssp) == (pointers == 0));
+  Heap::RootListIndex index;
   if (pointers != 0) {
     __ Sub(scratch, jssp, pointers * kPointerSize);
+    index = Heap::kRealStackLimitRootIndex;
+  } else {
+    index = Heap::kStackLimitRootIndex;
   }
-  __ CompareRoot(scratch, Heap::kStackLimitRootIndex);
+  __ CompareRoot(scratch, index);
   __ B(hs, &ok);
   PredictableCodeSizeScope predictable(masm_,
                                        Assembler::kCallSizeWithRelocation);
