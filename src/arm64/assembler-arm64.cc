@@ -647,7 +647,7 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
 void Assembler::ConstantPoolMarker(uint32_t size) {
   ASSERT(is_const_pool_blocked());
   // + 1 is for the crash guard.
-  Emit(LDR_x_lit | ImmLLiteral(2 * size + 1) | Rt(xzr));
+  Emit(LDR_x_lit | ImmLLiteral(size + 1) | Rt(xzr));
 }
 
 
@@ -2590,7 +2590,6 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   {
     // Block recursive calls to CheckConstPool and protect from veneer pools.
     BlockPoolsScope block_pools(this);
-    RecordComment("[ Constant Pool");
     RecordConstPool(pool_size);
 
     // Emit jump over constant pool if necessary.
@@ -2610,6 +2609,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     // beginning of the constant pool.
     // TODO(all): currently each relocated constant is 64 bits, consider adding
     // support for 32-bit entries.
+    RecordComment("[ Constant Pool");
     ConstantPoolMarker(2 * num_pending_reloc_info_);
     ConstantPoolGuard();
 
