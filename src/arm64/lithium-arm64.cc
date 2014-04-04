@@ -1202,7 +1202,9 @@ LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
 
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  return AssignEnvironment(new(zone()) LCheckNonSmi(value));
+  LInstruction* result = new(zone()) LCheckNonSmi(value);
+  if (!instr->value()->IsHeapObject()) result = AssignEnvironment(result);
+  return result;
 }
 
 
