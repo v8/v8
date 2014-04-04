@@ -568,7 +568,6 @@ Representation Representation::FromType(Type* type) {
 }
 
 
-#ifdef OBJECT_PRINT
 template<class Config>
 void TypeImpl<Config>::TypePrint(PrintDimension dim) {
   TypePrint(stdout, dim);
@@ -666,7 +665,6 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
     PrintF(out, ")");
   }
 }
-#endif
 
 
 template class TypeImpl<ZoneTypeConfig>;
