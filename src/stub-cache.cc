@@ -569,8 +569,9 @@ static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
 }
 
 
-static Handle<Object> LoadWithInterceptor(Arguments* args,
-                                          PropertyAttributes* attrs) {
+MUST_USE_RESULT static MaybeHandle<Object> LoadWithInterceptor(
+    Arguments* args,
+    PropertyAttributes* attrs) {
   ASSERT(args->length() == StubCache::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args->at<Name>(StubCache::kInterceptorArgsNameIndex);
@@ -604,7 +605,7 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
     // Use the interceptor getter.
     v8::Handle<v8::Value> r =
         callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!r.IsEmpty()) {
       *attrs = NONE;
       Handle<Object> result = v8::Utils::OpenHandle(*r);
@@ -613,9 +614,8 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
     }
   }
 
-  Handle<Object> result = JSObject::GetPropertyPostInterceptor(
+  return JSObject::GetPropertyPostInterceptor(
       holder_handle, receiver_handle, name_handle, attrs);
-  return result;
 }
 
 
@@ -626,8 +626,9 @@ static Handle<Object> LoadWithInterceptor(Arguments* args,
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
   HandleScope scope(isolate);
-  Handle<Object> result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, LoadWithInterceptor(&args, &attr));
 
   // If the property is present, return it.
   if (attr != ABSENT) return *result;
@@ -638,8 +639,9 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
 RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
   HandleScope scope(isolate);
-  Handle<Object> result = LoadWithInterceptor(&args, &attr);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, LoadWithInterceptor(&args, &attr));
   // This is call IC. In this case, we simply return the undefined result which
   // will lead to an exception when trying to invoke the result as a
   // function.
@@ -656,9 +658,11 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
   Handle<Object> value = args.at<Object>(2);
   ASSERT(receiver->HasNamedInterceptor());
   PropertyAttributes attr = NONE;
-  Handle<Object> result = JSObject::SetPropertyWithInterceptor(
-      receiver, name, value, attr, ic.strict_mode());
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::SetPropertyWithInterceptor(
+          receiver, name, value, attr, ic.strict_mode()));
   return *result;
 }
 

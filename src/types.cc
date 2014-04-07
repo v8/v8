@@ -568,7 +568,6 @@ Representation Representation::FromType(Type* type) {
 }
 
 
-#ifdef OBJECT_PRINT
 template<class Config>
 void TypeImpl<Config>::TypePrint(PrintDimension dim) {
   TypePrint(stdout, dim);
@@ -649,11 +648,11 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
     }
   } else if (this->IsConstant()) {
     PrintF(out, "Constant(%p : ", static_cast<void*>(*this->AsConstant()));
-    Config::from_bitset(this->LubBitset())->TypePrint(out);
+    Config::from_bitset(this->LubBitset())->TypePrint(out, dim);
     PrintF(out, ")");
   } else if (this->IsClass()) {
     PrintF(out, "Class(%p < ", static_cast<void*>(*this->AsClass()));
-    Config::from_bitset(this->LubBitset())->TypePrint(out);
+    Config::from_bitset(this->LubBitset())->TypePrint(out, dim);
     PrintF(out, ")");
   } else if (this->IsUnion()) {
     PrintF(out, "(");
@@ -666,7 +665,6 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
     PrintF(out, ")");
   }
 }
-#endif
 
 
 template class TypeImpl<ZoneTypeConfig>;

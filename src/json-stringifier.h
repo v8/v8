@@ -81,8 +81,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
     }
   }
 
-  Handle<Object> ApplyToJsonFunction(Handle<Object> object,
-                                     Handle<Object> key);
+  MUST_USE_RESULT MaybeHandle<Object> ApplyToJsonFunction(
+      Handle<Object> object,
+      Handle<Object> key);
 
   Result SerializeGeneric(Handle<Object> object,
                           Handle<Object> key,
@@ -361,15 +362,17 @@ void BasicJsonStringifier::Append_(const Char* chars) {
 }
 
 
-Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
+MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
     Handle<Object> object, Handle<Object> key) {
   LookupResult lookup(isolate_);
   JSObject::cast(*object)->LookupRealNamedProperty(*tojson_string_, &lookup);
   if (!lookup.IsProperty()) return object;
   PropertyAttributes attr;
-  Handle<Object> fun =
-      Object::GetProperty(object, object, &lookup, tojson_string_, &attr);
-  if (fun.is_null()) return Handle<Object>::null();
+  Handle<Object> fun;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, fun,
+      Object::GetProperty(object, object, &lookup, tojson_string_, &attr),
+      Object);
   if (!fun->IsJSFunction()) return object;
 
   // Call toJSON function.
@@ -379,7 +382,7 @@ Handle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   HandleScope scope(isolate_);
   object = Execution::Call(isolate_, fun, object, 1, argv, &has_exception);
   // Return empty handle to signal an exception.
-  if (has_exception) return Handle<Object>::null();
+  if (has_exception) return MaybeHandle<Object>();
   return scope.CloseAndEscape(object);
 }
 
@@ -416,8 +419,10 @@ template <bool deferred_string_key>
 BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
     Handle<Object> object, bool comma, Handle<Object> key) {
   if (object->IsJSObject()) {
-    object = ApplyToJsonFunction(object, key);
-    if (object.is_null()) return EXCEPTION;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, object,
+        ApplyToJsonFunction(object, key),
+        EXCEPTION);
   }
 
   if (object->IsSmi()) {

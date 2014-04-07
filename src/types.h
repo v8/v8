@@ -293,11 +293,9 @@ class TypeImpl : public Config::Base {
   static TypeHandle Convert(
       typename OtherTypeImpl::TypeHandle type, Region* region);
 
-#ifdef OBJECT_PRINT
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
   void TypePrint(PrintDimension = BOTH_DIMS);
   void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
-#endif
 
  private:
   template<class> friend class Iterator;
@@ -349,10 +347,8 @@ class TypeImpl : public Config::Base {
   static int ExtendIntersection(
       UnionedHandle unioned, TypeHandle t, TypeHandle other, int current_size);
 
-#ifdef OBJECT_PRINT
   static const char* bitset_name(int bitset);
   static void BitsetTypePrint(FILE* out, int bitset);
-#endif
 };
 
 

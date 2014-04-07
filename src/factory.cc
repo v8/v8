@@ -109,6 +109,16 @@ Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
 }
 
 
+Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
+  return OrderedHashSet::Allocate(isolate(), 4);
+}
+
+
+Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
+  return OrderedHashMap::Allocate(isolate(), 4);
+}
+
+
 Handle<ObjectHashTable> Factory::NewObjectHashTable(
     int at_least_space_for,
     MinimumCapacity capacity_option) {
@@ -811,7 +821,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
     JSObject::SetLocalPropertyIgnoreAttributes(prototype,
                                                constructor_string(),
                                                function,
-                                               DONT_ENUM);
+                                               DONT_ENUM).Assert();
   }
 
   return prototype;

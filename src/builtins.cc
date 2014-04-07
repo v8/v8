@@ -294,15 +294,15 @@ static bool ArrayPrototypeHasNoElements(Heap* heap,
 
 // Returns empty handle if not applicable.
 MUST_USE_RESULT
-static inline Handle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
+static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     Isolate* isolate,
     Handle<Object> receiver,
     Arguments* args,
     int first_added_arg) {
-  if (!receiver->IsJSArray()) return Handle<FixedArrayBase>::null();
+  if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  if (array->map()->is_observed()) return Handle<FixedArrayBase>::null();
-  if (!array->map()->is_extensible()) return Handle<FixedArrayBase>::null();
+  if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
+  if (!array->map()->is_extensible()) return MaybeHandle<FixedArrayBase>();
   Handle<FixedArrayBase> elms(array->elements(), isolate);
   Heap* heap = isolate->heap();
   Map* map = elms->map();
@@ -314,7 +314,7 @@ static inline Handle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   } else if (map == heap->fixed_double_array_map()) {
     if (args == NULL) return elms;
   } else {
-    return Handle<FixedArrayBase>::null();
+    return MaybeHandle<FixedArrayBase>();
   }
 
   // Need to ensure that the arguments passed in args can be contained in
@@ -391,9 +391,12 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  Handle<FixedArrayBase> elms_obj =
+  MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1);
-  if (elms_obj.is_null()) return CallJsBuiltin(isolate, "ArrayPush", args);
+  Handle<FixedArrayBase> elms_obj;
+  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+    return CallJsBuiltin(isolate, "ArrayPush", args);
+  }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
@@ -496,9 +499,12 @@ BUILTIN(ArrayPush) {
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  Handle<FixedArrayBase> elms_obj =
+  MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
-  if (elms_obj.is_null()) return CallJsBuiltin(isolate, "ArrayPop", args);
+  Handle<FixedArrayBase> elms_obj;
+  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+    return CallJsBuiltin(isolate, "ArrayPop", args);
+  }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ASSERT(!array->map()->is_observed());
@@ -509,7 +515,7 @@ BUILTIN(ArrayPop) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
   Handle<Object> element;
-  if (accessor->HasElement(*array, *array, new_length, *elms_obj)) {
+  if (accessor->HasElement(array, array, new_length, elms_obj)) {
     element = accessor->Get(
         array, array, new_length, elms_obj);
   } else {
@@ -528,9 +534,10 @@ BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<FixedArrayBase> elms_obj =
+  MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
-  if (elms_obj.is_null() ||
+  Handle<FixedArrayBase> elms_obj;
+  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayShift", args);
@@ -576,9 +583,10 @@ BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<FixedArrayBase> elms_obj =
+  MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
-  if (elms_obj.is_null() ||
+  Handle<FixedArrayBase> elms_obj;
+  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
@@ -748,7 +756,7 @@ BUILTIN(ArraySlice) {
     bool packed = true;
     ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
     for (int i = k; i < final; i++) {
-      if (!accessor->HasElement(*object, *object, i, *elms)) {
+      if (!accessor->HasElement(object, object, i, elms)) {
         packed = false;
         break;
       }
@@ -778,9 +786,10 @@ BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  Handle<FixedArrayBase> elms_obj =
+  MaybeHandle<FixedArrayBase> maybe_elms_obj =
       EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3);
-  if (elms_obj.is_null() ||
+  Handle<FixedArrayBase> elms_obj;
+  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
       !IsJSArrayFastElementMovingAllowed(heap,
                                          *Handle<JSArray>::cast(receiver))) {
     return CallJsBuiltin(isolate, "ArraySplice", args);

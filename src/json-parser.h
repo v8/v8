@@ -43,7 +43,7 @@ namespace internal {
 template <bool seq_ascii>
 class JsonParser BASE_EMBEDDED {
  public:
-  static MaybeHandle<Object> Parse(Handle<String> source) {
+  MUST_USE_RESULT static MaybeHandle<Object> Parse(Handle<String> source) {
     return JsonParser(source).ParseJson();
   }
 
@@ -442,7 +442,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       }
 
       JSObject::SetLocalPropertyIgnoreAttributes(
-          json_object, key, value, NONE);
+          json_object, key, value, NONE).Assert();
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();

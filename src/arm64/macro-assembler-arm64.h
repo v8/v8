@@ -503,7 +503,8 @@ class MacroAssembler : public Assembler {
   // Pseudo-instructions ------------------------------------------------------
 
   // Compute rd = abs(rm).
-  // This function clobbers the condition flags.
+  // This function clobbers the condition flags. On output the overflow flag is
+  // set iff the negation overflowed.
   //
   // If rm is the minimum representable value, the result is not representable.
   // Handlers for each case can be specified using the relevant labels.

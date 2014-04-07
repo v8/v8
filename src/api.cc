@@ -3049,14 +3049,13 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::Runtime::SetObjectProperty(
+  has_pending_exception = i::Runtime::SetObjectProperty(
       isolate,
       self,
       key_obj,
       value_obj,
       static_cast<PropertyAttributes>(attribs),
-      i::SLOPPY);
-  has_pending_exception = obj.is_null();
+      i::SLOPPY).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3093,12 +3092,11 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::ForceSetProperty(
+  has_pending_exception = i::Runtime::ForceSetObjectProperty(
       self,
       key_obj,
       value_obj,
-      static_cast<PropertyAttributes>(attribs));
-  has_pending_exception = obj.is_null();
+      static_cast<PropertyAttributes>(attribs)).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3543,10 +3541,9 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
   PropertyAttributes ignored;
-  i::Handle<i::Object> result =
-      i::Object::GetProperty(receiver, receiver, lookup, name,
-                             &ignored);
-  has_pending_exception = result.is_null();
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Object::GetProperty(
+      receiver, receiver, lookup, name, &ignored).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 
   return Utils::ToLocal(result);
@@ -6157,7 +6154,8 @@ Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(symbols, i_name, symbol, NONE, i::STRICT);
+    i::JSObject::SetProperty(
+        symbols, i_name, symbol, NONE, i::STRICT).Assert();
   }
   return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
 }
@@ -6177,7 +6175,8 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(symbols, i_name, symbol, NONE, i::STRICT);
+    i::JSObject::SetProperty(
+        symbols, i_name, symbol, NONE, i::STRICT).Assert();
   }
   return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
 }
@@ -6209,7 +6208,8 @@ Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewPrivateSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(privates, i_name, symbol, NONE, i::STRICT);
+    i::JSObject::SetProperty(
+        privates, i_name, symbol, NONE, i::STRICT).Assert();
   }
   Local<Symbol> result = Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
   return v8::Handle<Private>(reinterpret_cast<Private*>(*result));
@@ -6964,19 +6964,23 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   ENTER_V8(isolate);
   v8::EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Debug* isolate_debug = isolate->debug();
-  isolate_debug->Load();
-  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
-  i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("MakeMirror"));
-  i::Handle<i::Object> fun_obj = i::Object::GetProperty(debug, name);
-  ASSERT(!fun_obj.is_null());
-  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
-  v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
-  const int kArgc = 1;
-  v8::Handle<v8::Value> argv[kArgc] = { obj };
   EXCEPTION_PREAMBLE(isolate);
-  v8::Local<v8::Value> result =
-      v8_fun->Call(Utils::ToLocal(debug), kArgc, argv);
+  has_pending_exception = !isolate_debug->Load();
+  v8::Local<v8::Value> result;
+  if (!has_pending_exception) {
+    i::Handle<i::JSObject> debug(
+        isolate_debug->debug_context()->global_object());
+    i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("MakeMirror"));
+    i::Handle<i::Object> fun_obj = i::Object::GetProperty(debug, name);
+    ASSERT(!fun_obj.is_null());
+    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
+    v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
+    const int kArgc = 1;
+    v8::Handle<v8::Value> argv[kArgc] = { obj };
+    result = v8_fun->Call(Utils::ToLocal(debug), kArgc, argv);
+    has_pending_exception = result.IsEmpty();
+  }
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return scope.Escape(result);
 }

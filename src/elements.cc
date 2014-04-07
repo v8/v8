@@ -622,15 +622,14 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, backing_store) != ABSENT;
   }
 
-  virtual bool HasElement(Object* receiver,
-                          JSObject* holder,
-                          uint32_t key,
-                          FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
+  virtual bool HasElement(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+    // TODO(ishell): Handlify HasElementImpl().
     return ElementsAccessorSubclass::HasElementImpl(
-        receiver, holder, key, backing_store);
+        *receiver, *holder, key, *backing_store);
   }
 
   // TODO(ishell): Temporary wrapper until handlified.
@@ -644,25 +643,11 @@ class ElementsAccessorBase : public ElementsAccessor {
                        Object);
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT virtual Handle<Object> Get(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key) V8_FINAL V8_OVERRIDE {
-    CALL_HEAP_FUNCTION(holder->GetIsolate(),
-                       Get(*receiver, *holder, key, NULL),
-                       Object);
-  }
-
   MUST_USE_RESULT virtual MaybeObject* Get(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
-
     if (!IsExternalArrayElementsKind(ElementsTraits::Kind) &&
         FLAG_trace_js_array_abuse) {
       CheckArrayAbuse(holder, "elements read", key);
@@ -687,13 +672,20 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+    return ElementsAccessorSubclass::GetAttributesImpl(
+        *receiver, *holder, key, *backing_store);
+  }
+
+  // TODO(ishell): To be removed once elements.cc is handlified.
+  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
     return ElementsAccessorSubclass::GetAttributesImpl(
         receiver, holder, key, backing_store);
   }
@@ -710,13 +702,20 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
   MUST_USE_RESULT virtual PropertyType GetType(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
+    return ElementsAccessorSubclass::GetTypeImpl(
+        *receiver, *holder, key, *backing_store);
+  }
+
+  // TODO(ishell): To be removed once elements.cc is handlified.
+  MUST_USE_RESULT virtual PropertyType GetType(
       Object* receiver,
       JSObject* holder,
       uint32_t key,
       FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
     return ElementsAccessorSubclass::GetTypeImpl(
         receiver, holder, key, backing_store);
   }
@@ -830,11 +829,25 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, to, from_kind, to_start, packed_size, copy_size);
   }
 
-  MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
+  virtual Handle<FixedArray> AddElementsToFixedArray(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      Handle<FixedArray> to,
+      Handle<FixedArrayBase> from) V8_FINAL V8_OVERRIDE {
+    CALL_HEAP_FUNCTION(to->GetIsolate(),
+                       AddElementsToFixedArray(
+                           receiver.is_null() ? NULL : *receiver,
+                           holder.is_null() ? NULL : *holder,
+                           *to,
+                           *from),
+                       FixedArray);
+  }
+
+  static MUST_USE_RESULT MaybeObject* AddElementsToFixedArray(
       Object* receiver,
       JSObject* holder,
       FixedArray* to,
-      FixedArrayBase* from) V8_FINAL V8_OVERRIDE {
+      FixedArrayBase* from) {
     int len0 = to->length();
 #ifdef ENABLE_SLOW_ASSERTS
     if (FLAG_enable_slow_asserts) {
@@ -843,9 +856,6 @@ class ElementsAccessorBase : public ElementsAccessor {
       }
     }
 #endif
-    if (from == NULL) {
-      from = holder->elements();
-    }
 
     // Optimize if 'other' is empty.
     // We cannot optimize if 'this' is empty, as other may have holes.
@@ -922,9 +932,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     return index;
   }
 
-  virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
+  virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
                                   uint32_t index) V8_FINAL V8_OVERRIDE {
-    return ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, index);
+    return ElementsAccessorSubclass::GetKeyForIndexImpl(*backing_store, index);
   }
 
  private:
@@ -1668,6 +1678,7 @@ class DictionaryElementsAccessor
         SeededNumberDictionary::kNotFound;
   }
 
+  // TODO(ishell): Handlify when all callers are handlified.
   static uint32_t GetKeyForIndexImpl(FixedArrayBase* store,
                                      uint32_t index) {
     SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
@@ -1825,6 +1836,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
                ForArray(arguments)->GetCapacity(arguments));
   }
 
+  // TODO(ishell): Handlify when all callers are handlified.
   static uint32_t GetKeyForIndexImpl(FixedArrayBase* dict,
                                      uint32_t index) {
     return index;

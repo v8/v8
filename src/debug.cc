@@ -847,7 +847,7 @@ bool Debug::Load() {
   Handle<String> key = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("builtins"));
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global_object());
-  RETURN_IF_EMPTY_HANDLE_VALUE(
+  RETURN_ON_EXCEPTION_VALUE(
       isolate_,
       JSReceiver::SetProperty(global,
                               key,

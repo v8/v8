@@ -177,7 +177,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
 
-#define RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
+#define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \
       ASSERT((isolate)->has_pending_exception());                  \
@@ -186,11 +186,10 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   } while (false)
 
 #define RETURN_FAILURE_ON_EXCEPTION(isolate, call)  \
-  RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, Failure::Exception())
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, Failure::Exception())
 
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
-  RETURN_ON_EXCEPTION_VALUE(                   \
-      isolate, dst, call, MaybeHandle<T>::Exception())
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
 
 
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \

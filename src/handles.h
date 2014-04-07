@@ -68,8 +68,11 @@ class MaybeHandle {
     location_ = reinterpret_cast<T**>(maybe_handle.location_);
   }
 
+  INLINE(void Assert()) { ASSERT(location_ != NULL); }
+  INLINE(void Check()) { CHECK(location_ != NULL); }
+
   INLINE(Handle<T> ToHandleChecked()) {
-    CHECK(location_ != NULL);
+    Check();
     return Handle<T>(location_);
   }
 
@@ -291,11 +294,6 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> ForceSetProperty(Handle<JSObject> object,
-                                Handle<Object> key,
-                                Handle<Object> value,
-                                PropertyAttributes attributes);
-
 Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key);
 
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object, Handle<Object> key);
@@ -306,9 +304,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
 Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
                                                    uint32_t index);
-
-Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
-                                      Handle<JSArray> array);
 
 // Get the JS object corresponding to the given script; create it
 // if none exists.
@@ -345,11 +340,6 @@ Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
 Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
-
-// Computes the union of keys and return the result.
-// Used for implementing "for (n in object) { }"
-Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                               Handle<FixedArray> second);
 
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,

@@ -77,9 +77,8 @@ enum PropertyType {
   // Only in lookup results, not in descriptors.
   HANDLER                   = 4,
   INTERCEPTOR               = 5,
-  TRANSITION                = 6,
   // Only used as a marker in LookupResult.
-  NONEXISTENT               = 7
+  NONEXISTENT               = 6
 };
 
 

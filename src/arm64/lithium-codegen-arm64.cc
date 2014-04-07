@@ -2137,17 +2137,19 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
 
   UniqueSet<Map> map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set.size(); i++) {
+  for (int i = 0; i < map_set.size() - 1; i++) {
     Handle<Map> map = map_set.at(i).handle();
     __ CompareMap(map_reg, map);
     __ B(eq, &success);
   }
+  Handle<Map> map = map_set.at(map_set.size() - 1).handle();
+  __ CompareMap(map_reg, map);
 
   // We didn't match a map.
   if (instr->hydrogen()->has_migration_target()) {
-    __ B(deferred->entry());
+    __ B(ne, deferred->entry());
   } else {
-    Deoptimize(instr->environment());
+    DeoptimizeIf(ne, instr->environment());
   }
 
   __ Bind(&success);
@@ -2581,19 +2583,15 @@ void LCodeGen::DoDateField(LDateField* instr) {
   Register temp1 = x10;
   Register temp2 = x11;
   Smi* index = instr->index();
-  Label runtime, done, deopt, obj_ok;
+  Label runtime, done;
 
   ASSERT(object.is(result) && object.Is(x0));
   ASSERT(instr->IsMarkedAsCall());
 
-  __ JumpIfSmi(object, &deopt);
+  DeoptimizeIfSmi(object, instr->environment());
   __ CompareObjectType(object, temp1, temp1, JS_DATE_TYPE);
-  __ B(eq, &obj_ok);
+  DeoptimizeIf(ne, instr->environment());
 
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
-
-  __ Bind(&obj_ok);
   if (index->value() == 0) {
     __ Ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
   } else {
@@ -2724,10 +2722,9 @@ void LCodeGen::DoDivI(LDivI* instr) {
     return;
   }
 
-  Label deopt;
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
-    __ Cbz(divisor, &deopt);
+    DeoptimizeIfZero(divisor, instr->environment());
   }
 
   // Check for (0 / -x) as that will produce negative zero.
@@ -2739,7 +2736,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
     // If the divisor >= 0 (pl, the opposite of mi) set the flags to
     // condition ne, so we don't deopt, ie. positive divisor doesn't deopt.
     __ Ccmp(dividend, 0, NoFlag, mi);
-    __ B(eq, &deopt);
+    DeoptimizeIf(eq, instr->environment());
   }
 
   // Check for (kMinInt / -1).
@@ -2751,19 +2748,13 @@ void LCodeGen::DoDivI(LDivI* instr) {
     // -1. If overflow is clear, set the flags for condition ne, as the
     // dividend isn't -1, and thus we shouldn't deopt.
     __ Ccmp(divisor, -1, NoFlag, vs);
-    __ B(eq, &deopt);
+    DeoptimizeIf(eq, instr->environment());
   }
 
   // Compute remainder and deopt if it's not zero.
   Register remainder = ToRegister32(instr->temp());
   __ Msub(remainder, result, divisor, dividend);
-  __ Cbnz(remainder, &deopt);
-
-  Label div_ok;
-  __ B(&div_ok);
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
-  __ Bind(&div_ok);
+  DeoptimizeIfNotZero(remainder, instr->environment());
 }
 
 
@@ -2850,19 +2841,18 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   ASSERT(instr->IsMarkedAsCall());
   ASSERT(object.Is(x0));
 
-  Label deopt;
-
-  __ JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &deopt);
+  DeoptimizeIfRoot(object, Heap::kUndefinedValueRootIndex,
+                   instr->environment());
 
   __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ Cmp(object, null_value);
-  __ B(eq, &deopt);
+  DeoptimizeIf(eq, instr->environment());
 
-  __ JumpIfSmi(object, &deopt);
+  DeoptimizeIfSmi(object, instr->environment());
 
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
   __ CompareObjectType(object, x1, x1, LAST_JS_PROXY_TYPE);
-  __ B(le, &deopt);
+  DeoptimizeIf(le, instr->environment());
 
   Label use_cache, call_runtime;
   __ CheckEnumCache(object, null_value, x1, x2, x3, x4, &call_runtime);
@@ -2870,16 +2860,13 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ Ldr(object, FieldMemOperand(object, HeapObject::kMapOffset));
   __ B(&use_cache);
 
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
-
   // Get the set of properties to enumerate.
   __ Bind(&call_runtime);
   __ Push(object);
   CallRuntime(Runtime::kGetPropertyNamesFast, 1, instr);
 
   __ Ldr(x1, FieldMemOperand(object, HeapObject::kMapOffset));
-  __ JumpIfNotRoot(x1, Heap::kMetaMapRootIndex, &deopt);
+  DeoptimizeIfNotRoot(x1, Heap::kMetaMapRootIndex, instr->environment());
 
   __ Bind(&use_cache);
 }
@@ -3287,11 +3274,11 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
   Register function = ToRegister(instr->function());
   Register result = ToRegister(instr->result());
   Register temp = ToRegister(instr->temp());
-  Label deopt;
 
   // Check that the function really is a function. Leaves map in the result
   // register.
-  __ JumpIfNotObjectType(function, result, temp, JS_FUNCTION_TYPE, &deopt);
+  __ CompareObjectType(function, result, temp, JS_FUNCTION_TYPE);
+  DeoptimizeIf(ne, instr->environment());
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
@@ -3303,7 +3290,8 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
                                  JSFunction::kPrototypeOrInitialMapOffset));
 
   // Check that the function has a prototype or an initial map.
-  __ JumpIfRoot(result, Heap::kTheHoleValueRootIndex, &deopt);
+  DeoptimizeIfRoot(result, Heap::kTheHoleValueRootIndex,
+                   instr->environment());
 
   // If the function does not have an initial map, we're done.
   Label done;
@@ -3318,11 +3306,6 @@ void LCodeGen::DoLoadFunctionPrototype(LLoadFunctionPrototype* instr) {
   // map.
   __ Bind(&non_instance);
   __ Ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
-  __ B(&done);
-
-  // Deoptimize case.
-  __ Bind(&deopt);
-  Deoptimize(instr->environment());
 
   // All done.
   __ Bind(&done);
@@ -3690,10 +3673,8 @@ void LCodeGen::DoMathAbs(LMathAbs* instr) {
                                : ToRegister32(instr->value());
     Register result = r.IsSmi() ? ToRegister(instr->result())
                                 : ToRegister32(instr->result());
-    Label done;
-    __ Abs(result, input, NULL, &done);
-    Deoptimize(instr->environment());
-    __ Bind(&done);
+    __ Abs(result, input);
+    DeoptimizeIf(vs, instr->environment());
   }
 }
 
@@ -4224,25 +4205,16 @@ void LCodeGen::DoModI(LModI* instr) {
   Register divisor = ToRegister32(instr->right());
   Register result = ToRegister32(instr->result());
 
-  Label deopt, done;
+  Label done;
   // modulo = dividend - quotient * divisor
   __ Sdiv(result, dividend, divisor);
   if (instr->hydrogen()->CheckFlag(HValue::kCanBeDivByZero)) {
-    // Combine the deoptimization sites.
-    Label ok;
-    __ Cbnz(divisor, &ok);
-    __ Bind(&deopt);
-    Deoptimize(instr->environment());
-    __ Bind(&ok);
+    DeoptimizeIfZero(divisor, instr->environment());
   }
   __ Msub(result, result, divisor, dividend);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ Cbnz(result, &done);
-    if (deopt.is_bound()) {  // TODO(all) This is a hack, remove this...
-      __ Tbnz(dividend, kWSignBit, &deopt);
-    } else {
-      DeoptimizeIfNegative(dividend, instr->environment());
-    }
+    DeoptimizeIfNegative(dividend, instr->environment());
   }
   __ Bind(&done);
 }
@@ -5708,8 +5680,8 @@ void LCodeGen::DoTrapAllocationMemento(LTrapAllocationMemento* instr) {
   Register temp2 = ToRegister(instr->temp2());
 
   Label no_memento_found;
-  __ JumpIfJSArrayHasAllocationMemento(object, temp1, temp2, &no_memento_found);
-  Deoptimize(instr->environment());
+  __ TestJSArrayForAllocationMemento(object, temp1, temp2, &no_memento_found);
+  DeoptimizeIf(eq, instr->environment());
   __ Bind(&no_memento_found);
 }
 
@@ -5842,7 +5814,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // If the receiver is null or undefined, we have to pass the global object as
   // a receiver to normal functions. Values have to be passed unchanged to
   // builtins and strict-mode functions.
-  Label global_object, done, deopt;
+  Label global_object, done;
 
   if (!instr->hydrogen()->known_function()) {
     __ Ldr(result, FieldMemOperand(function,
@@ -5864,13 +5836,10 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ JumpIfRoot(receiver, Heap::kUndefinedValueRootIndex, &global_object);
 
   // Deoptimize if the receiver is not a JS object.
-  __ JumpIfSmi(receiver, &deopt);
+  DeoptimizeIfSmi(receiver, instr->environment());
   __ CompareObjectType(receiver, result, result, FIRST_SPEC_OBJECT_TYPE);
   __ Mov(result, receiver);
   __ B(ge, &done);
-  // Otherwise, fall through to deopt.
-
-  __ Bind(&deopt);
   Deoptimize(instr->environment());
 
   __ Bind(&global_object);

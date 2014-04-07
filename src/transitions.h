@@ -85,7 +85,6 @@ class TransitionArray: public FixedArray {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline Object** GetPrototypeTransitionsSlot();
   inline bool HasPrototypeTransitions();
-  inline HeapObject* UncheckedPrototypeTransitions();
 
   // Returns the number of transitions in the array.
   int number_of_transitions() {

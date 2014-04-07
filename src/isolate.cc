@@ -573,41 +573,31 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          CHECK_NOT_EMPTY_HANDLE(
-              this,
-              JSObject::SetLocalPropertyIgnoreAttributes(
-                  stack_frame, column_key,
-                  Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE));
+          JSObject::SetLocalPropertyIgnoreAttributes(
+              stack_frame, column_key,
+              Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE).Check();
         }
-        CHECK_NOT_EMPTY_HANDLE(
-            this,
-            JSObject::SetLocalPropertyIgnoreAttributes(
-                stack_frame, line_key,
-                Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE));
+       JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, line_key,
+            Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE).Check();
       }
 
       if (options & StackTrace::kScriptId) {
         Handle<Smi> script_id(script->id(), this);
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, script_id_key, script_id,
-                                   NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, script_id_key, script_id, NONE).Check();
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name(), this);
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, script_name_key, script_name,
-                                   NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, script_name_key, script_name, NONE).Check();
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
         Handle<Object> result = GetScriptNameOrSourceURL(script);
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, script_name_or_source_url_key,
-                                   result, NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, script_name_or_source_url_key, result, NONE).Check();
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -615,27 +605,23 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         if (!fun_name->BooleanValue()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
         }
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, function_key, fun_name, NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, function_key, fun_name, NONE).Check();
       }
 
       if (options & StackTrace::kIsEval) {
         Handle<Object> is_eval =
             script->compilation_type() == Script::COMPILATION_TYPE_EVAL ?
                 factory()->true_value() : factory()->false_value();
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, eval_key, is_eval, NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, eval_key, is_eval, NONE).Check();
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             factory()->true_value() : factory()->false_value();
-        CHECK_NOT_EMPTY_HANDLE(this,
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   stack_frame, constructor_key,
-                                   is_constructor, NONE));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            stack_frame, constructor_key, is_constructor, NONE).Check();
       }
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
@@ -2310,7 +2296,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
       JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
-      JSObject::SetProperty(registry, name, obj, NONE, STRICT);
+      JSObject::SetProperty(registry, name, obj, NONE, STRICT).Assert();
     }
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());

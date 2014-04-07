@@ -88,12 +88,6 @@ FixedArray* TransitionArray::GetPrototypeTransitions() {
 }
 
 
-HeapObject* TransitionArray::UncheckedPrototypeTransitions() {
-  ASSERT(HasPrototypeTransitions());
-  return reinterpret_cast<HeapObject*>(get(kPrototypeTransitionsIndex));
-}
-
-
 void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
                                               WriteBarrierMode mode) {
   ASSERT(IsFullTransitionArray());

@@ -370,9 +370,8 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   } else {
     attributes = DONT_ENUM;
   }
-  CHECK_NOT_EMPTY_HANDLE(isolate,
-                         JSObject::SetLocalPropertyIgnoreAttributes(
-                             target, internalized_name, function, attributes));
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      target, internalized_name, function, attributes).Check();
   if (set_instance_class_name) {
     function->shared()->set_instance_class_name(*internalized_name);
   }
@@ -723,10 +722,9 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(js_global_function->instance_prototype()));
-    CHECK_NOT_EMPTY_HANDLE(isolate(),
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               prototype, factory()->constructor_string(),
-                               isolate()->object_function(), NONE));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        prototype, factory()->constructor_string(),
+        isolate()->object_function(), NONE).Check();
   } else {
     Handle<FunctionTemplateInfo> js_global_constructor(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
@@ -802,11 +800,11 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
   native_context()->set_security_token(*inner_global);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  ForceSetProperty(builtins_global,
-                   factory()->InternalizeOneByteString(
-                       STATIC_ASCII_VECTOR("global")),
-                   inner_global,
-                   attributes);
+  Runtime::ForceSetObjectProperty(builtins_global,
+                                  factory()->InternalizeOneByteString(
+                                      STATIC_ASCII_VECTOR("global")),
+                                  inner_global,
+                                  attributes).Assert();
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
   TransferNamedProperties(inner_global_from_snapshot, inner_global);
@@ -836,10 +834,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Heap* heap = isolate->heap();
 
   Handle<String> object_name = factory->Object_string();
-  CHECK_NOT_EMPTY_HANDLE(isolate,
-                         JSObject::SetLocalPropertyIgnoreAttributes(
-                             inner_global, object_name,
-                             isolate->object_function(), DONT_ENUM));
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      inner_global, object_name,
+      isolate->object_function(), DONT_ENUM).Check();
 
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
@@ -1045,9 +1042,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                                 global, name, json_object, DONT_ENUM));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        global, name, json_object, DONT_ENUM).Check();
     native_context()->set_json_object(*json_object);
   }
 
@@ -1107,16 +1103,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_sloppy_arguments_boilerplate(*result);
     // Note: length must be added as the first property and
     //       callee must be added as the second property.
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               result, factory->length_string(),
-                               factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, FORCE_FIELD));
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               result, factory->callee_string(),
-                               factory->undefined_value(), DONT_ENUM,
-                               Object::FORCE_TAGGED, FORCE_FIELD));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        result, factory->length_string(),
+        factory->undefined_value(), DONT_ENUM,
+        Object::FORCE_TAGGED, FORCE_FIELD).Check();
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        result, factory->callee_string(),
+        factory->undefined_value(), DONT_ENUM,
+        Object::FORCE_TAGGED, FORCE_FIELD).Check();
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1217,10 +1211,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_strict_arguments_boilerplate(*result);
 
     // Add length property only for strict mode boilerplate.
-    CHECK_NOT_EMPTY_HANDLE(isolate,
-                           JSObject::SetLocalPropertyIgnoreAttributes(
-                               result, factory->length_string(),
-                               factory->undefined_value(), DONT_ENUM));
+    JSObject::SetLocalPropertyIgnoreAttributes(
+        result, factory->length_string(),
+        factory->undefined_value(), DONT_ENUM).Check();
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1674,14 +1667,12 @@ bool Genesis::InstallNatives() {
   Handle<String> global_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("global"));
   Handle<Object> global_obj(native_context()->global_object(), isolate());
-  CHECK_NOT_EMPTY_HANDLE(isolate(),
-                         JSObject::SetLocalPropertyIgnoreAttributes(
-                             builtins, global_string, global_obj, attributes));
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      builtins, global_string, global_obj, attributes).Check();
   Handle<String> builtins_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
-  CHECK_NOT_EMPTY_HANDLE(isolate(),
-                         JSObject::SetLocalPropertyIgnoreAttributes(
-                             builtins, builtins_string, builtins, attributes));
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      builtins, builtins_string, builtins, attributes).Check();
 
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
@@ -2163,9 +2154,11 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives =
         factory->InternalizeUtf8String(FLAG_expose_natives_as);
-    JSObject::SetLocalPropertyIgnoreAttributes(
-        global, natives, Handle<JSObject>(global->builtins()), DONT_ENUM);
-    if (isolate->has_pending_exception()) return false;
+    RETURN_ON_EXCEPTION_VALUE(
+        isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            global, natives, Handle<JSObject>(global->builtins()), DONT_ENUM),
+        false);
   }
 
   Handle<Object> Error = GetProperty(global, "Error");
@@ -2174,9 +2167,11 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         STATIC_ASCII_VECTOR("stackTraceLimit"));
     Handle<Smi> stack_trace_limit(
         Smi::FromInt(FLAG_stack_trace_limit), isolate);
-    JSObject::SetLocalPropertyIgnoreAttributes(
-        Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE);
-    if (isolate->has_pending_exception()) return false;
+    RETURN_ON_EXCEPTION_VALUE(
+        isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE),
+        false);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -2196,9 +2191,11 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         factory->InternalizeUtf8String(FLAG_expose_debug_as);
     Handle<Object> global_proxy(
         debug->debug_context()->global_proxy(), isolate);
-    JSObject::SetLocalPropertyIgnoreAttributes(
-        global, debug_string, global_proxy, DONT_ENUM);
-    if (isolate->has_pending_exception()) return false;
+    RETURN_ON_EXCEPTION_VALUE(
+        isolate,
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            global, debug_string, global_proxy, DONT_ENUM),
+        false);
   }
 #endif
   return true;
@@ -2431,18 +2428,16 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           ASSERT(!descs->GetDetails(i).representation().IsDouble());
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
-          CHECK_NOT_EMPTY_HANDLE(isolate(),
-                                 JSObject::SetLocalPropertyIgnoreAttributes(
-                                     to, key, value, details.attributes()));
+          JSObject::SetLocalPropertyIgnoreAttributes(
+              to, key, value, details.attributes()).Check();
           break;
         }
         case CONSTANT: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
-          CHECK_NOT_EMPTY_HANDLE(isolate(),
-                                 JSObject::SetLocalPropertyIgnoreAttributes(
-                                     to, key, constant, details.attributes()));
+          JSObject::SetLocalPropertyIgnoreAttributes(
+              to, key, constant, details.attributes()).Check();
           break;
         }
         case CALLBACKS: {
@@ -2464,7 +2459,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // Do not occur since the from object has fast properties.
         case HANDLER:
         case INTERCEPTOR:
-        case TRANSITION:
         case NONEXISTENT:
           // No element in instance descriptors have proxy or interceptor type.
           UNREACHABLE();
@@ -2493,9 +2487,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        CHECK_NOT_EMPTY_HANDLE(isolate(),
-                               JSObject::SetLocalPropertyIgnoreAttributes(
-                                   to, key, value, details.attributes()));
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            to, key, value, details.attributes()).Check();
       }
     }
   }
@@ -2652,11 +2645,11 @@ Genesis::Genesis(Isolate* isolate,
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("rngstate")),
-                     Utils::OpenHandle(*ta),
-                     NONE);
+    Runtime::ForceSetObjectProperty(builtins,
+                                    factory()->InternalizeOneByteString(
+                                        STATIC_ASCII_VECTOR("rngstate")),
+                                    Utils::OpenHandle(*ta),
+                                    NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
     const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
@@ -2671,28 +2664,31 @@ Genesis::Genesis(Isolate* isolate,
     v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
         cos_buffer, 0, TrigonometricLookupTable::table_size());
 
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kSinTable")),
-                     Utils::OpenHandle(*sin_table),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kCosXIntervalTable")),
-                     Utils::OpenHandle(*cos_table),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kSamples")),
-                     factory()->NewHeapNumber(
-                         TrigonometricLookupTable::samples()),
-                     NONE);
-    ForceSetProperty(builtins,
-                     factory()->InternalizeOneByteString(
-                         STATIC_ASCII_VECTOR("kIndexConvert")),
-                     factory()->NewHeapNumber(
-                         TrigonometricLookupTable::samples_over_pi_half()),
-                     NONE);
+    Runtime::ForceSetObjectProperty(builtins,
+                                    factory()->InternalizeOneByteString(
+                                        STATIC_ASCII_VECTOR("kSinTable")),
+                                    Utils::OpenHandle(*sin_table),
+                                    NONE).Assert();
+    Runtime::ForceSetObjectProperty(
+        builtins,
+        factory()->InternalizeOneByteString(
+            STATIC_ASCII_VECTOR("kCosXIntervalTable")),
+        Utils::OpenHandle(*cos_table),
+        NONE).Assert();
+    Runtime::ForceSetObjectProperty(
+        builtins,
+        factory()->InternalizeOneByteString(
+            STATIC_ASCII_VECTOR("kSamples")),
+        factory()->NewHeapNumber(
+            TrigonometricLookupTable::samples()),
+        NONE).Assert();
+    Runtime::ForceSetObjectProperty(
+        builtins,
+        factory()->InternalizeOneByteString(
+            STATIC_ASCII_VECTOR("kIndexConvert")),
+        factory()->NewHeapNumber(
+            TrigonometricLookupTable::samples_over_pi_half()),
+        NONE).Assert();
   }
 
   result_ = native_context();

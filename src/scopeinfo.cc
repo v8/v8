@@ -372,14 +372,16 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
   int end = start + local_count;
   for (int i = start; i < end; ++i) {
     int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
-    Handle<Object> result = Runtime::SetObjectProperty(
+    RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        scope_object,
-        Handle<String>(String::cast(scope_info->get(i))),
-        Handle<Object>(context->get(context_index), isolate),
-        ::NONE,
-        SLOPPY);
-    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, false);
+        Runtime::SetObjectProperty(
+            isolate,
+            scope_object,
+            Handle<String>(String::cast(scope_info->get(i))),
+            Handle<Object>(context->get(context_index), isolate),
+            ::NONE,
+            SLOPPY),
+        false);
   }
   return true;
 }

@@ -271,7 +271,6 @@ void JSObject::PrintProperties(FILE* out) {
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
         // There are no transitions in the descriptor array.
-        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;
@@ -428,7 +427,6 @@ void JSObject::PrintTransitions(FILE* out) {
         case NORMAL:
         case HANDLER:
         case INTERCEPTOR:
-        case TRANSITION:
         case NONEXISTENT:
           UNREACHABLE();
           break;
@@ -1223,7 +1221,6 @@ void TransitionArray::PrintTransitions(FILE* out) {
       case NORMAL:
       case HANDLER:
       case INTERCEPTOR:
-      case TRANSITION:
       case NONEXISTENT:
         UNREACHABLE();
         break;

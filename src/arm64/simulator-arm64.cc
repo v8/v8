@@ -392,7 +392,7 @@ Simulator::Simulator()
       last_debugger_input_(NULL),
       log_parameters_(NO_PARAM),
       isolate_(NULL) {
-  Init(NULL);
+  Init(stdout);
   CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
 }
 

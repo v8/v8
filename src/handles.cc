@@ -124,20 +124,6 @@ Address HandleScope::current_limit_address(Isolate* isolate) {
 }
 
 
-Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
-                                      Handle<JSArray> array) {
-  CALL_HEAP_FUNCTION(content->GetIsolate(),
-                     content->AddKeysFromJSArray(*array), FixedArray);
-}
-
-
-Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                               Handle<FixedArray> second) {
-  CALL_HEAP_FUNCTION(first->GetIsolate(),
-                     first->UnionOfKeys(*second), FixedArray);
-}
-
-
 Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
     Handle<JSFunction> constructor,
     Handle<JSGlobalProxy> global) {
@@ -155,15 +141,6 @@ void FlattenString(Handle<String> string) {
 
 Handle<String> FlattenGetString(Handle<String> string) {
   CALL_HEAP_FUNCTION(string->GetIsolate(), string->TryFlatten(), String);
-}
-
-
-Handle<Object> ForceSetProperty(Handle<JSObject> object,
-                                Handle<Object> key,
-                                Handle<Object> value,
-                                PropertyAttributes attributes) {
-  return Runtime::ForceSetObjectProperty(object->GetIsolate(), object, key,
-                                        value, attributes);
 }
 
 
@@ -521,7 +498,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
                                              args,
                                              threw);
       if (*threw) return content;
-      content = AddKeysFromJSArray(content, Handle<JSArray>::cast(names));
+      content = FixedArray::AddKeysFromJSArray(content,
+                                               Handle<JSArray>::cast(names));
       break;
     }
 
@@ -544,7 +522,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
     Handle<FixedArray> element_keys =
         isolate->factory()->NewFixedArray(current->NumberOfEnumElements());
     current->GetEnumElementKeys(*element_keys);
-    content = UnionOfKeys(content, element_keys);
+    content = FixedArray::UnionOfKeys(content, element_keys);
     ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the element keys from the interceptor.
@@ -552,7 +530,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
       v8::Handle<v8::Array> result =
           GetKeysForIndexedInterceptor(object, current);
       if (!result.IsEmpty())
-        content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+        content = FixedArray::AddKeysFromJSArray(
+            content, v8::Utils::OpenHandle(*result));
       ASSERT(ContainsOnlyValidKeys(content));
     }
 
@@ -573,8 +552,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
          !current->HasNamedInterceptor() &&
          !current->HasIndexedInterceptor());
     // Compute the property keys and cache them if possible.
-    content =
-        UnionOfKeys(content, GetEnumPropertyKeys(current, cache_enum_keys));
+    content = FixedArray::UnionOfKeys(
+        content, GetEnumPropertyKeys(current, cache_enum_keys));
     ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the property keys from the interceptor.
@@ -582,7 +561,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
       v8::Handle<v8::Array> result =
           GetKeysForNamedInterceptor(object, current);
       if (!result.IsEmpty())
-        content = AddKeysFromJSArray(content, v8::Utils::OpenHandle(*result));
+        content = FixedArray::AddKeysFromJSArray(
+            content, v8::Utils::OpenHandle(*result));
       ASSERT(ContainsOnlyValidKeys(content));
     }
 

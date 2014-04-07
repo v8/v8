@@ -29,59 +29,61 @@ void LookupResult::Print(FILE* out) {
   PrintF(out, "LookupResult:\n");
   PrintF(out, " -cacheable = %s\n", IsCacheable() ? "true" : "false");
   PrintF(out, " -attributes = %x\n", GetAttributes());
-  switch (type()) {
-    case NORMAL:
-      PrintF(out, " -type = normal\n");
-      PrintF(out, " -entry = %d", GetDictionaryEntry());
-      break;
-    case CONSTANT:
-      PrintF(out, " -type = constant\n");
-      PrintF(out, " -value:\n");
-      GetConstant()->Print(out);
-      PrintF(out, "\n");
-      break;
-    case FIELD:
-      PrintF(out, " -type = field\n");
-      PrintF(out, " -index = %d", GetFieldIndex().field_index());
-      PrintF(out, "\n");
-      break;
-    case CALLBACKS:
-      PrintF(out, " -type = call backs\n");
-      PrintF(out, " -callback object:\n");
-      GetCallbackObject()->Print(out);
-      break;
-    case HANDLER:
-      PrintF(out, " -type = lookup proxy\n");
-      break;
-    case INTERCEPTOR:
-      PrintF(out, " -type = lookup interceptor\n");
-      break;
-    case TRANSITION:
-      switch (GetTransitionDetails().type()) {
-        case FIELD:
-          PrintF(out, " -type = map transition\n");
-          PrintF(out, " -map:\n");
-          GetTransitionTarget()->Print(out);
-          PrintF(out, "\n");
-          return;
-        case CONSTANT:
-          PrintF(out, " -type = constant property transition\n");
-          PrintF(out, " -map:\n");
-          GetTransitionTarget()->Print(out);
-          PrintF(out, "\n");
-          return;
-        case CALLBACKS:
-          PrintF(out, " -type = callbacks transition\n");
-          PrintF(out, " -callback object:\n");
-          GetCallbackObject()->Print(out);
-          return;
-        default:
-          UNREACHABLE();
-          return;
-      }
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
+  if (IsTransition()) {
+    switch (type()) {
+      case FIELD:
+        PrintF(out, " -type = map transition\n");
+        PrintF(out, " -map:\n");
+        GetTransitionTarget()->Print(out);
+        PrintF(out, "\n");
+        break;
+      case CONSTANT:
+        PrintF(out, " -type = constant property transition\n");
+        PrintF(out, " -map:\n");
+        GetTransitionTarget()->Print(out);
+        PrintF(out, "\n");
+        break;
+      case CALLBACKS:
+        PrintF(out, " -type = callbacks transition\n");
+        PrintF(out, " -callback object:\n");
+        GetCallbackObject()->Print(out);
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  } else {
+    switch (type()) {
+      case NORMAL:
+        PrintF(out, " -type = normal\n");
+        PrintF(out, " -entry = %d", GetDictionaryEntry());
+        break;
+      case CONSTANT:
+        PrintF(out, " -type = constant\n");
+        PrintF(out, " -value:\n");
+        GetConstant()->Print(out);
+        PrintF(out, "\n");
+        break;
+      case FIELD:
+        PrintF(out, " -type = field\n");
+        PrintF(out, " -index = %d", GetFieldIndex().field_index());
+        PrintF(out, "\n");
+        break;
+      case CALLBACKS:
+        PrintF(out, " -type = call backs\n");
+        PrintF(out, " -callback object:\n");
+        GetCallbackObject()->Print(out);
+        break;
+      case HANDLER:
+        PrintF(out, " -type = lookup proxy\n");
+        break;
+      case INTERCEPTOR:
+        PrintF(out, " -type = lookup interceptor\n");
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
+        break;
+    }
   }
 }
 
