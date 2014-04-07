@@ -692,7 +692,7 @@ Handle<HeapType> IC::CurrentTypeOf(Handle<Object> object, Isolate* isolate) {
 Handle<Map> IC::TypeToMap(HeapType* type, Isolate* isolate) {
   if (type->Is(HeapType::Number()))
     return isolate->factory()->heap_number_map();
-  if (type->Is(HeapType::Boolean())) return isolate->factory()->oddball_map();
+  if (type->Is(HeapType::Boolean())) return isolate->factory()->boolean_map();
   if (type->IsConstant()) {
     return handle(Handle<JSGlobalObject>::cast(type->AsConstant())->map());
   }

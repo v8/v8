@@ -38,7 +38,6 @@ class Types {
       Semantic(Type::Semantic(region)),
       None(Type::None(region)),
       Any(Type::Any(region)),
-      Oddball(Type::Oddball(region)),
       Boolean(Type::Boolean(region)),
       Null(Type::Null(region)),
       Undefined(Type::Undefined(region)),
@@ -78,7 +77,6 @@ class Types {
   TypeHandle Semantic;
   TypeHandle None;
   TypeHandle Any;
-  TypeHandle Oddball;
   TypeHandle Boolean;
   TypeHandle Null;
   TypeHandle Undefined;
@@ -351,10 +349,6 @@ struct Tests : Rep {
     CheckSub(T.None, T.Number);
     CheckSub(T.None, T.Any);
 
-    CheckSub(T.Oddball, T.Any);
-    CheckSub(T.Boolean, T.Oddball);
-    CheckSub(T.Null, T.Oddball);
-    CheckSub(T.Undefined, T.Oddball);
     CheckUnordered(T.Boolean, T.Null);
     CheckUnordered(T.Undefined, T.Null);
     CheckUnordered(T.Boolean, T.Undefined);
@@ -420,10 +414,6 @@ struct Tests : Rep {
     CheckOverlap(T.Any, T.Any, T.Semantic);
     CheckOverlap(T.Object, T.Object, T.Semantic);
 
-    CheckOverlap(T.Oddball, T.Any, T.Semantic);
-    CheckOverlap(T.Boolean, T.Oddball, T.Semantic);
-    CheckOverlap(T.Null, T.Oddball, T.Semantic);
-    CheckOverlap(T.Undefined, T.Oddball, T.Semantic);
     CheckDisjoint(T.Boolean, T.Null, T.Semantic);
     CheckDisjoint(T.Undefined, T.Null, T.Semantic);
     CheckDisjoint(T.Boolean, T.Undefined, T.Semantic);

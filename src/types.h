@@ -24,7 +24,6 @@ namespace internal {
 //   None <= T
 //   T <= Any
 //
-//   Oddball = Boolean \/ Null \/ Undefined
 //   Number = Signed32 \/ Unsigned32 \/ Double
 //   Smi <= Signed32
 //   Name = String \/ Symbol
@@ -142,7 +141,6 @@ namespace internal {
   V(Proxy,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
   V(Internal,            1 << 16 | REPRESENTATION(kTagged | kUntagged)) \
   \
-  V(Oddball,             kBoolean | kNull | kUndefined)                 \
   V(Signed32,            kSignedSmall | kOtherSigned32)                 \
   V(Number,              kSigned32 | kUnsigned32 | kFloat)              \
   V(String,              kInternalizedString | kOtherString)            \
@@ -154,7 +152,8 @@ namespace internal {
   V(Detectable,          kDetectableReceiver | kNumber | kName)         \
   V(Object,              kDetectableObject | kUndetectable)             \
   V(Receiver,            kObject | kProxy)                              \
-  V(NonNumber,           kOddball | kName | kReceiver | kInternal)      \
+  V(NonNumber,           kBoolean | kName | kNull | kReceiver |         \
+                         kUndefined | kInternal)                        \
   V(Any,                 kNumber | kNonNumber)
 
 #define BITSET_TYPE_LIST(V) \
