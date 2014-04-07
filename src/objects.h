@@ -2469,8 +2469,12 @@ class JSObject: public JSReceiver {
   }
 
   // These methods do not perform access checks!
-  AccessorPair* GetLocalPropertyAccessorPair(Name* name);
-  AccessorPair* GetLocalElementAccessorPair(uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetLocalPropertyAccessorPair(
+      Handle<JSObject> object,
+      Handle<Name> name);
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetLocalElementAccessorPair(
+      Handle<JSObject> object,
+      uint32_t index);
 
   static Handle<Object> SetFastElement(Handle<JSObject> object, uint32_t index,
                                        Handle<Object> value,

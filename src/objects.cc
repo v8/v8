@@ -5192,7 +5192,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->map()->is_observed()) {
     should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
-      if (object->GetLocalElementAccessorPair(index) != NULL) {
+      if (!GetLocalElementAccessorPair(object, index).is_null()) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
       } else {
         old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
@@ -6371,7 +6371,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   if (is_observed) {
     if (is_element) {
       preexists = HasLocalElement(object, index);
-      if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
+      if (preexists && GetLocalElementAccessorPair(object, index).is_null()) {
         old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     } else {
@@ -11319,7 +11319,7 @@ static bool GetOldValue(Isolate* isolate,
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
   Handle<Object> value;
-  if (object->GetLocalElementAccessorPair(index) != NULL) {
+  if (!JSObject::GetLocalElementAccessorPair(object, index).is_null()) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
   } else {
     value = Object::GetElementNoExceptionThrown(isolate, object, index);
@@ -11858,35 +11858,40 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 
-AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
+MaybeHandle<AccessorPair> JSObject::GetLocalPropertyAccessorPair(
+    Handle<JSObject> object,
+    Handle<Name> name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return GetLocalElementAccessorPair(index);
+    return GetLocalElementAccessorPair(object, index);
   }
 
-  LookupResult lookup(GetIsolate());
-  LocalLookupRealNamedProperty(name, &lookup);
+  Isolate* isolate = object->GetIsolate();
+  LookupResult lookup(isolate);
+  object->LocalLookupRealNamedProperty(*name, &lookup);
 
   if (lookup.IsPropertyCallbacks() &&
       lookup.GetCallbackObject()->IsAccessorPair()) {
-    return AccessorPair::cast(lookup.GetCallbackObject());
+    return handle(AccessorPair::cast(lookup.GetCallbackObject()), isolate);
   }
-  return NULL;
+  return MaybeHandle<AccessorPair>();
 }
 
 
-AccessorPair* JSObject::GetLocalElementAccessorPair(uint32_t index) {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return NULL;
+MaybeHandle<AccessorPair> JSObject::GetLocalElementAccessorPair(
+    Handle<JSObject> object,
+    uint32_t index) {
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), object->GetIsolate());
+    if (proto->IsNull()) return MaybeHandle<AccessorPair>();
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->GetLocalElementAccessorPair(index);
+    return GetLocalElementAccessorPair(Handle<JSObject>::cast(proto), index);
   }
 
   // Check for lookup interceptor.
-  if (HasIndexedInterceptor()) return NULL;
+  if (object->HasIndexedInterceptor()) return MaybeHandle<AccessorPair>();
 
-  return GetElementsAccessor()->GetAccessorPair(this, this, index);
+  return object->GetElementsAccessor()->GetAccessorPair(object, object, index);
 }
 
 
@@ -12535,7 +12540,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   Handle<Object> new_length_handle;
 
   if (old_attributes != ABSENT) {
-    if (object->GetLocalElementAccessorPair(index) == NULL) {
+    if (GetLocalElementAccessorPair(object, index).is_null()) {
       old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
     }
   } else if (object->IsJSArray()) {

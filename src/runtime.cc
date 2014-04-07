@@ -1926,14 +1926,15 @@ static Handle<Object> GetOwnProperty(Isolate* isolate,
     return factory->undefined_value();
   }
   ASSERT(!isolate->has_scheduled_exception());
-  AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
-  Handle<AccessorPair> accessors(raw_accessors, isolate);
+  Handle<AccessorPair> accessors;
+  bool has_accessors =
+      JSObject::GetLocalPropertyAccessorPair(obj, name).ToHandle(&accessors);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(raw_accessors != NULL));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(has_accessors));
 
-  if (raw_accessors == NULL) {
+  if (!has_accessors) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // Runtime::GetObjectProperty does access check.
     Handle<Object> value = Runtime::GetObjectProperty(isolate, obj, name);

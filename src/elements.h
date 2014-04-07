@@ -127,11 +127,18 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual AccessorPair* GetAccessorPair(
-      Object* receiver,
-      JSObject* holder,
+  MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
       uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
+      Handle<FixedArrayBase> backing_store) = 0;
+
+  MUST_USE_RESULT inline MaybeHandle<AccessorPair> GetAccessorPair(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
+      uint32_t key) {
+    return GetAccessorPair(receiver, holder, key, handle(holder->elements()));
+  }
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
