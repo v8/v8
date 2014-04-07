@@ -56,17 +56,6 @@ namespace v8 {
 namespace internal {
 
 
-void PreParserTraits::CheckStrictModeLValue(PreParserExpression expression,
-                                            bool* ok) {
-  if (expression.IsIdentifier() &&
-      expression.AsIdentifier().IsEvalOrArguments()) {
-    pre_parser_->ReportMessage("strict_eval_arguments",
-                               Vector<const char*>::empty());
-    *ok = false;
-  }
-}
-
-
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
                                       Vector<const char*> args,

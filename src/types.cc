@@ -424,10 +424,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   }
 
   // Fast case: top or bottom types.
-  if (type1->IsAny()) return type1;
-  if (type2->IsAny()) return type2;
-  if (type1->IsNone()) return type2;
-  if (type2->IsNone()) return type1;
+  if (type1->IsAny() || type2->IsNone()) return type1;
+  if (type2->IsAny() || type1->IsNone()) return type2;
 
   // Semi-fast case: Unioned objects are neither involved nor produced.
   if (!(type1->IsUnion() || type2->IsUnion())) {
@@ -436,19 +434,20 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   }
 
   // Slow case: may need to produce a Unioned object.
-  int size = type1->IsBitset() || type2->IsBitset() ? 1 : 0;
+  int size = 0;
   if (!type1->IsBitset()) {
     size += (type1->IsUnion() ? Config::union_length(type1->AsUnion()) : 1);
   }
   if (!type2->IsBitset()) {
     size += (type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 1);
   }
-  ASSERT(size >= 2);
-  UnionedHandle unioned = Config::union_create(size, region);
-  size = 0;
-
   int bitset = type1->GlbBitset() | type2->GlbBitset();
-  if (bitset != kNone) {
+  if (IsInhabited(bitset)) ++size;
+  ASSERT(size >= 1);
+  UnionedHandle unioned = Config::union_create(size, region);
+
+  size = 0;
+  if (IsInhabited(bitset)) {
     Config::union_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendUnion(unioned, type1, size);
@@ -500,10 +499,8 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   }
 
   // Fast case: top or bottom types.
-  if (type1->IsNone()) return type1;
-  if (type2->IsNone()) return type2;
-  if (type1->IsAny()) return type2;
-  if (type2->IsAny()) return type1;
+  if (type1->IsNone() || type2->IsAny()) return type1;
+  if (type2->IsNone() || type1->IsAny()) return type2;
 
   // Semi-fast case: Unioned objects are neither involved nor produced.
   if (!(type1->IsUnion() || type2->IsUnion())) {
@@ -512,20 +509,21 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   }
 
   // Slow case: may need to produce a Unioned object.
-  int size = 0;
+  int size = INT_MAX;
   if (!type1->IsBitset()) {
-    size = (type1->IsUnion() ? Config::union_length(type1->AsUnion()) : 2);
+    size = (type1->IsUnion() ? Config::union_length(type1->AsUnion()) : 1);
   }
   if (!type2->IsBitset()) {
-    int size2 = (type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 2);
-    size = (size == 0 ? size2 : Min(size, size2));
+    size = Min(size,
+               type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 1);
   }
-  ASSERT(size >= 2);
-  UnionedHandle unioned = Config::union_create(size, region);
-  size = 0;
-
   int bitset = type1->GlbBitset() & type2->GlbBitset();
-  if (bitset != kNone) {
+  if (IsInhabited(bitset)) ++size;
+  ASSERT(size >= 1);
+  UnionedHandle unioned = Config::union_create(size, region);
+
+  size = 0;
+  if (IsInhabited(bitset)) {
     Config::union_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendIntersection(unioned, type1, type2, size);
@@ -645,7 +643,7 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
     switch (dim) {
       case BOTH_DIMS:
         BitsetTypePrint(out, bitset & kSemantic);
-        PrintF("/");
+        PrintF(out, "/");
         BitsetTypePrint(out, bitset & kRepresentation);
         break;
       case SEMANTIC_DIM:
@@ -658,18 +656,18 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
   } else if (this->IsConstant()) {
     PrintF(out, "Constant(%p : ", static_cast<void*>(*this->AsConstant()));
     Config::from_bitset(this->LubBitset())->TypePrint(out);
-    PrintF(")");
+    PrintF(out, ")");
   } else if (this->IsClass()) {
     PrintF(out, "Class(%p < ", static_cast<void*>(*this->AsClass()));
     Config::from_bitset(this->LubBitset())->TypePrint(out);
-    PrintF(")");
+    PrintF(out, ")");
   } else if (this->IsUnion()) {
     PrintF(out, "(");
     UnionedHandle unioned = this->AsUnion();
     for (int i = 0; i < Config::union_length(unioned); ++i) {
       TypeHandle type_i = Config::union_get(unioned, i);
       if (i > 0) PrintF(out, " | ");
-      type_i->TypePrint(out);
+      type_i->TypePrint(out, dim);
     }
     PrintF(out, ")");
   }

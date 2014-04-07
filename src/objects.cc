@@ -11376,6 +11376,9 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
   BeginPerformSplice(array);
 
   for (int i = 0; i < indices.length(); ++i) {
+    // For deletions where the property was an accessor, old_values[i]
+    // will be the hole, which instructs EnqueueChangeRecord to elide
+    // the "oldValue" property.
     JSObject::EnqueueChangeRecord(
         array, "delete", isolate->factory()->Uint32ToString(indices[i]),
         old_values[i]);
@@ -11392,6 +11395,9 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
   Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
   if (delete_count > 0) {
     for (int i = indices.length() - 1; i >= 0; i--) {
+      // Skip deletions where the property was an accessor, leaving holes
+      // in the array of old values.
+      if (old_values[i]->IsTheHole()) continue;
       JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
                            SLOPPY);
     }
