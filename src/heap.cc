@@ -2690,29 +2690,6 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 }
 
 
-MaybeObject* Heap::AllocateAccessorPair() {
-  AccessorPair* accessors;
-  { MaybeObject* maybe_accessors = AllocateStruct(ACCESSOR_PAIR_TYPE);
-    if (!maybe_accessors->To(&accessors)) return maybe_accessors;
-  }
-  accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_access_flags(Smi::FromInt(0), SKIP_WRITE_BARRIER);
-  return accessors;
-}
-
-
-MaybeObject* Heap::AllocateTypeFeedbackInfo() {
-  TypeFeedbackInfo* info;
-  { MaybeObject* maybe_info = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
-    if (!maybe_info->To(&info)) return maybe_info;
-  }
-  info->initialize_storage();
-  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  return info;
-}
-
-
 MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
   AliasedArgumentsEntry* entry;
   { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
@@ -5509,21 +5486,6 @@ MaybeObject* Heap::AllocatePrivateSymbol() {
 }
 
 
-MaybeObject* Heap::AllocateNativeContext() {
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateFixedArray(Context::NATIVE_CONTEXT_SLOTS);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_no_write_barrier(native_context_map());
-  context->set_js_array_maps(undefined_value());
-  ASSERT(context->IsNativeContext());
-  ASSERT(result->IsContext());
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
                                          ScopeInfo* scope_info) {
   Object* result;
@@ -5539,20 +5501,6 @@ MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
   context->set_global_object(function->context()->global_object());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
-  return context;
-}
-
-
-MaybeObject* Heap::AllocateModuleContext(ScopeInfo* scope_info) {
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateFixedArray(scope_info->ContextLength(), TENURED);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_no_write_barrier(module_context_map());
-  // Instance link will be set later.
-  context->set_extension(Smi::FromInt(0));
   return context;
 }
 
@@ -5626,29 +5574,6 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
   context->set_extension(scope_info);
   context->set_global_object(previous->global_object());
   return context;
-}
-
-
-MaybeObject* Heap::AllocateScopeInfo(int length) {
-  FixedArray* scope_info;
-  MaybeObject* maybe_scope_info = AllocateFixedArray(length, TENURED);
-  if (!maybe_scope_info->To(&scope_info)) return maybe_scope_info;
-  scope_info->set_map_no_write_barrier(scope_info_map());
-  return scope_info;
-}
-
-
-MaybeObject* Heap::AllocateExternal(void* value) {
-  Foreign* foreign;
-  { MaybeObject* maybe_result = AllocateForeign(static_cast<Address>(value));
-    if (!maybe_result->To(&foreign)) return maybe_result;
-  }
-  JSObject* external;
-  { MaybeObject* maybe_result = AllocateJSObjectFromMap(external_map());
-    if (!maybe_result->To(&external)) return maybe_result;
-  }
-  external->SetInternalField(0, foreign);
-  return external;
 }
 
 

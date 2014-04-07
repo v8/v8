@@ -178,16 +178,21 @@ Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
 
 
 Handle<AccessorPair> Factory::NewAccessorPair() {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateAccessorPair(),
-                     AccessorPair);
+  Handle<AccessorPair> accessors =
+      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
+  accessors->set_getter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_access_flags(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+  return accessors;
 }
 
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateTypeFeedbackInfo(),
-                     TypeFeedbackInfo);
+  Handle<TypeFeedbackInfo> info =
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TYPE_FEEDBACK_INFO_TYPE));
+  info->initialize_storage();
+  info->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  return info;
 }
 
 
@@ -568,10 +573,12 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
 
 
 Handle<Context> Factory::NewNativeContext() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateNativeContext(),
-      Context);
+  Handle<FixedArray> array = NewFixedArray(Context::NATIVE_CONTEXT_SLOTS);
+  array->set_map_no_write_barrier(*native_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_js_array_maps(*undefined_value());
+  ASSERT(context->IsNativeContext());
+  return context;
 }
 
 
@@ -585,10 +592,13 @@ Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
 
 
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateModuleContext(*scope_info),
-      Context);
+  Handle<FixedArray> array =
+      NewFixedArray(scope_info->ContextLength(), TENURED);
+  array->set_map_no_write_barrier(*module_context_map());
+  // Instance link will be set later.
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_extension(Smi::FromInt(0));
+  return context;
 }
 
 
@@ -1219,17 +1229,18 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateScopeInfo(length),
-      ScopeInfo);
+  Handle<FixedArray> array = NewFixedArray(length, TENURED);
+  array->set_map_no_write_barrier(*scope_info_map());
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(array);
+  return scope_info;
 }
 
 
 Handle<JSObject> Factory::NewExternal(void* value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateExternal(value),
-                     JSObject);
+  Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));
+  Handle<JSObject> external = NewJSObjectFromMap(external_map());
+  external->SetInternalField(0, *foreign);
+  return external;
 }
 
 

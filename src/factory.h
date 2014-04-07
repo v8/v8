@@ -70,9 +70,11 @@ class Factory V8_FINAL {
   Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
-  // Allocates a pre-tenured empty AccessorPair.
+
+  // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
+  // Create an empty TypeFeedbackInfo.
   Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
 
   Handle<String> InternalizeUtf8String(Vector<const char> str);
@@ -405,8 +407,10 @@ class Factory V8_FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
+  // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
 
+  // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
   Handle<Code> NewCode(const CodeDesc& desc,

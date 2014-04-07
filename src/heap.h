@@ -816,20 +816,8 @@ class Heap {
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
-  // Allocates a serialized scope info.
-  MUST_USE_RESULT MaybeObject* AllocateScopeInfo(int length);
-
-  // Allocates an External object for v8's external API.
-  MUST_USE_RESULT MaybeObject* AllocateExternal(void* value);
-
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
-
-  // Allocates a pre-tenured empty AccessorPair.
-  MUST_USE_RESULT MaybeObject* AllocateAccessorPair();
-
-  // Allocates an empty TypeFeedbackInfo.
-  MUST_USE_RESULT MaybeObject* AllocateTypeFeedbackInfo();
 
   // Allocates an AliasedArgumentsEntry.
   MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
@@ -1052,15 +1040,9 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a native (but otherwise uninitialized) context.
-  MUST_USE_RESULT MaybeObject* AllocateNativeContext();
-
   // Allocate a global context.
   MUST_USE_RESULT MaybeObject* AllocateGlobalContext(JSFunction* function,
                                                      ScopeInfo* scope_info);
-
-  // Allocate a module context.
-  MUST_USE_RESULT MaybeObject* AllocateModuleContext(ScopeInfo* scope_info);
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
