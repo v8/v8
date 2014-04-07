@@ -1632,10 +1632,9 @@ int Disassembler::SubstituteBranchTargetField(Instruction* instr,
   offset <<= kInstructionSizeLog2;
   char sign = '+';
   if (offset < 0) {
-    offset = -offset;
     sign = '-';
   }
-  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, offset,
+  AppendToOutput("#%c0x%" PRIx64 " (addr %p)", sign, Abs(offset),
                  instr->InstructionAtOffset(offset), Instruction::NO_CHECK);
   return 8;
 }
