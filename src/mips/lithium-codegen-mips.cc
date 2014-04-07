@@ -1322,25 +1322,27 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
   }
-  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
-    // Note that we could emit branch-free code, but that would need one more
-    // register.
-    __ Xor(at, scratch, result);
-    if (divisor == -1) {
-      DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
-      __ sra(result, dividend, shift);
-    } else {
-      Label no_overflow, done;
-      __ Branch(&no_overflow, lt, at, Operand(zero_reg));
-      __ li(result, Operand(kMinInt / divisor));
-      __ Branch(&done);
-      __ bind(&no_overflow);
-      __ sra(result, dividend, shift);
-      __ bind(&done);
-    }
-  } else {
+
+  // If the negation could not overflow, simply shifting is OK.
+  if (!instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     __ sra(result, dividend, shift);
+    return;
   }
+
+  // Dividing by -1 is basically negation, unless we overflow.
+  __ Xor(at, scratch, result);
+  if (divisor == -1) {
+    DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
+    return;
+  }
+
+  Label no_overflow, done;
+  __ Branch(&no_overflow, lt, at, Operand(zero_reg));
+  __ li(result, Operand(kMinInt / divisor));
+  __ Branch(&done);
+  __ bind(&no_overflow);
+  __ sra(result, dividend, shift);
+  __ bind(&done);
 }
 
 
