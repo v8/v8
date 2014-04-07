@@ -1686,6 +1686,71 @@ TEST(adr) {
 }
 
 
+TEST(adr_far) {
+  INIT_V8();
+
+  int max_range = 1 << (Instruction::ImmPCRelRangeBitwidth - 1);
+  SETUP_SIZE(max_range + 1000 * kInstructionSize);
+
+  Label done, fail;
+  Label test_near, near_forward, near_backward;
+  Label test_far, far_forward, far_backward;
+
+  START();
+  __ Mov(x0, 0x0);
+
+  __ Bind(&test_near);
+  __ Adr(x10, &near_forward, MacroAssembler::kAdrFar);
+  __ Br(x10);
+  __ B(&fail);
+  __ Bind(&near_backward);
+  __ Orr(x0, x0, 1 << 1);
+  __ B(&test_far);
+
+  __ Bind(&near_forward);
+  __ Orr(x0, x0, 1 << 0);
+  __ Adr(x10, &near_backward, MacroAssembler::kAdrFar);
+  __ Br(x10);
+
+  __ Bind(&test_far);
+  __ Adr(x10, &far_forward, MacroAssembler::kAdrFar);
+  __ Br(x10);
+  __ B(&fail);
+  __ Bind(&far_backward);
+  __ Orr(x0, x0, 1 << 3);
+  __ B(&done);
+
+  for (unsigned i = 0; i < max_range / kInstructionSize + 1; ++i) {
+    if (i % 100 == 0) {
+      // If we do land in this code, we do not want to execute so many nops
+      // before reaching the end of test (especially if tracing is activated).
+      __ b(&fail);
+    } else {
+      __ nop();
+    }
+  }
+
+
+  __ Bind(&far_forward);
+  __ Orr(x0, x0, 1 << 2);
+  __ Adr(x10, &far_backward, MacroAssembler::kAdrFar);
+  __ Br(x10);
+
+  __ B(&done);
+  __ Bind(&fail);
+  __ Orr(x0, x0, 1 << 4);
+  __ Bind(&done);
+
+  END();
+
+  RUN();
+
+  ASSERT_EQUAL_64(0xf, x0);
+
+  TEARDOWN();
+}
+
+
 TEST(branch_cond) {
   INIT_V8();
   SETUP();

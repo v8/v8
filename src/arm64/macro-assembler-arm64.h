@@ -255,8 +255,16 @@ class MacroAssembler : public Assembler {
   void Load(const Register& rt, const MemOperand& addr, Representation r);
   void Store(const Register& rt, const MemOperand& addr, Representation r);
 
+  enum AdrHint {
+    // The target must be within the immediate range of adr.
+    kAdrNear,
+    // The target may be outside of the immediate range of adr. Additional
+    // instructions may be emitted.
+    kAdrFar
+  };
+  void Adr(const Register& rd, Label* label, AdrHint = kAdrNear);
+
   // Remaining instructions are simple pass-through calls to the assembler.
-  inline void Adr(const Register& rd, Label* label);
   inline void Asr(const Register& rd, const Register& rn, unsigned shift);
   inline void Asr(const Register& rd, const Register& rn, const Register& rm);
 

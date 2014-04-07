@@ -319,13 +319,6 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
 
-void MacroAssembler::Adr(const Register& rd, Label* label) {
-  ASSERT(allow_macro_instructions_);
-  ASSERT(!rd.IsZero());
-  adr(rd, label);
-}
-
-
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,
                          unsigned shift) {

@@ -254,11 +254,18 @@ void Instruction::SetImmPCOffsetTarget(Instruction* target) {
 
 void Instruction::SetPCRelImmTarget(Instruction* target) {
   // ADRP is not supported, so 'this' must point to an ADR instruction.
-  ASSERT(Mask(PCRelAddressingMask) == ADR);
+  ASSERT(IsAdr());
 
-  Instr imm = Assembler::ImmPCRelAddress(DistanceTo(target));
-
-  SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
+  int target_offset = DistanceTo(target);
+  Instr imm;
+  if (Instruction::IsValidPCRelOffset(target_offset)) {
+    imm = Assembler::ImmPCRelAddress(target_offset);
+    SetInstructionBits(Mask(~ImmPCRel_mask) | imm);
+  } else {
+    PatchingAssembler patcher(this,
+                              PatchingAssembler::kAdrFarPatchableNInstrs);
+    patcher.PatchAdrFar(target);
+  }
 }
 
 

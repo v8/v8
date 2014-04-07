@@ -599,6 +599,43 @@ bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
 }
 
 
+void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
+  ASSERT(allow_macro_instructions_);
+  ASSERT(!rd.IsZero());
+
+  if (hint == kAdrNear) {
+    adr(rd, label);
+    return;
+  }
+
+  ASSERT(hint == kAdrFar);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  ASSERT(!AreAliased(rd, scratch));
+
+  if (label->is_bound()) {
+    int label_offset = label->pos() - pc_offset();
+    if (Instruction::IsValidPCRelOffset(label_offset)) {
+      adr(rd, label);
+    } else {
+      ASSERT(label_offset <= 0);
+      int min_adr_offset = -(1 << (Instruction::ImmPCRelRangeBitwidth - 1));
+      adr(rd, min_adr_offset);
+      Add(rd, rd, label_offset - min_adr_offset);
+    }
+  } else {
+    InstructionAccurateScope scope(
+        this, PatchingAssembler::kAdrFarPatchableNInstrs);
+    adr(rd, label);
+    for (int i = 0; i < PatchingAssembler::kAdrFarPatchableNNops; ++i) {
+      nop(ADR_FAR_NOP);
+    }
+    movz(scratch, 0);
+    add(rd, rd, scratch);
+  }
+}
+
+
 void MacroAssembler::B(Label* label, BranchType type, Register reg, int bit) {
   ASSERT((reg.Is(NoReg) || type >= kBranchTypeFirstUsingReg) &&
          (bit == -1 || type >= kBranchTypeFirstUsingBit));
