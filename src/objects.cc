@@ -11232,7 +11232,7 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
     Handle<Map> new_map = (new_elements_kind != elements_kind)
         ? GetElementsTransitionMap(object, new_elements_kind)
         : handle(object->map());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     JSObject::SetMapAndElements(object, new_map, new_elements);
 
     // Transition through the allocation site as well if present.
@@ -11278,7 +11278,7 @@ void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
   ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
   accessor->CopyElements(object, elems, elements_kind);
 
-  object->ValidateElements();
+  JSObject::ValidateElements(object);
   JSObject::SetMapAndElements(object, new_map, elems);
 
   if (FLAG_trace_elements_transitions) {
@@ -12162,7 +12162,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 
     SetFastDoubleElementsCapacityAndLength(object, new_capacity, array_length);
     FixedDoubleArray::cast(object->elements())->set(index, value->Number());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return value;
   }
   // Change elements kind from Smi-only to generic FAST if necessary.
@@ -12186,7 +12186,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
         SetFastElementsCapacityAndLength(object, new_capacity, array_length,
                                          smi_mode);
     new_elements->set(index, *value);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return value;
   }
 
@@ -12332,7 +12332,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
       SetFastElementsCapacityAndLength(object, new_length, new_length,
                                        smi_mode);
     }
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
       PrintF("Object elements are fast case again:\n");
@@ -12384,7 +12384,7 @@ Handle<Object> JSObject::SetFastDoubleElement(
                                            check_prototype);
     RETURN_IF_EMPTY_HANDLE_VALUE(object->GetIsolate(), result,
                                  Handle<Object>());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return result;
   }
 
@@ -12424,7 +12424,7 @@ Handle<Object> JSObject::SetFastDoubleElement(
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       SetFastDoubleElementsCapacityAndLength(object, new_capacity, index + 1);
       FixedDoubleArray::cast(object->elements())->set(index, double_value);
-      object->ValidateElements();
+      JSObject::ValidateElements(object);
       return value;
     }
   }
@@ -12883,7 +12883,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   if (IsFastSmiElementsKind(from_kind) &&
       IsFastDoubleElementsKind(to_kind)) {
     SetFastDoubleElementsCapacityAndLength(object, capacity, length);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return;
   }
 
@@ -12891,7 +12891,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       IsFastObjectElementsKind(to_kind)) {
     SetFastElementsCapacityAndLength(object, capacity, length,
                                      kDontAllowSmiElements);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return;
   }
 
@@ -14417,7 +14417,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     Handle<FixedArray> fast_elements =
         isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
     dict->CopyValuesTo(*fast_elements);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
 
     JSObject::SetMapAndElements(object, new_map, fast_elements);
   } else if (object->HasExternalArrayElements() ||

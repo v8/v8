@@ -610,8 +610,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateContents(holder, length);
   }
 
-  virtual void Validate(JSObject* holder) V8_FINAL V8_OVERRIDE {
-    ElementsAccessorSubclass::ValidateImpl(holder);
+  virtual void Validate(Handle<JSObject> holder) V8_FINAL V8_OVERRIDE {
+    DisallowHeapAllocation no_gc;
+    ElementsAccessorSubclass::ValidateImpl(*holder);
   }
 
   static bool HasElementImpl(Object* receiver,
@@ -1011,7 +1012,7 @@ class FastElementsAccessor
     if (!array->ShouldConvertToSlowElements(new_capacity)) {
       FastElementsAccessorSubclass::
           SetFastElementsCapacityAndLength(array, new_capacity, length);
-      array->ValidateElements();
+      JSObject::ValidateElements(array);
       return length_object;
     }
 

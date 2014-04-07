@@ -1380,6 +1380,15 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
+                                    PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSArray(elements_kind,
+                                                        pretenure),
+                     JSArray);
+}
+
+
+Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int length,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
@@ -1400,13 +1409,13 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 int length,
                                                 PretenureFlag pretenure) {
   ASSERT(length <= elements->length());
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSArrayWithElements(*elements,
-                                                     elements_kind,
-                                                     length,
-                                                     pretenure),
-      JSArray);
+  Handle<JSArray> array =
+      isolate()->factory()->NewJSArray(elements_kind, pretenure);
+
+  array->set_elements(*elements);
+  array->set_length(Smi::FromInt(length));
+  JSObject::ValidateElements(array);
+  return array;
 }
 
 

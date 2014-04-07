@@ -436,7 +436,7 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     }
   }
 
-  object->ValidateElements();
+  JSObject::ValidateElements(object);
   return object;
 }
 
@@ -5302,7 +5302,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
       return value;
     }
 
-    js_object->ValidateElements();
+    JSObject::ValidateElements(js_object);
     if (js_object->HasExternalArrayElements() ||
         js_object->HasFixedTypedArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
@@ -5317,7 +5317,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                  strict_mode,
                                                  true,
                                                  set_mode);
-    js_object->ValidateElements();
+    JSObject::ValidateElements(js_object);
     return result.is_null() ? result : value;
   }
 
@@ -10658,8 +10658,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
-  from->ValidateElements();
-  to->ValidateElements();
+  JSObject::ValidateElements(from);
+  JSObject::ValidateElements(to);
 
   Handle<FixedArrayBase> new_elements(from->elements());
   ElementsKind from_kind = from->GetElementsKind();
@@ -10670,7 +10670,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   JSObject::ResetElements(from);
   from->set_length(Smi::FromInt(0));
 
-  to->ValidateElements();
+  JSObject::ValidateElements(to);
   return *to;
 }
 

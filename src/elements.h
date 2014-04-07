@@ -48,7 +48,7 @@ class ElementsAccessor {
 
   // Checks the elements of an object for consistency, asserting when a problem
   // is found.
-  virtual void Validate(JSObject* obj) = 0;
+  virtual void Validate(Handle<JSObject> obj) = 0;
 
   // Returns true if a holder contains an element with the specified key
   // without iterating up the prototype chain.  The caller can optionally pass

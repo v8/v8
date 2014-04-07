@@ -4669,22 +4669,6 @@ MaybeObject* Heap::AllocateJSArrayStorage(
 }
 
 
-MaybeObject* Heap::AllocateJSArrayWithElements(
-    FixedArrayBase* elements,
-    ElementsKind elements_kind,
-    int length,
-    PretenureFlag pretenure) {
-  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-
-  array->set_elements(elements);
-  array->set_length(Smi::FromInt(length));
-  array->ValidateElements();
-  return array;
-}
-
-
 MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   // Allocate map.
   // TODO(rossberg): Once we optimize proxies, think about a scheme to share

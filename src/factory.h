@@ -328,6 +328,11 @@ class Factory V8_FINAL {
                                Handle<ScopeInfo> scope_info);
 
   // JS arrays are pretenured when allocated by the parser.
+
+  Handle<JSArray> NewJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind,
       int length,
@@ -346,6 +351,7 @@ class Factory V8_FINAL {
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
 
+  // Allocate a JSArray with no elements
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind,
