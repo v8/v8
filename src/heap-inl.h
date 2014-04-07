@@ -627,13 +627,6 @@ Isolate* Heap::isolate() {
 }
 
 
-#ifdef DEBUG
-#define GC_GREEDY_CHECK(ISOLATE) \
-  if (FLAG_gc_greedy) (ISOLATE)->heap()->GarbageCollectionGreedyCheck()
-#else
-#define GC_GREEDY_CHECK(ISOLATE) { }
-#endif
-
 // Calls the FUNCTION_CALL function and retries it up to three times
 // to guarantee that any allocations performed during the call will
 // succeed if there's enough memory.
@@ -643,7 +636,6 @@ Isolate* Heap::isolate() {
 
 #define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)     \
   do {                                                                         \
-    GC_GREEDY_CHECK(ISOLATE);                                                  \
     MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
     Object* __object__ = NULL;                                                 \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \

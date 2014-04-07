@@ -7523,17 +7523,6 @@ void DescriptorLookupCache::Clear() {
 }
 
 
-#ifdef DEBUG
-void Heap::GarbageCollectionGreedyCheck() {
-  ASSERT(FLAG_gc_greedy);
-  if (isolate_->bootstrapper()->IsActive()) return;
-  if (!AllowAllocationFailure::IsAllowed(isolate_)) return;
-  if (!AllowHeapAllocation::IsAllowed()) return;
-  CollectGarbage(NEW_SPACE);
-}
-#endif
-
-
 void ExternalStringTable::CleanUp() {
   int last = 0;
   for (int i = 0; i < new_space_strings_.length(); ++i) {

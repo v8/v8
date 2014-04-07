@@ -1256,11 +1256,6 @@ class Heap {
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
-#ifdef DEBUG
-  // Utility used with flag gc-greedy.
-  void GarbageCollectionGreedyCheck();
-#endif
-
   void AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
                              GCType gc_type_filter,
                              bool pass_isolate = true);

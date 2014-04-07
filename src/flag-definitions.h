@@ -743,7 +743,6 @@ DEFINE_bool(print_scopes, false, "print scopes")
 DEFINE_bool(trace_contexts, false, "trace contexts operations")
 
 // heap.cc
-DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations")
 DEFINE_bool(gc_verbose, false, "print stuff during garbage collection")
 DEFINE_bool(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_bool(code_stats, false, "report code statistics after GC")
