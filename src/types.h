@@ -164,28 +164,29 @@ namespace internal {
 
 // struct Config {
 //   typedef Base;
-//   typedef Unioned;
+//   typedef Struct;
 //   typedef Region;
 //   template<class> struct Handle { typedef type; }  // No template typedefs...
 //   static Handle<Type>::type handle(Type* type);    // !is_bitset(type)
 //   static bool is_bitset(Type*);
 //   static bool is_class(Type*);
 //   static bool is_constant(Type*);
-//   static bool is_union(Type*);
+//   static bool is_struct(Type*);
 //   static int as_bitset(Type*);
 //   static i::Handle<i::Map> as_class(Type*);
 //   static i::Handle<i::Object> as_constant(Type*);
-//   static Handle<Unioned>::type as_union(Type*);
+//   static Handle<Struct>::type as_struct(Type*);
 //   static Type* from_bitset(int bitset);
 //   static Handle<Type>::type from_bitset(int bitset, Region*);
 //   static Handle<Type>::type from_class(i::Handle<Map>, int lub, Region*);
 //   static Handle<Type>::type from_constant(i::Handle<Object>, int, Region*);
-//   static Handle<Type>::type from_union(Handle<Unioned>::type);
-//   static Handle<Unioned>::type union_create(int size, Region*);
-//   static void union_shrink(Handle<Unioned>::type, int size);
-//   static Handle<Type>::type union_get(Handle<Unioned>::type, int);
-//   static void union_set(Handle<Unioned>::type, int, Handle<Type>::type);
-//   static int union_length(Handle<Unioned>::type);
+//   static Handle<Type>::type from_struct(Handle<Struct>::type);
+//   static Handle<Struct>::type struct_create(int tag, int length, Region*);
+//   static void struct_shrink(Handle<Struct>::type, int length);
+//   static int struct_tag(Handle<Struct>::type);
+//   static Handle<Type>::type struct_get(Handle<Struct>::type, int);
+//   static void struct_set(Handle<Struct>::type, int, Handle<Type>::type);
+//   static int struct_length(Handle<Struct>::type);
 //   static int lub_bitset(Type*);
 // }
 template<class Config>
@@ -299,13 +300,22 @@ class TypeImpl : public Config::Base {
  private:
   template<class> friend class Iterator;
   template<class> friend class TypeImpl;
+  friend struct ZoneTypeConfig;
+  friend struct HeapTypeConfig;
 
-  // A union is a fixed array containing types. Invariants:
+  enum Tag {
+    kClassTag,
+    kConstantTag,
+    kUnionTag
+  };
+
+  // A structured type contains a tag an a variable number of type fields.
+  // A union is a structured type with the following invariants:
   // - its length is at least 2
   // - at most one field is a bitset, and it must go into index 0
   // - no field is a union
-  typedef typename Config::Unioned Unioned;
-  typedef typename Config::template Handle<Unioned>::type UnionedHandle;
+  typedef typename Config::Struct Struct;
+  typedef typename Config::template Handle<Struct>::type StructHandle;
 
   enum {
     #define DECLARE_TYPE(type, value) k##type = (value),
@@ -317,15 +327,24 @@ class TypeImpl : public Config::Base {
   bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
   bool IsBitset() { return Config::is_bitset(this); }
-  bool IsUnion() { return Config::is_union(this); }
-  int AsBitset() { return Config::as_bitset(this); }
-  UnionedHandle AsUnion() { return Config::as_union(this); }
-
-  static int UnionLength(UnionedHandle unioned) {
-    return Config::union_length(unioned);
+  bool IsStruct(Tag tag) {
+    return Config::is_struct(this)
+        && Config::struct_tag(Config::as_struct(this)) == tag;
   }
-  static TypeHandle UnionGet(UnionedHandle unioned, int i) {
-    return Config::union_get(unioned, i);
+  bool IsUnion() { return IsStruct(kUnionTag); }
+
+  int AsBitset() { return Config::as_bitset(this); }
+  StructHandle AsStruct(Tag tag) {
+    ASSERT(IsStruct(tag));
+    return Config::as_struct(this);
+  }
+  StructHandle AsUnion() { return AsStruct(kUnionTag); }
+
+  static int StructLength(StructHandle structured) {
+    return Config::struct_length(structured);
+  }
+  static TypeHandle StructGet(StructHandle structured, int i) {
+    return Config::struct_get(structured, i);
   }
 
   bool SlowIs(TypeImpl* that);
@@ -340,11 +359,11 @@ class TypeImpl : public Config::Base {
   static int LubBitset(i::Object* value);
   static int LubBitset(i::Map* map);
 
-  bool InUnion(UnionedHandle unioned, int current_size);
+  bool InUnion(StructHandle unioned, int current_size);
   static int ExtendUnion(
-      UnionedHandle unioned, TypeHandle t, int current_size);
+      StructHandle unioned, TypeHandle t, int current_size);
   static int ExtendIntersection(
-      UnionedHandle unioned, TypeHandle t, TypeHandle other, int current_size);
+      StructHandle unioned, TypeHandle t, TypeHandle other, int current_size);
 
   static const char* bitset_name(int bitset);
   static void BitsetTypePrint(FILE* out, int bitset);
@@ -352,59 +371,35 @@ class TypeImpl : public Config::Base {
 
 
 // Zone-allocated types are either (odd) integers to represent bitsets, or
-// (even) pointers to zone lists for everything else. The first slot of every
-// list is an explicit tag value to distinguish representation.
+// (even) pointers to structures for everything else.
 struct ZoneTypeConfig {
- private:
-  typedef i::ZoneList<void*> Tagged;
-
-  enum Tag {
-    kClassTag,
-    kConstantTag,
-    kUnionTag
-  };
-
-  static inline Tagged* tagged_create(Tag tag, int size, Zone* zone);
-  static inline void tagged_shrink(Tagged* tagged, int size);
-  static inline Tag tagged_tag(Tagged* tagged);
-  template<class T> static inline T tagged_get(Tagged* tagged, int i);
-  template<class T> static inline void tagged_set(Tagged* tagged, int i, T val);
-  static inline int tagged_length(Tagged* tagged);
-
- public:
   typedef TypeImpl<ZoneTypeConfig> Type;
   class Base {};
-  typedef i::ZoneList<Type*> Unioned;
+  struct Struct { int tag; int length; void* args[1]; };
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
   static inline Type* handle(Type* type);
-  static inline bool is(Type* type, Tag tag);
   static inline bool is_bitset(Type* type);
-  static inline bool is_tagged(Type* type);
   static inline bool is_class(Type* type);
   static inline bool is_constant(Type* type);
-  static inline bool is_union(Type* type);
-  static inline bool tagged_is_union(Tagged* tagged);
+  static inline bool is_struct(Type* type);
   static inline int as_bitset(Type* type);
-  static inline Tagged* as_tagged(Type* type);
+  static inline Struct* as_struct(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
   static inline i::Handle<i::Object> as_constant(Type* type);
-  static inline Unioned* as_union(Type* type);
-  static inline Unioned* tagged_as_union(Tagged* tagged);
   static inline Type* from_bitset(int bitset);
   static inline Type* from_bitset(int bitset, Zone* zone);
-  static inline Type* from_tagged(Tagged* tagged);
+  static inline Type* from_struct(Struct* structured);
   static inline Type* from_class(i::Handle<i::Map> map, int lub, Zone* zone);
   static inline Type* from_constant(
       i::Handle<i::Object> value, int lub, Zone* zone);
-  static inline Type* from_union(Unioned* unioned);
-  static inline Tagged* tagged_from_union(Unioned* unioned);
-  static inline Unioned* union_create(int size, Zone* zone);
-  static inline void union_shrink(Unioned* unioned, int size);
-  static inline Type* union_get(Unioned* unioned, int i);
-  static inline void union_set(Unioned* unioned, int i, Type* type);
-  static inline int union_length(Unioned* unioned);
+  static inline Struct* struct_create(int tag, int length, Zone* zone);
+  static inline void struct_shrink(Struct* structured, int length);
+  static inline int struct_tag(Struct* structured);
+  static inline Type* struct_get(Struct* structured, int i);
+  static inline void struct_set(Struct* structured, int i, Type* type);
+  static inline int struct_length(Struct* structured);
   static inline int lub_bitset(Type* type);
 };
 
@@ -416,7 +411,7 @@ typedef TypeImpl<ZoneTypeConfig> Type;
 struct HeapTypeConfig {
   typedef TypeImpl<HeapTypeConfig> Type;
   typedef i::Object Base;
-  typedef i::FixedArray Unioned;
+  typedef i::FixedArray Struct;
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
 
@@ -424,24 +419,26 @@ struct HeapTypeConfig {
   static inline bool is_bitset(Type* type);
   static inline bool is_class(Type* type);
   static inline bool is_constant(Type* type);
-  static inline bool is_union(Type* type);
+  static inline bool is_struct(Type* type);
   static inline int as_bitset(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
   static inline i::Handle<i::Object> as_constant(Type* type);
-  static inline i::Handle<Unioned> as_union(Type* type);
+  static inline i::Handle<Struct> as_struct(Type* type);
   static inline Type* from_bitset(int bitset);
   static inline i::Handle<Type> from_bitset(int bitset, Isolate* isolate);
   static inline i::Handle<Type> from_class(
       i::Handle<i::Map> map, int lub, Isolate* isolate);
   static inline i::Handle<Type> from_constant(
       i::Handle<i::Object> value, int lub, Isolate* isolate);
-  static inline i::Handle<Type> from_union(i::Handle<Unioned> unioned);
-  static inline i::Handle<Unioned> union_create(int size, Isolate* isolate);
-  static inline void union_shrink(i::Handle<Unioned> unioned, int size);
-  static inline i::Handle<Type> union_get(i::Handle<Unioned> unioned, int i);
-  static inline void union_set(
-      i::Handle<Unioned> unioned, int i, i::Handle<Type> type);
-  static inline int union_length(i::Handle<Unioned> unioned);
+  static inline i::Handle<Type> from_struct(i::Handle<Struct> structured);
+  static inline i::Handle<Struct> struct_create(
+      int tag, int length, Isolate* isolate);
+  static inline void struct_shrink(i::Handle<Struct> structured, int length);
+  static inline int struct_tag(i::Handle<Struct> structured);
+  static inline i::Handle<Type> struct_get(i::Handle<Struct> structured, int i);
+  static inline void struct_set(
+      i::Handle<Struct> structured, int i, i::Handle<Type> type);
+  static inline int struct_length(i::Handle<Struct> structured);
   static inline int lub_bitset(Type* type);
 };
 
