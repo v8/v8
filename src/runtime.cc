@@ -13556,6 +13556,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditPatchFunctionPositions) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, position_change_array, 1);
+  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_array))
 
   LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
   return isolate->heap()->undefined_value();
