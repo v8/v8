@@ -713,27 +713,6 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED,
       AllocationSite* allocation_site = NULL);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
-                                                ScopeInfo* scope_info);
-
-  // Allocate a JSArray with no elements
-  MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
-      ElementsKind elements_kind,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return AllocateJSArrayAndStorage(elements_kind, 0, 0,
-                                     DONT_INITIALIZE_ARRAY_ELEMENTS,
-                                     pretenure);
-  }
-
-  // Allocate a JSArray with a specified length but elements that are left
-  // uninitialized.
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
-      ElementsKind elements_kind,
-      int length,
-      int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
-      PretenureFlag pretenure = NOT_TENURED);
-
   MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
       JSArray* array,
       int length,
@@ -746,12 +725,6 @@ class Heap {
   // Optionally takes an AllocationSite to be appended in an AllocationMemento.
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
-
-  // Allocates a JS ArrayBuffer object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayBuffer();
 
   // Allocates a Harmony proxy or function proxy.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -2204,11 +2177,6 @@ class Heap {
                                              Object* to_number,
                                              byte kind);
 
-  // Allocate a JSArray with no elements
-  MUST_USE_RESULT MaybeObject* AllocateJSArray(
-      ElementsKind elements_kind,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
@@ -2231,10 +2199,6 @@ class Heap {
 
   // Allocate a tenured JS global property cell initialized with the hole.
   MUST_USE_RESULT MaybeObject* AllocatePropertyCell();
-
-  // Allocate Box.
-  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
-                                           PretenureFlag pretenure);
 
   // Performs a minor collection in new generation.
   void Scavenge();

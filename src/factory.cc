@@ -9,11 +9,10 @@
 namespace v8 {
 namespace internal {
 
-Handle<Box> Factory::NewBox(Handle<Object> value, PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateBox(*value, pretenure),
-      Box);
+Handle<Box> Factory::NewBox(Handle<Object> value) {
+  Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
+  result->set_value(*value);
+  return result;
 }
 
 
@@ -1294,9 +1293,14 @@ Handle<JSObject> Factory::NewJSObjectWithMemento(
 
 Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
                                       Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSModule(*context, *scope_info), JSModule);
+  // Allocate a fresh map. Modules do not have a prototype.
+  Handle<Map> map = NewMap(JS_MODULE_TYPE, JSModule::kSize);
+  // Allocate the object based on the map.
+  Handle<JSModule> module =
+      Handle<JSModule>::cast(NewJSObjectFromMap(map, TENURED));
+  module->set_context(*context);
+  module->set_scope_info(*scope_info);
+  return module;
 }
 
 
@@ -1392,10 +1396,12 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSArray(elements_kind,
-                                                        pretenure),
-                     JSArray);
+  Context* native_context = isolate()->context()->native_context();
+  JSFunction* array_function = native_context->array_function();
+  Map* map = array_function->initial_map();
+  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
+  if (transition_map != NULL) map = transition_map;
+  return Handle<JSArray>::cast(NewJSObjectFromMap(handle(map), pretenure));
 }
 
 
@@ -1404,14 +1410,9 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSArrayAndStorage(
-                         elements_kind,
-                         length,
-                         capacity,
-                         mode,
-                         pretenure),
-                     JSArray);
+  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
+  NewJSArrayStorage(array, length, capacity, mode);
+  return array;
 }
 
 

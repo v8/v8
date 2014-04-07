@@ -3010,15 +3010,6 @@ MaybeObject* Heap::AllocatePropertyCell() {
 }
 
 
-MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
-  Box* result;
-  MaybeObject* maybe_result = AllocateStruct(BOX_TYPE);
-  if (!maybe_result->To(&result)) return maybe_result;
-  result->set_value(value);
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateAllocationSite() {
   AllocationSite* site;
   MaybeObject* maybe_result = Allocate(allocation_site_map(),
@@ -4545,67 +4536,6 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateJSModule(Context* context, ScopeInfo* scope_info) {
-  // Allocate a fresh map. Modules do not have a prototype.
-  Map* map;
-  MaybeObject* maybe_map = AllocateMap(JS_MODULE_TYPE, JSModule::kSize);
-  if (!maybe_map->To(&map)) return maybe_map;
-  // Allocate the object based on the map.
-  JSModule* module;
-  MaybeObject* maybe_module = AllocateJSObjectFromMap(map, TENURED);
-  if (!maybe_module->To(&module)) return maybe_module;
-  module->set_context(context);
-  module->set_scope_info(scope_info);
-  return module;
-}
-
-
-MaybeObject* Heap::AllocateJSArrayAndStorage(
-    ElementsKind elements_kind,
-    int length,
-    int capacity,
-    ArrayStorageAllocationMode mode,
-    PretenureFlag pretenure) {
-  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-
-  // TODO(mvstanton): this body of code is duplicate with AllocateJSArrayStorage
-  // for performance reasons.
-  ASSERT(capacity >= length);
-
-  if (capacity == 0) {
-    array->set_length(Smi::FromInt(0));
-    array->set_elements(empty_fixed_array());
-    return array;
-  }
-
-  FixedArrayBase* elms;
-  MaybeObject* maybe_elms = NULL;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
-    }
-  } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedArrayWithHoles(capacity);
-    }
-  }
-  if (!maybe_elms->To(&elms)) return maybe_elms;
-
-  array->set_elements(elms);
-  array->set_length(Smi::FromInt(length));
-  return array;
-}
-
-
 MaybeObject* Heap::AllocateJSArrayStorage(
     JSArray* array,
     int length,
@@ -5109,18 +5039,6 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
   return result;
-}
-
-
-MaybeObject* Heap::AllocateJSArray(
-    ElementsKind elements_kind,
-    PretenureFlag pretenure) {
-  Context* native_context = isolate()->context()->native_context();
-  JSFunction* array_function = native_context->array_function();
-  Map* map = array_function->initial_map();
-  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
-  if (transition_map != NULL) map = transition_map;
-  return AllocateJSObjectFromMap(map, pretenure);
 }
 
 

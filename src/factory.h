@@ -14,11 +14,6 @@ namespace internal {
 
 class Factory V8_FINAL {
  public:
-  // Allocate a new boxed value.
-  Handle<Box> NewBox(
-      Handle<Object> value,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int size,
@@ -70,6 +65,9 @@ class Factory V8_FINAL {
   Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
+
+  // Create a new boxed value.
+  Handle<Box> NewBox(Handle<Object> value);
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
@@ -331,10 +329,13 @@ class Factory V8_FINAL {
 
   // JS arrays are pretenured when allocated by the parser.
 
+  // Create a JSArray with no elements.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Create a JSArray with a specified length and elements initialized
+  // according to the specified mode.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind,
       int length,
@@ -353,7 +354,7 @@ class Factory V8_FINAL {
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
 
-  // Allocate a JSArray with no elements
+  // Create a JSArray with the given elements.
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind,
