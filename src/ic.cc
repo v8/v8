@@ -1690,6 +1690,7 @@ MaybeObject* KeyedStoreIC::Store(Handle<Object> object,
     if (maybe_object->IsFailure()) return maybe_object;
   } else {
     bool use_ic = FLAG_use_ic &&
+        !object->IsStringWrapper() &&
         !object->IsAccessCheckNeeded() &&
         !object->IsJSGlobalProxy() &&
         !(object->IsJSObject() &&
