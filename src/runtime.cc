@@ -331,18 +331,23 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
 }
 
 
-MaybeObject* TransitionElements(Handle<Object> object,
-                                ElementsKind to_kind,
-                                Isolate* isolate) {
+MUST_USE_RESULT static MaybeHandle<Object> TransitionElements(
+    Handle<Object> object,
+    ElementsKind to_kind,
+    Isolate* isolate) {
   HandleScope scope(isolate);
-  if (!object->IsJSObject()) return isolate->ThrowIllegalOperation();
+  if (!object->IsJSObject()) {
+    isolate->ThrowIllegalOperation();
+    return MaybeHandle<Object>();
+  }
   ElementsKind from_kind =
       Handle<JSObject>::cast(object)->map()->elements_kind();
   if (Map::IsValidElementsTransition(from_kind, to_kind)) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object), to_kind);
-    return *object;
+    return object;
   }
-  return isolate->ThrowIllegalOperation();
+  isolate->ThrowIllegalOperation();
+  return MaybeHandle<Object>();
 }
 
 
@@ -368,14 +373,14 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(elements->get(1)));
 
-  ASSERT(IsFastElementsKind(constant_elements_kind));
-  Context* native_context = isolate->context()->native_context();
-  Object* maybe_maps_array = native_context->js_array_maps();
-  ASSERT(!maybe_maps_array->IsUndefined());
-  Object* maybe_map = FixedArray::cast(maybe_maps_array)->get(
-      constant_elements_kind);
-  ASSERT(maybe_map->IsMap());
-  object->set_map(Map::cast(maybe_map));
+  { DisallowHeapAllocation no_gc;
+    ASSERT(IsFastElementsKind(constant_elements_kind));
+    Context* native_context = isolate->context()->native_context();
+    Object* maps_array = native_context->js_array_maps();
+    ASSERT(!maps_array->IsUndefined());
+    Object* map = FixedArray::cast(maps_array)->get(constant_elements_kind);
+    object->set_map(Map::cast(map));
+  }
 
   Handle<FixedArrayBase> copied_elements_values;
   if (IsFastDoubleElementsKind(constant_elements_kind)) {
@@ -403,8 +408,7 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
           isolate->factory()->CopyFixedArray(fixed_array_values);
       copied_elements_values = fixed_array_values_copy;
       for (int i = 0; i < fixed_array_values->length(); i++) {
-        Object* current = fixed_array_values->get(i);
-        if (current->IsFixedArray()) {
+        if (fixed_array_values->get(i)->IsFixedArray()) {
           // The value contains the constant_properties of a
           // simple object or array literal.
           Handle<FixedArray> fa(FixedArray::cast(fixed_array_values->get(i)));
@@ -428,10 +432,9 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     ElementsKind elements_kind = object->GetElementsKind();
     if (!IsFastObjectElementsKind(elements_kind)) {
       if (IsFastHoleyElementsKind(elements_kind)) {
-        CHECK(!TransitionElements(object, FAST_HOLEY_ELEMENTS,
-                                  isolate)->IsFailure());
+        TransitionElements(object, FAST_HOLEY_ELEMENTS, isolate).Check();
       } else {
-        CHECK(!TransitionElements(object, FAST_ELEMENTS, isolate)->IsFailure());
+        TransitionElements(object, FAST_ELEMENTS, isolate).Check();
       }
     }
   }
@@ -5076,17 +5079,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
       Handle<JSObject> js_object(args.at<JSObject>(0));
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (IsFastDoubleElementsKind(elements_kind)) {
-        FixedArrayBase* elements = js_object->elements();
-        if (args.at<Smi>(1)->value() >= elements->length()) {
+        if (args.at<Smi>(1)->value() >= js_object->elements()->length()) {
           if (IsFastHoleyElementsKind(elements_kind)) {
             elements_kind = FAST_HOLEY_ELEMENTS;
           } else {
             elements_kind = FAST_ELEMENTS;
           }
-          MaybeObject* maybe_object = TransitionElements(js_object,
-                                                         elements_kind,
-                                                         isolate);
-          if (maybe_object->IsFailure()) return maybe_object;
+          RETURN_FAILURE_ON_EXCEPTION(
+              isolate, TransitionElements(js_object, elements_kind, isolate));
         }
       } else {
         ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
