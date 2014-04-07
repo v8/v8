@@ -13443,13 +13443,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditGatherCompileInfo) {
   RUNTIME_ASSERT(script->value()->IsScript());
   Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
 
-  JSArray* result =  LiveEdit::GatherCompileInfo(script_handle, source);
-
-  if (isolate->has_pending_exception()) {
-    return Failure::Exception();
-  }
-
-  return result;
+  Handle<JSArray> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, LiveEdit::GatherCompileInfo(script_handle, source));
+  return *result;
 }
 
 
@@ -13467,12 +13464,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
   RUNTIME_ASSERT(original_script_value->value()->IsScript());
   Handle<Script> original_script(Script::cast(original_script_value->value()));
 
-  Object* old_script = LiveEdit::ChangeScriptSource(original_script,
-                                                    new_source,
-                                                    old_script_name);
+  Handle<Object> old_script = LiveEdit::ChangeScriptSource(
+      original_script,  new_source,  old_script_name);
 
   if (old_script->IsScript()) {
-    Handle<Script> script_handle(Script::cast(old_script));
+    Handle<Script> script_handle = Handle<Script>::cast(old_script);
     return *(GetScriptWrapper(script_handle));
   } else {
     return isolate->heap()->null_value();
@@ -13485,7 +13481,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSourceUpdated) {
   CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 0);
-  return LiveEdit::FunctionSourceUpdated(shared_info);
+  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_info));
+
+  LiveEdit::FunctionSourceUpdated(shared_info);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -13496,8 +13495,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceFunctionCode) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_compile_info, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 1);
+  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_info));
 
-  return LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
+  LiveEdit::ReplaceFunctionCode(new_compile_info, shared_info);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -13538,9 +13539,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceRefToNestedFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSValue, orig_wrapper, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, subst_wrapper, 2);
 
-  LiveEdit::ReplaceRefToNestedFunction(parent_wrapper, orig_wrapper,
-                                       subst_wrapper);
-
+  LiveEdit::ReplaceRefToNestedFunction(
+      parent_wrapper, orig_wrapper, subst_wrapper);
   return isolate->heap()->undefined_value();
 }
 
@@ -13557,7 +13557,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditPatchFunctionPositions) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, position_change_array, 1);
 
-  return LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
+  return isolate->heap()->undefined_value();
 }
 
 
