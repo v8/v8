@@ -7528,6 +7528,7 @@ void Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
   if (isolate_->bootstrapper()->IsActive()) return;
   if (!AllowAllocationFailure::IsAllowed(isolate_)) return;
+  if (!AllowHeapAllocation::IsAllowed(isolate_)) return;
   CollectGarbage(NEW_SPACE);
 }
 #endif
