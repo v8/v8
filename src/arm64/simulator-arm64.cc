@@ -80,11 +80,11 @@ TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
 
 
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
-void PRINTF_CHECKING TraceSim(const char* format, ...) {
+void Simulator::TraceSim(const char* format, ...) {
   if (FLAG_trace_sim) {
     va_list arguments;
     va_start(arguments, format);
-    OS::VPrint(format, arguments);
+    OS::VFPrint(stream_, format, arguments);
     va_end(arguments);
   }
 }
@@ -1001,7 +1001,8 @@ void Simulator::FPCompare(double val0, double val1) {
 void Simulator::SetBreakpoint(Instruction* location) {
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
     if (breakpoints_.at(i).location == location) {
-      PrintF("Existing breakpoint at %p was %s\n",
+      PrintF(stream_,
+             "Existing breakpoint at %p was %s\n",
              reinterpret_cast<void*>(location),
              breakpoints_.at(i).enabled ? "disabled" : "enabled");
       breakpoints_.at(i).enabled = !breakpoints_.at(i).enabled;
@@ -1010,14 +1011,15 @@ void Simulator::SetBreakpoint(Instruction* location) {
   }
   Breakpoint new_breakpoint = {location, true};
   breakpoints_.push_back(new_breakpoint);
-  PrintF("Set a breakpoint at %p\n", reinterpret_cast<void*>(location));
+  PrintF(stream_,
+         "Set a breakpoint at %p\n", reinterpret_cast<void*>(location));
 }
 
 
 void Simulator::ListBreakpoints() {
-  PrintF("Breakpoints:\n");
+  PrintF(stream_, "Breakpoints:\n");
   for (unsigned i = 0; i < breakpoints_.size(); i++) {
-    PrintF("%p  : %s\n",
+    PrintF(stream_, "%p  : %s\n",
            reinterpret_cast<void*>(breakpoints_.at(i).location),
            breakpoints_.at(i).enabled ? "enabled" : "disabled");
   }
@@ -1035,7 +1037,7 @@ void Simulator::CheckBreakpoints() {
     }
   }
   if (hit_a_breakpoint) {
-    PrintF("Hit and disabled a breakpoint at %p.\n",
+    PrintF(stream_, "Hit and disabled a breakpoint at %p.\n",
            reinterpret_cast<void*>(pc_));
     Debug();
   }
@@ -3181,12 +3183,12 @@ bool Simulator::GetValue(const char* desc, int64_t* value) {
 bool Simulator::PrintValue(const char* desc) {
   if (strcmp(desc, "csp") == 0) {
     ASSERT(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF("%s csp:%s 0x%016" PRIx64 "%s\n",
+    PrintF(stream_, "%s csp:%s 0x%016" PRIx64 "%s\n",
         clr_reg_name, clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   } else if (strcmp(desc, "wcsp") == 0) {
     ASSERT(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF("%s wcsp:%s 0x%08" PRIx32 "%s\n",
+    PrintF(stream_, "%s wcsp:%s 0x%08" PRIx32 "%s\n",
         clr_reg_name, clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   }
@@ -3196,7 +3198,7 @@ bool Simulator::PrintValue(const char* desc) {
   if (i < 0 || static_cast<unsigned>(i) >= kNumberOfFPRegisters) return false;
 
   if (desc[0] == 'v') {
-    PrintF("%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
+    PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s (%s%s:%s %g%s %s:%s %g%s)\n",
         clr_fpreg_name, VRegNameForCode(i),
         clr_fpreg_value, double_to_rawbits(dreg(i)),
         clr_normal,
@@ -3207,25 +3209,25 @@ bool Simulator::PrintValue(const char* desc) {
         clr_normal);
     return true;
   } else if (desc[0] == 'd') {
-    PrintF("%s %s:%s %g%s\n",
+    PrintF(stream_, "%s %s:%s %g%s\n",
         clr_fpreg_name, DRegNameForCode(i),
         clr_fpreg_value, dreg(i),
         clr_normal);
     return true;
   } else if (desc[0] == 's') {
-    PrintF("%s %s:%s %g%s\n",
+    PrintF(stream_, "%s %s:%s %g%s\n",
         clr_fpreg_name, SRegNameForCode(i),
         clr_fpreg_value, sreg(i),
         clr_normal);
     return true;
   } else if (desc[0] == 'w') {
-    PrintF("%s %s:%s 0x%08" PRIx32 "%s\n",
+    PrintF(stream_, "%s %s:%s 0x%08" PRIx32 "%s\n",
         clr_reg_name, WRegNameForCode(i), clr_reg_value, wreg(i), clr_normal);
     return true;
   } else {
     // X register names have a wide variety of starting characters, but anything
     // else will be an X register.
-    PrintF("%s %s:%s 0x%016" PRIx64 "%s\n",
+    PrintF(stream_, "%s %s:%s 0x%016" PRIx64 "%s\n",
         clr_reg_name, XRegNameForCode(i), clr_reg_value, xreg(i), clr_normal);
     return true;
   }
@@ -3544,14 +3546,16 @@ void Simulator::VisitException(Instruction* instr) {
         // terms of speed.
         if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
           if (message != NULL) {
-            PrintF("%sDebugger hit %d: %s%s%s\n",
+            PrintF(stream_,
+                   "%sDebugger hit %d: %s%s%s\n",
                    clr_debug_number,
                    code,
                    clr_debug_message,
                    message,
                    clr_normal);
           } else {
-            PrintF("%sDebugger hit %d.%s\n",
+            PrintF(stream_,
+                   "%sDebugger hit %d.%s\n",
                    clr_debug_number,
                    code,
                    clr_normal);

@@ -785,6 +785,7 @@ class Simulator : public DecoderVisitor {
   // Output stream.
   FILE* stream_;
   PrintDisassembler* print_disasm_;
+  void PRINTF_METHOD_CHECKING TraceSim(const char* format, ...);
 
   // Instrumentation.
   Instrument* instrument_;
