@@ -294,12 +294,6 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key);
-
-Handle<Object> ForceDeleteProperty(Handle<JSObject> object, Handle<Object> key);
-
-Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key);
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
 // Get the JS object corresponding to the given script; create it

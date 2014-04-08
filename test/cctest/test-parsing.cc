@@ -1251,7 +1251,7 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
     i::JSArray::SetElement(
         args_array, i, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
                                                   CcTest::isolate(), args[i])),
-        NONE, i::SLOPPY);
+        NONE, i::SLOPPY).Check();
   }
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
   i::Handle<i::Object> format_fun =

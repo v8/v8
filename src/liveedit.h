@@ -208,10 +208,7 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    Handle<Object> no_failure =
-        JSObject::SetElement(array_, field_position, value, NONE, SLOPPY);
-    ASSERT(!no_failure.is_null());
-    USE(no_failure);
+    JSObject::SetElement(array_, field_position, value, NONE, SLOPPY).Assert();
   }
 
   void SetSmiValueField(int field_position, int value) {

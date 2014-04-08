@@ -683,7 +683,7 @@ TEST(ObjectProperties) {
   CHECK(JSReceiver::HasLocalProperty(obj, first));
 
   // delete first
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
 
   // add first and then second
@@ -693,9 +693,9 @@ TEST(ObjectProperties) {
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
   // delete first and then second
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
   CHECK(JSReceiver::HasLocalProperty(obj, second));
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
   CHECK(!JSReceiver::HasLocalProperty(obj, second));
 
@@ -706,9 +706,9 @@ TEST(ObjectProperties) {
   CHECK(JSReceiver::HasLocalProperty(obj, second));
 
   // delete second and then first
-  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
   CHECK(JSReceiver::HasLocalProperty(obj, first));
-  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION);
+  JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
   CHECK(!JSReceiver::HasLocalProperty(obj, first));
   CHECK(!JSReceiver::HasLocalProperty(obj, second));
 

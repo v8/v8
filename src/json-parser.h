@@ -359,7 +359,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           Handle<Object> value = ParseJsonValue();
           if (value.is_null()) return ReportUnexpectedCharacter();
 
-          JSObject::SetOwnElement(json_object, index, value, SLOPPY);
+          JSObject::SetOwnElement(json_object, index, value, SLOPPY).Assert();
           continue;
         }
         // Not an index, fallback to the slow path.

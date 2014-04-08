@@ -478,10 +478,14 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
   if (name->IsSymbol()) return isolate->heap()->undefined_value();
 
   Handle<Object> args[] = { receiver, name };
-  Handle<Object> result = CallTrap(
-    "get", isolate->derived_get_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Failure::Exception();
-
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(handle(this),
+               "get",
+               isolate->derived_get_trap(),
+               ARRAY_SIZE(args),
+               args));
   return *result;
 }
 
@@ -510,11 +514,11 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
-                                              Handle<JSReceiver> receiver,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              StrictMode strict_mode) {
+MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
+                                                   Handle<JSReceiver> receiver,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   return SetPropertyWithHandler(
@@ -3002,7 +3006,7 @@ Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
 }
 
 
-Handle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
+MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -3555,34 +3559,47 @@ bool JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name) {
   if (name->IsSymbol()) return false;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-    "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return false;
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      CallTrap(proxy,
+               "has",
+               isolate->derived_has_trap(),
+               ARRAY_SIZE(args),
+               args),
+      false);
 
   return result->BooleanValue();
 }
 
 
-Handle<Object> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
-                                               Handle<JSReceiver> receiver,
-                                               Handle<Name> name,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes,
-                                               StrictMode strict_mode) {
+MaybeHandle<Object> JSProxy::SetPropertyWithHandler(
+    Handle<JSProxy> proxy,
+    Handle<JSReceiver> receiver,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return value;
 
   Handle<Object> args[] = { receiver, name, value };
-  proxy->CallTrap("set", isolate->derived_set_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  RETURN_ON_EXCEPTION(
+      isolate,
+      CallTrap(proxy,
+               "set",
+               isolate->derived_set_trap(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   return value;
 }
 
 
-Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
+MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<JSProxy> proxy,
     Handle<JSReceiver> receiver,
     Handle<Name> name,
@@ -3601,9 +3618,15 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
 
   *done = true;  // except where redefined...
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-      "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(proxy,
+               "getPropertyDescriptor",
+               Handle<Object>(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   if (result->IsUndefined()) {
     *done = false;
@@ -3616,7 +3639,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<Object> desc = Execution::Call(
       isolate, isolate->to_complete_property_descriptor(), result,
       ARRAY_SIZE(argv), argv, &has_pending_exception);
-  if (has_pending_exception) return Handle<Object>();
+  if (has_pending_exception) return MaybeHandle<Object>();
 
   // [[GetProperty]] requires to check that all properties are configurable.
   Handle<String> configurable_name =
@@ -3632,8 +3655,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
   ASSERT(configurable->IsTrue());
 
@@ -3657,8 +3679,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<Object> args[] = { name, receiver };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // We have an AccessorDescriptor.
@@ -3676,12 +3697,11 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<Object> args2[] = { name, proxy };
   Handle<Object> error = isolate->factory()->NewTypeError(
       "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
-  isolate->Throw(*error);
-  return Handle<Object>();
+  return isolate->Throw<Object>(error);
 }
 
 
-Handle<Object> JSProxy::DeletePropertyWithHandler(
+MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<JSProxy> proxy, Handle<Name> name, DeleteMode mode) {
   Isolate* isolate = proxy->GetIsolate();
 
@@ -3689,9 +3709,15 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
   if (name->IsSymbol()) return isolate->factory()->false_value();
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-      "delete", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(proxy,
+               "delete",
+               Handle<Object>(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   bool result_bool = result->BooleanValue();
   if (mode == STRICT_DELETION && !result_bool) {
@@ -3701,14 +3727,13 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
   return isolate->factory()->ToBoolean(result_bool);
 }
 
 
-Handle<Object> JSProxy::DeleteElementWithHandler(
+MaybeHandle<Object> JSProxy::DeleteElementWithHandler(
     Handle<JSProxy> proxy, uint32_t index, DeleteMode mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
@@ -3727,9 +3752,15 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (name->IsSymbol()) return ABSENT;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-    "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return NONE;
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      proxy->CallTrap(proxy,
+                      "getPropertyDescriptor",
+                      Handle<Object>(),
+                      ARRAY_SIZE(args),
+                      args),
+      NONE);
 
   if (result->IsUndefined()) return ABSENT;
 
@@ -3768,7 +3799,7 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
+    isolate->Throw<Object>(error);
     return NONE;
   }
 
@@ -3812,24 +3843,24 @@ void JSProxy::Fix(Handle<JSProxy> proxy) {
 }
 
 
-MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
-                                                 Handle<Object> derived,
-                                                 int argc,
-                                                 Handle<Object> argv[]) {
-  Isolate* isolate = GetIsolate();
-  Handle<Object> handler(this->handler(), isolate);
+MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
+                                      const char* name,
+                                      Handle<Object> derived,
+                                      int argc,
+                                      Handle<Object> argv[]) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<Object> handler(proxy->handler(), isolate);
 
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> trap = Object::GetPropertyOrElement(handler, trap_name);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, Handle<Object>());
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, MaybeHandle<Object>());
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
       Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
     trap = Handle<Object>(derived);
   }
@@ -5293,9 +5324,9 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
-                                         uint32_t index,
-                                         DeleteMode mode) {
+MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
+                                              uint32_t index,
+                                              DeleteMode mode) {
   if (object->IsJSProxy()) {
     return JSProxy::DeleteElementWithHandler(
         Handle<JSProxy>::cast(object), index, mode);
@@ -5304,9 +5335,9 @@ Handle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
 }
 
 
-Handle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
-                                          Handle<Name> name,
-                                          DeleteMode mode) {
+MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
+                                               Handle<Name> name,
+                                               DeleteMode mode) {
   if (object->IsJSProxy()) {
     return JSProxy::DeletePropertyWithHandler(
         Handle<JSProxy>::cast(object), name, mode);
@@ -11450,8 +11481,8 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
       // Skip deletions where the property was an accessor, leaving holes
       // in the array of old values.
       if (old_values[i]->IsTheHole()) continue;
-      JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
-                           SLOPPY);
+      JSObject::SetElement(
+          deleted, indices[i] - index, old_values[i], NONE, SLOPPY).Assert();
     }
 
     SetProperty(deleted, isolate->factory()->length_string(),
@@ -11895,7 +11926,7 @@ MaybeHandle<AccessorPair> JSObject::GetLocalElementAccessorPair(
 }
 
 
-Handle<Object> JSObject::SetElementWithInterceptor(
+MaybeHandle<Object> JSObject::SetElementWithInterceptor(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -11919,7 +11950,7 @@ Handle<Object> JSObject::SetElementWithInterceptor(
                                    *object);
     v8::Handle<v8::Value> result =
         args.Call(setter, index, v8::Utils::ToLocal(value));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) return value;
   }
 
@@ -12072,11 +12103,11 @@ bool JSObject::HasDictionaryArgumentsElements() {
 // Adding n elements in fast case is O(n*n).
 // Note: revisit design to have dual undefined values to capture absent
 // elements.
-Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
-                                        uint32_t index,
-                                        Handle<Object> value,
-                                        StrictMode strict_mode,
-                                        bool check_prototype) {
+MaybeHandle<Object> JSObject::SetFastElement(Handle<JSObject> object,
+                                             uint32_t index,
+                                             Handle<Object> value,
+                                             StrictMode strict_mode,
+                                             bool check_prototype) {
   ASSERT(object->HasFastSmiOrObjectElements() ||
          object->HasFastArgumentsElements());
 
@@ -12103,7 +12134,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
   if (check_prototype &&
       (index >= capacity || backing_store->get(index)->IsTheHole())) {
     bool found;
-    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(
+    MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
         object, index, value, &found, strict_mode);
     if (found) return result;
   }
@@ -12200,13 +12231,14 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              PropertyAttributes attributes,
-                                              StrictMode strict_mode,
-                                              bool check_prototype,
-                                              SetPropertyMode set_mode) {
+MaybeHandle<Object> JSObject::SetDictionaryElement(
+    Handle<JSObject> object,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode,
+    bool check_prototype,
+    SetPropertyMode set_mode) {
   ASSERT(object->HasDictionaryElements() ||
          object->HasDictionaryArgumentsElements());
   Isolate* isolate = object->GetIsolate();
@@ -12244,8 +12276,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
           Handle<Object> error =
               isolate->factory()->NewTypeError("strict_read_only_property",
                                                HandleVector(args, 2));
-          isolate->Throw(*error);
-          return Handle<Object>();
+          return isolate->Throw<Object>(error);
         }
       }
       // Elements of the arguments object in slow mode might be slow aliases.
@@ -12266,8 +12297,8 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
     // Can cause GC!
     if (check_prototype) {
       bool found;
-      Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
-          index, value, &found, strict_mode);
+      MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
+          object, index, value, &found, strict_mode);
       if (found) return result;
     }
 
@@ -12283,8 +12314,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
         Handle<Object> error =
             isolate->factory()->NewTypeError("object_not_extensible",
                                              HandleVector(args, 1));
-        isolate->Throw(*error);
-        return Handle<Object>();
+        return isolate->Throw<Object>(error);
       }
     }
 
@@ -12343,7 +12373,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
   return value;
 }
 
-Handle<Object> JSObject::SetFastDoubleElement(
+MaybeHandle<Object> JSObject::SetFastDoubleElement(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -12360,8 +12390,8 @@ Handle<Object> JSObject::SetFastDoubleElement(
       (index >= elms_length ||
        Handle<FixedDoubleArray>::cast(base_elms)->is_the_hole(index))) {
     bool found;
-    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
-        index, value, &found, strict_mode);
+    MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
+        object, index, value, &found, strict_mode);
     if (found) return result;
   }
 
@@ -12380,10 +12410,11 @@ Handle<Object> JSObject::SetFastDoubleElement(
   if (!value->IsNumber()) {
     SetFastElementsCapacityAndLength(object, elms_length, length,
                                      kDontAllowSmiElements);
-    Handle<Object> result = SetFastElement(object, index, value, strict_mode,
-                                           check_prototype);
-    RETURN_IF_EMPTY_HANDLE_VALUE(object->GetIsolate(), result,
-                                 Handle<Object>());
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        object->GetIsolate(), result,
+        SetFastElement(object, index, value, strict_mode, check_prototype),
+        Object);
     JSObject::ValidateElements(object);
     return result;
   }
@@ -12441,11 +12472,11 @@ Handle<Object> JSObject::SetFastDoubleElement(
 }
 
 
-Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
-                                      uint32_t index,
-                                      Handle<Object> value,
-                                      PropertyAttributes attributes,
-                                      StrictMode strict_mode) {
+MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
+                                           uint32_t index,
+                                           Handle<Object> value,
+                                           PropertyAttributes attributes,
+                                           StrictMode strict_mode) {
   if (object->IsJSProxy()) {
     return JSProxy::SetElementWithHandler(
         Handle<JSProxy>::cast(object), object, index, value, strict_mode);
@@ -12455,22 +12486,22 @@ Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
 }
 
 
-Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
-                                       uint32_t index,
-                                       Handle<Object> value,
-                                       StrictMode strict_mode) {
+MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            StrictMode strict_mode) {
   ASSERT(!object->HasExternalArrayElements());
   return JSObject::SetElement(object, index, value, NONE, strict_mode, false);
 }
 
 
-Handle<Object> JSObject::SetElement(Handle<JSObject> object,
-                                    uint32_t index,
-                                    Handle<Object> value,
-                                    PropertyAttributes attributes,
-                                    StrictMode strict_mode,
-                                    bool check_prototype,
-                                    SetPropertyMode set_mode) {
+MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
+                                         uint32_t index,
+                                         Handle<Object> value,
+                                         PropertyAttributes attributes,
+                                         StrictMode strict_mode,
+                                         bool check_prototype,
+                                         SetPropertyMode set_mode) {
   Isolate* isolate = object->GetIsolate();
 
   if (object->HasExternalArrayElements() ||
@@ -12479,7 +12510,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
       bool has_exception;
       Handle<Object> number =
           Execution::ToNumber(isolate, value, &has_exception);
-      if (has_exception) return Handle<Object>();
+      if (has_exception) return MaybeHandle<Object>();
       value = number;
     }
   }
@@ -12488,7 +12519,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_SET)) {
       isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
-      RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return value;
     }
   }
@@ -12511,8 +12542,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
     Handle<Object> args[] = { object, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // Normalize the elements to enable attributes on the property.
@@ -12524,13 +12554,10 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   if (!object->map()->is_observed()) {
     return object->HasIndexedInterceptor()
-      ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
-                                  check_prototype,
-                                   set_mode)
+      ? SetElementWithInterceptor(object, index, value, attributes,
+                                  strict_mode, check_prototype, set_mode)
       : SetElementWithoutInterceptor(object, index, value, attributes,
-                                     strict_mode,
-                                     check_prototype,
-                                     set_mode);
+                                     strict_mode, check_prototype, set_mode);
   }
 
   PropertyAttributes old_attributes =
@@ -12550,15 +12577,17 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
 
   // Check for lookup interceptor
-  Handle<Object> result = object->HasIndexedInterceptor()
-    ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
-                                check_prototype,
-                                set_mode)
-    : SetElementWithoutInterceptor(object, index, value, attributes,
-                                   strict_mode,
-                                   check_prototype,
-                                   set_mode);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      object->HasIndexedInterceptor()
+          ? SetElementWithInterceptor(
+              object, index, value, attributes,
+              strict_mode, check_prototype, set_mode)
+          : SetElementWithoutInterceptor(
+              object, index, value, attributes,
+              strict_mode, check_prototype, set_mode),
+      Object);
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   PropertyAttributes new_attributes = GetLocalElementAttribute(object, index);
@@ -12602,7 +12631,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetElementWithoutInterceptor(
+MaybeHandle<Object> JSObject::SetElementWithoutInterceptor(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,

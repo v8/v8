@@ -2051,11 +2051,12 @@ class JSReceiver: public HeapObject {
       PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
-  static Handle<Object> SetElement(Handle<JSReceiver> object,
-                                   uint32_t index,
-                                   Handle<Object> value,
-                                   PropertyAttributes attributes,
-                                   StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> SetElement(
+      Handle<JSReceiver> object,
+      uint32_t index,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictMode strict_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
@@ -2064,12 +2065,14 @@ class JSReceiver: public HeapObject {
   static inline bool HasLocalElement(Handle<JSReceiver> object, uint32_t index);
 
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
-  static Handle<Object> DeleteProperty(Handle<JSReceiver> object,
-                                       Handle<Name> name,
-                                       DeleteMode mode = NORMAL_DELETION);
-  static Handle<Object> DeleteElement(Handle<JSReceiver> object,
-                                      uint32_t index,
-                                      DeleteMode mode = NORMAL_DELETION);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
+      Handle<JSReceiver> object,
+      Handle<Name> name,
+      DeleteMode mode = NORMAL_DELETION);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
+      Handle<JSReceiver> object,
+      uint32_t index,
+      DeleteMode mode = NORMAL_DELETION);
 
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
@@ -2476,18 +2479,21 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       uint32_t index);
 
-  static Handle<Object> SetFastElement(Handle<JSObject> object, uint32_t index,
-                                       Handle<Object> value,
-                                       StrictMode strict_mode,
-                                       bool check_prototype);
+  MUST_USE_RESULT static MaybeHandle<Object> SetFastElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      Handle<Object> value,
+      StrictMode strict_mode,
+      bool check_prototype);
 
-  static Handle<Object> SetOwnElement(Handle<JSObject> object,
-                                      uint32_t index,
-                                      Handle<Object> value,
-                                      StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> SetOwnElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      Handle<Object> value,
+      StrictMode strict_mode);
 
   // Empty handle is returned if the element cannot be set to the given value.
-  static Handle<Object> SetElement(
+  MUST_USE_RESULT static MaybeHandle<Object> SetElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
@@ -2812,7 +2818,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       Handle<JSObject> holder,
       StrictMode strict_mode);
-  static Handle<Object> SetElementWithInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithInterceptor(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
@@ -2820,7 +2826,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
-  static Handle<Object> SetElementWithoutInterceptor(
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithoutInterceptor(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
@@ -2828,13 +2834,14 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode);
-  static Handle<Object> SetElementWithCallbackSetterInPrototypes(
+  MUST_USE_RESULT
+  static MaybeHandle<Object> SetElementWithCallbackSetterInPrototypes(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
       bool* found,
       StrictMode strict_mode);
-  static Handle<Object> SetDictionaryElement(
+  MUST_USE_RESULT static MaybeHandle<Object> SetDictionaryElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
@@ -2842,7 +2849,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype,
       SetPropertyMode set_mode = SET_PROPERTY);
-  static Handle<Object> SetFastDoubleElement(
+  MUST_USE_RESULT static MaybeHandle<Object> SetFastDoubleElement(
       Handle<JSObject> object,
       uint32_t index,
       Handle<Object> value,
@@ -9806,7 +9813,8 @@ class JSProxy: public JSReceiver {
   // If it defines an accessor property without a setter, or a data property
   // that is read-only, throw. In all these cases set '*done' to true,
   // otherwise set it to false.
-  static Handle<Object> SetPropertyViaPrototypesWithHandler(
+  MUST_USE_RESULT
+  static MaybeHandle<Object> SetPropertyViaPrototypesWithHandler(
       Handle<JSProxy> proxy,
       Handle<JSReceiver> receiver,
       Handle<Name> name,
@@ -9832,10 +9840,12 @@ class JSProxy: public JSReceiver {
 
   // Invoke a trap by name. If the trap does not exist on this's handler,
   // but derived_trap is non-NULL, invoke that instead.  May cause GC.
-  Handle<Object> CallTrap(const char* name,
-                          Handle<Object> derived_trap,
-                          int argc,
-                          Handle<Object> args[]);
+  MUST_USE_RESULT static MaybeHandle<Object> CallTrap(
+      Handle<JSProxy> proxy,
+      const char* name,
+      Handle<Object> derived_trap,
+      int argc,
+      Handle<Object> args[]);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSProxy)
@@ -9860,27 +9870,31 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
-  static Handle<Object> SetPropertyWithHandler(Handle<JSProxy> proxy,
-                                               Handle<JSReceiver> receiver,
-                                               Handle<Name> name,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes,
-                                               StrictMode strict_mode);
-  static Handle<Object> SetElementWithHandler(Handle<JSProxy> proxy,
-                                              Handle<JSReceiver> receiver,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<JSReceiver> receiver,
+      Handle<Name> name,
+      Handle<Object> value,
+      PropertyAttributes attributes,
+      StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<JSReceiver> receiver,
+      uint32_t index,
+      Handle<Object> value,
+      StrictMode strict_mode);
 
   static bool HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name);
   static bool HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index);
 
-  static Handle<Object> DeletePropertyWithHandler(Handle<JSProxy> proxy,
-                                                  Handle<Name> name,
-                                                  DeleteMode mode);
-  static Handle<Object> DeleteElementWithHandler(Handle<JSProxy> proxy,
-                                                 uint32_t index,
-                                                 DeleteMode mode);
+  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
+      Handle<JSProxy> proxy,
+      Handle<Name> name,
+      DeleteMode mode);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithHandler(
+      Handle<JSProxy> proxy,
+      uint32_t index,
+      DeleteMode mode);
 
   MUST_USE_RESULT Object* GetIdentityHash();
 

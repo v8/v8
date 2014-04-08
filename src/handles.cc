@@ -144,32 +144,6 @@ Handle<String> FlattenGetString(Handle<String> string) {
 }
 
 
-Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::DeleteObjectProperty(
-                         isolate, object, key, JSReceiver::NORMAL_DELETION),
-                     Object);
-}
-
-
-Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
-                                   Handle<Object> key) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::DeleteObjectProperty(
-                         isolate, object, key, JSReceiver::FORCE_DELETION),
-                     Object);
-}
-
-
-Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::HasObjectProperty(isolate, obj, key), Object);
-}
-
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();

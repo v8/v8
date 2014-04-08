@@ -4924,22 +4924,20 @@ static Handle<Name> ToName(Isolate* isolate, Handle<Object> key) {
 }
 
 
-MaybeObject* Runtime::HasObjectProperty(Isolate* isolate,
-                                        Handle<JSReceiver> object,
-                                        Handle<Object> key) {
-  HandleScope scope(isolate);
-
+MaybeHandle<Object> Runtime::HasObjectProperty(Isolate* isolate,
+                                               Handle<JSReceiver> object,
+                                               Handle<Object> key) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
-    return isolate->heap()->ToBoolean(JSReceiver::HasElement(object, index));
+    return isolate->factory()->ToBoolean(JSReceiver::HasElement(object, index));
   }
 
   // Convert the key to a name - possibly by calling back into JavaScript.
   Handle<Name> name = ToName(isolate, key);
-  RETURN_IF_EMPTY_HANDLE(isolate, name);
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, name, MaybeHandle<Object>());
 
-  return isolate->heap()->ToBoolean(JSReceiver::HasProperty(object, name));
+  return isolate->factory()->ToBoolean(JSReceiver::HasProperty(object, name));
 }
 
 
@@ -5252,7 +5250,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     bool has_pending_exception = false;
     Handle<Object> name_object = key->IsSymbol()
         ? key : Execution::ToString(isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Handle<Object>();  // exception
+    if (has_pending_exception) return MaybeHandle<Object>();  // exception
     Handle<Name> name = Handle<Name>::cast(name_object);
     return JSReceiver::SetProperty(Handle<JSProxy>::cast(object), name, value,
                                    attr,
@@ -5285,15 +5283,15 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
         bool has_exception;
         Handle<Object> number =
             Execution::ToNumber(isolate, value, &has_exception);
-        if (has_exception) return Handle<Object>();  // exception
+        if (has_exception) return MaybeHandle<Object>();  // exception
         value = number;
       }
     }
-    Handle<Object> result = JSObject::SetElement(js_object, index, value, attr,
-                                                 strict_mode,
-                                                 true,
-                                                 set_mode);
+
+    MaybeHandle<Object> result = JSObject::SetElement(
+        js_object, index, value, attr, strict_mode, true, set_mode);
     JSObject::ValidateElements(js_object);
+
     return result.is_null() ? result : value;
   }
 
@@ -5305,13 +5303,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
           bool has_exception;
           Handle<Object> number =
               Execution::ToNumber(isolate, value, &has_exception);
-          if (has_exception) return Handle<Object>();  // exception
+          if (has_exception) return MaybeHandle<Object>();  // exception
           value = number;
         }
       }
-      return JSObject::SetElement(js_object, index, value, attr, strict_mode,
-                                  true,
-                                  set_mode);
+      return JSObject::SetElement(js_object, index, value, attr,
+                                  strict_mode, true, set_mode);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
       return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
@@ -5322,13 +5319,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Handle<Object>();  // exception
+  if (has_pending_exception) return MaybeHandle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return JSObject::SetElement(js_object, index, value, attr, strict_mode,
-                                true,
-                                set_mode);
+    return JSObject::SetElement(js_object, index, value, attr,
+                                strict_mode, true, set_mode);
   } else {
     return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
   }
@@ -5354,17 +5350,15 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
       return value;
     }
 
-    return JSObject::SetElement(js_object, index, value, attr, SLOPPY,
-                                false,
-                                DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr,
+                                SLOPPY, false, DEFINE_PROPERTY);
   }
 
   if (key->IsName()) {
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
-      return JSObject::SetElement(js_object, index, value, attr, SLOPPY,
-                                  false,
-                                  DEFINE_PROPERTY);
+      return JSObject::SetElement(js_object, index, value, attr,
+                                  SLOPPY, false, DEFINE_PROPERTY);
     } else {
       if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
       return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name,
@@ -5376,13 +5370,12 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
   bool has_pending_exception = false;
   Handle<Object> converted =
       Execution::ToString(isolate, key, &has_pending_exception);
-  if (has_pending_exception) return Handle<Object>();  // exception
+  if (has_pending_exception) return MaybeHandle<Object>();  // exception
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return JSObject::SetElement(js_object, index, value, attr, SLOPPY,
-                                false,
-                                DEFINE_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, attr,
+                                SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name, value,
                                                       attr);
@@ -5390,12 +5383,10 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
 }
 
 
-MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
-                                           Handle<JSReceiver> receiver,
-                                           Handle<Object> key,
-                                           JSReceiver::DeleteMode mode) {
-  HandleScope scope(isolate);
-
+MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
+                                                  Handle<JSReceiver> receiver,
+                                                  Handle<Object> key,
+                                                  JSReceiver::DeleteMode mode) {
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
@@ -5406,12 +5397,10 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
     // underlying string does nothing with the deletion, we can ignore
     // such deletions.
     if (receiver->IsStringObjectWithCharacterAt(index)) {
-      return isolate->heap()->true_value();
+      return isolate->factory()->true_value();
     }
 
-    Handle<Object> result = JSReceiver::DeleteElement(receiver, index, mode);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
-    return *result;
+    return JSReceiver::DeleteElement(receiver, index, mode);
   }
 
   Handle<Name> name;
@@ -5422,14 +5411,12 @@ MaybeObject* Runtime::DeleteObjectProperty(Isolate* isolate,
     bool has_pending_exception = false;
     Handle<Object> converted = Execution::ToString(
         isolate, key, &has_pending_exception);
-    if (has_pending_exception) return Failure::Exception();
+    if (has_pending_exception) return MaybeHandle<Object>();
     name = Handle<String>::cast(converted);
   }
 
   if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-  Handle<Object> result = JSReceiver::DeleteProperty(receiver, name, mode);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
-  return *result;
+  return JSReceiver::DeleteProperty(receiver, name, mode);
 }
 
 
@@ -5644,8 +5631,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
   CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 2);
   JSReceiver::DeleteMode delete_mode = strict_mode == STRICT
       ? JSReceiver::STRICT_DELETION : JSReceiver::NORMAL_DELETION;
-  Handle<Object> result = JSReceiver::DeleteProperty(object, key, delete_mode);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSReceiver::DeleteProperty(object, key, delete_mode));
   return *result;
 }
 
@@ -9218,8 +9207,10 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeleteContextSlot) {
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
-  Handle<Object> result = JSReceiver::DeleteProperty(object, name);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSReceiver::DeleteProperty(object, name));
   return *result;
 }
 
@@ -9934,10 +9925,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
   }
 
   // Strict not needed. Used for cycle detection in Array join implementation.
-  RETURN_IF_EMPTY_HANDLE(isolate, JSObject::SetFastElement(array, length,
-                                                           element,
-                                                           SLOPPY,
-                                                           true));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      JSObject::SetFastElement(array, length, element, SLOPPY, true));
   return isolate->heap()->true_value();
 }
 
@@ -12293,9 +12283,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
     if (accept) {
       if (break_location_iterator.IsStepInLocation(isolate)) {
         Smi* position_value = Smi::FromInt(break_location_iterator.position());
-        JSObject::SetElement(array, len,
-            Handle<Object>(position_value, isolate),
-            NONE, SLOPPY);
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate,
+            JSObject::SetElement(array, len,
+                                 Handle<Object>(position_value, isolate),
+                                 NONE, SLOPPY));
         len++;
       }
     }

@@ -3069,13 +3069,8 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::JSObject::SetElement(
-      self,
-      index,
-      value_obj,
-      NONE,
-      i::SLOPPY);
-  has_pending_exception = obj.is_null();
+  has_pending_exception = i::JSObject::SetElement(
+      self, index, value_obj, NONE, i::SLOPPY).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3125,8 +3120,9 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   }
 
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::DeleteObjectProperty(
+      isolate, self, key_obj, i::JSReceiver::FORCE_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3358,8 +3354,9 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::DeleteProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::DeleteObjectProperty(
+      isolate, self, key_obj, i::JSReceiver::NORMAL_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3377,8 +3374,9 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::HasProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::HasObjectProperty(
+      isolate, self, key_obj).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3396,7 +3394,13 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSReceiver::DeleteElement(self, index)->IsTrue();
+
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> obj;
+  has_pending_exception =
+      !i::JSReceiver::DeleteElement(self, index).ToHandle(&obj);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return obj->IsTrue();
 }
 
 

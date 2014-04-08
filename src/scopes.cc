@@ -1114,7 +1114,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       Isolate* isolate = info->isolate();
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
-      USE(JSObject::SetElement(array, 0, var->name(), NONE, STRICT));
+      JSObject::SetElement(array, 0, var->name(), NONE, STRICT).Assert();
       Handle<Object> result =
           factory->NewSyntaxError("module_type_error", array);
       isolate->Throw(*result, &location);
