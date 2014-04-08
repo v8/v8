@@ -176,10 +176,10 @@ class Types {
 
 // Testing auxiliaries (breaking the Type abstraction).
 struct ZoneRep {
-  struct Struct { int tag; int length; void* args[1]; };
+  typedef void* Struct;
 
   static bool IsStruct(Type* t, int tag) {
-    return !IsBitset(t) && AsStruct(t)->tag == tag;
+    return !IsBitset(t) && reinterpret_cast<intptr_t>(AsStruct(t)[0]) == tag;
   }
   static bool IsBitset(Type* t) { return reinterpret_cast<intptr_t>(t) & 1; }
   static bool IsClass(Type* t) { return IsStruct(t, 0); }
@@ -193,15 +193,17 @@ struct ZoneRep {
     return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
   }
   static Map* AsClass(Type* t) {
-    return *static_cast<Map**>(AsStruct(t)->args[1]);
+    return *static_cast<Map**>(AsStruct(t)[3]);
   }
   static Object* AsConstant(Type* t) {
-    return *static_cast<Object**>(AsStruct(t)->args[1]);
+    return *static_cast<Object**>(AsStruct(t)[3]);
   }
   static Struct* AsUnion(Type* t) {
     return AsStruct(t);
   }
-  static int Length(Struct* structured) { return structured->length; }
+  static int Length(Struct* structured) {
+    return static_cast<int>(reinterpret_cast<intptr_t>(structured[1]));
+  }
 
   static Zone* ToRegion(Zone* zone, Isolate* isolate) { return zone; }
 };

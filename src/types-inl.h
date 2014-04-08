@@ -130,15 +130,13 @@ void ZoneTypeConfig::struct_shrink(Struct* structured, int length) {
 
 // static
 int ZoneTypeConfig::struct_tag(Struct* structured) {
-  int tag = reinterpret_cast<intptr_t>(structured[0]);
-  return tag;
+  return static_cast<int>(reinterpret_cast<intptr_t>(structured[0]));
 }
 
 
 // static
 int ZoneTypeConfig::struct_length(Struct* structured) {
-  int length = reinterpret_cast<intptr_t>(structured[1]);
-  return length;
+  return static_cast<int>(reinterpret_cast<intptr_t>(structured[1]));
 }
 
 
