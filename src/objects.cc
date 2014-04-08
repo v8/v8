@@ -13831,7 +13831,7 @@ class StringSharedKey : public HashTableKey {
 // RegExpKey carries the source and flags of a regular expression as key.
 class RegExpKey : public HashTableKey {
  public:
-  RegExpKey(String* string, JSRegExp::Flags flags)
+  RegExpKey(Handle<String> string, JSRegExp::Flags flags)
       : string_(string),
         flags_(Smi::FromInt(flags.value())) { }
 
@@ -13845,7 +13845,7 @@ class RegExpKey : public HashTableKey {
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t Hash() { return RegExpHash(string_, flags_); }
+  uint32_t Hash() { return RegExpHash(*string_, flags_); }
 
   Object* AsObject(Heap* heap) {
     // Plain hash maps, which is where regexp keys are used, don't
@@ -13864,7 +13864,7 @@ class RegExpKey : public HashTableKey {
     return string->Hash() + flags->value();
   }
 
-  String* string_;
+  Handle<String> string_;
   Smi* flags_;
 };
 
@@ -15048,7 +15048,7 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
                                                    JSRegExp::Flags flags) {
   Isolate* isolate = GetIsolate();
   DisallowHeapAllocation no_allocation;
-  RegExpKey key(*src, flags);
+  RegExpKey key(src, flags);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return isolate->factory()->undefined_value();
   return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
@@ -15092,7 +15092,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
 Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value) {
-  RegExpKey key(*src, flags);
+  RegExpKey key(src, flags);
   cache = EnsureCapacityFor(cache, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
