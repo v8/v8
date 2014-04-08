@@ -96,6 +96,7 @@ intptr_t OS::MaxVirtualMemory() {
   struct rlimit limit;
   int result = getrlimit(RLIMIT_DATA, &limit);
   if (result != 0) return 0;
+  if (limit.rlim_cur == RLIM_INFINITY) return 0;
   return limit.rlim_cur;
 }
 
