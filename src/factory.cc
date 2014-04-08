@@ -99,15 +99,6 @@ Handle<UnseededNumberDictionary> Factory::NewUnseededNumberDictionary(
 }
 
 
-Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     ObjectHashSet::Allocate(isolate()->heap(),
-                                             at_least_space_for),
-                     ObjectHashSet);
-}
-
-
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), 4);
 }

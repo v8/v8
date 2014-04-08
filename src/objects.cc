@@ -14251,9 +14251,7 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape<1>, Object*>;
-
-template class HashTable<ObjectHashTableShape<2>, Object*>;
+template class HashTable<ObjectHashTableShape, Object*>;
 
 template class HashTable<WeakHashTableShape<2>, Object*>;
 
@@ -15775,87 +15773,12 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
 }
 
 
-Handle<ObjectHashSet> ObjectHashSet::EnsureCapacity(
-    Handle<ObjectHashSet> table,
-    int n,
-    Handle<Object> key,
-    PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->EnsureCapacity(n, *key, pretenure),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Shrink(Handle<ObjectHashSet> table,
-                                            Handle<Object> key) {
-  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->Shrink(*key),
-                     ObjectHashSet);
-}
-
-
-bool ObjectHashSet::Contains(Object* key) {
-  ASSERT(IsKey(key));
-
-  // If the object does not have an identity hash, it was never used as a key.
-  Object* hash = key->GetHash();
-  if (hash->IsUndefined()) return false;
-
-  return (FindEntry(key) != kNotFound);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> table,
-                                         Handle<Object> key) {
-  ASSERT(table->IsKey(*key));
-
-  // Make sure the key object has an identity hash code.
-  Handle<Object> object_hash = Object::GetOrCreateHash(key,
-                                                       table->GetIsolate());
-
-  int entry = table->FindEntry(*key);
-
-  // Check whether key is already present.
-  if (entry != kNotFound) return table;
-
-  // Check whether the hash set should be extended and add entry.
-  Handle<ObjectHashSet> new_table =
-      ObjectHashSet::EnsureCapacity(table, 1, key);
-  entry = new_table->FindInsertionEntry(Smi::cast(*object_hash)->value());
-  new_table->set(EntryToIndex(entry), *key);
-  new_table->ElementAdded();
-  return new_table;
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Remove(Handle<ObjectHashSet> table,
-                                            Handle<Object> key) {
-  ASSERT(table->IsKey(*key));
-
-  // If the object does not have an identity hash, it was never used as a key.
-  if (key->GetHash()->IsUndefined()) return table;
-
-  int entry = table->FindEntry(*key);
-
-  // Check whether key is actually present.
-  if (entry == kNotFound) return table;
-
-  // Remove entry and try to shrink this hash set.
-  table->set_the_hole(EntryToIndex(entry));
-  table->ElementRemoved();
-
-  return ObjectHashSet::Shrink(table, key);
-}
-
-
 Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
     Handle<ObjectHashTable> table,
     int n,
     Handle<Object> key,
     PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->EnsureCapacity(n, *key, pretenure),
                      ObjectHashTable);
@@ -15864,7 +15787,7 @@ Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(
     Handle<ObjectHashTable> table, Handle<Object> key) {
-  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->Shrink(*key),
                      ObjectHashTable);
@@ -15982,11 +15905,11 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }
   int num_buckets = capacity / kLoadFactor;
-  Handle<Derived> table =
-      Handle<Derived>::cast(
-          isolate->factory()->NewFixedArray(
-              kHashTableStartIndex + num_buckets + (capacity * kEntrySize),
-              pretenure));
+  Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(
+      kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
+  backing_store->set_map_no_write_barrier(
+      isolate->heap()->ordered_hash_table_map());
+  Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
     table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
   }

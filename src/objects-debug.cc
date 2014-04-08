@@ -699,7 +699,7 @@ void JSSet::JSSetVerify() {
   CHECK(IsJSSet());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsHashTable() || table()->IsUndefined());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
 }
 
 
@@ -707,7 +707,7 @@ void JSMap::JSMapVerify() {
   CHECK(IsJSMap());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  CHECK(table()->IsHashTable() || table()->IsUndefined());
+  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
 }
 
 

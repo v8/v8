@@ -928,6 +928,13 @@ bool Object::IsObjectHashTable() {
 }
 
 
+bool Object::IsOrderedHashTable() {
+  return IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->ordered_hash_table_map();
+}
+
+
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }
@@ -6754,28 +6761,22 @@ MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
 }
 
 
-template <int entrysize>
-bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
   return key->SameValue(other);
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
+uint32_t ObjectHashTableShape::Hash(Object* key) {
   return Smi::cast(key->GetHash())->value();
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
-                                                        Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Object* key, Object* other) {
   return Smi::cast(other->GetHash())->value();
 }
 
 
-template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
-                                                       Object* key) {
+MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
   return key;
 }
 

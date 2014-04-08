@@ -74,6 +74,7 @@ namespace internal {
   V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
@@ -260,6 +261,7 @@ namespace internal {
   V(constant_pool_array_map)              \
   V(no_interceptor_result_sentinel)       \
   V(hash_table_map)                       \
+  V(ordered_hash_table_map)               \
   V(empty_fixed_array)                    \
   V(empty_byte_array)                     \
   V(empty_descriptor_array)               \

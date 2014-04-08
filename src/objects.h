@@ -1076,7 +1076,8 @@ class MaybeObject BASE_EMBEDDED {
   V(Cell)                                      \
   V(PropertyCell)                              \
   V(ObjectHashTable)                           \
-  V(WeakHashTable)
+  V(WeakHashTable)                             \
+  V(OrderedHashTable)
 
 
 #define ERROR_MESSAGES_LIST(V) \
@@ -3779,7 +3780,6 @@ class HashTable: public FixedArray {
   void Rehash(Key key);
 
  protected:
-  friend class ObjectHashSet;
   friend class ObjectHashTable;
 
   // Find the entry at which to insert element with the given key that
@@ -4210,7 +4210,6 @@ class UnseededNumberDictionary
 };
 
 
-template <int entrysize>
 class ObjectHashTableShape : public BaseShape<Object*> {
  public:
   static inline bool IsMatch(Object* key, Object* other);
@@ -4219,45 +4218,13 @@ class ObjectHashTableShape : public BaseShape<Object*> {
   MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       Object* key);
   static const int kPrefixSize = 0;
-  static const int kEntrySize = entrysize;
-};
-
-
-// ObjectHashSet holds keys that are arbitrary objects by using the identity
-// hash of the key for hashing purposes.
-class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
- public:
-  static inline ObjectHashSet* cast(Object* obj) {
-    ASSERT(obj->IsHashTable());
-    return reinterpret_cast<ObjectHashSet*>(obj);
-  }
-
-  // Looks up whether the given key is part of this hash set.
-  bool Contains(Object* key);
-
-  static Handle<ObjectHashSet> EnsureCapacity(
-      Handle<ObjectHashSet> table,
-      int n,
-      Handle<Object> key,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  // Attempt to shrink hash table after removal of key.
-  static Handle<ObjectHashSet> Shrink(Handle<ObjectHashSet> table,
-                                      Handle<Object> key);
-
-  // Adds the given key to this hash set.
-  static Handle<ObjectHashSet> Add(Handle<ObjectHashSet> table,
-                                   Handle<Object> key);
-
-  // Removes the given key from this hash set.
-  static Handle<ObjectHashSet> Remove(Handle<ObjectHashSet> table,
-                                      Handle<Object> key);
+  static const int kEntrySize = 2;
 };
 
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
+class ObjectHashTable: public HashTable<ObjectHashTableShape, Object*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4329,7 +4296,7 @@ class OrderedHashTable: public FixedArray {
       Isolate* isolate, int capacity, PretenureFlag pretenure = NOT_TENURED);
 
   // Returns an OrderedHashTable (possibly |table|) with enough space
-  // to add at least one new element, or returns a Failure if a GC occurs.
+  // to add at least one new element.
   static Handle<Derived> EnsureGrowable(Handle<Derived> table);
 
   // Returns an OrderedHashTable (possibly |table|) that's shrunken
@@ -4420,7 +4387,7 @@ class OrderedHashTable: public FixedArray {
 class OrderedHashSet: public OrderedHashTable<OrderedHashSet, 1> {
  public:
   static OrderedHashSet* cast(Object* obj) {
-    ASSERT(obj->IsFixedArray());  // TODO(adamk): Make a map for this
+    ASSERT(obj->IsOrderedHashTable());
     return reinterpret_cast<OrderedHashSet*>(obj);
   }
 
@@ -4435,7 +4402,7 @@ class OrderedHashSet: public OrderedHashTable<OrderedHashSet, 1> {
 class OrderedHashMap: public OrderedHashTable<OrderedHashMap, 2> {
  public:
   static OrderedHashMap* cast(Object* obj) {
-    ASSERT(obj->IsFixedArray());  // TODO(adamk): Make a map for this
+    ASSERT(obj->IsOrderedHashTable());
     return reinterpret_cast<OrderedHashMap*>(obj);
   }
 

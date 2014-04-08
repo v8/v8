@@ -46,8 +46,6 @@ class Factory V8_FINAL {
 
   Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
 
-  Handle<ObjectHashSet> NewObjectHashSet(int at_least_space_for);
-
   Handle<ObjectHashTable> NewObjectHashTable(
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);

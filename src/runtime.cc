@@ -1507,7 +1507,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<ObjectHashSet> table = isolate->factory()->NewObjectHashSet(0);
+  Handle<OrderedHashSet> table = isolate->factory()->NewOrderedHashSet();
   holder->set_table(*table);
   return *holder;
 }
@@ -1518,8 +1518,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
-  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSet::Add(table, key);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
+  table = OrderedHashSet::Add(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1530,7 +1530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHas) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
-  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   return isolate->heap()->ToBoolean(table->Contains(*key));
 }
 
@@ -1540,8 +1540,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<Object> key(args[1], isolate);
-  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
-  table = ObjectHashSet::Remove(table, key);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
+  table = OrderedHashSet::Remove(table, key);
   holder->set_table(*table);
   return isolate->heap()->undefined_value();
 }
@@ -1551,7 +1551,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetGetSize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<ObjectHashSet> table(ObjectHashSet::cast(holder->table()));
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   return Smi::FromInt(table->NumberOfElements());
 }
 
@@ -1560,7 +1560,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Handle<ObjectHashTable> table = isolate->factory()->NewObjectHashTable(0);
+  Handle<OrderedHashMap> table = isolate->factory()->NewOrderedHashMap();
   holder->set_table(*table);
   return *holder;
 }
@@ -1571,7 +1571,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGet) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
 }
@@ -1582,7 +1582,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapHas) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1593,10 +1593,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapDelete) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   Handle<Object> lookup(table->Lookup(*key), isolate);
-  Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
+  Handle<OrderedHashMap> new_table =
+      OrderedHashMap::Put(table, key, isolate->factory()->the_hole_value());
   holder->set_table(*new_table);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
@@ -1608,8 +1608,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
+  Handle<OrderedHashMap> new_table = OrderedHashMap::Put(table, key, value);
   holder->set_table(*new_table);
   return isolate->heap()->undefined_value();
 }
@@ -1619,7 +1619,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGetSize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   return Smi::FromInt(table->NumberOfElements());
 }
 
