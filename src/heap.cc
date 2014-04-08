@@ -5296,8 +5296,14 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
                                              int number_of_code_ptr_entries,
                                              int number_of_heap_ptr_entries,
                                              int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
-         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
+  CHECK(number_of_int64_entries >= 0 &&
+        number_of_int64_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_code_ptr_entries >= 0 &&
+        number_of_code_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_heap_ptr_entries >= 0 &&
+        number_of_heap_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_int32_entries >= 0 &&
+        number_of_int32_entries <= ConstantPoolArray::kMaxEntriesPerType);
   int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
                                         number_of_code_ptr_entries,
                                         number_of_heap_ptr_entries,
@@ -5316,10 +5322,10 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
 
   ConstantPoolArray* constant_pool =
       reinterpret_cast<ConstantPoolArray*>(object);
-  constant_pool->SetEntryCounts(number_of_int64_entries,
-                                number_of_code_ptr_entries,
-                                number_of_heap_ptr_entries,
-                                number_of_int32_entries);
+  constant_pool->Init(number_of_int64_entries,
+                      number_of_code_ptr_entries,
+                      number_of_heap_ptr_entries,
+                      number_of_int32_entries);
   if (number_of_code_ptr_entries > 0) {
     int offset =
         constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
@@ -5348,7 +5354,7 @@ MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
-  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0, 0);
+  ConstantPoolArray::cast(result)->Init(0, 0, 0, 0);
   return result;
 }
 

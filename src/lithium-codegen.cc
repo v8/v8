@@ -200,6 +200,10 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
       }
     }
   }
+  if (FLAG_enable_ool_constant_pool) {
+    code->constant_pool()->set_weak_object_state(
+        ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE);
+  }
 #ifdef VERIFY_HEAP
   // This disables verification of weak embedded objects after full GC.
   // AddDependentCode can cause a GC, which would observe the state where

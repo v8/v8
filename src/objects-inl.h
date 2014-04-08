@@ -2284,16 +2284,43 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
-SMI_ACCESSORS(
-    ConstantPoolArray, first_code_ptr_index, kFirstCodePointerIndexOffset)
-SMI_ACCESSORS(
-    ConstantPoolArray, first_heap_ptr_index, kFirstHeapPointerIndexOffset)
-SMI_ACCESSORS(
-    ConstantPoolArray, first_int32_index, kFirstInt32IndexOffset)
+void ConstantPoolArray::set_weak_object_state(
+      ConstantPoolArray::WeakObjectState state) {
+  int old_layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  int new_layout_field = WeakObjectStateField::update(old_layout_field, state);
+  WRITE_INT_FIELD(this, kArrayLayoutOffset, new_layout_field);
+}
+
+
+ConstantPoolArray::WeakObjectState ConstantPoolArray::get_weak_object_state() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return WeakObjectStateField::decode(layout_field);
+}
 
 
 int ConstantPoolArray::first_int64_index() {
   return 0;
+}
+
+
+int ConstantPoolArray::first_code_ptr_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_int64_index() +
+      NumberOfInt64EntriesField::decode(layout_field);
+}
+
+
+int ConstantPoolArray::first_heap_ptr_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_code_ptr_index() +
+      NumberOfCodePtrEntriesField::decode(layout_field);
+}
+
+
+int ConstantPoolArray::first_int32_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_heap_ptr_index() +
+      NumberOfHeapPtrEntriesField::decode(layout_field);
 }
 
 
@@ -2317,18 +2344,20 @@ int ConstantPoolArray::count_of_int32_entries() {
 }
 
 
-void ConstantPoolArray::SetEntryCounts(int number_of_int64_entries,
-                                       int number_of_code_ptr_entries,
-                                       int number_of_heap_ptr_entries,
-                                       int number_of_int32_entries) {
-  int current_index = number_of_int64_entries;
-  set_first_code_ptr_index(current_index);
-  current_index += number_of_code_ptr_entries;
-  set_first_heap_ptr_index(current_index);
-  current_index += number_of_heap_ptr_entries;
-  set_first_int32_index(current_index);
-  current_index += number_of_int32_entries;
-  set_length(current_index);
+void ConstantPoolArray::Init(int number_of_int64_entries,
+                             int number_of_code_ptr_entries,
+                             int number_of_heap_ptr_entries,
+                             int number_of_int32_entries) {
+  set_length(number_of_int64_entries +
+             number_of_code_ptr_entries +
+             number_of_heap_ptr_entries +
+             number_of_int32_entries);
+  int layout_field =
+      NumberOfInt64EntriesField::encode(number_of_int64_entries) |
+      NumberOfCodePtrEntriesField::encode(number_of_code_ptr_entries) |
+      NumberOfHeapPtrEntriesField::encode(number_of_heap_ptr_entries) |
+      WeakObjectStateField::encode(NO_WEAK_OBJECTS);
+  WRITE_INT_FIELD(this, kArrayLayoutOffset, layout_field);
 }
 
 
@@ -4741,7 +4770,6 @@ Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
 
 
 bool Code::IsWeakObjectInOptimizedCode(Object* object) {
-  ASSERT(is_optimized_code());
   if (object->IsMap()) {
     return Map::cast(object)->CanTransition() &&
            FLAG_collect_maps &&

@@ -3218,6 +3218,11 @@ class FixedDoubleArray: public FixedArrayBase {
 //   [first_int32_index()]    ... [length - 1]                 : 32 bit entries
 class ConstantPoolArray: public FixedArrayBase {
  public:
+  enum WeakObjectState {
+    NO_WEAK_OBJECTS,
+    WEAK_OBJECTS_IN_OPTIMIZED_CODE
+  };
+
   // Getters for the field storing the first index for different type entries.
   inline int first_code_ptr_index();
   inline int first_heap_ptr_index();
@@ -3237,6 +3242,10 @@ class ConstantPoolArray: public FixedArrayBase {
   inline int32_t get_int32_entry(int index);
   inline double get_int64_entry_as_double(int index);
 
+  // Setter and getter for weak objects state
+  inline void set_weak_object_state(WeakObjectState state);
+  inline WeakObjectState get_weak_object_state();
+
   inline void set(int index, Address value);
   inline void set(int index, Object* value);
   inline void set(int index, int64_t value);
@@ -3244,10 +3253,10 @@ class ConstantPoolArray: public FixedArrayBase {
   inline void set(int index, int32_t value);
 
   // Set up initial state.
-  inline void SetEntryCounts(int number_of_int64_entries,
-                             int number_of_code_ptr_entries,
-                             int number_of_heap_ptr_entries,
-                             int number_of_int32_entries);
+  inline void Init(int number_of_int64_entries,
+                   int number_of_code_ptr_entries,
+                   int number_of_heap_ptr_entries,
+                   int number_of_int32_entries);
 
   // Copy operations
   MUST_USE_RESULT inline MaybeObject* Copy();
@@ -3290,12 +3299,16 @@ class ConstantPoolArray: public FixedArrayBase {
   }
 
   // Layout description.
-  static const int kFirstCodePointerIndexOffset = FixedArray::kHeaderSize;
-  static const int kFirstHeapPointerIndexOffset =
-      kFirstCodePointerIndexOffset + kPointerSize;
-  static const int kFirstInt32IndexOffset =
-      kFirstHeapPointerIndexOffset + kPointerSize;
-  static const int kFirstOffset = kFirstInt32IndexOffset + kPointerSize;
+  static const int kArrayLayoutOffset = FixedArray::kHeaderSize;
+  static const int kFirstOffset = kArrayLayoutOffset + kPointerSize;
+
+  static const int kFieldBitSize = 10;
+  static const int kMaxEntriesPerType = (1 << kFieldBitSize) - 1;
+
+  class NumberOfInt64EntriesField: public BitField<int, 0, kFieldBitSize> {};
+  class NumberOfCodePtrEntriesField: public BitField<int, 10, kFieldBitSize> {};
+  class NumberOfHeapPtrEntriesField: public BitField<int, 20, kFieldBitSize> {};
+  class WeakObjectStateField: public BitField<WeakObjectState, 30, 2> {};
 
   // Dispatched behavior.
   void ConstantPoolIterateBody(ObjectVisitor* v);
@@ -3304,10 +3317,6 @@ class ConstantPoolArray: public FixedArrayBase {
   DECLARE_VERIFIER(ConstantPoolArray)
 
  private:
-  inline void set_first_code_ptr_index(int value);
-  inline void set_first_heap_ptr_index(int value);
-  inline void set_first_int32_index(int value);
-
   inline static int OffsetAt(int number_of_int64_entries,
                              int number_of_code_ptr_entries,
                              int number_of_heap_ptr_entries,
@@ -5746,7 +5755,7 @@ class Code: public HeapObject {
     return is_optimized_code() && IsWeakObjectInOptimizedCode(object);
   }
 
-  inline bool IsWeakObjectInOptimizedCode(Object* object);
+  static inline bool IsWeakObjectInOptimizedCode(Object* object);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.

@@ -498,8 +498,14 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
   }
   for (int i = 0; i < constant_pool->count_of_heap_ptr_entries(); i++) {
     int index = constant_pool->first_heap_ptr_index() + i;
-    StaticVisitor::VisitPointer(heap,
-                                constant_pool->RawFieldOfElementAt(index));
+    Object** slot = constant_pool->RawFieldOfElementAt(index);
+    HeapObject* object = HeapObject::cast(*slot);
+    heap->mark_compact_collector()->RecordSlot(slot, slot, object);
+    if (!(constant_pool->get_weak_object_state() ==
+              ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
+          Code::IsWeakObjectInOptimizedCode(object))) {
+      StaticVisitor::MarkObject(heap, object);
+    }
   }
 }
 
