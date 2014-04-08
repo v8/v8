@@ -90,7 +90,7 @@ class UploadCL(Step):
                   deps)
     TextToFile(deps, self.Config(DEPS_FILE))
 
-    if self._options.reviewer:
+    if self._options.reviewer and not self._options.manual:
       print "Using account %s for review." % self._options.reviewer
       rev = self._options.reviewer
     else:
@@ -99,7 +99,11 @@ class UploadCL(Step):
       rev = self.ReadLine()
 
     commit_title = "Update V8 to %s." % self["push_title"].lower()
-    self.GitCommit("%s\n\nTBR=%s" % (commit_title, rev))
+    sheriff = ""
+    if self["sheriff"]:
+      sheriff = ("\n\nPlease reply to the V8 sheriff %s in case of problems."
+                 % self["sheriff"])
+    self.GitCommit("%s%s\n\nTBR=%s" % (commit_title, sheriff, rev))
     self.GitUpload(author=self._options.author,
                    force=self._options.force_upload)
     print "CL uploaded."
@@ -159,6 +163,7 @@ class ChromiumRoll(ScriptsBase):
       Preparation,
       DetectLastPush,
       CheckChromium,
+      DetermineV8Sheriff,
       SwitchChromium,
       UpdateChromiumCheckout,
       UploadCL,

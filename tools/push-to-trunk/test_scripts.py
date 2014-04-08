@@ -769,8 +769,15 @@ Performance and stability improvements on all platforms.""", commit)
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
-
   def _ChromiumRoll(self, force=False, manual=False):
+    googlers_mapping_py = "%s-mapping.py" % TEST_CONFIG[PERSISTFILE_BASENAME]
+    with open(googlers_mapping_py, "w") as f:
+      f.write("""
+def list_to_dict(entries):
+  return {"g_name@google.com": "c_name@chromium.org"}
+def get_list():
+  pass""")
+
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
@@ -795,23 +802,30 @@ Performance and stability improvements on all platforms.""", commit)
       Git("checkout -b v8-roll-123455", ""),
       Git(("commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r123454).\n\n"
-           "TBR=reviewer@chromium.org\""),
+           "Please reply to the V8 sheriff c_name@chromium.org in "
+           "case of problems.\n\nTBR=c_name@chromium.org\""),
           ""),
       Git(("cl upload --send-mail --email \"author@chromium.org\"%s"
            % force_flag), ""),
     ])
 
+    self.ExpectReadURL([
+      URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
+          "document.write('g_name')"),
+    ])
+
     # Expected keyboard input in manual mode:
     if manual:
       self.ExpectReadline([
-        RL("reviewer@chromium.org"),  # Chromium reviewer.
+        RL("c_name@chromium.org"),  # Chromium reviewer.
       ])
 
     # Expected keyboard input in semi-automatic mode and forced mode:
     if not manual:
       self.ExpectReadline([])
 
-    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM]]
+    args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM],
+            "--sheriff", "--googlers-mapping", googlers_mapping_py]
     if force: args.append("-f")
     if manual: args.append("-m")
     else: args += ["-r", "reviewer@chromium.org"]

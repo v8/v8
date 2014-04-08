@@ -28,6 +28,7 @@
 
 import argparse
 import datetime
+import imp
 import json
 import os
 import re
@@ -467,6 +468,40 @@ class UploadStep(Step):
     self.GitUpload(reviewer, self._options.author, self._options.force_upload)
 
 
+class DetermineV8Sheriff(Step):
+  MESSAGE = "Determine the V8 sheriff for code review."
+
+  def RunStep(self):
+    self["sheriff"] = None
+    if not self._options.sheriff:  # pragma: no cover
+      return
+
+    try:
+      # The googlers mapping maps @google.com accounts to @chromium.org
+      # accounts.
+      googlers = imp.load_source('googlers_mapping',
+                                 self._options.googlers_mapping)
+      googlers = googlers.list_to_dict(googlers.get_list())
+    except:  # pragma: no cover
+      print "Skip determining sheriff without googler mapping."
+      return
+
+    # The sheriff determined by the rotation on the waterfall has a
+    # @google.com account.
+    url = "https://chromium-build.appspot.com/p/chromium/sheriff_v8.js"
+    match = re.match(r"document\.write\('(\w+)'\)", self.ReadURL(url))
+
+    # If "channel is sheriff", we can't match an account.
+    if match:
+      g_name = match.group(1)
+      self["sheriff"] = googlers.get(g_name + "@google.com",
+                                     g_name + "@chromium.org")
+      self._options.reviewer = self["sheriff"]
+      print "Found active sheriff: %s" % self["sheriff"]
+    else:
+      print "No active sheriff found."
+
+
 def MakeStep(step_class=Step, number=0, state=None, config=None,
              options=None, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER):
     # Allow to pass in empty dictionaries.
@@ -511,11 +546,17 @@ class ScriptsBase(object):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
                         help="The author email used for rietveld.")
+    parser.add_argument("-g", "--googlers-mapping",
+                        help="Path to the script mapping google accounts.")
     parser.add_argument("-r", "--reviewer", default="",
                         help="The account name to be used for reviews.")
+    parser.add_argument("--sheriff", default=False, action="store_true",
+                        help=("Determine current sheriff to review CLs. On "
+                              "success, this will overwrite the reviewer "
+                              "option."))
     parser.add_argument("-s", "--step",
-                      help="Specify the step where to start work. Default: 0.",
-                      default=0, type=int)
+        help="Specify the step where to start work. Default: 0.",
+        default=0, type=int)
 
     self._PrepareOptions(parser)
 
@@ -527,6 +568,10 @@ class ScriptsBase(object):
     # Process common options.
     if options.step < 0:  # pragma: no cover
       print "Bad step number %d" % options.step
+      parser.print_help()
+      return None
+    if options.sheriff and not options.googlers_mapping:  # pragma: no cover
+      print "To determine the current sheriff, requires the googler mapping"
       parser.print_help()
       return None
 
