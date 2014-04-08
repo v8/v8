@@ -779,7 +779,7 @@ TEST(JSArray) {
   CHECK(array->HasFastSmiOrObjectElements());
 
   // array[length] = name.
-  JSReceiver::SetElement(array, 0, name, NONE, SLOPPY);
+  JSReceiver::SetElement(array, 0, name, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(1), array->length());
   CHECK_EQ(*i::Object::GetElement(isolate, array, 0), *name);
 
@@ -794,7 +794,7 @@ TEST(JSArray) {
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
   // array[length] = name.
-  JSReceiver::SetElement(array, int_length, name, NONE, SLOPPY);
+  JSReceiver::SetElement(array, int_length, name, NONE, SLOPPY).Check();
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
@@ -824,8 +824,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
   JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
 
-  JSReceiver::SetElement(obj, 0, first, NONE, SLOPPY);
-  JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY);
+  JSReceiver::SetElement(obj, 0, first, NONE, SLOPPY).Check();
+  JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY).Check();
 
   // Make the clone.
   Handle<JSObject> clone = JSObject::Copy(obj);
@@ -843,8 +843,8 @@ TEST(JSObjectCopy) {
   JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
   JSReceiver::SetProperty(clone, second, one, NONE, SLOPPY).Check();
 
-  JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY);
-  JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY);
+  JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY).Check();
+  JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY).Check();
 
   CHECK_EQ(*i::Object::GetElement(isolate, obj, 1),
            *i::Object::GetElement(isolate, clone, 0));
