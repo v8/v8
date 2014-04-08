@@ -3378,8 +3378,6 @@ class HArgumentsObject V8_FINAL : public HDematerializedObject {
     set_representation(Representation::Tagged());
     SetFlag(kIsArguments);
   }
-
-  virtual bool IsDeletable() const V8_FINAL V8_OVERRIDE { return true; }
 };
 
 

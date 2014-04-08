@@ -1201,7 +1201,7 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
   Handle<Code> GetCodeCopyFromTemplate(Isolate* isolate,
                                        Handle<AllocationSite> allocation_site) {
     Code::FindAndReplacePattern pattern;
-    pattern.Add(isolate->factory()->oddball_map(), allocation_site);
+    pattern.Add(isolate->factory()->undefined_map(), allocation_site);
     return CodeStub::GetCodeCopy(isolate, pattern);
   }
 

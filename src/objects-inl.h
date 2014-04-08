@@ -1496,11 +1496,11 @@ FixedArrayBase* JSObject::elements() {
 }
 
 
-void JSObject::ValidateElements() {
+void JSObject::ValidateElements(Handle<JSObject> object) {
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
-    ElementsAccessor* accessor = GetElementsAccessor();
-    accessor->Validate(this);
+    ElementsAccessor* accessor = object->GetElementsAccessor();
+    accessor->Validate(object);
   }
 #endif
 }
@@ -1640,7 +1640,7 @@ inline bool AllocationSite::DigestPretenuringFeedback() {
 
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
-  object->ValidateElements();
+  JSObject::ValidateElements(object);
   ElementsKind elements_kind = object->map()->elements_kind();
   if (!IsFastObjectElementsKind(elements_kind)) {
     if (IsFastHoleyElementsKind(elements_kind)) {

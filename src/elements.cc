@@ -610,8 +610,9 @@ class ElementsAccessorBase : public ElementsAccessor {
     ElementsAccessorSubclass::ValidateContents(holder, length);
   }
 
-  virtual void Validate(JSObject* holder) V8_FINAL V8_OVERRIDE {
-    ElementsAccessorSubclass::ValidateImpl(holder);
+  virtual void Validate(Handle<JSObject> holder) V8_FINAL V8_OVERRIDE {
+    DisallowHeapAllocation no_gc;
+    ElementsAccessorSubclass::ValidateImpl(*holder);
   }
 
   static bool HasElementImpl(Object* receiver,
@@ -732,24 +733,21 @@ class ElementsAccessorBase : public ElementsAccessor {
         ? NONEXISTENT : FIELD;
   }
 
-  MUST_USE_RESULT virtual AccessorPair* GetAccessorPair(
-      Object* receiver,
-      JSObject* holder,
+  MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
+      Handle<Object> receiver,
+      Handle<JSObject> holder,
       uint32_t key,
-      FixedArrayBase* backing_store) V8_FINAL V8_OVERRIDE {
-    if (backing_store == NULL) {
-      backing_store = holder->elements();
-    }
+      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
     return ElementsAccessorSubclass::GetAccessorPairImpl(
         receiver, holder, key, backing_store);
   }
 
-  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
-        Object* receiver,
-        JSObject* obj,
-        uint32_t key,
-        FixedArrayBase* backing_store) {
-    return NULL;
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
+      Handle<Object> receiver,
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
+    return MaybeHandle<AccessorPair>();
   }
 
   MUST_USE_RESULT virtual Handle<Object> SetLength(
@@ -1014,7 +1012,7 @@ class FastElementsAccessor
     if (!array->ShouldConvertToSlowElements(new_capacity)) {
       FastElementsAccessorSubclass::
           SetFastElementsCapacityAndLength(array, new_capacity, length);
-      array->ValidateElements();
+      JSObject::ValidateElements(array);
       return length_object;
     }
 
@@ -1655,19 +1653,20 @@ class DictionaryElementsAccessor
     return NONEXISTENT;
   }
 
-  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
-      Object* receiver,
-      JSObject* obj,
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
+      Handle<Object> receiver,
+      Handle<JSObject> obj,
       uint32_t key,
-      FixedArrayBase* store) {
-    SeededNumberDictionary* backing_store = SeededNumberDictionary::cast(store);
+      Handle<FixedArrayBase> store) {
+    Handle<SeededNumberDictionary> backing_store =
+        Handle<SeededNumberDictionary>::cast(store);
     int entry = backing_store->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound &&
         backing_store->DetailsAt(entry).type() == CALLBACKS &&
         backing_store->ValueAt(entry)->IsAccessorPair()) {
-      return AccessorPair::cast(backing_store->ValueAt(entry));
+      return handle(AccessorPair::cast(backing_store->ValueAt(entry)));
     }
-    return NULL;
+    return MaybeHandle<AccessorPair>();
   }
 
   static bool HasElementImpl(Object* receiver,
@@ -1766,18 +1765,18 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  MUST_USE_RESULT static AccessorPair* GetAccessorPairImpl(
-      Object* receiver,
-      JSObject* obj,
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
+      Handle<Object> receiver,
+      Handle<JSObject> obj,
       uint32_t key,
-      FixedArrayBase* parameters) {
-    FixedArray* parameter_map = FixedArray::cast(parameters);
-    Object* probe = GetParameterMapArg(obj, parameter_map, key);
+      Handle<FixedArrayBase> parameters) {
+    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
+    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
-      return NULL;
+      return MaybeHandle<AccessorPair>();
     } else {
       // If not aliased, check the arguments.
-      FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
+      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       return ElementsAccessor::ForArray(arguments)->GetAccessorPair(
           receiver, obj, key, arguments);
     }

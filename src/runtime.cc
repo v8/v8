@@ -436,7 +436,7 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     }
   }
 
-  object->ValidateElements();
+  JSObject::ValidateElements(object);
   return object;
 }
 
@@ -1926,14 +1926,15 @@ static Handle<Object> GetOwnProperty(Isolate* isolate,
     return factory->undefined_value();
   }
   ASSERT(!isolate->has_scheduled_exception());
-  AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
-  Handle<AccessorPair> accessors(raw_accessors, isolate);
+  Handle<AccessorPair> accessors;
+  bool has_accessors =
+      JSObject::GetLocalPropertyAccessorPair(obj, name).ToHandle(&accessors);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(raw_accessors != NULL));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(has_accessors));
 
-  if (raw_accessors == NULL) {
+  if (!has_accessors) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // Runtime::GetObjectProperty does access check.
     Handle<Object> value = Runtime::GetObjectProperty(isolate, obj, name);
@@ -5301,7 +5302,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
       return value;
     }
 
-    js_object->ValidateElements();
+    JSObject::ValidateElements(js_object);
     if (js_object->HasExternalArrayElements() ||
         js_object->HasFixedTypedArrayElements()) {
       if (!value->IsNumber() && !value->IsUndefined()) {
@@ -5316,7 +5317,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                  strict_mode,
                                                  true,
                                                  set_mode);
-    js_object->ValidateElements();
+    JSObject::ValidateElements(js_object);
     return result.is_null() ? result : value;
   }
 
@@ -10657,8 +10658,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, from, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, to, 1);
-  from->ValidateElements();
-  to->ValidateElements();
+  JSObject::ValidateElements(from);
+  JSObject::ValidateElements(to);
 
   Handle<FixedArrayBase> new_elements(from->elements());
   ElementsKind from_kind = from->GetElementsKind();
@@ -10669,7 +10670,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   JSObject::ResetElements(from);
   from->set_length(Smi::FromInt(0));
 
-  to->ValidateElements();
+  JSObject::ValidateElements(to);
   return *to;
 }
 

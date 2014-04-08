@@ -5192,7 +5192,7 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->map()->is_observed()) {
     should_enqueue_change_record = HasLocalElement(object, index);
     if (should_enqueue_change_record) {
-      if (object->GetLocalElementAccessorPair(index) != NULL) {
+      if (!GetLocalElementAccessorPair(object, index).is_null()) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
       } else {
         old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
@@ -6371,7 +6371,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   if (is_observed) {
     if (is_element) {
       preexists = HasLocalElement(object, index);
-      if (preexists && object->GetLocalElementAccessorPair(index) == NULL) {
+      if (preexists && GetLocalElementAccessorPair(object, index).is_null()) {
         old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
       }
     } else {
@@ -11232,7 +11232,7 @@ Handle<FixedArray> JSObject::SetFastElementsCapacityAndLength(
     Handle<Map> new_map = (new_elements_kind != elements_kind)
         ? GetElementsTransitionMap(object, new_elements_kind)
         : handle(object->map());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     JSObject::SetMapAndElements(object, new_map, new_elements);
 
     // Transition through the allocation site as well if present.
@@ -11278,7 +11278,7 @@ void JSObject::SetFastDoubleElementsCapacityAndLength(Handle<JSObject> object,
   ElementsAccessor* accessor = ElementsAccessor::ForKind(FAST_DOUBLE_ELEMENTS);
   accessor->CopyElements(object, elems, elements_kind);
 
-  object->ValidateElements();
+  JSObject::ValidateElements(object);
   JSObject::SetMapAndElements(object, new_map, elems);
 
   if (FLAG_trace_elements_transitions) {
@@ -11319,7 +11319,7 @@ static bool GetOldValue(Isolate* isolate,
   ASSERT(attributes != ABSENT);
   if (attributes == DONT_DELETE) return false;
   Handle<Object> value;
-  if (object->GetLocalElementAccessorPair(index) != NULL) {
+  if (!JSObject::GetLocalElementAccessorPair(object, index).is_null()) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
   } else {
     value = Object::GetElementNoExceptionThrown(isolate, object, index);
@@ -11858,35 +11858,40 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 
-AccessorPair* JSObject::GetLocalPropertyAccessorPair(Name* name) {
+MaybeHandle<AccessorPair> JSObject::GetLocalPropertyAccessorPair(
+    Handle<JSObject> object,
+    Handle<Name> name) {
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return GetLocalElementAccessorPair(index);
+    return GetLocalElementAccessorPair(object, index);
   }
 
-  LookupResult lookup(GetIsolate());
-  LocalLookupRealNamedProperty(name, &lookup);
+  Isolate* isolate = object->GetIsolate();
+  LookupResult lookup(isolate);
+  object->LocalLookupRealNamedProperty(*name, &lookup);
 
   if (lookup.IsPropertyCallbacks() &&
       lookup.GetCallbackObject()->IsAccessorPair()) {
-    return AccessorPair::cast(lookup.GetCallbackObject());
+    return handle(AccessorPair::cast(lookup.GetCallbackObject()), isolate);
   }
-  return NULL;
+  return MaybeHandle<AccessorPair>();
 }
 
 
-AccessorPair* JSObject::GetLocalElementAccessorPair(uint32_t index) {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return NULL;
+MaybeHandle<AccessorPair> JSObject::GetLocalElementAccessorPair(
+    Handle<JSObject> object,
+    uint32_t index) {
+  if (object->IsJSGlobalProxy()) {
+    Handle<Object> proto(object->GetPrototype(), object->GetIsolate());
+    if (proto->IsNull()) return MaybeHandle<AccessorPair>();
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->GetLocalElementAccessorPair(index);
+    return GetLocalElementAccessorPair(Handle<JSObject>::cast(proto), index);
   }
 
   // Check for lookup interceptor.
-  if (HasIndexedInterceptor()) return NULL;
+  if (object->HasIndexedInterceptor()) return MaybeHandle<AccessorPair>();
 
-  return GetElementsAccessor()->GetAccessorPair(this, this, index);
+  return object->GetElementsAccessor()->GetAccessorPair(object, object, index);
 }
 
 
@@ -12157,7 +12162,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 
     SetFastDoubleElementsCapacityAndLength(object, new_capacity, array_length);
     FixedDoubleArray::cast(object->elements())->set(index, value->Number());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return value;
   }
   // Change elements kind from Smi-only to generic FAST if necessary.
@@ -12181,7 +12186,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
         SetFastElementsCapacityAndLength(object, new_capacity, array_length,
                                          smi_mode);
     new_elements->set(index, *value);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return value;
   }
 
@@ -12327,7 +12332,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
       SetFastElementsCapacityAndLength(object, new_length, new_length,
                                        smi_mode);
     }
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
 #ifdef DEBUG
     if (FLAG_trace_normalization) {
       PrintF("Object elements are fast case again:\n");
@@ -12379,7 +12384,7 @@ Handle<Object> JSObject::SetFastDoubleElement(
                                            check_prototype);
     RETURN_IF_EMPTY_HANDLE_VALUE(object->GetIsolate(), result,
                                  Handle<Object>());
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return result;
   }
 
@@ -12419,7 +12424,7 @@ Handle<Object> JSObject::SetFastDoubleElement(
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       SetFastDoubleElementsCapacityAndLength(object, new_capacity, index + 1);
       FixedDoubleArray::cast(object->elements())->set(index, double_value);
-      object->ValidateElements();
+      JSObject::ValidateElements(object);
       return value;
     }
   }
@@ -12535,7 +12540,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   Handle<Object> new_length_handle;
 
   if (old_attributes != ABSENT) {
-    if (object->GetLocalElementAccessorPair(index) == NULL) {
+    if (GetLocalElementAccessorPair(object, index).is_null()) {
       old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
     }
   } else if (object->IsJSArray()) {
@@ -12878,7 +12883,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   if (IsFastSmiElementsKind(from_kind) &&
       IsFastDoubleElementsKind(to_kind)) {
     SetFastDoubleElementsCapacityAndLength(object, capacity, length);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return;
   }
 
@@ -12886,7 +12891,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
       IsFastObjectElementsKind(to_kind)) {
     SetFastElementsCapacityAndLength(object, capacity, length,
                                      kDontAllowSmiElements);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
     return;
   }
 
@@ -14412,7 +14417,7 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     Handle<FixedArray> fast_elements =
         isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
     dict->CopyValuesTo(*fast_elements);
-    object->ValidateElements();
+    JSObject::ValidateElements(object);
 
     JSObject::SetMapAndElements(object, new_map, fast_elements);
   } else if (object->HasExternalArrayElements() ||

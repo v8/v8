@@ -6075,6 +6075,7 @@ i::Handle<i::JSTypedArray> NewTypedArray(
   ASSERT(byte_offset % sizeof(ElementType) == 0);
 
   CHECK(length <= (std::numeric_limits<size_t>::max() / sizeof(ElementType)));
+  CHECK(length <= static_cast<size_t>(i::Smi::kMaxValue));
   size_t byte_length = length * sizeof(ElementType);
   SetupArrayBufferView(
       isolate, obj, buffer, byte_offset, byte_length);
@@ -6103,6 +6104,11 @@ i::Handle<i::JSTypedArray> NewTypedArray(
     LOG_API(isolate,                                                         \
         "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");     \
     ENTER_V8(isolate);                                                       \
+    if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),   \
+            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)",  \
+            "length exceeds max allowed value")) {                           \
+      return Local<Type##Array>();                                          \
+    }                                                                        \
     i::Handle<i::JSTypedArray> obj =                                         \
         NewTypedArray<ctype, v8::kExternal##Type##Array,                     \
                       i::EXTERNAL_##TYPE##_ELEMENTS>(                        \

@@ -72,7 +72,7 @@ namespace internal {
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
-  V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
+  V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
@@ -89,7 +89,7 @@ namespace internal {
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
-  V(Object, termination_exception, TerminationException)                       \
+  V(Oddball, termination_exception, TerminationException)                      \
   V(Smi, hash_seed, HashSeed)                                                  \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, string_map, StringMap)                                                \
@@ -179,7 +179,14 @@ namespace internal {
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, module_context_map, ModuleContextMap)                                 \
   V(Map, global_context_map, GlobalContextMap)                                 \
-  V(Map, oddball_map, OddballMap)                                              \
+  V(Map, undefined_map, UndefinedMap)                                          \
+  V(Map, the_hole_map, TheHoleMap)                                             \
+  V(Map, null_map, NullMap)                                                    \
+  V(Map, boolean_map, BooleanMap)                                              \
+  V(Map, uninitialized_map, UninitializedMap)                                  \
+  V(Map, arguments_marker_map, ArgumentsMarkerMap)                             \
+  V(Map, no_interceptor_result_sentinel_map, NoInterceptorResultSentinelMap)   \
+  V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
   V(HeapNumber, nan_value, NanValue)                                           \
@@ -266,7 +273,11 @@ namespace internal {
   V(block_context_map)                    \
   V(module_context_map)                   \
   V(global_context_map)                   \
-  V(oddball_map)                          \
+  V(undefined_map)                        \
+  V(the_hole_map)                         \
+  V(null_map)                             \
+  V(boolean_map)                          \
+  V(uninitialized_map)                    \
   V(message_object_map)                   \
   V(foreign_map)                          \
   V(neander_map)
@@ -728,13 +739,6 @@ class Heap {
       int length,
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
-
-  // Allocate a JSArray with no elements
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
-      FixedArrayBase* array_base,
-      ElementsKind elements_kind,
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
@@ -2213,7 +2217,8 @@ class Heap {
 
   void CreateFixedStubs();
 
-  MUST_USE_RESULT MaybeObject* CreateOddball(const char* to_string,
+  MUST_USE_RESULT MaybeObject* CreateOddball(Map* map,
+                                             const char* to_string,
                                              Object* to_number,
                                              byte kind);
 

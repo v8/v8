@@ -2757,22 +2757,21 @@ bool Heap::CreateInitialMaps() {
   set_meta_map(new_meta_map);
   new_meta_map->set_map(new_meta_map);
 
-  { MaybeObject* maybe_obj =
-        AllocatePartialMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_fixed_array_map(Map::cast(obj));
+  { // Partial map allocation
+#define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                  \
+    { Map* map;                                                                \
+      if (!AllocatePartialMap((instance_type), (size))->To(&map)) return false;\
+      set_##field_name##_map(map);                                             \
+    }
 
-  { MaybeObject* maybe_obj = AllocatePartialMap(ODDBALL_TYPE, Oddball::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_oddball_map(Map::cast(obj));
+    ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
+    ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
+    ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
+    ALLOCATE_PARTIAL_MAP(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel,
+                         constant_pool_array);
 
-  { MaybeObject* maybe_obj =
-        AllocatePartialMap(CONSTANT_POOL_ARRAY_TYPE, kVariableSizeSentinel);
-    if (!maybe_obj->ToObject(&obj)) return false;
+#undef ALLOCATE_PARTIAL_MAP
   }
-  set_constant_pool_array_map(Map::cast(obj));
 
   // Allocate the empty array.
   { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
@@ -2780,13 +2779,13 @@ bool Heap::CreateInitialMaps() {
   }
   set_empty_fixed_array(FixedArray::cast(obj));
 
-  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
+  { MaybeObject* maybe_obj = Allocate(null_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_null_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kNull);
 
-  { MaybeObject* maybe_obj = Allocate(oddball_map(), OLD_POINTER_SPACE);
+  { MaybeObject* maybe_obj = Allocate(undefined_map(), OLD_POINTER_SPACE);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_undefined_value(Oddball::cast(obj));
@@ -2817,10 +2816,15 @@ bool Heap::CreateInitialMaps() {
   fixed_array_map()->init_back_pointer(undefined_value());
   fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
 
-  oddball_map()->set_code_cache(empty_fixed_array());
-  oddball_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
-  oddball_map()->init_back_pointer(undefined_value());
-  oddball_map()->set_instance_descriptors(empty_descriptor_array());
+  undefined_map()->set_code_cache(empty_fixed_array());
+  undefined_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
+  undefined_map()->init_back_pointer(undefined_value());
+  undefined_map()->set_instance_descriptors(empty_descriptor_array());
+
+  null_map()->set_code_cache(empty_fixed_array());
+  null_map()->set_dependent_code(DependentCode::cast(empty_fixed_array()));
+  null_map()->init_back_pointer(undefined_value());
+  null_map()->set_instance_descriptors(empty_descriptor_array());
 
   constant_pool_array_map()->set_code_cache(empty_fixed_array());
   constant_pool_array_map()->set_dependent_code(
@@ -2835,8 +2839,11 @@ bool Heap::CreateInitialMaps() {
   fixed_array_map()->set_prototype(null_value());
   fixed_array_map()->set_constructor(null_value());
 
-  oddball_map()->set_prototype(null_value());
-  oddball_map()->set_constructor(null_value());
+  undefined_map()->set_prototype(null_value());
+  undefined_map()->set_constructor(null_value());
+
+  null_map()->set_prototype(null_value());
+  null_map()->set_constructor(null_value());
 
   constant_pool_array_map()->set_prototype(null_value());
   constant_pool_array_map()->set_constructor(null_value());
@@ -2858,6 +2865,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number)
     ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
+
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
 
     for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
@@ -3042,11 +3056,12 @@ MaybeObject* Heap::AllocateAllocationSite() {
 }
 
 
-MaybeObject* Heap::CreateOddball(const char* to_string,
+MaybeObject* Heap::CreateOddball(Map* map,
+                                 const char* to_string,
                                  Object* to_number,
                                  byte kind) {
   Object* result;
-  { MaybeObject* maybe_result = Allocate(oddball_map(), OLD_POINTER_SPACE);
+  { MaybeObject* maybe_result = Allocate(map, OLD_POINTER_SPACE);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   return Oddball::cast(result)->Initialize(this, to_string, to_number, kind);
@@ -3171,54 +3186,61 @@ bool Heap::CreateInitialObjects() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
 
-  { MaybeObject* maybe_obj = CreateOddball("true",
+  { MaybeObject* maybe_obj = CreateOddball(boolean_map(),
+                                           "true",
                                            Smi::FromInt(1),
                                            Oddball::kTrue);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_true_value(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("false",
+  { MaybeObject* maybe_obj = CreateOddball(boolean_map(),
+                                           "false",
                                            Smi::FromInt(0),
                                            Oddball::kFalse);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_false_value(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("hole",
+  { MaybeObject* maybe_obj = CreateOddball(the_hole_map(),
+                                           "hole",
                                            Smi::FromInt(-1),
                                            Oddball::kTheHole);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_the_hole_value(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("uninitialized",
+  { MaybeObject* maybe_obj = CreateOddball(uninitialized_map(),
+                                           "uninitialized",
                                            Smi::FromInt(-1),
                                            Oddball::kUninitialized);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_uninitialized_value(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("arguments_marker",
+  { MaybeObject* maybe_obj = CreateOddball(arguments_marker_map(),
+                                           "arguments_marker",
                                            Smi::FromInt(-4),
                                            Oddball::kArgumentMarker);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_arguments_marker(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("no_interceptor_result_sentinel",
+  { MaybeObject* maybe_obj = CreateOddball(no_interceptor_result_sentinel_map(),
+                                           "no_interceptor_result_sentinel",
                                            Smi::FromInt(-2),
                                            Oddball::kOther);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_no_interceptor_result_sentinel(obj);
+  set_no_interceptor_result_sentinel(Oddball::cast(obj));
 
-  { MaybeObject* maybe_obj = CreateOddball("termination_exception",
+  { MaybeObject* maybe_obj = CreateOddball(termination_exception_map(),
+                                           "termination_exception",
                                            Smi::FromInt(-3),
                                            Oddball::kOther);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  set_termination_exception(obj);
+  set_termination_exception(Oddball::cast(obj));
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
     { MaybeObject* maybe_obj =
@@ -4643,22 +4665,6 @@ MaybeObject* Heap::AllocateJSArrayStorage(
 
   array->set_elements(elms);
   array->set_length(Smi::FromInt(length));
-  return array;
-}
-
-
-MaybeObject* Heap::AllocateJSArrayWithElements(
-    FixedArrayBase* elements,
-    ElementsKind elements_kind,
-    int length,
-    PretenureFlag pretenure) {
-  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-
-  array->set_elements(elements);
-  array->set_length(Smi::FromInt(length));
-  array->ValidateElements();
   return array;
 }
 

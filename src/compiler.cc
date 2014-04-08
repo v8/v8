@@ -956,14 +956,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   }
 
   if (result.is_null()) {
-    // No cache entry found. Do pre-parsing, if it makes sense, and compile
-    // the script.
-    // Building preparse data that is only used immediately after is only a
-    // saving if we might skip building the AST for lazily compiled functions.
-    // I.e., preparse data isn't relevant when the lazy flag is off, and
-    // for small sources, odds are that there aren't many functions
-    // that would be compiled lazily anyway, so we skip the preparse step
-    // in that case too.
+    // No cache entry found. Compile the script.
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
