@@ -11989,6 +11989,20 @@ MaybeHandle<Object> JSObject::SetElementWithInterceptor(
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+Handle<Object> JSObject::GetElementWithCallback(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    Handle<Object> structure,
+    uint32_t index,
+    Handle<Object> holder) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->GetElementWithCallback(
+                        *receiver, *structure, index, *holder),
+                     Object);
+}
+
+
 MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
                                               Object* structure,
                                               uint32_t index,
@@ -12673,12 +12687,12 @@ MaybeHandle<Object> JSObject::SetElementWithoutInterceptor(
   Isolate* isolate = object->GetIsolate();
   if (FLAG_trace_external_array_abuse &&
       IsExternalArrayElementsKind(object->GetElementsKind())) {
-    CheckArrayAbuse(*object, "external elements write", index);
+    CheckArrayAbuse(object, "external elements write", index);
   }
   if (FLAG_trace_js_array_abuse &&
       !IsExternalArrayElementsKind(object->GetElementsKind())) {
     if (object->IsJSArray()) {
-      CheckArrayAbuse(*object, "elements write", index, true);
+      CheckArrayAbuse(object, "elements write", index, true);
     }
   }
   switch (object->GetElementsKind()) {

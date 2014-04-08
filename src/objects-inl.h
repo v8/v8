@@ -2175,6 +2175,11 @@ Object* FixedArray::get(int index) {
 }
 
 
+Handle<Object> FixedArray::get(Handle<FixedArray> array, int index) {
+  return handle(array->get(index), array->GetIsolate());
+}
+
+
 bool FixedArray::is_the_hole(int index) {
   return get(index) == GetHeap()->the_hole_value();
 }
@@ -2240,11 +2245,12 @@ MaybeObject* FixedDoubleArray::get(int index) {
 }
 
 
-Handle<Object> FixedDoubleArray::get_as_handle(int index) {
-  if (is_the_hole(index)) {
-    return GetIsolate()->factory()->the_hole_value();
+Handle<Object> FixedDoubleArray::get(Handle<FixedDoubleArray> array,
+                                     int index) {
+  if (array->is_the_hole(index)) {
+    return array->GetIsolate()->factory()->the_hole_value();
   } else {
-    return GetIsolate()->factory()->NewNumber(get_scalar(index));
+    return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
@@ -3612,8 +3618,15 @@ uint8_t ExternalUint8ClampedArray::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint8ClampedArray::get(int index) {
+Object* ExternalUint8ClampedArray::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint8ClampedArray::get(
+    Handle<ExternalUint8ClampedArray> array,
+    int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3643,8 +3656,14 @@ int8_t ExternalInt8Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalInt8Array::get(int index) {
+Object* ExternalInt8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalInt8Array::get(Handle<ExternalInt8Array> array,
+                                      int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3662,8 +3681,14 @@ uint8_t ExternalUint8Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint8Array::get(int index) {
+Object* ExternalUint8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint8Array::get(Handle<ExternalUint8Array> array,
+                                       int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3681,8 +3706,14 @@ int16_t ExternalInt16Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalInt16Array::get(int index) {
+Object* ExternalInt16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalInt16Array::get(Handle<ExternalInt16Array> array,
+                                       int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3700,8 +3731,14 @@ uint16_t ExternalUint16Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint16Array::get(int index) {
+Object* ExternalUint16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint16Array::get(Handle<ExternalUint16Array> array,
+                                        int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3720,7 +3757,14 @@ int32_t ExternalInt32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalInt32Array::get(int index) {
-    return GetHeap()->NumberFromInt32(get_scalar(index));
+  return GetHeap()->NumberFromInt32(get_scalar(index));
+}
+
+
+Handle<Object> ExternalInt32Array::get(Handle<ExternalInt32Array> array,
+                                       int index) {
+  return array->GetIsolate()->factory()->
+      NewNumberFromInt(array->get_scalar(index));
 }
 
 
@@ -3739,7 +3783,14 @@ uint32_t ExternalUint32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalUint32Array::get(int index) {
-    return GetHeap()->NumberFromUint32(get_scalar(index));
+  return GetHeap()->NumberFromUint32(get_scalar(index));
+}
+
+
+Handle<Object> ExternalUint32Array::get(Handle<ExternalUint32Array> array,
+                                        int index) {
+  return array->GetIsolate()->factory()->
+      NewNumberFromUint(array->get_scalar(index));
 }
 
 
@@ -3758,7 +3809,13 @@ float ExternalFloat32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalFloat32Array::get(int index) {
-    return GetHeap()->NumberFromDouble(get_scalar(index));
+  return GetHeap()->NumberFromDouble(get_scalar(index));
+}
+
+
+Handle<Object> ExternalFloat32Array::get(Handle<ExternalFloat32Array> array,
+                                         int index) {
+  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
 }
 
 
@@ -3778,6 +3835,12 @@ double ExternalFloat64Array::get_scalar(int index) {
 
 MaybeObject* ExternalFloat64Array::get(int index) {
     return GetHeap()->NumberFromDouble(get_scalar(index));
+}
+
+
+Handle<Object> ExternalFloat64Array::get(Handle<ExternalFloat64Array> array,
+                                         int index) {
+  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
 }
 
 
@@ -3927,6 +3990,13 @@ MaybeObject* FixedTypedArray<Traits>::get(int index) {
 }
 
 template <class Traits>
+Handle<Object> FixedTypedArray<Traits>::get(
+    Handle<FixedTypedArray<Traits> > array,
+    int index) {
+  return Traits::ToHandle(array->GetIsolate(), array->get_scalar(index));
+}
+
+template <class Traits>
 MaybeObject* FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   ElementType cast_value = Traits::defaultValue();
   if (index < static_cast<uint32_t>(length())) {
@@ -3962,8 +4032,19 @@ MaybeObject* Uint8ArrayTraits::ToObject(Heap*, uint8_t scalar) {
 }
 
 
+Handle<Object> Uint8ArrayTraits::ToHandle(Isolate* isolate, uint8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint8ClampedArrayTraits::ToObject(Heap*, uint8_t scalar) {
   return Smi::FromInt(scalar);
+}
+
+
+Handle<Object> Uint8ClampedArrayTraits::ToHandle(Isolate* isolate,
+                                                 uint8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
 }
 
 
@@ -3972,8 +4053,18 @@ MaybeObject* Int8ArrayTraits::ToObject(Heap*, int8_t scalar) {
 }
 
 
+Handle<Object> Int8ArrayTraits::ToHandle(Isolate* isolate, int8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint16ArrayTraits::ToObject(Heap*, uint16_t scalar) {
   return Smi::FromInt(scalar);
+}
+
+
+Handle<Object> Uint16ArrayTraits::ToHandle(Isolate* isolate, uint16_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
 }
 
 
@@ -3982,8 +4073,18 @@ MaybeObject* Int16ArrayTraits::ToObject(Heap*, int16_t scalar) {
 }
 
 
+Handle<Object> Int16ArrayTraits::ToHandle(Isolate* isolate, int16_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint32ArrayTraits::ToObject(Heap* heap, uint32_t scalar) {
   return heap->NumberFromUint32(scalar);
+}
+
+
+Handle<Object> Uint32ArrayTraits::ToHandle(Isolate* isolate, uint32_t scalar) {
+  return isolate->factory()->NewNumberFromUint(scalar);
 }
 
 
@@ -3992,13 +4093,28 @@ MaybeObject* Int32ArrayTraits::ToObject(Heap* heap, int32_t scalar) {
 }
 
 
+Handle<Object> Int32ArrayTraits::ToHandle(Isolate* isolate, int32_t scalar) {
+  return isolate->factory()->NewNumberFromInt(scalar);
+}
+
+
 MaybeObject* Float32ArrayTraits::ToObject(Heap* heap, float scalar) {
   return heap->NumberFromDouble(scalar);
 }
 
 
+Handle<Object> Float32ArrayTraits::ToHandle(Isolate* isolate, float scalar) {
+  return isolate->factory()->NewNumber(scalar);
+}
+
+
 MaybeObject* Float64ArrayTraits::ToObject(Heap* heap, double scalar) {
   return heap->NumberFromDouble(scalar);
+}
+
+
+Handle<Object> Float64ArrayTraits::ToHandle(Isolate* isolate, double scalar) {
+  return isolate->factory()->NewNumber(scalar);
 }
 
 

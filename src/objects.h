@@ -2797,6 +2797,13 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       PropertyAttributes* attributes);
 
+  MUST_USE_RESULT static Handle<Object> GetElementWithCallback(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      Handle<Object> structure,
+      uint32_t index,
+      Handle<Object> holder);
+
   MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
                                                       Object* structure,
                                                       uint32_t index,
@@ -3043,6 +3050,7 @@ class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index);
+  static inline Handle<Object> get(Handle<FixedArray> array, int index);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
   inline bool is_the_hole(int index);
@@ -3159,8 +3167,7 @@ class FixedDoubleArray: public FixedArrayBase {
   inline double get_scalar(int index);
   inline int64_t get_representation(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
-  // TODO(ishell): Rename as get() once all usages handlified.
-  inline Handle<Object> get_as_handle(int index);
+  static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -4908,7 +4915,9 @@ class ExternalUint8ClampedArray: public ExternalArray {
 
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline Object* get(int index);
+  static inline Handle<Object> get(Handle<ExternalUint8ClampedArray> array,
+                                   int index);
   inline void set(int index, uint8_t value);
 
   // This accessor applies the correct conversion from Smi, HeapNumber and
@@ -4935,7 +4944,8 @@ class ExternalInt8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int8_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline Object* get(int index);
+  static inline Handle<Object> get(Handle<ExternalInt8Array> array, int index);
   inline void set(int index, int8_t value);
 
   static Handle<Object> SetValue(Handle<ExternalInt8Array> array,
@@ -4962,7 +4972,8 @@ class ExternalUint8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline Object* get(int index);
+  static inline Handle<Object> get(Handle<ExternalUint8Array> array, int index);
   inline void set(int index, uint8_t value);
 
   static Handle<Object> SetValue(Handle<ExternalUint8Array> array,
@@ -4989,7 +5000,8 @@ class ExternalInt16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int16_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline Object* get(int index);
+  static inline Handle<Object> get(Handle<ExternalInt16Array> array, int index);
   inline void set(int index, int16_t value);
 
   static Handle<Object> SetValue(Handle<ExternalInt16Array> array,
@@ -5016,7 +5028,9 @@ class ExternalUint16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint16_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
+  MUST_USE_RESULT inline Object* get(int index);
+  static inline Handle<Object> get(Handle<ExternalUint16Array> array,
+                                   int index);
   inline void set(int index, uint16_t value);
 
   static Handle<Object> SetValue(Handle<ExternalUint16Array> array,
@@ -5044,6 +5058,7 @@ class ExternalInt32Array: public ExternalArray {
   // Setter and getter.
   inline int32_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
+  static inline Handle<Object> get(Handle<ExternalInt32Array> array, int index);
   inline void set(int index, int32_t value);
 
   static Handle<Object> SetValue(Handle<ExternalInt32Array> array,
@@ -5071,6 +5086,8 @@ class ExternalUint32Array: public ExternalArray {
   // Setter and getter.
   inline uint32_t get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
+  static inline Handle<Object> get(Handle<ExternalUint32Array> array,
+                                   int index);
   inline void set(int index, uint32_t value);
 
   static Handle<Object> SetValue(Handle<ExternalUint32Array> array,
@@ -5098,6 +5115,8 @@ class ExternalFloat32Array: public ExternalArray {
   // Setter and getter.
   inline float get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
+  static inline Handle<Object> get(Handle<ExternalFloat32Array> array,
+                                   int index);
   inline void set(int index, float value);
 
   static Handle<Object> SetValue(Handle<ExternalFloat32Array> array,
@@ -5125,6 +5144,8 @@ class ExternalFloat64Array: public ExternalArray {
   // Setter and getter.
   inline double get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
+  static inline Handle<Object> get(Handle<ExternalFloat64Array> array,
+                                   int index);
   inline void set(int index, double value);
 
   static Handle<Object> SetValue(Handle<ExternalFloat64Array> array,
@@ -5185,6 +5206,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
   inline ElementType get_scalar(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
+  static inline Handle<Object> get(Handle<FixedTypedArray> array, int index);
   inline void set(int index, ElementType value);
 
   static inline ElementType from_int(int value);
@@ -5212,6 +5234,8 @@ class FixedTypedArray: public FixedTypedArrayBase {
       static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
       static const char* Designator() { return #type " array"; }              \
       static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
+      static inline Handle<Object> ToHandle(Isolate* isolate,                 \
+                                            elementType scalar);              \
       static inline elementType defaultValue();                               \
   };                                                                          \
                                                                               \

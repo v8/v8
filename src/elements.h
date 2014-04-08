@@ -253,12 +253,6 @@ class ElementsAccessor {
 
   // TODO(ishell): Non-handlified versions, used only by accessors'
   // implementations. To be removed once elements.cc is handlified.
-  MUST_USE_RESULT virtual MaybeObject* Get(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store) = 0;
-
   MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
       Object* receiver,
       JSObject* holder,
@@ -278,7 +272,7 @@ class ElementsAccessor {
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
 
-void CheckArrayAbuse(JSObject* obj, const char* op, uint32_t key,
+void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t key,
                      bool allow_appending = false);
 
 Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
