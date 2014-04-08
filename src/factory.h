@@ -59,13 +59,9 @@ class Factory V8_FINAL {
 
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,
                                              int slack = 0);
-
-  // Create a DeoptimizationInputData.
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
-
-  // Create a DeoptimizationOutputData.
   Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
@@ -215,7 +211,6 @@ class Factory V8_FINAL {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
-  // Create an AliasedArgumentsEntry.
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 
@@ -324,6 +319,9 @@ class Factory V8_FINAL {
       PretenureFlag pretenure = NOT_TENURED,
       bool allocate_properties = true,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+
+  Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
+      Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
 
   // JS modules are pretenured.
   Handle<JSModule> NewJSModule(Handle<Context> context,

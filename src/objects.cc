@@ -8229,6 +8229,24 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 }
 
 
+MaybeObject* DeoptimizationInputData::Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
+                                               PretenureFlag pretenure) {
+  ASSERT(deopt_entry_count > 0);
+  return isolate->heap()->AllocateFixedArray(LengthFor(deopt_entry_count),
+                                             pretenure);
+}
+
+
+MaybeObject* DeoptimizationOutputData::Allocate(Isolate* isolate,
+                                                int number_of_deopt_points,
+                                                PretenureFlag pretenure) {
+  if (number_of_deopt_points == 0) return isolate->heap()->empty_fixed_array();
+  return isolate->heap()->AllocateFixedArray(
+      LengthOfFixedArray(number_of_deopt_points), pretenure);
+}
+
+
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   if (IsEmpty()) return other->IsEmpty();

@@ -2685,6 +2685,21 @@ MaybeObject* Heap::AllocateCodeCache() {
 }
 
 
+MaybeObject* Heap::AllocatePolymorphicCodeCache() {
+  return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
+}
+
+
+MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
+  AliasedArgumentsEntry* entry;
+  { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
+    if (!maybe_entry->To(&entry)) return maybe_entry;
+  }
+  entry->set_aliased_context_slot(aliased_context_slot);
+  return entry;
+}
+
+
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -3230,7 +3245,7 @@ bool Heap::CreateInitialObjects() {
   }
   set_non_monomorphic_cache(UnseededNumberDictionary::cast(obj));
 
-  { MaybeObject* maybe_obj = AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
+  { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_polymorphic_code_cache(PolymorphicCodeCache::cast(obj));

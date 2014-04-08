@@ -789,6 +789,12 @@ class Heap {
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
+  // Allocates an empty PolymorphicCodeCache.
+  MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
+
+  // Allocates an AliasedArgumentsEntry.
+  MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
+
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 

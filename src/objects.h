@@ -5278,9 +5278,10 @@ class DeoptimizationInputData: public FixedArray {
     return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
   }
 
-  static int LengthFor(int entry_count) {
-    return IndexForEntry(entry_count);
-  }
+  // Allocates a DeoptimizationInputData.
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int deopt_entry_count,
+                                               PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
@@ -5292,6 +5293,10 @@ class DeoptimizationInputData: public FixedArray {
  private:
   static int IndexForEntry(int i) {
     return kFirstDeoptEntryIndex + (i * kDeoptEntrySize);
+  }
+
+  static int LengthFor(int entry_count) {
+    return IndexForEntry(entry_count);
   }
 };
 
@@ -5319,6 +5324,11 @@ class DeoptimizationOutputData: public FixedArray {
   static int LengthOfFixedArray(int deopt_points) {
     return deopt_points * 2;
   }
+
+  // Allocates a DeoptimizationOutputData.
+  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
+                                               int number_of_deopt_points,
+                                               PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
