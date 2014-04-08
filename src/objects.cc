@@ -3799,7 +3799,7 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw<Object>(error);
+    isolate->Throw(*error);
     return NONE;
   }
 
