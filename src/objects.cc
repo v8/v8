@@ -13742,8 +13742,8 @@ class StringKey : public HashTableKey {
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:
-  StringSharedKey(String* source,
-                  SharedFunctionInfo* shared,
+  StringSharedKey(Handle<String> source,
+                  Handle<SharedFunctionInfo> shared,
                   StrictMode strict_mode,
                   int scope_position)
       : source_(source),
@@ -13752,10 +13752,11 @@ class StringSharedKey : public HashTableKey {
         scope_position_(scope_position) { }
 
   bool IsMatch(Object* other) {
+    DisallowHeapAllocation no_allocation;
     if (!other->IsFixedArray()) return false;
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
-    if (shared != shared_) return false;
+    if (shared != *shared_) return false;
     int strict_unchecked = Smi::cast(other_array->get(2))->value();
     ASSERT(strict_unchecked == SLOPPY || strict_unchecked == STRICT);
     StrictMode strict_mode = static_cast<StrictMode>(strict_unchecked);
@@ -13763,7 +13764,7 @@ class StringSharedKey : public HashTableKey {
     int scope_position = Smi::cast(other_array->get(3))->value();
     if (scope_position != scope_position_) return false;
     String* source = String::cast(other_array->get(1));
-    return source->Equals(source_);
+    return source->Equals(*source_);
   }
 
   static uint32_t StringSharedHashHelper(String* source,
@@ -13777,7 +13778,7 @@ class StringSharedKey : public HashTableKey {
       // script source code and the start position of the calling scope.
       // We do this to ensure that the cache entries can survive garbage
       // collection.
-      Script* script = Script::cast(shared->script());
+      Script* script(Script::cast(shared->script()));
       hash ^= String::cast(script->source())->Hash();
       if (strict_mode == STRICT) hash ^= 0x8000;
       hash += scope_position;
@@ -13786,11 +13787,12 @@ class StringSharedKey : public HashTableKey {
   }
 
   uint32_t Hash() {
-    return StringSharedHashHelper(
-        source_, shared_, strict_mode_, scope_position_);
+    return StringSharedHashHelper(*source_, *shared_, strict_mode_,
+                                  scope_position_);
   }
 
   uint32_t HashForObject(Object* obj) {
+    DisallowHeapAllocation no_allocation;
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
@@ -13802,22 +13804,25 @@ class StringSharedKey : public HashTableKey {
         source, shared, strict_mode, scope_position);
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
-    Object* obj;
-    { MaybeObject* maybe_obj = heap->AllocateFixedArray(4);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    FixedArray* other_array = FixedArray::cast(obj);
-    other_array->set(0, shared_);
-    other_array->set(1, source_);
-    other_array->set(2, Smi::FromInt(strict_mode_));
-    other_array->set(3, Smi::FromInt(scope_position_));
-    return other_array;
+
+  Object* AsObject(Heap* heap) {
+    UNREACHABLE();
+    return NULL;
+  }
+
+
+  Handle<Object> AsObject(Factory* factory) {
+    Handle<FixedArray> array = factory->NewFixedArray(4);
+    array->set(0, *shared_);
+    array->set(1, *source_);
+    array->set(2, Smi::FromInt(strict_mode_));
+    array->set(3, Smi::FromInt(scope_position_));
+    return array;
   }
 
  private:
-  String* source_;
-  SharedFunctionInfo* shared_;
+  Handle<String> source_;
+  Handle<SharedFunctionInfo> shared_;
   StrictMode strict_mode_;
   int scope_position_;
 };
@@ -15014,116 +15019,101 @@ MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-Object* CompilationCacheTable::Lookup(String* src, Context* context) {
-  SharedFunctionInfo* shared = context->closure()->shared();
-  StringSharedKey key(src,
-                      shared,
-                      FLAG_use_strict ? STRICT : SLOPPY,
+Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
+                                             Handle<Context> context) {
+  Isolate* isolate = GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-Object* CompilationCacheTable::LookupEval(String* src,
-                                          Context* context,
-                                          StrictMode strict_mode,
-                                          int scope_position) {
-  StringSharedKey key(src,
-                      context->closure()->shared(),
-                      strict_mode,
-                      scope_position);
+Handle<Object> CompilationCacheTable::LookupEval(Handle<String> src,
+                                                 Handle<Context> context,
+                                                 StrictMode strict_mode,
+                                                 int scope_position) {
+  Isolate* isolate = GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, strict_mode, scope_position);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-Object* CompilationCacheTable::LookupRegExp(String* src,
-                                            JSRegExp::Flags flags) {
-  RegExpKey key(src, flags);
+Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
+                                                   JSRegExp::Flags flags) {
+  Isolate* isolate = GetIsolate();
+  DisallowHeapAllocation no_allocation;
+  RegExpKey key(*src, flags);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-MaybeObject* CompilationCacheTable::Put(String* src,
-                                        Context* context,
-                                        Object* value) {
-  SharedFunctionInfo* shared = context->closure()->shared();
-  StringSharedKey key(src,
-                      shared,
-                      FLAG_use_strict ? STRICT : SLOPPY,
+Handle<CompilationCacheTable> CompilationCacheTable::Put(
+    Handle<CompilationCacheTable> cache, Handle<String> src,
+    Handle<Context> context, Handle<Object> value) {
+  Isolate* isolate = cache->GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
-  CompilationCacheTable* cache;
-  MaybeObject* maybe_cache = EnsureCapacity(1, &key);
-  if (!maybe_cache->To(&cache)) return maybe_cache;
-
-  Object* k;
-  MaybeObject* maybe_k = key.AsObject(GetHeap());
-  if (!maybe_k->To(&k)) return maybe_k;
-
+  cache = EnsureCapacityFor(cache, 1, &key);
+  Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
-  cache->set(EntryToIndex(entry), k);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *k);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
 }
 
 
-MaybeObject* CompilationCacheTable::PutEval(String* src,
-                                            Context* context,
-                                            SharedFunctionInfo* value,
-                                            int scope_position) {
-  StringSharedKey key(src,
-                      context->closure()->shared(),
-                      value->strict_mode(),
-                      scope_position);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
+Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
+    Handle<CompilationCacheTable> cache, Handle<String> src,
+    Handle<Context> context, Handle<SharedFunctionInfo> value,
+    int scope_position) {
+  Isolate* isolate = cache->GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, value->strict_mode(), scope_position);
+  cache = EnsureCapacityFor(cache, 1, &key);
+  Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
-
-  Object* k;
-  { MaybeObject* maybe_k = key.AsObject(GetHeap());
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
-
-  cache->set(EntryToIndex(entry), k);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *k);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
 }
 
 
-MaybeObject* CompilationCacheTable::PutRegExp(String* src,
-                                              JSRegExp::Flags flags,
-                                              FixedArray* value) {
-  RegExpKey key(src, flags);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
+Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      JSRegExp::Flags flags, Handle<FixedArray> value) {
+  RegExpKey key(*src, flags);
+  cache = EnsureCapacityFor(cache, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
-  cache->set(EntryToIndex(entry), value);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *value);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
+}
+
+
+Handle<CompilationCacheTable> CompilationCacheTable::EnsureCapacityFor(
+      Handle<CompilationCacheTable> cache, int n, HashTableKey* key) {
+  CALL_HEAP_FUNCTION(cache->GetIsolate(),
+                     cache->EnsureCapacity(n, key),
+                     CompilationCacheTable);
 }
 
 
 void CompilationCacheTable::Remove(Object* value) {
+  DisallowHeapAllocation no_allocation;
   Object* the_hole_value = GetHeap()->the_hole_value();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);

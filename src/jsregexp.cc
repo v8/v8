@@ -175,8 +175,10 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   Zone zone(isolate);
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
-  bool in_cache = !cached.is_null();
+  MaybeHandle<FixedArray> maybe_cached =
+      compilation_cache->LookupRegExp(pattern, flags);
+  Handle<FixedArray> cached;
+  bool in_cache = maybe_cached.ToHandle(&cached);
   LOG(isolate, RegExpCompileEvent(re, in_cache));
 
   Handle<Object> result;

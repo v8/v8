@@ -106,17 +106,6 @@ class CompilationCacheScript : public CompilationSubCache {
            Handle<SharedFunctionInfo> function_info);
 
  private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info);
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info);
-
   bool HasOrigin(Handle<SharedFunctionInfo> function_info,
                  Handle<Object> name,
                  int line_offset,
@@ -147,10 +136,10 @@ class CompilationCacheEval: public CompilationSubCache {
   CompilationCacheEval(Isolate* isolate, int generations)
       : CompilationSubCache(isolate, generations) { }
 
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Context> context,
-                                    StrictMode strict_mode,
-                                    int scope_position);
+  MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                         Handle<Context> context,
+                                         StrictMode strict_mode,
+                                         int scope_position);
 
   void Put(Handle<String> source,
            Handle<Context> context,
@@ -158,19 +147,6 @@ class CompilationCacheEval: public CompilationSubCache {
            int scope_position);
 
  private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info,
-      int scope_position);
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info,
-      int scope_position);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
 };
 
@@ -181,21 +157,12 @@ class CompilationCacheRegExp: public CompilationSubCache {
   CompilationCacheRegExp(Isolate* isolate, int generations)
       : CompilationSubCache(isolate, generations) { }
 
-  Handle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
+  MaybeHandle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
 
   void Put(Handle<String> source,
            JSRegExp::Flags flags,
            Handle<FixedArray> data);
  private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(Handle<String> source,
-                                      JSRegExp::Flags flags,
-                                      Handle<FixedArray> data);
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(Handle<String> source,
-                                         JSRegExp::Flags flags,
-                                         Handle<FixedArray> data);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
 };
 
@@ -209,25 +176,21 @@ class CompilationCache {
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  Handle<SharedFunctionInfo> LookupScript(Handle<String> source,
-                                          Handle<Object> name,
-                                          int line_offset,
-                                          int column_offset,
-                                          bool is_shared_cross_origin,
-                                          Handle<Context> context);
+  MaybeHandle<SharedFunctionInfo> LookupScript(
+      Handle<String> source, Handle<Object> name, int line_offset,
+      int column_offset, bool is_shared_cross_origin, Handle<Context> context);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  Handle<SharedFunctionInfo> LookupEval(Handle<String> source,
-                                        Handle<Context> context,
-                                        StrictMode strict_mode,
-                                        int scope_position);
+  MaybeHandle<SharedFunctionInfo> LookupEval(
+      Handle<String> source, Handle<Context> context, StrictMode strict_mode,
+      int scope_position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
-  Handle<FixedArray> LookupRegExp(Handle<String> source,
-                                  JSRegExp::Flags flags);
+  MaybeHandle<FixedArray> LookupRegExp(
+      Handle<String> source, JSRegExp::Flags flags);
 
   // Associate the (source, kind) pair to the shared function
   // info. This may overwrite an existing mapping.

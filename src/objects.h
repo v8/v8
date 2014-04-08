@@ -8200,24 +8200,22 @@ class CompilationCacheTable: public HashTable<CompilationCacheShape,
                                               HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
-  Object* Lookup(String* src, Context* context);
-  Object* LookupEval(String* src,
-                     Context* context,
-                     StrictMode strict_mode,
-                     int scope_position);
-  Object* LookupRegExp(String* source, JSRegExp::Flags flags);
-  MUST_USE_RESULT MaybeObject* Put(String* src,
-                                   Context* context,
-                                   Object* value);
-  MUST_USE_RESULT MaybeObject* PutEval(String* src,
-                                       Context* context,
-                                       SharedFunctionInfo* value,
-                                       int scope_position);
-  MUST_USE_RESULT MaybeObject* PutRegExp(String* src,
-                                         JSRegExp::Flags flags,
-                                         FixedArray* value);
-
-  // Remove given value from cache.
+  Handle<Object> Lookup(Handle<String> src, Handle<Context> context);
+  Handle<Object> LookupEval(Handle<String> src, Handle<Context> context,
+                     StrictMode strict_mode, int scope_position);
+  Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
+  static Handle<CompilationCacheTable> Put(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Handle<Context> context, Handle<Object> value);
+  static Handle<CompilationCacheTable> PutEval(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Handle<Context> context, Handle<SharedFunctionInfo> value,
+      int scope_position);
+  static Handle<CompilationCacheTable> PutRegExp(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      JSRegExp::Flags flags, Handle<FixedArray> value);
+  static Handle<CompilationCacheTable> EnsureCapacityFor(
+      Handle<CompilationCacheTable> cache, int n, HashTableKey* key);
   void Remove(Object* value);
 
   static inline CompilationCacheTable* cast(Object* obj);
