@@ -1807,6 +1807,7 @@ class HeapObject: public Object {
 
   // Set the map using release store
   inline void synchronized_set_map(Map* value);
+  inline void synchronized_set_map_no_write_barrier(Map* value);
   inline void synchronized_set_map_word(MapWord map_word);
 
   // During garbage collection, the map word of a heap object does not
@@ -4829,6 +4830,9 @@ class FreeSpace: public HeapObject {
   // [size]: size of the free space including the header.
   inline int size();
   inline void set_size(int value);
+
+  inline int nobarrier_size();
+  inline void nobarrier_set_size(int value);
 
   inline int Size() { return size(); }
 

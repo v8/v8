@@ -134,6 +134,14 @@ PropertyDetails PropertyDetails::AsDeleted() const {
     RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
   }
 
+#define NOBARRIER_SMI_ACCESSORS(holder, name, offset)          \
+  int holder::nobarrier_##name() {                             \
+    Object* value = NOBARRIER_READ_FIELD(this, offset);        \
+    return Smi::cast(value)->value();                          \
+  }                                                            \
+  void holder::nobarrier_set_##name(int value) {               \
+    NOBARRIER_WRITE_FIELD(this, offset, Smi::FromInt(value));  \
+  }
 
 #define BOOL_GETTER(holder, field, name, offset)           \
   bool holder::name() {                                    \
@@ -1108,7 +1116,7 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
   reinterpret_cast<Object*>(                                             \
       Acquire_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
 
-#define NO_BARRIER_READ_FIELD(p, offset)                                    \
+#define NOBARRIER_READ_FIELD(p, offset)                                     \
   reinterpret_cast<Object*>(                                                \
       NoBarrier_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
 
@@ -1119,7 +1127,7 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
   Release_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),   \
                 reinterpret_cast<AtomicWord>(value));
 
-#define NO_BARRIER_WRITE_FIELD(p, offset, value)                           \
+#define NOBARRIER_WRITE_FIELD(p, offset, value)                            \
   NoBarrier_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),    \
                   reinterpret_cast<AtomicWord>(value));
 
@@ -1388,6 +1396,11 @@ void HeapObject::synchronized_set_map(Map* value) {
 }
 
 
+void HeapObject::synchronized_set_map_no_write_barrier(Map* value) {
+  synchronized_set_map_word(MapWord::FromMap(value));
+}
+
+
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
@@ -1396,12 +1409,12 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
 
 MapWord HeapObject::map_word() {
   return MapWord(
-      reinterpret_cast<uintptr_t>(NO_BARRIER_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<uintptr_t>(NOBARRIER_READ_FIELD(this, kMapOffset)));
 }
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  NO_BARRIER_WRITE_FIELD(
+  NOBARRIER_WRITE_FIELD(
       this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
 }
 
@@ -3024,6 +3037,7 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
+NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
@@ -4169,7 +4183,7 @@ int HeapObject::SizeFromMap(Map* map) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return reinterpret_cast<FreeSpace*>(this)->size();
+    return reinterpret_cast<FreeSpace*>(this)->nobarrier_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {

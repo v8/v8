@@ -388,7 +388,9 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
         // When we are not in GC the Heap::InNewSpace() predicate
         // checks that pointers which satisfy predicate point into
         // the active semispace.
-        heap_->InNewSpace(*slot);
+        Object* object = reinterpret_cast<Object*>(
+            NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+        heap_->InNewSpace(object);
         slot_address += kPointerSize;
       }
     }
@@ -427,14 +429,18 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
        slot_address < end;
        slot_address += kPointerSize) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
-    if (heap_->InNewSpace(*slot)) {
-      HeapObject* object = reinterpret_cast<HeapObject*>(*slot);
-      ASSERT(object->IsHeapObject());
+    Object* object = reinterpret_cast<Object*>(
+        NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+    if (heap_->InNewSpace(object)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
+      ASSERT(heap_object->IsHeapObject());
       // The new space object was not promoted if it still contains a map
       // pointer. Clear the map field now lazily.
-      if (clear_maps) ClearDeadObject(object);
-      slot_callback(reinterpret_cast<HeapObject**>(slot), object);
-      if (heap_->InNewSpace(*slot)) {
+      if (clear_maps) ClearDeadObject(heap_object);
+      slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
+      object = reinterpret_cast<Object*>(
+          NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+      if (heap_->InNewSpace(object)) {
         EnterDirectlyIntoStoreBuffer(slot_address);
       }
     }
@@ -531,7 +537,11 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
   Object* constant_pool_array_map = heap_->constant_pool_array_map();
 
   while (visitable_end < end_of_page) {
-    Object* o = *reinterpret_cast<Object**>(visitable_end);
+    // The sweeper thread concurrently may write free space maps and size to
+    // this page. We need acquire load here to make sure that we get a
+    // consistent view of maps and their sizes.
+    Object* o = reinterpret_cast<Object*>(
+        Acquire_Load(reinterpret_cast<AtomicWord*>(visitable_end)));
     // Skip fillers or constant pool arrays (which never contain new-space
     // pointers but can contain pointers which can be confused for fillers)
     // but not things that look like fillers in the special garbage section
@@ -595,14 +605,17 @@ void StoreBuffer::IteratePointersInStoreBuffer(
       Address* saved_top = old_top_;
 #endif
       Object** slot = reinterpret_cast<Object**>(*current);
-      Object* object = *slot;
+      Object* object = reinterpret_cast<Object*>(
+          NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
       if (heap_->InFromSpace(object)) {
         HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
         // The new space object was not promoted if it still contains a map
         // pointer. Clear the map field now lazily.
         if (clear_maps) ClearDeadObject(heap_object);
         slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-        if (heap_->InNewSpace(*slot)) {
+        object = reinterpret_cast<Object*>(
+            NoBarrier_Load(reinterpret_cast<AtomicWord*>(slot)));
+        if (heap_->InNewSpace(object)) {
           EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(slot));
         }
       }

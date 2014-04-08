@@ -2017,10 +2017,13 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
   if (size_in_bytes > FreeSpace::kHeaderSize) {
-    set_map_no_write_barrier(heap->raw_unchecked_free_space_map());
     // Can't use FreeSpace::cast because it fails during deserialization.
+    // We have to set the size first with a release store before we store
+    // the map because a concurrent store buffer scan on scavenge must not
+    // observe a map with an invalid size.
     FreeSpace* this_as_free_space = reinterpret_cast<FreeSpace*>(this);
-    this_as_free_space->set_size(size_in_bytes);
+    this_as_free_space->nobarrier_set_size(size_in_bytes);
+    synchronized_set_map_no_write_barrier(heap->raw_unchecked_free_space_map());
   } else if (size_in_bytes == kPointerSize) {
     set_map_no_write_barrier(heap->raw_unchecked_one_pointer_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
@@ -2064,11 +2067,11 @@ void FreeListNode::set_next(FreeListNode* next) {
   // stage.
   if (map() == GetHeap()->raw_unchecked_free_space_map()) {
     ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
-    Memory::Address_at(address() + kNextOffset) =
-        reinterpret_cast<Address>(next);
+    NoBarrier_Store(reinterpret_cast<AtomicWord*>(address() + kNextOffset),
+                    reinterpret_cast<AtomicWord>(next));
   } else {
-    Memory::Address_at(address() + kPointerSize) =
-        reinterpret_cast<Address>(next);
+    NoBarrier_Store(reinterpret_cast<AtomicWord*>(address() + kPointerSize),
+                    reinterpret_cast<AtomicWord>(next));
   }
 }
 
