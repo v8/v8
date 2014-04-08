@@ -473,7 +473,7 @@ gtags.files: $(GYPFILES) $(ENVFILE)
 
 # We need to manually set the stack limit here, to work around bugs in
 # gmake-3.81 and global-5.7.1 on recent 64-bit Linux systems.
-GPATH GRTAGS GSYMS GTAGS: gtags.files
+GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
 	@bash -c 'ulimit -s 10240 && GTAGSFORCECPP=yes gtags -i -q -f $<'
 
 gtags.clean:
