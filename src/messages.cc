@@ -107,7 +107,7 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   // We pass the exception object into the message handler callback though.
   Object* exception_object = isolate->heap()->undefined_value();
   if (isolate->has_pending_exception()) {
-    isolate->pending_exception()->ToObject(&exception_object);
+    exception_object = isolate->pending_exception();
   }
   Handle<Object> exception_handle(exception_object, isolate);
 

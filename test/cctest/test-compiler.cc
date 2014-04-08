@@ -220,7 +220,7 @@ TEST(UncaughtThrow) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, isolate->pending_exception()->ToObjectChecked()->Number());
+  CHECK_EQ(42.0, isolate->pending_exception()->Number());
 }
 
 

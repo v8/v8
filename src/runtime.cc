@@ -10802,7 +10802,7 @@ static MaybeObject* DebugLookupResultValue(Heap* heap,
             handle(name, isolate));
         Handle<Object> value;
         if (maybe_value.ToHandle(&value)) return *value;
-        MaybeObject* exception = heap->isolate()->pending_exception();
+        Object* exception = heap->isolate()->pending_exception();
         heap->isolate()->clear_pending_exception();
         if (caught_exception != NULL) *caught_exception = true;
         return exception;

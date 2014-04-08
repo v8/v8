@@ -1339,10 +1339,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   if (function == NULL) {
     // Extract exception from the parser.
     CHECK(isolate->has_pending_exception());
-    i::MaybeObject* maybe_object = isolate->pending_exception();
-    i::JSObject* exception = NULL;
-    CHECK(maybe_object->To(&exception));
-    i::Handle<i::JSObject> exception_handle(exception);
+    i::Handle<i::JSObject> exception_handle(
+        i::JSObject::cast(isolate->pending_exception()));
     i::Handle<i::String> message_string =
         i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
 
