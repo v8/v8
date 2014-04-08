@@ -287,13 +287,6 @@ class DeferredHandleScope {
 // an object of expected type, or the handle is an error if running out
 // of space or encountering an internal error.
 
-// Flattens a string.
-void FlattenString(Handle<String> str);
-
-// Flattens a string and returns the underlying external or sequential
-// string.
-Handle<String> FlattenGetString(Handle<String> str);
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
 // Get the JS object corresponding to the given script; create it

@@ -305,7 +305,7 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
     return stringifier.Stringify(object);
   }
 
-  FlattenString(object);
+  object = String::Flatten(object);
   ASSERT(object->IsFlat());
   if (object->IsOneByteRepresentationUnderneath()) {
     Handle<String> result = isolate->factory()->NewRawOneByteString(
@@ -873,7 +873,7 @@ Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
 
 
 void BasicJsonStringifier::SerializeString(Handle<String> object) {
-  object = FlattenGetString(object);
+  object = String::Flatten(object);
   if (is_ascii_) {
     if (object->IsOneByteRepresentationUnderneath()) {
       SerializeString_<true, uint8_t>(object);

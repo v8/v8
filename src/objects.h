@@ -9005,6 +9005,13 @@ class String: public Name {
   // string.
   inline String* TryFlattenGetString(PretenureFlag pretenure = NOT_TENURED);
 
+  static inline Handle<String> Flatten(Handle<String> string,
+                                       PretenureFlag pretenure = NOT_TENURED);
+
+  static Handle<String> SlowFlatten(Handle<ConsString> cons,
+                                    PretenureFlag tenure);
+
+
   // Tries to return the content of a flat string as a structure holding either
   // a flat vector of char or of uc16.
   // If the string isn't flat, and therefore doesn't have flat content, the

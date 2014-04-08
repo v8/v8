@@ -1182,6 +1182,34 @@ static bool AnWord(String* str) {
 }
 
 
+Handle<String> String::SlowFlatten(Handle<ConsString> cons,
+                                   PretenureFlag pretenure) {
+  ASSERT(AllowHeapAllocation::IsAllowed());
+  ASSERT(cons->second()->length() != 0);
+  Isolate* isolate = cons->GetIsolate();
+  int length = cons->length();
+  PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
+                                                            : TENURED;
+  Handle<SeqString> result;
+  if (cons->IsOneByteRepresentation()) {
+    Handle<SeqOneByteString> flat = isolate->factory()->NewRawOneByteString(
+        length, tenure).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    result = flat;
+  } else {
+    Handle<SeqTwoByteString> flat = isolate->factory()->NewRawTwoByteString(
+        length, tenure).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    result = flat;
+  }
+  cons->set_first(*result);
+  cons->set_second(isolate->heap()->empty_string());
+  return result;
+}
+
+
 MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
@@ -6388,7 +6416,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) String::cast(*name)->TryFlatten();
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
   if (!JSObject::CanSetCallback(object, name)) return;
 
@@ -6576,7 +6604,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) FlattenString(Handle<String>::cast(name));
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
   if (!JSObject::CanSetCallback(object, name)) {
     return factory->undefined_value();

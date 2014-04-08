@@ -2312,8 +2312,8 @@ Local<Value> JSON::Parse(Local<String> json_string) {
   EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::String> source = i::Handle<i::String>(
-      FlattenGetString(Utils::OpenHandle(*json_string)));
+  i::Handle<i::String> source =
+      i::String::Flatten(Utils::OpenHandle(*json_string));
   EXCEPTION_PREAMBLE(isolate);
   i::MaybeHandle<i::Object> maybe_result =
       source->IsSeqOneByteString() ? i::JsonParser<true>::Parse(source)
@@ -4676,7 +4676,7 @@ int String::WriteUtf8(char* buffer,
   ENTER_V8(isolate);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
+    str = i::String::Flatten(str);  // Flatten the string for efficiency.
   }
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
@@ -4711,7 +4711,7 @@ int String::WriteUtf8(char* buffer,
     }
   }
   // Recursive slow path can potentially be unreasonable slow. Flatten.
-  str = FlattenGetString(str);
+  str = i::String::Flatten(str);
   Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
   i::String::VisitFlat(&writer, *str);
   return writer.CompleteWrite(write_null, nchars_ref);
@@ -4733,7 +4733,7 @@ static inline int WriteHelper(const String* string,
   if (options & String::HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringCharacterStream or Get(i) to access the characters.
-    FlattenString(str);
+    str = i::String::Flatten(str);
   }
   int end = start + length;
   if ((length == -1) || (length > str->length() - start) )

@@ -522,6 +522,7 @@ void ConsString::ConsStringVerify() {
   CHECK(this->second() == GetHeap()->empty_string() ||
         this->second()->IsString());
   CHECK(this->length() >= ConsString::kMinLength);
+  CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {
     // A flat cons can only be created by String::SlowTryFlatten.
     // Afterwards, the first part may be externalized.

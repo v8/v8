@@ -4929,7 +4929,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
           Handle<Object> constant_object = cell->type()->AsConstant();
           if (constant_object->IsConsString()) {
             constant_object =
-                FlattenGetString(Handle<String>::cast(constant_object));
+                String::Flatten(Handle<String>::cast(constant_object));
           }
           HConstant* constant = New<HConstant>(constant_object);
           return ast_context()->ReturnInstruction(constant, expr->id());

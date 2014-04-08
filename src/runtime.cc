@@ -3238,20 +3238,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectFreeze) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCharCodeAt) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, i, Uint32, args[1]);
 
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  Object* flat;
-  { MaybeObject* maybe_flat = subject->TryFlatten();
-    if (!maybe_flat->ToObject(&flat)) return maybe_flat;
-  }
-  subject = String::cast(flat);
+  subject = String::Flatten(subject);
 
   if (i >= static_cast<uint32_t>(subject->length())) {
     return isolate->heap()->nan_value();
@@ -4210,7 +4206,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
 
   ASSERT(regexp->GetFlags().is_global());
 
-  if (!subject->IsFlat()) subject = FlattenGetString(subject);
+  subject = String::Flatten(subject);
 
   if (replacement->length() == 0) {
     if (subject->HasOnlyOneByteChars()) {
@@ -4222,7 +4218,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceGlobalRegExpWithString) {
     }
   }
 
-  if (!replacement->IsFlat()) replacement = FlattenGetString(replacement);
+  replacement = String::Flatten(replacement);
 
   return StringReplaceGlobalRegExpWithString(
       isolate, subject, regexp, replacement, last_match_info);
@@ -4296,7 +4292,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
   }
   if (isolate->has_pending_exception()) return Failure::Exception();
 
-  subject = FlattenGetString(subject);
+  subject = String::Flatten(subject);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       StringReplaceOneCharWithString(
@@ -4321,8 +4317,8 @@ int Runtime::StringMatch(Isolate* isolate,
   int subject_length = sub->length();
   if (start_index + pattern_length > subject_length) return -1;
 
-  if (!sub->IsFlat()) FlattenString(sub);
-  if (!pat->IsFlat()) FlattenString(pat);
+  sub = String::Flatten(sub);
+  pat = String::Flatten(pat);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before determining asciiness.
@@ -4432,8 +4428,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
     return Smi::FromInt(start_index);
   }
 
-  if (!sub->IsFlat()) FlattenString(sub);
-  if (!pat->IsFlat()) FlattenString(pat);
+  sub = String::Flatten(sub);
+  pat = String::Flatten(pat);
 
   int position = -1;
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
@@ -4758,11 +4754,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   ASSERT(args.length() == 4);
 
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
-  if (!subject->IsFlat()) FlattenString(subject);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
 
+  subject = String::Flatten(subject);
   ASSERT(regexp->GetFlags().is_global());
 
   if (regexp->CaptureCount() == 0) {
@@ -4876,9 +4872,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsValidSmi) {
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   if (index < static_cast<uint32_t>(string->length())) {
-    string->TryFlatten();
-    return string->GetIsolate()->factory()->LookupSingleCharacterStringFromCode(
-        string->Get(index));
+    Factory* factory = string->GetIsolate()->factory();
+    return factory->LookupSingleCharacterStringFromCode(
+        String::Flatten(string)->Get(index));
   }
   return Execution::CharAt(string, index);
 }
@@ -5310,7 +5306,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
       return JSObject::SetElement(js_object, index, value, attr,
                                   strict_mode, true, set_mode);
     } else {
-      if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
+      if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSReceiver::SetProperty(js_object, name, value, attr, strict_mode);
     }
   }
@@ -5360,9 +5356,9 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
       return JSObject::SetElement(js_object, index, value, attr,
                                   SLOPPY, false, DEFINE_PROPERTY);
     } else {
-      if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
-      return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name,
-                                                        value, attr);
+      if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
+      return JSObject::SetLocalPropertyIgnoreAttributes(
+          js_object, name, value, attr);
     }
   }
 
@@ -5415,7 +5411,7 @@ MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
     name = Handle<String>::cast(converted);
   }
 
-  if (name->IsString()) Handle<String>::cast(name)->TryFlatten();
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
   return JSReceiver::DeleteProperty(receiver, name, mode);
 }
 
@@ -6263,7 +6259,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIEscape) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  Handle<String> string = FlattenGetString(source);
+  Handle<String> string = String::Flatten(source);
   ASSERT(string->IsFlat());
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -6279,7 +6275,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_URIUnescape) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  Handle<String> string = FlattenGetString(source);
+  Handle<String> string = String::Flatten(source);
   ASSERT(string->IsFlat());
   Handle<String> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -6573,7 +6569,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
     unibrow::Mapping<Converter, 128>* mapping) {
   HandleScope handle_scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-  s = FlattenGetString(s);
+  s = String::Flatten(s);
   int length = s->length();
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return *s;
@@ -6647,7 +6643,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
   CONVERT_BOOLEAN_ARG_CHECKED(trimLeft, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(trimRight, 2);
 
-  string = FlattenGetString(string);
+  string = String::Flatten(string);
   int length = string->length();
 
   int left = 0;
@@ -6703,7 +6699,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   // isn't empty, we can never create more parts than ~half the length
   // of the subject.
 
-  if (!subject->IsFlat()) FlattenString(subject);
+  subject = String::Flatten(subject);
+  pattern = String::Flatten(pattern);
 
   static const int kMaxInitialListCapacity = 16;
 
@@ -6712,7 +6709,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   // Find (up to limit) indices of separator and end-of-string in subject
   int initial_capacity = Min<uint32_t>(kMaxInitialListCapacity, limit);
   ZoneList<int> indices(initial_capacity, zone_scope.zone());
-  if (!pattern->IsFlat()) FlattenString(pattern);
 
   FindStringIndicesDispatch(isolate, *subject, *pattern,
                             &indices, limit, zone_scope.zone());
@@ -6803,7 +6799,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
-  s = FlattenGetString(s);
+  s = String::Flatten(s);
   const int length = static_cast<int>(Min<uint32_t>(s->length(), limit));
 
   Handle<FixedArray> elements;
@@ -7677,7 +7673,7 @@ static Object* FlatStringCompare(String* x, String* y) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_CHECKED(String, x, 0);
@@ -9651,15 +9647,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
-  FlattenString(str);
-
   CONVERT_ARG_HANDLE_CHECKED(JSArray, output, 1);
 
   JSObject::EnsureCanContainHeapObjectElements(output);
   RUNTIME_ASSERT(output->HasFastObjectElements());
 
+  str = String::Flatten(str);
   DisallowHeapAllocation no_gc;
 
   FixedArray* output_array = FixedArray::cast(output->elements());
@@ -9752,7 +9746,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   ASSERT_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
-  source = Handle<String>(FlattenGetString(source));
+  source = String::Flatten(source);
   // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -14578,8 +14572,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FlattenString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
-  FlattenString(str);
-  return isolate->heap()->undefined_value();
+  return *String::Flatten(str);
 }
 
 

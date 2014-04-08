@@ -3031,6 +3031,14 @@ bool String::Equals(String* other) {
 }
 
 
+Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
+  if (!string->IsConsString()) return string;
+  Handle<ConsString> cons = Handle<ConsString>::cast(string);
+  if (cons->IsFlat()) return handle(cons->first());
+  return SlowFlatten(cons, pretenure);
+}
+
+
 MaybeObject* String::TryFlatten(PretenureFlag pretenure) {
   if (!StringShape(this).IsCons()) return this;
   ConsString* cons = ConsString::cast(this);

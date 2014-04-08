@@ -582,8 +582,8 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
 
 Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
                                          Handle<String> s2) {
-  s1 = FlattenGetString(s1);
-  s2 = FlattenGetString(s2);
+  s1 = String::Flatten(s1);
+  s2 = String::Flatten(s2);
 
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);

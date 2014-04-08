@@ -529,7 +529,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   } else {
-    str = FlattenGetString(str);
+    str = String::Flatten(str);
   }
 
   ASSERT(str->IsSeqString() || str->IsExternalString());

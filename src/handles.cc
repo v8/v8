@@ -134,16 +134,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 }
 
 
-void FlattenString(Handle<String> string) {
-  CALL_HEAP_FUNCTION_VOID(string->GetIsolate(), string->TryFlatten());
-}
-
-
-Handle<String> FlattenGetString(Handle<String> string) {
-  CALL_HEAP_FUNCTION(string->GetIsolate(), string->TryFlatten(), String);
-}
-
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
@@ -262,7 +252,7 @@ static void CalculateLineEnds(Isolate* isolate,
 
 Handle<FixedArray> CalculateLineEnds(Handle<String> src,
                                      bool with_last_line) {
-  src = FlattenGetString(src);
+  src = String::Flatten(src);
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
   int line_count_estimate = src->length() >> 4;

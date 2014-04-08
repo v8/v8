@@ -59,7 +59,7 @@ class JsonParser BASE_EMBEDDED {
         object_constructor_(isolate_->native_context()->object_function(),
                             isolate_),
         position_(-1) {
-    FlattenString(source_);
+    source_ = String::Flatten(source_);
     pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
     // Optimized fast case where we only have ASCII characters.

@@ -180,7 +180,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   // here to improve the efficiency of converting it to a C string and
   // other operations that are likely to take place (see GetLocalizedMessage
   // for example).
-  FlattenString(result_string);
+  result_string = String::Flatten(result_string);
   return result_string;
 }
 

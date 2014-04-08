@@ -7589,7 +7589,7 @@ int GetUtf8Length(Handle<String> str) {
   int len = str->Utf8Length();
   if (len < 0) {
     i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
-    i::FlattenString(istr);
+    i::String::Flatten(istr);
     len = str->Utf8Length();
   }
   return len;
@@ -18935,8 +18935,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   int length = string->length();
   CHECK(string->IsOneByteRepresentation());
 
-  FlattenString(string);
-  i::Handle<i::String> flat_string = FlattenGetString(string);
+  i::Handle<i::String> flat_string = i::String::Flatten(string);
 
   CHECK(string->IsOneByteRepresentation());
   CHECK(flat_string->IsOneByteRepresentation());
