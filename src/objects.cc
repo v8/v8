@@ -4228,8 +4228,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
         name, value, attributes, value_type, mode, extensibility_check);
   }
 
-  if (lookup.IsFound() &&
-      (lookup.type() == INTERCEPTOR || lookup.type() == CALLBACKS)) {
+  if (lookup.IsInterceptor() ||
+      (lookup.IsDescriptorOrDictionary() && lookup.type() == CALLBACKS)) {
     object->LocalLookupRealNamedProperty(*name, &lookup);
   }
 
