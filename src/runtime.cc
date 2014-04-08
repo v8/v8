@@ -2604,38 +2604,21 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpExec) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpConstructResult) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_SMI_ARG_CHECKED(elements_count, 0);
-  if (elements_count < 0 ||
-      elements_count > FixedArray::kMaxLength ||
-      !Smi::IsValid(elements_count)) {
-    return isolate->ThrowIllegalOperation();
-  }
-  Object* new_object;
-  { MaybeObject* maybe_new_object =
-        isolate->heap()->AllocateFixedArray(elements_count);
-    if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
-  }
-  FixedArray* elements = FixedArray::cast(new_object);
-  { MaybeObject* maybe_new_object = isolate->heap()->AllocateRaw(
-      JSRegExpResult::kSize, NEW_SPACE, OLD_POINTER_SPACE);
-    if (!maybe_new_object->ToObject(&new_object)) return maybe_new_object;
-  }
-  {
-    DisallowHeapAllocation no_gc;
-    HandleScope scope(isolate);
-    reinterpret_cast<HeapObject*>(new_object)->
-        set_map(isolate->native_context()->regexp_result_map());
-  }
-  JSArray* array = JSArray::cast(new_object);
-  array->set_properties(isolate->heap()->empty_fixed_array());
-  array->set_elements(elements);
-  array->set_length(Smi::FromInt(elements_count));
+  CONVERT_SMI_ARG_CHECKED(size, 0);
+  RUNTIME_ASSERT(size >= 0 && size <= FixedArray::kMaxLength);
+  Handle<FixedArray> elements =  isolate->factory()->NewFixedArray(size);
+  Handle<Map> regexp_map(isolate->native_context()->regexp_result_map());
+  Handle<JSObject> object =
+      isolate->factory()->NewJSObjectFromMap(regexp_map, NOT_TENURED, false);
+  Handle<JSArray> array = Handle<JSArray>::cast(object);
+  array->set_elements(*elements);
+  array->set_length(Smi::FromInt(size));
   // Write in-object properties after the length of the array.
   array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, args[1]);
   array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, args[2]);
-  return array;
+  return *array;
 }
 
 
