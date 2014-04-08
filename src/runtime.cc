@@ -3237,16 +3237,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObjectFreeze) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* CharFromCode(Isolate* isolate,
-                                                 Object* char_code) {
-  if (char_code->IsNumber()) {
-    return isolate->heap()->LookupSingleCharacterStringFromCode(
-        NumberToUint32(char_code) & 0xffff);
-  }
-  return isolate->heap()->empty_string();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCharCodeAt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
@@ -3272,9 +3262,13 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCharCodeAt) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CharFromCode) {
-  SealHandleScope shs(isolate);
+  HandleScope handlescope(isolate);
   ASSERT(args.length() == 1);
-  return CharFromCode(isolate, args[0]);
+  if (args[0]->IsNumber()) {
+    uint32_t code = NumberToUint32(args[0]) & 0xffff;
+    return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
+  }
+  return isolate->heap()->empty_string();
 }
 
 
@@ -4883,8 +4877,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsValidSmi) {
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   if (index < static_cast<uint32_t>(string->length())) {
     string->TryFlatten();
-    return LookupSingleCharacterStringFromCode(
-        string->GetIsolate(),
+    return string->GetIsolate()->factory()->LookupSingleCharacterStringFromCode(
         string->Get(index));
   }
   return Execution::CharAt(string, index);
@@ -6854,7 +6847,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
   }
   for (int i = position; i < length; ++i) {
     Handle<Object> str =
-        LookupSingleCharacterStringFromCode(isolate, s->Get(i));
+        isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
     elements->set(i, *str);
   }
 

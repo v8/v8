@@ -287,6 +287,14 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
 }
 
 
+Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t index) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->LookupSingleCharacterStringFromCode(index),
+      String);
+}
+
+
 // Returns true for a character in a range.  Both limits are inclusive.
 static inline bool Between(uint32_t character, uint32_t from, uint32_t to) {
   // This makes uses of the the unsigned wraparound.
@@ -469,7 +477,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   int length = end - begin;
   if (length <= 0) return empty_string();
   if (length == 1) {
-    return LookupSingleCharacterStringFromCode(isolate(), str->Get(begin));
+    return LookupSingleCharacterStringFromCode(str->Get(begin));
   }
   if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression

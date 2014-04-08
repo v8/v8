@@ -179,15 +179,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
 }
 
 
-Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
-                                                   uint32_t index) {
-  CALL_HEAP_FUNCTION(
-      isolate,
-      isolate->heap()->LookupSingleCharacterStringFromCode(index),
-      String);
-}
-
-
 // Wrappers for scripts are kept alive and cached in weak global
 // handles referred from foreign objects held by the scripts as long as
 // they are used. When they are not used anymore, the garbage

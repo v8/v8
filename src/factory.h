@@ -142,6 +142,8 @@ class Factory V8_FINAL {
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<String> LookupSingleCharacterStringFromCode(uint32_t index);
+
   // Create a new cons string object which consists of a pair of strings.
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);

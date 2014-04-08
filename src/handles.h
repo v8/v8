@@ -302,9 +302,6 @@ Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key);
 
 Handle<Object> GetProperty(Handle<JSReceiver> obj, const char* name);
 
-Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
-                                                   uint32_t index);
-
 // Get the JS object corresponding to the given script; create it
 // if none exists.
 Handle<JSValue> GetScriptWrapper(Handle<Script> script);
