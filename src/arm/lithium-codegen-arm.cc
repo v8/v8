@@ -714,6 +714,16 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
 }
 
 
+int LCodeGen::CallCodeSize(Handle<Code> code, RelocInfo::Mode mode) {
+  int size = masm()->CallSize(code, mode);
+  if (code->kind() == Code::BINARY_OP_IC ||
+      code->kind() == Code::COMPARE_IC) {
+    size += Assembler::kInstrSize;  // extra nop() added in CallCodeGeneric.
+  }
+  return size;
+}
+
+
 void LCodeGen::CallCode(Handle<Code> code,
                         RelocInfo::Mode mode,
                         LInstruction* instr,
@@ -5672,12 +5682,12 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ LoadRoot(ip, Heap::kStackLimitRootIndex);
     __ cmp(sp, Operand(ip));
     __ b(hs, &done);
-    PredictableCodeSizeScope predictable(masm_, 2 * Assembler::kInstrSize);
+    Handle<Code> stack_check = isolate()->builtins()->StackCheck();
+    PredictableCodeSizeScope predictable(masm(),
+        CallCodeSize(stack_check, RelocInfo::CODE_TARGET));
     ASSERT(instr->context()->IsRegister());
     ASSERT(ToRegister(instr->context()).is(cp));
-    CallCode(isolate()->builtins()->StackCheck(),
-              RelocInfo::CODE_TARGET,
-              instr);
+    CallCode(stack_check, RelocInfo::CODE_TARGET, instr);
     __ bind(&done);
   } else {
     ASSERT(instr->hydrogen()->is_backwards_branch());

@@ -107,6 +107,13 @@ int MacroAssembler::CallSize(
 }
 
 
+int MacroAssembler::CallStubSize(
+    CodeStub* stub, TypeFeedbackId ast_id, Condition cond) {
+  return CallSize(
+      stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id, cond);
+}
+
+
 int MacroAssembler::CallSizeNotPredictableCodeSize(
     Address target, RelocInfo::Mode rmode, Condition cond) {
   int size = 2 * kInstrSize;
