@@ -6312,7 +6312,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   SealHandleScope shs(isolate);
 
   CONVERT_ARG_CHECKED(String, s, 0);
-  CONVERT_SMI_ARG_CHECKED(radix, 1);
+  CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
 
   s->TryFlatten();
 
