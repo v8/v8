@@ -5046,13 +5046,15 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
       return GetHeap()->undefined_value();
     }
   } else {
-    PropertyAttributes attributes;
-    // You can't install a getter on a property indexed by the hidden string,
-    // so we can be sure that GetLocalPropertyPostInterceptor returns a real
-    // object.
-    return GetLocalPropertyPostInterceptor(this,
-                                           GetHeap()->hidden_string(),
-                                           &attributes)->ToObjectUnchecked();
+    LookupResult result(GetIsolate());
+    LocalLookupRealNamedProperty(GetHeap()->hidden_string(), &result);
+    if (result.IsFound()) {
+      ASSERT(result.IsNormal());
+      ASSERT(result.holder() == this);
+      Object* value = GetNormalizedProperty(&result);
+      if (!value->IsTheHole()) return value;
+    }
+    return GetHeap()->undefined_value();
   }
 }
 
@@ -5854,9 +5856,8 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         // In particular, don't try to copy the length attribute of
         // an array.
         if (attributes != NONE) continue;
-        Handle<Object> value(
-            copy->GetProperty(*key_string, &attributes)->ToObjectUnchecked(),
-            isolate);
+        Handle<Object> value = Object::GetProperty(copy, key_string);
+        CHECK_NOT_EMPTY_HANDLE(isolate, value);
         if (value->IsJSObject()) {
           Handle<JSObject> result = VisitElementOrProperty(
               copy, Handle<JSObject>::cast(value));
@@ -13311,20 +13312,6 @@ MaybeHandle<Object> JSObject::GetPropertyPostInterceptor(
     if (prototype->IsNull()) return isolate->factory()->undefined_value();
     return GetPropertyWithReceiver(prototype, receiver, name, attributes);
   }
-}
-
-
-MaybeObject* JSObject::GetLocalPropertyPostInterceptor(
-    Object* receiver,
-    Name* name,
-    PropertyAttributes* attributes) {
-  // Check local property in holder, ignore interceptor.
-  LookupResult result(GetIsolate());
-  LocalLookupRealNamedProperty(name, &result);
-  if (result.IsFound()) {
-    return GetProperty(receiver, &result, name, attributes);
-  }
-  return GetHeap()->undefined_value();
 }
 
 

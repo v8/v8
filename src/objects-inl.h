@@ -1108,11 +1108,6 @@ MaybeObject* Object::GetProperty(Name* key) {
 }
 
 
-MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
-  return GetPropertyWithReceiver(this, key, attributes);
-}
-
-
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 

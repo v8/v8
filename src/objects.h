@@ -1535,9 +1535,6 @@ class Object : public MaybeObject {
 
   // Property access.
   MUST_USE_RESULT inline MaybeObject* GetProperty(Name* key);
-  MUST_USE_RESULT inline MaybeObject* GetProperty(
-      Name* key,
-      PropertyAttributes* attributes);
 
   // TODO(yangguo): this should eventually replace the non-handlified version.
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
@@ -2391,10 +2388,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Name> name,
-      PropertyAttributes* attributes);
-  MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
-      Object* receiver,
-      Name* name,
       PropertyAttributes* attributes);
 
   // Returns true if this is an instance of an api function and has
