@@ -149,6 +149,9 @@ def BuildOptions():
   result.add_option("--no-presubmit", "--nopresubmit",
                     help='Skip presubmit checks',
                     default=False, dest="no_presubmit", action="store_true")
+  result.add_option("--no-snap", "--nosnap",
+                    help='Test a build compiled without snapshot.',
+                    default=False, dest="no_snap", action="store_true")
   result.add_option("--no-stress", "--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, dest="no_stress", action="store_true")
@@ -407,6 +410,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": options.no_i18n,
+    "no_snap": options.no_snap,
     "simulator_run": simulator_run,
     "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
