@@ -232,7 +232,8 @@ var ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR =
  */
 function addBoundMethod(obj, methodName, implementation, length) {
   function getter() {
-    if (!%IsInitializedIntlObject(this)) {
+    if (!this || typeof this !== 'object' ||
+        this.__initializedIntlObject === undefined) {
         throw new $TypeError('Method ' + methodName + ' called on a ' +
                             'non-object or on a wrong type of object.');
     }
@@ -895,7 +896,7 @@ function BuildLanguageTagREs() {
  * Useful for subclassing.
  */
 function initializeCollator(collator, locales, options) {
-  if (%IsInitializedIntlObject(collator)) {
+  if (collator.hasOwnProperty('__initializedIntlObject')) {
     throw new $TypeError('Trying to re-initialize Collator object.');
   }
 
@@ -966,7 +967,9 @@ function initializeCollator(collator, locales, options) {
                                          resolved);
 
   // Writable, configurable and enumerable are set to false by default.
-  %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
+  $Object.defineProperty(collator, 'collator', {value: internalCollator});
+  $Object.defineProperty(collator, '__initializedIntlObject',
+                         {value: 'collator'});
   $Object.defineProperty(collator, 'resolved', {value: resolved});
 
   return collator;
@@ -1002,7 +1005,8 @@ function initializeCollator(collator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (!%IsInitializedIntlObjectOfType(this, 'collator')) {
+    if (!this || typeof this !== 'object' ||
+        this.__initializedIntlObject !== 'collator') {
       throw new $TypeError('resolvedOptions method called on a non-object ' +
                            'or on a object that is not Intl.Collator.');
     }
@@ -1059,8 +1063,7 @@ function initializeCollator(collator, locales, options) {
  * the sort order, or x comes after y in the sort order, respectively.
  */
 function compare(collator, x, y) {
-  return %InternalCompare(%GetImplFromInitializedIntlObject(collator),
-                          $String(x), $String(y));
+  return %InternalCompare(collator.collator, $String(x), $String(y));
 };
 
 
@@ -1101,7 +1104,7 @@ function getNumberOption(options, property, min, max, fallback) {
  * Useful for subclassing.
  */
 function initializeNumberFormat(numberFormat, locales, options) {
-  if (%IsInitializedIntlObject(numberFormat)) {
+  if (numberFormat.hasOwnProperty('__initializedIntlObject')) {
     throw new $TypeError('Trying to re-initialize NumberFormat object.');
   }
 
@@ -1193,8 +1196,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
                                                          writable: true});
   }
 
-  %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
+  $Object.defineProperty(numberFormat, 'formatter', {value: formatter});
   $Object.defineProperty(numberFormat, 'resolved', {value: resolved});
+  $Object.defineProperty(numberFormat, '__initializedIntlObject',
+                         {value: 'numberformat'});
 
   return numberFormat;
 }
@@ -1229,7 +1234,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (!%IsInitializedIntlObjectOfType(this, 'numberformat')) {
+    if (!this || typeof this !== 'object' ||
+        this.__initializedIntlObject !== 'numberformat') {
       throw new $TypeError('resolvedOptions method called on a non-object' +
           ' or on a object that is not Intl.NumberFormat.');
     }
@@ -1303,8 +1309,7 @@ function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
   var number = $Number(value) + 0;
 
-  return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
-                               number);
+  return %InternalNumberFormat(formatter.formatter, number);
 }
 
 
@@ -1312,8 +1317,7 @@ function formatNumber(formatter, value) {
  * Returns a Number that represents string value that was passed in.
  */
 function parseNumber(formatter, value) {
-  return %InternalNumberParse(%GetImplFromInitializedIntlObject(formatter),
-                              $String(value));
+  return %InternalNumberParse(formatter.formatter, $String(value));
 }
 
 
@@ -1526,7 +1530,7 @@ function toDateTimeOptions(options, required, defaults) {
  */
 function initializeDateTimeFormat(dateFormat, locales, options) {
 
-  if (%IsInitializedIntlObject(dateFormat)) {
+  if (dateFormat.hasOwnProperty('__initializedIntlObject')) {
     throw new $TypeError('Trying to re-initialize DateTimeFormat object.');
   }
 
@@ -1588,8 +1592,10 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     throw new $RangeError('Unsupported time zone specified ' + tz);
   }
 
-  %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
+  $Object.defineProperty(dateFormat, 'formatter', {value: formatter});
   $Object.defineProperty(dateFormat, 'resolved', {value: resolved});
+  $Object.defineProperty(dateFormat, '__initializedIntlObject',
+                         {value: 'dateformat'});
 
   return dateFormat;
 }
@@ -1624,7 +1630,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
+    if (!this || typeof this !== 'object' ||
+        this.__initializedIntlObject !== 'dateformat') {
       throw new $TypeError('resolvedOptions method called on a non-object or ' +
           'on a object that is not Intl.DateTimeFormat.');
     }
@@ -1706,8 +1713,7 @@ function formatDate(formatter, dateValue) {
     throw new $RangeError('Provided date is not in valid range.');
   }
 
-  return %InternalDateFormat(%GetImplFromInitializedIntlObject(formatter),
-                             new $Date(dateMs));
+  return %InternalDateFormat(formatter.formatter, new $Date(dateMs));
 }
 
 
@@ -1718,8 +1724,7 @@ function formatDate(formatter, dateValue) {
  * Returns undefined if date string cannot be parsed.
  */
 function parseDate(formatter, value) {
-  return %InternalDateParse(%GetImplFromInitializedIntlObject(formatter),
-                            $String(value));
+  return %InternalDateParse(formatter.formatter, $String(value));
 }
 
 
@@ -1767,7 +1772,7 @@ function canonicalizeTimeZoneID(tzID) {
  * Useful for subclassing.
  */
 function initializeBreakIterator(iterator, locales, options) {
-  if (%IsInitializedIntlObject(iterator)) {
+  if (iterator.hasOwnProperty('__initializedIntlObject')) {
     throw new $TypeError('Trying to re-initialize v8BreakIterator object.');
   }
 
@@ -1793,9 +1798,10 @@ function initializeBreakIterator(iterator, locales, options) {
                                               internalOptions,
                                               resolved);
 
-  %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
-                                     internalIterator);
+  $Object.defineProperty(iterator, 'iterator', {value: internalIterator});
   $Object.defineProperty(iterator, 'resolved', {value: resolved});
+  $Object.defineProperty(iterator, '__initializedIntlObject',
+                         {value: 'breakiterator'});
 
   return iterator;
 }
@@ -1830,7 +1836,8 @@ function initializeBreakIterator(iterator, locales, options) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
 
-    if (!%IsInitializedIntlObjectOfType(this, 'breakiterator')) {
+    if (!this || typeof this !== 'object' ||
+        this.__initializedIntlObject !== 'breakiterator') {
       throw new $TypeError('resolvedOptions method called on a non-object or ' +
           'on a object that is not Intl.v8BreakIterator.');
     }
@@ -1877,8 +1884,7 @@ function initializeBreakIterator(iterator, locales, options) {
  * gets discarded.
  */
 function adoptText(iterator, text) {
-  %BreakIteratorAdoptText(%GetImplFromInitializedIntlObject(iterator),
-                          $String(text));
+  %BreakIteratorAdoptText(iterator.iterator, $String(text));
 }
 
 
@@ -1886,7 +1892,7 @@ function adoptText(iterator, text) {
  * Returns index of the first break in the string and moves current pointer.
  */
 function first(iterator) {
-  return %BreakIteratorFirst(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorFirst(iterator.iterator);
 }
 
 
@@ -1894,7 +1900,7 @@ function first(iterator) {
  * Returns the index of the next break and moves the pointer.
  */
 function next(iterator) {
-  return %BreakIteratorNext(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorNext(iterator.iterator);
 }
 
 
@@ -1902,7 +1908,7 @@ function next(iterator) {
  * Returns index of the current break.
  */
 function current(iterator) {
-  return %BreakIteratorCurrent(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorCurrent(iterator.iterator);
 }
 
 
@@ -1910,7 +1916,7 @@ function current(iterator) {
  * Returns type of the current break.
  */
 function breakType(iterator) {
-  return %BreakIteratorBreakType(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorBreakType(iterator.iterator);
 }
 
 
