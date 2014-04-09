@@ -4018,7 +4018,7 @@ class Dictionary: public HashTable<Shape, Key> {
   }
 
   int NextEnumerationIndex() {
-    return Smi::cast(FixedArray::get(kNextEnumerationIndexIndex))->value();
+    return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
