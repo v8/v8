@@ -966,8 +966,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ElementsKind external_elements_kind = EXTERNAL_INT8_ELEMENTS;
-  ElementsKind fixed_elements_kind = INT8_ELEMENTS;
+  ElementsKind external_elements_kind =
+      EXTERNAL_INT8_ELEMENTS;  // Bogus initialization.
+  ElementsKind fixed_elements_kind = INT8_ELEMENTS;  // Bogus initialization.
   Runtime::ArrayIdToTypeAndSize(arrayId,
       &array_type,
       &external_elements_kind,
@@ -1044,8 +1045,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
-  ElementsKind external_elements_kind;
-  ElementsKind fixed_elements_kind;
+  ElementsKind external_elements_kind =
+      EXTERNAL_INT8_ELEMENTS;  // Bogus intialization.
+  ElementsKind fixed_elements_kind = INT8_ELEMENTS;  // Bogus initialization.
   Runtime::ArrayIdToTypeAndSize(arrayId,
       &array_type,
       &external_elements_kind,
