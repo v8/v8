@@ -2944,32 +2944,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
   RUNTIME_ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  String* name = isolate->heap()->prototype_string();
+  Handle<String> name = isolate->factory()->prototype_string();
 
   if (function->HasFastProperties()) {
     // Construct a new field descriptor with updated attributes.
-    DescriptorArray* instance_desc = function->map()->instance_descriptors();
+    Handle<DescriptorArray> instance_desc =
+        handle(function->map()->instance_descriptors());
 
-    int index = instance_desc->SearchWithCache(name, function->map());
+    int index = instance_desc->SearchWithCache(*name, function->map());
     ASSERT(index != DescriptorArray::kNotFound);
     PropertyDetails details = instance_desc->GetDetails(index);
 
-    CallbacksDescriptor new_desc(name,
-        instance_desc->GetValue(index),
+    CallbacksDescriptor new_desc(
+        name,
+        handle(instance_desc->GetValue(index), isolate),
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY));
 
     // Create a new map featuring the new field descriptors array.
-    Map* new_map;
-    MaybeObject* maybe_map =
-        function->map()->CopyReplaceDescriptor(
-            instance_desc, &new_desc, index, OMIT_TRANSITION);
-    if (!maybe_map->To(&new_map)) return maybe_map;
+    Handle<Map> map = handle(function->map());
+    Handle<Map> new_map = Map::CopyReplaceDescriptor(
+        map, instance_desc, &new_desc, index, OMIT_TRANSITION);
 
-    JSObject::MigrateToMap(function, handle(new_map));
+    JSObject::MigrateToMap(function, new_map);
   } else {  // Dictionary properties.
     // Directly manipulate the property details.
     DisallowHeapAllocation no_gc;
-    int entry = function->property_dictionary()->FindEntry(name);
+    int entry = function->property_dictionary()->FindEntry(*name);
     ASSERT(entry != NameDictionary::kNotFound);
     PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
     PropertyDetails new_details(

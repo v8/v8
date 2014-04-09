@@ -6,6 +6,7 @@
 #define V8_PROPERTY_H_
 
 #include "isolate.h"
+#include "factory.h"
 
 namespace v8 {
 namespace internal {
@@ -17,17 +18,15 @@ namespace internal {
 // optionally a piece of data.
 class Descriptor BASE_EMBEDDED {
  public:
-  MUST_USE_RESULT MaybeObject* KeyToUniqueName() {
+  void KeyToUniqueName() {
     if (!key_->IsUniqueName()) {
-      MaybeObject* maybe_result =
-          key_->GetIsolate()->heap()->InternalizeString(String::cast(key_));
-      if (!maybe_result->To(&key_)) return maybe_result;
+      key_ = key_->GetIsolate()->factory()->InternalizeString(
+          Handle<String>::cast(key_));
     }
-    return key_;
   }
 
-  Name* GetKey() { return key_; }
-  Object* GetValue() { return value_; }
+  Handle<Name> GetKey() { return key_; }
+  Handle<Object> GetValue() { return value_; }
   PropertyDetails GetDetails() { return details_; }
 
 #ifdef OBJECT_PRINT
@@ -37,26 +36,26 @@ class Descriptor BASE_EMBEDDED {
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
-  Name* key_;
-  Object* value_;
+  Handle<Name> key_;
+  Handle<Object> value_;
   PropertyDetails details_;
 
  protected:
   Descriptor() : details_(Smi::FromInt(0)) {}
 
-  void Init(Name* key, Object* value, PropertyDetails details) {
+  void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
     key_ = key;
     value_ = value;
     details_ = details;
   }
 
-  Descriptor(Name* key, Object* value, PropertyDetails details)
+  Descriptor(Handle<Name> key, Handle<Object> value, PropertyDetails details)
       : key_(key),
         value_(value),
         details_(details) { }
 
-  Descriptor(Name* key,
-             Object* value,
+  Descriptor(Handle<Name> key,
+             Handle<Object> value,
              PropertyAttributes attributes,
              PropertyType type,
              Representation representation,
@@ -71,19 +70,19 @@ class Descriptor BASE_EMBEDDED {
 
 class FieldDescriptor V8_FINAL : public Descriptor {
  public:
-  FieldDescriptor(Name* key,
+  FieldDescriptor(Handle<Name> key,
                   int field_index,
                   PropertyAttributes attributes,
                   Representation representation)
-      : Descriptor(key, Smi::FromInt(0), attributes,
+      : Descriptor(key, handle(Smi::FromInt(0), key->GetIsolate()), attributes,
                    FIELD, representation, field_index) {}
 };
 
 
 class ConstantDescriptor V8_FINAL : public Descriptor {
  public:
-  ConstantDescriptor(Name* key,
-                     Object* value,
+  ConstantDescriptor(Handle<Name> key,
+                     Handle<Object> value,
                      PropertyAttributes attributes)
       : Descriptor(key, value, attributes, CONSTANT,
                    value->OptimalRepresentation()) {}
@@ -92,8 +91,8 @@ class ConstantDescriptor V8_FINAL : public Descriptor {
 
 class CallbacksDescriptor V8_FINAL : public Descriptor {
  public:
-  CallbacksDescriptor(Name* key,
-                      Object* foreign,
+  CallbacksDescriptor(Handle<Name> key,
+                      Handle<Object> foreign,
                       PropertyAttributes attributes)
       : Descriptor(key, foreign, attributes, CALLBACKS,
                    Representation::Tagged()) {}

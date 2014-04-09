@@ -2004,35 +2004,20 @@ static Handle<Object> NewStorageFor(Isolate* isolate,
 }
 
 
-static MaybeObject* CopyAddFieldDescriptor(Map* map,
-                                           Name* name,
-                                           int index,
-                                           PropertyAttributes attributes,
-                                           Representation representation,
-                                           TransitionFlag flag) {
-  Map* new_map;
-  FieldDescriptor new_field_desc(name, index, attributes, representation);
-  MaybeObject* maybe_map = map->CopyAddDescriptor(&new_field_desc, flag);
-  if (!maybe_map->To(&new_map)) return maybe_map;
-  int unused_property_fields = map->unused_property_fields() - 1;
-  if (unused_property_fields < 0) {
-    unused_property_fields += JSObject::kFieldsAdded;
-  }
-  new_map->set_unused_property_fields(unused_property_fields);
-  return new_map;
-}
-
-
 static Handle<Map> CopyAddFieldDescriptor(Handle<Map> map,
                                           Handle<Name> name,
                                           int index,
                                           PropertyAttributes attributes,
                                           Representation representation,
                                           TransitionFlag flag) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     CopyAddFieldDescriptor(
-                         *map, *name, index, attributes, representation, flag),
-                     Map);
+  FieldDescriptor new_field_desc(name, index, attributes, representation);
+  Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
+  int unused_property_fields = map->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += JSObject::kFieldsAdded;
+  }
+  new_map->set_unused_property_fields(unused_property_fields);
+  return new_map;
 }
 
 
@@ -2081,25 +2066,13 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
 }
 
 
-static MaybeObject* CopyAddConstantDescriptor(Map* map,
-                                              Name* name,
-                                              Object* value,
-                                              PropertyAttributes attributes,
-                                              TransitionFlag flag) {
-  ConstantDescriptor new_constant_desc(name, value, attributes);
-  return map->CopyAddDescriptor(&new_constant_desc, flag);
-}
-
-
 static Handle<Map> CopyAddConstantDescriptor(Handle<Map> map,
                                              Handle<Name> name,
                                              Handle<Object> value,
                                              PropertyAttributes attributes,
                                              TransitionFlag flag) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     CopyAddConstantDescriptor(
-                         *map, *name, *value, attributes, flag),
-                     Map);
+  ConstantDescriptor new_constant_desc(name, value, attributes);
+  return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
 }
 
 
@@ -2392,6 +2365,18 @@ bool Map::InstancesNeedRewriting(Map* target,
 }
 
 
+Handle<TransitionArray> Map::SetElementsTransitionMap(
+    Handle<Map> map, Handle<Map> transitioned_map) {
+  Handle<TransitionArray> transitions = Map::AddTransition(
+      map,
+      map->GetIsolate()->factory()->elements_transition_symbol(),
+      transitioned_map,
+      FULL_TRANSITION);
+  map->set_transitions(*transitions);
+  return transitions;
+}
+
+
 // To migrate an instance to a map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2516,9 +2501,11 @@ Handle<TransitionArray> Map::AddTransition(Handle<Map> map,
                                            Handle<Name> key,
                                            Handle<Map> target,
                                            SimpleTransitionFlag flag) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->AddTransition(*key, *target, flag),
-                     TransitionArray);
+  if (map->HasTransitionArray()) {
+    return TransitionArray::CopyInsert(map, key, target);
+  }
+  return TransitionArray::NewWith(
+      flag, key, target, handle(map->GetBackPointer(), map->GetIsolate()));
 }
 
 
@@ -2556,7 +2543,8 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);
   if (store_mode == FORCE_FIELD && details.type() != FIELD) {
-    FieldDescriptor d(descriptors->GetKey(modify_index),
+    FieldDescriptor d(handle(descriptors->GetKey(modify_index),
+                             map->GetIsolate()),
                       new_map->NumberOfFields(),
                       attributes,
                       Representation::Tagged());
@@ -3172,8 +3160,8 @@ static int AppendUniqueCallbacks(NeanderArray* callbacks,
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    AccessorInfo* entry = AccessorInfo::cast(callbacks->get(i));
-    Name* key = Name::cast(entry->name());
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
+    Handle<Name> key(Name::cast(entry->name()));
     // Check if a descriptor with this name already exists before writing.
     if (!T::Contains(key, entry, valid_descriptors, array)) {
       T::Insert(key, entry, valid_descriptors, array);
@@ -3186,16 +3174,18 @@ static int AppendUniqueCallbacks(NeanderArray* callbacks,
 
 struct DescriptorArrayAppender {
   typedef DescriptorArray Array;
-  static bool Contains(Name* key,
-                       AccessorInfo* entry,
+  static bool Contains(Handle<Name> key,
+                       Handle<AccessorInfo> entry,
                        int valid_descriptors,
                        Handle<DescriptorArray> array) {
-    return array->Search(key, valid_descriptors) != DescriptorArray::kNotFound;
+    DisallowHeapAllocation no_gc;
+    return array->Search(*key, valid_descriptors) != DescriptorArray::kNotFound;
   }
-  static void Insert(Name* key,
-                     AccessorInfo* entry,
+  static void Insert(Handle<Name> key,
+                     Handle<AccessorInfo> entry,
                      int valid_descriptors,
                      Handle<DescriptorArray> array) {
+    DisallowHeapAllocation no_gc;
     CallbacksDescriptor desc(key, entry, entry->property_attributes());
     array->Append(&desc);
   }
@@ -3204,20 +3194,21 @@ struct DescriptorArrayAppender {
 
 struct FixedArrayAppender {
   typedef FixedArray Array;
-  static bool Contains(Name* key,
-                       AccessorInfo* entry,
+  static bool Contains(Handle<Name> key,
+                       Handle<AccessorInfo> entry,
                        int valid_descriptors,
                        Handle<FixedArray> array) {
     for (int i = 0; i < valid_descriptors; i++) {
-      if (key == AccessorInfo::cast(array->get(i))->name()) return true;
+      if (*key == AccessorInfo::cast(array->get(i))->name()) return true;
     }
     return false;
   }
-  static void Insert(Name* key,
-                     AccessorInfo* entry,
+  static void Insert(Handle<Name> key,
+                     Handle<AccessorInfo> entry,
                      int valid_descriptors,
                      Handle<FixedArray> array) {
-    array->set(valid_descriptors, entry);
+    DisallowHeapAllocation no_gc;
+    array->set(valid_descriptors, *entry);
   }
 };
 
@@ -3335,26 +3326,24 @@ bool Map::IsMapInArrayPrototypeChain() {
 }
 
 
-static MaybeObject* AddMissingElementsTransitions(Map* map,
-                                                  ElementsKind to_kind) {
+static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
+                                                 ElementsKind to_kind) {
   ASSERT(IsTransitionElementsKind(map->elements_kind()));
 
-  Map* current_map = map;
+  Handle<Map> current_map = map;
 
   ElementsKind kind = map->elements_kind();
   while (kind != to_kind && !IsTerminalElementsKind(kind)) {
     kind = GetNextTransitionElementsKind(kind);
-    MaybeObject* maybe_next_map =
-        current_map->CopyAsElementsKind(kind, INSERT_TRANSITION);
-    if (!maybe_next_map->To(&current_map)) return maybe_next_map;
+    current_map = Map::CopyAsElementsKind(
+        current_map, kind, INSERT_TRANSITION);
   }
 
   // In case we are exiting the fast elements kind system, just add the map in
   // the end.
   if (kind != to_kind) {
-    MaybeObject* maybe_next_map =
-        current_map->CopyAsElementsKind(to_kind, INSERT_TRANSITION);
-    if (!maybe_next_map->To(&current_map)) return maybe_next_map;
+    current_map = Map::CopyAsElementsKind(
+        current_map, to_kind, INSERT_TRANSITION);
   }
 
   ASSERT(current_map->elements_kind() == to_kind);
@@ -3365,14 +3354,30 @@ static MaybeObject* AddMissingElementsTransitions(Map* map,
 Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
                                                ElementsKind to_kind) {
   Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->GetElementsTransitionMap(isolate, to_kind),
-                     Map);
+  Handle<Map> current_map(object->map());
+  ElementsKind from_kind = current_map->elements_kind();
+  if (from_kind == to_kind) return current_map;
+
+  Context* native_context = isolate->context()->native_context();
+  Object* maybe_array_maps = native_context->js_array_maps();
+  if (maybe_array_maps->IsFixedArray()) {
+    DisallowHeapAllocation no_gc;
+    FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
+    if (array_maps->get(from_kind) == *current_map) {
+      Object* maybe_transitioned_map = array_maps->get(to_kind);
+      if (maybe_transitioned_map->IsMap()) {
+        return handle(Map::cast(maybe_transitioned_map));
+      }
+    }
+  }
+
+  return GetElementsTransitionMapSlow(object, to_kind);
 }
 
 
-MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
-  Map* start_map = map();
+Handle<Map> JSObject::GetElementsTransitionMapSlow(Handle<JSObject> object,
+                                                   ElementsKind to_kind) {
+  Handle<Map> start_map(object->map());
   ElementsKind from_kind = start_map->elements_kind();
 
   if (from_kind == to_kind) {
@@ -3393,24 +3398,16 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
   }
 
   if (!allow_store_transition) {
-    return start_map->CopyAsElementsKind(to_kind, OMIT_TRANSITION);
+    return Map::CopyAsElementsKind(start_map, to_kind, OMIT_TRANSITION);
   }
 
-  return start_map->AsElementsKind(to_kind);
+  return Map::AsElementsKind(start_map, to_kind);
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
 // static
 Handle<Map> Map::AsElementsKind(Handle<Map> map, ElementsKind kind) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->AsElementsKind(kind),
-                     Map);
-}
-
-
-MaybeObject* Map::AsElementsKind(ElementsKind kind) {
-  Map* closest_map = FindClosestElementsTransition(this, kind);
+  Handle<Map> closest_map(FindClosestElementsTransition(*map, kind));
 
   if (closest_map->elements_kind() == kind) {
     return closest_map;
@@ -3898,12 +3895,6 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Map> MapAsElementsKind(Handle<Map> map, ElementsKind kind) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(), map->AsElementsKind(kind), Map);
-}
-
-
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   ASSERT(object->map()->inobject_properties() == map->inobject_properties());
   ElementsKind obj_kind = object->map()->elements_kind();
@@ -3919,7 +3910,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
     } else {
       TransitionElementsKind(object, to_kind);
     }
-    map = MapAsElementsKind(map, to_kind);
+    map = Map::AsElementsKind(map, to_kind);
   }
   JSObject::MigrateToMap(object, map);
 }
@@ -4758,9 +4749,27 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
 
 
 void JSObject::ResetElements(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->ResetElements());
+  if (object->map()->is_observed()) {
+    // Maintain invariant that observed elements are always in dictionary mode.
+    Factory* factory = object->GetIsolate()->factory();
+    Handle<SeededNumberDictionary> dictionary =
+        factory->NewSeededNumberDictionary(0);
+    if (object->map() == *factory->sloppy_arguments_elements_map()) {
+      FixedArray::cast(object->elements())->set(1, *dictionary);
+    } else {
+      object->set_elements(*dictionary);
+    }
+    return;
+  }
+
+  ElementsKind elements_kind = GetInitialFastElementsKind();
+  if (!FLAG_smi_only_arrays) {
+    elements_kind = FastSmiToObjectElementsKind(elements_kind);
+  }
+  Handle<Map> map = JSObject::GetElementsTransitionMap(object, elements_kind);
+  DisallowHeapAllocation no_gc;
+  Handle<FixedArrayBase> elements(map->GetInitialElements());
+  JSObject::SetMapAndElements(object, map, elements);
 }
 
 
@@ -6489,22 +6498,12 @@ static bool TryAccessorTransition(Handle<JSObject> self,
 }
 
 
-static MaybeObject* CopyInsertDescriptor(Map* map,
-                                         Name* name,
-                                         AccessorPair* accessors,
-                                         PropertyAttributes attributes) {
-  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
-  return map->CopyInsertDescriptor(&new_accessors_desc, INSERT_TRANSITION);
-}
-
-
 static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                         Handle<Name> name,
                                         Handle<AccessorPair> accessors,
                                         PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     CopyInsertDescriptor(*map, *name, *accessors, attributes),
-                     Map);
+  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
+  return Map::CopyInsertDescriptor(map, &new_accessors_desc, INSERT_TRANSITION);
 }
 
 
@@ -6831,42 +6830,38 @@ MaybeObject* Map::CopyDropDescriptors() {
 }
 
 
-MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
-                                  Descriptor* descriptor) {
+Handle<Map> Map::ShareDescriptor(Handle<Map> map,
+                                 Handle<DescriptorArray> descriptors,
+                                 Descriptor* descriptor) {
   // Sanity check. This path is only to be taken if the map owns its descriptor
   // array, implying that its NumberOfOwnDescriptors equals the number of
   // descriptors in the descriptor array.
-  ASSERT(NumberOfOwnDescriptors() ==
-         instance_descriptors()->number_of_descriptors());
-  Map* result;
-  MaybeObject* maybe_result = CopyDropDescriptors();
-  if (!maybe_result->To(&result)) return maybe_result;
+  ASSERT(map->NumberOfOwnDescriptors() ==
+         map->instance_descriptors()->number_of_descriptors());
+  Handle<Map> result = Map::CopyDropDescriptors(map);
 
-  Name* name = descriptor->GetKey();
+  Handle<Name> name = descriptor->GetKey();
 
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions =
-      AddTransition(name, result, SIMPLE_TRANSITION);
-  if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-
-  int old_size = descriptors->number_of_descriptors();
-
-  DescriptorArray* new_descriptors;
+  Handle<TransitionArray> transitions =
+      Map::AddTransition(map, name, result, SIMPLE_TRANSITION);
 
   if (descriptors->NumberOfSlackDescriptors() > 0) {
-    new_descriptors = descriptors;
-    new_descriptors->Append(descriptor);
+    descriptors->Append(descriptor);
+    result->SetBackPointer(*map);
+    result->InitializeDescriptors(*descriptors);
   } else {
+    int old_size = descriptors->number_of_descriptors();
     // Descriptor arrays grow by 50%.
-    MaybeObject* maybe_descriptors = DescriptorArray::Allocate(
-        GetIsolate(), old_size, old_size < 4 ? 1 : old_size / 2);
-    if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+    Handle<DescriptorArray> new_descriptors =
+        map->GetIsolate()->factory()->NewDescriptorArray(
+            old_size, old_size < 4 ? 1 : old_size / 2);
 
-    DescriptorArray::WhitenessWitness witness(new_descriptors);
+    DisallowHeapAllocation no_gc;
+    DescriptorArray::WhitenessWitness witness(*new_descriptors);
 
     // Copy the descriptors, inserting a descriptor.
     for (int i = 0; i < old_size; ++i) {
-      new_descriptors->CopyFrom(i, descriptors, i, witness);
+      new_descriptors->CopyFrom(i, *descriptors, i, witness);
     }
 
     new_descriptors->Append(descriptor, witness);
@@ -6878,31 +6873,32 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
       // enumerated descriptors than available in the original cache, the cache
       // will be lazily replaced by the extended cache when needed.
       if (descriptors->HasEnumCache()) {
-        new_descriptors->CopyEnumCacheFrom(descriptors);
+        new_descriptors->CopyEnumCacheFrom(*descriptors);
       }
 
-      Map* map;
+      Map* walk_map;
       // Replace descriptors by new_descriptors in all maps that share it.
 
-      GetHeap()->incremental_marking()->RecordWrites(descriptors);
-      for (Object* current = GetBackPointer();
+      map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
+      for (Object* current = map->GetBackPointer();
            !current->IsUndefined();
-           current = map->GetBackPointer()) {
-        map = Map::cast(current);
-        if (map->instance_descriptors() != descriptors) break;
-        map->set_instance_descriptors(new_descriptors);
+           current = walk_map->GetBackPointer()) {
+        walk_map = Map::cast(current);
+        if (walk_map->instance_descriptors() != *descriptors) break;
+        walk_map->set_instance_descriptors(*new_descriptors);
       }
 
-      set_instance_descriptors(new_descriptors);
+      map->set_instance_descriptors(*new_descriptors);
     }
+
+    result->SetBackPointer(*map);
+    result->InitializeDescriptors(*new_descriptors);
   }
 
-  result->SetBackPointer(this);
-  result->InitializeDescriptors(new_descriptors);
-  ASSERT(result->NumberOfOwnDescriptors() == NumberOfOwnDescriptors() + 1);
+  ASSERT(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
 
-  set_transitions(transitions);
-  set_owns_descriptors(false);
+  map->set_transitions(*transitions);
+  map->set_owns_descriptors(false);
 
   return result;
 }
@@ -6911,31 +6907,27 @@ MaybeObject* Map::ShareDescriptor(DescriptorArray* descriptors,
 Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors,
                                         TransitionFlag flag,
-                                        Handle<Name> name) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(),
-                     map->CopyReplaceDescriptors(*descriptors, flag, *name),
-                     Map);
+                                        SimpleTransitionFlag simple_flag) {
+  return Map::CopyReplaceDescriptors(
+      map, descriptors, flag, Handle<Name>::null(), simple_flag);
 }
 
 
-MaybeObject* Map::CopyReplaceDescriptors(DescriptorArray* descriptors,
-                                         TransitionFlag flag,
-                                         Name* name,
-                                         SimpleTransitionFlag simple_flag) {
+Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
+                                        Handle<DescriptorArray> descriptors,
+                                        TransitionFlag flag,
+                                        Handle<Name> name,
+                                        SimpleTransitionFlag simple_flag) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
-  Map* result;
-  MaybeObject* maybe_result = CopyDropDescriptors();
-  if (!maybe_result->To(&result)) return maybe_result;
+  Handle<Map> result = CopyDropDescriptors(map);
+  result->InitializeDescriptors(*descriptors);
 
-  result->InitializeDescriptors(descriptors);
-
-  if (flag == INSERT_TRANSITION && CanHaveMoreTransitions()) {
-    TransitionArray* transitions;
-    MaybeObject* maybe_transitions = AddTransition(name, result, simple_flag);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
-    set_transitions(transitions);
-    result->SetBackPointer(this);
+  if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
+    Handle<TransitionArray> transitions = Map::AddTransition(
+        map, name, result, simple_flag);
+    map->set_transitions(*transitions);
+    result->SetBackPointer(*map);
   } else {
     descriptors->InitializeRepresentations(Representation::Tagged());
   }
@@ -6978,52 +6970,48 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
 }
 
 
-MaybeObject* Map::CopyAsElementsKind(ElementsKind kind, TransitionFlag flag) {
+Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
+                                    TransitionFlag flag) {
   if (flag == INSERT_TRANSITION) {
-    ASSERT(!HasElementsTransition() ||
-        ((elements_transition_map()->elements_kind() == DICTIONARY_ELEMENTS ||
+    ASSERT(!map->HasElementsTransition() ||
+        ((map->elements_transition_map()->elements_kind() ==
+          DICTIONARY_ELEMENTS ||
           IsExternalArrayElementsKind(
-              elements_transition_map()->elements_kind())) &&
+              map->elements_transition_map()->elements_kind())) &&
          (kind == DICTIONARY_ELEMENTS ||
           IsExternalArrayElementsKind(kind))));
     ASSERT(!IsFastElementsKind(kind) ||
-           IsMoreGeneralElementsKindTransition(elements_kind(), kind));
-    ASSERT(kind != elements_kind());
+           IsMoreGeneralElementsKindTransition(map->elements_kind(), kind));
+    ASSERT(kind != map->elements_kind());
   }
 
   bool insert_transition =
-      flag == INSERT_TRANSITION && !HasElementsTransition();
+      flag == INSERT_TRANSITION && !map->HasElementsTransition();
 
-  if (insert_transition && owns_descriptors()) {
+  if (insert_transition && map->owns_descriptors()) {
     // In case the map owned its own descriptors, share the descriptors and
     // transfer ownership to the new map.
-    Map* new_map;
-    MaybeObject* maybe_new_map = CopyDropDescriptors();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    Handle<Map> new_map = Map::CopyDropDescriptors(map);
 
-    MaybeObject* added_elements = set_elements_transition_map(new_map);
-    if (added_elements->IsFailure()) return added_elements;
+    SetElementsTransitionMap(map, new_map);
 
     new_map->set_elements_kind(kind);
-    new_map->InitializeDescriptors(instance_descriptors());
-    new_map->SetBackPointer(this);
-    set_owns_descriptors(false);
+    new_map->InitializeDescriptors(map->instance_descriptors());
+    new_map->SetBackPointer(*map);
+    map->set_owns_descriptors(false);
     return new_map;
   }
 
   // In case the map did not own its own descriptors, a split is forced by
   // copying the map; creating a new descriptor array cell.
   // Create a new free-floating map only if we are not allowed to store it.
-  Map* new_map;
-  MaybeObject* maybe_new_map = Copy();
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+  Handle<Map> new_map = Map::Copy(map);
 
   new_map->set_elements_kind(kind);
 
   if (insert_transition) {
-    MaybeObject* added_elements = set_elements_transition_map(new_map);
-    if (added_elements->IsFailure()) return added_elements;
-    new_map->SetBackPointer(this);
+    SetElementsTransitionMap(map, new_map);
+    new_map->SetBackPointer(*map);
   }
 
   return new_map;
@@ -7063,19 +7051,11 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
 
 Handle<Map> Map::Copy(Handle<Map> map) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(), map->Copy(), Map);
-}
-
-
-MaybeObject* Map::Copy() {
-  DescriptorArray* descriptors = instance_descriptors();
-  DescriptorArray* new_descriptors;
-  int number_of_own_descriptors = NumberOfOwnDescriptors();
-  MaybeObject* maybe_descriptors =
-      descriptors->CopyUpTo(number_of_own_descriptors);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-
-  return CopyReplaceDescriptors(new_descriptors, OMIT_TRANSITION);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> new_descriptors =
+      DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
+  return Map::CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
 }
 
 
@@ -7108,33 +7088,31 @@ Handle<Map> Map::Create(Handle<JSFunction> constructor,
 }
 
 
-MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
-                                    TransitionFlag flag) {
-  DescriptorArray* descriptors = instance_descriptors();
+Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
+                                   Descriptor* descriptor,
+                                   TransitionFlag flag) {
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
   // Ensure the key is unique.
-  MaybeObject* maybe_failure = descriptor->KeyToUniqueName();
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  descriptor->KeyToUniqueName();
 
-  int old_size = NumberOfOwnDescriptors();
+  int old_size = map->NumberOfOwnDescriptors();
   int new_size = old_size + 1;
 
   if (flag == INSERT_TRANSITION &&
-      owns_descriptors() &&
-      CanHaveMoreTransitions()) {
-    return ShareDescriptor(descriptors, descriptor);
+      map->owns_descriptors() &&
+      map->CanHaveMoreTransitions()) {
+    return Map::ShareDescriptor(map, descriptors, descriptor);
   }
 
-  DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(GetIsolate(), old_size, 1);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
+  Handle<DescriptorArray> new_descriptors =
+      map->GetIsolate()->factory()->NewDescriptorArray(old_size, 1);
 
-  DescriptorArray::WhitenessWitness witness(new_descriptors);
+  DescriptorArray::WhitenessWitness witness(*new_descriptors);
 
   // Copy the descriptors, inserting a descriptor.
   for (int i = 0; i < old_size; ++i) {
-    new_descriptors->CopyFrom(i, descriptors, i, witness);
+    new_descriptors->CopyFrom(i, *descriptors, i, witness);
   }
 
   if (old_size != descriptors->number_of_descriptors()) {
@@ -7145,25 +7123,36 @@ MaybeObject* Map::CopyAddDescriptor(Descriptor* descriptor,
     new_descriptors->Append(descriptor, witness);
   }
 
-  Name* key = descriptor->GetKey();
-  return CopyReplaceDescriptors(new_descriptors, flag, key, SIMPLE_TRANSITION);
+  Handle<Name> key = descriptor->GetKey();
+  return Map::CopyReplaceDescriptors(
+      map, new_descriptors, flag, key, SIMPLE_TRANSITION);
 }
 
 
-MaybeObject* Map::CopyInsertDescriptor(Descriptor* descriptor,
-                                       TransitionFlag flag) {
-  DescriptorArray* old_descriptors = instance_descriptors();
+Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
+                                      Descriptor* descriptor,
+                                      TransitionFlag flag) {
+  Handle<DescriptorArray> old_descriptors(map->instance_descriptors());
 
   // Ensure the key is unique.
-  MaybeObject* maybe_result = descriptor->KeyToUniqueName();
-  if (maybe_result->IsFailure()) return maybe_result;
+  descriptor->KeyToUniqueName();
 
   // We replace the key if it is already present.
-  int index = old_descriptors->SearchWithCache(descriptor->GetKey(), this);
+  int index = old_descriptors->SearchWithCache(*descriptor->GetKey(), *map);
   if (index != DescriptorArray::kNotFound) {
-    return CopyReplaceDescriptor(old_descriptors, descriptor, index, flag);
+    return Map::CopyReplaceDescriptor(
+        map, old_descriptors, descriptor, index, flag);
   }
-  return CopyAddDescriptor(descriptor, flag);
+  return Map::CopyAddDescriptor(map, descriptor, flag);
+}
+
+
+Handle<DescriptorArray> DescriptorArray::CopyUpTo(
+    Handle<DescriptorArray> desc,
+    int enumeration_index) {
+  return DescriptorArray::CopyUpToAddAttributes(desc,
+                                                enumeration_index,
+                                                NONE);
 }
 
 
@@ -7171,27 +7160,20 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Handle<DescriptorArray> desc,
     int enumeration_index,
     PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(desc->GetIsolate(),
-                     desc->CopyUpToAddAttributes(enumeration_index, attributes),
-                     DescriptorArray);
-}
-
-
-MaybeObject* DescriptorArray::CopyUpToAddAttributes(
-    int enumeration_index, PropertyAttributes attributes) {
-  if (enumeration_index == 0) return GetHeap()->empty_descriptor_array();
+  if (enumeration_index == 0) {
+    return desc->GetIsolate()->factory()->empty_descriptor_array();
+  }
 
   int size = enumeration_index;
 
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors = Allocate(GetIsolate(), size);
-  if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
-  DescriptorArray::WhitenessWitness witness(descriptors);
+  Handle<DescriptorArray> descriptors =
+      desc->GetIsolate()->factory()->NewDescriptorArray(size);
+  DescriptorArray::WhitenessWitness witness(*descriptors);
 
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
-      Object* value = GetValue(i);
-      PropertyDetails details = GetDetails(i);
+      Object* value = desc->GetValue(i);
+      PropertyDetails details = desc->GetDetails(i);
       int mask = DONT_DELETE | DONT_ENUM;
       // READ_ONLY is an invalid attribute for JS setters/getters.
       if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
@@ -7199,59 +7181,59 @@ MaybeObject* DescriptorArray::CopyUpToAddAttributes(
       }
       details = details.CopyAddAttributes(
           static_cast<PropertyAttributes>(attributes & mask));
-      Descriptor desc(GetKey(i), value, details);
-      descriptors->Set(i, &desc, witness);
+      Descriptor inner_desc(handle(desc->GetKey(i)),
+                            handle(value, desc->GetIsolate()),
+                            details);
+      descriptors->Set(i, &inner_desc, witness);
     }
   } else {
     for (int i = 0; i < size; ++i) {
-      descriptors->CopyFrom(i, this, i, witness);
+      descriptors->CopyFrom(i, *desc, i, witness);
     }
   }
 
-  if (number_of_descriptors() != enumeration_index) descriptors->Sort();
+  if (desc->number_of_descriptors() != enumeration_index) descriptors->Sort();
 
   return descriptors;
 }
 
 
-MaybeObject* Map::CopyReplaceDescriptor(DescriptorArray* descriptors,
-                                        Descriptor* descriptor,
-                                        int insertion_index,
-                                        TransitionFlag flag) {
+Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
+                                       Handle<DescriptorArray> descriptors,
+                                       Descriptor* descriptor,
+                                       int insertion_index,
+                                       TransitionFlag flag) {
   // Ensure the key is unique.
-  MaybeObject* maybe_failure = descriptor->KeyToUniqueName();
-  if (maybe_failure->IsFailure()) return maybe_failure;
+  descriptor->KeyToUniqueName();
 
-  Name* key = descriptor->GetKey();
-  ASSERT(key == descriptors->GetKey(insertion_index));
+  Handle<Name> key = descriptor->GetKey();
+  ASSERT(*key == descriptors->GetKey(insertion_index));
 
-  int new_size = NumberOfOwnDescriptors();
+  int new_size = map->NumberOfOwnDescriptors();
   ASSERT(0 <= insertion_index && insertion_index < new_size);
 
   ASSERT_LT(insertion_index, new_size);
 
-  DescriptorArray* new_descriptors;
-  MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(GetIsolate(), new_size);
-  if (!maybe_descriptors->To(&new_descriptors)) return maybe_descriptors;
-  DescriptorArray::WhitenessWitness witness(new_descriptors);
+  Handle<DescriptorArray> new_descriptors =
+      map->GetIsolate()->factory()->NewDescriptorArray(new_size);
+  DescriptorArray::WhitenessWitness witness(*new_descriptors);
 
   for (int i = 0; i < new_size; ++i) {
     if (i == insertion_index) {
       new_descriptors->Set(i, descriptor, witness);
     } else {
-      new_descriptors->CopyFrom(i, descriptors, i, witness);
+      new_descriptors->CopyFrom(i, *descriptors, i, witness);
     }
   }
 
-  // Re-sort if descriptors were removed.
-  if (new_size != descriptors->length()) new_descriptors->Sort();
+  new_descriptors->Sort();
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)
       ? SIMPLE_TRANSITION
       : FULL_TRANSITION;
-  return CopyReplaceDescriptors(new_descriptors, flag, key, simple_flag);
+  return Map::CopyReplaceDescriptors(
+      map, new_descriptors, flag, key, simple_flag);
 }
 
 
@@ -8095,7 +8077,9 @@ void DescriptorArray::CopyFrom(int dst_index,
                                const WhitenessWitness& witness) {
   Object* value = src->GetValue(src_index);
   PropertyDetails details = src->GetDetails(src_index);
-  Descriptor desc(src->GetKey(src_index), value, details);
+  Descriptor desc(handle(src->GetKey(src_index)),
+                  handle(value, src->GetIsolate()),
+                  details);
   Set(dst_index, &desc, witness);
 }
 
@@ -8138,8 +8122,8 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
   int current_offset = 0;
   for (descriptor = 0; descriptor < verbatim; descriptor++) {
     if (left->GetDetails(descriptor).type() == FIELD) current_offset++;
-    Descriptor d(right->GetKey(descriptor),
-                 right->GetValue(descriptor),
+    Descriptor d(handle(right->GetKey(descriptor)),
+                 handle(right->GetValue(descriptor), right->GetIsolate()),
                  right->GetDetails(descriptor));
     result->Set(descriptor, &d);
   }
@@ -8155,14 +8139,14 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
          left->GetValue(descriptor) != right->GetValue(descriptor))) {
       Representation representation = left_details.representation().generalize(
           right_details.representation());
-      FieldDescriptor d(left->GetKey(descriptor),
+      FieldDescriptor d(handle(left->GetKey(descriptor)),
                         current_offset++,
                         right_details.attributes(),
                         representation);
       result->Set(descriptor, &d);
     } else {
-      Descriptor d(right->GetKey(descriptor),
-                   right->GetValue(descriptor),
+      Descriptor d(handle(right->GetKey(descriptor)),
+                   handle(right->GetValue(descriptor), right->GetIsolate()),
                    right_details);
       result->Set(descriptor, &d);
     }
@@ -8173,14 +8157,14 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
     PropertyDetails right_details = right->GetDetails(descriptor);
     if (right_details.type() == FIELD ||
         (store_mode == FORCE_FIELD && descriptor == modify_index)) {
-      FieldDescriptor d(right->GetKey(descriptor),
+      FieldDescriptor d(handle(right->GetKey(descriptor)),
                         current_offset++,
                         right_details.attributes(),
                         right_details.representation());
       result->Set(descriptor, &d);
     } else {
-      Descriptor d(right->GetKey(descriptor),
-                   right->GetValue(descriptor),
+      Descriptor d(handle(right->GetKey(descriptor)),
+                   handle(right->GetValue(descriptor), right->GetIsolate()),
                    right_details);
       result->Set(descriptor, &d);
     }
@@ -9784,45 +9768,34 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
 }
 
 
-static MUST_USE_RESULT MaybeObject* CacheInitialJSArrayMaps(
-    Context* native_context, Map* initial_map) {
+Handle<Object> CacheInitialJSArrayMaps(
+    Handle<Context> native_context, Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
-  Heap* heap = native_context->GetHeap();
-  MaybeObject* maybe_maps =
-      heap->AllocateFixedArrayWithHoles(kElementsKindCount, TENURED);
-  FixedArray* maps;
-  if (!maybe_maps->To(&maps)) return maybe_maps;
+  Factory* factory = native_context->GetIsolate()->factory();
+  Handle<FixedArray> maps = factory->NewFixedArrayWithHoles(
+      kElementsKindCount, TENURED);
 
-  Map* current_map = initial_map;
+  Handle<Map> current_map = initial_map;
   ElementsKind kind = current_map->elements_kind();
   ASSERT(kind == GetInitialFastElementsKind());
-  maps->set(kind, current_map);
+  maps->set(kind, *current_map);
   for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
        i < kFastElementsKindCount; ++i) {
-    Map* new_map;
+    Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
     if (current_map->HasElementsTransition()) {
-      new_map = current_map->elements_transition_map();
+      new_map = handle(current_map->elements_transition_map());
       ASSERT(new_map->elements_kind() == next_kind);
     } else {
-      MaybeObject* maybe_new_map =
-          current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
-      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+      new_map = Map::CopyAsElementsKind(
+          current_map, next_kind, INSERT_TRANSITION);
     }
-    maps->set(next_kind, new_map);
+    maps->set(next_kind, *new_map);
     current_map = new_map;
   }
-  native_context->set_js_array_maps(maps);
+  native_context->set_js_array_maps(*maps);
   return initial_map;
-}
-
-
-Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
-                                       Handle<Map> initial_map) {
-  CALL_HEAP_FUNCTION(native_context->GetIsolate(),
-                     CacheInitialJSArrayMaps(*native_context, *initial_map),
-                     Object);
 }
 
 
@@ -15716,7 +15689,9 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
       PropertyType type = details.type();
 
       if (value->IsJSFunction()) {
-        ConstantDescriptor d(key, value, details.attributes());
+        ConstantDescriptor d(handle(key),
+                             handle(value, GetIsolate()),
+                             details.attributes());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == NORMAL) {
         if (current_offset < inobject_props) {
@@ -15727,15 +15702,15 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
           int offset = current_offset - inobject_props;
           fields->set(offset, value);
         }
-        FieldDescriptor d(key,
+        FieldDescriptor d(handle(key),
                           current_offset++,
                           details.attributes(),
                           // TODO(verwaest): value->OptimalRepresentation();
                           Representation::Tagged());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else if (type == CALLBACKS) {
-        CallbacksDescriptor d(key,
-                              value,
+        CallbacksDescriptor d(handle(key),
+                              handle(value, GetIsolate()),
                               details.attributes());
         descriptors->Set(enumeration_index - 1, &d, witness);
       } else {

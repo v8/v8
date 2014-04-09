@@ -55,6 +55,17 @@ MaybeObject* TransitionArray::Allocate(Isolate* isolate,
 }
 
 
+MaybeObject* TransitionArray::AllocateSimple(Isolate* isolate,
+                                             Map* target) {
+  FixedArray* array;
+  MaybeObject* maybe_array =
+      AllocateRaw(isolate, kSimpleTransitionSize);
+  if (!maybe_array->To(&array)) return maybe_array;
+  array->set(kSimpleTransitionTarget, target);
+  return array;
+}
+
+
 void TransitionArray::NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
                                                         int origin_transition,
                                                         int target_transition) {
@@ -69,23 +80,20 @@ static bool InsertionPointFound(Name* key1, Name* key2) {
 }
 
 
-MaybeObject* TransitionArray::NewWith(SimpleTransitionFlag flag,
-                                      Name* key,
-                                      Map* target,
-                                      Object* back_pointer) {
-  TransitionArray* result;
-  MaybeObject* maybe_result;
+Handle<TransitionArray> TransitionArray::NewWith(SimpleTransitionFlag flag,
+                                                 Handle<Name> key,
+                                                 Handle<Map> target,
+                                                 Handle<Object> back_pointer) {
+  Handle<TransitionArray> result;
+  Factory* factory = key->GetIsolate()->factory();
 
   if (flag == SIMPLE_TRANSITION) {
-    maybe_result = AllocateRaw(target->GetIsolate(), kSimpleTransitionSize);
-    if (!maybe_result->To(&result)) return maybe_result;
-    result->set(kSimpleTransitionTarget, target);
+    result = factory->NewSimpleTransitionArray(target);
   } else {
-    maybe_result = Allocate(target->GetIsolate(), 1);
-    if (!maybe_result->To(&result)) return maybe_result;
-    result->NoIncrementalWriteBarrierSet(0, key, target);
+    result = factory->NewTransitionArray(1);
+    result->NoIncrementalWriteBarrierSet(0, *key, *target);
   }
-  result->set_back_pointer_storage(back_pointer);
+  result->set_back_pointer_storage(*back_pointer);
   return result;
 }
 
@@ -106,49 +114,67 @@ MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
 }
 
 
-MaybeObject* TransitionArray::CopyInsert(Name* name, Map* target) {
-  TransitionArray* result;
+Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
+                                                    Handle<Name> name,
+                                                    Handle<Map> target) {
+  ASSERT(map->HasTransitionArray());
+  Handle<TransitionArray> result;
 
-  int number_of_transitions = this->number_of_transitions();
+  int number_of_transitions = map->transitions()->number_of_transitions();
   int new_size = number_of_transitions;
 
-  int insertion_index = this->Search(name);
+  int insertion_index = map->transitions()->Search(*name);
   if (insertion_index == kNotFound) ++new_size;
 
-  MaybeObject* maybe_array;
-  maybe_array = TransitionArray::Allocate(GetIsolate(), new_size);
-  if (!maybe_array->To(&result)) return maybe_array;
+  result = map->GetIsolate()->factory()->NewTransitionArray(new_size);
 
-  if (HasPrototypeTransitions()) {
-    result->SetPrototypeTransitions(GetPrototypeTransitions());
+  // The map's transition array may have grown smaller during the allocation
+  // above as it was weakly traversed. Trim the result copy if needed, and
+  // recompute variables.
+  DisallowHeapAllocation no_gc;
+  TransitionArray* array = map->transitions();
+  if (array->number_of_transitions() != number_of_transitions) {
+    ASSERT(array->number_of_transitions() < number_of_transitions);
+
+    number_of_transitions = array->number_of_transitions();
+    new_size = number_of_transitions;
+
+    insertion_index = array->Search(*name);
+    if (insertion_index == kNotFound) ++new_size;
+
+    result->Shrink(new_size);
+  }
+
+  if (array->HasPrototypeTransitions()) {
+    result->SetPrototypeTransitions(array->GetPrototypeTransitions());
   }
 
   if (insertion_index != kNotFound) {
     for (int i = 0; i < number_of_transitions; ++i) {
       if (i != insertion_index) {
-        result->NoIncrementalWriteBarrierCopyFrom(this, i, i);
+        result->NoIncrementalWriteBarrierCopyFrom(array, i, i);
       }
     }
-    result->NoIncrementalWriteBarrierSet(insertion_index, name, target);
-    result->set_back_pointer_storage(back_pointer_storage());
+    result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
+    result->set_back_pointer_storage(array->back_pointer_storage());
     return result;
   }
 
   insertion_index = 0;
   for (; insertion_index < number_of_transitions; ++insertion_index) {
-    if (InsertionPointFound(GetKey(insertion_index), name)) break;
+    if (InsertionPointFound(array->GetKey(insertion_index), *name)) break;
     result->NoIncrementalWriteBarrierCopyFrom(
-        this, insertion_index, insertion_index);
+        array, insertion_index, insertion_index);
   }
 
-  result->NoIncrementalWriteBarrierSet(insertion_index, name, target);
+  result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
 
   for (; insertion_index < number_of_transitions; ++insertion_index) {
     result->NoIncrementalWriteBarrierCopyFrom(
-        this, insertion_index, insertion_index + 1);
+        array, insertion_index, insertion_index + 1);
   }
 
-  result->set_back_pointer_storage(back_pointer_storage());
+  result->set_back_pointer_storage(array->back_pointer_storage());
   return result;
 }
 

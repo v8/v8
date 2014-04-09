@@ -1419,13 +1419,14 @@ class DictionaryElementsAccessor
 
   // Adjusts the length of the dictionary backing store and returns the new
   // length according to ES5 section 15.4.5.2 behavior.
-  MUST_USE_RESULT static MaybeObject* SetLengthWithoutNormalize(
-      FixedArrayBase* store,
-      JSArray* array,
-      Object* length_object,
+  static Handle<Object> SetLengthWithoutNormalize(
+      Handle<FixedArrayBase> store,
+      Handle<JSArray> array,
+      Handle<Object> length_object,
       uint32_t length) {
-    SeededNumberDictionary* dict = SeededNumberDictionary::cast(store);
-    Heap* heap = array->GetHeap();
+    Handle<SeededNumberDictionary> dict =
+        Handle<SeededNumberDictionary>::cast(store);
+    Isolate* isolate = array->GetIsolate();
     int capacity = dict->Capacity();
     uint32_t new_length = length;
     uint32_t old_length = static_cast<uint32_t>(array->length()->Number());
@@ -1433,6 +1434,7 @@ class DictionaryElementsAccessor
       // Find last non-deletable element in range of elements to be
       // deleted and adjust range accordingly.
       for (int i = 0; i < capacity; i++) {
+        DisallowHeapAllocation no_gc;
         Object* key = dict->KeyAt(i);
         if (key->IsNumber()) {
           uint32_t number = static_cast<uint32_t>(key->Number());
@@ -1443,8 +1445,7 @@ class DictionaryElementsAccessor
         }
       }
       if (new_length != length) {
-        MaybeObject* maybe_object = heap->NumberFromUint32(new_length);
-        if (!maybe_object->To(&length_object)) return maybe_object;
+        length_object = isolate->factory()->NewNumberFromUint(new_length);
       }
     }
 
@@ -1452,13 +1453,12 @@ class DictionaryElementsAccessor
       // If the length of a slow array is reset to zero, we clear
       // the array and flush backing storage. This has the added
       // benefit that the array returns to fast mode.
-      Object* obj;
-      MaybeObject* maybe_obj = array->ResetElements();
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+      JSObject::ResetElements(array);
     } else {
+      DisallowHeapAllocation no_gc;
       // Remove elements that should be deleted.
       int removed_entries = 0;
-      Object* the_hole_value = heap->the_hole_value();
+      Object* the_hole_value = isolate->heap()->the_hole_value();
       for (int i = 0; i < capacity; i++) {
         Object* key = dict->KeyAt(i);
         if (key->IsNumber()) {
@@ -1474,18 +1474,6 @@ class DictionaryElementsAccessor
       dict->ElementsRemoved(removed_entries);
     }
     return length_object;
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT static Handle<Object> SetLengthWithoutNormalize(
-      Handle<FixedArrayBase> store,
-      Handle<JSArray> array,
-      Handle<Object> length_object,
-      uint32_t length) {
-    CALL_HEAP_FUNCTION(array->GetIsolate(),
-                       SetLengthWithoutNormalize(
-                             *store, *array, *length_object, length),
-                       Object);
   }
 
   MUST_USE_RESULT static MaybeObject* DeleteCommon(
