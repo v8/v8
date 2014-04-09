@@ -63,6 +63,7 @@
 namespace v8 {
 namespace internal {
 
+typedef char Atomic8;
 typedef int32_t Atomic32;
 #ifdef V8_HOST_ARCH_64_BIT
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
@@ -120,10 +121,12 @@ Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
                                 Atomic32 new_value);
 
 void MemoryBarrier();
+void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value);
 void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value);
 void Acquire_Store(volatile Atomic32* ptr, Atomic32 value);
 void Release_Store(volatile Atomic32* ptr, Atomic32 value);
 
+Atomic8 NoBarrier_Load(volatile const Atomic8* ptr);
 Atomic32 NoBarrier_Load(volatile const Atomic32* ptr);
 Atomic32 Acquire_Load(volatile const Atomic32* ptr);
 Atomic32 Release_Load(volatile const Atomic32* ptr);

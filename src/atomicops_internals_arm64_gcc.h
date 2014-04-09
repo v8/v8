@@ -144,6 +144,10 @@ inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
   return prev;
 }
 
+inline void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value) {
+  *ptr = value;
+}
+
 inline void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value) {
   *ptr = value;
 }
@@ -160,6 +164,10 @@ inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
     : [value]"r" (value)
     : "memory"
   );  // NOLINT
+}
+
+inline Atomic8 NoBarrier_Load(volatile const Atomic8* ptr) {
+  return *ptr;
 }
 
 inline Atomic32 NoBarrier_Load(volatile const Atomic32* ptr) {
