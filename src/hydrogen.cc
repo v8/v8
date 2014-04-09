@@ -9846,6 +9846,17 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     }
   } else if (combined_type->Is(Type::InternalizedString()) &&
              Token::IsEqualityOp(op)) {
+    // If we have a constant argument, it should be consistent with the type
+    // feedback (otherwise we fail assertions in HCompareObjectEqAndBranch).
+    if ((left->IsConstant() &&
+         !HConstant::cast(left)->HasInternalizedStringValue()) ||
+        (right->IsConstant() &&
+         !HConstant::cast(right)->HasInternalizedStringValue())) {
+      Add<HDeoptimize>("Type mismatch between feedback and constant",
+                       Deoptimizer::SOFT);
+      // The caller expects a branch instruction, so make it happy.
+      return New<HBranch>(graph()->GetConstantTrue());
+    }
     BuildCheckHeapObject(left);
     Add<HCheckInstanceType>(left, HCheckInstanceType::IS_INTERNALIZED_STRING);
     BuildCheckHeapObject(right);
@@ -9854,6 +9865,17 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         New<HCompareObjectEqAndBranch>(left, right);
     return result;
   } else if (combined_type->Is(Type::String())) {
+    // If we have a constant argument, it should be consistent with the type
+    // feedback (otherwise we fail assertions in HCompareObjectEqAndBranch).
+    if ((left->IsConstant() &&
+         !HConstant::cast(left)->HasStringValue()) ||
+        (right->IsConstant() &&
+         !HConstant::cast(right)->HasStringValue())) {
+      Add<HDeoptimize>("Type mismatch between feedback and constant",
+                       Deoptimizer::SOFT);
+      // The caller expects a branch instruction, so make it happy.
+      return New<HBranch>(graph()->GetConstantTrue());
+    }
     BuildCheckHeapObject(left);
     Add<HCheckInstanceType>(left, HCheckInstanceType::IS_STRING);
     BuildCheckHeapObject(right);
