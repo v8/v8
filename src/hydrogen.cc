@@ -5649,7 +5649,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
           ? TryInlineGetter(info->accessor(), info->map(), ast_id, return_id)
           : TryInlineSetter(
               info->accessor(), info->map(), ast_id, return_id, value);
-      if (success) return NULL;
+      if (success || HasStackOverflow()) return NULL;
     }
 
     PushArgumentsFromEnvironment(argument_count);
