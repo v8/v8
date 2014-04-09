@@ -1833,8 +1833,8 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
-                         JSArray::SetElementsLength(receiver, len));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSArray::SetElementsLength(receiver, len));
   return *len;
 }
 

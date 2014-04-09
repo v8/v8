@@ -15034,8 +15034,8 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
   factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
 
   ElementsKind old_kind = array->GetElementsKind();
-  RETURN_IF_EMPTY_HANDLE(isolate,
-                         ArrayConstructInitializeElements(array, caller_args));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, ArrayConstructInitializeElements(array, caller_args));
   if (!site.is_null() &&
       (old_kind != array->GetElementsKind() ||
        !can_use_type_feedback)) {

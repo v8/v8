@@ -10232,8 +10232,9 @@ class JSArray: public JSObject {
   // Initializes the array to a certain length.
   inline bool AllowsSetElementsLength();
   // Can cause GC.
-  static Handle<Object> SetElementsLength(Handle<JSArray> array,
-                                          Handle<Object> length);
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementsLength(
+      Handle<JSArray> array,
+      Handle<Object> length);
 
   // Set the content of the array to the content of storage.
   static inline void SetContent(Handle<JSArray> array,

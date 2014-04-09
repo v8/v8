@@ -162,11 +162,11 @@ static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
 }
 
 
-static Handle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
-  isolate->Throw(
-      *isolate->factory()->NewRangeError("invalid_array_length",
-                                         HandleVector<Object>(NULL, 0)));
-  return Handle<Object>();
+MUST_USE_RESULT
+static MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
+  return isolate->Throw<Object>(
+      isolate->factory()->NewRangeError("invalid_array_length",
+                                        HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -727,14 +727,14 @@ class ElementsAccessorBase : public ElementsAccessor {
     return MaybeHandle<AccessorPair>();
   }
 
-  MUST_USE_RESULT virtual Handle<Object> SetLength(
+  MUST_USE_RESULT virtual MaybeHandle<Object> SetLength(
       Handle<JSArray> array,
       Handle<Object> length) V8_FINAL V8_OVERRIDE {
     return ElementsAccessorSubclass::SetLengthImpl(
         array, length, handle(array->elements()));
   }
 
-  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
       Handle<JSObject> obj,
       Handle<Object> length,
       Handle<FixedArrayBase> backing_store);
@@ -1364,7 +1364,7 @@ class TypedElementsAccessor
           ? FIELD : NONEXISTENT;
   }
 
-  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
       Handle<JSObject> obj,
       Handle<Object> length,
       Handle<FixedArrayBase> backing_store) {
@@ -1749,7 +1749,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  MUST_USE_RESULT static Handle<Object> SetLengthImpl(
+  MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
       Handle<JSObject> obj,
       Handle<Object> length,
       Handle<FixedArrayBase> parameter_map) {
@@ -1867,8 +1867,9 @@ void ElementsAccessor::TearDown() {
 
 
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
-                                                    ElementsKindTraits>::
+MUST_USE_RESULT
+MaybeHandle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
+                                         ElementsKindTraits>::
     SetLengthImpl(Handle<JSObject> obj,
                   Handle<Object> length,
                   Handle<FixedArrayBase> backing_store) {
@@ -1883,7 +1884,7 @@ MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     if (value >= 0) {
       Handle<Object> new_length = ElementsAccessorSubclass::
           SetLengthWithoutNormalize(backing_store, array, smi_length, value);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, new_length, new_length);
+      ASSERT(!new_length.is_null());
 
       // even though the proposed length was a smi, new_length could
       // still be a heap number because SetLengthWithoutNormalize doesn't
@@ -1910,11 +1911,11 @@ MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
     if (length->ToArrayIndex(&value)) {
       Handle<SeededNumberDictionary> dictionary =
           JSObject::NormalizeElements(array);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, dictionary, dictionary);
+      ASSERT(!dictionary.is_null());
 
       Handle<Object> new_length = DictionaryElementsAccessor::
           SetLengthWithoutNormalize(dictionary, array, length, value);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, new_length, new_length);
+      ASSERT(!new_length.is_null());
 
       ASSERT(new_length->IsNumber());
       array->set_length(*new_length);
@@ -1933,8 +1934,8 @@ MUST_USE_RESULT Handle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
 }
 
 
-Handle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
-                                                Arguments* args) {
+MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
+                                                     Arguments* args) {
   // Optimize the case where there is one argument and the argument is a
   // small smi.
   if (args->length() == 1) {

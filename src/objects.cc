@@ -11439,8 +11439,9 @@ static void EndPerformSplice(Handle<JSArray> object) {
 }
 
 
-Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
-                                          Handle<Object> new_length_handle) {
+MaybeHandle<Object> JSArray::SetElementsLength(
+    Handle<JSArray> array,
+    Handle<Object> new_length_handle) {
   // We should never end in here with a pixel or external array.
   ASSERT(array->AllowsSetElementsLength());
   if (!array->map()->is_observed()) {
@@ -11478,9 +11479,11 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
     }
   }
 
-  Handle<Object> hresult =
-      array->GetElementsAccessor()->SetLength(array, new_length_handle);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, hresult, hresult);
+  Handle<Object> hresult;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, hresult,
+      array->GetElementsAccessor()->SetLength(array, new_length_handle),
+      Object);
 
   CHECK(array->length()->ToArrayIndex(&new_length));
   if (old_length == new_length) return hresult;

@@ -211,8 +211,10 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
-    Handle<Object> result = JSArray::SetElementsLength(array_handle, uint32_v);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSArray::SetElementsLength(array_handle, uint32_v));
     return *result;
   }
   return isolate->Throw(
