@@ -226,11 +226,7 @@ class ElementsAccessor {
     return elements_accessors_[elements_kind];
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
-  inline static ElementsAccessor* ForArray(Handle<FixedArrayBase> array) {
-    return ForArray(*array);
-  }
-  static ElementsAccessor* ForArray(FixedArrayBase* array);
+  static ElementsAccessor* ForArray(Handle<FixedArrayBase> array);
 
   static void InitializeOncePerProcess();
   static void TearDown();
@@ -238,7 +234,7 @@ class ElementsAccessor {
  protected:
   friend class SloppyArgumentsElementsAccessor;
 
-  virtual uint32_t GetCapacity(FixedArrayBase* backing_store) = 0;
+  virtual uint32_t GetCapacity(Handle<FixedArrayBase> backing_store) = 0;
 
   // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the
@@ -250,20 +246,6 @@ class ElementsAccessor {
   // the index to a key using the KeyAt method on the NumberDictionary.
   virtual uint32_t GetKeyForIndex(Handle<FixedArrayBase> backing_store,
                                   uint32_t index) = 0;
-
-  // TODO(ishell): Non-handlified versions, used only by accessors'
-  // implementations. To be removed once elements.cc is handlified.
-  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store) = 0;
-
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;
