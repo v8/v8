@@ -306,10 +306,14 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
 template<class Config>
 bool TypeImpl<Config>::NowIs(TypeImpl* that) {
-  return this->Is(that) ||
-      (this->IsConstant() && that->IsClass() &&
-       this->AsConstant()->IsHeapObject() &&
-       i::HeapObject::cast(*this->AsConstant())->map() == *that->AsClass());
+  if (this->Is(that)) return true;
+  if (this->IsConstant() && this->AsConstant()->IsHeapObject()) {
+    i::Handle<i::Map> map(i::HeapObject::cast(*this->AsConstant())->map());
+    for (Iterator<i::Map> it = that->Classes(); !it.Done(); it.Advance()) {
+      if (*it.Current() == *map) return true;
+    }
+  }
+  return false;
 }
 
 
@@ -358,8 +362,8 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
 
 template<class Config>
 bool TypeImpl<Config>::Contains(i::Object* value) {
-  if (this->IsConstant()) {
-    return *this->AsConstant() == value;
+  for (Iterator<i::Object> it = this->Constants(); !it.Done(); it.Advance()) {
+    if (*it.Current() == value) return true;
   }
   return Config::from_bitset(LubBitset(value))->Is(this);
 }

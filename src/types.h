@@ -154,7 +154,7 @@ namespace internal {
   V(Receiver,            kObject | kProxy)                              \
   V(NonNumber,           kBoolean | kName | kNull | kReceiver |         \
                          kUndefined | kInternal)                        \
-  V(Any,                 kNumber | kNonNumber)
+  V(Any,                 -1)
 
 #define BITSET_TYPE_LIST(V) \
   MASK_BITSET_TYPE_LIST(V) \
@@ -218,6 +218,10 @@ class TypeImpl : public Config::Base {
   }
   static TypeHandle Of(i::Handle<i::Object> value, Region* region) {
     return Of(*value, region);
+  }
+
+  bool IsInhabited() {
+    return !this->IsBitset() || IsInhabited(this->AsBitset());
   }
 
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }

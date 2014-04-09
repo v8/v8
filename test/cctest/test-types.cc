@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <list>
+
 #include "cctest.h"
 #include "types.h"
 
@@ -71,6 +73,43 @@ class Types {
     ObjectConstant2 = Type::Constant(object2, region);
     ArrayConstant1 = Type::Constant(array, region);
     ArrayConstant2 = Type::Constant(array, region);
+
+    types.push_back(None);
+    types.push_back(Any);
+    types.push_back(Boolean);
+    types.push_back(Null);
+    types.push_back(Undefined);
+    types.push_back(Number);
+    types.push_back(SignedSmall);
+    types.push_back(Signed32);
+    types.push_back(Float);
+    types.push_back(Name);
+    types.push_back(UniqueName);
+    types.push_back(String);
+    types.push_back(InternalizedString);
+    types.push_back(Symbol);
+    types.push_back(Receiver);
+    types.push_back(Object);
+    types.push_back(Array);
+    types.push_back(Function);
+    types.push_back(Proxy);
+    types.push_back(ObjectClass);
+    types.push_back(ArrayClass);
+    types.push_back(SmiConstant);
+    types.push_back(Signed32Constant);
+    types.push_back(ObjectConstant1);
+    types.push_back(ObjectConstant2);
+    types.push_back(ArrayConstant1);
+    types.push_back(ArrayConstant2);
+    for (int i = 0; i < 300; ++i) {
+      types.push_back(Fuzz());
+    }
+
+    objects.push_back(smi);
+    objects.push_back(signed32);
+    objects.push_back(object1);
+    objects.push_back(object2);
+    objects.push_back(array);
   }
 
   TypeHandle Representation;
@@ -113,6 +152,20 @@ class Types {
   Handle<i::JSObject> object1;
   Handle<i::JSObject> object2;
   Handle<i::JSArray> array;
+
+  typedef std::list<TypeHandle> TypeList;
+  TypeList types;
+
+  typedef std::list<Handle<i::Object> > ObjectList;
+  ObjectList objects;
+
+  TypeHandle Of(Handle<i::Object> obj) {
+    return Type::Of(obj, region_);
+  }
+
+  TypeHandle Constant(Handle<i::Object> obj) {
+    return Type::Constant(obj, region_);
+  }
 
   TypeHandle Union(TypeHandle t1, TypeHandle t2) {
     return Type::Union(t1, t2, region_);
@@ -239,6 +292,10 @@ struct Tests : Rep {
   HandleScope scope;
   Zone zone;
   Types<Type, TypeHandle, Region> T;
+  typedef typename Types<Type, TypeHandle, Region>::TypeList::iterator
+      TypeIterator;
+  typedef typename Types<Type, TypeHandle, Region>::ObjectList::iterator
+      ObjectIterator;
 
   Tests() :
       isolate(CcTest::i_isolate()),
@@ -346,14 +403,49 @@ struct Tests : Rep {
   }
 
   void Is() {
-    // Reflexivity
-    CHECK(T.None->Is(T.None));
-    CHECK(T.Any->Is(T.Any));
-    CHECK(T.Object->Is(T.Object));
+    // T->Is(None) implies T = None for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      if (type->Is(T.None)) CheckEqual(type, T.None);
+    }
 
-    CHECK(T.ObjectClass->Is(T.ObjectClass));
-    CHECK(T.ObjectConstant1->Is(T.ObjectConstant1));
-    CHECK(T.ArrayConstant1->Is(T.ArrayConstant2));
+    // None->Is(T) for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(T.None->Is(type));
+    }
+
+    // Any->Is(T) implies T = Any for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      if (T.Any->Is(type)) CheckEqual(type, T.Any);
+    }
+
+    // T->Is(Any) for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(type->Is(T.Any));
+    }
+
+    // Reflexivity
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(type->Is(type));
+    }
+
+    // Transitivity
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
+          TypeHandle type1 = *it1;
+          TypeHandle type2 = *it2;
+          TypeHandle type3 = *it3;
+          CHECK(!type1->Is(type2) ||
+                !type2->Is(type3) ||
+                type1->Is(type3));
+        }
+      }
+    }
 
     // Symmetry and Transitivity
     CheckSub(T.None, T.Number);
@@ -420,7 +512,111 @@ struct Tests : Rep {
     CheckUnordered(T.ArrayConstant1, T.ObjectClass);
   }
 
+  void NowIs() {
+    // T->NowIs(None) implies T = None for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      if (type->NowIs(T.None)) CheckEqual(type, T.None);
+    }
+
+    // None->NowIs(T) for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(T.None->NowIs(type));
+    }
+
+    // Any->NowIs(T) implies T = Any for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      if (T.Any->NowIs(type)) CheckEqual(type, T.Any);
+    }
+
+    // T->NowIs(Any) for all T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(type->NowIs(T.Any));
+    }
+
+    // Reflexivity
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(type->NowIs(type));
+    }
+
+    // Transitivity
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
+          TypeHandle type1 = *it1;
+          TypeHandle type2 = *it2;
+          TypeHandle type3 = *it3;
+          CHECK(!type1->NowIs(type2) ||
+                !type2->NowIs(type3) ||
+                type1->NowIs(type3));
+        }
+      }
+    }
+
+    // T1->Is(T2) implies T1->NowIs(T2) for all T1,T2
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        CHECK(!type1->Is(type2) || type1->NowIs(type2));
+      }
+    }
+
+    CHECK(T.ObjectConstant1->NowIs(T.ObjectClass));
+    CHECK(T.ObjectConstant2->NowIs(T.ObjectClass));
+  }
+
+  void Contains() {
+    // T->Contains(O) iff Constant(O)->Is(T) for all T,O
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      for (ObjectIterator ot = T.objects.begin(); ot != T.objects.end(); ++ot) {
+        TypeHandle type = *it;
+        Handle<i::Object> obj = *ot;
+        CHECK(type->Contains(obj) == T.Constant(obj)->Is(type));
+      }
+    }
+
+    // Of(O)->Is(T) implies T->Contains(O) for all T,O
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      for (ObjectIterator ot = T.objects.begin(); ot != T.objects.end(); ++ot) {
+        TypeHandle type = *it;
+        Handle<i::Object> obj = *ot;
+        CHECK(!T.Of(obj)->Is(type) || type->Contains(obj));
+      }
+    }
+  }
+
   void Maybe() {
+    // T->Maybe(T) for all inhabited T
+    for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
+      TypeHandle type = *it;
+      CHECK(type->Maybe(type) || !type->IsInhabited());
+    }
+
+    // Commutativity
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        CHECK(type1->Maybe(type2) == type2->Maybe(type1));
+      }
+    }
+
+    // T1->Is(T2) implies T1->Maybe(T2) or T1 is uninhabited for all T1,T2
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        CHECK(!type1->Is(type2) ||
+              type1->Maybe(type2) ||
+              !type1->IsInhabited());
+      }
+    }
+
     CheckOverlap(T.Any, T.Any, T.Semantic);
     CheckOverlap(T.Object, T.Object, T.Semantic);
 
@@ -865,6 +1061,20 @@ TEST(Is) {
   CcTest::InitializeVM();
   ZoneTests().Is();
   HeapTests().Is();
+}
+
+
+TEST(NowIs) {
+  CcTest::InitializeVM();
+  ZoneTests().NowIs();
+  HeapTests().NowIs();
+}
+
+
+TEST(Contains) {
+  CcTest::InitializeVM();
+  ZoneTests().Contains();
+  HeapTests().Contains();
 }
 
 
