@@ -125,10 +125,15 @@
 ['no_snap == True', {
   # BUG(3215)
   'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL],
-
-  # Windows doesn't support nosnap mode.
-  'test-serialize/*': [PASS, ['system == windows', SKIP]],
 }],  # 'no_snap == True'
+
+##############################################################################
+# TODO(machenbach): Fix application of '*'. Nosnap windows needs a separate
+# section to not overwrite the expectations for TestThatAlwaysFails.
+['no_snap == True and system == windows', {
+  # Windows doesn't support nosnap mode.
+  'test-serialize/*': [SKIP],
+}],  # 'no_snap == True and system == windows'
 
 ##############################################################################
 ['system == windows', {
