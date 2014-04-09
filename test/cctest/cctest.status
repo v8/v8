@@ -122,11 +122,13 @@
 }],  # 'asan == True'
 
 ##############################################################################
-# This should be 'nosnap == True': issue 3216 to add 'nosnap'.
-[ALWAYS, {
+['no_snap == True', {
   # BUG(3215)
   'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL],
-}],  # 'nosnap == True'
+
+  # Windows doesn't support nosnap mode.
+  'test-serialize/*': [PASS, ['system == windows', SKIP]],
+}],  # 'no_snap == True'
 
 ##############################################################################
 ['system == windows', {
