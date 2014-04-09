@@ -2036,10 +2036,10 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
   i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::String> fmt_str =
       isolate->factory()->InternalizeUtf8String(name);
-  i::Object* object_fun =
-      isolate->js_builtins_object()->GetPropertyNoExceptionThrown(*fmt_str);
-  i::Handle<i::JSFunction> fun =
-      i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
+  i::Handle<i::Object> object_fun =
+      i::GlobalObject::GetPropertyNoExceptionThrown(
+          isolate->js_builtins_object(), fmt_str);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(object_fun);
   i::Handle<i::Object> value = i::Execution::Call(
       isolate, fun, recv, argc, argv, has_pending_exception);
   return value;
@@ -2484,8 +2484,8 @@ static i::Object* LookupBuiltin(i::Isolate* isolate,
                                 const char* builtin_name) {
   i::Handle<i::String> string =
       isolate->factory()->InternalizeUtf8String(builtin_name);
-  i::Handle<i::JSBuiltinsObject> builtins = isolate->js_builtins_object();
-  return builtins->GetPropertyNoExceptionThrown(*string);
+  return *i::GlobalObject::GetPropertyNoExceptionThrown(
+      isolate->js_builtins_object(), string);
 }
 
 

@@ -1116,10 +1116,10 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   Handle<String> is_break_point_triggered_string =
       factory->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("IsBreakPointTriggered"));
+  Handle<GlobalObject> debug_global(debug_context()->global_object());
   Handle<JSFunction> check_break_point =
-    Handle<JSFunction>(JSFunction::cast(
-        debug_context()->global_object()->GetPropertyNoExceptionThrown(
-            *is_break_point_triggered_string)));
+    Handle<JSFunction>::cast(GlobalObject::GetPropertyNoExceptionThrown(
+        debug_global, is_break_point_triggered_string));
 
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
@@ -2463,9 +2463,8 @@ void Debug::ClearMirrorCache() {
   // Clear the mirror cache.
   Handle<String> function_name = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("ClearMirrorCache"));
-  Handle<Object> fun(
-      isolate_->global_object()->GetPropertyNoExceptionThrown(*function_name),
-      isolate_);
+  Handle<Object> fun = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate_->global_object(), function_name);
   ASSERT(fun->IsJSFunction());
   bool caught_exception;
   Execution::TryCall(Handle<JSFunction>::cast(fun),
@@ -2601,9 +2600,8 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
   Handle<String> constructor_str =
       isolate_->factory()->InternalizeUtf8String(constructor_name);
   ASSERT(!constructor_str.is_null());
-  Handle<Object> constructor(
-      isolate_->global_object()->GetPropertyNoExceptionThrown(*constructor_str),
-      isolate_);
+  Handle<Object> constructor = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate_->global_object(), constructor_str);
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) {
     *caught_exception = true;
@@ -2833,11 +2831,10 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Handle<String> update_script_break_points_string =
       isolate_->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
+  Handle<GlobalObject> debug_global(debug->debug_context()->global_object());
   Handle<Object> update_script_break_points =
-      Handle<Object>(
-          debug->debug_context()->global_object()->GetPropertyNoExceptionThrown(
-              *update_script_break_points_string),
-          isolate_);
+      GlobalObject::GetPropertyNoExceptionThrown(
+          debug_global, update_script_break_points_string);
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }

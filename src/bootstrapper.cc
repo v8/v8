@@ -1515,13 +1515,12 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                 \
-  Handle<String> var##_name =                                           \
-    factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR(name));     \
-  Object* var##_native =                                                \
-      native_context()->builtins()->GetPropertyNoExceptionThrown(       \
-           *var##_name);                                                \
-  native_context()->set_##var(Type::cast(var##_native));
+#define INSTALL_NATIVE(Type, name, var)                                        \
+  Handle<String> var##_name =                                                  \
+    factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR(name));            \
+  Handle<Object> var##_native = GlobalObject::GetPropertyNoExceptionThrown(    \
+           handle(native_context()->builtins()), var##_name);                  \
+  native_context()->set_##var(Type::cast(*var##_native));
 
 
 void Genesis::InstallNativeFunctions() {
@@ -2054,8 +2053,9 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      BuiltinFunctionId id) {
   Factory* factory = holder->GetIsolate()->factory();
   Handle<String> name = factory->InternalizeUtf8String(function_name);
-  Object* function_object = holder->GetProperty(*name)->ToObjectUnchecked();
-  Handle<JSFunction> function(JSFunction::cast(function_object));
+  Handle<Object> function_object = Object::GetProperty(holder, name);
+  ASSERT(!function_object.is_null());
+  Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   function->shared()->set_function_data(Smi::FromInt(id));
 }
 
@@ -2349,9 +2349,9 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
     Handle<String> name =
         factory()->InternalizeUtf8String(Builtins::GetName(id));
-    Object* function_object = builtins->GetPropertyNoExceptionThrown(*name);
-    Handle<JSFunction> function
-        = Handle<JSFunction>(JSFunction::cast(function_object));
+    Handle<Object> function_object =
+        GlobalObject::GetPropertyNoExceptionThrown(builtins, name);
+    Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
     builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
       return false;

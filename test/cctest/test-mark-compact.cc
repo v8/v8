@@ -128,6 +128,7 @@ TEST(MarkCompactCollector) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<GlobalObject> global(isolate->context()->global_object());
@@ -143,70 +144,57 @@ TEST(MarkCompactCollector) {
     maybe_array = heap->AllocateFixedArray(ARRAY_SIZE);
   } while (maybe_array->ToObject(&array));
   heap->CollectGarbage(NEW_SPACE, "trigger 2");
-
-  array = heap->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
+  heap->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
 
   // keep allocating maps until it fails
-  Object* mapp;
-  MaybeObject* maybe_mapp;
+  Object* map;
+  MaybeObject* maybe_map;
   do {
-    maybe_mapp = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  } while (maybe_mapp->ToObject(&mapp));
+    maybe_map = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  } while (maybe_map->ToObject(&map));
   heap->CollectGarbage(MAP_SPACE, "trigger 3");
-  mapp = heap->AllocateMap(JS_OBJECT_TYPE,
-                           JSObject::kHeaderSize)->ToObjectChecked();
+  heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)->ToObjectChecked();
 
-  // allocate a garbage
-  String* func_name = String::cast(
-      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  SharedFunctionInfo* function_share = SharedFunctionInfo::cast(
-      heap->AllocateSharedFunctionInfo(func_name)->ToObjectChecked());
-  JSFunction* function = JSFunction::cast(
-      heap->AllocateFunction(*isolate->sloppy_function_map(),
-                             function_share,
-                             heap->undefined_value())->ToObjectChecked());
-  Map* initial_map =
-      Map::cast(heap->AllocateMap(JS_OBJECT_TYPE,
-                                  JSObject::kHeaderSize)->ToObjectChecked());
-  function->set_initial_map(initial_map);
-  JSReceiver::SetProperty(
-      global, handle(func_name), handle(function), NONE, SLOPPY).Check();
+  { HandleScope scope(isolate);
+    // allocate a garbage
+    Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
+    Handle<JSFunction> function = factory->NewFunction(
+        func_name, factory->undefined_value());
+    Handle<Map> initial_map = factory->NewMap(
+        JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    function->set_initial_map(*initial_map);
+    JSReceiver::SetProperty(global, func_name, function, NONE, SLOPPY).Check();
 
-  JSObject* obj = JSObject::cast(
-      heap->AllocateJSObject(function)->ToObjectChecked());
+    factory->NewJSObject(function);
+  }
+
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 4");
 
-  func_name = String::cast(
-      heap->InternalizeUtf8String("theFunction")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(func_name)));
-  Object* func_value = isolate->context()->global_object()->
-      GetProperty(func_name)->ToObjectChecked();
-  CHECK(func_value->IsJSFunction());
-  function = JSFunction::cast(func_value);
+  { HandleScope scope(isolate);
+    Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
+    CHECK(JSReceiver::HasLocalProperty(global, func_name));
+    Handle<Object> func_value = Object::GetProperty(global, func_name);
+    CHECK(func_value->IsJSFunction());
+    Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
+    Handle<JSObject> obj = factory->NewJSObject(function);
 
-  obj = JSObject::cast(heap->AllocateJSObject(function)->ToObjectChecked());
-  String* obj_name =
-      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  JSReceiver::SetProperty(
-      global, handle(obj_name), handle(obj), NONE, SLOPPY).Check();
-  String* prop_name =
-      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(
-      handle(obj), handle(prop_name), twenty_three, NONE, SLOPPY).Check();
+    Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
+    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY).Check();
+    Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+    Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+  }
 
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 5");
 
-  obj_name =
-      String::cast(heap->InternalizeUtf8String("theObject")->ToObjectChecked());
-  CHECK(JSReceiver::HasLocalProperty(global, handle(obj_name)));
-  CHECK(isolate->context()->global_object()->
-        GetProperty(obj_name)->ToObjectChecked()->IsJSObject());
-  obj = JSObject::cast(isolate->context()->global_object()->
-                       GetProperty(obj_name)->ToObjectChecked());
-  prop_name =
-      String::cast(heap->InternalizeUtf8String("theSlot")->ToObjectChecked());
-  CHECK(obj->GetProperty(prop_name) == Smi::FromInt(23));
+  { HandleScope scope(isolate);
+    Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
+    CHECK(JSReceiver::HasLocalProperty(global, obj_name));
+    Handle<Object> object = Object::GetProperty(global, obj_name);
+    CHECK(object->IsJSObject());
+    Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
+    CHECK_EQ(*Object::GetProperty(object, prop_name), Smi::FromInt(23));
+  }
 }
 
 

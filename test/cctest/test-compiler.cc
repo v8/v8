@@ -36,11 +36,12 @@
 
 using namespace v8::internal;
 
-static MaybeObject* GetGlobalProperty(const char* name) {
+static Handle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  return isolate->context()->global_object()->GetProperty(*internalized_name);
+  return GlobalObject::GetPropertyNoExceptionThrown(
+      isolate->global_object(), internalized_name);
 }
 
 
@@ -85,7 +86,7 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->ToObjectChecked()->Number();
+  return GetGlobalProperty("result")->Number();
 }
 
 
@@ -106,7 +107,7 @@ static double Add(Isolate* isolate, int x, int y) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->ToObjectChecked()->Number();
+  return GetGlobalProperty("result")->Number();
 }
 
 
@@ -126,7 +127,7 @@ static double Abs(Isolate* isolate, int x) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->ToObjectChecked()->Number();
+  return GetGlobalProperty("result")->Number();
 }
 
 
@@ -147,7 +148,7 @@ static double Sum(Isolate* isolate, int n) {
   Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  return GetGlobalProperty("result")->ToObjectChecked()->Number();
+  return GetGlobalProperty("result")->Number();
 }
 
 
@@ -204,7 +205,7 @@ TEST(Stuff) {
   Execution::Call(
       CcTest::i_isolate(), fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
-  CHECK_EQ(511.0, GetGlobalProperty("r")->ToObjectChecked()->Number());
+  CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
 }
 
 
@@ -250,11 +251,10 @@ TEST(C2JSFrames) {
       isolate, fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_string = isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("foo"))->ToObjectChecked();
-  MaybeObject* fun1_object = isolate->context()->global_object()->
-      GetProperty(String::cast(foo_string));
-  Handle<Object> fun1(fun1_object->ToObjectChecked(), isolate);
+  Handle<String> foo_string = isolate->factory()->InternalizeOneByteString(
+      STATIC_ASCII_VECTOR("foo"));
+  Handle<Object> fun1 = Object::GetProperty(
+      isolate->global_object(), foo_string);
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(

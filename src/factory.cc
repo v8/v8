@@ -1128,9 +1128,8 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* message,
                                  Handle<JSArray> args) {
   Handle<String> make_str = InternalizeUtf8String(maker);
-  Handle<Object> fun_obj(
-      isolate()->js_builtins_object()->GetPropertyNoExceptionThrown(*make_str),
-      isolate());
+  Handle<Object> fun_obj = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate()->js_builtins_object(), make_str);
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction()) {
@@ -1160,9 +1159,9 @@ Handle<Object> Factory::NewError(Handle<String> message) {
 Handle<Object> Factory::NewError(const char* constructor,
                                  Handle<String> message) {
   Handle<String> constr = InternalizeUtf8String(constructor);
-  Handle<JSFunction> fun = Handle<JSFunction>(
-      JSFunction::cast(isolate()->js_builtins_object()->
-                       GetPropertyNoExceptionThrown(*constr)));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      GlobalObject::GetPropertyNoExceptionThrown(
+          isolate()->js_builtins_object(), constr));
   Handle<Object> argv[] = { message };
 
   // Invoke the JavaScript factory method. If an exception is thrown while

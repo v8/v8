@@ -7776,10 +7776,9 @@ class GlobalObject: public JSObject {
   // by throwing an exception.  This is for the debug and builtins global
   // objects, where it is known which properties can be expected to be present
   // on the object.
-  Object* GetPropertyNoExceptionThrown(Name* key) {
-    Object* answer = GetProperty(key)->ToObjectUnchecked();
-    return answer;
-  }
+  static inline Handle<Object> GetPropertyNoExceptionThrown(
+      Handle<GlobalObject> global,
+      Handle<Name> name);
 
   // Casting.
   static inline GlobalObject* cast(Object* obj);

@@ -293,8 +293,8 @@ TEST(GarbageCollection) {
     JSReceiver::SetProperty(
         obj, prop_namex, twenty_four, NONE, SLOPPY).Check();
 
-    CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
-    CHECK_EQ(Smi::FromInt(24), obj->GetProperty(*prop_namex));
+    CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
+    CHECK_EQ(Smi::FromInt(24), *Object::GetProperty(obj, prop_namex));
   }
 
   heap->CollectGarbage(NEW_SPACE);
@@ -302,10 +302,9 @@ TEST(GarbageCollection) {
   // Function should be alive.
   CHECK(JSReceiver::HasLocalProperty(global, name));
   // Check function is retained.
-  Object* func_value = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*name)->ToObjectChecked();
+  Handle<Object> func_value = Object::GetProperty(global, name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
 
   {
     HandleScope inner_scope(isolate);
@@ -320,12 +319,9 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   CHECK(JSReceiver::HasLocalProperty(global, obj_name));
-  CHECK(CcTest::i_isolate()->context()->global_object()->
-        GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
-  Object* obj = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*obj_name)->ToObjectChecked();
-  JSObject* js_obj = JSObject::cast(obj);
-  CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
+  Handle<Object> obj = Object::GetProperty(global, obj_name);
+  CHECK(obj->IsJSObject());
+  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
 }
 
 
@@ -649,11 +645,11 @@ TEST(FunctionAllocation) {
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
   JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
+  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
   // Check that we can add properties to function objects.
   JSReceiver::SetProperty(
       function, prop_name, twenty_four, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(24), function->GetProperty(*prop_name));
+  CHECK_EQ(Smi::FromInt(24), *Object::GetProperty(function, prop_name));
 }
 
 
@@ -663,11 +659,10 @@ TEST(ObjectProperties) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  String* object_string = String::cast(CcTest::heap()->Object_string());
-  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(object_string)->ToObjectChecked();
-  JSFunction* object_function = JSFunction::cast(raw_object);
-  Handle<JSFunction> constructor(object_function);
+  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
+  Handle<Object> object =
+      Object::GetProperty(CcTest::i_isolate()->global_object(), object_string);
+  Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
@@ -747,7 +742,7 @@ TEST(JSObjectMaps) {
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(23), obj->GetProperty(*prop_name));
+  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
 
   // Check the map has changed
   CHECK(*initial_map != obj->map());
@@ -761,10 +756,9 @@ TEST(JSArray) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("Array");
-  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*name)->ToObjectChecked();
-  Handle<JSFunction> function = Handle<JSFunction>(
-      JSFunction::cast(raw_object));
+  Handle<Object> fun_obj =
+      Object::GetProperty(CcTest::i_isolate()->global_object(), name);
+  Handle<JSFunction> function = Handle<JSFunction>::cast(fun_obj);
 
   // Allocate the object.
   Handle<JSObject> object = factory->NewJSObject(function);
@@ -809,11 +803,10 @@ TEST(JSObjectCopy) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  String* object_string = String::cast(CcTest::heap()->Object_string());
-  Object* raw_object = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(object_string)->ToObjectChecked();
-  JSFunction* object_function = JSFunction::cast(raw_object);
-  Handle<JSFunction> constructor(object_function);
+  Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
+  Handle<Object> object =
+      Object::GetProperty(CcTest::i_isolate()->global_object(), object_string);
+  Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
   Handle<String> second = factory->InternalizeUtf8String("second");
@@ -836,8 +829,10 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*i::Object::GetElement(isolate, obj, 1),
            *i::Object::GetElement(isolate, clone, 1));
 
-  CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*first));
-  CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*second));
+  CHECK_EQ(*Object::GetProperty(obj, first),
+           *Object::GetProperty(clone, first));
+  CHECK_EQ(*Object::GetProperty(obj, second),
+           *Object::GetProperty(clone, second));
 
   // Flip the values.
   JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
@@ -851,8 +846,10 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*i::Object::GetElement(isolate, obj, 0),
            *i::Object::GetElement(isolate, clone, 1));
 
-  CHECK_EQ(obj->GetProperty(*second), clone->GetProperty(*first));
-  CHECK_EQ(obj->GetProperty(*first), clone->GetProperty(*second));
+  CHECK_EQ(*Object::GetProperty(obj, second),
+           *Object::GetProperty(clone, first));
+  CHECK_EQ(*Object::GetProperty(obj, first),
+           *Object::GetProperty(clone, second));
 }
 
 
@@ -1071,10 +1068,10 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Object* func_value = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*foo_name)->ToObjectChecked();
+  Handle<Object> func_value =
+      Object::GetProperty(CcTest::i_isolate()->global_object(), foo_name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
@@ -1104,7 +1101,7 @@ TEST(TestCodeFlushingPreAged) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_optimize_for_size = true;
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
   const char* source = "function foo() {"
@@ -1121,10 +1118,10 @@ TEST(TestCodeFlushingPreAged) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global_object()->
-      GetProperty(*foo_name)->ToObjectChecked();
+  Handle<Object> func_value =
+      Object::GetProperty(isolate->global_object(), foo_name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code has been run so will survive at least one GC.
@@ -1186,10 +1183,10 @@ TEST(TestCodeFlushingIncremental) {
   }
 
   // Check function is compiled.
-  Object* func_value = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*foo_name)->ToObjectChecked();
+  Handle<Object> func_value =
+      Object::GetProperty(isolate->global_object(), foo_name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
@@ -1263,15 +1260,15 @@ TEST(TestCodeFlushingIncrementalScavenge) {
   }
 
   // Check functions are compiled.
-  Object* func_value = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*foo_name)->ToObjectChecked();
+  Handle<Object> func_value =
+      Object::GetProperty(isolate->global_object(), foo_name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
-  Object* func_value2 = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*bar_name)->ToObjectChecked();
+  Handle<Object> func_value2 =
+      Object::GetProperty(isolate->global_object(), bar_name);
   CHECK(func_value2->IsJSFunction());
-  Handle<JSFunction> function2(JSFunction::cast(func_value2));
+  Handle<JSFunction> function2 = Handle<JSFunction>::cast(func_value2);
   CHECK(function2->shared()->is_compiled());
 
   // Clear references to functions so that one of them can die.
@@ -1325,10 +1322,10 @@ TEST(TestCodeFlushingIncrementalAbort) {
   }
 
   // Check function is compiled.
-  Object* func_value = CcTest::i_isolate()->context()->global_object()->
-      GetProperty(*foo_name)->ToObjectChecked();
+  Handle<Object> func_value =
+      Object::GetProperty(isolate->global_object(), foo_name);
   CHECK(func_value->IsJSFunction());
-  Handle<JSFunction> function(JSFunction::cast(func_value));
+  Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.

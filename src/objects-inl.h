@@ -3070,6 +3070,15 @@ void Name::set_hash_field(uint32_t value) {
 }
 
 
+Handle<Object> GlobalObject::GetPropertyNoExceptionThrown(
+    Handle<GlobalObject> global,
+    Handle<Name> name) {
+  Handle<Object> result = Object::GetProperty(global, name);
+  CHECK_NOT_EMPTY_HANDLE(name->GetIsolate(), result);
+  return result;
+}
+
+
 bool Name::Equals(Name* other) {
   if (other == this) return true;
   if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
