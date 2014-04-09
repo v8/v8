@@ -9,11 +9,10 @@
 namespace v8 {
 namespace internal {
 
-Handle<Box> Factory::NewBox(Handle<Object> value, PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateBox(*value, pretenure),
-      Box);
+Handle<Box> Factory::NewBox(Handle<Object> value) {
+  Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
+  result->set_value(*value);
+  return result;
 }
 
 
@@ -100,15 +99,6 @@ Handle<UnseededNumberDictionary> Factory::NewUnseededNumberDictionary(
 }
 
 
-Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     ObjectHashSet::Allocate(isolate()->heap(),
-                                             at_least_space_for),
-                     ObjectHashSet);
-}
-
-
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), 4);
 }
@@ -178,16 +168,21 @@ Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
 
 
 Handle<AccessorPair> Factory::NewAccessorPair() {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateAccessorPair(),
-                     AccessorPair);
+  Handle<AccessorPair> accessors =
+      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
+  accessors->set_getter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(*the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_access_flags(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+  return accessors;
 }
 
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateTypeFeedbackInfo(),
-                     TypeFeedbackInfo);
+  Handle<TypeFeedbackInfo> info =
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TYPE_FEEDBACK_INFO_TYPE));
+  info->initialize_storage();
+  info->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  return info;
 }
 
 
@@ -280,6 +275,14 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
       SeqTwoByteString);
+}
+
+
+Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t index) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->LookupSingleCharacterStringFromCode(index),
+      String);
 }
 
 
@@ -465,7 +468,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   int length = end - begin;
   if (length <= 0) return empty_string();
   if (length == 1) {
-    return LookupSingleCharacterStringFromCode(isolate(), str->Get(begin));
+    return LookupSingleCharacterStringFromCode(str->Get(begin));
   }
   if (length == 2) {
     // Optimization for 2-byte strings often used as keys in a decompression
@@ -517,7 +520,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   } else {
-    str = FlattenGetString(str);
+    str = String::Flatten(str);
   }
 
   ASSERT(str->IsSeqString() || str->IsExternalString());
@@ -568,10 +571,12 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
 
 
 Handle<Context> Factory::NewNativeContext() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateNativeContext(),
-      Context);
+  Handle<FixedArray> array = NewFixedArray(Context::NATIVE_CONTEXT_SLOTS);
+  array->set_map_no_write_barrier(*native_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_js_array_maps(*undefined_value());
+  ASSERT(context->IsNativeContext());
+  return context;
 }
 
 
@@ -585,10 +590,13 @@ Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
 
 
 Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateModuleContext(*scope_info),
-      Context);
+  Handle<FixedArray> array =
+      NewFixedArray(scope_info->ContextLength(), TENURED);
+  array->set_map_no_write_barrier(*module_context_map());
+  // Instance link will be set later.
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_extension(Smi::FromInt(0));
+  return context;
 }
 
 
@@ -1219,17 +1227,18 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateScopeInfo(length),
-      ScopeInfo);
+  Handle<FixedArray> array = NewFixedArray(length, TENURED);
+  array->set_map_no_write_barrier(*scope_info_map());
+  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(array);
+  return scope_info;
 }
 
 
 Handle<JSObject> Factory::NewExternal(void* value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateExternal(value),
-                     JSObject);
+  Handle<Foreign> foreign = NewForeign(static_cast<Address>(value));
+  Handle<JSObject> external = NewJSObjectFromMap(external_map());
+  external->SetInternalField(0, *foreign);
+  return external;
 }
 
 
@@ -1283,9 +1292,14 @@ Handle<JSObject> Factory::NewJSObjectWithMemento(
 
 Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
                                       Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSModule(*context, *scope_info), JSModule);
+  // Allocate a fresh map. Modules do not have a prototype.
+  Handle<Map> map = NewMap(JS_MODULE_TYPE, JSModule::kSize);
+  // Allocate the object based on the map.
+  Handle<JSModule> module =
+      Handle<JSModule>::cast(NewJSObjectFromMap(map, TENURED));
+  module->set_context(*context);
+  module->set_scope_info(*scope_info);
+  return module;
 }
 
 
@@ -1381,10 +1395,12 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
 
 Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSArray(elements_kind,
-                                                        pretenure),
-                     JSArray);
+  Context* native_context = isolate()->context()->native_context();
+  JSFunction* array_function = native_context->array_function();
+  Map* map = array_function->initial_map();
+  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
+  if (transition_map != NULL) map = transition_map;
+  return Handle<JSArray>::cast(NewJSObjectFromMap(handle(map), pretenure));
 }
 
 
@@ -1393,14 +1409,9 @@ Handle<JSArray> Factory::NewJSArray(ElementsKind elements_kind,
                                     int capacity,
                                     ArrayStorageAllocationMode mode,
                                     PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSArrayAndStorage(
-                         elements_kind,
-                         length,
-                         capacity,
-                         mode,
-                         pretenure),
-                     JSArray);
+  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
+  NewJSArrayStorage(array, length, capacity, mode);
+  return array;
 }
 
 

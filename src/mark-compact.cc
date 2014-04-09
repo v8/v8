@@ -2988,25 +2988,30 @@ class PointersUpdatingVisitor: public ObjectVisitor {
 };
 
 
-static void UpdatePointer(HeapObject** p, HeapObject* object) {
-  ASSERT(*p == object);
-
-  Address old_addr = object->address();
-
-  Address new_addr = Memory::Address_at(old_addr);
+static void UpdatePointer(HeapObject** address, HeapObject* object) {
+  Address new_addr = Memory::Address_at(object->address());
 
   // The new space sweep will overwrite the map word of dead objects
   // with NULL. In this case we do not need to transfer this entry to
   // the store buffer which we are rebuilding.
+  // We perform the pointer update with a no barrier compare-and-swap. The
+  // compare and swap may fail in the case where the pointer update tries to
+  // update garbage memory which was concurrently accessed by the sweeper.
   if (new_addr != NULL) {
-    *p = HeapObject::FromAddress(new_addr);
+    NoBarrier_CompareAndSwap(
+        reinterpret_cast<AtomicWord*>(address),
+        reinterpret_cast<AtomicWord>(object),
+        reinterpret_cast<AtomicWord>(HeapObject::FromAddress(new_addr)));
   } else {
     // We have to zap this pointer, because the store buffer may overflow later,
     // and then we have to scan the entire heap and we don't want to find
     // spurious newspace pointers in the old space.
     // TODO(mstarzinger): This was changed to a sentinel value to track down
     // rare crashes, change it back to Smi::FromInt(0) later.
-    *p = reinterpret_cast<HeapObject*>(Smi::FromInt(0x0f100d00 >> 1));  // flood
+    NoBarrier_CompareAndSwap(
+        reinterpret_cast<AtomicWord*>(address),
+        reinterpret_cast<AtomicWord>(object),
+        reinterpret_cast<AtomicWord>(Smi::FromInt(0x0f100d00 >> 1)));
   }
 }
 

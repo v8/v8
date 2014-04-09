@@ -5274,8 +5274,13 @@ class V8_EXPORT Context {
    */
   void Exit();
 
-  /** Returns true if the context has experienced an out of memory situation. */
-  bool HasOutOfMemoryException() { return false; }
+  /**
+   * Returns true if the context has experienced an out of memory situation.
+   * Since V8 always treats OOM as fatal error, this can no longer return true.
+   * Therefore this is now deprecated.
+   * */
+  V8_DEPRECATED("This can no longer happen. OOM is a fatal error.",
+                bool HasOutOfMemoryException()) { return false; }
 
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();
@@ -5599,7 +5604,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 159;
+  static const int kEmptyStringRootIndex = 160;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;

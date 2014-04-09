@@ -70,18 +70,23 @@ class RollChromium(Step):
 
   def RunStep(self):
     if self._options.roll:
+      args = [
+        "--author", self._options.author,
+        "--reviewer", self._options.reviewer,
+        "--chromium", self._options.chromium,
+        "--force",
+      ]
+      if self._options.sheriff:
+        args.extend([
+            "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
       R = chromium_roll.ChromiumRoll
       self._side_effect_handler.Call(
           R(chromium_roll.CONFIG, self._side_effect_handler).Run,
-          ["--author", self._options.author,
-           "--reviewer", self._options.reviewer,
-           "--chromium", self._options.chromium,
-           "--force"])
+          args)
 
 
 class AutoRoll(ScriptsBase):
   def _PrepareOptions(self, parser):
-    group = parser.add_mutually_exclusive_group()
     parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))

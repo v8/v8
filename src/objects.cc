@@ -478,10 +478,14 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
   if (name->IsSymbol()) return isolate->heap()->undefined_value();
 
   Handle<Object> args[] = { receiver, name };
-  Handle<Object> result = CallTrap(
-    "get", isolate->derived_get_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Failure::Exception();
-
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(handle(this),
+               "get",
+               isolate->derived_get_trap(),
+               ARRAY_SIZE(args),
+               args));
   return *result;
 }
 
@@ -510,11 +514,11 @@ MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
 }
 
 
-Handle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
-                                              Handle<JSReceiver> receiver,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              StrictMode strict_mode) {
+MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
+                                                   Handle<JSReceiver> receiver,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   return SetPropertyWithHandler(
@@ -1175,6 +1179,34 @@ static bool AnWord(String* str) {
     return true;    // An MP3File, an M.
   }
   return false;
+}
+
+
+Handle<String> String::SlowFlatten(Handle<ConsString> cons,
+                                   PretenureFlag pretenure) {
+  ASSERT(AllowHeapAllocation::IsAllowed());
+  ASSERT(cons->second()->length() != 0);
+  Isolate* isolate = cons->GetIsolate();
+  int length = cons->length();
+  PretenureFlag tenure = isolate->heap()->InNewSpace(*cons) ? pretenure
+                                                            : TENURED;
+  Handle<SeqString> result;
+  if (cons->IsOneByteRepresentation()) {
+    Handle<SeqOneByteString> flat = isolate->factory()->NewRawOneByteString(
+        length, tenure).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    result = flat;
+  } else {
+    Handle<SeqTwoByteString> flat = isolate->factory()->NewRawTwoByteString(
+        length, tenure).ToHandleChecked();
+    DisallowHeapAllocation no_gc;
+    WriteToFlat(*cons, flat->GetChars(), 0, length);
+    result = flat;
+  }
+  cons->set_first(*result);
+  cons->set_second(isolate->heap()->empty_string());
+  return result;
 }
 
 
@@ -3002,7 +3034,7 @@ Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
 }
 
 
-Handle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
+MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -3555,34 +3587,47 @@ bool JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name) {
   if (name->IsSymbol()) return false;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-    "has", isolate->derived_has_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return false;
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      CallTrap(proxy,
+               "has",
+               isolate->derived_has_trap(),
+               ARRAY_SIZE(args),
+               args),
+      false);
 
   return result->BooleanValue();
 }
 
 
-Handle<Object> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
-                                               Handle<JSReceiver> receiver,
-                                               Handle<Name> name,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes,
-                                               StrictMode strict_mode) {
+MaybeHandle<Object> JSProxy::SetPropertyWithHandler(
+    Handle<JSProxy> proxy,
+    Handle<JSReceiver> receiver,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode) {
   Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (name->IsSymbol()) return value;
 
   Handle<Object> args[] = { receiver, name, value };
-  proxy->CallTrap("set", isolate->derived_set_trap(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  RETURN_ON_EXCEPTION(
+      isolate,
+      CallTrap(proxy,
+               "set",
+               isolate->derived_set_trap(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   return value;
 }
 
 
-Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
+MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<JSProxy> proxy,
     Handle<JSReceiver> receiver,
     Handle<Name> name,
@@ -3601,9 +3646,15 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
 
   *done = true;  // except where redefined...
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-      "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(proxy,
+               "getPropertyDescriptor",
+               Handle<Object>(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   if (result->IsUndefined()) {
     *done = false;
@@ -3616,7 +3667,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<Object> desc = Execution::Call(
       isolate, isolate->to_complete_property_descriptor(), result,
       ARRAY_SIZE(argv), argv, &has_pending_exception);
-  if (has_pending_exception) return Handle<Object>();
+  if (has_pending_exception) return MaybeHandle<Object>();
 
   // [[GetProperty]] requires to check that all properties are configurable.
   Handle<String> configurable_name =
@@ -3632,8 +3683,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
   ASSERT(configurable->IsTrue());
 
@@ -3657,8 +3707,7 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     Handle<Object> args[] = { name, receiver };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // We have an AccessorDescriptor.
@@ -3676,12 +3725,11 @@ Handle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<Object> args2[] = { name, proxy };
   Handle<Object> error = isolate->factory()->NewTypeError(
       "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
-  isolate->Throw(*error);
-  return Handle<Object>();
+  return isolate->Throw<Object>(error);
 }
 
 
-Handle<Object> JSProxy::DeletePropertyWithHandler(
+MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<JSProxy> proxy, Handle<Name> name, DeleteMode mode) {
   Isolate* isolate = proxy->GetIsolate();
 
@@ -3689,9 +3737,15 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
   if (name->IsSymbol()) return isolate->factory()->false_value();
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-      "delete", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return Handle<Object>();
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      CallTrap(proxy,
+               "delete",
+               Handle<Object>(),
+               ARRAY_SIZE(args),
+               args),
+      Object);
 
   bool result_bool = result->BooleanValue();
   if (mode == STRICT_DELETION && !result_bool) {
@@ -3701,14 +3755,13 @@ Handle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
   return isolate->factory()->ToBoolean(result_bool);
 }
 
 
-Handle<Object> JSProxy::DeleteElementWithHandler(
+MaybeHandle<Object> JSProxy::DeleteElementWithHandler(
     Handle<JSProxy> proxy, uint32_t index, DeleteMode mode) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
@@ -3727,9 +3780,15 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   if (name->IsSymbol()) return ABSENT;
 
   Handle<Object> args[] = { name };
-  Handle<Object> result = proxy->CallTrap(
-    "getPropertyDescriptor", Handle<Object>(), ARRAY_SIZE(args), args);
-  if (isolate->has_pending_exception()) return NONE;
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      proxy->CallTrap(proxy,
+                      "getPropertyDescriptor",
+                      Handle<Object>(),
+                      ARRAY_SIZE(args),
+                      args),
+      NONE);
 
   if (result->IsUndefined()) return ABSENT;
 
@@ -3812,24 +3871,24 @@ void JSProxy::Fix(Handle<JSProxy> proxy) {
 }
 
 
-MUST_USE_RESULT Handle<Object> JSProxy::CallTrap(const char* name,
-                                                 Handle<Object> derived,
-                                                 int argc,
-                                                 Handle<Object> argv[]) {
-  Isolate* isolate = GetIsolate();
-  Handle<Object> handler(this->handler(), isolate);
+MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
+                                      const char* name,
+                                      Handle<Object> derived,
+                                      int argc,
+                                      Handle<Object> argv[]) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<Object> handler(proxy->handler(), isolate);
 
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
   Handle<Object> trap = Object::GetPropertyOrElement(handler, trap_name);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, Handle<Object>());
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, MaybeHandle<Object>());
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
       Handle<Object> error = isolate->factory()->NewTypeError(
         "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
     trap = Handle<Object>(derived);
   }
@@ -4197,8 +4256,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
         name, value, attributes, value_type, mode, extensibility_check);
   }
 
-  if (lookup.IsFound() &&
-      (lookup.type() == INTERCEPTOR || lookup.type() == CALLBACKS)) {
+  if (lookup.IsInterceptor() ||
+      (lookup.IsDescriptorOrDictionary() && lookup.type() == CALLBACKS)) {
     object->LocalLookupRealNamedProperty(*name, &lookup);
   }
 
@@ -5293,9 +5352,9 @@ Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
-                                         uint32_t index,
-                                         DeleteMode mode) {
+MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
+                                              uint32_t index,
+                                              DeleteMode mode) {
   if (object->IsJSProxy()) {
     return JSProxy::DeleteElementWithHandler(
         Handle<JSProxy>::cast(object), index, mode);
@@ -5304,9 +5363,9 @@ Handle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
 }
 
 
-Handle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
-                                          Handle<Name> name,
-                                          DeleteMode mode) {
+MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
+                                               Handle<Name> name,
+                                               DeleteMode mode) {
   if (object->IsJSProxy()) {
     return JSProxy::DeletePropertyWithHandler(
         Handle<JSProxy>::cast(object), name, mode);
@@ -6357,7 +6416,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) String::cast(*name)->TryFlatten();
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
   if (!JSObject::CanSetCallback(object, name)) return;
 
@@ -6545,7 +6604,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   AssertNoContextChange ncc(isolate);
 
   // Try to flatten before operating on the string.
-  if (name->IsString()) FlattenString(Handle<String>::cast(name));
+  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
 
   if (!JSObject::CanSetCallback(object, name)) {
     return factory->undefined_value();
@@ -11450,8 +11509,8 @@ Handle<Object> JSArray::SetElementsLength(Handle<JSArray> array,
       // Skip deletions where the property was an accessor, leaving holes
       // in the array of old values.
       if (old_values[i]->IsTheHole()) continue;
-      JSObject::SetElement(deleted, indices[i] - index, old_values[i], NONE,
-                           SLOPPY);
+      JSObject::SetElement(
+          deleted, indices[i] - index, old_values[i], NONE, SLOPPY).Assert();
     }
 
     SetProperty(deleted, isolate->factory()->length_string(),
@@ -11895,7 +11954,7 @@ MaybeHandle<AccessorPair> JSObject::GetLocalElementAccessorPair(
 }
 
 
-Handle<Object> JSObject::SetElementWithInterceptor(
+MaybeHandle<Object> JSObject::SetElementWithInterceptor(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -11919,7 +11978,7 @@ Handle<Object> JSObject::SetElementWithInterceptor(
                                    *object);
     v8::Handle<v8::Value> result =
         args.Call(setter, index, v8::Utils::ToLocal(value));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) return value;
   }
 
@@ -11927,6 +11986,20 @@ Handle<Object> JSObject::SetElementWithInterceptor(
                                       strict_mode,
                                       check_prototype,
                                       set_mode);
+}
+
+
+// TODO(ishell): Temporary wrapper until handlified.
+Handle<Object> JSObject::GetElementWithCallback(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    Handle<Object> structure,
+    uint32_t index,
+    Handle<Object> holder) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->GetElementWithCallback(
+                        *receiver, *structure, index, *holder),
+                     Object);
 }
 
 
@@ -12072,11 +12145,11 @@ bool JSObject::HasDictionaryArgumentsElements() {
 // Adding n elements in fast case is O(n*n).
 // Note: revisit design to have dual undefined values to capture absent
 // elements.
-Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
-                                        uint32_t index,
-                                        Handle<Object> value,
-                                        StrictMode strict_mode,
-                                        bool check_prototype) {
+MaybeHandle<Object> JSObject::SetFastElement(Handle<JSObject> object,
+                                             uint32_t index,
+                                             Handle<Object> value,
+                                             StrictMode strict_mode,
+                                             bool check_prototype) {
   ASSERT(object->HasFastSmiOrObjectElements() ||
          object->HasFastArgumentsElements());
 
@@ -12103,7 +12176,7 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
   if (check_prototype &&
       (index >= capacity || backing_store->get(index)->IsTheHole())) {
     bool found;
-    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(
+    MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
         object, index, value, &found, strict_mode);
     if (found) return result;
   }
@@ -12200,13 +12273,14 @@ Handle<Object> JSObject::SetFastElement(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              PropertyAttributes attributes,
-                                              StrictMode strict_mode,
-                                              bool check_prototype,
-                                              SetPropertyMode set_mode) {
+MaybeHandle<Object> JSObject::SetDictionaryElement(
+    Handle<JSObject> object,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    StrictMode strict_mode,
+    bool check_prototype,
+    SetPropertyMode set_mode) {
   ASSERT(object->HasDictionaryElements() ||
          object->HasDictionaryArgumentsElements());
   Isolate* isolate = object->GetIsolate();
@@ -12244,8 +12318,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
           Handle<Object> error =
               isolate->factory()->NewTypeError("strict_read_only_property",
                                                HandleVector(args, 2));
-          isolate->Throw(*error);
-          return Handle<Object>();
+          return isolate->Throw<Object>(error);
         }
       }
       // Elements of the arguments object in slow mode might be slow aliases.
@@ -12266,8 +12339,8 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
     // Can cause GC!
     if (check_prototype) {
       bool found;
-      Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
-          index, value, &found, strict_mode);
+      MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
+          object, index, value, &found, strict_mode);
       if (found) return result;
     }
 
@@ -12283,8 +12356,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
         Handle<Object> error =
             isolate->factory()->NewTypeError("object_not_extensible",
                                              HandleVector(args, 1));
-        isolate->Throw(*error);
-        return Handle<Object>();
+        return isolate->Throw<Object>(error);
       }
     }
 
@@ -12343,7 +12415,7 @@ Handle<Object> JSObject::SetDictionaryElement(Handle<JSObject> object,
   return value;
 }
 
-Handle<Object> JSObject::SetFastDoubleElement(
+MaybeHandle<Object> JSObject::SetFastDoubleElement(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -12360,8 +12432,8 @@ Handle<Object> JSObject::SetFastDoubleElement(
       (index >= elms_length ||
        Handle<FixedDoubleArray>::cast(base_elms)->is_the_hole(index))) {
     bool found;
-    Handle<Object> result = SetElementWithCallbackSetterInPrototypes(object,
-        index, value, &found, strict_mode);
+    MaybeHandle<Object> result = SetElementWithCallbackSetterInPrototypes(
+        object, index, value, &found, strict_mode);
     if (found) return result;
   }
 
@@ -12380,10 +12452,11 @@ Handle<Object> JSObject::SetFastDoubleElement(
   if (!value->IsNumber()) {
     SetFastElementsCapacityAndLength(object, elms_length, length,
                                      kDontAllowSmiElements);
-    Handle<Object> result = SetFastElement(object, index, value, strict_mode,
-                                           check_prototype);
-    RETURN_IF_EMPTY_HANDLE_VALUE(object->GetIsolate(), result,
-                                 Handle<Object>());
+    Handle<Object> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        object->GetIsolate(), result,
+        SetFastElement(object, index, value, strict_mode, check_prototype),
+        Object);
     JSObject::ValidateElements(object);
     return result;
   }
@@ -12441,11 +12514,11 @@ Handle<Object> JSObject::SetFastDoubleElement(
 }
 
 
-Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
-                                      uint32_t index,
-                                      Handle<Object> value,
-                                      PropertyAttributes attributes,
-                                      StrictMode strict_mode) {
+MaybeHandle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
+                                           uint32_t index,
+                                           Handle<Object> value,
+                                           PropertyAttributes attributes,
+                                           StrictMode strict_mode) {
   if (object->IsJSProxy()) {
     return JSProxy::SetElementWithHandler(
         Handle<JSProxy>::cast(object), object, index, value, strict_mode);
@@ -12455,22 +12528,22 @@ Handle<Object> JSReceiver::SetElement(Handle<JSReceiver> object,
 }
 
 
-Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
-                                       uint32_t index,
-                                       Handle<Object> value,
-                                       StrictMode strict_mode) {
+MaybeHandle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            Handle<Object> value,
+                                            StrictMode strict_mode) {
   ASSERT(!object->HasExternalArrayElements());
   return JSObject::SetElement(object, index, value, NONE, strict_mode, false);
 }
 
 
-Handle<Object> JSObject::SetElement(Handle<JSObject> object,
-                                    uint32_t index,
-                                    Handle<Object> value,
-                                    PropertyAttributes attributes,
-                                    StrictMode strict_mode,
-                                    bool check_prototype,
-                                    SetPropertyMode set_mode) {
+MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
+                                         uint32_t index,
+                                         Handle<Object> value,
+                                         PropertyAttributes attributes,
+                                         StrictMode strict_mode,
+                                         bool check_prototype,
+                                         SetPropertyMode set_mode) {
   Isolate* isolate = object->GetIsolate();
 
   if (object->HasExternalArrayElements() ||
@@ -12479,7 +12552,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
       bool has_exception;
       Handle<Object> number =
           Execution::ToNumber(isolate, value, &has_exception);
-      if (has_exception) return Handle<Object>();
+      if (has_exception) return MaybeHandle<Object>();
       value = number;
     }
   }
@@ -12488,7 +12561,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded()) {
     if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_SET)) {
       isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
-      RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return value;
     }
   }
@@ -12511,8 +12584,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
     Handle<Object> args[] = { object, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // Normalize the elements to enable attributes on the property.
@@ -12524,13 +12596,10 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   if (!object->map()->is_observed()) {
     return object->HasIndexedInterceptor()
-      ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
-                                  check_prototype,
-                                   set_mode)
+      ? SetElementWithInterceptor(object, index, value, attributes,
+                                  strict_mode, check_prototype, set_mode)
       : SetElementWithoutInterceptor(object, index, value, attributes,
-                                     strict_mode,
-                                     check_prototype,
-                                     set_mode);
+                                     strict_mode, check_prototype, set_mode);
   }
 
   PropertyAttributes old_attributes =
@@ -12550,15 +12619,17 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
 
   // Check for lookup interceptor
-  Handle<Object> result = object->HasIndexedInterceptor()
-    ? SetElementWithInterceptor(object, index, value, attributes, strict_mode,
-                                check_prototype,
-                                set_mode)
-    : SetElementWithoutInterceptor(object, index, value, attributes,
-                                   strict_mode,
-                                   check_prototype,
-                                   set_mode);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      object->HasIndexedInterceptor()
+          ? SetElementWithInterceptor(
+              object, index, value, attributes,
+              strict_mode, check_prototype, set_mode)
+          : SetElementWithoutInterceptor(
+              object, index, value, attributes,
+              strict_mode, check_prototype, set_mode),
+      Object);
 
   Handle<String> name = isolate->factory()->Uint32ToString(index);
   PropertyAttributes new_attributes = GetLocalElementAttribute(object, index);
@@ -12602,7 +12673,7 @@ Handle<Object> JSObject::SetElement(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetElementWithoutInterceptor(
+MaybeHandle<Object> JSObject::SetElementWithoutInterceptor(
     Handle<JSObject> object,
     uint32_t index,
     Handle<Object> value,
@@ -12616,12 +12687,12 @@ Handle<Object> JSObject::SetElementWithoutInterceptor(
   Isolate* isolate = object->GetIsolate();
   if (FLAG_trace_external_array_abuse &&
       IsExternalArrayElementsKind(object->GetElementsKind())) {
-    CheckArrayAbuse(*object, "external elements write", index);
+    CheckArrayAbuse(object, "external elements write", index);
   }
   if (FLAG_trace_js_array_abuse &&
       !IsExternalArrayElementsKind(object->GetElementsKind())) {
     if (object->IsJSArray()) {
-      CheckArrayAbuse(*object, "elements write", index, true);
+      CheckArrayAbuse(object, "elements write", index, true);
     }
   }
   switch (object->GetElementsKind()) {
@@ -13685,8 +13756,8 @@ class StringKey : public HashTableKey {
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:
-  StringSharedKey(String* source,
-                  SharedFunctionInfo* shared,
+  StringSharedKey(Handle<String> source,
+                  Handle<SharedFunctionInfo> shared,
                   StrictMode strict_mode,
                   int scope_position)
       : source_(source),
@@ -13695,10 +13766,11 @@ class StringSharedKey : public HashTableKey {
         scope_position_(scope_position) { }
 
   bool IsMatch(Object* other) {
+    DisallowHeapAllocation no_allocation;
     if (!other->IsFixedArray()) return false;
     FixedArray* other_array = FixedArray::cast(other);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
-    if (shared != shared_) return false;
+    if (shared != *shared_) return false;
     int strict_unchecked = Smi::cast(other_array->get(2))->value();
     ASSERT(strict_unchecked == SLOPPY || strict_unchecked == STRICT);
     StrictMode strict_mode = static_cast<StrictMode>(strict_unchecked);
@@ -13706,7 +13778,7 @@ class StringSharedKey : public HashTableKey {
     int scope_position = Smi::cast(other_array->get(3))->value();
     if (scope_position != scope_position_) return false;
     String* source = String::cast(other_array->get(1));
-    return source->Equals(source_);
+    return source->Equals(*source_);
   }
 
   static uint32_t StringSharedHashHelper(String* source,
@@ -13720,7 +13792,7 @@ class StringSharedKey : public HashTableKey {
       // script source code and the start position of the calling scope.
       // We do this to ensure that the cache entries can survive garbage
       // collection.
-      Script* script = Script::cast(shared->script());
+      Script* script(Script::cast(shared->script()));
       hash ^= String::cast(script->source())->Hash();
       if (strict_mode == STRICT) hash ^= 0x8000;
       hash += scope_position;
@@ -13729,11 +13801,12 @@ class StringSharedKey : public HashTableKey {
   }
 
   uint32_t Hash() {
-    return StringSharedHashHelper(
-        source_, shared_, strict_mode_, scope_position_);
+    return StringSharedHashHelper(*source_, *shared_, strict_mode_,
+                                  scope_position_);
   }
 
   uint32_t HashForObject(Object* obj) {
+    DisallowHeapAllocation no_allocation;
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
     String* source = String::cast(other_array->get(1));
@@ -13745,22 +13818,25 @@ class StringSharedKey : public HashTableKey {
         source, shared, strict_mode, scope_position);
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
-    Object* obj;
-    { MaybeObject* maybe_obj = heap->AllocateFixedArray(4);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    FixedArray* other_array = FixedArray::cast(obj);
-    other_array->set(0, shared_);
-    other_array->set(1, source_);
-    other_array->set(2, Smi::FromInt(strict_mode_));
-    other_array->set(3, Smi::FromInt(scope_position_));
-    return other_array;
+
+  Object* AsObject(Heap* heap) {
+    UNREACHABLE();
+    return NULL;
+  }
+
+
+  Handle<Object> AsObject(Factory* factory) {
+    Handle<FixedArray> array = factory->NewFixedArray(4);
+    array->set(0, *shared_);
+    array->set(1, *source_);
+    array->set(2, Smi::FromInt(strict_mode_));
+    array->set(3, Smi::FromInt(scope_position_));
+    return array;
   }
 
  private:
-  String* source_;
-  SharedFunctionInfo* shared_;
+  Handle<String> source_;
+  Handle<SharedFunctionInfo> shared_;
   StrictMode strict_mode_;
   int scope_position_;
 };
@@ -13769,7 +13845,7 @@ class StringSharedKey : public HashTableKey {
 // RegExpKey carries the source and flags of a regular expression as key.
 class RegExpKey : public HashTableKey {
  public:
-  RegExpKey(String* string, JSRegExp::Flags flags)
+  RegExpKey(Handle<String> string, JSRegExp::Flags flags)
       : string_(string),
         flags_(Smi::FromInt(flags.value())) { }
 
@@ -13783,7 +13859,7 @@ class RegExpKey : public HashTableKey {
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t Hash() { return RegExpHash(string_, flags_); }
+  uint32_t Hash() { return RegExpHash(*string_, flags_); }
 
   Object* AsObject(Heap* heap) {
     // Plain hash maps, which is where regexp keys are used, don't
@@ -13802,7 +13878,7 @@ class RegExpKey : public HashTableKey {
     return string->Hash() + flags->value();
   }
 
-  String* string_;
+  Handle<String> string_;
   Smi* flags_;
 };
 
@@ -14175,9 +14251,7 @@ template class HashTable<CompilationCacheShape, HashTableKey*>;
 
 template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape<1>, Object*>;
-
-template class HashTable<ObjectHashTableShape<2>, Object*>;
+template class HashTable<ObjectHashTableShape, Object*>;
 
 template class HashTable<WeakHashTableShape<2>, Object*>;
 
@@ -14957,116 +15031,101 @@ MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-Object* CompilationCacheTable::Lookup(String* src, Context* context) {
-  SharedFunctionInfo* shared = context->closure()->shared();
-  StringSharedKey key(src,
-                      shared,
-                      FLAG_use_strict ? STRICT : SLOPPY,
+Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
+                                             Handle<Context> context) {
+  Isolate* isolate = GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-Object* CompilationCacheTable::LookupEval(String* src,
-                                          Context* context,
-                                          StrictMode strict_mode,
-                                          int scope_position) {
-  StringSharedKey key(src,
-                      context->closure()->shared(),
-                      strict_mode,
-                      scope_position);
+Handle<Object> CompilationCacheTable::LookupEval(Handle<String> src,
+                                                 Handle<Context> context,
+                                                 StrictMode strict_mode,
+                                                 int scope_position) {
+  Isolate* isolate = GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, strict_mode, scope_position);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-Object* CompilationCacheTable::LookupRegExp(String* src,
-                                            JSRegExp::Flags flags) {
+Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
+                                                   JSRegExp::Flags flags) {
+  Isolate* isolate = GetIsolate();
+  DisallowHeapAllocation no_allocation;
   RegExpKey key(src, flags);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return GetHeap()->undefined_value();
-  return get(EntryToIndex(entry) + 1);
+  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
 }
 
 
-MaybeObject* CompilationCacheTable::Put(String* src,
-                                        Context* context,
-                                        Object* value) {
-  SharedFunctionInfo* shared = context->closure()->shared();
-  StringSharedKey key(src,
-                      shared,
-                      FLAG_use_strict ? STRICT : SLOPPY,
+Handle<CompilationCacheTable> CompilationCacheTable::Put(
+    Handle<CompilationCacheTable> cache, Handle<String> src,
+    Handle<Context> context, Handle<Object> value) {
+  Isolate* isolate = cache->GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
-  CompilationCacheTable* cache;
-  MaybeObject* maybe_cache = EnsureCapacity(1, &key);
-  if (!maybe_cache->To(&cache)) return maybe_cache;
-
-  Object* k;
-  MaybeObject* maybe_k = key.AsObject(GetHeap());
-  if (!maybe_k->To(&k)) return maybe_k;
-
+  cache = EnsureCapacityFor(cache, 1, &key);
+  Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
-  cache->set(EntryToIndex(entry), k);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *k);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
 }
 
 
-MaybeObject* CompilationCacheTable::PutEval(String* src,
-                                            Context* context,
-                                            SharedFunctionInfo* value,
-                                            int scope_position) {
-  StringSharedKey key(src,
-                      context->closure()->shared(),
-                      value->strict_mode(),
-                      scope_position);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
+Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
+    Handle<CompilationCacheTable> cache, Handle<String> src,
+    Handle<Context> context, Handle<SharedFunctionInfo> value,
+    int scope_position) {
+  Isolate* isolate = cache->GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, value->strict_mode(), scope_position);
+  cache = EnsureCapacityFor(cache, 1, &key);
+  Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
-
-  Object* k;
-  { MaybeObject* maybe_k = key.AsObject(GetHeap());
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
-
-  cache->set(EntryToIndex(entry), k);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *k);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
 }
 
 
-MaybeObject* CompilationCacheTable::PutRegExp(String* src,
-                                              JSRegExp::Flags flags,
-                                              FixedArray* value) {
+Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      JSRegExp::Flags flags, Handle<FixedArray> value) {
   RegExpKey key(src, flags);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  CompilationCacheTable* cache =
-      reinterpret_cast<CompilationCacheTable*>(obj);
+  cache = EnsureCapacityFor(cache, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
-  cache->set(EntryToIndex(entry), value);
-  cache->set(EntryToIndex(entry) + 1, value);
+  cache->set(EntryToIndex(entry), *value);
+  cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
+}
+
+
+Handle<CompilationCacheTable> CompilationCacheTable::EnsureCapacityFor(
+      Handle<CompilationCacheTable> cache, int n, HashTableKey* key) {
+  CALL_HEAP_FUNCTION(cache->GetIsolate(),
+                     cache->EnsureCapacity(n, key),
+                     CompilationCacheTable);
 }
 
 
 void CompilationCacheTable::Remove(Object* value) {
+  DisallowHeapAllocation no_allocation;
   Object* the_hole_value = GetHeap()->the_hole_value();
   for (int entry = 0, size = Capacity(); entry < size; entry++) {
     int entry_index = EntryToIndex(entry);
@@ -15714,87 +15773,12 @@ MaybeObject* NameDictionary::TransformPropertiesToFastFor(
 }
 
 
-Handle<ObjectHashSet> ObjectHashSet::EnsureCapacity(
-    Handle<ObjectHashSet> table,
-    int n,
-    Handle<Object> key,
-    PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->EnsureCapacity(n, *key, pretenure),
-                     ObjectHashSet);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Shrink(Handle<ObjectHashSet> table,
-                                            Handle<Object> key) {
-  Handle<HashTable<ObjectHashTableShape<1>, Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->Shrink(*key),
-                     ObjectHashSet);
-}
-
-
-bool ObjectHashSet::Contains(Object* key) {
-  ASSERT(IsKey(key));
-
-  // If the object does not have an identity hash, it was never used as a key.
-  Object* hash = key->GetHash();
-  if (hash->IsUndefined()) return false;
-
-  return (FindEntry(key) != kNotFound);
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Add(Handle<ObjectHashSet> table,
-                                         Handle<Object> key) {
-  ASSERT(table->IsKey(*key));
-
-  // Make sure the key object has an identity hash code.
-  Handle<Object> object_hash = Object::GetOrCreateHash(key,
-                                                       table->GetIsolate());
-
-  int entry = table->FindEntry(*key);
-
-  // Check whether key is already present.
-  if (entry != kNotFound) return table;
-
-  // Check whether the hash set should be extended and add entry.
-  Handle<ObjectHashSet> new_table =
-      ObjectHashSet::EnsureCapacity(table, 1, key);
-  entry = new_table->FindInsertionEntry(Smi::cast(*object_hash)->value());
-  new_table->set(EntryToIndex(entry), *key);
-  new_table->ElementAdded();
-  return new_table;
-}
-
-
-Handle<ObjectHashSet> ObjectHashSet::Remove(Handle<ObjectHashSet> table,
-                                            Handle<Object> key) {
-  ASSERT(table->IsKey(*key));
-
-  // If the object does not have an identity hash, it was never used as a key.
-  if (key->GetHash()->IsUndefined()) return table;
-
-  int entry = table->FindEntry(*key);
-
-  // Check whether key is actually present.
-  if (entry == kNotFound) return table;
-
-  // Remove entry and try to shrink this hash set.
-  table->set_the_hole(EntryToIndex(entry));
-  table->ElementRemoved();
-
-  return ObjectHashSet::Shrink(table, key);
-}
-
-
 Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
     Handle<ObjectHashTable> table,
     int n,
     Handle<Object> key,
     PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->EnsureCapacity(n, *key, pretenure),
                      ObjectHashTable);
@@ -15803,7 +15787,7 @@ Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(
     Handle<ObjectHashTable> table, Handle<Object> key) {
-  Handle<HashTable<ObjectHashTableShape<2>, Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->Shrink(*key),
                      ObjectHashTable);
@@ -15921,11 +15905,11 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }
   int num_buckets = capacity / kLoadFactor;
-  Handle<Derived> table =
-      Handle<Derived>::cast(
-          isolate->factory()->NewFixedArray(
-              kHashTableStartIndex + num_buckets + (capacity * kEntrySize),
-              pretenure));
+  Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(
+      kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
+  backing_store->set_map_no_write_barrier(
+      isolate->heap()->ordered_hash_table_map());
+  Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
     table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
   }

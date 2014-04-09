@@ -2690,29 +2690,6 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 }
 
 
-MaybeObject* Heap::AllocateAccessorPair() {
-  AccessorPair* accessors;
-  { MaybeObject* maybe_accessors = AllocateStruct(ACCESSOR_PAIR_TYPE);
-    if (!maybe_accessors->To(&accessors)) return maybe_accessors;
-  }
-  accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_access_flags(Smi::FromInt(0), SKIP_WRITE_BARRIER);
-  return accessors;
-}
-
-
-MaybeObject* Heap::AllocateTypeFeedbackInfo() {
-  TypeFeedbackInfo* info;
-  { MaybeObject* maybe_info = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
-    if (!maybe_info->To(&info)) return maybe_info;
-  }
-  info->initialize_storage();
-  info->set_feedback_vector(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  return info;
-}
-
-
 MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
   AliasedArgumentsEntry* entry;
   { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
@@ -2924,6 +2901,7 @@ bool Heap::CreateInitialMaps() {
     }
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, hash_table)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, ordered_hash_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
@@ -3029,15 +3007,6 @@ MaybeObject* Heap::AllocatePropertyCell() {
                            SKIP_WRITE_BARRIER);
   cell->set_value(the_hole_value());
   cell->set_type(HeapType::None());
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateBox(Object* value, PretenureFlag pretenure) {
-  Box* result;
-  MaybeObject* maybe_result = AllocateStruct(BOX_TYPE);
-  if (!maybe_result->To(&result)) return maybe_result;
-  result->set_value(value);
   return result;
 }
 
@@ -4568,67 +4537,6 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateJSModule(Context* context, ScopeInfo* scope_info) {
-  // Allocate a fresh map. Modules do not have a prototype.
-  Map* map;
-  MaybeObject* maybe_map = AllocateMap(JS_MODULE_TYPE, JSModule::kSize);
-  if (!maybe_map->To(&map)) return maybe_map;
-  // Allocate the object based on the map.
-  JSModule* module;
-  MaybeObject* maybe_module = AllocateJSObjectFromMap(map, TENURED);
-  if (!maybe_module->To(&module)) return maybe_module;
-  module->set_context(context);
-  module->set_scope_info(scope_info);
-  return module;
-}
-
-
-MaybeObject* Heap::AllocateJSArrayAndStorage(
-    ElementsKind elements_kind,
-    int length,
-    int capacity,
-    ArrayStorageAllocationMode mode,
-    PretenureFlag pretenure) {
-  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
-  JSArray* array;
-  if (!maybe_array->To(&array)) return maybe_array;
-
-  // TODO(mvstanton): this body of code is duplicate with AllocateJSArrayStorage
-  // for performance reasons.
-  ASSERT(capacity >= length);
-
-  if (capacity == 0) {
-    array->set_length(Smi::FromInt(0));
-    array->set_elements(empty_fixed_array());
-    return array;
-  }
-
-  FixedArrayBase* elms;
-  MaybeObject* maybe_elms = NULL;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
-    }
-  } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedArrayWithHoles(capacity);
-    }
-  }
-  if (!maybe_elms->To(&elms)) return maybe_elms;
-
-  array->set_elements(elms);
-  array->set_length(Smi::FromInt(length));
-  return array;
-}
-
-
 MaybeObject* Heap::AllocateJSArrayStorage(
     JSArray* array,
     int length,
@@ -5135,18 +5043,6 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 }
 
 
-MaybeObject* Heap::AllocateJSArray(
-    ElementsKind elements_kind,
-    PretenureFlag pretenure) {
-  Context* native_context = isolate()->context()->native_context();
-  JSFunction* array_function = native_context->array_function();
-  Map* map = array_function->initial_map();
-  Map* transition_map = isolate()->get_initial_js_array_map(elements_kind);
-  if (transition_map != NULL) map = transition_map;
-  return AllocateJSObjectFromMap(map, pretenure);
-}
-
-
 MaybeObject* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
   Object* result;
@@ -5401,8 +5297,14 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
                                              int number_of_code_ptr_entries,
                                              int number_of_heap_ptr_entries,
                                              int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
-         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
+  CHECK(number_of_int64_entries >= 0 &&
+        number_of_int64_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_code_ptr_entries >= 0 &&
+        number_of_code_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_heap_ptr_entries >= 0 &&
+        number_of_heap_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
+        number_of_int32_entries >= 0 &&
+        number_of_int32_entries <= ConstantPoolArray::kMaxEntriesPerType);
   int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
                                         number_of_code_ptr_entries,
                                         number_of_heap_ptr_entries,
@@ -5421,10 +5323,10 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
 
   ConstantPoolArray* constant_pool =
       reinterpret_cast<ConstantPoolArray*>(object);
-  constant_pool->SetEntryCounts(number_of_int64_entries,
-                                number_of_code_ptr_entries,
-                                number_of_heap_ptr_entries,
-                                number_of_int32_entries);
+  constant_pool->Init(number_of_int64_entries,
+                      number_of_code_ptr_entries,
+                      number_of_heap_ptr_entries,
+                      number_of_int32_entries);
   if (number_of_code_ptr_entries > 0) {
     int offset =
         constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
@@ -5453,7 +5355,7 @@ MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
-  ConstantPoolArray::cast(result)->SetEntryCounts(0, 0, 0, 0);
+  ConstantPoolArray::cast(result)->Init(0, 0, 0, 0);
   return result;
 }
 
@@ -5509,21 +5411,6 @@ MaybeObject* Heap::AllocatePrivateSymbol() {
 }
 
 
-MaybeObject* Heap::AllocateNativeContext() {
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateFixedArray(Context::NATIVE_CONTEXT_SLOTS);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_no_write_barrier(native_context_map());
-  context->set_js_array_maps(undefined_value());
-  ASSERT(context->IsNativeContext());
-  ASSERT(result->IsContext());
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
                                          ScopeInfo* scope_info) {
   Object* result;
@@ -5539,20 +5426,6 @@ MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
   context->set_global_object(function->context()->global_object());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
-  return context;
-}
-
-
-MaybeObject* Heap::AllocateModuleContext(ScopeInfo* scope_info) {
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateFixedArray(scope_info->ContextLength(), TENURED);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_no_write_barrier(module_context_map());
-  // Instance link will be set later.
-  context->set_extension(Smi::FromInt(0));
   return context;
 }
 
@@ -5626,29 +5499,6 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
   context->set_extension(scope_info);
   context->set_global_object(previous->global_object());
   return context;
-}
-
-
-MaybeObject* Heap::AllocateScopeInfo(int length) {
-  FixedArray* scope_info;
-  MaybeObject* maybe_scope_info = AllocateFixedArray(length, TENURED);
-  if (!maybe_scope_info->To(&scope_info)) return maybe_scope_info;
-  scope_info->set_map_no_write_barrier(scope_info_map());
-  return scope_info;
-}
-
-
-MaybeObject* Heap::AllocateExternal(void* value) {
-  Foreign* foreign;
-  { MaybeObject* maybe_result = AllocateForeign(static_cast<Address>(value));
-    if (!maybe_result->To(&foreign)) return maybe_result;
-  }
-  JSObject* external;
-  { MaybeObject* maybe_result = AllocateJSObjectFromMap(external_map());
-    if (!maybe_result->To(&external)) return maybe_result;
-  }
-  external->SetInternalField(0, foreign);
-  return external;
 }
 
 
@@ -7678,16 +7528,6 @@ void KeyedLookupCache::Clear() {
 void DescriptorLookupCache::Clear() {
   for (int index = 0; index < kLength; index++) keys_[index].source = NULL;
 }
-
-
-#ifdef DEBUG
-void Heap::GarbageCollectionGreedyCheck() {
-  ASSERT(FLAG_gc_greedy);
-  if (isolate_->bootstrapper()->IsActive()) return;
-  if (!AllowAllocationFailure::IsAllowed(isolate_)) return;
-  CollectGarbage(NEW_SPACE);
-}
-#endif
 
 
 void ExternalStringTable::CleanUp() {

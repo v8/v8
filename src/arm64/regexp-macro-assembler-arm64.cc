@@ -1128,7 +1128,7 @@ void RegExpMacroAssemblerARM64::PushBacktrack(Label* label) {
     int target = label->pos();
     __ Mov(w10, target + Code::kHeaderSize - kHeapObjectTag);
   } else {
-    __ Adr(x10, label);
+    __ Adr(x10, label, MacroAssembler::kAdrFar);
     __ Sub(x10, x10, code_pointer());
     if (masm_->emit_debug_code()) {
       __ Cmp(x10, kWRegMask);

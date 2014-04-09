@@ -3851,22 +3851,28 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
-  Label not_kmin_int, done;
   __ Negs(result, dividend);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment());
   }
-  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
-    // Note that we could emit branch-free code, but that would need one more
-    // register.
-    if (divisor == -1) {
-      DeoptimizeIf(vs, instr->environment());
-    } else {
-      __ B(vc, &not_kmin_int);
-      __ Mov(result, kMinInt / divisor);
-      __ B(&done);
-    }
+
+  // If the negation could not overflow, simply shifting is OK.
+  if (!instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
+    __ Mov(result, Operand(dividend, ASR, shift));
+    return;
   }
+
+  // Dividing by -1 is basically negation, unless we overflow.
+  if (divisor == -1) {
+    DeoptimizeIf(vs, instr->environment());
+    return;
+  }
+
+  // Using a conditional data processing instruction would need 1 more register.
+  Label not_kmin_int, done;
+  __ B(vc, &not_kmin_int);
+  __ Mov(result, kMinInt / divisor);
+  __ B(&done);
   __ bind(&not_kmin_int);
   __ Mov(result, Operand(dividend, ASR, shift));
   __ bind(&done);

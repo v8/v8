@@ -84,30 +84,30 @@ class LiveEditFunctionTracker {
 
 class LiveEdit : AllStatic {
  public:
-  static JSArray* GatherCompileInfo(Handle<Script> script,
-                                    Handle<String> source);
+  MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
+      Handle<Script> script,
+      Handle<String> source);
 
   static void WrapSharedFunctionInfos(Handle<JSArray> array);
 
-  MUST_USE_RESULT static MaybeObject* ReplaceFunctionCode(
-      Handle<JSArray> new_compile_info_array,
-      Handle<JSArray> shared_info_array);
+  static void ReplaceFunctionCode(Handle<JSArray> new_compile_info_array,
+                                  Handle<JSArray> shared_info_array);
 
-  static MaybeObject* FunctionSourceUpdated(Handle<JSArray> shared_info_array);
+  static void FunctionSourceUpdated(Handle<JSArray> shared_info_array);
 
   // Updates script field in FunctionSharedInfo.
   static void SetFunctionScript(Handle<JSValue> function_wrapper,
                                 Handle<Object> script_handle);
 
-  MUST_USE_RESULT static MaybeObject* PatchFunctionPositions(
-      Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array);
+  static void PatchFunctionPositions(Handle<JSArray> shared_info_array,
+                                     Handle<JSArray> position_change_array);
 
   // For a script updates its source field. If old_script_name is provided
   // (i.e. is a String), also creates a copy of the script with its original
   // source and sends notification to debugger.
-  static Object* ChangeScriptSource(Handle<Script> original_script,
-                                    Handle<String> new_source,
-                                    Handle<Object> old_script_name);
+  static Handle<Object> ChangeScriptSource(Handle<Script> original_script,
+                                           Handle<String> new_source,
+                                           Handle<Object> old_script_name);
 
   // In a code of a parent function replaces original function as embedded
   // object with a substitution one.
@@ -173,6 +173,153 @@ class Comparator {
   // Finds the difference between 2 arrays of elements.
   static void CalculateDifference(Input* input,
                                   Output* result_writer);
+};
+
+
+
+// Simple helper class that creates more or less typed structures over
+// JSArray object. This is an adhoc method of passing structures from C++
+// to JavaScript.
+template<typename S>
+class JSArrayBasedStruct {
+ public:
+  static S Create(Isolate* isolate) {
+    Factory* factory = isolate->factory();
+    Handle<JSArray> array = factory->NewJSArray(S::kSize_);
+    return S(array);
+  }
+
+  static S cast(Object* object) {
+    JSArray* array = JSArray::cast(object);
+    Handle<JSArray> array_handle(array);
+    return S(array_handle);
+  }
+
+  explicit JSArrayBasedStruct(Handle<JSArray> array) : array_(array) {
+  }
+
+  Handle<JSArray> GetJSArray() {
+    return array_;
+  }
+
+  Isolate* isolate() const {
+    return array_->GetIsolate();
+  }
+
+ protected:
+  void SetField(int field_position, Handle<Object> value) {
+    JSObject::SetElement(array_, field_position, value, NONE, SLOPPY).Assert();
+  }
+
+  void SetSmiValueField(int field_position, int value) {
+    SetField(field_position, Handle<Smi>(Smi::FromInt(value), isolate()));
+  }
+
+  Handle<Object> GetField(int field_position) {
+    return Object::GetElementNoExceptionThrown(
+        isolate(), array_, field_position);
+  }
+
+  int GetSmiValueField(int field_position) {
+    Handle<Object> res = GetField(field_position);
+    return Handle<Smi>::cast(res)->value();
+  }
+
+ private:
+  Handle<JSArray> array_;
+};
+
+
+// Represents some function compilation details. This structure will be used
+// from JavaScript. It contains Code object, which is kept wrapped
+// into a BlindReference for sanitizing reasons.
+class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
+ public:
+  explicit FunctionInfoWrapper(Handle<JSArray> array)
+      : JSArrayBasedStruct<FunctionInfoWrapper>(array) {
+  }
+
+  void SetInitialProperties(Handle<String> name,
+                            int start_position,
+                            int end_position,
+                            int param_num,
+                            int literal_count,
+                            int parent_index);
+
+  void SetFunctionCode(Handle<Code> function_code,
+                       Handle<HeapObject> code_scope_info);
+
+  void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
+    this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
+  }
+
+  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
+
+  int GetLiteralCount() {
+    return this->GetSmiValueField(kLiteralNumOffset_);
+  }
+
+  int GetParentIndex() {
+    return this->GetSmiValueField(kParentIndexOffset_);
+  }
+
+  Handle<Code> GetFunctionCode();
+
+  Handle<Object> GetCodeScopeInfo();
+
+  int GetStartPosition() {
+    return this->GetSmiValueField(kStartPositionOffset_);
+  }
+
+  int GetEndPosition() { return this->GetSmiValueField(kEndPositionOffset_); }
+
+ private:
+  static const int kFunctionNameOffset_ = 0;
+  static const int kStartPositionOffset_ = 1;
+  static const int kEndPositionOffset_ = 2;
+  static const int kParamNumOffset_ = 3;
+  static const int kCodeOffset_ = 4;
+  static const int kCodeScopeInfoOffset_ = 5;
+  static const int kFunctionScopeInfoOffset_ = 6;
+  static const int kParentIndexOffset_ = 7;
+  static const int kSharedFunctionInfoOffset_ = 8;
+  static const int kLiteralNumOffset_ = 9;
+  static const int kSize_ = 10;
+
+  friend class JSArrayBasedStruct<FunctionInfoWrapper>;
+};
+
+
+// Wraps SharedFunctionInfo along with some of its fields for passing it
+// back to JavaScript. SharedFunctionInfo object itself is additionally
+// wrapped into BlindReference for sanitizing reasons.
+class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
+ public:
+  static bool IsInstance(Handle<JSArray> array) {
+    return array->length() == Smi::FromInt(kSize_) &&
+        Object::GetElementNoExceptionThrown(
+            array->GetIsolate(), array, kSharedInfoOffset_)->IsJSValue();
+  }
+
+  explicit SharedInfoWrapper(Handle<JSArray> array)
+      : JSArrayBasedStruct<SharedInfoWrapper>(array) {
+  }
+
+  void SetProperties(Handle<String> name,
+                     int start_position,
+                     int end_position,
+                     Handle<SharedFunctionInfo> info);
+
+  Handle<SharedFunctionInfo> GetInfo();
+
+ private:
+  static const int kFunctionNameOffset_ = 0;
+  static const int kStartPositionOffset_ = 1;
+  static const int kEndPositionOffset_ = 2;
+  static const int kSharedInfoOffset_ = 3;
+  static const int kSize_ = 4;
+
+  friend class JSArrayBasedStruct<SharedInfoWrapper>;
 };
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

@@ -134,57 +134,12 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 }
 
 
-void FlattenString(Handle<String> string) {
-  CALL_HEAP_FUNCTION_VOID(string->GetIsolate(), string->TryFlatten());
-}
-
-
-Handle<String> FlattenGetString(Handle<String> string) {
-  CALL_HEAP_FUNCTION(string->GetIsolate(), string->TryFlatten(), String);
-}
-
-
-Handle<Object> DeleteProperty(Handle<JSObject> object, Handle<Object> key) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::DeleteObjectProperty(
-                         isolate, object, key, JSReceiver::NORMAL_DELETION),
-                     Object);
-}
-
-
-Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
-                                   Handle<Object> key) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::DeleteObjectProperty(
-                         isolate, object, key, JSReceiver::FORCE_DELETION),
-                     Object);
-}
-
-
-Handle<Object> HasProperty(Handle<JSReceiver> obj, Handle<Object> key) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     Runtime::HasObjectProperty(isolate, obj, key), Object);
-}
-
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
   ASSERT(!str.is_null());
   return Object::GetPropertyOrElement(obj, str);
-}
-
-
-Handle<String> LookupSingleCharacterStringFromCode(Isolate* isolate,
-                                                   uint32_t index) {
-  CALL_HEAP_FUNCTION(
-      isolate,
-      isolate->heap()->LookupSingleCharacterStringFromCode(index),
-      String);
 }
 
 
@@ -297,7 +252,7 @@ static void CalculateLineEnds(Isolate* isolate,
 
 Handle<FixedArray> CalculateLineEnds(Handle<String> src,
                                      bool with_last_line) {
-  src = FlattenGetString(src);
+  src = String::Flatten(src);
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
   int line_count_estimate = src->length() >> 4;

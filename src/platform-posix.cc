@@ -96,6 +96,12 @@ intptr_t OS::MaxVirtualMemory() {
   struct rlimit limit;
   int result = getrlimit(RLIMIT_DATA, &limit);
   if (result != 0) return 0;
+#if V8_OS_NACL
+  // The NaCl compiler doesn't like resource.h constants.
+  if (static_cast<int>(limit.rlim_cur) == -1) return 0;
+#else
+  if (limit.rlim_cur == RLIM_INFINITY) return 0;
+#endif
   return limit.rlim_cur;
 }
 

@@ -102,6 +102,9 @@ class MacroAssembler: public Assembler {
   static int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallStubSize(CodeStub* stub,
+                   TypeFeedbackId ast_id = TypeFeedbackId::None(),
+                   Condition cond = al);
   static int CallSizeNotPredictableCodeSize(Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);

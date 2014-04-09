@@ -2312,8 +2312,8 @@ Local<Value> JSON::Parse(Local<String> json_string) {
   EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::String> source = i::Handle<i::String>(
-      FlattenGetString(Utils::OpenHandle(*json_string)));
+  i::Handle<i::String> source =
+      i::String::Flatten(Utils::OpenHandle(*json_string));
   EXCEPTION_PREAMBLE(isolate);
   i::MaybeHandle<i::Object> maybe_result =
       source->IsSeqOneByteString() ? i::JsonParser<true>::Parse(source)
@@ -3069,13 +3069,8 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::JSObject::SetElement(
-      self,
-      index,
-      value_obj,
-      NONE,
-      i::SLOPPY);
-  has_pending_exception = obj.is_null();
+  has_pending_exception = i::JSObject::SetElement(
+      self, index, value_obj, NONE, i::SLOPPY).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3125,8 +3120,9 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   }
 
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::DeleteObjectProperty(
+      isolate, self, key_obj, i::JSReceiver::FORCE_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3358,8 +3354,9 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::DeleteProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::DeleteObjectProperty(
+      isolate, self, key_obj, i::JSReceiver::NORMAL_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3377,8 +3374,9 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj = i::HasProperty(self, key_obj);
-  has_pending_exception = obj.is_null();
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Runtime::HasObjectProperty(
+      isolate, self, key_obj).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3396,7 +3394,13 @@ bool v8::Object::Delete(uint32_t index) {
   ENTER_V8(isolate);
   HandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSReceiver::DeleteElement(self, index)->IsTrue();
+
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> obj;
+  has_pending_exception =
+      !i::JSReceiver::DeleteElement(self, index).ToHandle(&obj);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return obj->IsTrue();
 }
 
 
@@ -4672,7 +4676,7 @@ int String::WriteUtf8(char* buffer,
   ENTER_V8(isolate);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   if (options & HINT_MANY_WRITES_EXPECTED) {
-    FlattenString(str);  // Flatten the string for efficiency.
+    str = i::String::Flatten(str);  // Flatten the string for efficiency.
   }
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
@@ -4707,7 +4711,7 @@ int String::WriteUtf8(char* buffer,
     }
   }
   // Recursive slow path can potentially be unreasonable slow. Flatten.
-  str = FlattenGetString(str);
+  str = i::String::Flatten(str);
   Utf8WriterVisitor writer(buffer, capacity, false, replace_invalid_utf8);
   i::String::VisitFlat(&writer, *str);
   return writer.CompleteWrite(write_null, nchars_ref);
@@ -4729,7 +4733,7 @@ static inline int WriteHelper(const String* string,
   if (options & String::HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringCharacterStream or Get(i) to access the characters.
-    FlattenString(str);
+    str = i::String::Flatten(str);
   }
   int end = start + length;
   if ((length == -1) || (length > str->length() - start) )

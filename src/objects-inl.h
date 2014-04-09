@@ -134,6 +134,14 @@ PropertyDetails PropertyDetails::AsDeleted() const {
     RELEASE_WRITE_FIELD(this, offset, Smi::FromInt(value)); \
   }
 
+#define NOBARRIER_SMI_ACCESSORS(holder, name, offset)          \
+  int holder::nobarrier_##name() {                             \
+    Object* value = NOBARRIER_READ_FIELD(this, offset);        \
+    return Smi::cast(value)->value();                          \
+  }                                                            \
+  void holder::nobarrier_set_##name(int value) {               \
+    NOBARRIER_WRITE_FIELD(this, offset, Smi::FromInt(value));  \
+  }
 
 #define BOOL_GETTER(holder, field, name, offset)           \
   bool holder::name() {                                    \
@@ -920,6 +928,13 @@ bool Object::IsObjectHashTable() {
 }
 
 
+bool Object::IsOrderedHashTable() {
+  return IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->ordered_hash_table_map();
+}
+
+
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }
@@ -1108,7 +1123,7 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
   reinterpret_cast<Object*>(                                             \
       Acquire_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
 
-#define NO_BARRIER_READ_FIELD(p, offset)                                    \
+#define NOBARRIER_READ_FIELD(p, offset)                                     \
   reinterpret_cast<Object*>(                                                \
       NoBarrier_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
 
@@ -1119,7 +1134,7 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
   Release_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),   \
                 reinterpret_cast<AtomicWord>(value));
 
-#define NO_BARRIER_WRITE_FIELD(p, offset, value)                           \
+#define NOBARRIER_WRITE_FIELD(p, offset, value)                            \
   NoBarrier_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),    \
                   reinterpret_cast<AtomicWord>(value));
 
@@ -1388,6 +1403,11 @@ void HeapObject::synchronized_set_map(Map* value) {
 }
 
 
+void HeapObject::synchronized_set_map_no_write_barrier(Map* value) {
+  synchronized_set_map_word(MapWord::FromMap(value));
+}
+
+
 // Unsafe accessor omitting write barrier.
 void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
@@ -1396,12 +1416,12 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
 
 MapWord HeapObject::map_word() {
   return MapWord(
-      reinterpret_cast<uintptr_t>(NO_BARRIER_READ_FIELD(this, kMapOffset)));
+      reinterpret_cast<uintptr_t>(NOBARRIER_READ_FIELD(this, kMapOffset)));
 }
 
 
 void HeapObject::set_map_word(MapWord map_word) {
-  NO_BARRIER_WRITE_FIELD(
+  NOBARRIER_WRITE_FIELD(
       this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
 }
 
@@ -2175,6 +2195,11 @@ Object* FixedArray::get(int index) {
 }
 
 
+Handle<Object> FixedArray::get(Handle<FixedArray> array, int index) {
+  return handle(array->get(index), array->GetIsolate());
+}
+
+
 bool FixedArray::is_the_hole(int index) {
   return get(index) == GetHeap()->the_hole_value();
 }
@@ -2240,11 +2265,12 @@ MaybeObject* FixedDoubleArray::get(int index) {
 }
 
 
-Handle<Object> FixedDoubleArray::get_as_handle(int index) {
-  if (is_the_hole(index)) {
-    return GetIsolate()->factory()->the_hole_value();
+Handle<Object> FixedDoubleArray::get(Handle<FixedDoubleArray> array,
+                                     int index) {
+  if (array->is_the_hole(index)) {
+    return array->GetIsolate()->factory()->the_hole_value();
   } else {
-    return GetIsolate()->factory()->NewNumber(get_scalar(index));
+    return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
@@ -2284,16 +2310,43 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
-SMI_ACCESSORS(
-    ConstantPoolArray, first_code_ptr_index, kFirstCodePointerIndexOffset)
-SMI_ACCESSORS(
-    ConstantPoolArray, first_heap_ptr_index, kFirstHeapPointerIndexOffset)
-SMI_ACCESSORS(
-    ConstantPoolArray, first_int32_index, kFirstInt32IndexOffset)
+void ConstantPoolArray::set_weak_object_state(
+      ConstantPoolArray::WeakObjectState state) {
+  int old_layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  int new_layout_field = WeakObjectStateField::update(old_layout_field, state);
+  WRITE_INT_FIELD(this, kArrayLayoutOffset, new_layout_field);
+}
+
+
+ConstantPoolArray::WeakObjectState ConstantPoolArray::get_weak_object_state() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return WeakObjectStateField::decode(layout_field);
+}
 
 
 int ConstantPoolArray::first_int64_index() {
   return 0;
+}
+
+
+int ConstantPoolArray::first_code_ptr_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_int64_index() +
+      NumberOfInt64EntriesField::decode(layout_field);
+}
+
+
+int ConstantPoolArray::first_heap_ptr_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_code_ptr_index() +
+      NumberOfCodePtrEntriesField::decode(layout_field);
+}
+
+
+int ConstantPoolArray::first_int32_index() {
+  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
+  return first_heap_ptr_index() +
+      NumberOfHeapPtrEntriesField::decode(layout_field);
 }
 
 
@@ -2317,18 +2370,20 @@ int ConstantPoolArray::count_of_int32_entries() {
 }
 
 
-void ConstantPoolArray::SetEntryCounts(int number_of_int64_entries,
-                                       int number_of_code_ptr_entries,
-                                       int number_of_heap_ptr_entries,
-                                       int number_of_int32_entries) {
-  int current_index = number_of_int64_entries;
-  set_first_code_ptr_index(current_index);
-  current_index += number_of_code_ptr_entries;
-  set_first_heap_ptr_index(current_index);
-  current_index += number_of_heap_ptr_entries;
-  set_first_int32_index(current_index);
-  current_index += number_of_int32_entries;
-  set_length(current_index);
+void ConstantPoolArray::Init(int number_of_int64_entries,
+                             int number_of_code_ptr_entries,
+                             int number_of_heap_ptr_entries,
+                             int number_of_int32_entries) {
+  set_length(number_of_int64_entries +
+             number_of_code_ptr_entries +
+             number_of_heap_ptr_entries +
+             number_of_int32_entries);
+  int layout_field =
+      NumberOfInt64EntriesField::encode(number_of_int64_entries) |
+      NumberOfCodePtrEntriesField::encode(number_of_code_ptr_entries) |
+      NumberOfHeapPtrEntriesField::encode(number_of_heap_ptr_entries) |
+      WeakObjectStateField::encode(NO_WEAK_OBJECTS);
+  WRITE_INT_FIELD(this, kArrayLayoutOffset, layout_field);
 }
 
 
@@ -2989,6 +3044,7 @@ SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
+NOBARRIER_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 SMI_ACCESSORS(String, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(String, length, kLengthOffset)
@@ -3028,6 +3084,14 @@ bool String::Equals(String* other) {
     return false;
   }
   return SlowEquals(other);
+}
+
+
+Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
+  if (!string->IsConsString()) return string;
+  Handle<ConsString> cons = Handle<ConsString>::cast(string);
+  if (cons->IsFlat()) return handle(cons->first());
+  return SlowFlatten(cons, pretenure);
 }
 
 
@@ -3575,8 +3639,15 @@ uint8_t ExternalUint8ClampedArray::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint8ClampedArray::get(int index) {
+Object* ExternalUint8ClampedArray::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint8ClampedArray::get(
+    Handle<ExternalUint8ClampedArray> array,
+    int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3606,8 +3677,14 @@ int8_t ExternalInt8Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalInt8Array::get(int index) {
+Object* ExternalInt8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalInt8Array::get(Handle<ExternalInt8Array> array,
+                                      int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3625,8 +3702,14 @@ uint8_t ExternalUint8Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint8Array::get(int index) {
+Object* ExternalUint8Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint8Array::get(Handle<ExternalUint8Array> array,
+                                       int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3644,8 +3727,14 @@ int16_t ExternalInt16Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalInt16Array::get(int index) {
+Object* ExternalInt16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalInt16Array::get(Handle<ExternalInt16Array> array,
+                                       int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3663,8 +3752,14 @@ uint16_t ExternalUint16Array::get_scalar(int index) {
 }
 
 
-MaybeObject* ExternalUint16Array::get(int index) {
+Object* ExternalUint16Array::get(int index) {
   return Smi::FromInt(static_cast<int>(get_scalar(index)));
+}
+
+
+Handle<Object> ExternalUint16Array::get(Handle<ExternalUint16Array> array,
+                                        int index) {
+  return handle(array->get(index), array->GetIsolate());
 }
 
 
@@ -3683,7 +3778,14 @@ int32_t ExternalInt32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalInt32Array::get(int index) {
-    return GetHeap()->NumberFromInt32(get_scalar(index));
+  return GetHeap()->NumberFromInt32(get_scalar(index));
+}
+
+
+Handle<Object> ExternalInt32Array::get(Handle<ExternalInt32Array> array,
+                                       int index) {
+  return array->GetIsolate()->factory()->
+      NewNumberFromInt(array->get_scalar(index));
 }
 
 
@@ -3702,7 +3804,14 @@ uint32_t ExternalUint32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalUint32Array::get(int index) {
-    return GetHeap()->NumberFromUint32(get_scalar(index));
+  return GetHeap()->NumberFromUint32(get_scalar(index));
+}
+
+
+Handle<Object> ExternalUint32Array::get(Handle<ExternalUint32Array> array,
+                                        int index) {
+  return array->GetIsolate()->factory()->
+      NewNumberFromUint(array->get_scalar(index));
 }
 
 
@@ -3721,7 +3830,13 @@ float ExternalFloat32Array::get_scalar(int index) {
 
 
 MaybeObject* ExternalFloat32Array::get(int index) {
-    return GetHeap()->NumberFromDouble(get_scalar(index));
+  return GetHeap()->NumberFromDouble(get_scalar(index));
+}
+
+
+Handle<Object> ExternalFloat32Array::get(Handle<ExternalFloat32Array> array,
+                                         int index) {
+  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
 }
 
 
@@ -3741,6 +3856,12 @@ double ExternalFloat64Array::get_scalar(int index) {
 
 MaybeObject* ExternalFloat64Array::get(int index) {
     return GetHeap()->NumberFromDouble(get_scalar(index));
+}
+
+
+Handle<Object> ExternalFloat64Array::get(Handle<ExternalFloat64Array> array,
+                                         int index) {
+  return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
 }
 
 
@@ -3890,6 +4011,13 @@ MaybeObject* FixedTypedArray<Traits>::get(int index) {
 }
 
 template <class Traits>
+Handle<Object> FixedTypedArray<Traits>::get(
+    Handle<FixedTypedArray<Traits> > array,
+    int index) {
+  return Traits::ToHandle(array->GetIsolate(), array->get_scalar(index));
+}
+
+template <class Traits>
 MaybeObject* FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
   ElementType cast_value = Traits::defaultValue();
   if (index < static_cast<uint32_t>(length())) {
@@ -3925,8 +4053,19 @@ MaybeObject* Uint8ArrayTraits::ToObject(Heap*, uint8_t scalar) {
 }
 
 
+Handle<Object> Uint8ArrayTraits::ToHandle(Isolate* isolate, uint8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint8ClampedArrayTraits::ToObject(Heap*, uint8_t scalar) {
   return Smi::FromInt(scalar);
+}
+
+
+Handle<Object> Uint8ClampedArrayTraits::ToHandle(Isolate* isolate,
+                                                 uint8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
 }
 
 
@@ -3935,8 +4074,18 @@ MaybeObject* Int8ArrayTraits::ToObject(Heap*, int8_t scalar) {
 }
 
 
+Handle<Object> Int8ArrayTraits::ToHandle(Isolate* isolate, int8_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint16ArrayTraits::ToObject(Heap*, uint16_t scalar) {
   return Smi::FromInt(scalar);
+}
+
+
+Handle<Object> Uint16ArrayTraits::ToHandle(Isolate* isolate, uint16_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
 }
 
 
@@ -3945,8 +4094,18 @@ MaybeObject* Int16ArrayTraits::ToObject(Heap*, int16_t scalar) {
 }
 
 
+Handle<Object> Int16ArrayTraits::ToHandle(Isolate* isolate, int16_t scalar) {
+  return handle(Smi::FromInt(scalar), isolate);
+}
+
+
 MaybeObject* Uint32ArrayTraits::ToObject(Heap* heap, uint32_t scalar) {
   return heap->NumberFromUint32(scalar);
+}
+
+
+Handle<Object> Uint32ArrayTraits::ToHandle(Isolate* isolate, uint32_t scalar) {
+  return isolate->factory()->NewNumberFromUint(scalar);
 }
 
 
@@ -3955,13 +4114,28 @@ MaybeObject* Int32ArrayTraits::ToObject(Heap* heap, int32_t scalar) {
 }
 
 
+Handle<Object> Int32ArrayTraits::ToHandle(Isolate* isolate, int32_t scalar) {
+  return isolate->factory()->NewNumberFromInt(scalar);
+}
+
+
 MaybeObject* Float32ArrayTraits::ToObject(Heap* heap, float scalar) {
   return heap->NumberFromDouble(scalar);
 }
 
 
+Handle<Object> Float32ArrayTraits::ToHandle(Isolate* isolate, float scalar) {
+  return isolate->factory()->NewNumber(scalar);
+}
+
+
 MaybeObject* Float64ArrayTraits::ToObject(Heap* heap, double scalar) {
   return heap->NumberFromDouble(scalar);
+}
+
+
+Handle<Object> Float64ArrayTraits::ToHandle(Isolate* isolate, double scalar) {
+  return isolate->factory()->NewNumber(scalar);
 }
 
 
@@ -4016,7 +4190,7 @@ int HeapObject::SizeFromMap(Map* map) {
     return reinterpret_cast<ByteArray*>(this)->ByteArraySize();
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return reinterpret_cast<FreeSpace*>(this)->size();
+    return reinterpret_cast<FreeSpace*>(this)->nobarrier_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {
@@ -4733,7 +4907,6 @@ Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
 
 
 bool Code::IsWeakObjectInOptimizedCode(Object* object) {
-  ASSERT(is_optimized_code());
   if (object->IsMap()) {
     return Map::cast(object)->CanTransition() &&
            FLAG_collect_maps &&
@@ -6588,28 +6761,22 @@ MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
 }
 
 
-template <int entrysize>
-bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
   return key->SameValue(other);
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
+uint32_t ObjectHashTableShape::Hash(Object* key) {
   return Smi::cast(key->GetHash())->value();
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
-                                                        Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Object* key, Object* other) {
   return Smi::cast(other->GetHash())->value();
 }
 
 
-template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Heap* heap,
-                                                       Object* key) {
+MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
   return key;
 }
 

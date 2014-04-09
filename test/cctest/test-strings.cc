@@ -452,7 +452,7 @@ static Handle<String> ConstructRandomString(ConsStringGenerationData* data,
   // Special work needed for flat string.
   if (flat) {
     data->stats_.empty_leaves_++;
-    FlattenString(root);
+    String::Flatten(root);
     CHECK(root->IsConsString() && root->IsFlat());
   }
   return root;
@@ -573,7 +573,7 @@ TEST(Traverse) {
   v8::HandleScope scope(CcTest::isolate());
   ConsStringGenerationData data(false);
   Handle<String> flat = ConstructBalanced(&data);
-  FlattenString(flat);
+  String::Flatten(flat);
   Handle<String> left_asymmetric = ConstructLeft(&data, DEEP_DEPTH);
   Handle<String> right_asymmetric = ConstructRight(&data, DEEP_DEPTH);
   Handle<String> symmetric = ConstructBalanced(&data);
@@ -593,19 +593,19 @@ TEST(Traverse) {
   printf("6\n");
   TraverseFirst(left_asymmetric, right_deep_asymmetric, 65536);
   printf("7\n");
-  FlattenString(left_asymmetric);
+  String::Flatten(left_asymmetric);
   printf("10\n");
   Traverse(flat, left_asymmetric);
   printf("11\n");
-  FlattenString(right_asymmetric);
+  String::Flatten(right_asymmetric);
   printf("12\n");
   Traverse(flat, right_asymmetric);
   printf("14\n");
-  FlattenString(symmetric);
+  String::Flatten(symmetric);
   printf("15\n");
   Traverse(flat, symmetric);
   printf("16\n");
-  FlattenString(left_deep_asymmetric);
+  String::Flatten(left_deep_asymmetric);
   printf("18\n");
 }
 
@@ -670,7 +670,7 @@ void TestStringCharacterStream(BuildString build, int test_cases) {
     ConsStringStats flat_string_stats;
     AccumulateStats(flat_string, &flat_string_stats);
     // Flatten string.
-    FlattenString(flat_string);
+    String::Flatten(flat_string);
     // Build unflattened version of cons string to test.
     Handle<String> cons_string = build(i, &data);
     ConsStringStats cons_string_stats;
@@ -725,7 +725,7 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> string =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        FlattenString(string);
+        String::Flatten(string);
         return string;
       }
     case 7:
@@ -740,7 +740,7 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> left =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        FlattenString(left);
+        String::Flatten(left);
         return factory->NewConsString(left, data->block(2)).ToHandleChecked();
       }
     case 8:
@@ -757,11 +757,11 @@ static Handle<String> BuildEdgeCaseConsString(
         Handle<String> left =
             factory->NewConsString(data->block(0), data->block(1))
                 .ToHandleChecked();
-        FlattenString(left);
+        String::Flatten(left);
         Handle<String> right =
             factory->NewConsString(data->block(2), data->block(2))
                 .ToHandleChecked();
-        FlattenString(right);
+        String::Flatten(right);
         return factory->NewConsString(left, right).ToHandleChecked();
       }
   }
@@ -878,7 +878,7 @@ TEST(DeepAscii) {
   }
   Handle<String> flat_string =
       factory->NewConsString(string, foo_string).ToHandleChecked();
-  FlattenString(flat_string);
+  String::Flatten(flat_string);
 
   for (int i = 0; i < 500; i++) {
     TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);

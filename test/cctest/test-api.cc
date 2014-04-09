@@ -7589,7 +7589,7 @@ int GetUtf8Length(Handle<String> str) {
   int len = str->Utf8Length();
   if (len < 0) {
     i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
-    i::FlattenString(istr);
+    i::String::Flatten(istr);
     len = str->Utf8Length();
   }
   return len;
@@ -15728,17 +15728,20 @@ THREADED_TEST(PixelArray) {
   i::Handle<i::Smi> value(i::Smi::FromInt(2),
                           reinterpret_cast<i::Isolate*>(context->GetIsolate()));
   i::Handle<i::Object> no_failure;
-  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
+  no_failure = i::JSObject::SetElement(
+      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
-  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
+  no_failure = i::JSObject::SetElement(
+      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
-  no_failure = i::JSObject::SetElement(jsobj, 1, value, NONE, i::SLOPPY);
+  no_failure = i::JSObject::SetElement(
+      jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CheckElementValue(isolate, 0, jsobj, 1);
@@ -18932,8 +18935,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   int length = string->length();
   CHECK(string->IsOneByteRepresentation());
 
-  FlattenString(string);
-  i::Handle<i::String> flat_string = FlattenGetString(string);
+  i::Handle<i::String> flat_string = i::String::Flatten(string);
 
   CHECK(string->IsOneByteRepresentation());
   CHECK(flat_string->IsOneByteRepresentation());

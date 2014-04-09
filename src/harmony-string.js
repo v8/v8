@@ -53,7 +53,7 @@ function StringRepeat(count) {
 }
 
 
-// ES6 draft 01-20-14, section 21.1.3.18
+// ES6 draft 04-05-14, section 21.1.3.18
 function StringStartsWith(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.startsWith");
 
@@ -82,7 +82,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
 }
 
 
-// ES6 draft 01-20-14, section 21.1.3.7
+// ES6 draft 04-05-14, section 21.1.3.7
 function StringEndsWith(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.endsWith");
 
@@ -114,11 +114,17 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 }
 
 
-// ES6 draft 01-20-14, section 21.1.3.6
+// ES6 draft 04-05-14, section 21.1.3.6
 function StringContains(searchString /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.contains");
 
   var s = TO_STRING_INLINE(this);
+
+  if (IS_REGEXP(searchString)) {
+    throw MakeTypeError("first_argument_not_regexp",
+                        ["String.prototype.contains"]);
+  }
+
   var ss = TO_STRING_INLINE(searchString);
   var pos = 0;
   if (%_ArgumentsLength() > 1) {

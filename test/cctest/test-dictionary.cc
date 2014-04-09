@@ -201,7 +201,6 @@ TEST(ObjectHashSetCausesGC) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  TestHashSetCausesGC(isolate->factory()->NewObjectHashSet(1));
   TestHashSetCausesGC(isolate->factory()->NewOrderedHashSet());
 }
 #endif

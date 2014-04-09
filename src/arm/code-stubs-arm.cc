@@ -4951,8 +4951,9 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    PredictableCodeSizeScope predictable(masm, 4 * Assembler::kInstrSize);
     ProfileEntryHookStub stub;
+    int code_size = masm->CallStubSize(&stub) + 2 * Assembler::kInstrSize;
+    PredictableCodeSizeScope predictable(masm, code_size);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);

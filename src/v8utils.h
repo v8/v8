@@ -44,13 +44,19 @@ namespace internal {
 #if defined(__MACH__) && defined(__APPLE__)
 #define PRINTF_CHECKING
 #define FPRINTF_CHECKING
+#define PRINTF_METHOD_CHECKING
+#define FPRINTF_METHOD_CHECKING
 #else  // MacOsX.
 #define PRINTF_CHECKING __attribute__ ((format (printf, 1, 2)))
 #define FPRINTF_CHECKING __attribute__ ((format (printf, 2, 3)))
+#define PRINTF_METHOD_CHECKING __attribute__ ((format (printf, 2, 3)))
+#define FPRINTF_METHOD_CHECKING __attribute__ ((format (printf, 3, 4)))
 #endif
 #else
 #define PRINTF_CHECKING
 #define FPRINTF_CHECKING
+#define PRINTF_METHOD_CHECKING
+#define FPRINTF_METHOD_CHECKING
 #endif
 
 // Our version of printf().

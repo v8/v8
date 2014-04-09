@@ -859,7 +859,7 @@ FunctionLiteral* Parser::ParseProgram() {
     (*cached_data_)->Initialize();
   }
 
-  source->TryFlatten();
+  source = String::Flatten(source);
   FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
@@ -998,7 +998,7 @@ FunctionLiteral* Parser::ParseLazy() {
   Handle<SharedFunctionInfo> shared_info = info()->shared_info();
 
   // Initialize parser state.
-  source->TryFlatten();
+  source = String::Flatten(source);
   FunctionLiteral* result;
   if (source->IsExternalTwoByteString()) {
     ExternalTwoByteStringUtf16CharacterStream stream(

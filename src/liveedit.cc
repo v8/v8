@@ -55,10 +55,7 @@ void SetElementSloppy(Handle<JSObject> object,
   // Ignore return value from SetElement. It can only be a failure if there
   // are element setters causing exceptions and the debugger context has none
   // of these.
-  Handle<Object> no_failure =
-      JSObject::SetElement(object, index, value, NONE, SLOPPY);
-  ASSERT(!no_failure.is_null());
-  USE(no_failure);
+  JSObject::SetElement(object, index, value, NONE, SLOPPY).Assert();
 }
 
 
@@ -585,8 +582,8 @@ class TokenizingLineArrayCompareOutput : public SubrangableOutput {
 
 Handle<JSArray> LiveEdit::CompareStrings(Handle<String> s1,
                                          Handle<String> s2) {
-  s1 = FlattenGetString(s1);
-  s2 = FlattenGetString(s2);
+  s1 = String::Flatten(s1);
+  s2 = String::Flatten(s2);
 
   LineEndsWrapper line_ends1(s1);
   LineEndsWrapper line_ends2(s2);
@@ -635,168 +632,72 @@ static int GetArrayLength(Handle<JSArray> array) {
 }
 
 
-// Simple helper class that creates more or less typed structures over
-// JSArray object. This is an adhoc method of passing structures from C++
-// to JavaScript.
-template<typename S>
-class JSArrayBasedStruct {
- public:
-  static S Create(Isolate* isolate) {
-    Factory* factory = isolate->factory();
-    Handle<JSArray> array = factory->NewJSArray(S::kSize_);
-    return S(array);
-  }
-  static S cast(Object* object) {
-    JSArray* array = JSArray::cast(object);
-    Handle<JSArray> array_handle(array);
-    return S(array_handle);
-  }
-  explicit JSArrayBasedStruct(Handle<JSArray> array) : array_(array) {
-  }
-  Handle<JSArray> GetJSArray() {
-    return array_;
-  }
-  Isolate* isolate() const {
-    return array_->GetIsolate();
-  }
-
- protected:
-  void SetField(int field_position, Handle<Object> value) {
-    SetElementSloppy(array_, field_position, value);
-  }
-  void SetSmiValueField(int field_position, int value) {
-    SetElementSloppy(array_,
-                     field_position,
-                     Handle<Smi>(Smi::FromInt(value), isolate()));
-  }
-  Handle<Object> GetField(int field_position) {
-    return Object::GetElementNoExceptionThrown(
-        isolate(), array_, field_position);
-  }
-  int GetSmiValueField(int field_position) {
-    Handle<Object> res = GetField(field_position);
-    return Handle<Smi>::cast(res)->value();
-  }
-
- private:
-  Handle<JSArray> array_;
-};
+void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
+                                               int start_position,
+                                               int end_position,
+                                               int param_num,
+                                               int literal_count,
+                                               int parent_index) {
+  HandleScope scope(isolate());
+  this->SetField(kFunctionNameOffset_, name);
+  this->SetSmiValueField(kStartPositionOffset_, start_position);
+  this->SetSmiValueField(kEndPositionOffset_, end_position);
+  this->SetSmiValueField(kParamNumOffset_, param_num);
+  this->SetSmiValueField(kLiteralNumOffset_, literal_count);
+  this->SetSmiValueField(kParentIndexOffset_, parent_index);
+}
 
 
-// Represents some function compilation details. This structure will be used
-// from JavaScript. It contains Code object, which is kept wrapped
-// into a BlindReference for sanitizing reasons.
-class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
- public:
-  explicit FunctionInfoWrapper(Handle<JSArray> array)
-      : JSArrayBasedStruct<FunctionInfoWrapper>(array) {
-  }
-  void SetInitialProperties(Handle<String> name, int start_position,
-                            int end_position, int param_num,
-                            int literal_count, int parent_index) {
-    HandleScope scope(isolate());
-    this->SetField(kFunctionNameOffset_, name);
-    this->SetSmiValueField(kStartPositionOffset_, start_position);
-    this->SetSmiValueField(kEndPositionOffset_, end_position);
-    this->SetSmiValueField(kParamNumOffset_, param_num);
-    this->SetSmiValueField(kLiteralNumOffset_, literal_count);
-    this->SetSmiValueField(kParentIndexOffset_, parent_index);
-  }
-  void SetFunctionCode(Handle<Code> function_code,
-      Handle<HeapObject> code_scope_info) {
-    Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
-    this->SetField(kCodeOffset_, code_wrapper);
+void FunctionInfoWrapper::SetFunctionCode(Handle<Code> function_code,
+                                          Handle<HeapObject> code_scope_info) {
+  Handle<JSValue> code_wrapper = WrapInJSValue(function_code);
+  this->SetField(kCodeOffset_, code_wrapper);
 
-    Handle<JSValue> scope_wrapper = WrapInJSValue(code_scope_info);
-    this->SetField(kCodeScopeInfoOffset_, scope_wrapper);
-  }
-  void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
-    this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
-  }
-  void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info) {
-    Handle<JSValue> info_holder = WrapInJSValue(info);
-    this->SetField(kSharedFunctionInfoOffset_, info_holder);
-  }
-  int GetLiteralCount() {
-    return this->GetSmiValueField(kLiteralNumOffset_);
-  }
-  int GetParentIndex() {
-    return this->GetSmiValueField(kParentIndexOffset_);
-  }
-  Handle<Code> GetFunctionCode() {
-    Handle<Object> element = this->GetField(kCodeOffset_);
-    Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
-    Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
-    CHECK(raw_result->IsCode());
-    return Handle<Code>::cast(raw_result);
-  }
-  Handle<Object> GetCodeScopeInfo() {
-    Handle<Object> element = this->GetField(kCodeScopeInfoOffset_);
-    return UnwrapJSValue(Handle<JSValue>::cast(element));
-  }
-  int GetStartPosition() {
-    return this->GetSmiValueField(kStartPositionOffset_);
-  }
-  int GetEndPosition() {
-    return this->GetSmiValueField(kEndPositionOffset_);
-  }
-
- private:
-  static const int kFunctionNameOffset_ = 0;
-  static const int kStartPositionOffset_ = 1;
-  static const int kEndPositionOffset_ = 2;
-  static const int kParamNumOffset_ = 3;
-  static const int kCodeOffset_ = 4;
-  static const int kCodeScopeInfoOffset_ = 5;
-  static const int kFunctionScopeInfoOffset_ = 6;
-  static const int kParentIndexOffset_ = 7;
-  static const int kSharedFunctionInfoOffset_ = 8;
-  static const int kLiteralNumOffset_ = 9;
-  static const int kSize_ = 10;
-
-  friend class JSArrayBasedStruct<FunctionInfoWrapper>;
-};
+  Handle<JSValue> scope_wrapper = WrapInJSValue(code_scope_info);
+  this->SetField(kCodeScopeInfoOffset_, scope_wrapper);
+}
 
 
-// Wraps SharedFunctionInfo along with some of its fields for passing it
-// back to JavaScript. SharedFunctionInfo object itself is additionally
-// wrapped into BlindReference for sanitizing reasons.
-class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
- public:
-  static bool IsInstance(Handle<JSArray> array) {
-    return array->length() == Smi::FromInt(kSize_) &&
-        Object::GetElementNoExceptionThrown(
-            array->GetIsolate(), array, kSharedInfoOffset_)->IsJSValue();
-  }
+void FunctionInfoWrapper::SetSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info) {
+  Handle<JSValue> info_holder = WrapInJSValue(info);
+  this->SetField(kSharedFunctionInfoOffset_, info_holder);
+}
 
-  explicit SharedInfoWrapper(Handle<JSArray> array)
-      : JSArrayBasedStruct<SharedInfoWrapper>(array) {
-  }
 
-  void SetProperties(Handle<String> name, int start_position, int end_position,
-                     Handle<SharedFunctionInfo> info) {
-    HandleScope scope(isolate());
-    this->SetField(kFunctionNameOffset_, name);
-    Handle<JSValue> info_holder = WrapInJSValue(info);
-    this->SetField(kSharedInfoOffset_, info_holder);
-    this->SetSmiValueField(kStartPositionOffset_, start_position);
-    this->SetSmiValueField(kEndPositionOffset_, end_position);
-  }
-  Handle<SharedFunctionInfo> GetInfo() {
-    Handle<Object> element = this->GetField(kSharedInfoOffset_);
-    Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
-    return UnwrapSharedFunctionInfoFromJSValue(value_wrapper);
-  }
+Handle<Code> FunctionInfoWrapper::GetFunctionCode() {
+  Handle<Object> element = this->GetField(kCodeOffset_);
+  Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
+  Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
+  CHECK(raw_result->IsCode());
+  return Handle<Code>::cast(raw_result);
+}
 
- private:
-  static const int kFunctionNameOffset_ = 0;
-  static const int kStartPositionOffset_ = 1;
-  static const int kEndPositionOffset_ = 2;
-  static const int kSharedInfoOffset_ = 3;
-  static const int kSize_ = 4;
 
-  friend class JSArrayBasedStruct<SharedInfoWrapper>;
-};
+Handle<Object> FunctionInfoWrapper::GetCodeScopeInfo() {
+  Handle<Object> element = this->GetField(kCodeScopeInfoOffset_);
+  return UnwrapJSValue(Handle<JSValue>::cast(element));
+}
+
+
+void SharedInfoWrapper::SetProperties(Handle<String> name,
+                                      int start_position,
+                                      int end_position,
+                                      Handle<SharedFunctionInfo> info) {
+  HandleScope scope(isolate());
+  this->SetField(kFunctionNameOffset_, name);
+  Handle<JSValue> info_holder = WrapInJSValue(info);
+  this->SetField(kSharedInfoOffset_, info_holder);
+  this->SetSmiValueField(kStartPositionOffset_, start_position);
+  this->SetSmiValueField(kEndPositionOffset_, end_position);
+}
+
+
+Handle<SharedFunctionInfo> SharedInfoWrapper::GetInfo() {
+  Handle<Object> element = this->GetField(kSharedInfoOffset_);
+  Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
+  return UnwrapSharedFunctionInfoFromJSValue(value_wrapper);
+}
 
 
 class FunctionInfoListener {
@@ -854,8 +755,7 @@ class FunctionInfoListener {
                          Handle<HeapObject>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
 
-    Handle<Object> scope_info_list(SerializeFunctionScope(scope, zone),
-                                   isolate());
+    Handle<Object> scope_info_list = SerializeFunctionScope(scope, zone);
     info.SetFunctionScopeInfo(scope_info_list);
   }
 
@@ -864,9 +764,7 @@ class FunctionInfoListener {
  private:
   Isolate* isolate() const { return result_->GetIsolate(); }
 
-  Object* SerializeFunctionScope(Scope* scope, Zone* zone) {
-    HandleScope handle_scope(isolate());
-
+  Handle<Object> SerializeFunctionScope(Scope* scope, Zone* zone) {
     Handle<JSArray> scope_info_list = isolate()->factory()->NewJSArray(10);
     int scope_info_length = 0;
 
@@ -875,6 +773,7 @@ class FunctionInfoListener {
     // scopes of this chain.
     Scope* current_scope = scope;
     while (current_scope != NULL) {
+      HandleScope handle_scope(isolate());
       ZoneList<Variable*> stack_list(current_scope->StackLocalCount(), zone);
       ZoneList<Variable*> context_list(
           current_scope->ContextLocalCount(), zone);
@@ -901,7 +800,7 @@ class FunctionInfoListener {
       current_scope = current_scope->outer_scope();
     }
 
-    return *scope_info_list;
+    return scope_info_list;
   }
 
   Handle<JSArray> result_;
@@ -910,8 +809,8 @@ class FunctionInfoListener {
 };
 
 
-JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
-                                     Handle<String> source) {
+MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
+                                                 Handle<String> source) {
   Isolate* isolate = script->GetIsolate();
 
   FunctionInfoListener listener(isolate);
@@ -933,8 +832,7 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   // A logical 'catch' section.
   Handle<JSObject> rethrow_exception;
   if (isolate->has_pending_exception()) {
-    Handle<Object> exception(isolate->pending_exception()->ToObjectChecked(),
-                             isolate);
+    Handle<Object> exception(isolate->pending_exception(), isolate);
     MessageLocation message_location = isolate->GetMessageLocation();
 
     isolate->clear_pending_message();
@@ -969,10 +867,9 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   script->set_source(*original_source);
 
   if (rethrow_exception.is_null()) {
-    return *(listener.GetResult());
+    return listener.GetResult();
   } else {
-    isolate->Throw(*rethrow_exception);
-    return 0;
+    return isolate->Throw<JSArray>(rethrow_exception);
   }
 }
 
@@ -1261,15 +1158,10 @@ static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
 }
 
 
-MaybeObject* LiveEdit::ReplaceFunctionCode(
+void LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
     Handle<JSArray> shared_info_array) {
   Isolate* isolate = new_compile_info_array->GetIsolate();
-  HandleScope scope(isolate);
-
-  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return isolate->ThrowIllegalOperation();
-  }
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
@@ -1307,27 +1199,15 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
 
   DeoptimizeDependentFunctions(*shared_info);
   isolate->compilation_cache()->Remove(shared_info);
-
-  return isolate->heap()->undefined_value();
 }
 
 
-MaybeObject* LiveEdit::FunctionSourceUpdated(
-    Handle<JSArray> shared_info_array) {
-  Isolate* isolate = shared_info_array->GetIsolate();
-  HandleScope scope(isolate);
-
-  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return isolate->ThrowIllegalOperation();
-  }
-
+void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
   DeoptimizeDependentFunctions(*shared_info);
-  isolate->compilation_cache()->Remove(shared_info);
-
-  return isolate->heap()->undefined_value();
+  shared_info_array->GetIsolate()->compilation_cache()->Remove(shared_info);
 }
 
 
@@ -1504,12 +1384,8 @@ static Handle<Code> PatchPositionsInCode(
 }
 
 
-MaybeObject* LiveEdit::PatchFunctionPositions(
-    Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
-  if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return shared_info_array->GetIsolate()->ThrowIllegalOperation();
-  }
-
+void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
+                                      Handle<JSArray> position_change_array) {
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
@@ -1540,8 +1416,6 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
       ReplaceCodeObject(Handle<Code>(info->code()), patched_code);
     }
   }
-
-  return info->GetIsolate()->heap()->undefined_value();
 }
 
 
@@ -1568,9 +1442,9 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
 }
 
 
-Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
-                                     Handle<String> new_source,
-                                     Handle<Object> old_script_name) {
+Handle<Object> LiveEdit::ChangeScriptSource(Handle<Script> original_script,
+                                            Handle<String> new_source,
+                                            Handle<Object> old_script_name) {
   Isolate* isolate = original_script->GetIsolate();
   Handle<Object> old_script_object;
   if (old_script_name->IsString()) {
@@ -1588,7 +1462,7 @@ Object* LiveEdit::ChangeScriptSource(Handle<Script> original_script,
   // Drop line ends so that they will be recalculated.
   original_script->set_line_ends(isolate->heap()->undefined_value());
 
-  return *old_script_object;
+  return old_script_object;
 }
 
 

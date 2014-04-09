@@ -175,8 +175,10 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   Zone zone(isolate);
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  Handle<FixedArray> cached = compilation_cache->LookupRegExp(pattern, flags);
-  bool in_cache = !cached.is_null();
+  MaybeHandle<FixedArray> maybe_cached =
+      compilation_cache->LookupRegExp(pattern, flags);
+  Handle<FixedArray> cached;
+  bool in_cache = maybe_cached.ToHandle(&cached);
   LOG(isolate, RegExpCompileEvent(re, in_cache));
 
   Handle<Object> result;
@@ -184,7 +186,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     return re;
   }
-  pattern = FlattenGetString(pattern);
+  pattern = String::Flatten(pattern);
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
@@ -290,7 +292,7 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
   ASSERT(0 <= index);
   ASSERT(index <= subject->length());
 
-  if (!subject->IsFlat()) FlattenString(subject);
+  subject = String::Flatten(subject);
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
 
   String* needle = String::cast(regexp->DataAt(JSRegExp::kAtomPatternIndex));
@@ -439,7 +441,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  if (!pattern->IsFlat()) FlattenString(pattern);
+  pattern = String::Flatten(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
@@ -528,7 +530,7 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  if (!subject->IsFlat()) FlattenString(subject);
+  subject = String::Flatten(subject);
 
   // Check the asciiness of the underlying storage.
   bool is_ascii = subject->IsOneByteRepresentationUnderneath();
@@ -6015,7 +6017,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   // Sample some characters from the middle of the string.
   static const int kSampleSize = 128;
 
-  FlattenString(sample_subject);
+  sample_subject = String::Flatten(sample_subject);
   int chars_sampled = 0;
   int half_way = (sample_subject->length() - kSampleSize) / 2;
   for (int i = Max(0, half_way);

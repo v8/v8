@@ -507,9 +507,9 @@ TEST(BootUpMemoryUse) {
     printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
     if (sizeof(initial_memory) == 8) {  // 64-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 4000 * 1024);
+        CHECK_LE(delta, 4100 * 1024);
       } else {
-        CHECK_LE(delta, 4500 * 1024);
+        CHECK_LE(delta, 4600 * 1024);
       }
     } else {                            // 32-bit.
       if (v8::internal::Snapshot::IsEnabled()) {

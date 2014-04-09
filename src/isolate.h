@@ -292,7 +292,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // lookups.
   Context* context_;
   ThreadId thread_id_;
-  MaybeObject* pending_exception_;
+  Object* pending_exception_;
   bool has_pending_message_;
   bool rethrowing_message_;
   Object* pending_message_obj_;
@@ -302,7 +302,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  MaybeObject* scheduled_exception_;
+  Object* scheduled_exception_;
   bool external_caught_exception_;
   SaveContext* save_context_;
   v8::TryCatch* catcher_;
@@ -608,24 +608,28 @@ class Isolate {
   THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
 
   // Interface to pending exception.
-  MaybeObject* pending_exception() {
+  Object* pending_exception() {
     ASSERT(has_pending_exception());
+    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
     return thread_local_top_.pending_exception_;
   }
 
-  void set_pending_exception(MaybeObject* exception) {
+  void set_pending_exception(Object* exception) {
+    ASSERT(!exception->IsFailure());
     thread_local_top_.pending_exception_ = exception;
   }
 
   void clear_pending_exception() {
+    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
 
-  MaybeObject** pending_exception_address() {
+  Object** pending_exception_address() {
     return &thread_local_top_.pending_exception_;
   }
 
   bool has_pending_exception() {
+    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
     return !thread_local_top_.pending_exception_->IsTheHole();
   }
 
@@ -648,7 +652,7 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ACCESSOR(v8::TryCatch*, catcher)
 
-  MaybeObject** scheduled_exception_address() {
+  Object** scheduled_exception_address() {
     return &thread_local_top_.scheduled_exception_;
   }
 
@@ -665,20 +669,23 @@ class Isolate {
         &thread_local_top_.pending_message_script_);
   }
 
-  MaybeObject* scheduled_exception() {
+  Object* scheduled_exception() {
     ASSERT(has_scheduled_exception());
+    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
     return thread_local_top_.scheduled_exception_;
   }
   bool has_scheduled_exception() {
+    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
     return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
   }
   void clear_scheduled_exception() {
+    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
     thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
   }
 
   bool IsExternallyCaught();
 
-  bool is_catchable_by_javascript(MaybeObject* exception) {
+  bool is_catchable_by_javascript(Object* exception) {
     return exception != heap()->termination_exception();
   }
 
@@ -737,8 +744,7 @@ class Isolate {
       // Scope currently can only be used for regular exceptions, not
       // failures like OOM or termination exception.
       isolate_(isolate),
-      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked(),
-                         isolate_),
+      pending_exception_(isolate_->pending_exception(), isolate_),
       catcher_(isolate_->catcher())
     { }
 
@@ -819,7 +825,7 @@ class Isolate {
   // Re-throw an exception.  This involves no error reporting since
   // error reporting was handled when the exception was thrown
   // originally.
-  Failure* ReThrow(MaybeObject* exception);
+  Failure* ReThrow(Object* exception);
   void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.

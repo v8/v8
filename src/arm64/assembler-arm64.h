@@ -1501,8 +1501,9 @@ class Assembler : public AssemblerBase {
   enum NopMarkerTypes {
     DEBUG_BREAK_NOP,
     INTERRUPT_CODE_NOP,
+    ADR_FAR_NOP,
     FIRST_NOP_MARKER = DEBUG_BREAK_NOP,
-    LAST_NOP_MARKER = INTERRUPT_CODE_NOP
+    LAST_NOP_MARKER = ADR_FAR_NOP
   };
 
   void nop(NopMarkerTypes n) {
@@ -2223,6 +2224,14 @@ class PatchingAssembler : public Assembler {
     size_t length = buffer_size_ - kGap;
     CPU::FlushICache(buffer_, length);
   }
+
+  static const int kMovInt64NInstrs = 4;
+  void MovInt64(const Register& rd, int64_t imm);
+
+  // See definition of PatchAdrFar() for details.
+  static const int kAdrFarPatchableNNops = kMovInt64NInstrs - 1;
+  static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 3;
+  void PatchAdrFar(Instruction* target);
 };
 
 

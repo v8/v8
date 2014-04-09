@@ -59,7 +59,7 @@ class JsonParser BASE_EMBEDDED {
         object_constructor_(isolate_->native_context()->object_function(),
                             isolate_),
         position_(-1) {
-    FlattenString(source_);
+    source_ = String::Flatten(source_);
     pretenure_ = (source_length_ >= kPretenureTreshold) ? TENURED : NOT_TENURED;
 
     // Optimized fast case where we only have ASCII characters.
@@ -257,8 +257,7 @@ MaybeHandle<Object> JsonParser<seq_ascii>::ParseJson() {
         break;
       default:
         message = "unexpected_token";
-        Handle<Object> name =
-            LookupSingleCharacterStringFromCode(isolate_, c0_);
+        Handle<Object> name = factory->LookupSingleCharacterStringFromCode(c0_);
         Handle<FixedArray> element = factory->NewFixedArray(1);
         element->set(0, *name);
         array = factory->NewJSArrayWithElements(element);
@@ -360,7 +359,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           Handle<Object> value = ParseJsonValue();
           if (value.is_null()) return ReportUnexpectedCharacter();
 
-          JSObject::SetOwnElement(json_object, index, value, SLOPPY);
+          JSObject::SetOwnElement(json_object, index, value, SLOPPY).Assert();
           continue;
         }
         // Not an index, fallback to the slow path.

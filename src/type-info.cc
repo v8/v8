@@ -492,14 +492,11 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   ASSERT(dictionary_->FindEntry(IdToKey(ast_id)) ==
          UnseededNumberDictionary::kNotFound);
-  MaybeObject* maybe_result = dictionary_->AtNumberPut(IdToKey(ast_id), target);
-  USE(maybe_result);
-#ifdef DEBUG
-  Object* result = NULL;
   // Dictionary has been allocated with sufficient size for all elements.
-  ASSERT(maybe_result->ToObject(&result));
-  ASSERT(*dictionary_ == result);
-#endif
+  DisallowHeapAllocation no_need_to_resize_dictionary;
+  HandleScope scope(isolate());
+  isolate()->factory()->DictionaryAtNumberPut(
+      dictionary_, IdToKey(ast_id), handle(target, isolate()));
 }
 
 

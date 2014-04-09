@@ -74,6 +74,7 @@ namespace internal {
   V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Map, hash_table_map, HashTableMap)                                         \
+  V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
@@ -260,6 +261,7 @@ namespace internal {
   V(constant_pool_array_map)              \
   V(no_interceptor_result_sentinel)       \
   V(hash_table_map)                       \
+  V(ordered_hash_table_map)               \
   V(empty_fixed_array)                    \
   V(empty_byte_array)                     \
   V(empty_descriptor_array)               \
@@ -713,27 +715,6 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED,
       AllocationSite* allocation_site = NULL);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSModule(Context* context,
-                                                ScopeInfo* scope_info);
-
-  // Allocate a JSArray with no elements
-  MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
-      ElementsKind elements_kind,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return AllocateJSArrayAndStorage(elements_kind, 0, 0,
-                                     DONT_INITIALIZE_ARRAY_ELEMENTS,
-                                     pretenure);
-  }
-
-  // Allocate a JSArray with a specified length but elements that are left
-  // uninitialized.
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
-      ElementsKind elements_kind,
-      int length,
-      int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
-      PretenureFlag pretenure = NOT_TENURED);
-
   MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
       JSArray* array,
       int length,
@@ -746,12 +727,6 @@ class Heap {
   // Optionally takes an AllocationSite to be appended in an AllocationMemento.
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
-
-  // Allocates a JS ArrayBuffer object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayBuffer();
 
   // Allocates a Harmony proxy or function proxy.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -816,20 +791,8 @@ class Heap {
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
-  // Allocates a serialized scope info.
-  MUST_USE_RESULT MaybeObject* AllocateScopeInfo(int length);
-
-  // Allocates an External object for v8's external API.
-  MUST_USE_RESULT MaybeObject* AllocateExternal(void* value);
-
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
-
-  // Allocates a pre-tenured empty AccessorPair.
-  MUST_USE_RESULT MaybeObject* AllocateAccessorPair();
-
-  // Allocates an empty TypeFeedbackInfo.
-  MUST_USE_RESULT MaybeObject* AllocateTypeFeedbackInfo();
 
   // Allocates an AliasedArgumentsEntry.
   MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
@@ -1052,15 +1015,9 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a native (but otherwise uninitialized) context.
-  MUST_USE_RESULT MaybeObject* AllocateNativeContext();
-
   // Allocate a global context.
   MUST_USE_RESULT MaybeObject* AllocateGlobalContext(JSFunction* function,
                                                      ScopeInfo* scope_info);
-
-  // Allocate a module context.
-  MUST_USE_RESULT MaybeObject* AllocateModuleContext(ScopeInfo* scope_info);
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
@@ -1300,11 +1257,6 @@ class Heap {
   }
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
-
-#ifdef DEBUG
-  // Utility used with flag gc-greedy.
-  void GarbageCollectionGreedyCheck();
-#endif
 
   void AddGCPrologueCallback(v8::Isolate::GCPrologueCallback callback,
                              GCType gc_type_filter,
@@ -2222,11 +2174,6 @@ class Heap {
                                              Object* to_number,
                                              byte kind);
 
-  // Allocate a JSArray with no elements
-  MUST_USE_RESULT MaybeObject* AllocateJSArray(
-      ElementsKind elements_kind,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
@@ -2249,10 +2196,6 @@ class Heap {
 
   // Allocate a tenured JS global property cell initialized with the hole.
   MUST_USE_RESULT MaybeObject* AllocatePropertyCell();
-
-  // Allocate Box.
-  MUST_USE_RESULT MaybeObject* AllocateBox(Object* value,
-                                           PretenureFlag pretenure);
 
   // Performs a minor collection in new generation.
   void Scavenge();

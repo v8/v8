@@ -58,11 +58,10 @@ bool ExtractStringSetting(Isolate* isolate,
                           const char* key,
                           icu::UnicodeString* setting) {
   Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
-  MaybeObject* maybe_object = options->GetProperty(*str);
-  Object* object;
-  if (maybe_object->ToObject(&object) && object->IsString()) {
+  Handle<Object> object = Object::GetProperty(options, str);
+  if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
-        v8::Utils::ToLocal(Handle<String>(String::cast(object))));
+        v8::Utils::ToLocal(Handle<String>::cast(object)));
     *setting = icu::UnicodeString::fromUTF8(*utf8_string);
     return true;
   }
@@ -75,9 +74,8 @@ bool ExtractIntegerSetting(Isolate* isolate,
                            const char* key,
                            int32_t* value) {
   Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
-  MaybeObject* maybe_object = options->GetProperty(*str);
-  Object* object;
-  if (maybe_object->ToObject(&object) && object->IsNumber()) {
+  Handle<Object> object = Object::GetProperty(options, str);
+  if (object->IsNumber()) {
     object->ToInt32(value);
     return true;
   }
@@ -90,9 +88,8 @@ bool ExtractBooleanSetting(Isolate* isolate,
                            const char* key,
                            bool* value) {
   Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
-  MaybeObject* maybe_object = options->GetProperty(*str);
-  Object* object;
-  if (maybe_object->ToObject(&object) && object->IsBoolean()) {
+  Handle<Object> object = Object::GetProperty(options, str);
+  if (object->IsBoolean()) {
     *value = object->BooleanValue();
     return true;
   }

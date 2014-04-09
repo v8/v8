@@ -409,7 +409,7 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.clean gtags.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
@@ -466,6 +466,18 @@ DUMP_FILE = tools/v8heapconst.py
 grokdump: ia32.release
 	@cat $(DUMP_FILE).tmpl > $(DUMP_FILE)
 	@$(OUTDIR)/ia32.release/d8 --dump-heap-constants >> $(DUMP_FILE)
+
+# Support for the GNU GLOBAL Source Code Tag System.
+gtags.files: $(GYPFILES) $(ENVFILE)
+	@find include src test -name '*.h' -o -name '*.cc' -o -name '*.c' > $@
+
+# We need to manually set the stack limit here, to work around bugs in
+# gmake-3.81 and global-5.7.1 on recent 64-bit Linux systems.
+GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
+	@bash -c 'ulimit -s 10240 && GTAGSFORCECPP=yes gtags -i -q -f $<'
+
+gtags.clean:
+	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
 
 # Dependencies.
 # Remember to keep these in sync with the DEPS file.
