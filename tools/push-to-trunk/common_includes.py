@@ -39,6 +39,7 @@ import time
 import urllib2
 
 from git_recipes import GitRecipesMixin
+from git_recipes import GitFailedException
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 TEMP_BRANCH = "TEMP_BRANCH"
@@ -213,10 +214,6 @@ DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
 class NoRetryException(Exception):
-  pass
-
-
-class GitFailedException(Exception):
   pass
 
 
