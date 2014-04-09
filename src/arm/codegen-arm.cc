@@ -562,7 +562,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- r3    : target map, scratch for subsequent call
   //  -- r4    : scratch (elements)
   // -----------------------------------
-  Label entry, loop, convert_hole, gc_required, gc_cleanup, only_change_map;
+  Label entry, loop, convert_hole, gc_required, only_change_map;
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(r2, r4, fail);
@@ -604,15 +604,6 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // r9: heap number map
   __ b(&entry);
 
-  __ bind(&gc_cleanup);
-#ifdef VERIFY_HEAP
-  // Make sure new space is iterable if we are verifying the heap.
-  __ mov(r0, Operand(masm->isolate()->factory()->one_pointer_filler_map()));
-  __ str(r0, MemOperand(r3, 4, PostIndex));
-  __ cmp(r3, r5);
-  __ b(lt, &gc_cleanup);
-#endif
-
   // Call into runtime if GC is required.
   __ bind(&gc_required);
   __ Pop(r3, r2, r1, r0);
@@ -627,7 +618,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ b(eq, &convert_hole);
 
   // Non-hole double, copy value into a heap number.
-  __ AllocateHeapNumber(r2, r0, lr, r9, &gc_cleanup);
+  __ AllocateHeapNumber(r2, r0, lr, r9, &gc_required);
   // r2: new heap number
   __ ldr(r0, MemOperand(r4, 12, NegOffset));
   __ Strd(r0, r1, FieldMemOperand(r2, HeapNumber::kValueOffset));

@@ -783,8 +783,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required, gc_cleanup, only_change_map,
-      success;
+  Label loop, entry, convert_hole, gc_required, only_change_map, success;
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(edx, edi, fail);
@@ -830,16 +829,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       OMIT_SMI_CHECK);
   __ jmp(&success);
 
-  __ bind(&gc_cleanup);
-#ifdef VERIFY_HEAP
-  // Make sure new space is iterable if we are verifying the heap.
-  __ mov(edx, masm->isolate()->factory()->one_pointer_filler_map());
-  __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize), edx);
-  __ sub(ebx, Immediate(Smi::FromInt(1)));
-  __ j(not_sign, &gc_cleanup);
-#endif
-  __ bind(&gc_required);
   // Call into runtime if GC is required.
+  __ bind(&gc_required);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ pop(ebx);
   __ pop(edx);
@@ -856,7 +847,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ j(equal, &convert_hole);
 
   // Non-hole double, copy value into a heap number.
-  __ AllocateHeapNumber(edx, esi, no_reg, &gc_cleanup);
+  __ AllocateHeapNumber(edx, esi, no_reg, &gc_required);
   // edx: new heap number
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope fscope(masm, SSE2);
