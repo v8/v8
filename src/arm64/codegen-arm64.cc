@@ -324,6 +324,16 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry;
   __ B(&entry);
 
+  Label gc_cleanup;
+  __ Bind(&gc_cleanup);
+#ifdef VERIFY_HEAP
+  // Make sure new space is iterable if we are verifying the heap.
+  __ Mov(x5, Operand(masm->isolate()->factory()->one_pointer_filler_map()));
+  __ Str(x5, MemOperand(dst_elements, kPointerSize, PostIndex));
+  __ Cmp(dst_elements, dst_end);
+  __ B(lt, &gc_cleanup);
+#endif
+
   // Call into runtime if GC is required.
   __ Bind(&gc_required);
   __ Pop(value, key, receiver, target_map);
@@ -339,7 +349,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
     // Non-hole double, copy value into a heap number.
     Register heap_num = x5;
-    __ AllocateHeapNumber(heap_num, &gc_required, x6, x4,
+    __ AllocateHeapNumber(heap_num, &gc_cleanup, x6, x4,
                           x13, heap_num_map);
     __ Mov(x13, dst_elements);
     __ Str(heap_num, MemOperand(dst_elements, kPointerSize, PostIndex));
