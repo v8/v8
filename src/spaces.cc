@@ -2491,7 +2491,7 @@ intptr_t FreeListCategory::SumFreeList() {
   while (cur != NULL) {
     ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
-    sum += cur_as_free_space->Size();
+    sum += cur_as_free_space->nobarrier_size();
     cur = cur->next();
   }
   return sum;
