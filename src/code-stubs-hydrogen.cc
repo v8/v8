@@ -963,7 +963,7 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   if (state.CanReuseDoubleBox()) {
     HValue* operand = (state.mode() == OVERWRITE_LEFT) ? left : right;
     IfBuilder if_heap_number(this);
-    if_heap_number.IfNot<HIsSmiAndBranch>(operand);
+    if_heap_number.If<HHasInstanceTypeAndBranch>(operand, HEAP_NUMBER_TYPE);
     if_heap_number.Then();
     Add<HStoreNamedField>(operand, HObjectAccess::ForHeapNumberValue(), result);
     Push(operand);
