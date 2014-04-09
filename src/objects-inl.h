@@ -1232,9 +1232,16 @@ MaybeObject* Object::GetProperty(Name* key, PropertyAttributes* attributes) {
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)))
 
+#define NOBARRIER_READ_BYTE_FIELD(p, offset)               \
+  static_cast<byte>(NoBarrier_Load(                        \
+      reinterpret_cast<Atomic8*>(FIELD_ADDR(p, offset))) )
+
 #define WRITE_BYTE_FIELD(p, offset, value) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
+#define NOBARRIER_WRITE_BYTE_FIELD(p, offset, value)                 \
+  NoBarrier_Store(reinterpret_cast<Atomic8*>(FIELD_ADDR(p, offset)), \
+                  static_cast<Atomic8>(value));
 
 Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
   return &READ_FIELD(obj, byte_offset);
@@ -4151,7 +4158,8 @@ void Map::set_visitor_id(int id) {
 
 
 int Map::instance_size() {
-  return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
+  return NOBARRIER_READ_BYTE_FIELD(
+      this, kInstanceSizeOffset) << kPointerSizeLog2;
 }
 
 
@@ -4221,7 +4229,8 @@ void Map::set_instance_size(int value) {
   ASSERT_EQ(0, value & (kPointerSize - 1));
   value >>= kPointerSizeLog2;
   ASSERT(0 <= value && value < 256);
-  WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
+  NOBARRIER_WRITE_BYTE_FIELD(
+      this, kInstanceSizeOffset, static_cast<byte>(value));
 }
 
 
@@ -7075,11 +7084,15 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef ACCESSORS
 #undef ACCESSORS_TO_SMI
 #undef SMI_ACCESSORS
+#undef SYNCHRONIZED_SMI_ACCESSORS
+#undef NOBARRIER_SMI_ACCESSORS
 #undef BOOL_GETTER
 #undef BOOL_ACCESSORS
 #undef FIELD_ADDR
 #undef READ_FIELD
+#undef NOBARRIER_READ_FIELD
 #undef WRITE_FIELD
+#undef NOBARRIER_WRITE_FIELD
 #undef WRITE_BARRIER
 #undef CONDITIONAL_WRITE_BARRIER
 #undef READ_DOUBLE_FIELD
@@ -7094,6 +7107,8 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef WRITE_SHORT_FIELD
 #undef READ_BYTE_FIELD
 #undef WRITE_BYTE_FIELD
+#undef NOBARRIER_READ_BYTE_FIELD
+#undef NOBARRIER_WRITE_BYTE_FIELD
 
 } }  // namespace v8::internal
 
