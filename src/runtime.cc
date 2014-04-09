@@ -8954,125 +8954,110 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewGlobalContext) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  CONVERT_ARG_CHECKED(ScopeInfo, scope_info, 1);
-  Context* result;
-  MaybeObject* maybe_result =
-      isolate->heap()->AllocateGlobalContext(function, scope_info);
-  if (!maybe_result->To(&result)) return maybe_result;
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  Handle<Context> result =
+      isolate->factory()->NewGlobalContext(function, scope_info);
 
   ASSERT(function->context() == isolate->context());
   ASSERT(function->context()->global_object() == result->global_object());
-  result->global_object()->set_global_context(result);
-
-  return result;  // non-failure
+  result->global_object()->set_global_context(*result);
+  return *result;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewFunctionContext) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   int length = function->shared()->scope_info()->ContextLength();
-  return isolate->heap()->AllocateFunctionContext(length, function);
+  Handle<Context> context =
+      isolate->factory()->NewFunctionContext(length, function);
+  return *context;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PushWithContext) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  JSReceiver* extension_object;
+  Handle<JSReceiver> extension_object;
   if (args[0]->IsJSReceiver()) {
-    extension_object = JSReceiver::cast(args[0]);
+    extension_object = args.at<JSReceiver>(0);
   } else {
     // Convert the object to a proper JavaScript object.
-    MaybeObject* maybe_js_object = args[0]->ToObject(isolate);
-    if (!maybe_js_object->To(&extension_object)) {
-      if (Failure::cast(maybe_js_object)->IsInternalError()) {
-        HandleScope scope(isolate);
-        Handle<Object> handle = args.at<Object>(0);
-        Handle<Object> result =
-            isolate->factory()->NewTypeError("with_expression",
-                                             HandleVector(&handle, 1));
-        return isolate->Throw(*result);
-      } else {
-        return maybe_js_object;
-      }
+    Handle<Object> object = isolate->factory()->ToObject(args.at<Object>(0));
+    if (object.is_null()) {
+      Handle<Object> handle = args.at<Object>(0);
+      Handle<Object> result =
+          isolate->factory()->NewTypeError("with_expression",
+                                           HandleVector(&handle, 1));
+      return isolate->Throw(*result);
     }
+    extension_object = Handle<JSReceiver>::cast(object);
   }
 
-  JSFunction* function;
+  Handle<JSFunction> function;
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    function = handle(isolate->context()->native_context()->closure());
   } else {
-    function = JSFunction::cast(args[1]);
+    function = args.at<JSFunction>(1);
   }
 
-  Context* context;
-  MaybeObject* maybe_context =
-      isolate->heap()->AllocateWithContext(function,
-                                           isolate->context(),
-                                           extension_object);
-  if (!maybe_context->To(&context)) return maybe_context;
-  isolate->set_context(context);
-  return context;
+  Handle<Context> current(isolate->context());
+  Handle<Context> context = isolate->factory()->NewWithContext(
+      function, current, extension_object);
+  isolate->set_context(*context);
+  return *context;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PushCatchContext) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  String* name = String::cast(args[0]);
-  Object* thrown_object = args[1];
-  JSFunction* function;
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 1);
+  Handle<JSFunction> function;
   if (args[2]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    function = handle(isolate->context()->native_context()->closure());
   } else {
-    function = JSFunction::cast(args[2]);
+    function = args.at<JSFunction>(2);
   }
-  Context* context;
-  MaybeObject* maybe_context =
-      isolate->heap()->AllocateCatchContext(function,
-                                            isolate->context(),
-                                            name,
-                                            thrown_object);
-  if (!maybe_context->To(&context)) return maybe_context;
-  isolate->set_context(context);
-  return context;
+  Handle<Context> current(isolate->context());
+  Handle<Context> context = isolate->factory()->NewCatchContext(
+      function, current, name, thrown_object);
+  isolate->set_context(*context);
+  return *context;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PushBlockContext) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  ScopeInfo* scope_info = ScopeInfo::cast(args[0]);
-  JSFunction* function;
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 0);
+  Handle<JSFunction> function;
   if (args[1]->IsSmi()) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = isolate->context()->native_context()->closure();
+    function = handle(isolate->context()->native_context()->closure());
   } else {
-    function = JSFunction::cast(args[1]);
+    function = args.at<JSFunction>(1);
   }
-  Context* context;
-  MaybeObject* maybe_context =
-      isolate->heap()->AllocateBlockContext(function,
-                                            isolate->context(),
-                                            scope_info);
-  if (!maybe_context->To(&context)) return maybe_context;
-  isolate->set_context(context);
-  return context;
+  Handle<Context> current(isolate->context());
+  Handle<Context> context = isolate->factory()->NewBlockContext(
+      function, current, scope_info);
+  isolate->set_context(*context);
+  return *context;
 }
 
 

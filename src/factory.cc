@@ -582,10 +582,16 @@ Handle<Context> Factory::NewNativeContext() {
 
 Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateGlobalContext(*function, *scope_info),
-      Context);
+  Handle<FixedArray> array =
+      NewFixedArray(scope_info->ContextLength(), TENURED);
+  array->set_map_no_write_barrier(*global_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_closure(*function);
+  context->set_previous(function->context());
+  context->set_extension(*scope_info);
+  context->set_global_object(function->context()->global_object());
+  ASSERT(context->IsGlobalContext());
+  return context;
 }
 
 
@@ -602,10 +608,15 @@ Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
 
 Handle<Context> Factory::NewFunctionContext(int length,
                                             Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFunctionContext(length, *function),
-      Context);
+  ASSERT(length >= Context::MIN_CONTEXT_SLOTS);
+  Handle<FixedArray> array = NewFixedArray(length);
+  array->set_map_no_write_barrier(*function_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_closure(*function);
+  context->set_previous(function->context());
+  context->set_extension(Smi::FromInt(0));
+  context->set_global_object(function->context()->global_object());
+  return context;
 }
 
 
@@ -613,35 +624,45 @@ Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
                                          Handle<String> name,
                                          Handle<Object> thrown_object) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateCatchContext(*function,
-                                              *previous,
-                                              *name,
-                                              *thrown_object),
-      Context);
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
+  Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
+  array->set_map_no_write_barrier(*catch_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_closure(*function);
+  context->set_previous(*previous);
+  context->set_extension(*name);
+  context->set_global_object(previous->global_object());
+  context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
+  return context;
 }
 
 
 Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
                                         Handle<Context> previous,
-                                        Handle<JSObject> extension) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateWithContext(*function, *previous, *extension),
-      Context);
+                                        Handle<JSReceiver> extension) {
+  Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS);
+  array->set_map_no_write_barrier(*with_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_closure(*function);
+  context->set_previous(*previous);
+  context->set_extension(*extension);
+  context->set_global_object(previous->global_object());
+  return context;
 }
 
 
 Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateBlockContext(*function,
-                                              *previous,
-                                              *scope_info),
-      Context);
+  Handle<FixedArray> array =
+      NewFixedArrayWithHoles(scope_info->ContextLength());
+  array->set_map_no_write_barrier(*block_context_map());
+  Handle<Context> context = Handle<Context>::cast(array);
+  context->set_closure(*function);
+  context->set_previous(*previous);
+  context->set_extension(*scope_info);
+  context->set_global_object(previous->global_object());
+  return context;
 }
 
 

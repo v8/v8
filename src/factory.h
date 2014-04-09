@@ -200,7 +200,7 @@ class Factory V8_FINAL {
   // Create a 'with' context.
   Handle<Context> NewWithContext(Handle<JSFunction> function,
                                  Handle<Context> previous,
-                                 Handle<JSObject> extension);
+                                 Handle<JSReceiver> extension);
 
   // Create a block context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,

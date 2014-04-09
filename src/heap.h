@@ -1015,29 +1015,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a global context.
-  MUST_USE_RESULT MaybeObject* AllocateGlobalContext(JSFunction* function,
-                                                     ScopeInfo* scope_info);
-
-  // Allocate a function context.
-  MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
-                                                       JSFunction* function);
-
-  // Allocate a catch context.
-  MUST_USE_RESULT MaybeObject* AllocateCatchContext(JSFunction* function,
-                                                    Context* previous,
-                                                    String* name,
-                                                    Object* thrown_object);
-  // Allocate a 'with' context.
-  MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
-                                                   Context* previous,
-                                                   JSReceiver* extension);
-
-  // Allocate a block context.
-  MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,
-                                                    Context* previous,
-                                                    ScopeInfo* info);
-
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);
 
