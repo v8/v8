@@ -133,8 +133,18 @@ CodeRange::CodeRange(Isolate* isolate)
 }
 
 
-bool CodeRange::SetUp(const size_t requested) {
+bool CodeRange::SetUp(size_t requested) {
   ASSERT(code_range_ == NULL);
+
+  if (requested == 0) {
+    // On 64-bit platform(s), we put all code objects in a 512 MB range of
+    // virtual address space, so that they can call each other with near calls.
+    if (kIs64BitArch) {
+      requested = 512 * MB;
+    } else {
+      return true;
+    }
+  }
 
   code_range_ = new VirtualMemory(requested);
   CHECK(code_range_ != NULL);
@@ -146,7 +156,8 @@ bool CodeRange::SetUp(const size_t requested) {
 
   // We are sure that we have mapped a block of requested addresses.
   ASSERT(code_range_->size() == requested);
-  LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
+  LOG(isolate_,
+      NewEvent("CodeRange", code_range_->address(), requested));
   Address base = reinterpret_cast<Address>(code_range_->address());
   Address aligned_base =
       RoundUp(reinterpret_cast<Address>(code_range_->address()),

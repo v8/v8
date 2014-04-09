@@ -68,7 +68,7 @@ namespace internal {
 
 Heap::Heap()
     : isolate_(NULL),
-      code_range_size_(kIs64BitArch ? 512 * MB : 0),
+      code_range_size_(0),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
@@ -164,15 +164,6 @@ Heap::Heap()
 
   // Ensure old_generation_size_ is a multiple of kPageSize.
   ASSERT(MB >= Page::kPageSize);
-
-  intptr_t max_virtual = OS::MaxVirtualMemory();
-
-  if (max_virtual > 0) {
-    if (code_range_size_ > 0) {
-      // Reserve no more than 1/8 of the memory for the code range.
-      code_range_size_ = Min(code_range_size_, max_virtual >> 3);
-    }
-  }
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   native_contexts_list_ = NULL;
@@ -6137,7 +6128,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 // size is not big enough to fit all the initial objects.
 bool Heap::ConfigureHeap(int max_semispace_size,
                          intptr_t max_old_gen_size,
-                         intptr_t max_executable_size) {
+                         intptr_t max_executable_size,
+                         intptr_t code_range_size) {
   if (HasBeenSetUp()) return false;
 
   if (FLAG_stress_compaction) {
@@ -6211,6 +6203,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
           FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
+  code_range_size_ = code_range_size;
+
   configured_ = true;
   return true;
 }
@@ -6219,7 +6213,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
 bool Heap::ConfigureHeapDefault() {
   return ConfigureHeap(static_cast<intptr_t>(FLAG_max_new_space_size / 2) * KB,
                        static_cast<intptr_t>(FLAG_max_old_space_size) * MB,
-                       static_cast<intptr_t>(FLAG_max_executable_size) * MB);
+                       static_cast<intptr_t>(FLAG_max_executable_size) * MB,
+                       static_cast<intptr_t>(0));
 }
 
 
@@ -6372,16 +6367,10 @@ bool Heap::SetUp() {
   if (old_data_space_ == NULL) return false;
   if (!old_data_space_->SetUp()) return false;
 
+  if (!isolate_->code_range()->SetUp(code_range_size_)) return false;
+
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
-  // On 64-bit platform(s), we put all code objects in a 2 GB range of
-  // virtual address space, so that they can call each other with near calls.
-  if (code_range_size_ > 0) {
-    if (!isolate_->code_range()->SetUp(code_range_size_)) {
-      return false;
-    }
-  }
-
   code_space_ =
       new OldSpace(this, max_old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;

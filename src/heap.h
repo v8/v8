@@ -572,7 +572,8 @@ class Heap {
   // set up already.
   bool ConfigureHeap(int max_semispace_size,
                      intptr_t max_old_gen_size,
-                     intptr_t max_executable_size);
+                     intptr_t max_executable_size,
+                     intptr_t code_range_size);
   bool ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate

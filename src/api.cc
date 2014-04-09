@@ -464,9 +464,11 @@ ResourceConstraints::ResourceConstraints()
       max_old_space_size_(0),
       max_executable_size_(0),
       stack_limit_(NULL),
-      max_available_threads_(0) { }
+      max_available_threads_(0),
+      code_range_size_(0) { }
 
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
+                                            uint64_t virtual_memory_limit,
                                             uint32_t number_of_processors) {
   const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 #if V8_OS_ANDROID
@@ -502,6 +504,13 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   }
 
   set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
+
+  if (virtual_memory_limit > 0 && i::kIs64BitArch) {
+    // Reserve no more than 1/8 of the memory for the code range, but at most
+    // 512 MB.
+    set_code_range_size(
+        i::Min(512 * i::MB, static_cast<int>(virtual_memory_limit >> 3)));
+  }
 }
 
 
@@ -511,12 +520,15 @@ bool SetResourceConstraints(Isolate* v8_isolate,
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
-  if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
+  int code_range_size = constraints->code_range_size();
+  if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0 ||
+      code_range_size != 0) {
     // After initialization it's too late to change Heap constraints.
     ASSERT(!isolate->IsInitialized());
     bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
                                                  old_gen_size,
-                                                 max_executable_size);
+                                                 max_executable_size,
+                                                 code_range_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
