@@ -161,7 +161,7 @@ class ElementsAccessor {
       int length) = 0;
 
   // Deletes an element in an object, returning a new elements backing store.
-  MUST_USE_RESULT virtual Handle<Object> Delete(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> holder,
       uint32_t key,
       JSReceiver::DeleteMode mode) = 0;

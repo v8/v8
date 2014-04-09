@@ -2925,9 +2925,10 @@ class JSObject: public JSReceiver {
                               Handle<Object> value,
                               PropertyAttributes attributes);
 
-  static Handle<Object> DeleteProperty(Handle<JSObject> object,
-                                       Handle<Name> name,
-                                       DeleteMode mode);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      DeleteMode mode);
   static Handle<Object> DeletePropertyPostInterceptor(Handle<JSObject> object,
                                                       Handle<Name> name,
                                                       DeleteMode mode);
@@ -2939,11 +2940,13 @@ class JSObject: public JSReceiver {
                                                  Handle<Name> name,
                                                  DeleteMode mode);
 
-  static Handle<Object> DeleteElement(Handle<JSObject> object,
-                                      uint32_t index,
-                                      DeleteMode mode);
-  static Handle<Object> DeleteElementWithInterceptor(Handle<JSObject> object,
-                                                     uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
+      Handle<JSObject> object,
+      uint32_t index,
+      DeleteMode mode);
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteElementWithInterceptor(
+      Handle<JSObject> object,
+      uint32_t index);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
@@ -3974,9 +3977,18 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Delete a property from the dictionary.
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
+  // TODO(ishell): Temporary wrapper until handlified.
+  static Handle<Object> DeleteProperty(
+      Handle<Dictionary<Shape, Key> > dictionary,
+      int entry,
+      JSObject::DeleteMode mode);
 
   // Attempt to shrink the dictionary after deletion of key.
   MUST_USE_RESULT MaybeObject* Shrink(Key key);
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT static Handle<FixedArray> Shrink(
+      Handle<Dictionary<Shape, Key> > dictionary,
+      Key key);
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.

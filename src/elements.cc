@@ -754,7 +754,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     UNIMPLEMENTED();
   }
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) V8_OVERRIDE = 0;
@@ -1038,7 +1038,7 @@ class FastElementsAccessor
     return isolate->factory()->true_value();
   }
 
-  virtual Handle<Object> Delete(
+  virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
@@ -1373,7 +1373,7 @@ class TypedElementsAccessor
     return obj;
   }
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
@@ -1476,59 +1476,46 @@ class DictionaryElementsAccessor
     return length_object;
   }
 
-  MUST_USE_RESULT static MaybeObject* DeleteCommon(
-      JSObject* obj,
-      uint32_t key,
-      JSReceiver::DeleteMode mode) {
-    Isolate* isolate = obj->GetIsolate();
-    Heap* heap = isolate->heap();
-    FixedArray* backing_store = FixedArray::cast(obj->elements());
-    bool is_arguments =
-        (obj->GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS);
-    if (is_arguments) {
-      backing_store = FixedArray::cast(backing_store->get(1));
-    }
-    SeededNumberDictionary* dictionary =
-        SeededNumberDictionary::cast(backing_store);
-    int entry = dictionary->FindEntry(key);
-    if (entry != SeededNumberDictionary::kNotFound) {
-      Object* result = dictionary->DeleteProperty(entry, mode);
-      if (result == heap->false_value()) {
-        if (mode == JSObject::STRICT_DELETION) {
-          // Deleting a non-configurable property in strict mode.
-          HandleScope scope(isolate);
-          Handle<Object> holder(obj, isolate);
-          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
-          Handle<Object> args[2] = { name, holder };
-          Handle<Object> error =
-              isolate->factory()->NewTypeError("strict_delete_property",
-                                               HandleVector(args, 2));
-          return isolate->Throw(*error);
-        }
-        return heap->false_value();
-      }
-      MaybeObject* maybe_elements = dictionary->Shrink(key);
-      FixedArray* new_elements = NULL;
-      if (!maybe_elements->To(&new_elements)) {
-        return maybe_elements;
-      }
-      if (is_arguments) {
-        FixedArray::cast(obj->elements())->set(1, new_elements);
-      } else {
-        obj->set_elements(new_elements);
-      }
-    }
-    return heap->true_value();
-  }
-
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT static Handle<Object> DeleteCommon(
+  MUST_USE_RESULT static MaybeHandle<Object> DeleteCommon(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) {
-    CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                       DeleteCommon(*obj, key, mode),
-                       Object);
+    Isolate* isolate = obj->GetIsolate();
+    Handle<FixedArray> backing_store(FixedArray::cast(obj->elements()),
+                                     isolate);
+    bool is_arguments =
+        (obj->GetElementsKind() == SLOPPY_ARGUMENTS_ELEMENTS);
+    if (is_arguments) {
+      backing_store = handle(FixedArray::cast(backing_store->get(1)), isolate);
+    }
+    Handle<SeededNumberDictionary> dictionary =
+        Handle<SeededNumberDictionary>::cast(backing_store);
+    int entry = dictionary->FindEntry(key);
+    if (entry != SeededNumberDictionary::kNotFound) {
+      Handle<Object> result =
+          SeededNumberDictionary::DeleteProperty(dictionary, entry, mode);
+      if (*result == *isolate->factory()->false_value()) {
+        if (mode == JSObject::STRICT_DELETION) {
+          // Deleting a non-configurable property in strict mode.
+          Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
+          Handle<Object> args[2] = { name, obj };
+          Handle<Object> error =
+              isolate->factory()->NewTypeError("strict_delete_property",
+                                               HandleVector(args, 2));
+          return isolate->Throw<Object>(error);
+        }
+        return isolate->factory()->false_value();
+      }
+      Handle<FixedArray> new_elements =
+          SeededNumberDictionary::Shrink(dictionary, key);
+
+      if (is_arguments) {
+        FixedArray::cast(obj->elements())->set(1, *new_elements);
+      } else {
+        obj->set_elements(*new_elements);
+      }
+    }
+    return isolate->factory()->true_value();
   }
 
   static void CopyElementsImpl(Handle<FixedArrayBase> from,
@@ -1546,7 +1533,7 @@ class DictionaryElementsAccessor
   friend class ElementsAccessorBase<DictionaryElementsAccessor,
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {
@@ -1747,7 +1734,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     return obj;
   }
 
-  MUST_USE_RESULT virtual Handle<Object> Delete(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Delete(
       Handle<JSObject> obj,
       uint32_t key,
       JSReceiver::DeleteMode mode) V8_FINAL V8_OVERRIDE {

@@ -5189,8 +5189,9 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
-                                                      uint32_t index) {
+MaybeHandle<Object> JSObject::DeleteElementWithInterceptor(
+    Handle<JSObject> object,
+    uint32_t index) {
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
 
@@ -5215,16 +5216,15 @@ Handle<Object> JSObject::DeleteElementWithInterceptor(Handle<JSObject> object,
     // Rebox CustomArguments::kReturnValueOffset before returning.
     return handle(*result_internal, isolate);
   }
-  Handle<Object> delete_result = object->GetElementsAccessor()->Delete(
+  MaybeHandle<Object> delete_result = object->GetElementsAccessor()->Delete(
       object, index, NORMAL_DELETION);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return delete_result;
 }
 
 
-Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
-                                       uint32_t index,
-                                       DeleteMode mode) {
+MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
+                                            uint32_t index,
+                                            DeleteMode mode) {
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
 
@@ -5271,12 +5271,14 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   }
 
   // Skip interceptor if forcing deletion.
-  Handle<Object> result;
+  MaybeHandle<Object> maybe_result;
   if (object->HasIndexedInterceptor() && mode != FORCE_DELETION) {
-    result = DeleteElementWithInterceptor(object, index);
+    maybe_result = DeleteElementWithInterceptor(object, index);
   } else {
-    result = object->GetElementsAccessor()->Delete(object, index, mode);
+    maybe_result = object->GetElementsAccessor()->Delete(object, index, mode);
   }
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, maybe_result, Object);
 
   if (should_enqueue_change_record && !HasLocalElement(object, index)) {
     Handle<String> name = factory->Uint32ToString(index);
@@ -5287,9 +5289,9 @@ Handle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
-                                        Handle<Name> name,
-                                        DeleteMode mode) {
+MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
+                                             Handle<Name> name,
+                                             DeleteMode mode) {
   Isolate* isolate = object->GetIsolate();
   // ECMA-262, 3rd, 8.6.2.5
   ASSERT(name->IsName());
@@ -14256,12 +14258,27 @@ template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
 template Object* Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
     int, JSObject::DeleteMode);
 
+template Handle<Object> Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
+    Handle<Dictionary<NameDictionaryShape, Name*> >,
+    int,
+    JSObject::DeleteMode);
+
 template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     DeleteProperty(int, JSObject::DeleteMode);
+
+template Handle<Object>
+Dictionary<SeededNumberDictionaryShape, uint32_t>::DeleteProperty(
+    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
+    int,
+    JSObject::DeleteMode);
 
 template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Shrink(Name* n);
 
 template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
+    uint32_t);
+template Handle<FixedArray>
+Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
+    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
     uint32_t);
 
 template void Dictionary<NameDictionaryShape, Name*>::CopyKeysTo(
@@ -15261,6 +15278,18 @@ MaybeObject* Dictionary<Shape, Key>::EnsureCapacity(int n, Key key) {
 }
 
 
+// TODO(ishell): Temporary wrapper until handlified.
+template<typename Shape, typename Key>
+Handle<Object> Dictionary<Shape, Key>::DeleteProperty(
+    Handle<Dictionary<Shape, Key> > dictionary,
+    int entry,
+    JSObject::DeleteMode mode) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->DeleteProperty(entry, mode),
+                     Object);
+}
+
+
 template<typename Shape, typename Key>
 Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
                                                JSReceiver::DeleteMode mode) {
@@ -15273,6 +15302,17 @@ Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
   SetEntry(entry, heap->the_hole_value(), heap->the_hole_value());
   HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
+}
+
+
+// TODO(ishell): Temporary wrapper until handlified.
+template<typename Shape, typename Key>
+Handle<FixedArray> Dictionary<Shape, Key>::Shrink(
+    Handle<Dictionary<Shape, Key> > dictionary,
+    Key key) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Shrink(key),
+                     FixedArray);
 }
 
 
