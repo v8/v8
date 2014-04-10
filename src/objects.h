@@ -6191,10 +6191,6 @@ class Map: public HeapObject {
   inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
-  static Handle<TransitionArray> AddTransition(Handle<Map> map,
-                                               Handle<Name> key,
-                                               Handle<Map> target,
-                                               SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

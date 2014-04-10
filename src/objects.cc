@@ -2375,7 +2375,7 @@ bool Map::InstancesNeedRewriting(Map* target,
 
 Handle<TransitionArray> Map::SetElementsTransitionMap(
     Handle<Map> map, Handle<Map> transitioned_map) {
-  Handle<TransitionArray> transitions = Map::AddTransition(
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
       map,
       map->GetIsolate()->factory()->elements_transition_symbol(),
       transitioned_map,
@@ -2502,18 +2502,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // thread can not get confused with the filler creation. No synchronization
   // needed.
   object->set_map(*new_map);
-}
-
-
-Handle<TransitionArray> Map::AddTransition(Handle<Map> map,
-                                           Handle<Name> key,
-                                           Handle<Map> target,
-                                           SimpleTransitionFlag flag) {
-  if (map->HasTransitionArray()) {
-    return TransitionArray::CopyInsert(map, key, target);
-  }
-  return TransitionArray::NewWith(
-      flag, key, target, handle(map->GetBackPointer(), map->GetIsolate()));
 }
 
 
@@ -6875,7 +6863,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   Handle<Map> result = Map::CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
   Handle<TransitionArray> transitions =
-      Map::AddTransition(map, name, result, SIMPLE_TRANSITION);
+      TransitionArray::CopyInsert(map, name, result, SIMPLE_TRANSITION);
 
   // Ensure there's space for the new descriptor in the shared descriptor array.
   if (descriptors->NumberOfSlackDescriptors() == 0) {
@@ -6924,7 +6912,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
   result->InitializeDescriptors(*descriptors);
 
   if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
-    Handle<TransitionArray> transitions = Map::AddTransition(
+    Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
         map, name, result, simple_flag);
     map->set_transitions(*transitions);
     result->SetBackPointer(*map);
@@ -6960,8 +6948,8 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
   result->set_owns_descriptors(false);
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  Handle<TransitionArray> transitions = Map::AddTransition(map, name, result,
-                                                           SIMPLE_TRANSITION);
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
+      map, name, result, SIMPLE_TRANSITION);
 
   map->set_transitions(*transitions);
   result->SetBackPointer(*map);
@@ -7032,9 +7020,8 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
     new_map = Map::Copy(map);
   }
 
-  Handle<TransitionArray> transitions =
-      Map::AddTransition(map, isolate->factory()->observed_symbol(), new_map,
-                         FULL_TRANSITION);
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
+      map, isolate->factory()->observed_symbol(), new_map, FULL_TRANSITION);
 
   map->set_transitions(*transitions);
 

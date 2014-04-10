@@ -96,19 +96,21 @@ class TransitionArray: public FixedArray {
   inline int number_of_entries() { return number_of_transitions(); }
 
   // Allocate a new transition array with a single entry.
-  static Handle<TransitionArray> NewWith(SimpleTransitionFlag flag,
-                                         Handle<Name> key,
+  static Handle<TransitionArray> NewWith(Handle<Map> map,
+                                         Handle<Name> name,
                                          Handle<Map> target,
-                                         Handle<Object> back_pointer);
+                                         SimpleTransitionFlag flag);
 
   MUST_USE_RESULT MaybeObject* ExtendToFullTransitionArray();
 
-  // Copy the transition array, inserting a new transition.
+  // Create a transition array, copying from the owning map if it already has
+  // one, otherwise creating a new one according to flag.
   // TODO(verwaest): This should not cause an existing transition to be
   // overwritten.
   static Handle<TransitionArray> CopyInsert(Handle<Map> map,
                                             Handle<Name> name,
-                                            Handle<Map> target);
+                                            Handle<Map> target,
+                                            SimpleTransitionFlag flag);
 
   // Copy a single transition from the origin array.
   inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
