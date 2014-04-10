@@ -177,8 +177,8 @@ int TypeImpl<Config>::LubBitset(i::Map* map) {
       if (map == heap->the_hole_map()) return kAny;  // TODO(rossberg): kNone?
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      if (map == heap->uninitialized_map()) return kNone;
-      ASSERT(map == heap->no_interceptor_result_sentinel_map() ||
+      ASSERT(map == heap->uninitialized_map() ||
+             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map());
       return kInternal & kTaggedPtr;

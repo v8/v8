@@ -48,11 +48,14 @@ class Types {
 
     object_map = isolate->factory()->NewMap(JS_OBJECT_TYPE, 3 * kPointerSize);
     array_map = isolate->factory()->NewMap(JS_ARRAY_TYPE, 4 * kPointerSize);
+    uninitialized_map = isolate->factory()->uninitialized_map();
     ObjectClass = Type::Class(object_map, region);
     ArrayClass = Type::Class(array_map, region);
+    UninitializedClass = Type::Class(uninitialized_map, region);
 
     maps.push_back(object_map);
     maps.push_back(array_map);
+    maps.push_back(uninitialized_map);
     for (MapVector::iterator it = maps.begin(); it != maps.end(); ++it) {
       types.push_back(Type::Class(*it, region));
     }
@@ -62,17 +65,20 @@ class Types {
     object1 = isolate->factory()->NewJSObjectFromMap(object_map);
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
+    uninitialized = isolate->factory()->uninitialized_value();
     SmiConstant = Type::Constant(smi, region);
     Signed32Constant = Type::Constant(signed32, region);
     ObjectConstant1 = Type::Constant(object1, region);
     ObjectConstant2 = Type::Constant(object2, region);
     ArrayConstant = Type::Constant(array, region);
+    UninitializedConstant = Type::Constant(uninitialized, region);
 
     values.push_back(smi);
     values.push_back(signed32);
     values.push_back(object1);
     values.push_back(object2);
     values.push_back(array);
+    values.push_back(uninitialized);
     for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
       types.push_back(Type::Constant(*it, region));
     }
@@ -92,21 +98,25 @@ class Types {
 
   TypeHandle ObjectClass;
   TypeHandle ArrayClass;
+  TypeHandle UninitializedClass;
 
   TypeHandle SmiConstant;
   TypeHandle Signed32Constant;
   TypeHandle ObjectConstant1;
   TypeHandle ObjectConstant2;
   TypeHandle ArrayConstant;
+  TypeHandle UninitializedConstant;
 
   Handle<i::Map> object_map;
   Handle<i::Map> array_map;
+  Handle<i::Map> uninitialized_map;
 
   Handle<i::Smi> smi;
   Handle<i::HeapNumber> signed32;
   Handle<i::JSObject> object1;
   Handle<i::JSObject> object2;
   Handle<i::JSArray> array;
+  Handle<i::Oddball> uninitialized;
 
   typedef std::vector<TypeHandle> TypeVector;
   typedef std::vector<Handle<i::Map> > MapVector;
@@ -547,6 +557,13 @@ struct Tests : Rep {
     CheckSub(T.Proxy, T.Receiver);
     CheckUnordered(T.Object, T.Proxy);
     CheckUnordered(T.Array, T.Function);
+
+    CheckSub(T.UninitializedClass, T.Internal);
+    CheckSub(T.UninitializedConstant, T.Internal);
+    CheckUnordered(T.UninitializedClass, T.Null);
+    CheckUnordered(T.UninitializedClass, T.Undefined);
+    CheckUnordered(T.UninitializedConstant, T.Null);
+    CheckUnordered(T.UninitializedConstant, T.Undefined);
 
     // Structural types
     CheckSub(T.ObjectClass, T.Object);
