@@ -1547,8 +1547,9 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetPropertyOrElement(Handle<Object> object,
-                                             Handle<Name> key);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyOrElement(
+      Handle<Object> object,
+      Handle<Name> key);
 
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Name> key);
@@ -1564,12 +1565,15 @@ class Object : public MaybeObject {
                                            Name* key,
                                            PropertyAttributes* attributes);
 
-  MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
-                                                            JSReceiver* getter);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
+      Handle<Object> object,
+      Handle<Object> receiver,
+      Handle<JSReceiver> getter);
 
-  static inline Handle<Object> GetElement(Isolate* isolate,
-                                          Handle<Object> object,
-                                          uint32_t index);
+  MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
   // For use when we know that no exception can be thrown.
   static inline Handle<Object> GetElementNoExceptionThrown(
@@ -1577,10 +1581,11 @@ class Object : public MaybeObject {
       Handle<Object> object,
       uint32_t index);
 
-  static Handle<Object> GetElementWithReceiver(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> receiver,
-                                               uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithReceiver(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> receiver,
+      uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
@@ -2498,9 +2503,10 @@ class JSObject: public JSReceiver {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  static Handle<Object> GetElementWithInterceptor(Handle<JSObject> object,
-                                                  Handle<Object> receiver,
-                                                  uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      uint32_t index);
 
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,
@@ -2788,17 +2794,13 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       PropertyAttributes* attributes);
 
-  MUST_USE_RESULT static Handle<Object> GetElementWithCallback(
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithCallback(
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Object> structure,
       uint32_t index,
       Handle<Object> holder);
 
-  MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
-                                                      Object* structure,
-                                                      uint32_t index,
-                                                      Object* holder);
   static PropertyAttributes GetElementAttributeWithInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
@@ -3076,13 +3078,15 @@ class FixedArray: public FixedArrayBase {
                                         PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
-  static Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
-                                               Handle<JSArray> array);
+  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromJSArray(
+      Handle<FixedArray> content,
+      Handle<JSArray> array);
 
   // Computes the union of keys and return the result.
   // Used for implementing "for (n in object) { }"
-  static Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                                        Handle<FixedArray> second);
+  MUST_USE_RESULT static MaybeHandle<FixedArray> UnionOfKeys(
+      Handle<FixedArray> first,
+      Handle<FixedArray> second);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);

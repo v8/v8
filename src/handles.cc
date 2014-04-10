@@ -134,8 +134,8 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 }
 
 
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           const char* name) {
+MaybeHandle<Object> GetProperty(Handle<JSReceiver> obj,
+                                const char* name) {
   Isolate* isolate = obj->GetIsolate();
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
   ASSERT(!str.is_null());
@@ -426,9 +426,8 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
-                                          KeyCollectionType type,
-                                          bool* threw) {
+MaybeHandle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
+                                               KeyCollectionType type) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
@@ -446,15 +445,18 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
     if (p->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
       Handle<Object> args[] = { proxy };
+      bool has_pending_exception;
       Handle<Object> names = Execution::Call(isolate,
                                              isolate->proxy_enumerate(),
                                              object,
                                              ARRAY_SIZE(args),
                                              args,
-                                             threw);
-      if (*threw) return content;
-      content = FixedArray::AddKeysFromJSArray(content,
-                                               Handle<JSArray>::cast(names));
+                                             &has_pending_exception);
+      if (has_pending_exception) return MaybeHandle<FixedArray>();
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, content,
+          FixedArray::AddKeysFromJSArray(content, Handle<JSArray>::cast(names)),
+          FixedArray);
       break;
     }
 
@@ -466,10 +468,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
                                         isolate->factory()->undefined_value(),
                                         v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheckWrapper(current, v8::ACCESS_KEYS);
-      if (isolate->has_scheduled_exception()) {
-        isolate->PromoteScheduledException();
-        *threw = true;
-      }
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
       break;
     }
 
@@ -477,16 +476,23 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
     Handle<FixedArray> element_keys =
         isolate->factory()->NewFixedArray(current->NumberOfEnumElements());
     current->GetEnumElementKeys(*element_keys);
-    content = FixedArray::UnionOfKeys(content, element_keys);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, content,
+        FixedArray::UnionOfKeys(content, element_keys),
+        FixedArray);
     ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the element keys from the interceptor.
     if (current->HasIndexedInterceptor()) {
       v8::Handle<v8::Array> result =
           GetKeysForIndexedInterceptor(object, current);
-      if (!result.IsEmpty())
-        content = FixedArray::AddKeysFromJSArray(
-            content, v8::Utils::OpenHandle(*result));
+      if (!result.IsEmpty()) {
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, content,
+            FixedArray::AddKeysFromJSArray(
+                content, v8::Utils::OpenHandle(*result)),
+            FixedArray);
+      }
       ASSERT(ContainsOnlyValidKeys(content));
     }
 
@@ -507,17 +513,24 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
          !current->HasNamedInterceptor() &&
          !current->HasIndexedInterceptor());
     // Compute the property keys and cache them if possible.
-    content = FixedArray::UnionOfKeys(
-        content, GetEnumPropertyKeys(current, cache_enum_keys));
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, content,
+        FixedArray::UnionOfKeys(
+            content, GetEnumPropertyKeys(current, cache_enum_keys)),
+        FixedArray);
     ASSERT(ContainsOnlyValidKeys(content));
 
     // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
       v8::Handle<v8::Array> result =
           GetKeysForNamedInterceptor(object, current);
-      if (!result.IsEmpty())
-        content = FixedArray::AddKeysFromJSArray(
-            content, v8::Utils::OpenHandle(*result));
+      if (!result.IsEmpty()) {
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, content,
+            FixedArray::AddKeysFromJSArray(
+                content, v8::Utils::OpenHandle(*result)),
+            FixedArray);
+      }
       ASSERT(ContainsOnlyValidKeys(content));
     }
 
@@ -530,11 +543,14 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
 }
 
 
-Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw) {
+MaybeHandle<JSArray> GetKeysFor(Handle<JSReceiver> object) {
   Isolate* isolate = object->GetIsolate();
   isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements =
-      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS, threw);
+  Handle<FixedArray> elements;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, elements,
+      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS),
+      JSArray);
   return isolate->factory()->NewJSArrayWithElements(elements);
 }
 

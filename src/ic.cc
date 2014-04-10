@@ -573,9 +573,10 @@ MaybeObject* LoadIC::Load(Handle<Object> object,
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) set_target(*generic_stub());
-    Handle<Object> result =
-        Runtime::GetElementOrCharAt(isolate(), object, index);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate(), result,
+        Runtime::GetElementOrCharAt(isolate(), object, index));
     return *result;
   }
 
@@ -1085,8 +1086,9 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
 
 MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   if (MigrateDeprecated(object)) {
-    Handle<Object> result = Runtime::GetObjectProperty(isolate(), object, key);
-    RETURN_IF_EMPTY_HANDLE(isolate(), result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate(), result, Runtime::GetObjectProperty(isolate(), object, key));
     return *result;
   }
 
@@ -1126,8 +1128,9 @@ MaybeObject* KeyedLoadIC::Load(Handle<Object> object, Handle<Object> key) {
   }
 
   if (maybe_object != NULL) return maybe_object;
-  Handle<Object> result = Runtime::GetObjectProperty(isolate(), object, key);
-  RETURN_IF_EMPTY_HANDLE(isolate(), result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate(), result, Runtime::GetObjectProperty(isolate(), object, key));
   return *result;
 }
 

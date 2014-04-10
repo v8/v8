@@ -635,8 +635,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, backing_store);
   }
 
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT virtual Handle<Object> Get(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Get(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
@@ -655,10 +654,11 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, backing_store);
   }
 
-  static Handle<Object> GetImpl(Handle<Object> receiver,
-                                Handle<JSObject> obj,
-                                uint32_t key,
-                                Handle<FixedArrayBase> backing_store) {
+  MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
+      Handle<Object> receiver,
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
     if (key < ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
       return BackingStore::get(Handle<BackingStore>::cast(backing_store), key);
     } else {
@@ -804,7 +804,7 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, to, from_kind, to_start, packed_size, copy_size);
   }
 
-  virtual Handle<FixedArray> AddElementsToFixedArray(
+  virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       Handle<FixedArray> to,
@@ -823,14 +823,19 @@ class ElementsAccessorBase : public ElementsAccessor {
     uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(from);
     if (len1 == 0) return to;
 
+    Isolate* isolate = from->GetIsolate();
+
     // Compute how many elements are not in other.
     uint32_t extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
       uint32_t key = ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
       if (ElementsAccessorSubclass::HasElementImpl(
               receiver, holder, key, from)) {
-        Handle<Object> value =
-            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from);
+        Handle<Object> value;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value,
+            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
+            FixedArray);
 
         ASSERT(!value->IsTheHole());
         if (!HasKey(to, value)) {
@@ -842,7 +847,6 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (extra == 0) return to;
 
     // Allocate the result
-    Isolate* isolate = from->GetIsolate();
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(len0 + extra);
 
     // Fill in the content
@@ -862,8 +866,11 @@ class ElementsAccessorBase : public ElementsAccessor {
           ElementsAccessorSubclass::GetKeyForIndexImpl(from, y);
       if (ElementsAccessorSubclass::HasElementImpl(
               receiver, holder, key, from)) {
-        Handle<Object> value =
-            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from);
+        Handle<Object> value;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, value,
+            ElementsAccessorSubclass::GetImpl(receiver, holder, key, from),
+            FixedArray);
         if (!value->IsTheHole() && !HasKey(to, value)) {
           result->set(len0 + index, *value);
           index++;
@@ -1333,10 +1340,11 @@ class TypedElementsAccessor
   friend class ElementsAccessorBase<AccessorClass,
                                     ElementsKindTraits<Kind> >;
 
-  static Handle<Object> GetImpl(Handle<Object> receiver,
-                                Handle<JSObject> obj,
-                                uint32_t key,
-                                Handle<FixedArrayBase> backing_store) {
+  MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
+      Handle<Object> receiver,
+      Handle<JSObject> obj,
+      uint32_t key,
+      Handle<FixedArrayBase> backing_store) {
     if (key < AccessorClass::GetCapacityImpl(backing_store)) {
       return BackingStore::get(Handle<BackingStore>::cast(backing_store), key);
     } else {
@@ -1540,7 +1548,7 @@ class DictionaryElementsAccessor
     return DeleteCommon(obj, key, mode);
   }
 
-  static Handle<Object> GetImpl(
+  MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
       Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
@@ -1639,7 +1647,7 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       SloppyArgumentsElementsAccessor,
       ElementsKindTraits<SLOPPY_ARGUMENTS_ELEMENTS> >;
 
-  MUST_USE_RESULT static Handle<Object> GetImpl(
+  MUST_USE_RESULT static MaybeHandle<Object> GetImpl(
       Handle<Object> receiver,
       Handle<JSObject> obj,
       uint32_t key,
@@ -1657,8 +1665,12 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       // Object is not mapped, defer to the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)),
                                    isolate);
-      Handle<Object> result = ElementsAccessor::ForArray(arguments)->Get(
-          receiver, obj, key, arguments);
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          ElementsAccessor::ForArray(arguments)->Get(
+              receiver, obj, key, arguments),
+          Object);
       // Elements of the arguments object in slow mode might be slow aliases.
       if (result->IsAliasedArgumentsEntry()) {
         DisallowHeapAllocation no_gc;
@@ -1792,10 +1804,16 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
     if (!probe->IsTheHole()) {
       return true;
     } else {
+      Isolate* isolate = holder->GetIsolate();
       Handle<FixedArrayBase> arguments(FixedArrayBase::cast(
-          Handle<FixedArray>::cast(parameter_map)->get(1)));
+          Handle<FixedArray>::cast(parameter_map)->get(1)), isolate);
       ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
-      return !accessor->Get(receiver, holder, key, arguments)->IsTheHole();
+      Handle<Object> value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, value,
+          accessor->Get(receiver, holder, key, arguments),
+          false);
+      return !value->IsTheHole();
     }
   }
 

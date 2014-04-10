@@ -672,9 +672,10 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
-  Handle<Object> result =
-      JSObject::GetElementWithInterceptor(receiver, receiver, index);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::GetElementWithInterceptor(receiver, receiver, index));
   return *result;
 }
 

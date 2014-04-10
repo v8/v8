@@ -1150,7 +1150,7 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
   Log::MessageBuilder msg(log_);
 
-  Handle<Object> source = GetProperty(regexp, "source");
+  Handle<Object> source = GetProperty(regexp, "source").ToHandleChecked();
   if (!source->IsString()) {
     msg.Append("no source");
     return;
@@ -1168,17 +1168,18 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   msg.Append('/');
 
   // global flag
-  Handle<Object> global = GetProperty(regexp, "global");
+  Handle<Object> global = GetProperty(regexp, "global").ToHandleChecked();
   if (global->IsTrue()) {
     msg.Append('g');
   }
   // ignorecase flag
-  Handle<Object> ignorecase = GetProperty(regexp, "ignoreCase");
+  Handle<Object> ignorecase =
+      GetProperty(regexp, "ignoreCase").ToHandleChecked();
   if (ignorecase->IsTrue()) {
     msg.Append('i');
   }
   // multiline flag
-  Handle<Object> multiline = GetProperty(regexp, "multiline");
+  Handle<Object> multiline = GetProperty(regexp, "multiline").ToHandleChecked();
   if (multiline->IsTrue()) {
     msg.Append('m');
   }

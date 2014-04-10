@@ -381,6 +381,16 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
 }
 
 
+static Handle<Object> GetDeclaredAccessorProperty(
+    Handle<Object> receiver,
+    Handle<DeclaredAccessorInfo> info,
+    Isolate* isolate) {
+  CALL_HEAP_FUNCTION(isolate,
+                     GetDeclaredAccessorProperty(*receiver, *info, isolate),
+                     Object);
+}
+
+
 Handle<FixedArray> JSObject::EnsureWritableFastElements(
     Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -435,7 +445,6 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
         v8::ToCData<v8::AccessorGetterCallback>(data->getter());
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
-    HandleScope scope(isolate);
     Handle<JSObject> self = Handle<JSObject>::cast(receiver);
     Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *name));
@@ -448,7 +457,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     }
     Handle<Object> return_value = v8::Utils::OpenHandle(*result);
     return_value->VerifyApiCallResultType();
-    return scope.CloseAndEscape(return_value);
+    // Rebox handle before return.
+    return handle(*return_value, isolate);
   }
 
   // __defineGetter__ callback
@@ -456,11 +466,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
                         isolate);
   if (getter->IsSpecFunction()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
-    CALL_HEAP_FUNCTION(
-        isolate,
-        object->GetPropertyWithDefinedGetter(*receiver,
-                                             JSReceiver::cast(*getter)),
-        Object);
+    return Object::GetPropertyWithDefinedGetter(
+        object, receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
   return isolate->factory()->undefined_value();
@@ -490,8 +497,8 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                            Handle<Name> name) {
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+                                                 Handle<Name> name) {
   uint32_t index;
   Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
@@ -533,28 +540,27 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 }
 
 
-MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
-                                                  JSReceiver* getter) {
+MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
+    Handle<Object> object,
+    Handle<Object> receiver,
+    Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSReceiver> fun(getter);
-  Handle<Object> self(receiver, isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && fun->IsJSFunction()) {
+  if (debug->StepInActive() && getter->IsJSFunction()) {
     debug->HandleStepIn(
-        Handle<JSFunction>::cast(fun), Handle<Object>::null(), 0, false);
+        Handle<JSFunction>::cast(getter), Handle<Object>::null(), 0, false);
   }
 #endif
 
   bool has_pending_exception;
   Handle<Object> result = Execution::Call(
-      isolate, fun, self, 0, NULL, &has_pending_exception, true);
+      isolate, getter, receiver, 0, NULL, &has_pending_exception, true);
   // Check for pending exception and return the result.
-  if (has_pending_exception) return Failure::Exception();
-  return *result;
+  if (has_pending_exception) return MaybeHandle<Object>();
+  return result;
 }
 
 
@@ -961,10 +967,10 @@ MaybeObject* Object::GetProperty(Object* receiver,
 }
 
 
-Handle<Object> Object::GetElementWithReceiver(Isolate* isolate,
-                                              Handle<Object> object,
-                                              Handle<Object> receiver,
-                                              uint32_t index) {
+MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
+                                                   Handle<Object> object,
+                                                   Handle<Object> receiver,
+                                                   uint32_t index) {
   Handle<Object> holder;
 
   // Iterate up the prototype chain until an element is found or the null
@@ -1017,9 +1023,11 @@ Handle<Object> Object::GetElementWithReceiver(Isolate* isolate,
     }
 
     if (js_object->elements() != isolate->heap()->empty_fixed_array()) {
-      Handle<Object> result = js_object->GetElementsAccessor()->Get(
-          receiver, js_object, index);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          js_object->GetElementsAccessor()->Get(receiver, js_object, index),
+          Object);
       if (!result->IsTheHole()) return result;
     }
   }
@@ -3877,8 +3885,11 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
   Handle<Object> handler(proxy->handler(), isolate);
 
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> trap = Object::GetPropertyOrElement(handler, trap_name);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, MaybeHandle<Object>());
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, trap,
+      Object::GetPropertyOrElement(handler, trap_name),
+      Object);
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
@@ -4141,8 +4152,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
-    old_value = Object::GetPropertyOrElement(object, name);
-    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
   }
 
   // This is a real property that is not read-only, or it is a
@@ -4189,8 +4199,8 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+        Handle<Object> new_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
         if (!new_value->SameValue(*old_value)) {
           EnqueueChangeRecord(object, "update", name, old_value);
         }
@@ -4268,8 +4278,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) {
-      old_value = Object::GetPropertyOrElement(object, name);
-      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+      old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
     }
     old_attributes = lookup.GetAttributes();
   }
@@ -4317,8 +4326,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       object->LocalLookup(*name, &new_lookup, true);
       bool value_changed = false;
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+        Handle<Object> new_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
         value_changed = !old_value->SameValue(*new_value);
       }
       if (new_lookup.GetAttributes() != old_attributes) {
@@ -5337,8 +5346,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
-    old_value = Object::GetPropertyOrElement(object, name);
-    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
   }
   Handle<Object> result;
 
@@ -6450,8 +6458,8 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       object->LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
-        old_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
       }
     }
   }
@@ -7950,11 +7958,15 @@ void FixedArray::Shrink(int new_length) {
 }
 
 
-Handle<FixedArray> FixedArray::AddKeysFromJSArray(Handle<FixedArray> content,
-                                                  Handle<JSArray> array) {
+MaybeHandle<FixedArray> FixedArray::AddKeysFromJSArray(
+    Handle<FixedArray> content,
+    Handle<JSArray> array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<FixedArray> result =
-      accessor->AddElementsToFixedArray(array, array, content);
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      array->GetIsolate(), result,
+      accessor->AddElementsToFixedArray(array, array, content),
+      FixedArray);
 
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
@@ -7969,15 +7981,18 @@ Handle<FixedArray> FixedArray::AddKeysFromJSArray(Handle<FixedArray> content,
 }
 
 
-Handle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
-                                           Handle<FixedArray> second) {
+MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
+                                                Handle<FixedArray> second) {
   ElementsAccessor* accessor = ElementsAccessor::ForArray(second);
-  Handle<FixedArray> result =
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      first->GetIsolate(), result,
       accessor->AddElementsToFixedArray(
           Handle<Object>::null(),     // receiver
           Handle<JSObject>::null(),   // holder
           first,
-          Handle<FixedArrayBase>::cast(second));
+          Handle<FixedArrayBase>::cast(second)),
+      FixedArray);
 
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
@@ -11968,70 +11983,59 @@ MaybeHandle<Object> JSObject::SetElementWithInterceptor(
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
-Handle<Object> JSObject::GetElementWithCallback(
+MaybeHandle<Object> JSObject::GetElementWithCallback(
     Handle<JSObject> object,
     Handle<Object> receiver,
     Handle<Object> structure,
     uint32_t index,
     Handle<Object> holder) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->GetElementWithCallback(
-                        *receiver, *structure, index, *holder),
-                     Object);
-}
-
-
-MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
-                                              Object* structure,
-                                              uint32_t index,
-                                              Object* holder) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   ASSERT(!structure->IsForeign());
 
   // api style callbacks.
   if (structure->IsExecutableAccessorInfo()) {
-    Handle<ExecutableAccessorInfo> data(
-        ExecutableAccessorInfo::cast(structure));
+    Handle<ExecutableAccessorInfo> data =
+        Handle<ExecutableAccessorInfo>::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetterCallback call_fun =
         v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
-    if (call_fun == NULL) return isolate->heap()->undefined_value();
-    HandleScope scope(isolate);
-    Handle<JSObject> self(JSObject::cast(receiver));
-    Handle<JSObject> holder_handle(JSObject::cast(holder));
+    if (call_fun == NULL) return isolate->factory()->undefined_value();
+    Handle<JSObject> self = Handle<JSObject>::cast(receiver);
+    Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key = isolate->factory()->NumberToString(number);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
     v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    if (result.IsEmpty()) return isolate->heap()->undefined_value();
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    if (result.IsEmpty()) return isolate->factory()->undefined_value();
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
     result_internal->VerifyApiCallResultType();
-    return *result_internal;
+    // Rebox handle before return.
+    return handle(*result_internal, isolate);
   }
 
   // __defineGetter__ callback
   if (structure->IsAccessorPair()) {
-    Object* getter = AccessorPair::cast(structure)->getter();
+    Handle<Object> getter(Handle<AccessorPair>::cast(structure)->getter(),
+                          isolate);
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
+      return GetPropertyWithDefinedGetter(
+          object, receiver, Handle<JSReceiver>::cast(getter));
     }
     // Getter is not a function.
-    return isolate->heap()->undefined_value();
+    return isolate->factory()->undefined_value();
   }
 
   if (structure->IsDeclaredAccessorInfo()) {
-    return GetDeclaredAccessorProperty(receiver,
-                                       DeclaredAccessorInfo::cast(structure),
-                                       isolate);
+    return GetDeclaredAccessorProperty(
+        receiver, Handle<DeclaredAccessorInfo>::cast(structure), isolate);
   }
 
   UNREACHABLE();
-  return NULL;
+  return MaybeHandle<Object>();
 }
 
 
@@ -12991,9 +12995,10 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-Handle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
-                                                   Handle<Object> receiver,
-                                                   uint32_t index) {
+MaybeHandle<Object> JSObject::GetElementWithInterceptor(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    uint32_t index) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing
@@ -13014,13 +13019,15 @@ Handle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
       // Rebox handle before return.
-      return Handle<Object>(*result_internal, isolate);
+      return handle(*result_internal, isolate);
     }
   }
 
   ElementsAccessor* handler = object->GetElementsAccessor();
-  Handle<Object> result = handler->Get(receiver,  object, index);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result, handler->Get(receiver,  object, index),
+      Object);
   if (!result->IsTheHole()) return result;
 
   Handle<Object> proto(object->GetPrototype(), isolate);
@@ -13320,7 +13327,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
       *attributes = NONE;
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
-      // Rebox handle to escape this scope.
+      // Rebox handle before return.
       return handle(*result_internal, isolate);
     }
   }

@@ -2036,7 +2036,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   const char* period_pos = strchr(holder_expr, '.');
   if (period_pos == NULL) {
     return Handle<JSObject>::cast(Object::GetPropertyOrElement(
-        global, factory->InternalizeUtf8String(holder_expr)));
+        global, factory->InternalizeUtf8String(holder_expr)).ToHandleChecked());
   }
   ASSERT_EQ(".prototype", period_pos);
   Vector<const char> property(holder_expr,
@@ -2162,7 +2162,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         false);
   }
 
-  Handle<Object> Error = GetProperty(global, "Error");
+  Handle<Object> Error = GetProperty(global, "Error").ToHandleChecked();
   if (Error->IsJSObject()) {
     Handle<String> name = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("stackTraceLimit"));

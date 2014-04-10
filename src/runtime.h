@@ -823,9 +823,10 @@ class Runtime : public AllStatic {
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  static Handle<Object> GetElementOrCharAt(Isolate* isolate,
-                                           Handle<Object> object,
-                                           uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementOrCharAt(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate,
@@ -852,9 +853,10 @@ class Runtime : public AllStatic {
       Handle<JSReceiver> object,
       Handle<Object> key);
 
-  static Handle<Object> GetObjectProperty(Isolate* isolate,
-                                          Handle<Object> object,
-                                          Handle<Object> key);
+  MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key);
 
   static void SetupArrayBuffer(Isolate* isolate,
                                Handle<JSArrayBuffer> array_buffer,

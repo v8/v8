@@ -412,13 +412,15 @@ TEST(ObservationWeakMap) {
       i_isolate->factory()->observation_state();
   i::Handle<i::JSWeakMap> callbackInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "callbackInfoMap"));
+          i::GetProperty(
+              observation_state, "callbackInfoMap").ToHandleChecked());
   i::Handle<i::JSWeakMap> objectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "objectInfoMap"));
+          i::GetProperty(observation_state, "objectInfoMap").ToHandleChecked());
   i::Handle<i::JSWeakMap> notifierObjectInfoMap =
       i::Handle<i::JSWeakMap>::cast(
-          i::GetProperty(observation_state, "notifierObjectInfoMap"));
+          i::GetProperty(
+              observation_state, "notifierObjectInfoMap").ToHandleChecked());
   CHECK_EQ(1, NumberOfElements(callbackInfoMap));
   CHECK_EQ(1, NumberOfElements(objectInfoMap));
   CHECK_EQ(1, NumberOfElements(notifierObjectInfoMap));

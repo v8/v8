@@ -482,8 +482,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
     bool deferred_comma,
     bool deferred_key) {
   Handle<JSObject> builtins(isolate_->native_context()->builtins());
-  Handle<JSFunction> builtin =
-      Handle<JSFunction>::cast(GetProperty(builtins, "JSONSerializeAdapter"));
+  Handle<JSFunction> builtin = Handle<JSFunction>::cast(
+      GetProperty(builtins, "JSONSerializeAdapter").ToHandleChecked());
 
   Handle<Object> argv[] = { key, object };
   bool has_exception = false;
@@ -625,8 +625,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
     Handle<JSArray> object, int length) {
   for (int i = 0; i < length; i++) {
     if (i > 0) Append(',');
-    Handle<Object> element = Object::GetElement(isolate_, object, i);
-    RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, element, EXCEPTION);
+    Handle<Object> element;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, element,
+        Object::GetElement(isolate_, object, i),
+        EXCEPTION);
     if (element->IsUndefined()) {
       AppendAscii("null");
     } else {
@@ -676,40 +679,45 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
                            map->instance_descriptors()->GetFieldIndex(i)),
                        isolate_);
       } else {
-        property = Object::GetPropertyOrElement(object, key);
-        RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, property, EXCEPTION);
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate_, property,
+            Object::GetPropertyOrElement(object, key),
+            EXCEPTION);
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
       if (result >= EXCEPTION) return result;
     }
   } else {
-    bool has_exception = false;
-    Handle<FixedArray> contents =
-        GetKeysInFixedArrayFor(object, LOCAL_ONLY, &has_exception);
-    if (has_exception) return EXCEPTION;
+    Handle<FixedArray> contents;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, contents,
+        GetKeysInFixedArrayFor(object, LOCAL_ONLY),
+        EXCEPTION);
 
     for (int i = 0; i < contents->length(); i++) {
       Object* key = contents->get(i);
       Handle<String> key_handle;
-      Handle<Object> property;
+      MaybeHandle<Object> maybe_property;
       if (key->IsString()) {
         key_handle = Handle<String>(String::cast(key), isolate_);
-        property = Object::GetPropertyOrElement(object, key_handle);
+        maybe_property = Object::GetPropertyOrElement(object, key_handle);
       } else {
         ASSERT(key->IsNumber());
         key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
         uint32_t index;
         if (key->IsSmi()) {
-          property = Object::GetElement(
+          maybe_property = Object::GetElement(
               isolate_, object, Smi::cast(key)->value());
         } else if (key_handle->AsArrayIndex(&index)) {
-          property = Object::GetElement(isolate_, object, index);
+          maybe_property = Object::GetElement(isolate_, object, index);
         } else {
-          property = Object::GetPropertyOrElement(object, key_handle);
+          maybe_property = Object::GetPropertyOrElement(object, key_handle);
         }
       }
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate_, property, EXCEPTION);
+      Handle<Object> property;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, property, maybe_property, EXCEPTION);
       Result result = SerializeProperty(property, comma, key_handle);
       if (!comma && result == SUCCESS) comma = true;
       if (result >= EXCEPTION) return result;
