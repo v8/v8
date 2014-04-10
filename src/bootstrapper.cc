@@ -920,10 +920,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         factory->NewDescriptorArray(0, 1));
     DescriptorArray::WhitenessWitness witness(*string_descriptors);
 
-    Handle<Foreign> string_length(
-        factory->NewForeign(&Accessors::StringLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Handle<AccessorInfo> string_length(
+        Accessors::StringLengthInfo(isolate, attribs));
     string_map->set_instance_descriptors(*string_descriptors);
 
     {  // Add length.
