@@ -210,8 +210,14 @@ class RecordWriteStub: public PlatformCodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch),
-          saved_regs_(kCallerSaved)  {
+          saved_regs_(kCallerSaved),
+          saved_fp_regs_(kCallerSavedFP) {
       ASSERT(!AreAliased(scratch, object, address));
+
+      // The SaveCallerSaveRegisters method needs to save caller-saved
+      // registers, but we don't bother saving MacroAssembler scratch registers.
+      saved_regs_.Remove(MacroAssembler::DefaultTmpList());
+      saved_fp_regs_.Remove(MacroAssembler::DefaultFPTmpList());
 
       // We would like to require more scratch registers for this stub,
       // but the number of registers comes down to the ones used in
@@ -222,12 +228,6 @@ class RecordWriteStub: public PlatformCodeStub {
       pool_available.Remove(used_regs);
       scratch1_ = Register(pool_available.PopLowestIndex());
       scratch2_ = Register(pool_available.PopLowestIndex());
-
-      // SaveCallerRegisters method needs to save caller saved register, however
-      // we don't bother saving ip0 and ip1 because they are used as scratch
-      // registers by the MacroAssembler.
-      saved_regs_.Remove(ip0);
-      saved_regs_.Remove(ip1);
 
       // The scratch registers will be restored by other means so we don't need
       // to save them with the other caller saved registers.
@@ -253,7 +253,7 @@ class RecordWriteStub: public PlatformCodeStub {
       // register will need to be preserved. Can we improve this?
       masm->PushCPURegList(saved_regs_);
       if (mode == kSaveFPRegs) {
-        masm->PushCPURegList(kCallerSavedFP);
+        masm->PushCPURegList(saved_fp_regs_);
       }
     }
 
@@ -261,7 +261,7 @@ class RecordWriteStub: public PlatformCodeStub {
       // TODO(all): This can be very expensive, and it is likely that not every
       // register will need to be preserved. Can we improve this?
       if (mode == kSaveFPRegs) {
-        masm->PopCPURegList(kCallerSavedFP);
+        masm->PopCPURegList(saved_fp_regs_);
       }
       masm->PopCPURegList(saved_regs_);
     }
@@ -279,6 +279,7 @@ class RecordWriteStub: public PlatformCodeStub {
     Register scratch1_;
     Register scratch2_;
     CPURegList saved_regs_;
+    CPURegList saved_fp_regs_;
 
     // TODO(all): We should consider moving this somewhere else.
     static CPURegList GetValidRegistersForAllocation() {
@@ -296,10 +297,7 @@ class RecordWriteStub: public PlatformCodeStub {
       CPURegList list(CPURegister::kRegister, kXRegSizeInBits, 0, 25);
 
       // We also remove MacroAssembler's scratch registers.
-      list.Remove(ip0);
-      list.Remove(ip1);
-      list.Remove(x8);
-      list.Remove(x9);
+      list.Remove(MacroAssembler::DefaultTmpList());
 
       return list;
     }

@@ -1927,6 +1927,9 @@ class MacroAssembler : public Assembler {
   CPURegList* TmpList() { return &tmp_list_; }
   CPURegList* FPTmpList() { return &fptmp_list_; }
 
+  static CPURegList DefaultTmpList();
+  static CPURegList DefaultFPTmpList();
+
   // Like printf, but print at run-time from generated code.
   //
   // The caller must ensure that arguments for floating-point placeholders
@@ -1946,10 +1949,6 @@ class MacroAssembler : public Assembler {
   // a problem, preserve the important registers manually and then call
   // PrintfNoPreserve. Callee-saved registers are not used by Printf, and are
   // implicitly preserved.
-  //
-  // Unlike many MacroAssembler functions, x8 and x9 are guaranteed to be
-  // preserved, and can be printed. This allows Printf to be used during debug
-  // code.
   //
   // This function assumes (and asserts) that the current stack pointer is
   // callee-saved, not caller-saved. This is most likely the case anyway, as a
