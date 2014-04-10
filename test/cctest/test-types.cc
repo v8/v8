@@ -73,8 +73,8 @@ class Types {
     }
 
     while (types.size() < kMaxTypes) {
-      size_t i = rng.NextInt(types.size());
-      size_t j = rng.NextInt(types.size());
+      size_t i = rng.NextInt(static_cast<int>(types.size()));
+      size_t j = rng.NextInt(static_cast<int>(types.size()));
       if (i != j) types.push_back(Type::Union(types[i], types[j], region));
     }
   }
