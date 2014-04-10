@@ -306,8 +306,8 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
 template<class Config>
 bool TypeImpl<Config>::NowIs(TypeImpl* that) {
+  DisallowHeapAllocation no_allocation;
   if (this->IsConstant()) {
-    DisallowHeapAllocation no_allocation;
     i::Object* object = *this->AsConstant();
     if (object->IsHeapObject()) {
       i::Map* map = i::HeapObject::cast(object)->map();
@@ -373,8 +373,8 @@ bool TypeImpl<Config>::Contains(i::Object* value) {
 
 template<class Config>
 bool TypeImpl<Config>::NowContains(i::Object* value) {
+  DisallowHeapAllocation no_allocation;
   if (value->IsHeapObject()) {
-    DisallowHeapAllocation no_allocation;
     i::Map* map = i::HeapObject::cast(value)->map();
     for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
       if (*it.Current() == map) return true;
