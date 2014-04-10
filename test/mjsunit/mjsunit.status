@@ -93,7 +93,11 @@
   # This test sets the umask on a per-process basis and hence cannot be
   # used in multi-threaded runs.
   # On android there is no /tmp directory.
-  'd8-os': [PASS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  # Currently d8-os generates a temporary directory name using Math.random(), so
+  # we cannot run several variants of d8-os simultaneously, since all of them
+  # get the same random seed and would generate the same directory name. Besides
+  # that, it doesn't make sense to run several variants of d8-os anyways.
+  'd8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
   'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################

@@ -34,6 +34,7 @@ import optparse
 import os
 from os.path import join
 import platform
+import random
 import shlex
 import subprocess
 import sys
@@ -200,6 +201,8 @@ def BuildOptions():
   result.add_option("--junittestsuite",
                     help="The testsuite name in the JUnit output file",
                     default="v8tests")
+  result.add_option("--random-seed", default=0, dest="random_seed",
+                    help="Default seed for initializing random generator")
   return result
 
 
@@ -249,6 +252,9 @@ def ProcessOptions(options):
 
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
+
+  while options.random_seed == 0:
+    options.random_seed = random.SystemRandom().randint(-2147483648, 2147483647)
 
   def excl(*args):
     """Returns true if zero or one of multiple arguments are true."""
@@ -396,7 +402,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags,
-                        options.no_i18n)
+                        options.no_i18n,
+                        options.random_seed)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
