@@ -1,3 +1,8 @@
+2014-04-10: Version 3.26.11
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-10: Version 3.26.10
 
         Allow the embedder to pass the virtual memory limit to v8.

@@ -357,6 +357,10 @@ inline Condition ReverseCondition(Condition cc) {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
+  explicit Immediate(Smi* value) {
+    ASSERT(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
+    value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
+  }
 
  private:
   int32_t value_;

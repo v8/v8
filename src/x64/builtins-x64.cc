@@ -963,9 +963,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     expected arguments matches what we're providing.  If so, jump
   //     (tail-call) to the code in register edx without checking arguments.
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movsxlq(rbx,
-             FieldOperand(rdx,
-                          SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadSharedFunctionInfoSpecialField(rbx, rdx,
+      SharedFunctionInfo::kFormalParameterCountOffset);
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ cmpp(rax, rbx);
   __ j(not_equal,
