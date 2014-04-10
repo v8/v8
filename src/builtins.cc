@@ -301,6 +301,11 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     int first_added_arg) {
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  // If there may be elements accessors in the prototype chain, the fast path
+  // cannot be used.
+  if (array->map()->DictionaryElementsInPrototypeChainOnly()) {
+    return MaybeHandle<FixedArrayBase>();
+  }
   if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
   if (!array->map()->is_extensible()) return MaybeHandle<FixedArrayBase>();
   Handle<FixedArrayBase> elms(array->elements(), isolate);
