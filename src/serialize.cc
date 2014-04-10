@@ -276,20 +276,9 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       ACCESSOR, \
       Accessors::k##name, \
       "Accessors::" #name);
+
   ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
 #undef ACCESSOR_DESCRIPTOR_DECLARATION
-
-#define ACCESSOR_INFO_DECLARATION(name) \
-  Add(FUNCTION_ADDR(&Accessors::name##Getter), \
-      ACCESSOR, \
-      Accessors::k##name##Getter, \
-      "Accessors::" #name "Getter"); \
-  Add(FUNCTION_ADDR(&Accessors::name##Setter), \
-      ACCESSOR, \
-      Accessors::k##name##Setter, \
-      "Accessors::" #name "Setter");
-  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
-#undef ACCESSOR_INFO_DECLARATION
 
   StubCache* stub_cache = isolate->stub_cache();
 
