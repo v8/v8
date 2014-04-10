@@ -813,8 +813,13 @@ class MacroAssembler: public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  // Bit-field support.
-  void TestBit(const Operand& dst, int bit_index);
+  // TestBit and Load SharedFunctionInfo special field.
+  void TestBitSharedFunctionInfoSpecialField(Register base,
+                                             int offset,
+                                             int bit_index);
+  void LoadSharedFunctionInfoSpecialField(Register dst,
+                                          Register base,
+                                          int offset);
 
   // Handle support
   void Move(Register dst, Handle<Object> source);

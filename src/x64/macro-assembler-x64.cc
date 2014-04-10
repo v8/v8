@@ -2696,10 +2696,34 @@ void MacroAssembler::Pop(const Operand& dst) {
 }
 
 
-void MacroAssembler::TestBit(const Operand& src, int bits) {
+void MacroAssembler::LoadSharedFunctionInfoSpecialField(Register dst,
+                                                        Register base,
+                                                        int offset) {
+  ASSERT(offset > SharedFunctionInfo::kLengthOffset &&
+         offset <= SharedFunctionInfo::kSize &&
+         (((offset - SharedFunctionInfo::kLengthOffset) / kIntSize) % 2 == 1));
+  if (kPointerSize == kInt64Size) {
+    movsxlq(dst, FieldOperand(base, offset));
+  } else {
+    movp(dst, FieldOperand(base, offset));
+    SmiToInteger32(dst, dst);
+  }
+}
+
+
+void MacroAssembler::TestBitSharedFunctionInfoSpecialField(Register base,
+                                                           int offset,
+                                                           int bits) {
+  ASSERT(offset > SharedFunctionInfo::kLengthOffset &&
+         offset <= SharedFunctionInfo::kSize &&
+         (((offset - SharedFunctionInfo::kLengthOffset) / kIntSize) % 2 == 1));
+  if (kPointerSize == kInt32Size) {
+    // On x32, this field is represented by SMI.
+    bits += kSmiShift;
+  }
   int byte_offset = bits / kBitsPerByte;
   int bit_in_byte = bits & (kBitsPerByte - 1);
-  testb(Operand(src, byte_offset), Immediate(1 << bit_in_byte));
+  testb(FieldOperand(base, offset + byte_offset), Immediate(1 << bit_in_byte));
 }
 
 
@@ -3538,9 +3562,9 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
     // It's not smi-tagged (stored in the top half of a smi-tagged 8-byte
     // field).
-    TestBit(FieldOperand(kScratchRegister,
-                         SharedFunctionInfo::kCompilerHintsOffset),
-            SharedFunctionInfo::kBoundFunction);
+    TestBitSharedFunctionInfoSpecialField(kScratchRegister,
+        SharedFunctionInfo::kCompilerHintsOffset,
+        SharedFunctionInfo::kBoundFunction);
     j(not_zero, miss);
   }
 
@@ -3667,8 +3691,8 @@ void MacroAssembler::InvokeFunction(Register function,
   ASSERT(function.is(rdi));
   movp(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movp(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  movsxlq(rbx,
-          FieldOperand(rdx, SharedFunctionInfo::kFormalParameterCountOffset));
+  LoadSharedFunctionInfoSpecialField(rbx, rdx,
+      SharedFunctionInfo::kFormalParameterCountOffset);
   // Advances rdx to the end of the Code object header, to the start of
   // the executable code.
   movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));

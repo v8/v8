@@ -2169,9 +2169,8 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Push holes for arguments to generator function.
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movsxlq(rdx,
-             FieldOperand(rdx,
-                          SharedFunctionInfo::kFormalParameterCountOffset));
+  __ LoadSharedFunctionInfoSpecialField(rdx, rdx,
+      SharedFunctionInfo::kFormalParameterCountOffset);
   __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
