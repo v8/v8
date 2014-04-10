@@ -657,10 +657,10 @@ class MacroAssembler: public Assembler {
                             Register src,
                             int shift_value);
   void SmiShiftLogicalRightConstant(Register dst,
-                                  Register src,
-                                  int shift_value,
-                                  Label* on_not_smi_result,
-                                  Label::Distance near_jump = Label::kFar);
+                                    Register src,
+                                    int shift_value,
+                                    Label* on_not_smi_result,
+                                    Label::Distance near_jump = Label::kFar);
   void SmiShiftArithmeticRightConstant(Register dst,
                                        Register src,
                                        int shift_value);

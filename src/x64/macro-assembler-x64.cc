@@ -1108,8 +1108,15 @@ void MacroAssembler::Integer32ToSmiField(const Operand& dst, Register src) {
     Abort(kInteger32ToSmiFieldWritingToNonSmiLocation);
     bind(&ok);
   }
-  ASSERT(kSmiShift % kBitsPerByte == 0);
-  movl(Operand(dst, kSmiShift / kBitsPerByte), src);
+
+  if (SmiValuesAre32Bits()) {
+    ASSERT(kSmiShift % kBitsPerByte == 0);
+    movl(Operand(dst, kSmiShift / kBitsPerByte), src);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    Integer32ToSmi(kScratchRegister, src);
+    movp(dst, kScratchRegister);
+  }
 }
 
 
@@ -1130,12 +1137,24 @@ void MacroAssembler::SmiToInteger32(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  shrq(dst, Immediate(kSmiShift));
+
+  if (SmiValuesAre32Bits()) {
+    shrp(dst, Immediate(kSmiShift));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    sarl(dst, Immediate(kSmiShift));
+  }
 }
 
 
 void MacroAssembler::SmiToInteger32(Register dst, const Operand& src) {
-  movl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  if (SmiValuesAre32Bits()) {
+    movl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(dst, src);
+    sarl(dst, Immediate(kSmiShift));
+  }
 }
 
 
@@ -1144,12 +1163,22 @@ void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   if (!dst.is(src)) {
     movp(dst, src);
   }
-  sarq(dst, Immediate(kSmiShift));
+  sarp(dst, Immediate(kSmiShift));
+  if (kPointerSize == kInt32Size) {
+    // Sign extend to 64-bit.
+    movsxlq(dst, dst);
+  }
 }
 
 
 void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
-  movsxlq(dst, Operand(src, kSmiShift / kBitsPerByte));
+  if (SmiValuesAre32Bits()) {
+    movsxlq(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movp(dst, src);
+    SmiToInteger64(dst, dst);
+  }
 }
 
 
@@ -1199,7 +1228,12 @@ void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
   AssertSmi(dst);
-  cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+  if (SmiValuesAre32Bits()) {
+    cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    cmpl(dst, Immediate(src));
+  }
 }
 
 
@@ -1212,7 +1246,13 @@ void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompareInteger32(const Operand& dst, Register src) {
-  cmpl(Operand(dst, kSmiShift / kBitsPerByte), src);
+  if (SmiValuesAre32Bits()) {
+    cmpl(Operand(dst, kSmiShift / kBitsPerByte), src);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    SmiToInteger32(kScratchRegister, dst);
+    cmpl(kScratchRegister, src);
+  }
 }
 
 
