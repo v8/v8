@@ -2556,8 +2556,7 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
                       new_map->NumberOfFields(),
                       attributes,
                       Representation::Tagged());
-    d.SetSortedKeyIndex(details.pointer());
-    descriptors->Set(modify_index, &d);
+    descriptors->Replace(modify_index, &d);
     int unused_property_fields = new_map->unused_property_fields() - 1;
     if (unused_property_fields < 0) {
       unused_property_fields += JSObject::kFieldsAdded;
@@ -3129,16 +3128,40 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
 
 
 void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
-  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
-  int number_of_descriptors = descriptors->number_of_descriptors();
-  Isolate* isolate = map->GetIsolate();
-  Handle<DescriptorArray> new_descriptors =
-      isolate->factory()->NewDescriptorArray(number_of_descriptors, slack);
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
+  // Only supports adding slack to owned descriptors.
+  ASSERT(map->owns_descriptors());
 
-  for (int i = 0; i < number_of_descriptors; ++i) {
-    new_descriptors->CopyFrom(i, *descriptors, i, witness);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  int old_size = map->NumberOfOwnDescriptors();
+  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
+
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, old_size, slack);
+
+  if (old_size == 0) {
+    map->set_instance_descriptors(*new_descriptors);
+    return;
+  }
+
+  // If the source descriptors had an enum cache we copy it. This ensures
+  // that the maps to which we push the new descriptor array back can rely
+  // on a cache always being available once it is set. If the map has more
+  // enumerated descriptors than available in the original cache, the cache
+  // will be lazily replaced by the extended cache when needed.
+  if (descriptors->HasEnumCache()) {
+    new_descriptors->CopyEnumCacheFrom(*descriptors);
+  }
+
+  // Replace descriptors by new_descriptors in all maps that share it.
+  map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
+
+  Map* walk_map;
+  for (Object* current = map->GetBackPointer();
+       !current->IsUndefined();
+       current = walk_map->GetBackPointer()) {
+    walk_map = Map::cast(current);
+    if (walk_map->instance_descriptors() != *descriptors) break;
+    walk_map->set_instance_descriptors(*new_descriptors);
   }
 
   map->set_instance_descriptors(*new_descriptors);
@@ -6848,62 +6871,29 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   // descriptors in the descriptor array.
   ASSERT(map->NumberOfOwnDescriptors() ==
          map->instance_descriptors()->number_of_descriptors());
+
   Handle<Map> result = Map::CopyDropDescriptors(map);
-
   Handle<Name> name = descriptor->GetKey();
-
   Handle<TransitionArray> transitions =
       Map::AddTransition(map, name, result, SIMPLE_TRANSITION);
 
-  if (descriptors->NumberOfSlackDescriptors() > 0) {
-    descriptors->Append(descriptor);
-    result->SetBackPointer(*map);
-    result->InitializeDescriptors(*descriptors);
-  } else {
+  // Ensure there's space for the new descriptor in the shared descriptor array.
+  if (descriptors->NumberOfSlackDescriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
-    // Descriptor arrays grow by 50%.
-    Handle<DescriptorArray> new_descriptors =
-        map->GetIsolate()->factory()->NewDescriptorArray(
-            old_size, old_size < 4 ? 1 : old_size / 2);
-
-    DisallowHeapAllocation no_gc;
-    DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-    // Copy the descriptors, inserting a descriptor.
-    for (int i = 0; i < old_size; ++i) {
-      new_descriptors->CopyFrom(i, *descriptors, i, witness);
+    if (old_size == 0) {
+      descriptors = map->GetIsolate()->factory()->NewDescriptorArray(0, 1);
+    } else {
+      Map::EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      descriptors = handle(map->instance_descriptors());
     }
-
-    new_descriptors->Append(descriptor, witness);
-
-    if (old_size > 0) {
-      // If the source descriptors had an enum cache we copy it. This ensures
-      // that the maps to which we push the new descriptor array back can rely
-      // on a cache always being available once it is set. If the map has more
-      // enumerated descriptors than available in the original cache, the cache
-      // will be lazily replaced by the extended cache when needed.
-      if (descriptors->HasEnumCache()) {
-        new_descriptors->CopyEnumCacheFrom(*descriptors);
-      }
-
-      Map* walk_map;
-      // Replace descriptors by new_descriptors in all maps that share it.
-
-      map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
-      for (Object* current = map->GetBackPointer();
-           !current->IsUndefined();
-           current = walk_map->GetBackPointer()) {
-        walk_map = Map::cast(current);
-        if (walk_map->instance_descriptors() != *descriptors) break;
-        walk_map->set_instance_descriptors(*new_descriptors);
-      }
-
-      map->set_instance_descriptors(*new_descriptors);
-    }
-
-    result->SetBackPointer(*map);
-    result->InitializeDescriptors(*new_descriptors);
   }
+
+  // Commit the state atomically.
+  DisallowHeapAllocation no_gc;
+
+  descriptors->Append(descriptor);
+  result->SetBackPointer(*map);
+  result->InitializeDescriptors(*descriptors);
 
   ASSERT(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
 
@@ -7106,36 +7096,18 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   // Ensure the key is unique.
   descriptor->KeyToUniqueName();
 
-  int old_size = map->NumberOfOwnDescriptors();
-  int new_size = old_size + 1;
-
   if (flag == INSERT_TRANSITION &&
       map->owns_descriptors() &&
       map->CanHaveMoreTransitions()) {
     return Map::ShareDescriptor(map, descriptors, descriptor);
   }
 
-  Handle<DescriptorArray> new_descriptors =
-      map->GetIsolate()->factory()->NewDescriptorArray(old_size, 1);
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, map->NumberOfOwnDescriptors(), 1);
+  new_descriptors->Append(descriptor);
 
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-  // Copy the descriptors, inserting a descriptor.
-  for (int i = 0; i < old_size; ++i) {
-    new_descriptors->CopyFrom(i, *descriptors, i, witness);
-  }
-
-  if (old_size != descriptors->number_of_descriptors()) {
-    new_descriptors->SetNumberOfDescriptors(new_size);
-    new_descriptors->Set(old_size, descriptor, witness);
-    new_descriptors->Sort();
-  } else {
-    new_descriptors->Append(descriptor, witness);
-  }
-
-  Handle<Name> key = descriptor->GetKey();
   return Map::CopyReplaceDescriptors(
-      map, new_descriptors, flag, key, SIMPLE_TRANSITION);
+      map, new_descriptors, flag, descriptor->GetKey(), SIMPLE_TRANSITION);
 }
 
 
@@ -7159,25 +7131,26 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
 
 Handle<DescriptorArray> DescriptorArray::CopyUpTo(
     Handle<DescriptorArray> desc,
-    int enumeration_index) {
-  return DescriptorArray::CopyUpToAddAttributes(desc,
-                                                enumeration_index,
-                                                NONE);
+    int enumeration_index,
+    int slack) {
+  return DescriptorArray::CopyUpToAddAttributes(
+      desc, enumeration_index, NONE, slack);
 }
 
 
 Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Handle<DescriptorArray> desc,
     int enumeration_index,
-    PropertyAttributes attributes) {
-  if (enumeration_index == 0) {
+    PropertyAttributes attributes,
+    int slack) {
+  if (enumeration_index + slack == 0) {
     return desc->GetIsolate()->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
 
   Handle<DescriptorArray> descriptors =
-      desc->GetIsolate()->factory()->NewDescriptorArray(size);
+      desc->GetIsolate()->factory()->NewDescriptorArray(size, slack);
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
   if (attributes != NONE) {
@@ -7198,7 +7171,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     }
   } else {
     for (int i = 0; i < size; ++i) {
-      descriptors->CopyFrom(i, *desc, i, witness);
+      descriptors->CopyFrom(i, *desc, witness);
     }
   }
 
@@ -7219,24 +7192,10 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
   Handle<Name> key = descriptor->GetKey();
   ASSERT(*key == descriptors->GetKey(insertion_index));
 
-  int new_size = map->NumberOfOwnDescriptors();
-  ASSERT(0 <= insertion_index && insertion_index < new_size);
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, map->NumberOfOwnDescriptors());
 
-  ASSERT_LT(insertion_index, new_size);
-
-  Handle<DescriptorArray> new_descriptors =
-      map->GetIsolate()->factory()->NewDescriptorArray(new_size);
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-  for (int i = 0; i < new_size; ++i) {
-    if (i == insertion_index) {
-      new_descriptors->Set(i, descriptor, witness);
-    } else {
-      new_descriptors->CopyFrom(i, *descriptors, i, witness);
-    }
-  }
-
-  new_descriptors->Sort();
+  new_descriptors->Replace(insertion_index, descriptor);
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)
@@ -8073,6 +8032,12 @@ void DescriptorArray::ClearEnumCache() {
 }
 
 
+void DescriptorArray::Replace(int index, Descriptor* descriptor) {
+  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index));
+  Set(index, descriptor);
+}
+
+
 void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
                                    FixedArray* new_cache,
                                    Object* new_index_cache) {
@@ -8088,16 +8053,15 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
-void DescriptorArray::CopyFrom(int dst_index,
+void DescriptorArray::CopyFrom(int index,
                                DescriptorArray* src,
-                               int src_index,
                                const WhitenessWitness& witness) {
-  Object* value = src->GetValue(src_index);
-  PropertyDetails details = src->GetDetails(src_index);
-  Descriptor desc(handle(src->GetKey(src_index)),
+  Object* value = src->GetValue(index);
+  PropertyDetails details = src->GetDetails(index);
+  Descriptor desc(handle(src->GetKey(index)),
                   handle(value, src->GetIsolate()),
                   details);
-  Set(dst_index, &desc, witness);
+  Set(index, &desc, witness);
 }
 
 

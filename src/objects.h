@@ -3456,7 +3456,7 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
-  inline void Set(int descriptor_number, Descriptor* desc);
+  void Replace(int descriptor_number, Descriptor* descriptor);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -3464,12 +3464,6 @@ class DescriptorArray: public FixedArray {
   inline void Append(Descriptor* desc, const WhitenessWitness&);
   inline void Append(Descriptor* desc);
 
-  // Transfer a complete descriptor from the src descriptor array to this
-  // descriptor array.
-  void CopyFrom(int dst_index,
-                DescriptorArray* src,
-                int src_index,
-                const WhitenessWitness&);
   static Handle<DescriptorArray> Merge(Handle<Map> left_map,
                                        int verbatim,
                                        int valid,
@@ -3485,12 +3479,14 @@ class DescriptorArray: public FixedArray {
                          DescriptorArray* other);
 
   static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
-                                          int enumeration_index);
+                                          int enumeration_index,
+                                          int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
       Handle<DescriptorArray> desc,
       int enumeration_index,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
@@ -3592,6 +3588,14 @@ class DescriptorArray: public FixedArray {
            (descriptor_number * kDescriptorSize) +
            kDescriptorValue;
   }
+
+  // Transfer a complete descriptor from the src descriptor array to this
+  // descriptor array.
+  void CopyFrom(int index,
+                DescriptorArray* src,
+                const WhitenessWitness&);
+
+  inline void Set(int descriptor_number, Descriptor* desc);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
