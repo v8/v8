@@ -3951,11 +3951,19 @@ class V8_EXPORT ResourceConstraints {
    *
    * \param physical_memory The total amount of physical memory on the current
    *   device, in bytes.
+   * \param virtual_memory_limit The amount of virtual memory on the current
+   *   device, in bytes, or zero, if there is no limit.
    * \param number_of_processors The number of CPUs available on the current
    *   device.
    */
   void ConfigureDefaults(uint64_t physical_memory,
+                         uint64_t virtual_memory_limit,
                          uint32_t number_of_processors);
+  // Deprecated.
+  void ConfigureDefaults(uint64_t physical_memory,
+                         uint32_t number_of_processors) {
+    ConfigureDefaults(physical_memory, 0, number_of_processors);
+  }
 
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
@@ -3971,6 +3979,10 @@ class V8_EXPORT ResourceConstraints {
   void set_max_available_threads(int value) {
     max_available_threads_ = value;
   }
+  int code_range_size() const { return code_range_size_; }
+  void set_code_range_size(int value) {
+    code_range_size_ = value;
+  }
 
  private:
   int max_young_space_size_;
@@ -3978,6 +3990,7 @@ class V8_EXPORT ResourceConstraints {
   int max_executable_size_;
   uint32_t* stack_limit_;
   int max_available_threads_;
+  int code_range_size_;
 };
 
 

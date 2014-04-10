@@ -254,19 +254,16 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
     Handle<Context> context,
     StrictMode strict_mode,
     int scope_position) {
+  HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
   Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
-  { HandleScope scope(isolate());
-    Handle<Object> temp = result;
-    for (generation = 0; generation < generations(); generation++) {
-      Handle<CompilationCacheTable> table = GetTable(generation);
-      temp = table->LookupEval(source, context, strict_mode, scope_position);
-      if (temp->IsSharedFunctionInfo()) break;
-    }
-    if (temp->IsSharedFunctionInfo()) result = scope.CloseAndEscape(temp);
+  for (generation = 0; generation < generations(); generation++) {
+    Handle<CompilationCacheTable> table = GetTable(generation);
+    result = table->LookupEval(source, context, strict_mode, scope_position);
+    if (result->IsSharedFunctionInfo()) break;
   }
   if (result->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo> function_info =
@@ -275,7 +272,7 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheEval::Lookup(
       Put(source, context, function_info, scope_position);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
-    return function_info;
+    return scope.CloseAndEscape(function_info);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
     return MaybeHandle<SharedFunctionInfo>();
@@ -298,21 +295,16 @@ void CompilationCacheEval::Put(Handle<String> source,
 MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(
     Handle<String> source,
     JSRegExp::Flags flags) {
+  HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
   Handle<Object> result = isolate()->factory()->undefined_value();
   int generation;
-  { HandleScope scope(isolate());
-    Handle<Object> temp = result;
-    for (generation = 0; generation < generations(); generation++) {
-      Handle<CompilationCacheTable> table = GetTable(generation);
-      temp = table->LookupRegExp(source, flags);
-      if (temp->IsFixedArray()) {
-        break;
-      }
-    }
-    if (temp->IsSharedFunctionInfo()) result = scope.CloseAndEscape(temp);
+  for (generation = 0; generation < generations(); generation++) {
+    Handle<CompilationCacheTable> table = GetTable(generation);
+    result = table->LookupRegExp(source, flags);
+    if (result->IsFixedArray()) break;
   }
   if (result->IsFixedArray()) {
     Handle<FixedArray> data = Handle<FixedArray>::cast(result);
@@ -320,7 +312,7 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(
       Put(source, flags, data);
     }
     isolate()->counters()->compilation_cache_hits()->Increment();
-    return data;
+    return scope.CloseAndEscape(data);
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
     return MaybeHandle<FixedArray>();

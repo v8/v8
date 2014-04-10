@@ -572,7 +572,8 @@ class Heap {
   // set up already.
   bool ConfigureHeap(int max_semispace_size,
                      intptr_t max_old_gen_size,
-                     intptr_t max_executable_size);
+                     intptr_t max_executable_size,
+                     intptr_t code_range_size);
   bool ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
@@ -1014,29 +1015,6 @@ class Heap {
   // that the resulting object has hash_table_map as map.
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
       int length, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocate a global context.
-  MUST_USE_RESULT MaybeObject* AllocateGlobalContext(JSFunction* function,
-                                                     ScopeInfo* scope_info);
-
-  // Allocate a function context.
-  MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
-                                                       JSFunction* function);
-
-  // Allocate a catch context.
-  MUST_USE_RESULT MaybeObject* AllocateCatchContext(JSFunction* function,
-                                                    Context* previous,
-                                                    String* name,
-                                                    Object* thrown_object);
-  // Allocate a 'with' context.
-  MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
-                                                   Context* previous,
-                                                   JSReceiver* extension);
-
-  // Allocate a block context.
-  MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,
-                                                    Context* previous,
-                                                    ScopeInfo* info);
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);

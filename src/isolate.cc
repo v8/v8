@@ -1046,15 +1046,17 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
-  String* error_key =
-      *(factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error")));
-  Object* error_constructor =
-      js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
+  Handle<String> error_key =
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error"));
+  Handle<Object> error_constructor = GlobalObject::GetPropertyNoExceptionThrown(
+      js_builtins_object(), error_key);
 
+  DisallowHeapAllocation no_gc;
   for (Object* prototype = *obj; !prototype->IsNull();
        prototype = prototype->GetPrototype(this)) {
     if (!prototype->IsJSObject()) return false;
-    if (JSObject::cast(prototype)->map()->constructor() == error_constructor) {
+    if (JSObject::cast(prototype)->map()->constructor() ==
+        *error_constructor) {
       return true;
     }
   }

@@ -98,7 +98,8 @@
       }],
     ],  # conditions
     'configurations': {
-      'Debug': {
+      'DebugBaseCommon': {
+        'abstract': 1,
         'variables': {
           'v8_enable_extra_checks%': 1,
           'v8_enable_handle_zapping%': 1,

@@ -154,11 +154,9 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<String> fmt_str =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("FormatMessage"));
-  Handle<JSFunction> fun =
-      Handle<JSFunction>(
-          JSFunction::cast(
-              isolate->js_builtins_object()->
-              GetPropertyNoExceptionThrown(*fmt_str)));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      GlobalObject::GetPropertyNoExceptionThrown(
+          isolate->js_builtins_object(), fmt_str));
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
                             Handle<Object>(message->arguments(), isolate) };

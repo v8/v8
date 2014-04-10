@@ -946,7 +946,7 @@ class CodeRange {
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
   // Returns false on failure.
-  bool SetUp(const size_t requested_size);
+  bool SetUp(size_t requested_size);
 
   // Frees the range of virtual memory, and frees the data structures used to
   // manage it.

@@ -1696,6 +1696,7 @@ int Shell::Main(int argc, char* argv[]) {
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
+                                i::OS::MaxVirtualMemory(),
                                 i::CPU::NumberOfProcessorsOnline());
   v8::SetResourceConstraints(isolate, &constraints);
 #endif

@@ -373,6 +373,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "isolates": options.isolates,
     "mode": mode,
     "no_i18n": False,
+    "no_snap": False,
     "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
   }

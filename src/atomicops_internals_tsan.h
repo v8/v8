@@ -276,6 +276,10 @@ inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
   return cmp;
 }
 
+inline void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value) {
+  __tsan_atomic8_store(ptr, value, __tsan_memory_order_relaxed);
+}
+
 inline void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value) {
   __tsan_atomic32_store(ptr, value, __tsan_memory_order_relaxed);
 }
@@ -287,6 +291,10 @@ inline void Acquire_Store(volatile Atomic32* ptr, Atomic32 value) {
 
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
   __tsan_atomic32_store(ptr, value, __tsan_memory_order_release);
+}
+
+inline Atomic8 NoBarrier_Load(volatile const Atomic8* ptr) {
+  return __tsan_atomic8_load(ptr, __tsan_memory_order_relaxed);
 }
 
 inline Atomic32 NoBarrier_Load(volatile const Atomic32* ptr) {

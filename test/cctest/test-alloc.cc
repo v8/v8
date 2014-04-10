@@ -142,8 +142,8 @@ TEST(StressJS) {
   v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
   map->set_instance_descriptors(*new_descriptors);
 
-  CallbacksDescriptor d(*name,
-                        *foreign,
+  CallbacksDescriptor d(name,
+                        foreign,
                         static_cast<PropertyAttributes>(0));
   map->AppendDescriptor(&d, witness);
 
