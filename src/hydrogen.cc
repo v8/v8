@@ -4996,15 +4996,13 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 
-static bool CanInlinePropertyAccess(Type* type, PropertyAccessType access) {
+static bool CanInlinePropertyAccess(Type* type) {
   if (type->Is(Type::NumberOrString())) return true;
   if (!type->IsClass()) return false;
   Handle<Map> map = type->AsClass();
   return map->IsJSObjectMap() &&
       !map->is_dictionary_map() &&
-      !map->has_named_interceptor() &&
-      // Must be a LOAD or a non-observed STORE
-      (access == LOAD || !map->is_observed());
+      !map->has_named_interceptor();
 }
 
 
@@ -5416,7 +5414,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
     PropertyAccessInfo* info) {
-  if (!CanInlinePropertyAccess(type_, access_type_)) return false;
+  if (!CanInlinePropertyAccess(type_)) return false;
 
   // Currently only handle Type::Number as a polymorphic case.
   // TODO(verwaest): Support monomorphic handling of numbers with a HCheckNumber
@@ -5517,7 +5515,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
       JSObject::TryMigrateInstance(holder_);
     }
     map = Handle<Map>(holder_->map());
-    if (!CanInlinePropertyAccess(ToType(map), access_type_)) {
+    if (!CanInlinePropertyAccess(ToType(map))) {
       lookup_.NotFound();
       return false;
     }
@@ -5530,7 +5528,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
-  if (!CanInlinePropertyAccess(type_, access_type_)) return false;
+  if (!CanInlinePropertyAccess(type_)) return false;
   if (IsJSObjectFieldAccessor()) return IsLoad();
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) {
@@ -5809,27 +5807,17 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
 static bool ComputeReceiverTypes(Expression* expr,
                                  HValue* receiver,
                                  SmallMapList** t,
-                                 PropertyAccessType access_type,
                                  Zone* zone) {
   SmallMapList* types = expr->GetReceiverTypes();
   *t = types;
   bool monomorphic = expr->IsMonomorphic();
-  Isolate* isolate = zone->isolate();
-  if (types != NULL) {
-    if (receiver->HasMonomorphicJSObjectType()) {
-      Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
-      types->FilterForPossibleTransitions(root_map);
-    } else if (types->is_empty() &&
-               receiver->IsConstant() &&
-               HConstant::cast(receiver)->handle(isolate)->IsJSObject()) {
-      Handle<Map> map(Handle<JSObject>::cast(
-          HConstant::cast(receiver)->handle(isolate))->map());
-      types->Add(map, zone);
-    }
+  if (types != NULL && receiver->HasMonomorphicJSObjectType()) {
+    Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
+    types->FilterForPossibleTransitions(root_map);
     monomorphic = types->length() == 1;
   }
   return monomorphic && CanInlinePropertyAccess(
-      IC::MapToType<Type>(types->first(), zone), access_type);
+      IC::MapToType<Type>(types->first(), zone));
 }
 
 
@@ -6532,11 +6520,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   HInstruction* instr = NULL;
 
   SmallMapList* types;
-  bool monomorphic = ComputeReceiverTypes(expr,
-                                          obj,
-                                          &types,
-                                          access_type,
-                                          zone());
+  bool monomorphic = ComputeReceiverTypes(expr, obj, &types, zone());
 
   bool force_generic = false;
   if (access_type == STORE &&
@@ -6675,7 +6659,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
     HValue* value,
     bool is_uninitialized) {
   SmallMapList* types;
-  ComputeReceiverTypes(expr, object, &types, access, zone());
+  ComputeReceiverTypes(expr, object, &types, zone());
   ASSERT(types != NULL);
 
   if (types->length() > 0) {
@@ -7991,7 +7975,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     HValue* receiver = Top();
 
     SmallMapList* types;
-    ComputeReceiverTypes(expr, receiver, &types, LOAD, zone());
+    ComputeReceiverTypes(expr, receiver, &types, zone());
 
     if (prop->key()->IsPropertyName() && types->length() > 0) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();
