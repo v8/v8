@@ -4020,7 +4020,6 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
 
 
 static void SetPropertyToField(LookupResult* lookup,
-                               Handle<Name> name,
                                Handle<Object> value) {
   Representation representation = lookup->representation();
   if (!lookup->CanHoldValue(value) ||
@@ -4083,7 +4082,7 @@ static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
                                              PropertyAttributes attributes) {
   if (lookup->GetAttributes() == attributes) {
     if (value->IsUninitialized()) return;
-    SetPropertyToField(lookup, name, value);
+    SetPropertyToField(lookup, value);
   } else {
     ConvertAndSetLocalProperty(lookup, name, value, attributes);
   }
@@ -4178,12 +4177,12 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
         SetNormalizedProperty(handle(lookup->holder()), lookup, value);
         break;
       case FIELD:
-        SetPropertyToField(lookup, name, value);
+        SetPropertyToField(lookup, value);
         break;
       case CONSTANT:
         // Only replace the constant if necessary.
         if (*value == lookup->GetConstant()) return value;
-        SetPropertyToField(lookup, name, value);
+        SetPropertyToField(lookup, value);
         break;
       case CALLBACKS: {
         Handle<Object> callback_object(lookup->GetCallbackObject(), isolate);
