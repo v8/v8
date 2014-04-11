@@ -2303,6 +2303,8 @@ class JSObject: public JSReceiver {
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(const LookupResult* result);
+  static Handle<Object> GetNormalizedProperty(Handle<JSObject> object,
+                                              const LookupResult* result);
 
   // Sets the property value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -2653,6 +2655,9 @@ class JSObject: public JSReceiver {
                                    DeepCopyHints hints = kNoHints);
   static Handle<JSObject> DeepWalk(Handle<JSObject> object,
                                    AllocationSiteCreationContext* site_context);
+
+  static Handle<Object> GetDataProperty(Handle<JSObject> object,
+                                        Handle<Name> key);
 
   // Casting.
   static inline JSObject* cast(Object* obj);

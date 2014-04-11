@@ -632,6 +632,20 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
 }
 
 
+Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
+                                               const LookupResult* result) {
+  ASSERT(!object->HasFastProperties());
+  Isolate* isolate = object->GetIsolate();
+  Handle<Object> value(object->property_dictionary()->ValueAt(
+      result->GetDictionaryEntry()), isolate);
+  if (object->IsGlobalObject()) {
+    value = Handle<Object>(Handle<PropertyCell>::cast(value)->value(), isolate);
+  }
+  ASSERT(!value->IsPropertyCell() && !value->IsCell());
+  return value;
+}
+
+
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      const LookupResult* result,
                                      Handle<Object> value) {
@@ -5953,6 +5967,41 @@ Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object,
   Handle<JSObject> copy = v.StructureWalk(object);
   ASSERT(!copy.is_identical_to(object));
   return copy;
+}
+
+
+Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
+                                         Handle<Name> key) {
+  Isolate* isolate = object->GetIsolate();
+  LookupResult lookup(isolate);
+  {
+    DisallowHeapAllocation no_allocation;
+    object->LookupRealNamedProperty(*key, &lookup);
+  }
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (lookup.IsFound() && !lookup.IsTransition()) {
+    switch (lookup.type()) {
+      case NORMAL:
+        result = GetNormalizedProperty(
+            Handle<JSObject>(lookup.holder(), isolate), &lookup);
+        break;
+      case FIELD:
+        result = FastPropertyAt(Handle<JSObject>(lookup.holder(), isolate),
+                                lookup.representation(),
+                                lookup.GetFieldIndex().field_index());
+        break;
+      case CONSTANT:
+        result = Handle<Object>(lookup.GetConstant(), isolate);
+        break;
+      case CALLBACKS:
+      case HANDLER:
+      case INTERCEPTOR:
+        break;
+      case NONEXISTENT:
+        UNREACHABLE();
+    }
+  }
+  return result;
 }
 
 

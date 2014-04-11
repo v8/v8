@@ -859,9 +859,13 @@ Failure* Isolate::StackOverflow() {
   Handle<Object> error =
       GetProperty(js_builtins_object(), "$Error").ToHandleChecked();
   if (!error->IsJSObject()) return Failure::Exception();
+
+  Handle<String> stackTraceLimit =
+      factory()->InternalizeUtf8String("stackTraceLimit");
+  ASSERT(!stackTraceLimit.is_null());
   Handle<Object> stack_trace_limit =
-      GetProperty(
-          Handle<JSObject>::cast(error), "stackTraceLimit").ToHandleChecked();
+      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
+                                stackTraceLimit);
   if (!stack_trace_limit->IsNumber()) return Failure::Exception();
   double dlimit = stack_trace_limit->Number();
   int limit = std::isnan(dlimit) ? 0 : static_cast<int>(dlimit);
