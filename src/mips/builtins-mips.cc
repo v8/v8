@@ -1305,7 +1305,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ lw(a1, MemOperand(fp, kFunctionOffset));
     __ Push(a1, v0);
-    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
     // End of stack check.
 
     // Push current limit and index.
