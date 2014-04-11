@@ -1579,45 +1579,6 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 }
 
 
-// --- S c r i p t D a t a ---
-
-
-ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
-  i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Isolate* isolate = str->GetIsolate();
-  if (str->IsExternalTwoByteString()) {
-    i::ExternalTwoByteStringUtf16CharacterStream stream(
-        i::Handle<i::ExternalTwoByteString>::cast(str), 0, str->length());
-    return i::PreParserApi::PreParse(isolate, &stream);
-  } else {
-    i::GenericStringUtf16CharacterStream stream(str, 0, str->length());
-    return i::PreParserApi::PreParse(isolate, &stream);
-  }
-}
-
-
-ScriptData* ScriptData::New(const char* data, int length) {
-  // Return an empty ScriptData if the length is obviously invalid.
-  if (length % sizeof(unsigned) != 0) {
-    return new i::ScriptDataImpl();
-  }
-
-  // Copy the data to ensure it is properly aligned.
-  int deserialized_data_length = length / sizeof(unsigned);
-  // If aligned, don't create a copy of the data.
-  if (reinterpret_cast<intptr_t>(data) % sizeof(unsigned) == 0) {
-    return new i::ScriptDataImpl(data, length);
-  }
-  // Copy the data to align it.
-  unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  i::CopyBytes(reinterpret_cast<char*>(deserialized_data),
-               data, static_cast<size_t>(length));
-
-  return new i::ScriptDataImpl(
-      i::Vector<unsigned>(deserialized_data, deserialized_data_length));
-}
-
-
 // --- S c r i p t s ---
 
 
@@ -1731,7 +1692,7 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     Isolate* v8_isolate,
     Source* source,
     CompileOptions options) {
-  i::ScriptDataImpl* script_data_impl = NULL;
+  i::ScriptData* script_data_impl = NULL;
   i::CachedDataMode cached_data_mode = i::NO_CACHED_DATA;
   if (options & kProduceDataToCache) {
     cached_data_mode = i::PRODUCE_CACHED_DATA;
@@ -1744,11 +1705,11 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
       source->cached_data = NULL;
     }
   } else if (source->cached_data) {
-    // FIXME(marja): Make compiler use CachedData directly. Aligning needs to be
-    // taken care of.
-    script_data_impl = static_cast<i::ScriptDataImpl*>(ScriptData::New(
+    // ScriptData takes care of aligning, in case the data is not aligned
+    // correctly.
+    script_data_impl = i::ScriptData::New(
         reinterpret_cast<const char*>(source->cached_data->data),
-        source->cached_data->length));
+        source->cached_data->length);
     // We assert that the pre-data is sane, even though we can actually
     // handle it if it turns out not to be in release mode.
     ASSERT(script_data_impl->SanityCheck());
@@ -1837,22 +1798,15 @@ Local<Script> ScriptCompiler::Compile(
 
 
 Local<Script> Script::Compile(v8::Handle<String> source,
-                              v8::ScriptOrigin* origin,
-                              ScriptData* script_data) {
+                              v8::ScriptOrigin* origin) {
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  ScriptCompiler::CachedData* cached_data = NULL;
-  if (script_data) {
-    cached_data = new ScriptCompiler::CachedData(
-        reinterpret_cast<const uint8_t*>(script_data->Data()),
-        script_data->Length());
-  }
   if (origin) {
-    ScriptCompiler::Source script_source(source, *origin, cached_data);
+    ScriptCompiler::Source script_source(source, *origin);
     return ScriptCompiler::Compile(
         reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
         &script_source);
   }
-  ScriptCompiler::Source script_source(source, cached_data);
+  ScriptCompiler::Source script_source(source);
   return ScriptCompiler::Compile(
       reinterpret_cast<v8::Isolate*>(str->GetIsolate()),
       &script_source);

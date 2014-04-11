@@ -14841,8 +14841,7 @@ TEST(PreCompileSerialization) {
   i::OS::MemCopy(serialized_data, cd->data, cd->length);
 
   // Deserialize.
-  v8::ScriptData* deserialized =
-      v8::ScriptData::New(serialized_data, cd->length);
+  i::ScriptData* deserialized = i::ScriptData::New(serialized_data, cd->length);
 
   // Verify that the original is the same as the deserialized.
   CHECK_EQ(cd->length, deserialized->Length());
@@ -14858,7 +14857,7 @@ TEST(PreCompileDeserializationError) {
   v8::V8::Initialize();
   const char* data = "DONT CARE";
   int invalid_size = 3;
-  v8::ScriptData* sd = v8::ScriptData::New(data, invalid_size);
+  i::ScriptData* sd = i::ScriptData::New(data, invalid_size);
 
   CHECK_EQ(0, sd->Length());
 
@@ -14883,10 +14882,10 @@ TEST(CompileWithInvalidCachedData) {
   // want to modify the data before passing it back.
   const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
   // ScriptData does not take ownership of the buffers passed to it.
-  v8::ScriptData* sd =
-      v8::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
+  i::ScriptData* sd =
+      i::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
   CHECK(!sd->HasError());
-  // ScriptDataImpl private implementation details
+  // ScriptData private implementation details
   const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
   const int kFunctionEntrySize = i::FunctionEntry::kSize;
   const int kFunctionEntryStartOffset = 0;
@@ -14923,7 +14922,7 @@ TEST(CompileWithInvalidCachedData) {
   // will not be found when searching for it by position and we should fall
   // back on eager compilation.
   // ScriptData does not take ownership of the buffers passed to it.
-  sd = v8::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
+  sd = i::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
