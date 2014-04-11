@@ -5341,6 +5341,24 @@ HCheckMaps* HOptimizedGraphBuilder::AddCheckMap(HValue* object,
 HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object) {
+  // See if this is a load for an immutable property
+  if (checked_object->ActualValue()->IsConstant() &&
+      info->lookup()->IsCacheable() &&
+      info->lookup()->IsReadOnly() && info->lookup()->IsDontDelete()) {
+    Handle<Object> object(
+        HConstant::cast(checked_object->ActualValue())->handle(isolate()));
+
+    if (object->IsJSObject()) {
+      LookupResult lookup(isolate());
+      Handle<JSObject>::cast(object)->Lookup(*info->name(), &lookup);
+      Handle<Object> value(lookup.GetLazyValue(), isolate());
+
+      if (!value->IsTheHole()) {
+        return New<HConstant>(value);
+      }
+    }
+  }
+
   HObjectAccess access = info->access();
   if (access.representation().IsDouble()) {
     // Load the heap number.
