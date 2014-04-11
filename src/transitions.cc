@@ -86,17 +86,24 @@ Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
 
 
 Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
-    Handle<TransitionArray> array) {
-  ASSERT(!array->IsFullTransitionArray());
-  int nof = array->number_of_transitions();
-  Handle<TransitionArray> result = Allocate(array->GetIsolate(), nof);
+    Handle<Map> containing_map) {
+  ASSERT(!containing_map->transitions()->IsFullTransitionArray());
+  int nof = containing_map->transitions()->number_of_transitions();
 
-  if (nof == 1) {
+  // A transition array may shrink during GC.
+  Handle<TransitionArray> result = Allocate(containing_map->GetIsolate(), nof);
+  DisallowHeapAllocation no_gc;
+  int new_nof = containing_map->transitions()->number_of_transitions();
+  if (new_nof != nof) {
+    ASSERT(new_nof == 0);
+    result->Shrink(ToKeyIndex(0));
+  } else if (nof == 1) {
     result->NoIncrementalWriteBarrierCopyFrom(
-        *array, kSimpleTransitionIndex, 0);
+        containing_map->transitions(), kSimpleTransitionIndex, 0);
   }
 
-  result->set_back_pointer_storage(array->back_pointer_storage());
+  result->set_back_pointer_storage(
+      containing_map->transitions()->back_pointer_storage());
   return result;
 }
 

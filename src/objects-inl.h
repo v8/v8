@@ -4987,8 +4987,7 @@ static void EnsureHasTransitionArray(Handle<Map> map) {
     transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
     transitions->set_back_pointer_storage(map->GetBackPointer());
   } else if (!map->transitions()->IsFullTransitionArray()) {
-    transitions = TransitionArray::ExtendToFullTransitionArray(
-        handle(map->transitions()));
+    transitions = TransitionArray::ExtendToFullTransitionArray(map);
   } else {
     return;
   }

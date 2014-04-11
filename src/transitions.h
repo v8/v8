@@ -95,8 +95,10 @@ class TransitionArray: public FixedArray {
 
   inline int number_of_entries() { return number_of_transitions(); }
 
+  // Creates a FullTransitionArray from a SimpleTransitionArray in
+  // containing_map.
   static Handle<TransitionArray> ExtendToFullTransitionArray(
-      Handle<TransitionArray> array);
+      Handle<Map> containing_map);
 
   // Create a transition array, copying from the owning map if it already has
   // one, otherwise creating a new one according to flag.
