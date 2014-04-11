@@ -1228,6 +1228,9 @@ class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* right() { return inputs_[1]; }
 
   Token::Value op() const { return hydrogen()->op(); }
+  bool IsInteger32() const {
+    return hydrogen()->representation().IsInteger32();
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(BitI, "bit-i")
   DECLARE_HYDROGEN_ACCESSOR(Bitwise)

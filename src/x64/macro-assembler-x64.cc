@@ -3212,6 +3212,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
   }
 
   bind(&done);
+  // Keep our invariant that the upper 32 bits are zero.
+  movl(result_reg, result_reg);
 }
 
 
@@ -3228,6 +3230,8 @@ void MacroAssembler::TruncateDoubleToI(Register result_reg,
   addp(rsp, Immediate(kDoubleSize));
 
   bind(&done);
+  // Keep our invariant that the upper 32 bits are zero.
+  movl(result_reg, result_reg);
 }
 
 

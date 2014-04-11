@@ -104,7 +104,9 @@ TEST(DisasmX64) {
   __ xorq(rdx, Immediate(3));
   __ nop();
   __ cpuid();
+  __ movsxbl(rdx, Operand(rcx, 0));
   __ movsxbq(rdx, Operand(rcx, 0));
+  __ movsxwl(rdx, Operand(rcx, 0));
   __ movsxwq(rdx, Operand(rcx, 0));
   __ movzxbl(rdx, Operand(rcx, 0));
   __ movzxwl(rdx, Operand(rcx, 0));
