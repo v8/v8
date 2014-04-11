@@ -12778,30 +12778,9 @@ void JSObject::UpdateAllocationSite(Handle<JSObject> object,
   Handle<AllocationSite> site;
   {
     DisallowHeapAllocation no_allocation;
-    // Check if there is potentially a memento behind the object. If
-    // the last word of the momento is on another page we return
-    // immediatelly.
-    Address object_address = object->address();
-    Address memento_address = object_address + JSArray::kSize;
-    Address last_memento_word_address = memento_address + kPointerSize;
-    if (!NewSpacePage::OnSamePage(object_address,
-                                  last_memento_word_address)) {
-      return;
-    }
 
-    // Either object is the last object in the new space, or there is another
-    // object of at least word size (the header map word) following it, so
-    // suffices to compare ptr and top here.
-    Address top = heap->NewSpaceTop();
-    ASSERT(memento_address == top ||
-           memento_address + HeapObject::kHeaderSize <= top);
-    if (memento_address == top) return;
-
-    HeapObject* candidate = HeapObject::FromAddress(memento_address);
-    if (candidate->map() != heap->allocation_memento_map()) return;
-
-    AllocationMemento* memento = AllocationMemento::cast(candidate);
-    if (!memento->IsValid()) return;
+    AllocationMemento* memento = heap->FindAllocationMemento(*object);
+    if (memento == NULL) return;
 
     // Walk through to the Allocation Site
     site = handle(memento->GetAllocationSite());

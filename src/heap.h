@@ -1452,6 +1452,10 @@ class Heap {
     RECORD_SCRATCHPAD_SLOT
   };
 
+  // If an object has an AllocationMemento trailing it, return it, otherwise
+  // return NULL;
+  inline AllocationMemento* FindAllocationMemento(HeapObject* object);
+
   // An object may have an AllocationSite associated with it through a trailing
   // AllocationMemento. Its feedback should be updated when objects are found
   // in the heap.
