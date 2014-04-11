@@ -6412,7 +6412,6 @@ class Map: public HeapObject {
   static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
 
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
-  MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyReplaceDescriptors(
       Handle<Map> map,
