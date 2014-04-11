@@ -796,10 +796,6 @@ void MacroAssembler::VFPEnsureFPSCRState(Register scratch) {
   // If needed, restore wanted bits of FPSCR.
   Label fpscr_done;
   vmrs(scratch);
-  if (emit_debug_code()) {
-    tst(scratch, Operand(kVFPRoundingModeMask));
-    Assert(eq, kDefaultRoundingModeNotSet);
-  }
   tst(scratch, Operand(kVFPDefaultNaNModeControlBit));
   b(ne, &fpscr_done);
   orr(scratch, scratch, Operand(kVFPDefaultNaNModeControlBit));
@@ -3804,19 +3800,36 @@ void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
 void MacroAssembler::ClampDoubleToUint8(Register result_reg,
                                         DwVfpRegister input_reg,
                                         LowDwVfpRegister double_scratch) {
+  Label above_zero;
   Label done;
+  Label in_bounds;
 
-  // Handle inputs >= 255 (including +infinity).
+  VFPCompareAndSetFlags(input_reg, 0.0);
+  b(gt, &above_zero);
+
+  // Double value is less than zero, NaN or Inf, return 0.
+  mov(result_reg, Operand::Zero());
+  b(al, &done);
+
+  // Double value is >= 255, return 255.
+  bind(&above_zero);
   Vmov(double_scratch, 255.0, result_reg);
-  mov(result_reg, Operand(255));
   VFPCompareAndSetFlags(input_reg, double_scratch);
-  b(ge, &done);
+  b(le, &in_bounds);
+  mov(result_reg, Operand(255));
+  b(al, &done);
 
-  // For inputs < 255 (including negative) vcvt_u32_f64 with round-to-nearest
-  // rounding mode will provide the correct result.
-  vcvt_u32_f64(double_scratch.low(), input_reg, kFPSCRRounding);
+  // In 0-255 range, round and truncate.
+  bind(&in_bounds);
+  // Save FPSCR.
+  vmrs(ip);
+  // Set rounding mode to round to the nearest integer by clearing bits[23:22].
+  bic(result_reg, ip, Operand(kVFPRoundingModeMask));
+  vmsr(result_reg);
+  vcvt_s32_f64(double_scratch.low(), input_reg, kFPSCRRounding);
   vmov(result_reg, double_scratch.low());
-
+  // Restore FPSCR.
+  vmsr(ip);
   bind(&done);
 }
 

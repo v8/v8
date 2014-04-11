@@ -1127,7 +1127,6 @@ class MaybeObject BASE_EMBEDDED {
   V(kDeclarationInCatchContext, "Declaration in catch context")               \
   V(kDeclarationInWithContext, "Declaration in with context")                 \
   V(kDefaultNaNModeNotSet, "Default NaN mode not set")                        \
-  V(kDefaultRoundingModeNotSet, "Default rounding mode not set")              \
   V(kDeleteWithGlobalVariable, "Delete with global variable")                 \
   V(kDeleteWithNonGlobalVariable, "Delete with non-global variable")          \
   V(kDestinationOfCopyNotAligned, "Destination of copy not aligned")          \
