@@ -398,12 +398,11 @@ Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
       Object::GetProperty(script_wrapper, name_or_source_url_key);
   ASSERT(property->IsJSFunction());
   Handle<JSFunction> method = Handle<JSFunction>::cast(property);
-  bool caught_exception;
-  Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
-                                             NULL, &caught_exception);
-  if (caught_exception) {
-    result = isolate->factory()->undefined_value();
-  }
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      Execution::TryCall(method, script_wrapper, 0, NULL),
+      isolate->factory()->undefined_value());
   return result;
 }
 
@@ -437,17 +436,19 @@ MaybeHandle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
     if (p->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
       Handle<Object> args[] = { proxy };
-      bool has_pending_exception;
-      Handle<Object> names = Execution::Call(isolate,
-                                             isolate->proxy_enumerate(),
-                                             object,
-                                             ARRAY_SIZE(args),
-                                             args,
-                                             &has_pending_exception);
-      if (has_pending_exception) return MaybeHandle<FixedArray>();
+      Handle<Object> names;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, names,
+          Execution::Call(isolate,
+                          isolate->proxy_enumerate(),
+                          object,
+                          ARRAY_SIZE(args),
+                          args),
+          FixedArray);
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, content,
-          FixedArray::AddKeysFromJSArray(content, Handle<JSArray>::cast(names)),
+          FixedArray::AddKeysFromJSArray(
+              content, Handle<JSArray>::cast(names)),
           FixedArray);
       break;
     }
@@ -528,22 +529,9 @@ MaybeHandle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
 
     // If we only want local properties we bail out after the first
     // iteration.
-    if (type == LOCAL_ONLY)
-      break;
+    if (type == LOCAL_ONLY) break;
   }
   return content;
-}
-
-
-MaybeHandle<JSArray> GetKeysFor(Handle<JSReceiver> object) {
-  Isolate* isolate = object->GetIsolate();
-  isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, elements,
-      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS),
-      JSArray);
-  return isolate->factory()->NewJSArrayWithElements(elements);
 }
 
 

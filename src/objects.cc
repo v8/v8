@@ -555,12 +555,7 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   }
 #endif
 
-  bool has_pending_exception;
-  Handle<Object> result = Execution::Call(
-      isolate, getter, receiver, 0, NULL, &has_pending_exception, true);
-  // Check for pending exception and return the result.
-  if (has_pending_exception) return MaybeHandle<Object>();
-  return result;
+  return Execution::Call(isolate, getter, receiver, 0, NULL, true);
 }
 
 
@@ -2151,14 +2146,11 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
   }
   Handle<Object> args[] = { type, object, name, old_value };
   int argc = name.is_null() ? 2 : old_value->IsTheHole() ? 3 : 4;
-  bool threw;
 
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
-                  argc, args,
-                  &threw);
-  ASSERT(!threw);
+                  argc, args).Assert();
 }
 
 
@@ -2929,7 +2921,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
+MaybeHandle<Object> JSReceiver::SetPropertyWithDefinedSetter(
     Handle<JSReceiver> object,
     Handle<JSReceiver> setter,
     Handle<Object> value) {
@@ -2945,12 +2937,11 @@ Handle<Object> JSReceiver::SetPropertyWithDefinedSetter(
   }
 #endif
 
-  bool has_pending_exception;
   Handle<Object> argv[] = { value };
-  Execution::Call(
-      isolate, setter, object, ARRAY_SIZE(argv), argv, &has_pending_exception);
-  // Check for pending exception and return the result.
-  if (has_pending_exception) return Handle<Object>();
+  RETURN_ON_EXCEPTION(
+      isolate,
+      Execution::Call(isolate, setter, object, ARRAY_SIZE(argv), argv),
+      Object);
   return value;
 }
 
@@ -3616,12 +3607,16 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   }
 
   // Emulate [[GetProperty]] semantics for proxies.
-  bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc = Execution::Call(
-      isolate, isolate->to_complete_property_descriptor(), result,
-      ARRAY_SIZE(argv), argv, &has_pending_exception);
-  if (has_pending_exception) return MaybeHandle<Object>();
+  Handle<Object> desc;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, desc,
+      Execution::Call(isolate,
+                      isolate->to_complete_property_descriptor(),
+                      result,
+                      ARRAY_SIZE(argv),
+                      argv),
+      Object);
 
   // [[GetProperty]] requires to check that all properties are configurable.
   Handle<String> configurable_name =
@@ -3746,12 +3741,16 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
 
   if (result->IsUndefined()) return ABSENT;
 
-  bool has_pending_exception;
   Handle<Object> argv[] = { result };
-  Handle<Object> desc = Execution::Call(
-      isolate, isolate->to_complete_property_descriptor(), result,
-      ARRAY_SIZE(argv), argv, &has_pending_exception);
-  if (has_pending_exception) return NONE;
+  Handle<Object> desc;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, desc,
+      Execution::Call(isolate,
+                      isolate->to_complete_property_descriptor(),
+                      result,
+                      ARRAY_SIZE(argv),
+                      argv),
+      NONE);
 
   // Convert result to PropertyAttributes.
   Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
@@ -3850,8 +3849,7 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
     trap = Handle<Object>(derived);
   }
 
-  bool threw;
-  return Execution::Call(isolate, trap, handler, argc, argv, &threw);
+  return Execution::Call(isolate, trap, handler, argc, argv);
 }
 
 
@@ -11315,12 +11313,11 @@ static void EnqueueSpliceRecord(Handle<JSArray> object,
   Handle<Object> args[] =
       { object, index_object, deleted, add_count_object };
 
-  bool threw;
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_enqueue_splice()),
-                  isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
-                  &threw);
-  ASSERT(!threw);
+                  isolate->factory()->undefined_value(),
+                  ARRAY_SIZE(args),
+                  args).Assert();
 }
 
 
@@ -11329,12 +11326,11 @@ static void BeginPerformSplice(Handle<JSArray> object) {
   HandleScope scope(isolate);
   Handle<Object> args[] = { object };
 
-  bool threw;
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_begin_perform_splice()),
-                  isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
-                  &threw);
-  ASSERT(!threw);
+                  isolate->factory()->undefined_value(),
+                  ARRAY_SIZE(args),
+                  args).Assert();
 }
 
 
@@ -11343,12 +11339,11 @@ static void EndPerformSplice(Handle<JSArray> object) {
   HandleScope scope(isolate);
   Handle<Object> args[] = { object };
 
-  bool threw;
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_end_perform_splice()),
-                  isolate->factory()->undefined_value(), ARRAY_SIZE(args), args,
-                  &threw);
-  ASSERT(!threw);
+                  isolate->factory()->undefined_value(),
+                  ARRAY_SIZE(args),
+                  args).Assert();
 }
 
 
@@ -11998,12 +11993,12 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
 }
 
 
-Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
-                                                Handle<Object> structure,
-                                                uint32_t index,
-                                                Handle<Object> value,
-                                                Handle<JSObject> holder,
-                                                StrictMode strict_mode) {
+MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
+                                                     Handle<Object> structure,
+                                                     uint32_t index,
+                                                     Handle<Object> value,
+                                                     Handle<JSObject> holder,
+                                                     StrictMode strict_mode) {
   Isolate* isolate = object->GetIsolate();
 
   // We should never get here to initialize a const with the hole
@@ -12031,7 +12026,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
     args.Call(call_fun,
               v8::Utils::ToLocal(key),
               v8::Utils::ToLocal(value));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return value;
   }
 
@@ -12047,8 +12042,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
       Handle<Object> args[2] = { key, holder };
       Handle<Object> error = isolate->factory()->NewTypeError(
           "no_setter_in_callback", HandleVector(args, 2));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
   }
 
@@ -12056,7 +12050,7 @@ Handle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
   if (structure->IsDeclaredAccessorInfo()) return value;
 
   UNREACHABLE();
-  return Handle<Object>();
+  return MaybeHandle<Object>();
 }
 
 
@@ -12491,11 +12485,9 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
     if (!value->IsNumber() && !value->IsUndefined()) {
-      bool has_exception;
-      Handle<Object> number =
-          Execution::ToNumber(isolate, value, &has_exception);
-      if (has_exception) return MaybeHandle<Object>();
-      value = number;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, value,
+          Execution::ToNumber(isolate, value), Object);
     }
   }
 

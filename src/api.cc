@@ -1707,21 +1707,16 @@ Local<Value> Script::Run() {
   ENTER_V8(isolate);
   i::Logger::TimerEventScope timer_scope(
       isolate, i::Logger::TimerEventScope::v8_execute);
-  i::Object* raw_result = NULL;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::JSFunction> fun =
-        i::Handle<i::JSFunction>(i::JSFunction::cast(*obj), isolate);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> receiver(
-        isolate->context()->global_proxy(), isolate);
-    i::Handle<i::Object> result = i::Execution::Call(
-        isolate, fun, receiver, 0, NULL, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
-    raw_result = *result;
-  }
-  i::Handle<i::Object> result(raw_result, isolate);
-  return Utils::ToLocal(result);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> receiver(
+      isolate->context()->global_proxy(), isolate);
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Execution::Call(
+      isolate, fun, receiver, 0, NULL).ToHandle(&result);
+  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
+  return Utils::ToLocal(scope.CloseAndEscape(result));
 }
 
 
@@ -2040,11 +2035,11 @@ v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
 }
 
 
-static i::Handle<i::Object> CallV8HeapFunction(const char* name,
-                                               i::Handle<i::Object> recv,
-                                               int argc,
-                                               i::Handle<i::Object> argv[],
-                                               bool* has_pending_exception) {
+MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
+    const char* name,
+    i::Handle<i::Object> recv,
+    int argc,
+    i::Handle<i::Object> argv[]) {
   i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::String> fmt_str =
       isolate->factory()->InternalizeUtf8String(name);
@@ -2052,21 +2047,18 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
       i::GlobalObject::GetPropertyNoExceptionThrown(
           isolate->js_builtins_object(), fmt_str);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(object_fun);
-  i::Handle<i::Object> value = i::Execution::Call(
-      isolate, fun, recv, argc, argv, has_pending_exception);
-  return value;
+  return i::Execution::Call(isolate, fun, recv, argc, argv);
 }
 
 
-static i::Handle<i::Object> CallV8HeapFunction(const char* name,
-                                               i::Handle<i::Object> data,
-                                               bool* has_pending_exception) {
+MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
+    const char* name,
+    i::Handle<i::Object> data) {
   i::Handle<i::Object> argv[] = { data };
   return CallV8HeapFunction(name,
                             i::Isolate::Current()->js_builtins_object(),
                             ARRAY_SIZE(argv),
-                            argv,
-                            has_pending_exception);
+                            argv);
 }
 
 
@@ -2077,9 +2069,9 @@ int Message::GetLineNumber() const {
   i::HandleScope scope(isolate);
 
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = CallV8HeapFunction("GetLineNumber",
-                                                   Utils::OpenHandle(this),
-                                                   &has_pending_exception);
+  i::Handle<i::Object> result;
+  has_pending_exception = !CallV8HeapFunction(
+      "GetLineNumber", Utils::OpenHandle(this)).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, 0);
   return static_cast<int>(result->Number());
 }
@@ -2111,10 +2103,9 @@ int Message::GetStartColumn() const {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
-      "GetPositionInLine",
-      data_obj,
-      &has_pending_exception);
+  i::Handle<i::Object> start_col_obj;
+  has_pending_exception = !CallV8HeapFunction(
+      "GetPositionInLine", data_obj).ToHandle(&start_col_obj);
   EXCEPTION_BAILOUT_CHECK(isolate, 0);
   return static_cast<int>(start_col_obj->Number());
 }
@@ -2126,10 +2117,9 @@ int Message::GetEndColumn() const {
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
-      "GetPositionInLine",
-      data_obj,
-      &has_pending_exception);
+  i::Handle<i::Object> start_col_obj;
+  has_pending_exception = !CallV8HeapFunction(
+      "GetPositionInLine", data_obj).ToHandle(&start_col_obj);
   EXCEPTION_BAILOUT_CHECK(isolate, 0);
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(data_obj);
@@ -2158,9 +2148,9 @@ Local<String> Message::GetSourceLine() const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
-                                                   Utils::OpenHandle(this),
-                                                   &has_pending_exception);
+  i::Handle<i::Object> result;
+  has_pending_exception = !CallV8HeapFunction(
+      "GetSourceLine", Utils::OpenHandle(this)).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::String>());
   if (result->IsString()) {
     return scope.Escape(Utils::ToLocal(i::Handle<i::String>::cast(result)));
@@ -2557,7 +2547,8 @@ Local<String> Value::ToString() const {
     LOG_API(isolate, "ToString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    str = i::Execution::ToString(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToString(
+        isolate, obj).ToHandle(&str);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return ToApiHandle<String>(str);
@@ -2574,7 +2565,8 @@ Local<String> Value::ToDetailString() const {
     LOG_API(isolate, "ToDetailString");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    str = i::Execution::ToDetailString(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToDetailString(
+        isolate, obj).ToHandle(&str);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return ToApiHandle<String>(str);
@@ -2591,7 +2583,8 @@ Local<v8::Object> Value::ToObject() const {
     LOG_API(isolate, "ToObject");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    val = i::Execution::ToObject(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToObject(
+        isolate, obj).ToHandle(&val);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   }
   return ToApiHandle<Object>(val);
@@ -2623,7 +2616,8 @@ Local<Number> Value::ToNumber() const {
     LOG_API(isolate, "ToNumber");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToNumber(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToNumber(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Number>());
   }
   return ToApiHandle<Number>(num);
@@ -2640,7 +2634,8 @@ Local<Integer> Value::ToInteger() const {
     LOG_API(isolate, "ToInteger");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInteger(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToInteger(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Integer>());
   }
   return ToApiHandle<Integer>(num);
@@ -2850,7 +2845,8 @@ double Value::NumberValue() const {
     LOG_API(isolate, "NumberValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToNumber(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToNumber(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, i::OS::nan_value());
   }
   return num->Number();
@@ -2867,7 +2863,8 @@ int64_t Value::IntegerValue() const {
     LOG_API(isolate, "IntegerValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInteger(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToInteger(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
   }
   if (num->IsSmi()) {
@@ -2888,7 +2885,7 @@ Local<Int32> Value::ToInt32() const {
     LOG_API(isolate, "ToInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToInt32(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Int32>());
   }
   return ToApiHandle<Int32>(num);
@@ -2905,7 +2902,8 @@ Local<Uint32> Value::ToUint32() const {
     LOG_API(isolate, "ToUInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    num = i::Execution::ToUint32(isolate, obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToUint32(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   }
   return ToApiHandle<Uint32>(num);
@@ -2922,8 +2920,9 @@ Local<Uint32> Value::ToArrayIndex() const {
   LOG_API(isolate, "ToArrayIndex");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> string_obj =
-      i::Execution::ToString(isolate, obj, &has_pending_exception);
+  i::Handle<i::Object> string_obj;
+  has_pending_exception = !i::Execution::ToString(
+      isolate, obj).ToHandle(&string_obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   i::Handle<i::String> str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
@@ -2949,8 +2948,8 @@ int32_t Value::Int32Value() const {
     LOG_API(isolate, "Int32Value (slow)");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> num =
-        i::Execution::ToInt32(isolate, obj, &has_pending_exception);
+    i::Handle<i::Object> num;
+    has_pending_exception = !i::Execution::ToInt32(isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
@@ -2980,9 +2979,9 @@ bool Value::Equals(Handle<Value> that) const {
   }
   i::Handle<i::Object> args[] = { other };
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result =
-      CallV8HeapFunction("EQUALS", obj, ARRAY_SIZE(args), args,
-                         &has_pending_exception);
+  i::Handle<i::Object> result;
+  has_pending_exception = !CallV8HeapFunction(
+      "EQUALS", obj, ARRAY_SIZE(args), args).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return *result == i::Smi::FromInt(i::EQUAL);
 }
@@ -3044,8 +3043,9 @@ uint32_t Value::Uint32Value() const {
     LOG_API(isolate, "Uint32Value");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> num =
-        i::Execution::ToUint32(isolate, obj, &has_pending_exception);
+    i::Handle<i::Object> num;
+    has_pending_exception = !i::Execution::ToUint32(
+        isolate, obj).ToHandle(&num);
     EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
@@ -3189,7 +3189,8 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   if (!key_obj->IsName()) {
     EXCEPTION_PREAMBLE(isolate);
-    key_obj = i::Execution::ToString(isolate, key_obj, &has_pending_exception);
+    has_pending_exception = !i::Execution::ToString(
+        isolate, key_obj).ToHandle(&key_obj);
     EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
   }
   i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
@@ -3919,15 +3920,17 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Value> recv,
     fun = i::Handle<i::JSFunction>::cast(obj);
   } else {
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> delegate = i::Execution::TryGetFunctionDelegate(
-        isolate, obj, &has_pending_exception);
+    i::Handle<i::Object> delegate;
+    has_pending_exception = !i::Execution::TryGetFunctionDelegate(
+        isolate, obj).ToHandle(&delegate);
     EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
     fun = i::Handle<i::JSFunction>::cast(delegate);
     recv_obj = obj;
   }
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> returned = i::Execution::Call(
-      isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
+  i::Handle<i::Object> returned;
+  has_pending_exception = !i::Execution::Call(
+      isolate, fun, recv_obj, argc, args, true).ToHandle(&returned);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
@@ -3949,21 +3952,24 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
   if (obj->IsJSFunction()) {
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned =
-        i::Execution::New(fun, argc, args, &has_pending_exception);
+    i::Handle<i::Object> returned;
+    has_pending_exception = !i::Execution::New(
+        fun, argc, args).ToHandle(&returned);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
     return Utils::ToLocal(scope.CloseAndEscape(
         i::Handle<i::JSObject>::cast(returned)));
   }
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> delegate = i::Execution::TryGetConstructorDelegate(
-      isolate, obj, &has_pending_exception);
+  i::Handle<i::Object> delegate;
+  has_pending_exception = !i::Execution::TryGetConstructorDelegate(
+      isolate, obj).ToHandle(&delegate);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   if (!delegate->IsUndefined()) {
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
     EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned = i::Execution::Call(
-        isolate, fun, obj, argc, args, &has_pending_exception);
+    i::Handle<i::Object> returned;
+    has_pending_exception = !i::Execution::Call(
+        isolate, fun, obj, argc, args).ToHandle(&returned);
     EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
     ASSERT(!delegate->IsUndefined());
     return Utils::ToLocal(scope.CloseAndEscape(returned));
@@ -4004,8 +4010,9 @@ Local<v8::Object> Function::NewInstance(int argc,
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> returned =
-      i::Execution::New(function, argc, args, &has_pending_exception);
+  i::Handle<i::Object> returned;
+  has_pending_exception = !i::Execution::New(
+      function, argc, args).ToHandle(&returned);
   EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
   return scope.Escape(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
 }
@@ -4019,21 +4026,17 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Value> recv, int argc,
   ENTER_V8(isolate);
   i::Logger::TimerEventScope timer_scope(
       isolate, i::Logger::TimerEventScope::v8_execute);
-  i::Object* raw_result = NULL;
-  {
-    i::HandleScope scope(isolate);
-    i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
-    i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
-    STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
-    i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-    EXCEPTION_PREAMBLE(isolate);
-    i::Handle<i::Object> returned = i::Execution::Call(
-        isolate, fun, recv_obj, argc, args, &has_pending_exception, true);
-    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
-    raw_result = *returned;
-  }
-  i::Handle<i::Object> result(raw_result, isolate);
-  return Utils::ToLocal(result);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
+  i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> returned;
+  has_pending_exception = !i::Execution::Call(
+      isolate, fun, recv_obj, argc, args, true).ToHandle(&returned);
+  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
+  return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
 
 
@@ -5306,9 +5309,9 @@ Local<v8::Object> ObjectTemplate::NewInstance() {
   LOG_API(isolate, "ObjectTemplate::NewInstance");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj =
-      i::Execution::InstantiateObject(Utils::OpenHandle(this),
-                                      &has_pending_exception);
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Execution::InstantiateObject(
+      Utils::OpenHandle(this)).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(obj));
 }
@@ -5321,9 +5324,9 @@ Local<v8::Function> FunctionTemplate::GetFunction() {
   LOG_API(isolate, "FunctionTemplate::GetFunction");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj =
-      i::Execution::InstantiateFunction(Utils::OpenHandle(this),
-                                        &has_pending_exception);
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Execution::InstantiateFunction(
+      Utils::OpenHandle(this)).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Function>());
   return Utils::ToLocal(i::Handle<i::JSFunction>::cast(obj));
 }
@@ -5705,8 +5708,9 @@ Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
   }
   ENTER_V8(i_isolate);
   EXCEPTION_PREAMBLE(i_isolate);
-  i::Handle<i::Object> obj =
-      i::Execution::NewDate(i_isolate, time, &has_pending_exception);
+  i::Handle<i::Object> obj;
+  has_pending_exception = !i::Execution::NewDate(
+      i_isolate, time).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(i_isolate, Local<v8::Value>());
   return Utils::ToLocal(obj);
 }
@@ -5766,10 +5770,10 @@ Local<v8::RegExp> v8::RegExp::New(Handle<String> pattern,
   LOG_API(isolate, "RegExp::New");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::JSRegExp> obj = i::Execution::NewJSRegExp(
+  i::Handle<i::JSRegExp> obj;
+  has_pending_exception = !i::Execution::NewJSRegExp(
       Utils::OpenHandle(*pattern),
-      RegExpFlagsToString(flags),
-      &has_pending_exception);
+      RegExpFlagsToString(flags)).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::RegExp>());
   return Utils::ToLocal(i::Handle<i::JSRegExp>::cast(obj));
 }
@@ -5853,14 +5857,14 @@ bool Value::IsPromise() const {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { obj };
-  i::Handle<i::Object> b = i::Execution::Call(
+  i::Handle<i::Object> b;
+  has_pending_exception = !i::Execution::Call(
       isolate,
       handle(
           isolate->context()->global_object()->native_context()->is_promise()),
       isolate->factory()->undefined_value(),
       ARRAY_SIZE(argv), argv,
-      &has_pending_exception,
-      false);
+      false).ToHandle(&b);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return b->BooleanValue();
 }
@@ -5871,14 +5875,14 @@ Local<Promise::Resolver> Promise::Resolver::New(Isolate* v8_isolate) {
   LOG_API(isolate, "Promise::Resolver::New");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::Execution::Call(
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Execution::Call(
       isolate,
       handle(isolate->context()->global_object()->native_context()->
              promise_create()),
       isolate->factory()->undefined_value(),
       0, NULL,
-      &has_pending_exception,
-      false);
+      false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise::Resolver>());
   return Local<Promise::Resolver>::Cast(Utils::ToLocal(result));
 }
@@ -5897,14 +5901,13 @@ void Promise::Resolver::Resolve(Handle<Value> value) {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };
-  i::Execution::Call(
+  has_pending_exception = i::Execution::Call(
       isolate,
       handle(isolate->context()->global_object()->native_context()->
              promise_resolve()),
       isolate->factory()->undefined_value(),
       ARRAY_SIZE(argv), argv,
-      &has_pending_exception,
-      false);
+      false).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
 }
 
@@ -5916,14 +5919,13 @@ void Promise::Resolver::Reject(Handle<Value> value) {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { promise, Utils::OpenHandle(*value) };
-  i::Execution::Call(
+  has_pending_exception = i::Execution::Call(
       isolate,
       handle(isolate->context()->global_object()->native_context()->
              promise_reject()),
       isolate->factory()->undefined_value(),
       ARRAY_SIZE(argv), argv,
-      &has_pending_exception,
-      false);
+      false).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
 }
 
@@ -5935,14 +5937,14 @@ Local<Promise> Promise::Chain(Handle<Function> handler) {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { Utils::OpenHandle(*handler) };
-  i::Handle<i::Object> result = i::Execution::Call(
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Execution::Call(
       isolate,
       handle(isolate->context()->global_object()->native_context()->
              promise_chain()),
       promise,
       ARRAY_SIZE(argv), argv,
-      &has_pending_exception,
-      false);
+      false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
   return Local<Promise>::Cast(Utils::ToLocal(result));
 }
@@ -5955,14 +5957,14 @@ Local<Promise> Promise::Catch(Handle<Function> handler) {
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> argv[] = { Utils::OpenHandle(*handler) };
-  i::Handle<i::Object> result = i::Execution::Call(
+  i::Handle<i::Object> result;
+  has_pending_exception = !i::Execution::Call(
       isolate,
       handle(isolate->context()->global_object()->native_context()->
              promise_catch()),
       promise,
       ARRAY_SIZE(argv), argv,
-      &has_pending_exception,
-      false);
+      false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
   return Local<Promise>::Cast(Utils::ToLocal(result));
 }
@@ -6971,17 +6973,17 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   if (!isolate->IsInitialized()) return Local<Value>();
   ON_BAILOUT(isolate, "v8::Debug::Call()", return Local<Value>());
   ENTER_V8(isolate);
-  i::Handle<i::Object> result;
+  i::MaybeHandle<i::Object> maybe_result;
   EXCEPTION_PREAMBLE(isolate);
   if (data.IsEmpty()) {
-    result = isolate->debugger()->Call(Utils::OpenHandle(*fun),
-                                       isolate->factory()->undefined_value(),
-                                       &has_pending_exception);
+    maybe_result = isolate->debugger()->Call(
+        Utils::OpenHandle(*fun), isolate->factory()->undefined_value());
   } else {
-    result = isolate->debugger()->Call(Utils::OpenHandle(*fun),
-                                       Utils::OpenHandle(*data),
-                                       &has_pending_exception);
+    maybe_result = isolate->debugger()->Call(
+        Utils::OpenHandle(*fun), Utils::OpenHandle(*data));
   }
+  i::Handle<i::Object> result;
+  has_pending_exception = !maybe_result.ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
 }

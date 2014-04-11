@@ -202,13 +202,12 @@ MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
 
   Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
 
-  bool has_exception;
-  Handle<Object> uint32_v =
-      Execution::ToUint32(isolate, value, &has_exception);
-  if (has_exception) return Failure::Exception();
-  Handle<Object> number_v =
-      Execution::ToNumber(isolate, value, &has_exception);
-  if (has_exception) return Failure::Exception();
+  Handle<Object> uint32_v;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, uint32_v, Execution::ToUint32(isolate, value));
+  Handle<Object> number_v;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, number_v, Execution::ToNumber(isolate, value));
 
   if (uint32_v->Number() == number_v->Number()) {
     Handle<Object> result;

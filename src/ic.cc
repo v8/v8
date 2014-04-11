@@ -2434,10 +2434,10 @@ MaybeObject* BinaryOpIC::Transition(Handle<AllocationSite> allocation_site,
   Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
       TokenToJSBuiltin(state.op()));
   Handle<JSFunction> function = handle(JSFunction::cast(builtin), isolate());
-  bool caught_exception;
-  Handle<Object> result = Execution::Call(
-      isolate(), function, left, 1, &right, &caught_exception);
-  if (caught_exception) return Failure::Exception();
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate(), result,
+      Execution::Call(isolate(), function, left, 1, &right));
 
   // Execution::Call can execute arbitrary JavaScript, hence potentially
   // update the state of this very IC, so we must update the stored state.

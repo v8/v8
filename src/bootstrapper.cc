@@ -1508,10 +1508,8 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
                      ? top_context->builtins()
                      : top_context->global_object(),
                      isolate);
-  bool has_pending_exception;
-  Execution::Call(isolate, fun, receiver, 0, NULL, &has_pending_exception);
-  if (has_pending_exception) return false;
-  return true;
+  return !Execution::Call(
+      isolate, fun, receiver, 0, NULL).is_null();
 }
 
 
@@ -2401,10 +2399,10 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
   ASSERT(FunctionTemplateInfo::cast(object_template->constructor())
              ->IsTemplateFor(object->map()));;
 
-  bool pending_exception = false;
-  Handle<JSObject> obj =
-      Execution::InstantiateObject(object_template, &pending_exception);
-  if (pending_exception) {
+  MaybeHandle<JSObject> maybe_obj =
+      Execution::InstantiateObject(object_template);
+  Handle<JSObject> obj;
+  if (!maybe_obj.ToHandle(&obj)) {
     ASSERT(isolate()->has_pending_exception());
     isolate()->clear_pending_exception();
     return false;

@@ -161,15 +161,10 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
                             Handle<Object>(message->arguments(), isolate) };
 
-  bool caught_exception;
-  Handle<Object> result =
-      Execution::TryCall(fun,
-                         isolate->js_builtins_object(),
-                         ARRAY_SIZE(argv),
-                         argv,
-                         &caught_exception);
-
-  if (caught_exception || !result->IsString()) {
+  MaybeHandle<Object> maybe_result = Execution::TryCall(
+      fun, isolate->js_builtins_object(), ARRAY_SIZE(argv), argv);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);

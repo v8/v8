@@ -1257,10 +1257,8 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
   i::Handle<i::Object> format_fun =
       i::GetProperty(builtins, "FormatMessage").ToHandleChecked();
   i::Handle<i::Object> arg_handles[] = { format, args_array };
-  bool has_exception = false;
   i::Handle<i::Object> result = i::Execution::Call(
-      isolate, format_fun, builtins, 2, arg_handles, &has_exception);
-  CHECK(!has_exception);
+      isolate, format_fun, builtins, 2, arg_handles).ToHandleChecked();
   CHECK(result->IsString());
   for (int i = 0; i < args.length(); i++) {
     i::DeleteArray(args[i]);

@@ -1158,12 +1158,15 @@ Handle<Object> Factory::NewError(const char* maker,
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
-  bool caught_exception;
-  Handle<Object> result = Execution::TryCall(fun,
-                                             isolate()->js_builtins_object(),
-                                             ARRAY_SIZE(argv),
-                                             argv,
-                                             &caught_exception);
+  Handle<Object> result;
+  Handle<Object> exception;
+  if (!Execution::TryCall(fun,
+                          isolate()->js_builtins_object(),
+                          ARRAY_SIZE(argv),
+                          argv,
+                          &exception).ToHandle(&result)) {
+    return exception;
+  }
   return result;
 }
 
@@ -1183,12 +1186,15 @@ Handle<Object> Factory::NewError(const char* constructor,
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
-  bool caught_exception;
-  Handle<Object> result = Execution::TryCall(fun,
-                                             isolate()->js_builtins_object(),
-                                             ARRAY_SIZE(argv),
-                                             argv,
-                                             &caught_exception);
+  Handle<Object> result;
+  Handle<Object> exception;
+  if (!Execution::TryCall(fun,
+                          isolate()->js_builtins_object(),
+                          ARRAY_SIZE(argv),
+                          argv,
+                          &exception).ToHandle(&result)) {
+    return exception;
+  }
   return result;
 }
 
@@ -1991,20 +1997,18 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
 
 
 
-void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
-                                Handle<JSObject> instance,
-                                bool* pending_exception) {
+MaybeHandle<FunctionTemplateInfo> Factory::ConfigureInstance(
+    Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance) {
   // Configure the instance by adding the properties specified by the
   // instance template.
   Handle<Object> instance_template(desc->instance_template(), isolate());
   if (!instance_template->IsUndefined()) {
-    Execution::ConfigureInstance(isolate(),
-                                 instance,
-                                 instance_template,
-                                 pending_exception);
-  } else {
-    *pending_exception = false;
+      RETURN_ON_EXCEPTION(
+          isolate(),
+          Execution::ConfigureInstance(isolate(), instance, instance_template),
+          FunctionTemplateInfo);
   }
+  return desc;
 }
 
 

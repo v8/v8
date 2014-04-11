@@ -2130,9 +2130,10 @@ class JSReceiver: public HeapObject {
  protected:
   Smi* GenerateIdentityHash();
 
-  static Handle<Object> SetPropertyWithDefinedSetter(Handle<JSReceiver> object,
-                                                     Handle<JSReceiver> setter,
-                                                     Handle<Object> value);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithDefinedSetter(
+      Handle<JSReceiver> object,
+      Handle<JSReceiver> setter,
+      Handle<Object> value);
 
  private:
   static PropertyAttributes GetPropertyAttributeForResult(
@@ -2811,7 +2812,7 @@ class JSObject: public JSReceiver {
       Handle<JSReceiver> receiver,
       uint32_t index,
       bool continue_search);
-  static Handle<Object> SetElementWithCallback(
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithCallback(
       Handle<JSObject> object,
       Handle<Object> structure,
       uint32_t index,

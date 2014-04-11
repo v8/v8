@@ -319,9 +319,7 @@ enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 // Computes the enumerable keys for a JSObject. Used for implementing
 // "for (n in object) { }".
 MUST_USE_RESULT MaybeHandle<FixedArray> GetKeysInFixedArrayFor(
-    Handle<JSReceiver> object,
-    KeyCollectionType type);
-MUST_USE_RESULT MaybeHandle<JSArray> GetKeysFor(Handle<JSReceiver> object);
+    Handle<JSReceiver> object, KeyCollectionType type);
 Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);

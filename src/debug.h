@@ -786,25 +786,19 @@ class Debugger {
 
   void DebugRequest(const uint16_t* json_request, int length);
 
-  Handle<Object> MakeJSObject(Vector<const char> constructor_name,
-                              int argc,
-                              Handle<Object> argv[],
-                              bool* caught_exception);
-  Handle<Object> MakeExecutionState(bool* caught_exception);
-  Handle<Object> MakeBreakEvent(Handle<Object> exec_state,
-                                Handle<Object> break_points_hit,
-                                bool* caught_exception);
-  Handle<Object> MakeExceptionEvent(Handle<Object> exec_state,
-                                    Handle<Object> exception,
-                                    bool uncaught,
-                                    bool* caught_exception);
-  Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
-                                      bool* caught_exception);
-  Handle<Object> MakeCompileEvent(Handle<Script> script,
-                                  bool before,
-                                  bool* caught_exception);
-  Handle<Object> MakeScriptCollectedEvent(int id,
-                                          bool* caught_exception);
+  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
+      Vector<const char> constructor_name,
+      int argc,
+      Handle<Object> argv[]);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
+  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
+      Handle<Object> break_points_hit);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception, bool uncaught);
+  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+      Handle<Script> script, bool before);
+  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
+
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   void OnException(Handle<Object> exception, bool uncaught);
   void OnBeforeCompile(Handle<Script> script);
@@ -844,9 +838,8 @@ class Debugger {
   // Enqueue a debugger command to the command queue for event listeners.
   void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
 
-  Handle<Object> Call(Handle<JSFunction> fun,
-                      Handle<Object> data,
-                      bool* pending_exception);
+  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
+                                           Handle<Object> data);
 
   // Start the debugger agent listening on the provided port.
   bool StartAgent(const char* name, int port,
