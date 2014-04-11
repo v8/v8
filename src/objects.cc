@@ -170,17 +170,6 @@ MaybeHandle<Object> Object::GetPropertyWithReceiver(
 }
 
 
-MaybeObject* Object::GetPropertyWithReceiver(Object* receiver,
-                                             Name* name,
-                                             PropertyAttributes* attributes) {
-  LookupResult result(name->GetIsolate());
-  Lookup(name, &result);
-  MaybeObject* value = GetProperty(receiver, &result, name, attributes);
-  ASSERT(*attributes <= ABSENT);
-  return value;
-}
-
-
 bool Object::ToInt32(int32_t* value) {
   if (IsSmi()) {
     *value = Smi::cast(this)->value();
@@ -474,69 +463,17 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
 }
 
 
-MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
-                                             Name* name_raw) {
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  Handle<Object> receiver(receiver_raw, isolate);
-  Handle<Object> name(name_raw, isolate);
+MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
+                                                    Handle<Object> receiver,
+                                                    Handle<Name> name) {
+  Isolate* isolate = proxy->GetIsolate();
 
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return isolate->heap()->undefined_value();
+  if (name->IsSymbol()) return isolate->factory()->undefined_value();
 
   Handle<Object> args[] = { receiver, name };
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      CallTrap(handle(this),
-               "get",
-               isolate->derived_get_trap(),
-               ARRAY_SIZE(args),
-               args));
-  return *result;
-}
-
-
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                                 Handle<Name> name) {
-  uint32_t index;
-  Isolate* isolate = name->GetIsolate();
-  if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
-  return GetProperty(object, name);
-}
-
-
-Handle<Object> Object::GetProperty(Handle<Object> object,
-                                   Handle<Name> name) {
-  CALL_HEAP_FUNCTION(name->GetIsolate(), object->GetProperty(*name), Object);
-}
-
-
-MaybeObject* JSProxy::GetElementWithHandler(Object* receiver,
-                                            uint32_t index) {
-  String* name;
-  MaybeObject* maybe = GetHeap()->Uint32ToString(index);
-  if (!maybe->To<String>(&name)) return maybe;
-  return GetPropertyWithHandler(receiver, name);
-}
-
-
-MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
-                                                   Handle<JSReceiver> receiver,
-                                                   uint32_t index,
-                                                   Handle<Object> value,
-                                                   StrictMode strict_mode) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return SetPropertyWithHandler(
-      proxy, receiver, name, value, NONE, strict_mode);
-}
-
-
-bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return HasPropertyWithHandler(proxy, name);
+  return CallTrap(
+      proxy, "get",  isolate->derived_get_trap(), ARRAY_SIZE(args), args);
 }
 
 
@@ -836,29 +773,10 @@ bool JSObject::IsDirty() {
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
                                         Handle<Object> receiver,
                                         LookupResult* result,
-                                        Handle<Name> key,
+                                        Handle<Name> name,
                                         PropertyAttributes* attributes) {
-  Isolate* isolate = result->isolate();
-  CALL_HEAP_FUNCTION(
-      isolate,
-      object->GetProperty(*receiver, result, *key, attributes),
-      Object);
-}
-
-
-// TODO(yangguo): handlify this and get rid of.
-MaybeObject* Object::GetProperty(Object* receiver,
-                                 LookupResult* result,
-                                 Name* name,
-                                 PropertyAttributes* attributes) {
   Isolate* isolate = name->GetIsolate();
-  Heap* heap = isolate->heap();
-
-#ifdef DEBUG
-  // TODO(mstarzinger): Only because of the AssertNoContextChange, drop as soon
-  // as this method has been fully handlified.
-  HandleScope scope(isolate);
-#endif
+  Factory* factory = isolate->factory();
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
@@ -872,93 +790,68 @@ MaybeObject* Object::GetProperty(Object* receiver,
   // holder in the prototype chain.
   // Proxy handlers do not use the proxy's prototype, so we can skip this.
   if (!result->IsHandler()) {
-    Object* last = result->IsProperty()
-        ? result->holder()
-        : Object::cast(heap->null_value());
-    ASSERT(this != this->GetPrototype(isolate));
-    for (Object* current = this;
+    ASSERT(*object != object->GetPrototype(isolate));
+    Handle<Object> last = result->IsProperty()
+        ? Handle<Object>(result->holder(), isolate)
+        : Handle<Object>::cast(factory->null_value());
+    for (Handle<Object> current = object;
          true;
-         current = current->GetPrototype(isolate)) {
+         current = Handle<Object>(current->GetPrototype(isolate), isolate)) {
       if (current->IsAccessCheckNeeded()) {
         // Check if we're allowed to read from the current object. Note
         // that even though we may not actually end up loading the named
         // property from the current object, we still check that we have
         // access to it.
-        JSObject* checked = JSObject::cast(current);
-        if (!isolate->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
-          HandleScope scope(isolate);
-          Handle<Object> value;
-          ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-              isolate, value,
-              JSObject::GetPropertyWithFailedAccessCheck(
-                  handle(checked, isolate),
-                  handle(receiver, isolate),
-                  result,
-                  handle(name, isolate),
-                  attributes));
-          return *value;
+        Handle<JSObject> checked = Handle<JSObject>::cast(current);
+        if (!isolate->MayNamedAccessWrapper(checked, name, v8::ACCESS_GET)) {
+          return JSObject::GetPropertyWithFailedAccessCheck(
+              checked, receiver, result, name, attributes);
         }
       }
       // Stop traversing the chain once we reach the last object in the
       // chain; either the holder of the result or null in case of an
       // absent property.
-      if (current == last) break;
+      if (current.is_identical_to(last)) break;
     }
   }
 
   if (!result->IsProperty()) {
     *attributes = ABSENT;
-    return heap->undefined_value();
+    return factory->undefined_value();
   }
   *attributes = result->GetAttributes();
-  Object* value;
+
+  Handle<Object> value;
+  Handle<JSObject> holder(result->holder(), isolate);
   switch (result->type()) {
-    case NORMAL:
-      value = result->holder()->GetNormalizedProperty(result);
-      ASSERT(!value->IsTheHole() || result->IsReadOnly());
-      return value->IsTheHole() ? heap->undefined_value() : value;
-    case FIELD: {
-      MaybeObject* maybe_result = result->holder()->FastPropertyAt(
-          result->representation(),
-          result->GetFieldIndex().field_index());
-      if (!maybe_result->To(&value)) return maybe_result;
-      ASSERT(!value->IsTheHole() || result->IsReadOnly());
-      return value->IsTheHole() ? heap->undefined_value() : value;
+    case NORMAL: {
+      DisallowHeapAllocation no_gc;
+      value = handle(holder->GetNormalizedProperty(result), isolate);
+      break;
     }
+    case FIELD:
+      value = JSObject::FastPropertyAt(holder,
+                                       result->representation(),
+                                       result->GetFieldIndex().field_index());
+      break;
     case CONSTANT:
-      return result->GetConstant();
-    case CALLBACKS: {
-      HandleScope scope(isolate);
-      Handle<Object> value;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, value,
-          JSObject::GetPropertyWithCallback(
-              handle(result->holder(), isolate),
-              handle(receiver, isolate),
-              handle(result->GetCallbackObject(), isolate),
-              handle(name, isolate)));
-      return *value;
-    }
+      return handle(result->GetConstant(), isolate);
+    case CALLBACKS:
+      return JSObject::GetPropertyWithCallback(
+          holder, receiver, handle(result->GetCallbackObject(), isolate), name);
     case HANDLER:
-      return result->proxy()->GetPropertyWithHandler(receiver, name);
-    case INTERCEPTOR: {
-      HandleScope scope(isolate);
-      Handle<Object> value;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, value,
-          JSObject::GetPropertyWithInterceptor(
-              handle(result->holder(), isolate),
-              handle(receiver, isolate),
-              handle(name, isolate),
-              attributes));
-      return *value;
-    }
+      return JSProxy::GetPropertyWithHandler(
+          handle(result->proxy(), isolate), receiver, name);
+    case INTERCEPTOR:
+      return JSObject::GetPropertyWithInterceptor(
+          holder, receiver, name, attributes);
     case NONEXISTENT:
       UNREACHABLE();
       break;
   }
-  UNREACHABLE();
-  return NULL;
+  ASSERT(!value->IsTheHole() || result->IsReadOnly());
+  return value->IsTheHole() ? Handle<Object>::cast(factory->undefined_value())
+                            : value;
 }
 
 
@@ -988,10 +881,8 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
         holder = Handle<Object>(
             native_context->boolean_function()->instance_prototype(), isolate);
       } else if (holder->IsJSProxy()) {
-        CALL_HEAP_FUNCTION(isolate,
-            Handle<JSProxy>::cast(holder)->GetElementWithHandler(
-                *receiver, index),
-            Object);
+        return JSProxy::GetElementWithHandler(
+            Handle<JSProxy>::cast(holder), receiver, index);
       } else {
         // Undefined and null have no indexed properties.
         ASSERT(holder->IsUndefined() || holder->IsNull());
@@ -3622,9 +3513,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<String> configurable_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("configurable_"));
-  Handle<Object> configurable = Object::GetProperty(desc, configurable_name);
-  ASSERT(!configurable.is_null());
-  ASSERT(configurable->IsTrue() || configurable->IsFalse());
+  Handle<Object> configurable =
+      Object::GetProperty(desc, configurable_name).ToHandleChecked();
+  ASSERT(configurable->IsBoolean());
   if (configurable->IsFalse()) {
     Handle<String> trap =
         isolate->factory()->InternalizeOneByteString(
@@ -3640,16 +3531,16 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   Handle<String> hasWritable_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("hasWritable_"));
-  Handle<Object> hasWritable = Object::GetProperty(desc, hasWritable_name);
-  ASSERT(!hasWritable.is_null());
-  ASSERT(hasWritable->IsTrue() || hasWritable->IsFalse());
+  Handle<Object> hasWritable =
+      Object::GetProperty(desc, hasWritable_name).ToHandleChecked();
+  ASSERT(hasWritable->IsBoolean());
   if (hasWritable->IsTrue()) {
     Handle<String> writable_name =
         isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("writable_"));
-    Handle<Object> writable = Object::GetProperty(desc, writable_name);
-    ASSERT(!writable.is_null());
-    ASSERT(writable->IsTrue() || writable->IsFalse());
+    Handle<Object> writable =
+        Object::GetProperty(desc, writable_name).ToHandleChecked();
+    ASSERT(writable->IsBoolean());
     *done = writable->IsFalse();
     if (!*done) return isolate->factory()->the_hole_value();
     if (strict_mode == SLOPPY) return value;
@@ -3662,8 +3553,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   // We have an AccessorDescriptor.
   Handle<String> set_name = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("set_"));
-  Handle<Object> setter = Object::GetProperty(desc, set_name);
-  ASSERT(!setter.is_null());
+  Handle<Object> setter = Object::GetProperty(desc, set_name).ToHandleChecked();
   if (!setter->IsUndefined()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return SetPropertyWithDefinedSetter(
@@ -3755,21 +3645,25 @@ PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
   // Convert result to PropertyAttributes.
   Handle<String> enum_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("enumerable_"));
-  Handle<Object> enumerable = Object::GetProperty(desc, enum_n);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, enumerable, NONE);
+  Handle<Object> enumerable;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, enumerable, Object::GetProperty(desc, enum_n), NONE);
   Handle<String> conf_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("configurable_"));
-  Handle<Object> configurable = Object::GetProperty(desc, conf_n);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, configurable, NONE);
+  Handle<Object> configurable;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, configurable, Object::GetProperty(desc, conf_n), NONE);
   Handle<String> writ_n = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("writable_"));
-  Handle<Object> writable = Object::GetProperty(desc, writ_n);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, writable, NONE);
+  Handle<Object> writable;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, writable, Object::GetProperty(desc, writ_n), NONE);
   if (!writable->BooleanValue()) {
     Handle<String> set_n = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("set_"));
-    Handle<Object> setter = Object::GetProperty(desc, set_n);
-    RETURN_IF_EMPTY_HANDLE_VALUE(isolate, setter, NONE);
+    Handle<Object> setter;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, setter, Object::GetProperty(desc, set_n), NONE);
     writable = isolate->factory()->ToBoolean(!setter->IsUndefined());
   }
 
@@ -5220,7 +5114,8 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
       if (!GetLocalElementAccessorPair(object, index).is_null()) {
         old_value = Handle<Object>::cast(factory->the_hole_value());
       } else {
-        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
+        old_value = Object::GetElement(
+            isolate, object, index).ToHandleChecked();
       }
     }
   }
@@ -5821,8 +5716,8 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         // In particular, don't try to copy the length attribute of
         // an array.
         if (attributes != NONE) continue;
-        Handle<Object> value = Object::GetProperty(copy, key_string);
-        CHECK_NOT_EMPTY_HANDLE(isolate, value);
+        Handle<Object> value =
+            Object::GetProperty(copy, key_string).ToHandleChecked();
         if (value->IsJSObject()) {
           Handle<JSObject> result = VisitElementOrProperty(
               copy, Handle<JSObject>::cast(value));
@@ -6385,7 +6280,8 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
     if (is_element) {
       preexists = HasLocalElement(object, index);
       if (preexists && GetLocalElementAccessorPair(object, index).is_null()) {
-        old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
+        old_value =
+            Object::GetElement(isolate, object, index).ToHandleChecked();
       }
     } else {
       LookupResult lookup(isolate);
@@ -11293,7 +11189,7 @@ static bool GetOldValue(Isolate* isolate,
   if (!JSObject::GetLocalElementAccessorPair(object, index).is_null()) {
     value = Handle<Object>::cast(isolate->factory()->the_hole_value());
   } else {
-    value = Object::GetElementNoExceptionThrown(isolate, object, index);
+    value = Object::GetElement(isolate, object, index).ToHandleChecked();
   }
   old_values->Add(value);
   indices->Add(index);
@@ -12544,7 +12440,7 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   if (old_attributes != ABSENT) {
     if (GetLocalElementAccessorPair(object, index).is_null()) {
-      old_value = Object::GetElementNoExceptionThrown(isolate, object, index);
+      old_value = Object::GetElement(isolate, object, index).ToHandleChecked();
     }
   } else if (object->IsJSArray()) {
     // Store old array length in case adding an element grows the array.
@@ -12593,7 +12489,7 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
     EnqueueChangeRecord(object, "reconfigure", name, old_value);
   } else {
     Handle<Object> new_value =
-        Object::GetElementNoExceptionThrown(isolate, object, index);
+        Object::GetElement(isolate, object, index).ToHandleChecked();
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();

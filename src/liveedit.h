@@ -216,8 +216,8 @@ class JSArrayBasedStruct {
   }
 
   Handle<Object> GetField(int field_position) {
-    return Object::GetElementNoExceptionThrown(
-        isolate(), array_, field_position);
+    return Object::GetElement(
+        isolate(), array_, field_position).ToHandleChecked();
   }
 
   int GetSmiValueField(int field_position) {
@@ -297,8 +297,8 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
   static bool IsInstance(Handle<JSArray> array) {
     return array->length() == Smi::FromInt(kSize_) &&
-        Object::GetElementNoExceptionThrown(
-            array->GetIsolate(), array, kSharedInfoOffset_)->IsJSValue();
+        Object::GetElement(array->GetIsolate(), array, kSharedInfoOffset_)
+            .ToHandleChecked()->IsJSValue();
   }
 
   explicit SharedInfoWrapper(Handle<JSArray> array)

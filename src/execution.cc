@@ -731,7 +731,8 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   }
 
   Handle<Object> char_at = Object::GetProperty(
-      isolate->js_builtins_object(), factory->char_at_string());
+      isolate->js_builtins_object(),
+      factory->char_at_string()).ToHandleChecked();
   if (!char_at->IsJSFunction()) {
     return factory->undefined_value();
   }
@@ -758,7 +759,7 @@ MaybeHandle<JSFunction> Execution::InstantiateFunction(
     int serial_number = Smi::cast(data->serial_number())->value();
     Handle<JSObject> cache(isolate->native_context()->function_cache());
     Handle<Object> elm =
-        Object::GetElementNoExceptionThrown(isolate, cache, serial_number);
+        Object::GetElement(isolate, cache, serial_number).ToHandleChecked();
     if (elm->IsJSFunction()) return Handle<JSFunction>::cast(elm);
   }
   // The function has not yet been instantiated in this context; do it.

@@ -21960,7 +21960,7 @@ THREADED_TEST(FunctionNew) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::JSObject> cache(i_isolate->native_context()->function_cache());
   i::Handle<i::Object> elm =
-      i::Object::GetElementNoExceptionThrown(i_isolate, cache, serial_number);
+      i::Object::GetElement(i_isolate, cache, serial_number).ToHandleChecked();
   CHECK(elm->IsUndefined());
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);

@@ -1515,9 +1515,9 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
 
 #define INSTALL_NATIVE(Type, name, var)                                        \
   Handle<String> var##_name =                                                  \
-    factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR(name));            \
-  Handle<Object> var##_native = GlobalObject::GetPropertyNoExceptionThrown(    \
-           handle(native_context()->builtins()), var##_name);                  \
+      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR(name));          \
+  Handle<Object> var##_native = Object::GetProperty(                           \
+      handle(native_context()->builtins()), var##_name).ToHandleChecked();     \
   native_context()->set_##var(Type::cast(*var##_native));
 
 
@@ -1893,7 +1893,7 @@ bool Genesis::InstallNatives() {
   { Handle<String> key = factory()->function_class_string();
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(Object::GetProperty(
-            isolate()->global_object(), key));
+            isolate()->global_object(), key).ToHandleChecked());
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -2042,7 +2042,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
   Handle<String> property_string = factory->InternalizeUtf8String(property);
   ASSERT(!property_string.is_null());
   Handle<JSFunction> function = Handle<JSFunction>::cast(
-      Object::GetProperty(global, property_string));
+      Object::GetProperty(global, property_string).ToHandleChecked());
   return Handle<JSObject>(JSObject::cast(function->prototype()));
 }
 
@@ -2052,8 +2052,8 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      BuiltinFunctionId id) {
   Factory* factory = holder->GetIsolate()->factory();
   Handle<String> name = factory->InternalizeUtf8String(function_name);
-  Handle<Object> function_object = Object::GetProperty(holder, name);
-  ASSERT(!function_object.is_null());
+  Handle<Object> function_object =
+      Object::GetProperty(holder, name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   function->shared()->set_function_data(Smi::FromInt(id));
 }
@@ -2349,7 +2349,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<String> name =
         factory()->InternalizeUtf8String(Builtins::GetName(id));
     Handle<Object> function_object =
-        GlobalObject::GetPropertyNoExceptionThrown(builtins, name);
+        Object::GetProperty(builtins, name).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
     builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {
