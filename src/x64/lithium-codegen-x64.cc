@@ -284,6 +284,12 @@ void LCodeGen::GenerateBodyInstructionPre(LInstruction* instr) {
 
 
 void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
+  if (FLAG_debug_code && FLAG_enable_slow_asserts && instr->HasResult() &&
+      instr->hydrogen_value()->representation().IsInteger32() &&
+      instr->result()->IsRegister()) {
+    __ AssertZeroExtended(ToRegister(instr->result()));
+  }
+
   if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
     if (instr->result()->IsRegister()) {
       Register result_reg = ToRegister(instr->result());
@@ -1321,7 +1327,7 @@ void LCodeGen::DoDivByConstI(LDivByConstI* instr) {
   }
 
   __ TruncatingDiv(dividend, Abs(divisor));
-  if (divisor < 0) __ negp(rdx);
+  if (divisor < 0) __ negl(rdx);
 
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)) {
     __ movl(rax, rdx);
@@ -1525,13 +1531,25 @@ void LCodeGen::DoBitI(LBitI* instr) {
   } else if (right->IsStackSlot()) {
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ andl(ToRegister(left), ToOperand(right));
+        } else {
+          __ andp(ToRegister(left), ToOperand(right));
+        }
         break;
       case Token::BIT_OR:
-        __ orp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ orl(ToRegister(left), ToOperand(right));
+        } else {
+          __ orp(ToRegister(left), ToOperand(right));
+        }
         break;
       case Token::BIT_XOR:
-        __ xorp(ToRegister(left), ToOperand(right));
+        if (instr->IsInteger32()) {
+          __ xorl(ToRegister(left), ToOperand(right));
+        } else {
+          __ xorp(ToRegister(left), ToOperand(right));
+        }
         break;
       default:
         UNREACHABLE();
@@ -1541,13 +1559,25 @@ void LCodeGen::DoBitI(LBitI* instr) {
     ASSERT(right->IsRegister());
     switch (instr->op()) {
       case Token::BIT_AND:
-        __ andp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ andl(ToRegister(left), ToRegister(right));
+        } else {
+          __ andp(ToRegister(left), ToRegister(right));
+        }
         break;
       case Token::BIT_OR:
-        __ orp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ orl(ToRegister(left), ToRegister(right));
+        } else {
+          __ orp(ToRegister(left), ToRegister(right));
+        }
         break;
       case Token::BIT_XOR:
-        __ xorp(ToRegister(left), ToRegister(right));
+        if (instr->IsInteger32()) {
+          __ xorl(ToRegister(left), ToRegister(right));
+        } else {
+          __ xorp(ToRegister(left), ToRegister(right));
+        }
         break;
       default:
         UNREACHABLE();
@@ -1654,7 +1684,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
 
 
 void LCodeGen::DoConstantI(LConstantI* instr) {
-  __ Set(ToRegister(instr->result()), instr->value());
+  Register dst = ToRegister(instr->result());
+  if (instr->value() == 0) {
+    __ xorl(dst, dst);
+  } else {
+    __ movl(dst, Immediate(instr->value()));
+  }
 }
 
 
@@ -3035,25 +3070,25 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
     switch (elements_kind) {
       case EXTERNAL_INT8_ELEMENTS:
       case INT8_ELEMENTS:
-        __ movsxbq(result, operand);
+        __ movsxbl(result, operand);
         break;
       case EXTERNAL_UINT8_ELEMENTS:
       case EXTERNAL_UINT8_CLAMPED_ELEMENTS:
       case UINT8_ELEMENTS:
       case UINT8_CLAMPED_ELEMENTS:
-        __ movzxbp(result, operand);
+        __ movzxbl(result, operand);
         break;
       case EXTERNAL_INT16_ELEMENTS:
       case INT16_ELEMENTS:
-        __ movsxwq(result, operand);
+        __ movsxwl(result, operand);
         break;
       case EXTERNAL_UINT16_ELEMENTS:
       case UINT16_ELEMENTS:
-        __ movzxwp(result, operand);
+        __ movzxwl(result, operand);
         break;
       case EXTERNAL_INT32_ELEMENTS:
       case INT32_ELEMENTS:
-        __ movsxlq(result, operand);
+        __ movl(result, operand);
         break;
       case EXTERNAL_UINT32_ELEMENTS:
       case UINT32_ELEMENTS:
