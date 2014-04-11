@@ -1214,72 +1214,10 @@ Handle<String> String::SlowFlatten(Handle<ConsString> cons,
   }
   cons->set_first(*result);
   cons->set_second(isolate->heap()->empty_string());
+  ASSERT(result->IsFlat());
   return result;
 }
 
-
-MaybeObject* String::SlowTryFlatten(PretenureFlag pretenure) {
-#ifdef DEBUG
-  // Do not attempt to flatten in debug mode when allocation is not
-  // allowed.  This is to avoid an assertion failure when allocating.
-  // Flattening strings is the only case where we always allow
-  // allocation because no GC is performed if the allocation fails.
-  if (!AllowHeapAllocation::IsAllowed()) return this;
-#endif
-
-  Heap* heap = GetHeap();
-  switch (StringShape(this).representation_tag()) {
-    case kConsStringTag: {
-      ConsString* cs = ConsString::cast(this);
-      if (cs->second()->length() == 0) {
-        return cs->first();
-      }
-      // There's little point in putting the flat string in new space if the
-      // cons string is in old space.  It can never get GCed until there is
-      // an old space GC.
-      PretenureFlag tenure = heap->InNewSpace(this) ? pretenure : TENURED;
-      int len = length();
-      Object* object;
-      String* result;
-      if (IsOneByteRepresentation()) {
-        { MaybeObject* maybe_object =
-              heap->AllocateRawOneByteString(len, tenure);
-          if (!maybe_object->ToObject(&object)) return maybe_object;
-        }
-        result = String::cast(object);
-        String* first = cs->first();
-        int first_length = first->length();
-        uint8_t* dest = SeqOneByteString::cast(result)->GetChars();
-        WriteToFlat(first, dest, 0, first_length);
-        String* second = cs->second();
-        WriteToFlat(second,
-                    dest + first_length,
-                    0,
-                    len - first_length);
-      } else {
-        { MaybeObject* maybe_object =
-              heap->AllocateRawTwoByteString(len, tenure);
-          if (!maybe_object->ToObject(&object)) return maybe_object;
-        }
-        result = String::cast(object);
-        uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-        String* first = cs->first();
-        int first_length = first->length();
-        WriteToFlat(first, dest, 0, first_length);
-        String* second = cs->second();
-        WriteToFlat(second,
-                    dest + first_length,
-                    0,
-                    len - first_length);
-      }
-      cs->set_first(result);
-      cs->set_second(heap->empty_string(), SKIP_WRITE_BARRIER);
-      return result;
-    }
-    default:
-      return this;
-  }
-}
 
 
 bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
@@ -6070,18 +6008,6 @@ int Map::NextFreePropertyIndex() {
 }
 
 
-AccessorDescriptor* Map::FindAccessor(Name* name) {
-  DescriptorArray* descs = instance_descriptors();
-  int number_of_own_descriptors = NumberOfOwnDescriptors();
-  for (int i = 0; i < number_of_own_descriptors; i++) {
-    if (descs->GetType(i) == CALLBACKS && name->Equals(descs->GetKey(i))) {
-      return descs->GetCallbacks(i);
-    }
-  }
-  return NULL;
-}
-
-
 void JSReceiver::LocalLookup(
     Name* name, LookupResult* result, bool search_hidden_prototypes) {
   ASSERT(name->IsName());
@@ -6577,8 +6503,8 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
     if (result.IsFound()) {
       Handle<Map> target(result.GetTransitionTarget());
       int descriptor_number = target->LastAdded();
-      ASSERT(target->instance_descriptors()->GetKey(descriptor_number)
-             ->Equals(*name));
+      ASSERT(Name::Equals(name,
+          handle(target->instance_descriptors()->GetKey(descriptor_number))));
       return TryAccessorTransition(object, target, descriptor_number,
                                    component, accessor, attributes);
     }
@@ -8330,7 +8256,7 @@ String::FlatContent String::GetFlatContent() {
     } else {
       start = ExternalAsciiString::cast(string)->GetChars();
     }
-    return FlatContent(Vector<const uint8_t>(start + offset, length));
+    return FlatContent(start + offset, length);
   } else {
     ASSERT(shape.encoding_tag() == kTwoByteStringTag);
     const uc16* start;
@@ -8339,7 +8265,7 @@ String::FlatContent String::GetFlatContent() {
     } else {
       start = ExternalTwoByteString::cast(string)->GetChars();
     }
-    return FlatContent(Vector<const uc16>(start + offset, length));
+    return FlatContent(start + offset, length);
   }
 }
 
@@ -8979,6 +8905,7 @@ class StringComparator {
 
 
 bool String::SlowEquals(String* other) {
+  DisallowHeapAllocation no_gc;
   // Fast check: negative check with lengths.
   int len = length();
   if (len != other->length()) return false;
@@ -9008,14 +8935,10 @@ bool String::SlowEquals(String* other) {
   // before we try to flatten the strings.
   if (this->Get(0) != other->Get(0)) return false;
 
-  String* lhs = this->TryFlattenGetString();
-  String* rhs = other->TryFlattenGetString();
-
   // TODO(dcarney): Compare all types of flat strings with a Visitor.
-  if (StringShape(lhs).IsSequentialAscii() &&
-      StringShape(rhs).IsSequentialAscii()) {
-    const uint8_t* str1 = SeqOneByteString::cast(lhs)->GetChars();
-    const uint8_t* str2 = SeqOneByteString::cast(rhs)->GetChars();
+  if (IsSeqOneByteString() && other->IsSeqOneByteString()) {
+    const uint8_t* str1 = SeqOneByteString::cast(this)->GetChars();
+    const uint8_t* str2 = SeqOneByteString::cast(other)->GetChars();
     return CompareRawStringContents(str1, str2, len);
   }
 
@@ -9023,7 +8946,57 @@ bool String::SlowEquals(String* other) {
   StringComparator comparator(isolate->objects_string_compare_iterator_a(),
                               isolate->objects_string_compare_iterator_b());
 
-  return comparator.Equals(static_cast<unsigned>(len), lhs, rhs);
+  return comparator.Equals(static_cast<unsigned>(len), this, other);
+}
+
+
+bool String::SlowEquals(Handle<String> one, Handle<String> two) {
+  // Fast check: negative check with lengths.
+  int one_length = one->length();
+  if (one_length != two->length()) return false;
+  if (one_length == 0) return true;
+
+  // Fast check: if hash code is computed for both strings
+  // a fast negative check can be performed.
+  if (one->HasHashCode() && two->HasHashCode()) {
+#ifdef ENABLE_SLOW_ASSERTS
+    if (FLAG_enable_slow_asserts) {
+      if (one->Hash() != two->Hash()) {
+        bool found_difference = false;
+        for (int i = 0; i < one_length; i++) {
+          if (one->Get(i) != two->Get(i)) {
+            found_difference = true;
+            break;
+          }
+        }
+        ASSERT(found_difference);
+      }
+    }
+#endif
+    if (one->Hash() != two->Hash()) return false;
+  }
+
+  // We know the strings are both non-empty. Compare the first chars
+  // before we try to flatten the strings.
+  if (one->Get(0) != two->Get(0)) return false;
+
+  one = String::Flatten(one);
+  two = String::Flatten(two);
+
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat1 = one->GetFlatContent();
+  String::FlatContent flat2 = two->GetFlatContent();
+
+  if (flat1.IsAscii() && flat2.IsAscii()) {
+      return CompareRawStringContents(flat1.ToOneByteVector().start(),
+                                      flat2.ToOneByteVector().start(),
+                                      one_length);
+  } else {
+    for (int i = 0; i < one_length; i++) {
+      if (flat1.Get(i) != flat2.Get(i)) return false;
+    }
+    return true;
+  }
 }
 
 

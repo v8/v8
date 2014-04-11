@@ -80,10 +80,10 @@ MaybeObject* Accessors::ReadOnlySetAccessor(Isolate* isolate,
 
 
 static V8_INLINE bool CheckForName(Handle<String> name,
-                                   String* property_name,
+                                   Handle<String> property_name,
                                    int offset,
                                    int* object_offset) {
-  if (name->Equals(property_name)) {
+  if (String::Equals(name, property_name)) {
     *object_offset = offset;
     return true;
   }
@@ -100,7 +100,7 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
   Isolate* isolate = name->GetIsolate();
 
   if (type->Is(T::String())) {
-    return CheckForName(name, isolate->heap()->length_string(),
+    return CheckForName(name, isolate->factory()->length_string(),
                         String::kLengthOffset, object_offset);
   }
 
@@ -110,25 +110,25 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:
       return
-        CheckForName(name, isolate->heap()->length_string(),
+        CheckForName(name, isolate->factory()->length_string(),
                      JSArray::kLengthOffset, object_offset);
     case JS_TYPED_ARRAY_TYPE:
       return
-        CheckForName(name, isolate->heap()->length_string(),
+        CheckForName(name, isolate->factory()->length_string(),
                      JSTypedArray::kLengthOffset, object_offset) ||
-        CheckForName(name, isolate->heap()->byte_length_string(),
+        CheckForName(name, isolate->factory()->byte_length_string(),
                      JSTypedArray::kByteLengthOffset, object_offset) ||
-        CheckForName(name, isolate->heap()->byte_offset_string(),
+        CheckForName(name, isolate->factory()->byte_offset_string(),
                      JSTypedArray::kByteOffsetOffset, object_offset);
     case JS_ARRAY_BUFFER_TYPE:
       return
-        CheckForName(name, isolate->heap()->byte_length_string(),
+        CheckForName(name, isolate->factory()->byte_length_string(),
                      JSArrayBuffer::kByteLengthOffset, object_offset);
     case JS_DATA_VIEW_TYPE:
       return
-        CheckForName(name, isolate->heap()->byte_length_string(),
+        CheckForName(name, isolate->factory()->byte_length_string(),
                      JSDataView::kByteLengthOffset, object_offset) ||
-        CheckForName(name, isolate->heap()->byte_offset_string(),
+        CheckForName(name, isolate->factory()->byte_offset_string(),
                      JSDataView::kByteOffsetOffset, object_offset);
     default:
       return false;

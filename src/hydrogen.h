@@ -2393,10 +2393,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       int offset;
       if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
         if (type_->Is(Type::String())) {
-          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
         } else if (type_->Is(Type::Array())) {
-          ASSERT(name_->Equals(isolate()->heap()->length_string()));
+          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         } else {
           *access = HObjectAccess::ForMapAndOffset(map(), offset);

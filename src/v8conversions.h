@@ -64,14 +64,11 @@ inline uint32_t NumberToUint32(Object* number) {
 }
 
 
-// Converts a string into a double value according to ECMA-262 9.3.1
 double StringToDouble(UnicodeCache* unicode_cache,
-                      String* str,
+                      String* string,
                       int flags,
-                      double empty_string_val = 0);
+                      double empty_string_val = 0.0);
 
-// Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
 
 inline bool TryNumberToSize(Isolate* isolate,
                             Object* number, size_t* result) {

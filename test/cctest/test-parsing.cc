@@ -1368,7 +1368,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     }
     // Check that preparser and parser produce the same error.
     i::Handle<i::String> preparser_message = FormatMessage(&data);
-    if (!message_string->Equals(*preparser_message)) {
+    if (!i::String::Equals(message_string, preparser_message)) {
       i::OS::Print(
           "Expected parser and preparser to produce the same error on:\n"
           "\t%s\n"

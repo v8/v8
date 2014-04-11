@@ -2009,10 +2009,9 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
 
 
 Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
-  Heap* h = isolate()->heap();
-  if (name->Equals(h->undefined_string())) return undefined_value();
-  if (name->Equals(h->nan_string())) return nan_value();
-  if (name->Equals(h->infinity_string())) return infinity_value();
+  if (String::Equals(name, undefined_string())) return undefined_value();
+  if (String::Equals(name, nan_string())) return nan_value();
+  if (String::Equals(name, infinity_string())) return infinity_value();
   return Handle<Object>::null();
 }
 

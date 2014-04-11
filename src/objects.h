@@ -6466,9 +6466,6 @@ class Map: public HeapObject {
   // Casting.
   static inline Map* cast(Object* obj);
 
-  // Locate an accessor in the instance descriptor.
-  AccessorDescriptor* FindAccessor(Name* name);
-
   // Code cache operations.
 
   // Clears the code cache.
@@ -8791,6 +8788,7 @@ class Name: public HeapObject {
 
   // Equality operations.
   inline bool Equals(Name* other);
+  inline static bool Equals(Handle<Name> one, Handle<Name> two);
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
@@ -8927,28 +8925,37 @@ class String: public Name {
     // true.
     Vector<const uint8_t> ToOneByteVector() {
       ASSERT_EQ(ASCII, state_);
-      return buffer_;
+      return Vector<const uint8_t>(onebyte_start, length_);
     }
     // Return the two-byte content of the string. Only use if IsTwoByte()
     // returns true.
     Vector<const uc16> ToUC16Vector() {
       ASSERT_EQ(TWO_BYTE, state_);
-      return Vector<const uc16>::cast(buffer_);
+      return Vector<const uc16>(twobyte_start, length_);
+    }
+
+    uc16 Get(int i) {
+      ASSERT(i < length_);
+      ASSERT(state_ != NON_FLAT);
+      if (state_ == ASCII) return onebyte_start[i];
+      return twobyte_start[i];
     }
 
    private:
     enum State { NON_FLAT, ASCII, TWO_BYTE };
 
     // Constructors only used by String::GetFlatContent().
-    explicit FlatContent(Vector<const uint8_t> chars)
-        : buffer_(chars),
-          state_(ASCII) { }
-    explicit FlatContent(Vector<const uc16> chars)
-        : buffer_(Vector<const byte>::cast(chars)),
-          state_(TWO_BYTE) { }
-    FlatContent() : buffer_(), state_(NON_FLAT) { }
+    explicit FlatContent(const uint8_t* start, int length)
+        : onebyte_start(start), length_(length), state_(ASCII) { }
+    explicit FlatContent(const uc16* start, int length)
+        : twobyte_start(start), length_(length), state_(TWO_BYTE) { }
+    FlatContent() : onebyte_start(NULL), length_(0), state_(NON_FLAT) { }
 
-    Vector<const uint8_t> buffer_;
+    union {
+      const uint8_t* onebyte_start;
+      const uc16* twobyte_start;
+    };
+    int length_;
     State state_;
 
     friend class String;
@@ -8986,7 +8993,7 @@ class String: public Name {
   // to this method are not efficient unless the string is flat.
   INLINE(uint16_t Get(int index));
 
-  // Try to flatten the string.  Checks first inline to see if it is
+  // Flattens the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
   // Flattening allocates a sequential string with the same data as
   // the given string and mutates the cons string to a degenerate
@@ -8998,22 +9005,9 @@ class String: public Name {
   //
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
-  //
-  // Use FlattenString from Handles.cc to flatten even in case an
-  // allocation failure happens.
-  inline MaybeObject* TryFlatten(PretenureFlag pretenure = NOT_TENURED);
-
-  // Convenience function.  Has exactly the same behavior as
-  // TryFlatten(), except in the case of failure returns the original
-  // string.
-  inline String* TryFlattenGetString(PretenureFlag pretenure = NOT_TENURED);
 
   static inline Handle<String> Flatten(Handle<String> string,
                                        PretenureFlag pretenure = NOT_TENURED);
-
-  static Handle<String> SlowFlatten(Handle<ConsString> cons,
-                                    PretenureFlag tenure);
-
 
   // Tries to return the content of a flat string as a structure holding either
   // a flat vector of char or of uc16.
@@ -9032,6 +9026,7 @@ class String: public Name {
 
   // String equality operations.
   inline bool Equals(String* other);
+  inline static bool Equals(Handle<String> one, Handle<String> two);
   bool IsUtf8EqualTo(Vector<const char> str, bool allow_prefix_match = false);
   bool IsOneByteEqualTo(Vector<const uint8_t> str);
   bool IsTwoByteEqualTo(Vector<const uc16> str);
@@ -9202,14 +9197,14 @@ class String: public Name {
  private:
   friend class Name;
 
-  // Try to flatten the top level ConsString that is hiding behind this
-  // string.  This is a no-op unless the string is a ConsString.  Flatten
-  // mutates the ConsString and might return a failure.
-  MUST_USE_RESULT MaybeObject* SlowTryFlatten(PretenureFlag pretenure);
+  static Handle<String> SlowFlatten(Handle<ConsString> cons,
+                                    PretenureFlag tenure);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
   bool SlowEquals(String* other);
+
+  static bool SlowEquals(Handle<String> one, Handle<String> two);
 
   // Slow case of AsArrayIndex.
   bool SlowAsArrayIndex(uint32_t* index);

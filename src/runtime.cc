@@ -4373,8 +4373,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringIndexOf) {
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
   RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
-  int position =
-      Runtime::StringMatch(isolate, sub, pat, start_index);
+  int position = Runtime::StringMatch(isolate, sub, pat, start_index);
   return Smi::FromInt(position);
 }
 
@@ -4474,13 +4473,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(String, str1, 0);
-  CONVERT_ARG_CHECKED(String, str2, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str1, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, str2, 1);
 
-  if (str1 == str2) return Smi::FromInt(0);  // Equal.
+  if (str1.is_identical_to(str2)) return Smi::FromInt(0);  // Equal.
   int str1_length = str1->length();
   int str2_length = str2->length();
 
@@ -4500,21 +4499,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLocaleCompare) {
   int d = str1->Get(0) - str2->Get(0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlatten();
-  str2->TryFlatten();
+  str1 = String::Flatten(str1);
+  str2 = String::Flatten(str2);
 
-  ConsStringIteratorOp* op1 =
-      isolate->runtime_state()->string_locale_compare_it1();
-  ConsStringIteratorOp* op2 =
-      isolate->runtime_state()->string_locale_compare_it2();
-  // TODO(dcarney) Can do array compares here more efficiently.
-  StringCharacterStream stream1(str1, op1);
-  StringCharacterStream stream2(str2, op2);
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat1 = str1->GetFlatContent();
+  String::FlatContent flat2 = str2->GetFlatContent();
 
   for (int i = 0; i < end; i++) {
-    uint16_t char1 = stream1.GetNext();
-    uint16_t char2 = stream2.GetNext();
-    if (char1 != char2) return Smi::FromInt(char1 - char2);
+    if (flat1.Get(i) != flat2.Get(i)) {
+      return Smi::FromInt(flat1.Get(i) - flat2.Get(i));
+    }
   }
 
   return Smi::FromInt(str1_length - str2_length);
@@ -6085,8 +6080,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   }
 
   // Handle special arguments properties.
-  if (key->Equals(isolate->heap()->length_string())) return Smi::FromInt(n);
-  if (key->Equals(isolate->heap()->callee_string())) {
+  if (String::Equals(isolate->factory()->length_string(), key)) {
+    return Smi::FromInt(n);
+  }
+  if (String::Equals(isolate->factory()->callee_string(), key)) {
     JSFunction* function = frame->function();
     if (function->shared()->strict_mode() == STRICT) {
       return isolate->Throw(*isolate->factory()->NewTypeError(
@@ -6189,17 +6186,18 @@ static int ParseDecimalInteger(const uint8_t*s, int from, int to) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(String, subject, 0);
-  subject->TryFlatten();
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
+  subject = String::Flatten(subject);
 
   // Fast case: short integer or some sorts of junk values.
-  int len = subject->length();
   if (subject->IsSeqOneByteString()) {
+    int len = subject->length();
     if (len == 0) return Smi::FromInt(0);
 
-    uint8_t const* data = SeqOneByteString::cast(subject)->GetChars();
+    DisallowHeapAllocation no_gc;
+    uint8_t const* data = Handle<SeqOneByteString>::cast(subject)->GetChars();
     bool minus = (data[0] == '-');
     int start_pos = (minus ? 1 : 0);
 
@@ -6207,15 +6205,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
       return isolate->heap()->nan_value();
     } else if (data[start_pos] > '9') {
       // Fast check for a junk value. A valid string may start from a
-      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit or
-      // the 'I' character ('Infinity'). All of that have codes not greater than
-      // '9' except 'I' and &nbsp;.
+      // whitespace, a sign ('+' or '-'), the decimal point, a decimal digit
+      // or the 'I' character ('Infinity'). All of that have codes not greater
+      // than '9' except 'I' and &nbsp;.
       if (data[start_pos] != 'I' && data[start_pos] != 0xa0) {
         return isolate->heap()->nan_value();
       }
     } else if (len - start_pos < 10 && AreDigits(data, start_pos, len)) {
-      // The maximal/minimal smi has 10 digits. If the string has less digits we
-      // know it will fit into the smi-data type.
+      // The maximal/minimal smi has 10 digits. If the string has less digits
+      // we know it will fit into the smi-data type.
       int d = ParseDecimalInteger(data, start_pos, len);
       if (minus) {
         if (d == 0) return isolate->heap()->minus_zero_value();
@@ -6244,8 +6242,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
     // Type", https://bugs.ecmascript.org/show_bug.cgi?id=1584
     flags |= ALLOW_OCTAL | ALLOW_BINARY;
   }
-  return isolate->heap()->NumberFromDouble(
-      StringToDouble(isolate->unicode_cache(), subject, flags));
+
+  return *isolate->factory()->NewNumber(StringToDouble(
+      isolate->unicode_cache(), *subject, flags));
 }
 
 
@@ -6319,29 +6318,40 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_BasicJSONStringify) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
-  SealHandleScope shs(isolate);
-
-  CONVERT_ARG_CHECKED(String, s, 0);
+  HandleScope handle_scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
-
-  s->TryFlatten();
-
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
-  double value = StringToInt(isolate->unicode_cache(), s, radix);
-  return isolate->heap()->NumberFromDouble(value);
+
+  subject = String::Flatten(subject);
+  double value;
+
+  { DisallowHeapAllocation no_gc;
+    String::FlatContent flat = subject->GetFlatContent();
+
+    // ECMA-262 section 15.1.2.3, empty string is NaN
+    if (flat.IsAscii()) {
+      value = StringToInt(
+          isolate->unicode_cache(), flat.ToOneByteVector(), radix);
+    } else {
+      value = StringToInt(
+          isolate->unicode_cache(), flat.ToUC16Vector(), radix);
+    }
+  }
+
+  return *isolate->factory()->NewNumber(value);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
-  SealHandleScope shs(isolate);
-  CONVERT_ARG_CHECKED(String, str, 0);
+  HandleScope shs(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
-  // ECMA-262 section 15.1.2.3, empty string is NaN
-  double value = StringToDouble(isolate->unicode_cache(),
-                                str, ALLOW_TRAILING_JUNK, OS::nan_value());
+  subject = String::Flatten(subject);
+  double value = StringToDouble(
+      isolate->unicode_cache(), *subject, ALLOW_TRAILING_JUNK, OS::nan_value());
 
-  // Create a number object from the value.
-  return isolate->heap()->NumberFromDouble(value);
+  return *isolate->factory()->NewNumber(value);
 }
 
 
@@ -7516,13 +7526,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberEquals) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringEquals) {
-  SealHandleScope shs(isolate);
+  HandleScope handle_scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(String, x, 0);
-  CONVERT_ARG_CHECKED(String, y, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
 
-  bool not_equal = !x->Equals(y);
+  bool not_equal = !String::Equals(x, y);
   // This is slightly convoluted because the value that signifies
   // equality is 0 and inequality is 1 so we have to negate the result
   // from String::Equals.
@@ -7623,27 +7633,33 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SmiLexicographicCompare) {
 }
 
 
-static Object* StringCharacterStreamCompare(RuntimeState* state,
-                                        String* x,
-                                        String* y) {
-  StringCharacterStream stream_x(x, state->string_iterator_compare_x());
-  StringCharacterStream stream_y(y, state->string_iterator_compare_y());
-  while (stream_x.HasMore() && stream_y.HasMore()) {
-    int d = stream_x.GetNext() - stream_y.GetNext();
-    if (d < 0) return Smi::FromInt(LESS);
-    else if (d > 0) return Smi::FromInt(GREATER);
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
+  HandleScope handle_scope(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
+
+  isolate->counters()->string_compare_runtime()->Increment();
+
+  // A few fast case tests before we flatten.
+  if (x.is_identical_to(y)) return Smi::FromInt(EQUAL);
+  if (y->length() == 0) {
+    if (x->length() == 0) return Smi::FromInt(EQUAL);
+    return Smi::FromInt(GREATER);
+  } else if (x->length() == 0) {
+    return Smi::FromInt(LESS);
   }
 
-  // x is (non-trivial) prefix of y:
-  if (stream_y.HasMore()) return Smi::FromInt(LESS);
-  // y is prefix of x:
-  return Smi::FromInt(stream_x.HasMore() ? GREATER : EQUAL);
-}
+  int d = x->Get(0) - y->Get(0);
+  if (d < 0) return Smi::FromInt(LESS);
+  else if (d > 0) return Smi::FromInt(GREATER);
 
+  // Slow case.
+  x = String::Flatten(x);
+  y = String::Flatten(y);
 
-static Object* FlatStringCompare(String* x, String* y) {
-  ASSERT(x->IsFlat());
-  ASSERT(y->IsFlat());
+  DisallowHeapAllocation no_gc;
   Object* equal_prefix_result = Smi::FromInt(EQUAL);
   int prefix_length = x->length();
   if (y->length() < prefix_length) {
@@ -7653,7 +7669,6 @@ static Object* FlatStringCompare(String* x, String* y) {
     equal_prefix_result = Smi::FromInt(LESS);
   }
   int r;
-  DisallowHeapAllocation no_gc;
   String::FlatContent x_content = x->GetFlatContent();
   String::FlatContent y_content = y->GetFlatContent();
   if (x_content.IsAscii()) {
@@ -7681,44 +7696,7 @@ static Object* FlatStringCompare(String* x, String* y) {
   } else {
     result = (r < 0) ? Smi::FromInt(LESS) : Smi::FromInt(GREATER);
   }
-  ASSERT(result ==
-      StringCharacterStreamCompare(x->GetIsolate()->runtime_state(), x, y));
   return result;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
-  HandleScope shs(isolate);
-  ASSERT(args.length() == 2);
-
-  CONVERT_ARG_CHECKED(String, x, 0);
-  CONVERT_ARG_CHECKED(String, y, 1);
-
-  isolate->counters()->string_compare_runtime()->Increment();
-
-  // A few fast case tests before we flatten.
-  if (x == y) return Smi::FromInt(EQUAL);
-  if (y->length() == 0) {
-    if (x->length() == 0) return Smi::FromInt(EQUAL);
-    return Smi::FromInt(GREATER);
-  } else if (x->length() == 0) {
-    return Smi::FromInt(LESS);
-  }
-
-  int d = x->Get(0) - y->Get(0);
-  if (d < 0) return Smi::FromInt(LESS);
-  else if (d > 0) return Smi::FromInt(GREATER);
-
-  Object* obj;
-  { MaybeObject* maybe_obj = isolate->heap()->PrepareForCompare(x);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  { MaybeObject* maybe_obj = isolate->heap()->PrepareForCompare(y);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  return (x->IsFlat() && y->IsFlat()) ? FlatStringCompare(x, y)
-      : StringCharacterStreamCompare(isolate->runtime_state(), x, y);
 }
 
 
@@ -11596,7 +11574,7 @@ static bool SetContextLocalValue(Isolate* isolate,
                                  Handle<Object> new_value) {
   for (int i = 0; i < scope_info->ContextLocalCount(); i++) {
     Handle<String> next_name(scope_info->ContextLocalName(i));
-    if (variable_name->Equals(*next_name)) {
+    if (String::Equals(variable_name, next_name)) {
       VariableMode mode;
       InitializationFlag init_flag;
       int context_index =
@@ -11628,7 +11606,8 @@ static bool SetLocalVariableValue(Isolate* isolate,
 
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
-    if (scope_info->ParameterName(i)->Equals(*variable_name)) {
+    HandleScope scope(isolate);
+    if (String::Equals(handle(scope_info->ParameterName(i)), variable_name)) {
       frame->SetParameterValue(i, *new_value);
       // Argument might be shadowed in heap context, don't stop here.
       default_result = true;
@@ -11637,7 +11616,8 @@ static bool SetLocalVariableValue(Isolate* isolate,
 
   // Stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
-    if (scope_info->StackLocalName(i)->Equals(*variable_name)) {
+    HandleScope scope(isolate);
+    if (String::Equals(handle(scope_info->StackLocalName(i)), variable_name)) {
       frame->SetExpression(i, *new_value);
       return true;
     }
@@ -11780,7 +11760,7 @@ static bool SetCatchVariableValue(Isolate* isolate,
                                   Handle<Object> new_value) {
   ASSERT(context->IsCatchContext());
   Handle<String> name(String::cast(context->extension()));
-  if (!name->Equals(*variable_name)) {
+  if (!String::Equals(name, variable_name)) {
     return false;
   }
   context->set(Context::THROWN_OBJECT_INDEX, *new_value);

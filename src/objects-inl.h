@@ -3043,6 +3043,17 @@ bool Name::Equals(Name* other) {
 }
 
 
+bool Name::Equals(Handle<Name> one, Handle<Name> two) {
+  if (one.is_identical_to(two)) return true;
+  if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
+      one->IsSymbol() || two->IsSymbol()) {
+    return false;
+  }
+  return String::SlowEquals(Handle<String>::cast(one),
+                            Handle<String>::cast(two));
+}
+
+
 ACCESSORS(Symbol, name, Object, kNameOffset)
 ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
@@ -3057,27 +3068,20 @@ bool String::Equals(String* other) {
 }
 
 
+bool String::Equals(Handle<String> one, Handle<String> two) {
+  if (one.is_identical_to(two)) return true;
+  if (one->IsInternalizedString() && two->IsInternalizedString()) {
+    return false;
+  }
+  return SlowEquals(one, two);
+}
+
+
 Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
   if (!string->IsConsString()) return string;
   Handle<ConsString> cons = Handle<ConsString>::cast(string);
   if (cons->IsFlat()) return handle(cons->first());
   return SlowFlatten(cons, pretenure);
-}
-
-
-MaybeObject* String::TryFlatten(PretenureFlag pretenure) {
-  if (!StringShape(this).IsCons()) return this;
-  ConsString* cons = ConsString::cast(this);
-  if (cons->IsFlat()) return cons->first();
-  return SlowTryFlatten(pretenure);
-}
-
-
-String* String::TryFlattenGetString(PretenureFlag pretenure) {
-  MaybeObject* flat = TryFlatten(pretenure);
-  Object* successfully_flattened;
-  if (!flat->ToObject(&successfully_flattened)) return this;
-  return String::cast(successfully_flattened);
 }
 
 

@@ -3011,7 +3011,8 @@ bool Value::StrictEquals(Handle<Value> that) const {
     return other->IsNumber() && obj->Number() == other->Number();
   } else if (obj->IsString()) {
     return other->IsString() &&
-        i::String::cast(*obj)->Equals(i::String::cast(*other));
+        i::String::Equals(i::Handle<i::String>::cast(obj),
+                          i::Handle<i::String>::cast(other));
   } else if (obj->IsUndefined() || obj->IsUndetectableObject()) {
     return other->IsUndefined() || other->IsUndetectableObject();
   } else {

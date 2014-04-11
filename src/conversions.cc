@@ -56,7 +56,7 @@ double StringToDouble(UnicodeCache* unicode_cache,
 
 
 double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const char> str,
+                      Vector<const uint8_t> str,
                       int flags,
                       double empty_string_val) {
   // We cast to const uint8_t* here to avoid instantiating the
@@ -75,6 +75,23 @@ double StringToDouble(UnicodeCache* unicode_cache,
   const uc16* end = str.start() + str.length();
   return InternalStringToDouble(unicode_cache, str.start(), end, flags,
                                 empty_string_val);
+}
+
+
+// Converts a string into an integer.
+double StringToInt(UnicodeCache* unicode_cache,
+                   Vector<const uint8_t> vector,
+                   int radix) {
+  return InternalStringToInt(
+      unicode_cache, vector.start(), vector.start() + vector.length(), radix);
+}
+
+
+double StringToInt(UnicodeCache* unicode_cache,
+                   Vector<const uc16> vector,
+                   int radix) {
+  return InternalStringToInt(
+      unicode_cache, vector.start(), vector.start() + vector.length(), radix);
 }
 
 
