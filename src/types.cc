@@ -306,6 +306,9 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
 template<class Config>
 bool TypeImpl<Config>::NowIs(TypeImpl* that) {
+  // TODO(rossberg): this is incorrect for
+  //   Union(Constant(V), T)->NowIs(Class(M))
+  // but fuzzing does not cover that!
   DisallowHeapAllocation no_allocation;
   if (this->IsConstant()) {
     i::Object* object = *this->AsConstant();
@@ -435,12 +438,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
     size += (type2->IsUnion() ? Config::struct_length(type2->AsUnion()) : 1);
   }
   int bitset = type1->GlbBitset() | type2->GlbBitset();
-  if (IsInhabited(bitset)) ++size;
+  if (bitset != kNone) ++size;
   ASSERT(size >= 1);
   StructHandle unioned = Config::struct_create(kUnionTag, size, region);
 
   size = 0;
-  if (IsInhabited(bitset)) {
+  if (bitset != kNone) {
     Config::struct_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendUnion(unioned, type1, size);
@@ -511,12 +514,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
                type2->IsUnion() ? Config::struct_length(type2->AsUnion()) : 1);
   }
   int bitset = type1->GlbBitset() & type2->GlbBitset();
-  if (IsInhabited(bitset)) ++size;
+  if (bitset != kNone) ++size;
   ASSERT(size >= 1);
   StructHandle unioned = Config::struct_create(kUnionTag, size, region);
 
   size = 0;
-  if (IsInhabited(bitset)) {
+  if (bitset != kNone) {
     Config::struct_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendIntersection(unioned, type1, type2, size);
