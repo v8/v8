@@ -483,6 +483,20 @@ VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
     StaticMarkingVisitor<StaticVisitor>::table_;
 
 
+class WeakObjectRetainer;
+
+
+// A weak list is single linked list where each element has a weak pointer to
+// the next element. Given the head of the list, this function removes dead
+// elements from the list and if requested records slots for next-element
+// pointers. The template parameter T is a WeakListVisitor that defines how to
+// access the next-element pointers.
+template <class T>
+Object* VisitWeakList(Heap* heap,
+                      Object* list,
+                      WeakObjectRetainer* retainer,
+                      bool record_slots);
+
 } }  // namespace v8::internal
 
 #endif  // V8_OBJECTS_VISITING_H_

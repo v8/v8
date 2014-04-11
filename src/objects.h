@@ -3225,7 +3225,8 @@ class ConstantPoolArray: public FixedArrayBase {
  public:
   enum WeakObjectState {
     NO_WEAK_OBJECTS,
-    WEAK_OBJECTS_IN_OPTIMIZED_CODE
+    WEAK_OBJECTS_IN_OPTIMIZED_CODE,
+    WEAK_OBJECTS_IN_IC
   };
 
   // Getters for the field storing the first index for different type entries.
@@ -5494,6 +5495,17 @@ class Code: public HeapObject {
   inline bool is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
   inline bool is_keyed_stub();
   inline bool is_optimized_code() { return kind() == OPTIMIZED_FUNCTION; }
+  inline bool is_weak_stub();
+  inline void mark_as_weak_stub();
+  inline bool is_invalidated_weak_stub();
+  inline void mark_as_invalidated_weak_stub();
+
+  inline bool CanBeWeakStub() {
+    Kind k = kind();
+    return (k == LOAD_IC || k == STORE_IC || k == KEYED_LOAD_IC ||
+            k == KEYED_STORE_IC || k == COMPARE_NIL_IC) &&
+           ic_state() == MONOMORPHIC;
+  }
 
   inline void set_raw_kind_specific_flags1(int value);
   inline void set_raw_kind_specific_flags2(int value);
@@ -5751,11 +5763,17 @@ class Code: public HeapObject {
   void VerifyEmbeddedObjectsDependency();
 #endif
 
+  inline bool CanContainWeakObjects() {
+    return is_optimized_code() || is_weak_stub();
+  }
+
   inline bool IsWeakObject(Object* object) {
-    return is_optimized_code() && IsWeakObjectInOptimizedCode(object);
+    return (is_optimized_code() && IsWeakObjectInOptimizedCode(object)) ||
+           (is_weak_stub() && IsWeakObjectInIC(object));
   }
 
   static inline bool IsWeakObjectInOptimizedCode(Object* object);
+  static inline bool IsWeakObjectInIC(Object* object);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -5818,11 +5836,17 @@ class Code: public HeapObject {
   static const int kMarkedForDeoptimizationFirstBit =
       kStackSlotsFirstBit + kStackSlotsBitCount + 1;
   static const int kMarkedForDeoptimizationBitCount = 1;
+  static const int kWeakStubFirstBit =
+      kMarkedForDeoptimizationFirstBit + kMarkedForDeoptimizationBitCount;
+  static const int kWeakStubBitCount = 1;
+  static const int kInvalidatedWeakStubFirstBit =
+      kWeakStubFirstBit + kWeakStubBitCount;
+  static const int kInvalidatedWeakStubBitCount = 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
   STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
-  STATIC_ASSERT(kMarkedForDeoptimizationFirstBit +
-                kMarkedForDeoptimizationBitCount <= 32);
+  STATIC_ASSERT(kInvalidatedWeakStubFirstBit +
+                kInvalidatedWeakStubBitCount <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
@@ -5831,6 +5855,12 @@ class Code: public HeapObject {
   class MarkedForDeoptimizationField: public BitField<bool,
       kMarkedForDeoptimizationFirstBit,
       kMarkedForDeoptimizationBitCount> {};  // NOLINT
+  class WeakStubField: public BitField<bool,
+      kWeakStubFirstBit,
+      kWeakStubBitCount> {};  // NOLINT
+  class InvalidatedWeakStubField: public BitField<bool,
+      kInvalidatedWeakStubFirstBit,
+      kInvalidatedWeakStubBitCount> {};  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;
@@ -5915,9 +5945,14 @@ class CompilationInfo;
 class DependentCode: public FixedArray {
  public:
   enum DependencyGroup {
+    // Group of IC stubs that weakly embed this map and depend on being
+    // invalidated when the map is garbage collected. Dependent IC stubs form
+    // a linked list. This group stores only the head of the list. This means
+    // that the number_of_entries(kWeakICGroup) is 0 or 1.
+    kWeakICGroup,
     // Group of code that weakly embed this map and depend on being
     // deoptimized when the map is garbage collected.
-    kWeaklyEmbeddedGroup,
+    kWeakCodeGroup,
     // Group of code that embed a transition to this map, and depend on being
     // deoptimized when the transition is replaced by a new version.
     kTransitionGroup,
@@ -5968,6 +6003,7 @@ class DependentCode: public FixedArray {
 
   bool MarkCodeForDeoptimization(Isolate* isolate,
                                  DependentCode::DependencyGroup group);
+  void AddToDependentICList(Handle<Code> stub);
 
   // The following low-level accessors should only be used by this class
   // and the mark compact collector.
@@ -6278,7 +6314,7 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
-  // [dependent code]: list of optimized codes that have this map embedded.
+  // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
   // [back pointer]: points back to the parent map from which a transition
@@ -6563,6 +6599,7 @@ class Map: public HeapObject {
 
   void AddDependentCode(DependentCode::DependencyGroup group,
                         Handle<Code> code);
+  void AddDependentIC(Handle<Code> stub);
 
   bool IsMapInArrayPrototypeChain();
 

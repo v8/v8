@@ -11538,6 +11538,21 @@ void Map::AddDependentCode(DependentCode::DependencyGroup group,
 }
 
 
+void Map::AddDependentIC(Handle<Code> stub) {
+  ASSERT(stub->next_code_link()->IsUndefined());
+  int n = dependent_code()->number_of_entries(DependentCode::kWeakICGroup);
+  if (n == 0) {
+    // Slow path: insert the head of the list with possible heap allocation.
+    AddDependentCode(DependentCode::kWeakICGroup, stub);
+  } else {
+    // Fast path: link the stub to the existing head of the list without any
+    // heap allocation.
+    ASSERT(n == 1);
+    dependent_code()->AddToDependentICList(stub);
+  }
+}
+
+
 DependentCode::GroupStartIndexes::GroupStartIndexes(DependentCode* entries) {
   Recompute(entries);
 }
@@ -11668,10 +11683,22 @@ void DependentCode::RemoveCompilationInfo(DependentCode::DependencyGroup group,
 }
 
 
+static bool CodeListContains(Object* head, Code* code) {
+  while (!head->IsUndefined()) {
+    if (head == code) return true;
+    head = Code::cast(head)->next_code_link();
+  }
+  return false;
+}
+
+
 bool DependentCode::Contains(DependencyGroup group, Code* code) {
   GroupStartIndexes starts(this);
   int start = starts.at(group);
   int end = starts.at(group + 1);
+  if (group == kWeakICGroup) {
+    return CodeListContains(object_at(start), code);
+  }
   for (int i = start; i < end; i++) {
     if (object_at(i) == code) return true;
   }
@@ -11725,6 +11752,15 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   bool marked = MarkCodeForDeoptimization(isolate, group);
 
   if (marked) Deoptimizer::DeoptimizeMarkedCode(isolate);
+}
+
+
+void DependentCode::AddToDependentICList(Handle<Code> stub) {
+  DisallowHeapAllocation no_heap_allocation;
+  GroupStartIndexes starts(this);
+  int i = starts.at(kWeakICGroup);
+  stub->set_next_code_link(object_at(i));
+  set_object_at(i, *stub);
 }
 
 

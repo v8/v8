@@ -706,7 +706,7 @@ void AddWeakObjectToCodeDependency(Heap* heap,
                                    Handle<Code> code) {
   heap->EnsureWeakObjectToCodeTable();
   Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(*object));
-  dep = DependentCode::Insert(dep, DependentCode::kWeaklyEmbeddedGroup, code);
+  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
   CALL_HEAP_FUNCTION_VOID(heap->isolate(),
                           heap->AddWeakObjectToCodeDependency(*object, *dep));
 }

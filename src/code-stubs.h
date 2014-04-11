@@ -228,7 +228,7 @@ class CodeStub BASE_EMBEDDED {
  private:
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
-  void RecordCodeGeneration(Code* code, Isolate* isolate);
+  void RecordCodeGeneration(Handle<Code> code, Isolate* isolate);
 
   // Finish the code object after it has been generated.
   virtual void FinishCode(Handle<Code> code) { }

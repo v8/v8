@@ -3848,6 +3848,114 @@ TEST(NextCodeLinkIsWeak2) {
 }
 
 
+static bool weak_ic_cleared = false;
+
+static void ClearWeakIC(const v8::WeakCallbackData<v8::Object, void>& data) {
+  printf("clear weak is called\n");
+  weak_ic_cleared = true;
+  v8::Persistent<v8::Value>* p =
+      reinterpret_cast<v8::Persistent<v8::Value>*>(data.GetParameter());
+  CHECK(p->IsNearDeath());
+  p->Reset();
+}
+
+
+// Checks that the value returned by execution of the source is weak.
+void CheckWeakness(const char* source) {
+  i::FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Persistent<v8::Object> garbage;
+  {
+    v8::HandleScope scope(isolate);
+    garbage.Reset(isolate, CompileRun(source)->ToObject());
+  }
+  weak_ic_cleared = false;
+  garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
+  Heap* heap = CcTest::i_isolate()->heap();
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(weak_ic_cleared);
+}
+
+
+// Each of the following "weak IC" tests creates an IC that embeds a map with
+// the prototype pointing to _proto_ and checks that the _proto_ dies on GC.
+TEST(WeakMapInMonomorphicLoadIC) {
+  CheckWeakness("function loadIC(obj) {"
+                "  return obj.name;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicKeyedLoadIC) {
+  CheckWeakness("function keyedLoadIC(obj, field) {"
+                "  return obj[field];"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicStoreIC) {
+  CheckWeakness("function storeIC(obj, value) {"
+                "  obj.name = value;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicKeyedStoreIC) {
+  CheckWeakness("function keyedStoreIC(obj, field, value) {"
+                "  obj[field] = value;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicCompareNilIC) {
+  CheckWeakness("function compareNilIC(obj) {"
+                "  return obj == null;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   return proto;"
+                " })();");
+}
+
+
 #ifdef DEBUG
 TEST(AddInstructionChangesNewSpacePromotion) {
   i::FLAG_allow_natives_syntax = true;

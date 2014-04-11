@@ -4771,6 +4771,34 @@ void Code::set_marked_for_deoptimization(bool flag) {
 }
 
 
+bool Code::is_weak_stub() {
+  return CanBeWeakStub() && WeakStubField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+void Code::mark_as_weak_stub() {
+  ASSERT(CanBeWeakStub());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = WeakStubField::update(previous, true);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
+bool Code::is_invalidated_weak_stub() {
+  return is_weak_stub() && InvalidatedWeakStubField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+void Code::mark_as_invalidated_weak_stub() {
+  ASSERT(is_inline_cache_stub());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = InvalidatedWeakStubField::update(previous, true);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
   switch (kind) {
@@ -4912,6 +4940,13 @@ class Code::FindAndReplacePattern {
   Handle<Object> replace_[kMaxCount];
   friend class Code;
 };
+
+
+bool Code::IsWeakObjectInIC(Object* object) {
+  return object->IsMap() && Map::cast(object)->CanTransition() &&
+         FLAG_collect_maps &&
+         FLAG_weak_embedded_maps_in_ic;
+}
 
 
 Object* Map::prototype() {
