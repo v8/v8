@@ -3652,7 +3652,7 @@ class BaseShape {
   }
 };
 
-template<typename Derived, typename Shape, typename Key>
+template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
   // Wrapper methods
@@ -3705,16 +3705,8 @@ class HashTable: public FixedArray {
   }
 
   // Returns a new HashTable object. Might return Failure.
-  // TODO(ishell): this will be eventually replaced by New().
   MUST_USE_RESULT static MaybeObject* Allocate(
       Heap* heap,
-      int at_least_space_for,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  // Returns a new HashTable object.
-  static Handle<Derived> New(
-      Isolate* isolate,
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
       PretenureFlag pretenure = NOT_TENURED);
@@ -3828,10 +3820,10 @@ class HashTable: public FixedArray {
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Derived* new_table, Key key);
+  MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);
 
   // Attempt to shrink hash table after removal of key.
-  static Handle<Derived> Shrink(Handle<Derived> table, Key key);
+  MUST_USE_RESULT MaybeObject* Shrink(Key key);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(
@@ -3884,9 +3876,7 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-class StringTable: public HashTable<StringTable,
-                                    StringTableShape,
-                                    HashTableKey*> {
+class StringTable: public HashTable<StringTableShape, HashTableKey*> {
  public:
   // Find string in the string table.  If it is not there yet, it is
   // added.  The return value is the string table which might have
@@ -3938,7 +3928,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
 //
 // Maps keys that are a fixed array of unique names to a map.
 // Used for canonicalize maps for object literals.
-class MapCache: public HashTable<MapCache, MapCacheShape, HashTableKey*> {
+class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a name key, otherwise return null.
   Object* Lookup(FixedArray* key);
@@ -3950,36 +3940,33 @@ class MapCache: public HashTable<MapCache, MapCacheShape, HashTableKey*> {
 };
 
 
-template <typename Derived, typename Shape, typename Key>
-class Dictionary: public HashTable<Derived, Shape, Key> {
- protected:
-  typedef HashTable<Derived, Shape, Key> DerivedHashTable;
-
+template <typename Shape, typename Key>
+class Dictionary: public HashTable<Shape, Key> {
  public:
-  static inline Dictionary* cast(Object* obj) {
-    return reinterpret_cast<Dictionary*>(obj);
+  static inline Dictionary<Shape, Key>* cast(Object* obj) {
+    return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
   }
 
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
+    return this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(
-        Smi::cast(this->get(DerivedHashTable::EntryToIndex(entry) + 2)));
+        Smi::cast(this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    this->set(DerivedHashTable::EntryToIndex(entry) + 2, value.AsSmi());
+    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
   // Sorting support
@@ -3989,14 +3976,16 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
   // TODO(ishell): Temporary wrapper until handlified.
   static Handle<Object> DeleteProperty(
-      Handle<Dictionary> dictionary,
+      Handle<Dictionary<Shape, Key> > dictionary,
       int entry,
       JSObject::DeleteMode mode);
 
   // Attempt to shrink the dictionary after deletion of key.
-  static inline Handle<Derived> Shrink(Handle<Derived> dictionary, Key key) {
-    return DerivedHashTable::Shrink(dictionary, key);
-  }
+  MUST_USE_RESULT MaybeObject* Shrink(Key key);
+  // TODO(ishell): Temporary wrapper until handlified.
+  MUST_USE_RESULT static Handle<FixedArray> Shrink(
+      Handle<Dictionary<Shape, Key> > dictionary,
+      Key key);
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
@@ -4066,7 +4055,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Generate new enumeration indices to avoid enumeration index overflow.
   MUST_USE_RESULT MaybeObject* GenerateNewEnumerationIndices();
-  static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
+  static const int kMaxNumberKeyIndex =
+      HashTable<Shape, Key>::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 };
 
@@ -4084,9 +4074,7 @@ class NameDictionaryShape : public BaseShape<Name*> {
 };
 
 
-class NameDictionary: public Dictionary<NameDictionary,
-                                        NameDictionaryShape,
-                                        Name*> {
+class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4136,9 +4124,7 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
 
 
 class SeededNumberDictionary
-    : public Dictionary<SeededNumberDictionary,
-                        SeededNumberDictionaryShape,
-                        uint32_t> {
+    : public Dictionary<SeededNumberDictionaryShape, uint32_t> {
  public:
   static SeededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4191,9 +4177,7 @@ class SeededNumberDictionary
 
 
 class UnseededNumberDictionary
-    : public Dictionary<UnseededNumberDictionary,
-                        UnseededNumberDictionaryShape,
-                        uint32_t> {
+    : public Dictionary<UnseededNumberDictionaryShape, uint32_t> {
  public:
   static UnseededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4229,10 +4213,7 @@ class ObjectHashTableShape : public BaseShape<Object*> {
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTable,
-                                        ObjectHashTableShape,
-                                        Object*> {
-  typedef HashTable<ObjectHashTable, ObjectHashTableShape, Object*> HashTable_;
+class ObjectHashTable: public HashTable<ObjectHashTableShape, Object*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4246,8 +4227,8 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Attempt to shrink hash table after removal of key.
-  static inline Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
-                                               Handle<Object> key);
+  static Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
+                                        Handle<Object> key);
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
@@ -4445,9 +4426,7 @@ class WeakHashTableShape : public BaseShape<Object*> {
 // WeakHashTable maps keys that are arbitrary objects to object values.
 // It is used for the global weak hash table that maps objects
 // embedded in optimized code to dependent code lists.
-class WeakHashTable: public HashTable<WeakHashTable,
-                                      WeakHashTableShape<2>,
-                                      Object*> {
+class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
  public:
   static inline WeakHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -8219,8 +8198,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 };
 
 
-class CompilationCacheTable: public HashTable<CompilationCacheTable,
-                                              CompilationCacheShape,
+class CompilationCacheTable: public HashTable<CompilationCacheShape,
                                               HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
@@ -8321,8 +8299,7 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
 };
 
 
-class CodeCacheHashTable: public HashTable<CodeCacheHashTable,
-                                           CodeCacheHashTableShape,
+class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
                                            HashTableKey*> {
  public:
   Object* Lookup(Name* name, Code::Flags flags);
@@ -8372,9 +8349,7 @@ class PolymorphicCodeCache: public Struct {
 
 
 class PolymorphicCodeCacheHashTable
-    : public HashTable<PolymorphicCodeCacheHashTable,
-                       CodeCacheHashTableShape,
-                       HashTableKey*> {
+    : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
  public:
   Object* Lookup(MapHandleList* maps, int code_kind);
 
