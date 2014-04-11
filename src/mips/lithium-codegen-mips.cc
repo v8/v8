@@ -5524,7 +5524,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   // register.
   Condition final_branch_condition = kNoCondition;
   Register scratch = scratch0();
-  Factory* factory = isolate()->factory();facto
+  Factory* factory = isolate()->factory();
   if (String::Equals(type_name, factory->number_string())) {
     __ JumpIfSmi(input, true_label);
     __ lw(input, FieldMemOperand(input, HeapObject::kMapOffset));
