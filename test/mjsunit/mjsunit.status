@@ -168,6 +168,9 @@
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
 
+  # TODO(ulan): enable this after relanding r20692.
+  'regress/regress-353058': [SKIP],
+
   # Long running tests.
   'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
   'regress/regress-2185-2': [PASS, TIMEOUT],
@@ -234,6 +237,8 @@
   'big-array-literal': [SKIP],
   'big-object-literal': [SKIP],
   'regress/regress-crbug-178790': [SKIP],
+  # TODO(ulan): enable this after relanding r20692.
+  'regress/regress-353058': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -263,6 +268,9 @@
   'regress/regress-634': [SKIP],
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
+
+  # TODO(ulan): enable this after relanding r20692.
+  'regress/regress-353058': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
