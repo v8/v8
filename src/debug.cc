@@ -1118,8 +1118,8 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
           STATIC_ASCII_VECTOR("IsBreakPointTriggered"));
   Handle<GlobalObject> debug_global(debug_context()->global_object());
   Handle<JSFunction> check_break_point =
-    Handle<JSFunction>::cast(Object::GetProperty(
-        debug_global, is_break_point_triggered_string).ToHandleChecked());
+    Handle<JSFunction>::cast(GlobalObject::GetPropertyNoExceptionThrown(
+        debug_global, is_break_point_triggered_string));
 
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
@@ -2459,8 +2459,8 @@ void Debug::ClearMirrorCache() {
   // Clear the mirror cache.
   Handle<String> function_name = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("ClearMirrorCache"));
-  Handle<Object> fun = Object::GetProperty(
-      isolate_->global_object(), function_name).ToHandleChecked();
+  Handle<Object> fun = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate_->global_object(), function_name);
   ASSERT(fun->IsJSFunction());
   Execution::TryCall(
       Handle<JSFunction>::cast(fun),
@@ -2597,8 +2597,8 @@ MaybeHandle<Object> Debugger::MakeJSObject(
   Handle<String> constructor_str =
       isolate_->factory()->InternalizeUtf8String(constructor_name);
   ASSERT(!constructor_str.is_null());
-  Handle<Object> constructor = Object::GetProperty(
-      isolate_->global_object(), constructor_str).ToHandleChecked();
+  Handle<Object> constructor = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate_->global_object(), constructor_str);
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
   return Execution::TryCall(
@@ -2788,8 +2788,8 @@ void Debugger::OnAfterCompile(Handle<Script> script,
           STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
   Handle<GlobalObject> debug_global(debug->debug_context()->global_object());
   Handle<Object> update_script_break_points =
-      Object::GetProperty(
-          debug_global, update_script_break_points_string).ToHandleChecked();
+      GlobalObject::GetPropertyNoExceptionThrown(
+          debug_global, update_script_break_points_string);
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }

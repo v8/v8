@@ -40,8 +40,8 @@ static Handle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  return Object::GetProperty(
-      isolate->global_object(), internalized_name).ToHandleChecked();
+  return GlobalObject::GetPropertyNoExceptionThrown(
+      isolate->global_object(), internalized_name);
 }
 
 
@@ -236,7 +236,7 @@ TEST(C2JSFrames) {
   Handle<String> foo_string = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("foo"));
   Handle<Object> fun1 = Object::GetProperty(
-      isolate->global_object(), foo_string).ToHandleChecked();
+      isolate->global_object(), foo_string);
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(

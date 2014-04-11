@@ -6047,11 +6047,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   HandleScope scope(isolate);
   if (args[0]->IsSymbol()) {
     // Lookup in the initial Object.prototype object.
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        Object::GetProperty(
-            isolate->initial_object_prototype(), args.at<Symbol>(0)));
+    Handle<Object> result = Object::GetProperty(
+        isolate->initial_object_prototype(), args.at<Symbol>(0));
+    RETURN_IF_EMPTY_HANDLE(isolate, result);
     return *result;
   }
 
@@ -6089,10 +6087,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   }
 
   // Lookup in the initial Object.prototype object.
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::GetProperty(isolate->initial_object_prototype(), key));
+  Handle<Object> result = Object::GetProperty(
+      isolate->initial_object_prototype(), key);
+  RETURN_IF_EMPTY_HANDLE(isolate, result);
   return *result;
 }
 
@@ -9311,11 +9308,9 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
 
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value,
-        Object::GetProperty(object, name),
-        MakePair(Failure::Exception(), NULL));
+    Handle<Object> value = Object::GetProperty(object, name);
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        isolate, value, MakePair(Failure::Exception(), NULL));
     return MakePair(*value, *receiver_handle);
   }
 

@@ -1902,10 +1902,8 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
     if (!i::JSReceiver::HasProperty(obj, name)) return v8::Local<Value>();
-    i::Handle<i::Object> value;
-    if (!i::Object::GetProperty(obj, name).ToHandle(&value)) {
-      return v8::Local<Value>();
-    }
+    i::Handle<i::Object> value = i::Object::GetProperty(obj, name);
+    if (value.is_null()) return v8::Local<Value>();
     return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
     return v8::Local<Value>();
@@ -2000,8 +1998,8 @@ MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
   i::Handle<i::String> fmt_str =
       isolate->factory()->InternalizeUtf8String(name);
   i::Handle<i::Object> object_fun =
-      i::Object::GetProperty(
-          isolate->js_builtins_object(), fmt_str).ToHandleChecked();
+      i::GlobalObject::GetPropertyNoExceptionThrown(
+          isolate->js_builtins_object(), fmt_str);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(object_fun);
   return i::Execution::Call(isolate, fun, recv, argc, argv);
 }
@@ -2131,7 +2129,7 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
   i::Handle<i::Object> obj =
-      i::Object::GetElement(isolate, self, index).ToHandleChecked();
+      i::Object::GetElementNoExceptionThrown(isolate, self, index);
   i::Handle<i::JSObject> jsobj = i::Handle<i::JSObject>::cast(obj);
   return scope.Escape(Utils::StackFrameToLocal(jsobj));
 }
@@ -2446,8 +2444,8 @@ static i::Object* LookupBuiltin(i::Isolate* isolate,
                                 const char* builtin_name) {
   i::Handle<i::String> string =
       isolate->factory()->InternalizeUtf8String(builtin_name);
-  return *i::Object::GetProperty(
-      isolate->js_builtins_object(), string).ToHandleChecked();
+  return *i::GlobalObject::GetPropertyNoExceptionThrown(
+      isolate->js_builtins_object(), string);
 }
 
 
@@ -6960,8 +6958,8 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
         isolate_debug->debug_context()->global_object());
     i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("MakeMirror"));
-    i::Handle<i::Object> fun_obj =
-        i::Object::GetProperty(debug, name).ToHandleChecked();
+    i::Handle<i::Object> fun_obj = i::Object::GetProperty(debug, name);
+    ASSERT(!fun_obj.is_null());
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
     v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
     const int kArgc = 1;

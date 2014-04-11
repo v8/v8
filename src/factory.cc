@@ -1122,7 +1122,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
       space--;
       if (space > 0) {
         Handle<String> arg_str = Handle<String>::cast(
-            Object::GetElement(isolate(), args, i).ToHandleChecked());
+            Object::GetElementNoExceptionThrown(isolate(), args, i));
         SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg.get(), space);
@@ -1145,8 +1145,8 @@ Handle<Object> Factory::NewError(const char* maker,
                                  const char* message,
                                  Handle<JSArray> args) {
   Handle<String> make_str = InternalizeUtf8String(maker);
-  Handle<Object> fun_obj = Object::GetProperty(
-      isolate()->js_builtins_object(), make_str).ToHandleChecked();
+  Handle<Object> fun_obj = GlobalObject::GetPropertyNoExceptionThrown(
+      isolate()->js_builtins_object(), make_str);
   // If the builtins haven't been properly configured yet this error
   // constructor may not have been defined.  Bail out.
   if (!fun_obj->IsJSFunction()) {
@@ -1179,8 +1179,9 @@ Handle<Object> Factory::NewError(Handle<String> message) {
 Handle<Object> Factory::NewError(const char* constructor,
                                  Handle<String> message) {
   Handle<String> constr = InternalizeUtf8String(constructor);
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
-      isolate()->js_builtins_object(), constr).ToHandleChecked());
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      GlobalObject::GetPropertyNoExceptionThrown(
+          isolate()->js_builtins_object(), constr));
   Handle<Object> argv[] = { message };
 
   // Invoke the JavaScript factory method. If an exception is thrown while

@@ -1533,18 +1533,26 @@ class Object : public MaybeObject {
 
   void Lookup(Name* name, LookupResult* result);
 
+  // Property access.
+  MUST_USE_RESULT inline MaybeObject* GetProperty(Name* key);
+
+  // TODO(yangguo): this should eventually replace the non-handlified version.
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
       Handle<Object> object,
       Handle<Object> receiver,
       Handle<Name> name,
       PropertyAttributes* attributes);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
+  MUST_USE_RESULT MaybeObject* GetPropertyWithReceiver(
+      Object* receiver,
+      Name* key,
+      PropertyAttributes* attributes);
+
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
 
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Handle<Object> object,
-      Handle<Name> key);
+  static Handle<Object> GetProperty(Handle<Object> object,
+                                    Handle<Name> key);
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       Handle<Object> object,
       Handle<Object> receiver,
@@ -1552,12 +1560,23 @@ class Object : public MaybeObject {
       Handle<Name> key,
       PropertyAttributes* attributes);
 
+  MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
+                                           LookupResult* result,
+                                           Name* key,
+                                           PropertyAttributes* attributes);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
       Handle<Object> object,
       Handle<Object> receiver,
       Handle<JSReceiver> getter);
 
   MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
+
+  // For use when we know that no exception can be thrown.
+  static inline Handle<Object> GetElementNoExceptionThrown(
       Isolate* isolate,
       Handle<Object> object,
       uint32_t index);
@@ -7790,6 +7809,14 @@ class GlobalObject: public JSObject {
   // Retrieve the property cell used to store a property.
   PropertyCell* GetPropertyCell(LookupResult* result);
 
+  // This is like GetProperty, but is used when you know the lookup won't fail
+  // by throwing an exception.  This is for the debug and builtins global
+  // objects, where it is known which properties can be expected to be present
+  // on the object.
+  static inline Handle<Object> GetPropertyNoExceptionThrown(
+      Handle<GlobalObject> global,
+      Handle<Name> name);
+
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
@@ -9818,13 +9845,11 @@ class JSProxy: public JSReceiver {
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Object> receiver,
-      Handle<Name> name);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetElementWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Object> receiver,
+  MUST_USE_RESULT MaybeObject* GetPropertyWithHandler(
+      Object* receiver,
+      Name* name);
+  MUST_USE_RESULT MaybeObject* GetElementWithHandler(
+      Object* receiver,
       uint32_t index);
 
   // If the handler defines an accessor property with a setter, invoke it.
@@ -9895,7 +9920,7 @@ class JSProxy: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes,
       StrictMode strict_mode);
-  MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithHandler(
       Handle<JSProxy> proxy,
       Handle<JSReceiver> receiver,
       uint32_t index,
@@ -9903,8 +9928,7 @@ class JSProxy: public JSReceiver {
       StrictMode strict_mode);
 
   static bool HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name);
-  static inline bool HasElementWithHandler(Handle<JSProxy> proxy,
-                                           uint32_t index);
+  static bool HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
       Handle<JSProxy> proxy,

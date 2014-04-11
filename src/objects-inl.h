@@ -1081,13 +1081,6 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
-                                        Handle<Name> name) {
-  PropertyAttributes attributes;
-  return GetPropertyWithReceiver(object, object, name, &attributes);
-}
-
-
 MaybeHandle<Object> Object::GetElement(Isolate* isolate,
                                        Handle<Object> object,
                                        uint32_t index) {
@@ -1099,39 +1092,19 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                                 Handle<Name> name) {
-  uint32_t index;
-  Isolate* isolate = name->GetIsolate();
-  if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
-  return GetProperty(object, name);
-}
-
-
-MaybeHandle<Object> JSProxy::GetElementWithHandler(Handle<JSProxy> proxy,
-                                                   Handle<Object> receiver,
+Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
+                                                   Handle<Object> object,
                                                    uint32_t index) {
-  return GetPropertyWithHandler(
-      proxy, receiver, proxy->GetIsolate()->factory()->Uint32ToString(index));
+  Handle<Object> result =
+      Object::GetElementWithReceiver(
+          isolate, object, object, index).ToHandleChecked();
+  return result;
 }
 
 
-MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
-                                                   Handle<JSReceiver> receiver,
-                                                   uint32_t index,
-                                                   Handle<Object> value,
-                                                   StrictMode strict_mode) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return SetPropertyWithHandler(
-      proxy, receiver, name, value, NONE, strict_mode);
-}
-
-
-bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return HasPropertyWithHandler(proxy, name);
+MaybeObject* Object::GetProperty(Name* key) {
+  PropertyAttributes attributes;
+  return GetPropertyWithReceiver(this, key, &attributes);
 }
 
 
@@ -3048,6 +3021,15 @@ void Name::set_hash_field(uint32_t value) {
 #if V8_HOST_ARCH_64_BIT
   WRITE_UINT32_FIELD(this, kHashFieldOffset + kIntSize, 0);
 #endif
+}
+
+
+Handle<Object> GlobalObject::GetPropertyNoExceptionThrown(
+    Handle<GlobalObject> global,
+    Handle<Name> name) {
+  Handle<Object> result = Object::GetProperty(global, name);
+  CHECK_NOT_EMPTY_HANDLE(name->GetIsolate(), result);
+  return result;
 }
 
 

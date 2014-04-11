@@ -394,8 +394,8 @@ Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("nameOrSourceURL"));
   Handle<JSValue> script_wrapper = GetScriptWrapper(script);
-  Handle<Object> property = Object::GetProperty(
-      script_wrapper, name_or_source_url_key).ToHandleChecked();
+  Handle<Object> property =
+      Object::GetProperty(script_wrapper, name_or_source_url_key);
   ASSERT(property->IsJSFunction());
   Handle<JSFunction> method = Handle<JSFunction>::cast(property);
   Handle<Object> result;

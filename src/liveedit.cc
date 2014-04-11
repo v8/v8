@@ -724,8 +724,8 @@ class FunctionInfoListener {
     HandleScope scope(isolate());
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+            *Object::GetElementNoExceptionThrown(
+                isolate(), result_, current_parent_index_));
     current_parent_index_ = info.GetParentIndex();
   }
 
@@ -734,8 +734,8 @@ class FunctionInfoListener {
   void FunctionCode(Handle<Code> function_code) {
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+            *Object::GetElementNoExceptionThrown(
+                isolate(), result_, current_parent_index_));
     info.SetFunctionCode(function_code,
                          Handle<HeapObject>(isolate()->heap()->null_value()));
   }
@@ -749,8 +749,8 @@ class FunctionInfoListener {
     }
     FunctionInfoWrapper info =
         FunctionInfoWrapper::cast(
-            *Object::GetElement(
-                isolate(), result_, current_parent_index_).ToHandleChecked());
+            *Object::GetElementNoExceptionThrown(
+                isolate(), result_, current_parent_index_));
     info.SetFunctionCode(Handle<Code>(shared->code()),
                          Handle<HeapObject>(shared->scope_info()));
     info.SetSharedFunctionInfo(shared);
@@ -881,7 +881,7 @@ void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
   for (int i = 0; i < len; i++) {
     Handle<SharedFunctionInfo> info(
         SharedFunctionInfo::cast(
-            *Object::GetElement(isolate, array, i).ToHandleChecked()));
+            *Object::GetElementNoExceptionThrown(isolate, array, i)));
     SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
     Handle<String> name_handle(String::cast(info->name()));
     info_wrapper.SetProperties(name_handle, info->start_position(),
@@ -1239,21 +1239,21 @@ static int TranslatePosition(int original_position,
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
     HandleScope scope(isolate);
-    Handle<Object> element = Object::GetElement(
-        isolate, position_change_array, i).ToHandleChecked();
+    Handle<Object> element = Object::GetElementNoExceptionThrown(
+        isolate, position_change_array, i);
     CHECK(element->IsSmi());
     int chunk_start = Handle<Smi>::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
-    element = Object::GetElement(
-        isolate, position_change_array, i + 1).ToHandleChecked();
+    element = Object::GetElementNoExceptionThrown(
+        isolate, position_change_array, i + 1);
     CHECK(element->IsSmi());
     int chunk_end = Handle<Smi>::cast(element)->value();
     // Position mustn't be inside a chunk.
     ASSERT(original_position >= chunk_end);
-    element = Object::GetElement(
-        isolate, position_change_array, i + 2).ToHandleChecked();
+    element = Object::GetElementNoExceptionThrown(
+        isolate, position_change_array, i + 2);
     CHECK(element->IsSmi());
     int chunk_changed_end = Handle<Smi>::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
@@ -1504,7 +1504,7 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   for (int i = 0; i < len; i++) {
     HandleScope scope(isolate);
     Handle<Object> element =
-        Object::GetElement(isolate, shared_info_array, i).ToHandleChecked();
+        Object::GetElementNoExceptionThrown(isolate, shared_info_array, i);
     Handle<JSValue> jsvalue = Handle<JSValue>::cast(element);
     Handle<SharedFunctionInfo> shared =
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
@@ -1821,7 +1821,7 @@ static const char* DropActivationsInActiveThread(
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
     Handle<Object> obj =
-        Object::GetElement(isolate, result, i).ToHandleChecked();
+        Object::GetElementNoExceptionThrown(isolate, result, i);
     if (*obj == Smi::FromInt(LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
       Handle<Object> replaced(
           Smi::FromInt(LiveEdit::FUNCTION_REPLACED_ON_ACTIVE_STACK), isolate);
