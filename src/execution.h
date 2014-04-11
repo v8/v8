@@ -61,7 +61,7 @@ class Execution V8_FINAL : public AllStatic {
   // any thrown exceptions. The return value is either the result of
   // calling the function (if caught exception is false) or the exception
   // that occurred (if caught exception is true).
-  MUST_USE_RESULT static MaybeHandle<Object> TryCall(
+  static MaybeHandle<Object> TryCall(
       Handle<JSFunction> func,
       Handle<Object> receiver,
       int argc,
