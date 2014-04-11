@@ -2283,10 +2283,11 @@ void MacroAssembler::Push(Smi* source) {
 }
 
 
-void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
+void MacroAssembler::PushRegisterAsTwoSmis(Register src, Register scratch) {
+  ASSERT(!src.is(scratch));
   movp(scratch, src);
   // High bits.
-  shrp(src, Immediate(64 - kSmiShift));
+  shrp(src, Immediate(kPointerSize * kBitsPerByte - kSmiShift));
   shlp(src, Immediate(kSmiShift));
   Push(src);
   // Low bits.
@@ -2295,14 +2296,15 @@ void MacroAssembler::PushInt64AsTwoSmis(Register src, Register scratch) {
 }
 
 
-void MacroAssembler::PopInt64AsTwoSmis(Register dst, Register scratch) {
+void MacroAssembler::PopRegisterAsTwoSmis(Register dst, Register scratch) {
+  ASSERT(!dst.is(scratch));
   Pop(scratch);
   // Low bits.
   shrp(scratch, Immediate(kSmiShift));
   Pop(dst);
   shrp(dst, Immediate(kSmiShift));
   // High bits.
-  shlp(dst, Immediate(64 - kSmiShift));
+  shlp(dst, Immediate(kPointerSize * kBitsPerByte - kSmiShift));
   orp(dst, scratch);
 }
 
