@@ -684,6 +684,9 @@ class HValue : public ZoneObject {
         type_(type),
         use_list_(NULL),
         range_(NULL),
+#ifdef DEBUG
+        range_poisoned_(false),
+#endif
         flags_(0) {}
   virtual ~HValue() {}
 
@@ -854,9 +857,17 @@ class HValue : public ZoneObject {
     return result;
   }
 
-  Range* range() const { return range_; }
-  // TODO(svenpanne) We should really use the null object pattern here.
-  bool HasRange() const { return range_ != NULL; }
+  Range* range() const {
+    ASSERT(!range_poisoned_);
+    return range_;
+  }
+  bool HasRange() const {
+    ASSERT(!range_poisoned_);
+    return range_ != NULL;
+  }
+#ifdef DEBUG
+  void PoisonRange() { range_poisoned_ = true; }
+#endif
   void AddNewRange(Range* r, Zone* zone);
   void RemoveLastAddedRange();
   void ComputeInitialRange(Zone* zone);
@@ -888,7 +899,6 @@ class HValue : public ZoneObject {
   virtual void PrintTo(StringStream* stream) = 0;
   void PrintNameTo(StringStream* stream);
   void PrintTypeTo(StringStream* stream);
-  void PrintRangeTo(StringStream* stream);
   void PrintChangesTo(StringStream* stream);
 
   const char* Mnemonic() const;
@@ -1028,6 +1038,9 @@ class HValue : public ZoneObject {
   HType type_;
   HUseListNode* use_list_;
   Range* range_;
+#ifdef DEBUG
+  bool range_poisoned_;
+#endif
   int flags_;
   GVNFlagSet changes_flags_;
   GVNFlagSet depends_on_flags_;
