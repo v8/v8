@@ -53,11 +53,23 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate,
 #endif
       has_frame_(false),
       use_real_aborts_(true),
-      sp_(jssp), tmp_list_(ip0, ip1), fptmp_list_(fp_scratch1, fp_scratch2) {
+      sp_(jssp),
+      tmp_list_(DefaultTmpList()),
+      fptmp_list_(DefaultFPTmpList()) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
   }
+}
+
+
+CPURegList MacroAssembler::DefaultTmpList() {
+  return CPURegList(ip0, ip1);
+}
+
+
+CPURegList MacroAssembler::DefaultFPTmpList() {
+  return CPURegList(fp_scratch1, fp_scratch2);
 }
 
 
@@ -4729,8 +4741,7 @@ void MacroAssembler::Abort(BailoutReason reason) {
   // We need some scratch registers for the MacroAssembler, so make sure we have
   // some. This is safe here because Abort never returns.
   RegList old_tmp_list = TmpList()->list();
-  TmpList()->Combine(ip0);
-  TmpList()->Combine(ip1);
+  TmpList()->Combine(MacroAssembler::DefaultTmpList());
 
   if (use_real_aborts()) {
     // Avoid infinite recursion; Push contains some assertions that use Abort.

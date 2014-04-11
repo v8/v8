@@ -516,8 +516,8 @@ class CPURegList {
   void Combine(const CPURegList& other);
 
   // Remove every register in the other CPURegList from this one. Registers that
-  // do not exist in this list are ignored. The type and size of the registers
-  // in the 'other' list must match those in this list.
+  // do not exist in this list are ignored. The type of the registers in the
+  // 'other' list must match those in this list.
   void Remove(const CPURegList& other);
 
   // Variants of Combine and Remove which take CPURegisters.

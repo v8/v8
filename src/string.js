@@ -658,7 +658,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
   var currentIndex = 0;
   var startIndex = 0;
   var startMatch = 0;
-  var result = [];
+  var result = new InternalArray();
 
   outer_loop:
   while (true) {
@@ -703,7 +703,9 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
 
     startIndex = currentIndex = endIndex;
   }
-  return result;
+  var array_result = [];
+  %MoveArrayContents(result, array_result);
+  return array_result;
 }
 
 

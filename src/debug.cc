@@ -3599,7 +3599,8 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
   if (IsEvent()) {
     // Call toJSONProtocol on the debug event object.
-    Handle<Object> fun = GetProperty(event_data_, "toJSONProtocol");
+    Handle<Object> fun =
+        GetProperty(event_data_, "toJSONProtocol").ToHandleChecked();
     if (!fun->IsJSFunction()) {
       return v8::Handle<v8::String>();
     }

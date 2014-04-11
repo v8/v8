@@ -1081,9 +1081,9 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
-Handle<Object> Object::GetElement(Isolate* isolate,
-                                  Handle<Object> object,
-                                  uint32_t index) {
+MaybeHandle<Object> Object::GetElement(Isolate* isolate,
+                                       Handle<Object> object,
+                                       uint32_t index) {
   // GetElement can trigger a getter which can cause allocation.
   // This was not always the case. This ASSERT is here to catch
   // leftover incorrect uses.
@@ -1096,8 +1096,8 @@ Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
                                                    Handle<Object> object,
                                                    uint32_t index) {
   Handle<Object> result =
-      Object::GetElementWithReceiver(isolate, object, object, index);
-  CHECK_NOT_EMPTY_HANDLE(isolate, result);
+      Object::GetElementWithReceiver(
+          isolate, object, object, index).ToHandleChecked();
   return result;
 }
 

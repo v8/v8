@@ -301,6 +301,11 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     int first_added_arg) {
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  // If there may be elements accessors in the prototype chain, the fast path
+  // cannot be used.
+  if (array->map()->DictionaryElementsInPrototypeChainOnly()) {
+    return MaybeHandle<FixedArrayBase>();
+  }
   if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
   if (!array->map()->is_extensible()) return MaybeHandle<FixedArrayBase>();
   Handle<FixedArrayBase> elms(array->elements(), isolate);
@@ -369,7 +374,7 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
 
   Handle<Object> js_builtin =
       GetProperty(Handle<JSObject>(isolate->native_context()->builtins()),
-                  name);
+                  name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(js_builtin);
   int argc = args.length() - 1;
   ScopedVector<Handle<Object> > argv(argc);
@@ -514,18 +519,18 @@ BUILTIN(ArrayPop) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
-  Handle<Object> element;
+  MaybeHandle<Object> maybe_element;
   if (accessor->HasElement(array, array, new_length, elms_obj)) {
-    element = accessor->Get(
-        array, array, new_length, elms_obj);
+    maybe_element = accessor->Get(array, array, new_length, elms_obj);
   } else {
     Handle<Object> proto(array->GetPrototype(), isolate);
-    element = Object::GetElement(isolate, proto, len - 1);
+    maybe_element = Object::GetElement(isolate, proto, len - 1);
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, element);
-  RETURN_IF_EMPTY_HANDLE(isolate,
-                         accessor->SetLength(
-                             array, handle(Smi::FromInt(new_length), isolate)));
+  Handle<Object> element;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element, maybe_element);
+  RETURN_IF_EMPTY_HANDLE(
+      isolate,
+      accessor->SetLength(array, handle(Smi::FromInt(new_length), isolate)));
   return *element;
 }
 
@@ -550,8 +555,9 @@ BUILTIN(ArrayShift) {
 
   // Get first element
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<Object> first = accessor->Get(receiver, array, 0, elms_obj);
-  RETURN_IF_EMPTY_HANDLE(isolate, first);
+  Handle<Object> first;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, first, accessor->Get(receiver, array, 0, elms_obj));
   if (first->IsTheHole()) {
     first = isolate->factory()->undefined_value();
   }

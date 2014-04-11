@@ -1095,20 +1095,20 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
 
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
-  // Preserve caller-saved registers x0-x7 and x10-x15. We don't care if x8, x9,
-  // ip0 and ip1 are corrupted by the call into C.
   CPURegList saved_regs = kCallerSaved;
-  saved_regs.Remove(ip0);
-  saved_regs.Remove(ip1);
-  saved_regs.Remove(x8);
-  saved_regs.Remove(x9);
+  CPURegList saved_fp_regs = kCallerSavedFP;
 
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
+
+  // We don't care if MacroAssembler scratch registers are corrupted.
+  saved_regs.Remove(*(masm->TmpList()));
+  saved_fp_regs.Remove(*(masm->FPTmpList()));
+
   __ PushCPURegList(saved_regs);
   if (save_doubles_ == kSaveFPRegs) {
-    __ PushCPURegList(kCallerSavedFP);
+    __ PushCPURegList(saved_fp_regs);
   }
 
   AllowExternalCallThatCantCauseGC scope(masm);
@@ -1118,7 +1118,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
                                                         1, 0);
 
   if (save_doubles_ == kSaveFPRegs) {
-    __ PopCPURegList(kCallerSavedFP);
+    __ PopCPURegList(saved_fp_regs);
   }
   __ PopCPURegList(saved_regs);
   __ Ret();

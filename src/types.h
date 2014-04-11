@@ -10,6 +10,8 @@
 namespace v8 {
 namespace internal {
 
+// SUMMARY
+//
 // A simple type system for compiler-internal use. It is based entirely on
 // union types, and all subtyping hence amounts to set inclusion. Besides the
 // obvious primitive types and some predefined unions, the type language also
@@ -18,6 +20,8 @@ namespace internal {
 //
 // Types consist of two dimensions: semantic (value range) and representation.
 // Both are related through subtyping.
+//
+// SEMANTIC DIMENSION
 //
 // The following equations and inequations hold for the semantic axis:
 //
@@ -44,6 +48,10 @@ namespace internal {
 // change! (Its instance type cannot, however.)
 // TODO(rossberg): the latter is not currently true for proxies, because of fix,
 // but will hold once we implement direct proxies.
+// However, we also define a 'temporal' variant of the subtyping relation that
+// considers the _current_ state only, i.e., Constant(x) <_now Class(map(x)).
+//
+// REPRESENTATIONAL DIMENSION
 //
 // For the representation axis, the following holds:
 //
@@ -69,6 +77,8 @@ namespace internal {
 //   SignedSmall /\ TaggedInt       (a 'smi')
 //   Number /\ TaggedPtr            (a heap number)
 //
+// PREDICATES
+//
 // There are two main functions for testing types:
 //
 //   T1->Is(T2)     -- tests whether T1 is included in T2 (i.e., T1 <= T2)
@@ -83,6 +93,22 @@ namespace internal {
 // lattice (e.g., splitting up number types further) without invalidating any
 // existing assumptions or tests.
 // Consequently, do not use pointer equality for type tests, always use Is!
+//
+// The NowIs operator implements state-sensitive subtying, as described above.
+// Any compilation decision based on such temporary properties requires runtime
+// guarding!
+//
+// PROPERTIES
+//
+// Various formal properties hold for constructors, operators, and predicates
+// over types. For example, constructors are injective, subtyping is a partial
+// order, and union and intersection satisfy the usual algebraic properties.
+//
+// See test/cctest/test-types.cc for a comprehensive executable specification,
+// especially with respect to the proeprties of the more exotic 'temporal'
+// constructors and predicates (those prefixed 'Now').
+//
+// IMPLEMENTATION
 //
 // Internally, all 'primitive' types, and their unions, are represented as
 // bitsets. Class is a heap pointer to the respective map. Only Constant's, or

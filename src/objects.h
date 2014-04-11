@@ -1547,8 +1547,9 @@ class Object : public MaybeObject {
       Name* key,
       PropertyAttributes* attributes);
 
-  static Handle<Object> GetPropertyOrElement(Handle<Object> object,
-                                             Handle<Name> key);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyOrElement(
+      Handle<Object> object,
+      Handle<Name> key);
 
   static Handle<Object> GetProperty(Handle<Object> object,
                                     Handle<Name> key);
@@ -1564,12 +1565,15 @@ class Object : public MaybeObject {
                                            Name* key,
                                            PropertyAttributes* attributes);
 
-  MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
-                                                            JSReceiver* getter);
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
+      Handle<Object> object,
+      Handle<Object> receiver,
+      Handle<JSReceiver> getter);
 
-  static inline Handle<Object> GetElement(Isolate* isolate,
-                                          Handle<Object> object,
-                                          uint32_t index);
+  MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
+      Isolate* isolate,
+      Handle<Object> object,
+      uint32_t index);
 
   // For use when we know that no exception can be thrown.
   static inline Handle<Object> GetElementNoExceptionThrown(
@@ -1577,10 +1581,11 @@ class Object : public MaybeObject {
       Handle<Object> object,
       uint32_t index);
 
-  static Handle<Object> GetElementWithReceiver(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> receiver,
-                                               uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithReceiver(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> receiver,
+      uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
@@ -2498,9 +2503,10 @@ class JSObject: public JSReceiver {
 
   // Returns the index'th element.
   // The undefined object if index is out of bounds.
-  static Handle<Object> GetElementWithInterceptor(Handle<JSObject> object,
-                                                  Handle<Object> receiver,
-                                                  uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Object> receiver,
+      uint32_t index);
 
   enum SetFastElementsCapacitySmiMode {
     kAllowSmiElements,
@@ -2788,17 +2794,13 @@ class JSObject: public JSReceiver {
       Handle<Name> name,
       PropertyAttributes* attributes);
 
-  MUST_USE_RESULT static Handle<Object> GetElementWithCallback(
+  MUST_USE_RESULT static MaybeHandle<Object> GetElementWithCallback(
       Handle<JSObject> object,
       Handle<Object> receiver,
       Handle<Object> structure,
       uint32_t index,
       Handle<Object> holder);
 
-  MUST_USE_RESULT MaybeObject* GetElementWithCallback(Object* receiver,
-                                                      Object* structure,
-                                                      uint32_t index,
-                                                      Object* holder);
   static PropertyAttributes GetElementAttributeWithInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
@@ -3076,13 +3078,15 @@ class FixedArray: public FixedArrayBase {
                                         PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
-  static Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
-                                               Handle<JSArray> array);
+  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromJSArray(
+      Handle<FixedArray> content,
+      Handle<JSArray> array);
 
   // Computes the union of keys and return the result.
   // Used for implementing "for (n in object) { }"
-  static Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
-                                        Handle<FixedArray> second);
+  MUST_USE_RESULT static MaybeHandle<FixedArray> UnionOfKeys(
+      Handle<FixedArray> first,
+      Handle<FixedArray> second);
 
   // Copy a sub array from the receiver to dest.
   void CopyTo(int pos, FixedArray* dest, int dest_pos, int len);
@@ -3452,7 +3456,7 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number,
                   Descriptor* desc,
                   const WhitenessWitness&);
-  inline void Set(int descriptor_number, Descriptor* desc);
+  void Replace(int descriptor_number, Descriptor* descriptor);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -3460,12 +3464,6 @@ class DescriptorArray: public FixedArray {
   inline void Append(Descriptor* desc, const WhitenessWitness&);
   inline void Append(Descriptor* desc);
 
-  // Transfer a complete descriptor from the src descriptor array to this
-  // descriptor array.
-  void CopyFrom(int dst_index,
-                DescriptorArray* src,
-                int src_index,
-                const WhitenessWitness&);
   static Handle<DescriptorArray> Merge(Handle<Map> left_map,
                                        int verbatim,
                                        int valid,
@@ -3481,12 +3479,14 @@ class DescriptorArray: public FixedArray {
                          DescriptorArray* other);
 
   static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
-                                          int enumeration_index);
+                                          int enumeration_index,
+                                          int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
       Handle<DescriptorArray> desc,
       int enumeration_index,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
@@ -3588,6 +3588,14 @@ class DescriptorArray: public FixedArray {
            (descriptor_number * kDescriptorSize) +
            kDescriptorValue;
   }
+
+  // Transfer a complete descriptor from the src descriptor array to this
+  // descriptor array.
+  void CopyFrom(int index,
+                DescriptorArray* src,
+                const WhitenessWitness&);
+
+  inline void Set(int descriptor_number, Descriptor* desc);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
@@ -6183,10 +6191,6 @@ class Map: public HeapObject {
   inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
-  static Handle<TransitionArray> AddTransition(Handle<Map> map,
-                                               Handle<Name> key,
-                                               Handle<Map> target,
-                                               SimpleTransitionFlag flag);
   DECL_ACCESSORS(transitions, TransitionArray)
   inline void ClearTransitions(Heap* heap,
                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER);

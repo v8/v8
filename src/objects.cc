@@ -381,6 +381,16 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
 }
 
 
+static Handle<Object> GetDeclaredAccessorProperty(
+    Handle<Object> receiver,
+    Handle<DeclaredAccessorInfo> info,
+    Isolate* isolate) {
+  CALL_HEAP_FUNCTION(isolate,
+                     GetDeclaredAccessorProperty(*receiver, *info, isolate),
+                     Object);
+}
+
+
 Handle<FixedArray> JSObject::EnsureWritableFastElements(
     Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -435,7 +445,6 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
         v8::ToCData<v8::AccessorGetterCallback>(data->getter());
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
-    HandleScope scope(isolate);
     Handle<JSObject> self = Handle<JSObject>::cast(receiver);
     Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *name));
@@ -448,7 +457,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     }
     Handle<Object> return_value = v8::Utils::OpenHandle(*result);
     return_value->VerifyApiCallResultType();
-    return scope.CloseAndEscape(return_value);
+    // Rebox handle before return.
+    return handle(*return_value, isolate);
   }
 
   // __defineGetter__ callback
@@ -456,11 +466,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
                         isolate);
   if (getter->IsSpecFunction()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
-    CALL_HEAP_FUNCTION(
-        isolate,
-        object->GetPropertyWithDefinedGetter(*receiver,
-                                             JSReceiver::cast(*getter)),
-        Object);
+    return Object::GetPropertyWithDefinedGetter(
+        object, receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
   return isolate->factory()->undefined_value();
@@ -490,8 +497,8 @@ MaybeObject* JSProxy::GetPropertyWithHandler(Object* receiver_raw,
 }
 
 
-Handle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                            Handle<Name> name) {
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+                                                 Handle<Name> name) {
   uint32_t index;
   Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
@@ -533,28 +540,27 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 }
 
 
-MaybeObject* Object::GetPropertyWithDefinedGetter(Object* receiver,
-                                                  JSReceiver* getter) {
+MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
+    Handle<Object> object,
+    Handle<Object> receiver,
+    Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSReceiver> fun(getter);
-  Handle<Object> self(receiver, isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && fun->IsJSFunction()) {
+  if (debug->StepInActive() && getter->IsJSFunction()) {
     debug->HandleStepIn(
-        Handle<JSFunction>::cast(fun), Handle<Object>::null(), 0, false);
+        Handle<JSFunction>::cast(getter), Handle<Object>::null(), 0, false);
   }
 #endif
 
   bool has_pending_exception;
   Handle<Object> result = Execution::Call(
-      isolate, fun, self, 0, NULL, &has_pending_exception, true);
+      isolate, getter, receiver, 0, NULL, &has_pending_exception, true);
   // Check for pending exception and return the result.
-  if (has_pending_exception) return Failure::Exception();
-  return *result;
+  if (has_pending_exception) return MaybeHandle<Object>();
+  return result;
 }
 
 
@@ -961,10 +967,10 @@ MaybeObject* Object::GetProperty(Object* receiver,
 }
 
 
-Handle<Object> Object::GetElementWithReceiver(Isolate* isolate,
-                                              Handle<Object> object,
-                                              Handle<Object> receiver,
-                                              uint32_t index) {
+MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
+                                                   Handle<Object> object,
+                                                   Handle<Object> receiver,
+                                                   uint32_t index) {
   Handle<Object> holder;
 
   // Iterate up the prototype chain until an element is found or the null
@@ -1017,9 +1023,11 @@ Handle<Object> Object::GetElementWithReceiver(Isolate* isolate,
     }
 
     if (js_object->elements() != isolate->heap()->empty_fixed_array()) {
-      Handle<Object> result = js_object->GetElementsAccessor()->Get(
-          receiver, js_object, index);
-      RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+      Handle<Object> result;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          js_object->GetElementsAccessor()->Get(receiver, js_object, index),
+          Object);
       if (!result->IsTheHole()) return result;
     }
   }
@@ -2367,7 +2375,7 @@ bool Map::InstancesNeedRewriting(Map* target,
 
 Handle<TransitionArray> Map::SetElementsTransitionMap(
     Handle<Map> map, Handle<Map> transitioned_map) {
-  Handle<TransitionArray> transitions = Map::AddTransition(
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
       map,
       map->GetIsolate()->factory()->elements_transition_symbol(),
       transitioned_map,
@@ -2497,18 +2505,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
-Handle<TransitionArray> Map::AddTransition(Handle<Map> map,
-                                           Handle<Name> key,
-                                           Handle<Map> target,
-                                           SimpleTransitionFlag flag) {
-  if (map->HasTransitionArray()) {
-    return TransitionArray::CopyInsert(map, key, target);
-  }
-  return TransitionArray::NewWith(
-      flag, key, target, handle(map->GetBackPointer(), map->GetIsolate()));
-}
-
-
 void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
                                              int modify_index,
                                              Representation new_representation,
@@ -2548,8 +2544,7 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
                       new_map->NumberOfFields(),
                       attributes,
                       Representation::Tagged());
-    d.SetSortedKeyIndex(details.pointer());
-    descriptors->Set(modify_index, &d);
+    descriptors->Replace(modify_index, &d);
     int unused_property_fields = new_map->unused_property_fields() - 1;
     if (unused_property_fields < 0) {
       unused_property_fields += JSObject::kFieldsAdded;
@@ -3121,16 +3116,40 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
 
 
 void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
-  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
-  int number_of_descriptors = descriptors->number_of_descriptors();
-  Isolate* isolate = map->GetIsolate();
-  Handle<DescriptorArray> new_descriptors =
-      isolate->factory()->NewDescriptorArray(number_of_descriptors, slack);
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
+  // Only supports adding slack to owned descriptors.
+  ASSERT(map->owns_descriptors());
 
-  for (int i = 0; i < number_of_descriptors; ++i) {
-    new_descriptors->CopyFrom(i, *descriptors, i, witness);
+  Handle<DescriptorArray> descriptors(map->instance_descriptors());
+  int old_size = map->NumberOfOwnDescriptors();
+  if (slack <= descriptors->NumberOfSlackDescriptors()) return;
+
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, old_size, slack);
+
+  if (old_size == 0) {
+    map->set_instance_descriptors(*new_descriptors);
+    return;
+  }
+
+  // If the source descriptors had an enum cache we copy it. This ensures
+  // that the maps to which we push the new descriptor array back can rely
+  // on a cache always being available once it is set. If the map has more
+  // enumerated descriptors than available in the original cache, the cache
+  // will be lazily replaced by the extended cache when needed.
+  if (descriptors->HasEnumCache()) {
+    new_descriptors->CopyEnumCacheFrom(*descriptors);
+  }
+
+  // Replace descriptors by new_descriptors in all maps that share it.
+  map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
+
+  Map* walk_map;
+  for (Object* current = map->GetBackPointer();
+       !current->IsUndefined();
+       current = walk_map->GetBackPointer()) {
+    walk_map = Map::cast(current);
+    if (walk_map->instance_descriptors() != *descriptors) break;
+    walk_map->set_instance_descriptors(*new_descriptors);
   }
 
   map->set_instance_descriptors(*new_descriptors);
@@ -3877,8 +3896,11 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
   Handle<Object> handler(proxy->handler(), isolate);
 
   Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> trap = Object::GetPropertyOrElement(handler, trap_name);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, trap, MaybeHandle<Object>());
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, trap,
+      Object::GetPropertyOrElement(handler, trap_name),
+      Object);
 
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
@@ -4141,8 +4163,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup->IsDataProperty()) {
-    old_value = Object::GetPropertyOrElement(object, name);
-    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
   }
 
   // This is a real property that is not read-only, or it is a
@@ -4189,8 +4210,8 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
       LookupResult new_lookup(isolate);
       object->LocalLookup(*name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+        Handle<Object> new_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
         if (!new_value->SameValue(*old_value)) {
           EnqueueChangeRecord(object, "update", name, old_value);
         }
@@ -4268,8 +4289,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsProperty()) {
     if (lookup.IsDataProperty()) {
-      old_value = Object::GetPropertyOrElement(object, name);
-      CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+      old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
     }
     old_attributes = lookup.GetAttributes();
   }
@@ -4317,8 +4337,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       object->LocalLookup(*name, &new_lookup, true);
       bool value_changed = false;
       if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, new_value);
+        Handle<Object> new_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
         value_changed = !old_value->SameValue(*new_value);
       }
       if (new_lookup.GetAttributes() != old_attributes) {
@@ -5337,8 +5357,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   bool is_observed = object->map()->is_observed() &&
                      *name != isolate->heap()->hidden_string();
   if (is_observed && lookup.IsDataProperty()) {
-    old_value = Object::GetPropertyOrElement(object, name);
-    CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+    old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
   }
   Handle<Object> result;
 
@@ -6450,8 +6469,8 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       object->LocalLookup(*name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
-        old_value = Object::GetPropertyOrElement(object, name);
-        CHECK_NOT_EMPTY_HANDLE(isolate, old_value);
+        old_value =
+            Object::GetPropertyOrElement(object, name).ToHandleChecked();
       }
     }
   }
@@ -6840,62 +6859,29 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   // descriptors in the descriptor array.
   ASSERT(map->NumberOfOwnDescriptors() ==
          map->instance_descriptors()->number_of_descriptors());
+
   Handle<Map> result = Map::CopyDropDescriptors(map);
-
   Handle<Name> name = descriptor->GetKey();
-
   Handle<TransitionArray> transitions =
-      Map::AddTransition(map, name, result, SIMPLE_TRANSITION);
+      TransitionArray::CopyInsert(map, name, result, SIMPLE_TRANSITION);
 
-  if (descriptors->NumberOfSlackDescriptors() > 0) {
-    descriptors->Append(descriptor);
-    result->SetBackPointer(*map);
-    result->InitializeDescriptors(*descriptors);
-  } else {
+  // Ensure there's space for the new descriptor in the shared descriptor array.
+  if (descriptors->NumberOfSlackDescriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
-    // Descriptor arrays grow by 50%.
-    Handle<DescriptorArray> new_descriptors =
-        map->GetIsolate()->factory()->NewDescriptorArray(
-            old_size, old_size < 4 ? 1 : old_size / 2);
-
-    DisallowHeapAllocation no_gc;
-    DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-    // Copy the descriptors, inserting a descriptor.
-    for (int i = 0; i < old_size; ++i) {
-      new_descriptors->CopyFrom(i, *descriptors, i, witness);
+    if (old_size == 0) {
+      descriptors = map->GetIsolate()->factory()->NewDescriptorArray(0, 1);
+    } else {
+      Map::EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      descriptors = handle(map->instance_descriptors());
     }
-
-    new_descriptors->Append(descriptor, witness);
-
-    if (old_size > 0) {
-      // If the source descriptors had an enum cache we copy it. This ensures
-      // that the maps to which we push the new descriptor array back can rely
-      // on a cache always being available once it is set. If the map has more
-      // enumerated descriptors than available in the original cache, the cache
-      // will be lazily replaced by the extended cache when needed.
-      if (descriptors->HasEnumCache()) {
-        new_descriptors->CopyEnumCacheFrom(*descriptors);
-      }
-
-      Map* walk_map;
-      // Replace descriptors by new_descriptors in all maps that share it.
-
-      map->GetHeap()->incremental_marking()->RecordWrites(*descriptors);
-      for (Object* current = map->GetBackPointer();
-           !current->IsUndefined();
-           current = walk_map->GetBackPointer()) {
-        walk_map = Map::cast(current);
-        if (walk_map->instance_descriptors() != *descriptors) break;
-        walk_map->set_instance_descriptors(*new_descriptors);
-      }
-
-      map->set_instance_descriptors(*new_descriptors);
-    }
-
-    result->SetBackPointer(*map);
-    result->InitializeDescriptors(*new_descriptors);
   }
+
+  // Commit the state atomically.
+  DisallowHeapAllocation no_gc;
+
+  descriptors->Append(descriptor);
+  result->SetBackPointer(*map);
+  result->InitializeDescriptors(*descriptors);
 
   ASSERT(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
 
@@ -6926,7 +6912,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
   result->InitializeDescriptors(*descriptors);
 
   if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
-    Handle<TransitionArray> transitions = Map::AddTransition(
+    Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
         map, name, result, simple_flag);
     map->set_transitions(*transitions);
     result->SetBackPointer(*map);
@@ -6962,8 +6948,8 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
   result->set_owns_descriptors(false);
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  Handle<TransitionArray> transitions = Map::AddTransition(map, name, result,
-                                                           SIMPLE_TRANSITION);
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
+      map, name, result, SIMPLE_TRANSITION);
 
   map->set_transitions(*transitions);
   result->SetBackPointer(*map);
@@ -7034,9 +7020,8 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
     new_map = Map::Copy(map);
   }
 
-  Handle<TransitionArray> transitions =
-      Map::AddTransition(map, isolate->factory()->observed_symbol(), new_map,
-                         FULL_TRANSITION);
+  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
+      map, isolate->factory()->observed_symbol(), new_map, FULL_TRANSITION);
 
   map->set_transitions(*transitions);
 
@@ -7098,36 +7083,18 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   // Ensure the key is unique.
   descriptor->KeyToUniqueName();
 
-  int old_size = map->NumberOfOwnDescriptors();
-  int new_size = old_size + 1;
-
   if (flag == INSERT_TRANSITION &&
       map->owns_descriptors() &&
       map->CanHaveMoreTransitions()) {
     return Map::ShareDescriptor(map, descriptors, descriptor);
   }
 
-  Handle<DescriptorArray> new_descriptors =
-      map->GetIsolate()->factory()->NewDescriptorArray(old_size, 1);
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, map->NumberOfOwnDescriptors(), 1);
+  new_descriptors->Append(descriptor);
 
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-  // Copy the descriptors, inserting a descriptor.
-  for (int i = 0; i < old_size; ++i) {
-    new_descriptors->CopyFrom(i, *descriptors, i, witness);
-  }
-
-  if (old_size != descriptors->number_of_descriptors()) {
-    new_descriptors->SetNumberOfDescriptors(new_size);
-    new_descriptors->Set(old_size, descriptor, witness);
-    new_descriptors->Sort();
-  } else {
-    new_descriptors->Append(descriptor, witness);
-  }
-
-  Handle<Name> key = descriptor->GetKey();
   return Map::CopyReplaceDescriptors(
-      map, new_descriptors, flag, key, SIMPLE_TRANSITION);
+      map, new_descriptors, flag, descriptor->GetKey(), SIMPLE_TRANSITION);
 }
 
 
@@ -7151,25 +7118,26 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
 
 Handle<DescriptorArray> DescriptorArray::CopyUpTo(
     Handle<DescriptorArray> desc,
-    int enumeration_index) {
-  return DescriptorArray::CopyUpToAddAttributes(desc,
-                                                enumeration_index,
-                                                NONE);
+    int enumeration_index,
+    int slack) {
+  return DescriptorArray::CopyUpToAddAttributes(
+      desc, enumeration_index, NONE, slack);
 }
 
 
 Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     Handle<DescriptorArray> desc,
     int enumeration_index,
-    PropertyAttributes attributes) {
-  if (enumeration_index == 0) {
+    PropertyAttributes attributes,
+    int slack) {
+  if (enumeration_index + slack == 0) {
     return desc->GetIsolate()->factory()->empty_descriptor_array();
   }
 
   int size = enumeration_index;
 
   Handle<DescriptorArray> descriptors =
-      desc->GetIsolate()->factory()->NewDescriptorArray(size);
+      desc->GetIsolate()->factory()->NewDescriptorArray(size, slack);
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
   if (attributes != NONE) {
@@ -7190,7 +7158,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
     }
   } else {
     for (int i = 0; i < size; ++i) {
-      descriptors->CopyFrom(i, *desc, i, witness);
+      descriptors->CopyFrom(i, *desc, witness);
     }
   }
 
@@ -7211,24 +7179,10 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
   Handle<Name> key = descriptor->GetKey();
   ASSERT(*key == descriptors->GetKey(insertion_index));
 
-  int new_size = map->NumberOfOwnDescriptors();
-  ASSERT(0 <= insertion_index && insertion_index < new_size);
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
+      descriptors, map->NumberOfOwnDescriptors());
 
-  ASSERT_LT(insertion_index, new_size);
-
-  Handle<DescriptorArray> new_descriptors =
-      map->GetIsolate()->factory()->NewDescriptorArray(new_size);
-  DescriptorArray::WhitenessWitness witness(*new_descriptors);
-
-  for (int i = 0; i < new_size; ++i) {
-    if (i == insertion_index) {
-      new_descriptors->Set(i, descriptor, witness);
-    } else {
-      new_descriptors->CopyFrom(i, *descriptors, i, witness);
-    }
-  }
-
-  new_descriptors->Sort();
+  new_descriptors->Replace(insertion_index, descriptor);
 
   SimpleTransitionFlag simple_flag =
       (insertion_index == descriptors->number_of_descriptors() - 1)
@@ -7950,11 +7904,15 @@ void FixedArray::Shrink(int new_length) {
 }
 
 
-Handle<FixedArray> FixedArray::AddKeysFromJSArray(Handle<FixedArray> content,
-                                                  Handle<JSArray> array) {
+MaybeHandle<FixedArray> FixedArray::AddKeysFromJSArray(
+    Handle<FixedArray> content,
+    Handle<JSArray> array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<FixedArray> result =
-      accessor->AddElementsToFixedArray(array, array, content);
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      array->GetIsolate(), result,
+      accessor->AddElementsToFixedArray(array, array, content),
+      FixedArray);
 
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
@@ -7969,15 +7927,18 @@ Handle<FixedArray> FixedArray::AddKeysFromJSArray(Handle<FixedArray> content,
 }
 
 
-Handle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
-                                           Handle<FixedArray> second) {
+MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
+                                                Handle<FixedArray> second) {
   ElementsAccessor* accessor = ElementsAccessor::ForArray(second);
-  Handle<FixedArray> result =
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      first->GetIsolate(), result,
       accessor->AddElementsToFixedArray(
           Handle<Object>::null(),     // receiver
           Handle<JSObject>::null(),   // holder
           first,
-          Handle<FixedArrayBase>::cast(second));
+          Handle<FixedArrayBase>::cast(second)),
+      FixedArray);
 
 #ifdef ENABLE_SLOW_ASSERTS
   if (FLAG_enable_slow_asserts) {
@@ -8058,6 +8019,12 @@ void DescriptorArray::ClearEnumCache() {
 }
 
 
+void DescriptorArray::Replace(int index, Descriptor* descriptor) {
+  descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index));
+  Set(index, descriptor);
+}
+
+
 void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
                                    FixedArray* new_cache,
                                    Object* new_index_cache) {
@@ -8073,16 +8040,15 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
-void DescriptorArray::CopyFrom(int dst_index,
+void DescriptorArray::CopyFrom(int index,
                                DescriptorArray* src,
-                               int src_index,
                                const WhitenessWitness& witness) {
-  Object* value = src->GetValue(src_index);
-  PropertyDetails details = src->GetDetails(src_index);
-  Descriptor desc(handle(src->GetKey(src_index)),
+  Object* value = src->GetValue(index);
+  PropertyDetails details = src->GetDetails(index);
+  Descriptor desc(handle(src->GetKey(index)),
                   handle(value, src->GetIsolate()),
                   details);
-  Set(dst_index, &desc, witness);
+  Set(index, &desc, witness);
 }
 
 
@@ -11968,70 +11934,59 @@ MaybeHandle<Object> JSObject::SetElementWithInterceptor(
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
-Handle<Object> JSObject::GetElementWithCallback(
+MaybeHandle<Object> JSObject::GetElementWithCallback(
     Handle<JSObject> object,
     Handle<Object> receiver,
     Handle<Object> structure,
     uint32_t index,
     Handle<Object> holder) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->GetElementWithCallback(
-                        *receiver, *structure, index, *holder),
-                     Object);
-}
-
-
-MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
-                                              Object* structure,
-                                              uint32_t index,
-                                              Object* holder) {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = object->GetIsolate();
   ASSERT(!structure->IsForeign());
 
   // api style callbacks.
   if (structure->IsExecutableAccessorInfo()) {
-    Handle<ExecutableAccessorInfo> data(
-        ExecutableAccessorInfo::cast(structure));
+    Handle<ExecutableAccessorInfo> data =
+        Handle<ExecutableAccessorInfo>::cast(structure);
     Object* fun_obj = data->getter();
     v8::AccessorGetterCallback call_fun =
         v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
-    if (call_fun == NULL) return isolate->heap()->undefined_value();
-    HandleScope scope(isolate);
-    Handle<JSObject> self(JSObject::cast(receiver));
-    Handle<JSObject> holder_handle(JSObject::cast(holder));
+    if (call_fun == NULL) return isolate->factory()->undefined_value();
+    Handle<JSObject> self = Handle<JSObject>::cast(receiver);
+    Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key = isolate->factory()->NumberToString(number);
     LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *self, *holder_handle);
     v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-    if (result.IsEmpty()) return isolate->heap()->undefined_value();
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    if (result.IsEmpty()) return isolate->factory()->undefined_value();
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
     result_internal->VerifyApiCallResultType();
-    return *result_internal;
+    // Rebox handle before return.
+    return handle(*result_internal, isolate);
   }
 
   // __defineGetter__ callback
   if (structure->IsAccessorPair()) {
-    Object* getter = AccessorPair::cast(structure)->getter();
+    Handle<Object> getter(Handle<AccessorPair>::cast(structure)->getter(),
+                          isolate);
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
+      return GetPropertyWithDefinedGetter(
+          object, receiver, Handle<JSReceiver>::cast(getter));
     }
     // Getter is not a function.
-    return isolate->heap()->undefined_value();
+    return isolate->factory()->undefined_value();
   }
 
   if (structure->IsDeclaredAccessorInfo()) {
-    return GetDeclaredAccessorProperty(receiver,
-                                       DeclaredAccessorInfo::cast(structure),
-                                       isolate);
+    return GetDeclaredAccessorProperty(
+        receiver, Handle<DeclaredAccessorInfo>::cast(structure), isolate);
   }
 
   UNREACHABLE();
-  return NULL;
+  return MaybeHandle<Object>();
 }
 
 
@@ -12991,9 +12946,10 @@ MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
 }
 
 
-Handle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
-                                                   Handle<Object> receiver,
-                                                   uint32_t index) {
+MaybeHandle<Object> JSObject::GetElementWithInterceptor(
+    Handle<JSObject> object,
+    Handle<Object> receiver,
+    uint32_t index) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing
@@ -13014,13 +12970,15 @@ Handle<Object> JSObject::GetElementWithInterceptor(Handle<JSObject> object,
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
       // Rebox handle before return.
-      return Handle<Object>(*result_internal, isolate);
+      return handle(*result_internal, isolate);
     }
   }
 
   ElementsAccessor* handler = object->GetElementsAccessor();
-  Handle<Object> result = handler->Get(receiver,  object, index);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<Object>());
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result, handler->Get(receiver,  object, index),
+      Object);
   if (!result->IsTheHole()) return result;
 
   Handle<Object> proto(object->GetPrototype(), isolate);
@@ -13320,7 +13278,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
       *attributes = NONE;
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();
-      // Rebox handle to escape this scope.
+      // Rebox handle before return.
       return handle(*result_internal, isolate);
     }
   }

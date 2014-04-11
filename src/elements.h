@@ -73,13 +73,13 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual Handle<Object> Get(
+  MUST_USE_RESULT virtual MaybeHandle<Object> Get(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key,
       Handle<FixedArrayBase> backing_store) = 0;
 
-  MUST_USE_RESULT inline Handle<Object> Get(
+  MUST_USE_RESULT inline MaybeHandle<Object> Get(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       uint32_t key) {
@@ -206,13 +206,13 @@ class ElementsAccessor {
       *from_holder, 0, from_kind, to, 0, kCopyToEndAndInitializeToHole);
   }
 
-  virtual Handle<FixedArray> AddElementsToFixedArray(
+  MUST_USE_RESULT virtual MaybeHandle<FixedArray> AddElementsToFixedArray(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       Handle<FixedArray> to,
       Handle<FixedArrayBase> from) = 0;
 
-  inline Handle<FixedArray> AddElementsToFixedArray(
+  MUST_USE_RESULT inline MaybeHandle<FixedArray> AddElementsToFixedArray(
       Handle<Object> receiver,
       Handle<JSObject> holder,
       Handle<FixedArray> to) {

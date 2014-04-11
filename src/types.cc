@@ -177,8 +177,8 @@ int TypeImpl<Config>::LubBitset(i::Map* map) {
       if (map == heap->the_hole_map()) return kAny;  // TODO(rossberg): kNone?
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      if (map == heap->uninitialized_map()) return kNone;
-      ASSERT(map == heap->no_interceptor_result_sentinel_map() ||
+      ASSERT(map == heap->uninitialized_map() ||
+             map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map());
       return kInternal & kTaggedPtr;
@@ -306,28 +306,23 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
 template<class Config>
 bool TypeImpl<Config>::NowIs(TypeImpl* that) {
-  if (this->Is(that)) return true;
-  if (this->IsConstant() && this->AsConstant()->IsHeapObject()) {
-    i::Handle<i::Map> map(i::HeapObject::cast(*this->AsConstant())->map());
-    for (Iterator<i::Map> it = that->Classes(); !it.Done(); it.Advance()) {
-      if (*it.Current() == *map) return true;
+  DisallowHeapAllocation no_allocation;
+  if (this->IsConstant()) {
+    i::Object* object = *this->AsConstant();
+    if (object->IsHeapObject()) {
+      i::Map* map = i::HeapObject::cast(object)->map();
+      for (Iterator<i::Map> it = that->Classes(); !it.Done(); it.Advance()) {
+        if (*it.Current() == map) return true;
+      }
     }
   }
-  return false;
+  return this->Is(that);
 }
 
 
 // Check this overlaps that.
 template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {
-  // Fast path for bitsets.
-  if (this->IsBitset()) {
-    return IsInhabited(this->AsBitset() & that->LubBitset());
-  }
-  if (that->IsBitset()) {
-    return IsInhabited(this->LubBitset() & that->AsBitset());
-  }
-
   // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
     StructHandle unioned = this->AsUnion();
@@ -349,6 +344,13 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   }
 
   ASSERT(!this->IsUnion() && !that->IsUnion());
+  if (this->IsBitset()) {
+    return IsInhabited(this->AsBitset() & that->LubBitset());
+  }
+  if (that->IsBitset()) {
+    return IsInhabited(this->LubBitset() & that->AsBitset());
+  }
+
   if (this->IsClass()) {
     return that->IsClass() && *this->AsClass() == *that->AsClass();
   }
@@ -371,9 +373,14 @@ bool TypeImpl<Config>::Contains(i::Object* value) {
 
 template<class Config>
 bool TypeImpl<Config>::NowContains(i::Object* value) {
-  return this->Contains(value) ||
-      (this->IsClass() && value->IsHeapObject() &&
-       *this->AsClass() == i::HeapObject::cast(value)->map());
+  DisallowHeapAllocation no_allocation;
+  if (value->IsHeapObject()) {
+    i::Map* map = i::HeapObject::cast(value)->map();
+    for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
+      if (*it.Current() == map) return true;
+    }
+  }
+  return this->Contains(value);
 }
 
 

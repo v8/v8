@@ -6781,9 +6781,12 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
 
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                                      Handle<JSObject> holder) {
-  while (!prototype.is_identical_to(holder)) {
+  while (holder.is_null() || !prototype.is_identical_to(holder)) {
     BuildConstantMapCheck(prototype, top_info());
-    prototype = handle(JSObject::cast(prototype->GetPrototype()));
+    Object* next_prototype = prototype->GetPrototype();
+    if (next_prototype->IsNull()) return NULL;
+    CHECK(next_prototype->IsJSObject());
+    prototype = handle(JSObject::cast(next_prototype));
   }
 
   HInstruction* checked_object = BuildConstantMapCheck(prototype, top_info());
@@ -7660,6 +7663,17 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
+
+      // If there may be elements accessors in the prototype chain, the fast
+      // inlined version can't be used.
+      if (receiver_map->DictionaryElementsInPrototypeChainOnly()) return false;
+      // If there currently can be no elements accessors on the prototype chain,
+      // it doesn't mean that there won't be any later. Install a full prototype
+      // chain check to trap element accessors being installed on the prototype
+      // chain, which would cause elements to go to dictionary mode and result
+      // in a map change.
+      Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
+      BuildCheckPrototypeMaps(prototype, Handle<JSObject>());
 
       HValue* op_vals[] = {
         context(),

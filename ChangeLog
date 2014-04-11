@@ -1,3 +1,10 @@
+2014-04-11: Version 3.26.12
+
+        Do not use ranges after range analysis (Chromium issue 361608).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-10: Version 3.26.11
 
         Performance and stability improvements on all platforms.

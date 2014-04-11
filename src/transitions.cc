@@ -80,20 +80,20 @@ static bool InsertionPointFound(Name* key1, Name* key2) {
 }
 
 
-Handle<TransitionArray> TransitionArray::NewWith(SimpleTransitionFlag flag,
-                                                 Handle<Name> key,
+Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
+                                                 Handle<Name> name,
                                                  Handle<Map> target,
-                                                 Handle<Object> back_pointer) {
+                                                 SimpleTransitionFlag flag) {
   Handle<TransitionArray> result;
-  Factory* factory = key->GetIsolate()->factory();
+  Factory* factory = name->GetIsolate()->factory();
 
   if (flag == SIMPLE_TRANSITION) {
     result = factory->NewSimpleTransitionArray(target);
   } else {
     result = factory->NewTransitionArray(1);
-    result->NoIncrementalWriteBarrierSet(0, *key, *target);
+    result->NoIncrementalWriteBarrierSet(0, *name, *target);
   }
-  result->set_back_pointer_storage(*back_pointer);
+  result->set_back_pointer_storage(map->GetBackPointer());
   return result;
 }
 
@@ -116,9 +116,11 @@ MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
 
 Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
                                                     Handle<Name> name,
-                                                    Handle<Map> target) {
-  ASSERT(map->HasTransitionArray());
-  Handle<TransitionArray> result;
+                                                    Handle<Map> target,
+                                                    SimpleTransitionFlag flag) {
+  if (!map->HasTransitionArray()) {
+    return TransitionArray::NewWith(map, name, target, flag);
+  }
 
   int number_of_transitions = map->transitions()->number_of_transitions();
   int new_size = number_of_transitions;
@@ -126,12 +128,29 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
   int insertion_index = map->transitions()->Search(*name);
   if (insertion_index == kNotFound) ++new_size;
 
-  result = map->GetIsolate()->factory()->NewTransitionArray(new_size);
+  Handle<TransitionArray> result =
+      map->GetIsolate()->factory()->NewTransitionArray(new_size);
 
-  // The map's transition array may have grown smaller during the allocation
-  // above as it was weakly traversed. Trim the result copy if needed, and
-  // recompute variables.
+  // The map's transition array may have disappeared or grown smaller during
+  // the allocation above as it was weakly traversed. Trim the result copy if
+  // needed, and recompute variables.
   DisallowHeapAllocation no_gc;
+  if (!map->HasTransitionArray()) {
+    if (flag == SIMPLE_TRANSITION) {
+      ASSERT(result->length() >= kSimpleTransitionSize);
+      result->Shrink(kSimpleTransitionSize);
+      result->set(kSimpleTransitionTarget, *target);
+    } else {
+      ASSERT(result->length() >= ToKeyIndex(1));
+      result->Shrink(ToKeyIndex(1));
+      result->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
+      result->NoIncrementalWriteBarrierSet(0, *name, *target);
+    }
+    result->set_back_pointer_storage(map->GetBackPointer());
+
+    return result;
+  }
+
   TransitionArray* array = map->transitions();
   if (array->number_of_transitions() != number_of_transitions) {
     ASSERT(array->number_of_transitions() < number_of_transitions);
@@ -142,7 +161,7 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
     insertion_index = array->Search(*name);
     if (insertion_index == kNotFound) ++new_size;
 
-    result->Shrink(new_size);
+    result->Shrink(ToKeyIndex(new_size));
   }
 
   if (array->HasPrototypeTransitions()) {
