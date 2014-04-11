@@ -3349,23 +3349,6 @@ class ConstantPoolArray: public FixedArrayBase {
 //   [2 + number of descriptors * kDescriptorSize]: start of slack
 class DescriptorArray: public FixedArray {
  public:
-  // WhitenessWitness is used to prove that a descriptor array is white
-  // (unmarked), so incremental write barriers can be skipped because the
-  // marking invariant cannot be broken and slots pointing into evacuation
-  // candidates will be discovered when the object is scanned. A witness is
-  // always stack-allocated right after creating an array. By allocating a
-  // witness, incremental marking is globally disabled. The witness is then
-  // passed along wherever needed to statically prove that the array is known to
-  // be white.
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(FixedArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
-
   // Returns true for both shared empty_descriptor_array and for smis, which the
   // map uses to encode additional bit fields when the descriptor array is not
   // yet used.
@@ -3455,15 +3438,12 @@ class DescriptorArray: public FixedArray {
 
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
-  inline void Set(int descriptor_number,
-                  Descriptor* desc,
-                  const WhitenessWitness&);
+  inline void Set(int descriptor_number, Descriptor* desc);
   void Replace(int descriptor_number, Descriptor* descriptor);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
-  inline void Append(Descriptor* desc, const WhitenessWitness&);
   inline void Append(Descriptor* desc);
 
   static Handle<DescriptorArray> Merge(Handle<Map> left_map,
@@ -3502,9 +3482,9 @@ class DescriptorArray: public FixedArray {
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
-  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
-                                               int number_of_descriptors,
-                                               int slack = 0);
+  static Handle<DescriptorArray> Allocate(Isolate* isolate,
+                                          int number_of_descriptors,
+                                          int slack = 0);
 
   // Casting.
   static inline DescriptorArray* cast(Object* obj);
@@ -3558,6 +3538,23 @@ class DescriptorArray: public FixedArray {
   }
 
  private:
+  // WhitenessWitness is used to prove that a descriptor array is white
+  // (unmarked), so incremental write barriers can be skipped because the
+  // marking invariant cannot be broken and slots pointing into evacuation
+  // candidates will be discovered when the object is scanned. A witness is
+  // always stack-allocated right after creating an array. By allocating a
+  // witness, incremental marking is globally disabled. The witness is then
+  // passed along wherever needed to statically prove that the array is known to
+  // be white.
+  class WhitenessWitness {
+   public:
+    inline explicit WhitenessWitness(DescriptorArray* array);
+    inline ~WhitenessWitness();
+
+   private:
+    IncrementalMarking* marking_;
+  };
+
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -3597,7 +3594,11 @@ class DescriptorArray: public FixedArray {
                 DescriptorArray* src,
                 const WhitenessWitness&);
 
-  inline void Set(int descriptor_number, Descriptor* desc);
+  inline void Set(int descriptor_number,
+                  Descriptor* desc,
+                  const WhitenessWitness&);
+
+  inline void Append(Descriptor* desc, const WhitenessWitness&);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
@@ -4098,11 +4099,6 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
   void CopyEnumKeysTo(FixedArray* storage);
   static void DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
-
-  // For transforming properties of a JSObject.
-  MUST_USE_RESULT MaybeObject* TransformPropertiesToFastFor(
-      JSObject* obj,
-      int unused_property_fields);
 
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
@@ -6336,8 +6332,8 @@ class Map: public HeapObject {
   //    2 + 2 * i: prototype
   //    3 + 2 * i: target map
   inline FixedArray* GetPrototypeTransitions();
-  MUST_USE_RESULT inline MaybeObject* SetPrototypeTransitions(
-      FixedArray* prototype_transitions);
+  static inline void SetPrototypeTransitions(
+      Handle<Map> map, Handle<FixedArray> prototype_transitions);
   inline bool HasPrototypeTransitions();
 
   static const int kProtoTransitionHeaderSize = 1;
@@ -6432,7 +6428,6 @@ class Map: public HeapObject {
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   MUST_USE_RESULT MaybeObject* RawCopy(int instance_size);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
-  MUST_USE_RESULT MaybeObject* CopyDropDescriptors();
   static Handle<Map> CopyReplaceDescriptors(
       Handle<Map> map,
       Handle<DescriptorArray> descriptors,
@@ -6476,8 +6471,7 @@ class Map: public HeapObject {
                                     PropertyNormalizationMode mode,
                                     NormalizedMapSharingMode sharing);
 
-  inline void AppendDescriptor(Descriptor* desc,
-                               const DescriptorArray::WhitenessWitness&);
+  inline void AppendDescriptor(Descriptor* desc);
 
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.

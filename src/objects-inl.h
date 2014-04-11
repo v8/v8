@@ -2835,7 +2835,7 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 }
 
 
-DescriptorArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
+DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
     : marking_(array->GetHeap()->incremental_marking()) {
   marking_->EnterNoMarkingScope();
   ASSERT(!marking_->IsMarking() ||
@@ -4963,21 +4963,18 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map) {
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions;
+static void EnsureHasTransitionArray(Handle<Map> map) {
+  Handle<TransitionArray> transitions;
   if (!map->HasTransitionArray()) {
-    maybe_transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
     transitions->set_back_pointer_storage(map->GetBackPointer());
   } else if (!map->transitions()->IsFullTransitionArray()) {
-    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions = TransitionArray::ExtendToFullTransitionArray(
+        handle(map->transitions()));
   } else {
-    return map;
+    return;
   }
-  map->set_transitions(transitions);
-  return transitions;
+  map->set_transitions(*transitions);
 }
 
 
@@ -5018,12 +5015,11 @@ void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
 }
 
 
-void Map::AppendDescriptor(Descriptor* desc,
-                           const DescriptorArray::WhitenessWitness& witness) {
+void Map::AppendDescriptor(Descriptor* desc) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
-  descriptors->Append(desc, witness);
+  descriptors->Append(desc);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 }
 
@@ -5089,19 +5085,18 @@ FixedArray* Map::GetPrototypeTransitions() {
 }
 
 
-MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
-  if (allow_prototype->IsFailure()) return allow_prototype;
-  int old_number_of_transitions = NumberOfProtoTransitions();
+void Map::SetPrototypeTransitions(
+    Handle<Map> map, Handle<FixedArray> proto_transitions) {
+  EnsureHasTransitionArray(map);
+  int old_number_of_transitions = map->NumberOfProtoTransitions();
 #ifdef DEBUG
-  if (HasPrototypeTransitions()) {
-    ASSERT(GetPrototypeTransitions() != proto_transitions);
-    ZapPrototypeTransitions();
+  if (map->HasPrototypeTransitions()) {
+    ASSERT(map->GetPrototypeTransitions() != *proto_transitions);
+    map->ZapPrototypeTransitions();
   }
 #endif
-  transitions()->SetPrototypeTransitions(proto_transitions);
-  SetNumberOfProtoTransitions(old_number_of_transitions);
-  return this;
+  map->transitions()->SetPrototypeTransitions(*proto_transitions);
+  map->SetNumberOfProtoTransitions(old_number_of_transitions);
 }
 
 

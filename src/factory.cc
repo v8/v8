@@ -133,33 +133,6 @@ Handle<WeakHashTable> Factory::NewWeakHashTable(int at_least_space_for) {
 }
 
 
-Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
-                                                    int slack) {
-  ASSERT(0 <= number_of_descriptors);
-  CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(
-                         isolate(), number_of_descriptors, slack),
-                     DescriptorArray);
-}
-
-
-Handle<TransitionArray> Factory::NewTransitionArray(int number_of_transitions) {
-  ASSERT(0 <= number_of_transitions);
-  CALL_HEAP_FUNCTION(isolate(),
-                     TransitionArray::Allocate(
-                         isolate(), number_of_transitions),
-                     TransitionArray);
-}
-
-
-Handle<TransitionArray> Factory::NewSimpleTransitionArray(Handle<Map> target) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     TransitionArray::AllocateSimple(
-                         isolate(), *target),
-                     TransitionArray);
-}
-
-
 Handle<DeoptimizationInputData> Factory::NewDeoptimizationInputData(
     int deopt_entry_count,
     PretenureFlag pretenure) {

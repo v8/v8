@@ -35,34 +35,21 @@ namespace v8 {
 namespace internal {
 
 
-static MaybeObject* AllocateRaw(Isolate* isolate, int length) {
-  // Use FixedArray to not use TransitionArray::cast on incomplete object.
-  FixedArray* array;
-  MaybeObject* maybe_array = isolate->heap()->AllocateFixedArray(length);
-  if (!maybe_array->To(&array)) return maybe_array;
-  return array;
-}
-
-
-MaybeObject* TransitionArray::Allocate(Isolate* isolate,
-                                       int number_of_transitions) {
-  FixedArray* array;
-  MaybeObject* maybe_array =
-      AllocateRaw(isolate, ToKeyIndex(number_of_transitions));
-  if (!maybe_array->To(&array)) return maybe_array;
+Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
+                                                  int number_of_transitions) {
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(ToKeyIndex(number_of_transitions));
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
-  return array;
+  return Handle<TransitionArray>::cast(array);
 }
 
 
-MaybeObject* TransitionArray::AllocateSimple(Isolate* isolate,
-                                             Map* target) {
-  FixedArray* array;
-  MaybeObject* maybe_array =
-      AllocateRaw(isolate, kSimpleTransitionSize);
-  if (!maybe_array->To(&array)) return maybe_array;
-  array->set(kSimpleTransitionTarget, target);
-  return array;
+Handle<TransitionArray> TransitionArray::AllocateSimple(Isolate* isolate,
+                                                        Handle<Map> target) {
+  Handle<FixedArray> array =
+      isolate->factory()->NewFixedArray(kSimpleTransitionSize);
+  array->set(kSimpleTransitionTarget, *target);
+  return Handle<TransitionArray>::cast(array);
 }
 
 
@@ -85,12 +72,12 @@ Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
                                                  Handle<Map> target,
                                                  SimpleTransitionFlag flag) {
   Handle<TransitionArray> result;
-  Factory* factory = name->GetIsolate()->factory();
+  Isolate* isolate = name->GetIsolate();
 
   if (flag == SIMPLE_TRANSITION) {
-    result = factory->NewSimpleTransitionArray(target);
+    result = AllocateSimple(isolate, target);
   } else {
-    result = factory->NewTransitionArray(1);
+    result = Allocate(isolate, 1);
     result->NoIncrementalWriteBarrierSet(0, *name, *target);
   }
   result->set_back_pointer_storage(map->GetBackPointer());
@@ -98,18 +85,18 @@ Handle<TransitionArray> TransitionArray::NewWith(Handle<Map> map,
 }
 
 
-MaybeObject* TransitionArray::ExtendToFullTransitionArray() {
-  ASSERT(!IsFullTransitionArray());
-  int nof = number_of_transitions();
-  TransitionArray* result;
-  MaybeObject* maybe_result = Allocate(GetIsolate(), nof);
-  if (!maybe_result->To(&result)) return maybe_result;
+Handle<TransitionArray> TransitionArray::ExtendToFullTransitionArray(
+    Handle<TransitionArray> array) {
+  ASSERT(!array->IsFullTransitionArray());
+  int nof = array->number_of_transitions();
+  Handle<TransitionArray> result = Allocate(array->GetIsolate(), nof);
 
   if (nof == 1) {
-    result->NoIncrementalWriteBarrierCopyFrom(this, kSimpleTransitionIndex, 0);
+    result->NoIncrementalWriteBarrierCopyFrom(
+        *array, kSimpleTransitionIndex, 0);
   }
 
-  result->set_back_pointer_storage(back_pointer_storage());
+  result->set_back_pointer_storage(array->back_pointer_storage());
   return result;
 }
 
@@ -128,8 +115,7 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
   int insertion_index = map->transitions()->Search(*name);
   if (insertion_index == kNotFound) ++new_size;
 
-  Handle<TransitionArray> result =
-      map->GetIsolate()->factory()->NewTransitionArray(new_size);
+  Handle<TransitionArray> result = Allocate(map->GetIsolate(), new_size);
 
   // The map's transition array may have disappeared or grown smaller during
   // the allocation above as it was weakly traversed. Trim the result copy if

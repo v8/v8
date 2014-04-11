@@ -4696,10 +4696,136 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
                                          int unused_property_fields) {
   if (object->HasFastProperties()) return;
   ASSERT(!object->IsGlobalObject());
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->property_dictionary()->TransformPropertiesToFastFor(
-          *object, unused_property_fields));
+  Isolate* isolate = object->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<NameDictionary> dictionary(object->property_dictionary());
+
+  // Make sure we preserve dictionary representation if there are too many
+  // descriptors.
+  int number_of_elements = dictionary->NumberOfElements();
+  if (number_of_elements > kMaxNumberOfDescriptors) return;
+
+  if (number_of_elements != dictionary->NextEnumerationIndex()) {
+    NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
+  }
+
+  int instance_descriptor_length = 0;
+  int number_of_fields = 0;
+
+  // Compute the length of the instance descriptor.
+  int capacity = dictionary->Capacity();
+  for (int i = 0; i < capacity; i++) {
+    Object* k = dictionary->KeyAt(i);
+    if (dictionary->IsKey(k)) {
+      Object* value = dictionary->ValueAt(i);
+      PropertyType type = dictionary->DetailsAt(i).type();
+      ASSERT(type != FIELD);
+      instance_descriptor_length++;
+      if (type == NORMAL && !value->IsJSFunction()) {
+        number_of_fields += 1;
+      }
+    }
+  }
+
+  int inobject_props = object->map()->inobject_properties();
+
+  // Allocate new map.
+  Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
+  new_map->set_dictionary_map(false);
+
+  if (instance_descriptor_length == 0) {
+    DisallowHeapAllocation no_gc;
+    ASSERT_LE(unused_property_fields, inobject_props);
+    // Transform the object.
+    new_map->set_unused_property_fields(inobject_props);
+    object->set_map(*new_map);
+    object->set_properties(isolate->heap()->empty_fixed_array());
+    // Check that it really works.
+    ASSERT(object->HasFastProperties());
+    return;
+  }
+
+  // Allocate the instance descriptor.
+  Handle<DescriptorArray> descriptors = DescriptorArray::Allocate(
+      isolate, instance_descriptor_length);
+
+  int number_of_allocated_fields =
+      number_of_fields + unused_property_fields - inobject_props;
+  if (number_of_allocated_fields < 0) {
+    // There is enough inobject space for all fields (including unused).
+    number_of_allocated_fields = 0;
+    unused_property_fields = inobject_props - number_of_fields;
+  }
+
+  // Allocate the fixed array for the fields.
+  Handle<FixedArray> fields = factory->NewFixedArray(
+      number_of_allocated_fields);
+
+  // Fill in the instance descriptor and the fields.
+  int current_offset = 0;
+  for (int i = 0; i < capacity; i++) {
+    Object* k = dictionary->KeyAt(i);
+    if (dictionary->IsKey(k)) {
+      Object* value = dictionary->ValueAt(i);
+      Handle<Name> key;
+      if (k->IsSymbol()) {
+        key = handle(Symbol::cast(k));
+      } else {
+        // Ensure the key is a unique name before writing into the
+        // instance descriptor.
+        key = factory->InternalizeString(handle(String::cast(k)));
+      }
+
+      PropertyDetails details = dictionary->DetailsAt(i);
+      int enumeration_index = details.dictionary_index();
+      PropertyType type = details.type();
+
+      if (value->IsJSFunction()) {
+        ConstantDescriptor d(key,
+                             handle(value, isolate),
+                             details.attributes());
+        descriptors->Set(enumeration_index - 1, &d);
+      } else if (type == NORMAL) {
+        if (current_offset < inobject_props) {
+          object->InObjectPropertyAtPut(current_offset,
+                                        value,
+                                        UPDATE_WRITE_BARRIER);
+        } else {
+          int offset = current_offset - inobject_props;
+          fields->set(offset, value);
+        }
+        FieldDescriptor d(key,
+                          current_offset++,
+                          details.attributes(),
+                          // TODO(verwaest): value->OptimalRepresentation();
+                          Representation::Tagged());
+        descriptors->Set(enumeration_index - 1, &d);
+      } else if (type == CALLBACKS) {
+        CallbacksDescriptor d(key,
+                              handle(value, isolate),
+                              details.attributes());
+        descriptors->Set(enumeration_index - 1, &d);
+      } else {
+        UNREACHABLE();
+      }
+    }
+  }
+  ASSERT(current_offset == number_of_fields);
+
+  descriptors->Sort();
+
+  DisallowHeapAllocation no_gc;
+  new_map->InitializeDescriptors(*descriptors);
+  new_map->set_unused_property_fields(unused_property_fields);
+
+  // Transform the object.
+  object->set_map(*new_map);
+
+  object->set_properties(*fields);
+  ASSERT(object->IsJSObject());
+
+  // Check that it really works.
+  ASSERT(object->HasFastProperties());
 }
 
 
@@ -6753,23 +6879,17 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 
 
 Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
-  CALL_HEAP_FUNCTION(map->GetIsolate(), map->CopyDropDescriptors(), Map);
-}
-
-
-MaybeObject* Map::CopyDropDescriptors() {
-  Map* result;
-  MaybeObject* maybe_result = RawCopy(instance_size());
-  if (!maybe_result->To(&result)) return maybe_result;
+  Handle<Map> result = RawCopy(map, map->instance_size());
 
   // Please note instance_type and instance_size are set when allocated.
-  result->set_inobject_properties(inobject_properties());
-  result->set_unused_property_fields(unused_property_fields());
+  result->set_inobject_properties(map->inobject_properties());
+  result->set_unused_property_fields(map->unused_property_fields());
 
-  result->set_pre_allocated_property_fields(pre_allocated_property_fields());
+  result->set_pre_allocated_property_fields(
+      map->pre_allocated_property_fields());
   result->set_is_shared(false);
-  result->ClearCodeCache(GetHeap());
-  NotifyLeafMapLayoutChange();
+  result->ClearCodeCache(map->GetHeap());
+  map->NotifyLeafMapLayoutChange();
   return result;
 }
 
@@ -6792,7 +6912,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   if (descriptors->NumberOfSlackDescriptors() == 0) {
     int old_size = descriptors->number_of_descriptors();
     if (old_size == 0) {
-      descriptors = map->GetIsolate()->factory()->NewDescriptorArray(0, 1);
+      descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
       Map::EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
       descriptors = handle(map->instance_descriptors());
@@ -7060,7 +7180,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   int size = enumeration_index;
 
   Handle<DescriptorArray> descriptors =
-      desc->GetIsolate()->factory()->NewDescriptorArray(size, slack);
+      DescriptorArray::Allocate(desc->GetIsolate(), size, slack);
   DescriptorArray::WhitenessWitness witness(*descriptors);
 
   if (attributes != NONE) {
@@ -7919,21 +8039,20 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 #endif
 
 
-MaybeObject* DescriptorArray::Allocate(Isolate* isolate,
-                                       int number_of_descriptors,
-                                       int slack) {
-  Heap* heap = isolate->heap();
+Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
+                                                  int number_of_descriptors,
+                                                  int slack) {
+  ASSERT(0 <= number_of_descriptors);
+  Factory* factory = isolate->factory();
   // Do not use DescriptorArray::cast on incomplete object.
   int size = number_of_descriptors + slack;
-  if (size == 0) return heap->empty_descriptor_array();
-  FixedArray* result;
+  if (size == 0) return factory->empty_descriptor_array();
   // Allocate the array of keys.
-  MaybeObject* maybe_array = heap->AllocateFixedArray(LengthFor(size));
-  if (!maybe_array->To(&result)) return maybe_array;
+  Handle<FixedArray> result = factory->NewFixedArray(LengthFor(size));
 
   result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
   result->set(kEnumCacheIndex, Smi::FromInt(0));
-  return result;
+  return Handle<DescriptorArray>::cast(result);
 }
 
 
@@ -7997,11 +8116,13 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
 
   // Allocate a new descriptor array large enough to hold the required
   // descriptors, with minimally the exact same size as this descriptor array.
-  Factory* factory = left_map->GetIsolate()->factory();
+  Isolate* isolate = left_map->GetIsolate();
   Handle<DescriptorArray> left(left_map->instance_descriptors());
   Handle<DescriptorArray> right(right_map->instance_descriptors());
-  Handle<DescriptorArray> result = factory->NewDescriptorArray(
-      new_size, Max(new_size, right->number_of_descriptors()) - new_size);
+  Handle<DescriptorArray> result = DescriptorArray::Allocate(
+      isolate,
+      new_size,
+      Max(new_size, right->number_of_descriptors()) - new_size);
   ASSERT(result->length() > left->length() ||
          result->NumberOfSlackDescriptors() > 0 ||
          result->number_of_descriptors() == right->number_of_descriptors());
@@ -11476,10 +11597,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
     Factory* factory = map->GetIsolate()->factory();
     cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
 
-    CALL_AND_RETRY_OR_DIE(map->GetIsolate(),
-                          map->SetPrototypeTransitions(*cache),
-                          break,
-                          return Handle<Map>());
+    Map::SetPrototypeTransitions(map, cache);
   }
 
   // Reload number of transitions as GC might shrink them.
@@ -15567,151 +15685,6 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
   }
   Heap* heap = Dictionary<Shape, Key>::GetHeap();
   return heap->undefined_value();
-}
-
-
-MaybeObject* NameDictionary::TransformPropertiesToFastFor(
-    JSObject* obj, int unused_property_fields) {
-  // Make sure we preserve dictionary representation if there are too many
-  // descriptors.
-  int number_of_elements = NumberOfElements();
-  if (number_of_elements > kMaxNumberOfDescriptors) return obj;
-
-  if (number_of_elements != NextEnumerationIndex()) {
-    MaybeObject* maybe_result = GenerateNewEnumerationIndices();
-    if (maybe_result->IsFailure()) return maybe_result;
-  }
-
-  int instance_descriptor_length = 0;
-  int number_of_fields = 0;
-
-  Heap* heap = GetHeap();
-
-  // Compute the length of the instance descriptor.
-  int capacity = Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      Object* value = ValueAt(i);
-      PropertyType type = DetailsAt(i).type();
-      ASSERT(type != FIELD);
-      instance_descriptor_length++;
-      if (type == NORMAL && !value->IsJSFunction()) {
-        number_of_fields += 1;
-      }
-    }
-  }
-
-  int inobject_props = obj->map()->inobject_properties();
-
-  // Allocate new map.
-  Map* new_map;
-  MaybeObject* maybe_new_map = obj->map()->CopyDropDescriptors();
-  if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-  new_map->set_dictionary_map(false);
-
-  if (instance_descriptor_length == 0) {
-    ASSERT_LE(unused_property_fields, inobject_props);
-    // Transform the object.
-    new_map->set_unused_property_fields(inobject_props);
-    obj->set_map(new_map);
-    obj->set_properties(heap->empty_fixed_array());
-    // Check that it really works.
-    ASSERT(obj->HasFastProperties());
-    return obj;
-  }
-
-  // Allocate the instance descriptor.
-  DescriptorArray* descriptors;
-  MaybeObject* maybe_descriptors =
-      DescriptorArray::Allocate(GetIsolate(), instance_descriptor_length);
-  if (!maybe_descriptors->To(&descriptors)) {
-    return maybe_descriptors;
-  }
-
-  DescriptorArray::WhitenessWitness witness(descriptors);
-
-  int number_of_allocated_fields =
-      number_of_fields + unused_property_fields - inobject_props;
-  if (number_of_allocated_fields < 0) {
-    // There is enough inobject space for all fields (including unused).
-    number_of_allocated_fields = 0;
-    unused_property_fields = inobject_props - number_of_fields;
-  }
-
-  // Allocate the fixed array for the fields.
-  FixedArray* fields;
-  MaybeObject* maybe_fields =
-      heap->AllocateFixedArray(number_of_allocated_fields);
-  if (!maybe_fields->To(&fields)) return maybe_fields;
-
-  // Fill in the instance descriptor and the fields.
-  int current_offset = 0;
-  for (int i = 0; i < capacity; i++) {
-    Object* k = KeyAt(i);
-    if (IsKey(k)) {
-      Object* value = ValueAt(i);
-      Name* key;
-      if (k->IsSymbol()) {
-        key = Symbol::cast(k);
-      } else {
-        // Ensure the key is a unique name before writing into the
-        // instance descriptor.
-        MaybeObject* maybe_key = heap->InternalizeString(String::cast(k));
-        if (!maybe_key->To(&key)) return maybe_key;
-      }
-
-      PropertyDetails details = DetailsAt(i);
-      int enumeration_index = details.dictionary_index();
-      PropertyType type = details.type();
-
-      if (value->IsJSFunction()) {
-        ConstantDescriptor d(handle(key),
-                             handle(value, GetIsolate()),
-                             details.attributes());
-        descriptors->Set(enumeration_index - 1, &d, witness);
-      } else if (type == NORMAL) {
-        if (current_offset < inobject_props) {
-          obj->InObjectPropertyAtPut(current_offset,
-                                     value,
-                                     UPDATE_WRITE_BARRIER);
-        } else {
-          int offset = current_offset - inobject_props;
-          fields->set(offset, value);
-        }
-        FieldDescriptor d(handle(key),
-                          current_offset++,
-                          details.attributes(),
-                          // TODO(verwaest): value->OptimalRepresentation();
-                          Representation::Tagged());
-        descriptors->Set(enumeration_index - 1, &d, witness);
-      } else if (type == CALLBACKS) {
-        CallbacksDescriptor d(handle(key),
-                              handle(value, GetIsolate()),
-                              details.attributes());
-        descriptors->Set(enumeration_index - 1, &d, witness);
-      } else {
-        UNREACHABLE();
-      }
-    }
-  }
-  ASSERT(current_offset == number_of_fields);
-
-  descriptors->Sort();
-
-  new_map->InitializeDescriptors(descriptors);
-  new_map->set_unused_property_fields(unused_property_fields);
-
-  // Transform the object.
-  obj->set_map(new_map);
-
-  obj->set_properties(fields);
-  ASSERT(obj->IsJSObject());
-
-  // Check that it really works.
-  ASSERT(obj->HasFastProperties());
-
-  return obj;
 }
 
 

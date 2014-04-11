@@ -55,10 +55,6 @@ class Factory V8_FINAL {
 
   Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
-  Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,
-                                             int slack = 0);
-  Handle<TransitionArray> NewTransitionArray(int number_of_transitions);
-  Handle<TransitionArray> NewSimpleTransitionArray(Handle<Map> target);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
