@@ -22428,3 +22428,16 @@ TEST(Regress354123) {
   CompileRun("Object.getPrototypeOf(friend);");
   CHECK_EQ(2, named_access_count);
 }
+
+
+TEST(CaptureStackTraceForStackOverflow) {
+  v8::internal::FLAG_stack_size = 150;
+  LocalContext current;
+  v8::Isolate* isolate = current->GetIsolate();
+  v8::HandleScope scope(isolate);
+  V8::SetCaptureStackTraceForUncaughtExceptions(
+      true, 10, v8::StackTrace::kDetailed);
+  v8::TryCatch try_catch;
+  CompileRun("(function f(x) { f(x+1); })(0)");
+  CHECK(try_catch.HasCaught());
+}

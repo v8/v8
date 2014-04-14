@@ -399,10 +399,11 @@ Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
   ASSERT(property->IsJSFunction());
   Handle<JSFunction> method = Handle<JSFunction>::cast(property);
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result,
-      Execution::TryCall(method, script_wrapper, 0, NULL),
-      isolate->factory()->undefined_value());
+  // Do not check against pending exception, since this function may be called
+  // when an exception has already been pending.
+  if (!Execution::TryCall(method, script_wrapper, 0, NULL).ToHandle(&result)) {
+    return isolate->factory()->undefined_value();
+  }
   return result;
 }
 
