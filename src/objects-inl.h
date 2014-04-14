@@ -2882,8 +2882,8 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 }
 
 
-template<typename Shape, typename Key>
-int HashTable<Shape, Key>::ComputeCapacity(int at_least_space_for) {
+template<typename Derived, typename Shape, typename Key>
+int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 32;
   int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
   if (capacity < kMinCapacity) {
@@ -2893,17 +2893,17 @@ int HashTable<Shape, Key>::ComputeCapacity(int at_least_space_for) {
 }
 
 
-template<typename Shape, typename Key>
-int HashTable<Shape, Key>::FindEntry(Key key) {
+template<typename Derived, typename Shape, typename Key>
+int HashTable<Derived, Shape, Key>::FindEntry(Key key) {
   return FindEntry(GetIsolate(), key);
 }
 
 
 // Find entry for key otherwise return kNotFound.
-template<typename Shape, typename Key>
-int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
+template<typename Derived, typename Shape, typename Key>
+int HashTable<Derived, Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   uint32_t capacity = Capacity();
-  uint32_t entry = FirstProbe(HashTable<Shape, Key>::Hash(key), capacity);
+  uint32_t entry = FirstProbe(HashTable::Hash(key), capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {
@@ -3028,8 +3028,9 @@ FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
 #undef MAKE_STRUCT_CAST
 
 
-template <typename Shape, typename Key>
-HashTable<Shape, Key>* HashTable<Shape, Key>::cast(Object* obj) {
+template <typename Derived, typename Shape, typename Key>
+HashTable<Derived, Shape, Key>*
+HashTable<Derived, Shape, Key>::cast(Object* obj) {
   ASSERT(obj->IsHashTable());
   return reinterpret_cast<HashTable*>(obj);
 }
@@ -6671,23 +6672,23 @@ bool AccessorPair::prohibits_overwriting() {
 }
 
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::SetEntry(int entry,
-                                      Object* key,
-                                      Object* value) {
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
+                                               Object* key,
+                                               Object* value) {
   SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
 }
 
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::SetEntry(int entry,
-                                      Object* key,
-                                      Object* value,
-                                      PropertyDetails details) {
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
+                                               Object* key,
+                                               Object* value,
+                                               PropertyDetails details) {
   ASSERT(!key->IsName() ||
          details.IsDeleted() ||
          details.dictionary_index() > 0);
-  int index = HashTable<Shape, Key>::EntryToIndex(entry);
+  int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
   FixedArray::set(index, key, mode);
@@ -6770,6 +6771,12 @@ uint32_t ObjectHashTableShape::HashForObject(Object* key, Object* other) {
 
 MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
   return key;
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Shrink(
+    Handle<ObjectHashTable> table, Handle<Object> key) {
+  return HashTable_::Shrink(table, *key);
 }
 
 
