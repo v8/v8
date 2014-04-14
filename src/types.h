@@ -101,11 +101,11 @@ namespace internal {
 // PROPERTIES
 //
 // Various formal properties hold for constructors, operators, and predicates
-// over types. For example, constructors are injective, subtyping is a partial
-// order, and union and intersection satisfy the usual algebraic properties.
+// over types. For example, constructors are injective, subtyping is a complete
+// partial order, union and intersection satisfy the usual algebraic properties.
 //
 // See test/cctest/test-types.cc for a comprehensive executable specification,
-// especially with respect to the proeprties of the more exotic 'temporal'
+// especially with respect to the properties of the more exotic 'temporal'
 // constructors and predicates (those prefixed 'Now').
 //
 // IMPLEMENTATION
