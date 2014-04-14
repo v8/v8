@@ -2040,6 +2040,7 @@ class Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
+  void CheckBufferSpace();
   void CheckBuffer();
 
   // Pc offset of the next constant pool check.
@@ -2238,7 +2239,7 @@ class PatchingAssembler : public Assembler {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
+    assembler->CheckBufferSpace();
   }
 };
 
