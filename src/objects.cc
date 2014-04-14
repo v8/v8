@@ -210,9 +210,9 @@ static inline To* CheckedCast(void *from) {
 }
 
 
-static Handle<Object> PerformCompare(const BitmaskCompareDescriptor& descriptor,
-                                     char* ptr,
-                                     Isolate* isolate) {
+static MaybeObject* PerformCompare(const BitmaskCompareDescriptor& descriptor,
+                                   char* ptr,
+                                   Heap* heap) {
   uint32_t bitmask = descriptor.bitmask;
   uint32_t compare_value = descriptor.compare_value;
   uint32_t value;
@@ -232,27 +232,26 @@ static Handle<Object> PerformCompare(const BitmaskCompareDescriptor& descriptor,
       break;
     default:
       UNREACHABLE();
-      return isolate->factory()->undefined_value();
+      return NULL;
   }
-  return isolate->factory()->ToBoolean(
-      (bitmask & value) == (bitmask & compare_value));
+  return heap->ToBoolean((bitmask & value) == (bitmask & compare_value));
 }
 
 
-static Handle<Object> PerformCompare(const PointerCompareDescriptor& descriptor,
-                                     char* ptr,
-                                     Isolate* isolate) {
+static MaybeObject* PerformCompare(const PointerCompareDescriptor& descriptor,
+                                   char* ptr,
+                                   Heap* heap) {
   uintptr_t compare_value =
       reinterpret_cast<uintptr_t>(descriptor.compare_value);
   uintptr_t value = *CheckedCast<uintptr_t>(ptr);
-  return isolate->factory()->ToBoolean(compare_value == value);
+  return heap->ToBoolean(compare_value == value);
 }
 
 
-static Handle<Object> GetPrimitiveValue(
+static MaybeObject* GetPrimitiveValue(
     const PrimitiveValueDescriptor& descriptor,
     char* ptr,
-    Isolate* isolate) {
+    Heap* heap) {
   int32_t int32_value = 0;
   switch (descriptor.data_type) {
     case kDescriptorInt8Type:
@@ -272,36 +271,29 @@ static Handle<Object> GetPrimitiveValue(
       break;
     case kDescriptorUint32Type: {
       uint32_t value = *CheckedCast<uint32_t>(ptr);
-      AllowHeapAllocation allow_gc;
-      return isolate->factory()->NewNumberFromUint(value);
+      return heap->NumberFromUint32(value);
     }
     case kDescriptorBoolType: {
       uint8_t byte = *CheckedCast<uint8_t>(ptr);
-      return isolate->factory()->ToBoolean(
-          byte & (0x1 << descriptor.bool_offset));
+      return heap->ToBoolean(byte & (0x1 << descriptor.bool_offset));
     }
     case kDescriptorFloatType: {
       float value = *CheckedCast<float>(ptr);
-      AllowHeapAllocation allow_gc;
-      return isolate->factory()->NewNumber(value);
+      return heap->NumberFromDouble(value);
     }
     case kDescriptorDoubleType: {
       double value = *CheckedCast<double>(ptr);
-      AllowHeapAllocation allow_gc;
-      return isolate->factory()->NewNumber(value);
+      return heap->NumberFromDouble(value);
     }
   }
-  AllowHeapAllocation allow_gc;
-  return isolate->factory()->NewNumberFromInt(int32_value);
+  return heap->NumberFromInt32(int32_value);
 }
 
 
-static Handle<Object> GetDeclaredAccessorProperty(
-    Handle<Object> receiver,
-    Handle<DeclaredAccessorInfo> info,
-    Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-  char* current = reinterpret_cast<char*>(*receiver);
+static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
+                                                DeclaredAccessorInfo* info,
+                                                Isolate* isolate) {
+  char* current = reinterpret_cast<char*>(receiver);
   DeclaredAccessorDescriptorIterator iterator(info->descriptor());
   while (true) {
     const DeclaredAccessorDescriptorData* data = iterator.Next();
@@ -309,7 +301,7 @@ static Handle<Object> GetDeclaredAccessorProperty(
       case kDescriptorReturnObject: {
         ASSERT(iterator.Complete());
         current = *CheckedCast<char*>(current);
-        return handle(*CheckedCast<Object*>(current), isolate);
+        return *CheckedCast<Object*>(current);
       }
       case kDescriptorPointerDereference:
         ASSERT(!iterator.Complete());
@@ -332,21 +324,31 @@ static Handle<Object> GetDeclaredAccessorProperty(
         ASSERT(iterator.Complete());
         return PerformCompare(data->bitmask_compare_descriptor,
                               current,
-                              isolate);
+                              isolate->heap());
       case kDescriptorPointerCompare:
         ASSERT(iterator.Complete());
         return PerformCompare(data->pointer_compare_descriptor,
                               current,
-                              isolate);
+                              isolate->heap());
       case kDescriptorPrimitiveValue:
         ASSERT(iterator.Complete());
         return GetPrimitiveValue(data->primitive_value_descriptor,
                                  current,
-                                 isolate);
+                                 isolate->heap());
     }
   }
   UNREACHABLE();
-  return isolate->factory()->undefined_value();
+  return NULL;
+}
+
+
+static Handle<Object> GetDeclaredAccessorProperty(
+    Handle<Object> receiver,
+    Handle<DeclaredAccessorInfo> info,
+    Isolate* isolate) {
+  CALL_HEAP_FUNCTION(isolate,
+                     GetDeclaredAccessorProperty(*receiver, *info, isolate),
+                     Object);
 }
 
 
@@ -390,10 +392,12 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     // so we do not support it for now.
     if (name->IsSymbol()) return isolate->factory()->undefined_value();
     if (structure->IsDeclaredAccessorInfo()) {
-      return GetDeclaredAccessorProperty(
-          receiver,
-          Handle<DeclaredAccessorInfo>::cast(structure),
-          isolate);
+      CALL_HEAP_FUNCTION(
+          isolate,
+          GetDeclaredAccessorProperty(*receiver,
+                                      DeclaredAccessorInfo::cast(*structure),
+                                      isolate),
+          Object);
     }
 
     Handle<ExecutableAccessorInfo> data =
