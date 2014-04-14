@@ -4275,46 +4275,6 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateJSArrayStorage(
-    JSArray* array,
-    int length,
-    int capacity,
-    ArrayStorageAllocationMode mode) {
-  ASSERT(capacity >= length);
-
-  if (capacity == 0) {
-    array->set_length(Smi::FromInt(0));
-    array->set_elements(empty_fixed_array());
-    return array;
-  }
-
-  FixedArrayBase* elms;
-  MaybeObject* maybe_elms = NULL;
-  ElementsKind elements_kind = array->GetElementsKind();
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
-    }
-  } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
-    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
-      maybe_elms = AllocateUninitializedFixedArray(capacity);
-    } else {
-      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
-      maybe_elms = AllocateFixedArrayWithHoles(capacity);
-    }
-  }
-  if (!maybe_elms->To(&elms)) return maybe_elms;
-
-  array->set_elements(elms);
-  array->set_length(Smi::FromInt(length));
-  return array;
-}
-
-
 MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   // Allocate map.
   // TODO(rossberg): Once we optimize proxies, think about a scheme to share
@@ -4937,12 +4897,6 @@ MaybeObject* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateFixedArrayWithHoles(int length,
-                                               PretenureFlag pretenure) {
-  return AllocateFixedArrayWithFiller(length, pretenure, the_hole_value());
-}
-
-
 MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
 
@@ -4983,27 +4937,6 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
   if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
   FixedDoubleArray* elements =
       reinterpret_cast<FixedDoubleArray*>(elements_object);
-
-  elements->set_map_no_write_barrier(fixed_double_array_map());
-  elements->set_length(length);
-  return elements;
-}
-
-
-MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
-    int length,
-    PretenureFlag pretenure) {
-  if (length == 0) return empty_fixed_array();
-
-  Object* elements_object;
-  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
-  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
-  FixedDoubleArray* elements =
-      reinterpret_cast<FixedDoubleArray*>(elements_object);
-
-  for (int i = 0; i < length; ++i) {
-    elements->set_the_hole(i);
-  }
 
   elements->set_map_no_write_barrier(fixed_double_array_map());
   elements->set_length(length);

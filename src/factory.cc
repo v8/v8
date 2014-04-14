@@ -30,7 +30,9 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateFixedArrayWithHoles(size, pretenure),
+      isolate()->heap()->AllocateFixedArrayWithFiller(size,
+                                                      pretenure,
+                                                      *the_hole_value()),
       FixedArray);
 }
 
@@ -50,6 +52,18 @@ Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
       FixedDoubleArray);
+}
+
+
+Handle<FixedDoubleArray> Factory::NewFixedDoubleArrayWithHoles(
+    int size,
+    PretenureFlag pretenure) {
+  ASSERT(0 <= size);
+  Handle<FixedDoubleArray> array = NewFixedDoubleArray(size, pretenure);
+  for (int i = 0; i < size; ++i) {
+    array->set_the_hole(i);
+  }
+  return array;
 }
 
 
@@ -1446,14 +1460,38 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
 
 
 void Factory::NewJSArrayStorage(Handle<JSArray> array,
-                                     int length,
-                                     int capacity,
-                                     ArrayStorageAllocationMode mode) {
-  CALL_HEAP_FUNCTION_VOID(isolate(),
-                          isolate()->heap()->AllocateJSArrayStorage(*array,
-                                                                    length,
-                                                                    capacity,
-                                                                    mode));
+                                int length,
+                                int capacity,
+                                ArrayStorageAllocationMode mode) {
+  ASSERT(capacity >= length);
+
+  if (capacity == 0) {
+    array->set_length(Smi::FromInt(0));
+    array->set_elements(*empty_fixed_array());
+    return;
+  }
+
+  Handle<FixedArrayBase> elms;
+  ElementsKind elements_kind = array->GetElementsKind();
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      elms = NewFixedDoubleArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      elms = NewFixedDoubleArrayWithHoles(capacity);
+    }
+  } else {
+    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      elms = NewUninitializedFixedArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      elms = NewFixedArrayWithHoles(capacity);
+    }
+  }
+
+  array->set_elements(*elms);
+  array->set_length(Smi::FromInt(length));
 }
 
 
