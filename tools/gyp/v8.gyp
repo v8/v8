@@ -1017,12 +1017,6 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
-        ['v8_use_default_platform==0', {
-          'sources!': [
-            '../../src/default-platform.cc',
-            '../../src/default-platform.h',
-          ],
-        }],
         ['icu_use_data_file_flag==1', {
           'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE'],
         }, { # else icu_use_data_file_flag !=1
