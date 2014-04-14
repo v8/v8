@@ -4099,7 +4099,7 @@ class V8_EXPORT Isolate {
   /**
    * Assert that no Javascript code is invoked.
    */
-  class DisallowJavascriptExecutionScope {
+  class V8_EXPORT DisallowJavascriptExecutionScope {
    public:
     enum OnFailure { CRASH_ON_FAILURE, THROW_ON_FAILURE };
 
@@ -4120,7 +4120,7 @@ class V8_EXPORT Isolate {
   /**
    * Introduce exception to DisallowJavascriptExecutionScope.
    */
-  class AllowJavascriptExecutionScope {
+  class V8_EXPORT AllowJavascriptExecutionScope {
    public:
     explicit AllowJavascriptExecutionScope(Isolate* isolate);
     ~AllowJavascriptExecutionScope();
