@@ -633,6 +633,17 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
+// TODO(mstarzinger): Temporary wrapper until handlified.
+static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(),
+                     dict->Add(*name, *value, details),
+                     NameDictionary);
+}
+
+
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> value,
@@ -653,7 +664,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
     }
 
     property_dictionary =
-        NameDictionary::Add(property_dictionary, name, store_value, details);
+        NameDictionaryAdd(property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
     return;
   }
@@ -1933,8 +1944,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
     value = cell;
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
-  Handle<NameDictionary> result =
-      NameDictionary::Add(dict, name, value, details);
+  Handle<NameDictionary> result = NameDictionaryAdd(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
 }
 
@@ -4493,7 +4503,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case FIELD: {
@@ -4502,7 +4512,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
             object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
@@ -4510,7 +4520,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        dictionary = NameDictionaryAdd(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -14298,17 +14308,6 @@ template
 int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
 
 
-Handle<NameDictionary> NameDictionary::Add(Handle<NameDictionary> dict,
-                                           Handle<Name> name,
-                                           Handle<Object> value,
-                                           PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(),
-                     Handle<Dictionary>::cast(dict)->Add(
-                         *name, *value, details),
-                     NameDictionary);
-}
-
-
 Handle<Object> JSObject::PrepareSlowElementsForSort(
     Handle<JSObject> object, uint32_t limit) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
@@ -14840,7 +14839,7 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
         isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Handle<NameDictionary> dictionary = NameDictionary::Add(
+    Handle<NameDictionary> dictionary = NameDictionaryAdd(
         handle(global->property_dictionary()), name, cell, details);
     global->set_properties(*dictionary);
     return cell;

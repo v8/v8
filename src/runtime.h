@@ -798,8 +798,11 @@ class Runtime : public AllStatic {
 
   // Add internalized strings for all the intrinsic function names to a
   // StringDictionary.
-  static void InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict);
+  // Returns failure if an allocation fails.  In this case, it must be
+  // retried with a new, empty StringDictionary, not with the same one.
+  // Alternatively, heap initialization can be completely restarted.
+  MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
+      Heap* heap, Object* dictionary);
 
   // Get the intrinsic function with the given name, which must be internalized.
   static const Function* FunctionForName(Handle<String> name);

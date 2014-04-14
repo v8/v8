@@ -15089,21 +15089,31 @@ static const Runtime::Function kIntrinsicFunctions[] = {
 #undef F
 
 
-void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict) {
-  ASSERT(dict->NumberOfElements() == 0);
-  HandleScope scope(isolate);
+MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
+                                                       Object* dictionary) {
+  ASSERT(dictionary != NULL);
+  ASSERT(NameDictionary::cast(dictionary)->NumberOfElements() == 0);
   for (int i = 0; i < kNumFunctions; ++i) {
     const char* name = kIntrinsicFunctions[i].name;
     if (name == NULL) continue;
-    Handle<NameDictionary> new_dict = NameDictionary::Add(
-        dict,
-        isolate->factory()->InternalizeUtf8String(name),
-        Handle<Smi>(Smi::FromInt(i), isolate),
-        PropertyDetails(NONE, NORMAL, Representation::None()));
-    // The dictionary does not need to grow.
-    CHECK(new_dict.is_identical_to(dict));
+    Object* name_string;
+    { MaybeObject* maybe_name_string =
+          heap->InternalizeUtf8String(name);
+      if (!maybe_name_string->ToObject(&name_string)) return maybe_name_string;
+    }
+    NameDictionary* name_dictionary = NameDictionary::cast(dictionary);
+    { MaybeObject* maybe_dictionary = name_dictionary->Add(
+          String::cast(name_string),
+          Smi::FromInt(i),
+          PropertyDetails(NONE, NORMAL, Representation::None()));
+      if (!maybe_dictionary->ToObject(&dictionary)) {
+        // Non-recoverable failure.  Calling code must restart heap
+        // initialization.
+        return maybe_dictionary;
+      }
+    }
   }
+  return dictionary;
 }
 
 
