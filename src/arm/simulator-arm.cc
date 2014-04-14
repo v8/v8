@@ -773,8 +773,8 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   z_flag_FPSCR_ = false;
   c_flag_FPSCR_ = false;
   v_flag_FPSCR_ = false;
-  FPSCR_rounding_mode_ = RZ;
-  FPSCR_default_NaN_mode_ = true;
+  FPSCR_rounding_mode_ = RN;
+  FPSCR_default_NaN_mode_ = false;
 
   inv_op_vfp_flag_ = false;
   div_zero_vfp_flag_ = false;
