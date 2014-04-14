@@ -1183,11 +1183,6 @@ class PreParser : public ParserBase<PreParserTraits> {
       bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
-  // Logs the currently parsed literal as a symbol in the preparser data.
-  void LogSymbol();
-  // Log the currently parsed string literal.
-  Expression GetStringSymbol();
-
   bool CheckInOrOf(bool accept_OF);
 };
 

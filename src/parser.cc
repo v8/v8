@@ -738,9 +738,9 @@ Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
       return parser_->LookupCachedSymbol(symbol_id);
     }
   } else if (parser_->cached_data_mode() == PRODUCE_CACHED_DATA) {
-    if (parser_->log_->ShouldLogSymbols()) {
-      parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
-    }
+    // Parser is never used inside lazy functions (it falls back to PreParser
+    // instead), so we can produce the symbol data unconditionally.
+    parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
   }
   Handle<String> result =
       parser_->scanner()->AllocateInternalizedString(parser_->isolate());
@@ -3420,8 +3420,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         // With no cached data, we partially parse the function, without
         // building an AST. This gathers the data needed to build a lazy
         // function.
-        // FIXME(marja): Now the PreParser doesn't need to log functions /
-        // symbols; only errors -> clean that up.
         SingletonLogger logger;
         PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
         if (result == PreParser::kPreParseStackOverflow) {
