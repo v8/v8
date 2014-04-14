@@ -2017,6 +2017,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
 
 TEST(PrototypeTransitionClearing) {
+  if (FLAG_never_compact) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -2891,6 +2892,7 @@ TEST(Regress2143b) {
 
 
 TEST(ReleaseOverReservedPages) {
+  if (FLAG_never_compact) return;
   i::FLAG_trace_gc = true;
   // The optimizer can allocate stuff, messing up the test.
   i::FLAG_crankshaft = false;
@@ -3554,6 +3556,7 @@ TEST(Regress169928) {
 
 
 TEST(Regress168801) {
+  if (i::FLAG_never_compact) return;
   i::FLAG_always_compact = true;
   i::FLAG_cache_optimized_code = false;
   i::FLAG_allow_natives_syntax = true;
@@ -3610,6 +3613,7 @@ TEST(Regress168801) {
 
 
 TEST(Regress173458) {
+  if (i::FLAG_never_compact) return;
   i::FLAG_always_compact = true;
   i::FLAG_cache_optimized_code = false;
   i::FLAG_allow_natives_syntax = true;

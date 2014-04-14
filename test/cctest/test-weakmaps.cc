@@ -180,6 +180,7 @@ TEST(Shrinking) {
 // Test that weak map values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
 TEST(Regress2060a) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
@@ -215,6 +216,7 @@ TEST(Regress2060a) {
 // Test that weak map keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
 TEST(Regress2060b) {
+  if (i::FLAG_never_compact) return;
   FLAG_always_compact = true;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = true;

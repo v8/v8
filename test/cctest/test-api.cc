@@ -14182,6 +14182,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::FLAG_stress_compaction = true;
   i::FLAG_incremental_marking = false;
+  if (i::FLAG_never_compact) return;
   const char* script =
     "function bar() {"
     "  var sum = 0;"
