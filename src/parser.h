@@ -88,9 +88,9 @@ class ScriptData {
       : store_(store),
         owns_store_(true) { }
 
-  // Create an empty ScriptData that is guaranteed to not satisfy
-  // a SanityCheck.
-  ScriptData() : owns_store_(false) { }
+  ScriptData(Vector<unsigned> store, bool owns_store)
+      : store_(store),
+        owns_store_(owns_store) { }
 
   // The created ScriptData won't take ownership of the data. If the alignment
   // is not correct, this will copy the data (and the created ScriptData will
@@ -667,7 +667,7 @@ class Parser : public ParserBase<ParserTraits> {
                                   Handle<String> source);
 
   // Report syntax error
-  void ReportInvalidPreparseData(Handle<String> name, bool* ok);
+  void ReportInvalidCachedData(Handle<String> name, bool* ok);
 
   void SetCachedData(ScriptData** data,
                      CachedDataMode cached_data_mode) {
