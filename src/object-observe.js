@@ -80,13 +80,9 @@ function GetWeakMapWrapper() {
 
   MapWrapper.prototype = {
     get: function(key) {
-      key = %UnwrapGlobalProxy(key);
-      if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
       return %WeakCollectionGet(this.map_, key);
     },
     set: function(key, value) {
-      key = %UnwrapGlobalProxy(key);
-      if (!IS_SPEC_OBJECT(key)) return UNDEFINED;
       %WeakCollectionSet(this.map_, key, value);
     },
     has: function(key) {

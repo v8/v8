@@ -14840,18 +14840,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObservationWeakMapCreate) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  Object* object = args[0];
-  if (object->IsJSGlobalProxy()) {
-    object = object->GetPrototype(isolate);
-    if (object->IsNull()) return isolate->heap()->undefined_value();
-  }
-  return object;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);

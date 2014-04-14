@@ -324,7 +324,6 @@ namespace internal {
   F(SetIsObserved, 1, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
-  F(UnwrapGlobalProxy, 1, 1) \
   F(IsAccessAllowedForObserver, 3, 1) \
   \
   /* Harmony typed arrays */ \
