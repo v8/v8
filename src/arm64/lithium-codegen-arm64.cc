@@ -5822,7 +5822,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // If the receiver is null or undefined, we have to pass the global object as
   // a receiver to normal functions. Values have to be passed unchanged to
   // builtins and strict-mode functions.
-  Label global_object, done;
+  Label global_object, done, copy_receiver;
 
   if (!instr->hydrogen()->known_function()) {
     __ Ldr(result, FieldMemOperand(function,
@@ -5833,10 +5833,10 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
            FieldMemOperand(result, SharedFunctionInfo::kCompilerHintsOffset));
 
     // Do not transform the receiver to object for strict mode functions.
-    __ Tbnz(result, SharedFunctionInfo::kStrictModeFunction, &done);
+    __ Tbnz(result, SharedFunctionInfo::kStrictModeFunction, &copy_receiver);
 
     // Do not transform the receiver to object for builtins.
-    __ Tbnz(result, SharedFunctionInfo::kNative, &done);
+    __ Tbnz(result, SharedFunctionInfo::kNative, &copy_receiver);
   }
 
   // Normal function. Replace undefined or null with global receiver.
@@ -5846,15 +5846,17 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // Deoptimize if the receiver is not a JS object.
   DeoptimizeIfSmi(receiver, instr->environment());
   __ CompareObjectType(receiver, result, result, FIRST_SPEC_OBJECT_TYPE);
-  __ Mov(result, receiver);
-  __ B(ge, &done);
+  __ B(ge, &copy_receiver);
   Deoptimize(instr->environment());
 
   __ Bind(&global_object);
   __ Ldr(result, FieldMemOperand(function, JSFunction::kContextOffset));
   __ Ldr(result, ContextMemOperand(result, Context::GLOBAL_OBJECT_INDEX));
   __ Ldr(result, FieldMemOperand(result, GlobalObject::kGlobalReceiverOffset));
+  __ B(&done);
 
+  __ Bind(&copy_receiver);
+  __ Mov(result, receiver);
   __ Bind(&done);
 }
 
