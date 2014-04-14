@@ -3893,11 +3893,6 @@ class V8_EXPORT ResourceConstraints {
   void ConfigureDefaults(uint64_t physical_memory,
                          uint64_t virtual_memory_limit,
                          uint32_t number_of_processors);
-  // Deprecated.
-  void ConfigureDefaults(uint64_t physical_memory,
-                         uint32_t number_of_processors) {
-    ConfigureDefaults(physical_memory, 0, number_of_processors);
-  }
 
   int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
