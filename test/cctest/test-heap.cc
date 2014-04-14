@@ -2072,10 +2072,6 @@ TEST(PrototypeTransitionClearing) {
   CHECK(!space->LastPage()->Contains(
       map->GetPrototypeTransitions()->address()));
   CHECK(space->LastPage()->Contains(prototype->address()));
-  JSObject::SetPrototype(baseObject, prototype, false);
-  CHECK(Map::GetPrototypeTransition(map, prototype)->IsMap());
-  CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(Map::GetPrototypeTransition(map, prototype)->IsMap());
 }
 
 

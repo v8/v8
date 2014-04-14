@@ -2607,7 +2607,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Add missing transitions.
   Handle<Map> new_map = split_map;
   for (; descriptor < descriptors; descriptor++) {
-    new_map = Map::CopyInstallDescriptors(new_map, descriptor, new_descriptors);
+    new_map = CopyInstallDescriptors(new_map, descriptor, new_descriptors);
   }
 
   new_map->set_owns_descriptors(true);
@@ -6766,7 +6766,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
     new_instance_size -= map->inobject_properties() * kPointerSize;
   }
 
-  Handle<Map> result = Map::RawCopy(map, new_instance_size);
+  Handle<Map> result = RawCopy(map, new_instance_size);
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
     result->set_inobject_properties(map->inobject_properties());
@@ -6811,7 +6811,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   ASSERT(map->NumberOfOwnDescriptors() ==
          map->instance_descriptors()->number_of_descriptors());
 
-  Handle<Map> result = Map::CopyDropDescriptors(map);
+  Handle<Map> result = CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
   Handle<TransitionArray> transitions =
       TransitionArray::CopyInsert(map, name, result, SIMPLE_TRANSITION);
@@ -6822,7 +6822,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
-      Map::EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
       descriptors = handle(map->instance_descriptors());
     }
   }
@@ -6847,7 +6847,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors,
                                         TransitionFlag flag,
                                         SimpleTransitionFlag simple_flag) {
-  return Map::CopyReplaceDescriptors(
+  return CopyReplaceDescriptors(
       map, descriptors, flag, Handle<Name>::null(), simple_flag);
 }
 
@@ -6882,7 +6882,7 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
-  Handle<Map> result = Map::CopyDropDescriptors(map);
+  Handle<Map> result = CopyDropDescriptors(map);
 
   result->InitializeDescriptors(*descriptors);
   result->SetNumberOfOwnDescriptors(new_descriptor + 1);
@@ -6930,7 +6930,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   if (insert_transition && map->owns_descriptors()) {
     // In case the map owned its own descriptors, share the descriptors and
     // transfer ownership to the new map.
-    Handle<Map> new_map = Map::CopyDropDescriptors(map);
+    Handle<Map> new_map = CopyDropDescriptors(map);
 
     SetElementsTransitionMap(map, new_map);
 
@@ -6944,7 +6944,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   // In case the map did not own its own descriptors, a split is forced by
   // copying the map; creating a new descriptor array cell.
   // Create a new free-floating map only if we are not allowed to store it.
-  Handle<Map> new_map = Map::Copy(map);
+  Handle<Map> new_map = Copy(map);
 
   new_map->set_elements_kind(kind);
 
@@ -6966,9 +6966,9 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
   // transfer ownership to the new map.
   Handle<Map> new_map;
   if (map->owns_descriptors()) {
-    new_map = Map::CopyDropDescriptors(map);
+    new_map = CopyDropDescriptors(map);
   } else {
-    new_map = Map::Copy(map);
+    new_map = Copy(map);
   }
 
   Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
@@ -6993,7 +6993,7 @@ Handle<Map> Map::Copy(Handle<Map> map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
-  return Map::CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
 }
 
 
@@ -7037,14 +7037,14 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   if (flag == INSERT_TRANSITION &&
       map->owns_descriptors() &&
       map->CanHaveMoreTransitions()) {
-    return Map::ShareDescriptor(map, descriptors, descriptor);
+    return ShareDescriptor(map, descriptors, descriptor);
   }
 
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       descriptors, map->NumberOfOwnDescriptors(), 1);
   new_descriptors->Append(descriptor);
 
-  return Map::CopyReplaceDescriptors(
+  return CopyReplaceDescriptors(
       map, new_descriptors, flag, descriptor->GetKey(), SIMPLE_TRANSITION);
 }
 
@@ -7060,10 +7060,9 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
   // We replace the key if it is already present.
   int index = old_descriptors->SearchWithCache(*descriptor->GetKey(), *map);
   if (index != DescriptorArray::kNotFound) {
-    return Map::CopyReplaceDescriptor(
-        map, old_descriptors, descriptor, index, flag);
+    return CopyReplaceDescriptor(map, old_descriptors, descriptor, index, flag);
   }
-  return Map::CopyAddDescriptor(map, descriptor, flag);
+  return CopyAddDescriptor(map, descriptor, flag);
 }
 
 
@@ -7139,8 +7138,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
       (insertion_index == descriptors->number_of_descriptors() - 1)
       ? SIMPLE_TRANSITION
       : FULL_TRANSITION;
-  return Map::CopyReplaceDescriptors(
-      map, new_descriptors, flag, key, simple_flag);
+  return CopyReplaceDescriptors(map, new_descriptors, flag, key, simple_flag);
 }
 
 
@@ -11510,7 +11508,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
     Factory* factory = map->GetIsolate()->factory();
     cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
 
-    Map::SetPrototypeTransitions(map, cache);
+    SetPrototypeTransitions(map, cache);
   }
 
   // Reload number of transitions as GC might shrink them.
@@ -11790,6 +11788,18 @@ void DependentCode::AddToDependentICList(Handle<Code> stub) {
 }
 
 
+Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
+                                       Handle<Object> prototype) {
+  Handle<Map> new_map = GetPrototypeTransition(map, prototype);
+  if (new_map.is_null()) {
+    new_map = Copy(map);
+    PutPrototypeTransition(map, prototype, new_map);
+    new_map->set_prototype(*prototype);
+  }
+  return new_map;
+}
+
+
 Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
                                       Handle<Object> value,
                                       bool skip_hidden_prototypes) {
@@ -11860,12 +11870,7 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
   }
 
-  Handle<Map> new_map = Map::GetPrototypeTransition(map, value);
-  if (new_map.is_null()) {
-    new_map = Map::Copy(map);
-    Map::PutPrototypeTransition(map, value, new_map);
-    new_map->set_prototype(*value);
-  }
+  Handle<Map> new_map = Map::TransitionToPrototype(map, value);
   ASSERT(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 

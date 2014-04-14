@@ -5026,19 +5026,6 @@ uint32_t Map::bit_field3() {
 }
 
 
-void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
-  Object* back_pointer = GetBackPointer();
-
-  if (Heap::ShouldZapGarbage() && HasTransitionArray()) {
-    ZapTransitions();
-  }
-
-  WRITE_FIELD(this, kTransitionsOrBackPointerOffset, back_pointer);
-  CONDITIONAL_WRITE_BARRIER(
-      heap, this, kTransitionsOrBackPointerOffset, back_pointer, mode);
-}
-
-
 void Map::AppendDescriptor(Descriptor* desc) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
@@ -5081,11 +5068,6 @@ bool Map::CanHaveMoreTransitions() {
   return FixedArray::SizeFor(transitions()->length() +
                              TransitionArray::kTransitionSize)
       <= Page::kMaxRegularHeapObjectSize;
-}
-
-
-void Map::SetTransition(int transition_index, Map* target) {
-  transitions()->SetTarget(transition_index, target);
 }
 
 

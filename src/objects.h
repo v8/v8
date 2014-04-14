@@ -6209,21 +6209,13 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
   static Handle<TransitionArray> SetElementsTransitionMap(
       Handle<Map> map, Handle<Map> transitioned_map);
-  inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
   inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
-  inline void ClearTransitions(Heap* heap,
-                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  void DeprecateTransitionTree();
-  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
 
   Map* FindRootMap();
-  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
-  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   inline int GetInObjectPropertyOffset(int index);
 
@@ -6247,15 +6239,6 @@ class Map: public HeapObject {
       StoreMode store_mode,
       PropertyAttributes attributes,
       const char* reason);
-
-  void PrintGeneralization(FILE* file,
-                           const char* reason,
-                           int modify_index,
-                           int split,
-                           int descriptors,
-                           bool constant_to_field,
-                           Representation old_representation,
-                           Representation new_representation);
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
@@ -6322,8 +6305,6 @@ class Map: public HeapObject {
   //    2 + 2 * i: prototype
   //    3 + 2 * i: target map
   inline FixedArray* GetPrototypeTransitions();
-  static inline void SetPrototypeTransitions(
-      Handle<Map> map, Handle<FixedArray> prototype_transitions);
   inline bool HasPrototypeTransitions();
 
   static const int kProtoTransitionHeaderSize = 1;
@@ -6415,7 +6396,6 @@ class Map: public HeapObject {
   // Same as above, but does not touch the prototype chain.
   static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
 
-  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyReplaceDescriptors(
       Handle<Map> map,
@@ -6428,25 +6408,17 @@ class Map: public HeapObject {
       Handle<DescriptorArray> descriptors,
       TransitionFlag flag,
       SimpleTransitionFlag simple_flag = FULL_TRANSITION);
-  static Handle<Map> CopyInstallDescriptors(
-      Handle<Map> map,
-      int new_descriptor,
-      Handle<DescriptorArray> descriptors);
-  static Handle<Map> ShareDescriptor(Handle<Map> map,
-                                     Handle<DescriptorArray> descriptors,
-                                     Descriptor* descriptor);
   static Handle<Map> CopyAddDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
-  static Handle<Map> CopyReplaceDescriptor(
-      Handle<Map> map,
-      Handle<DescriptorArray> descriptors,
-      Descriptor* descriptor,
-      int index,
-      TransitionFlag flag);
+  static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
+                                           Handle<DescriptorArray> descriptors,
+                                           Descriptor* descriptor,
+                                           int index,
+                                           TransitionFlag flag);
 
   static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
@@ -6522,14 +6494,6 @@ class Map: public HeapObject {
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
-  bool EquivalentToForTransition(Map* other);
-
-  // Compares this map to another to see if they describe equivalent objects.
-  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
-  // it had exactly zero inobject properties.
-  // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
-
   // Returns the map that this map transitions to if its elements_kind
   // is changed to |elements_kind|, or NULL if no such map is cached yet.
   // |safe_to_add_transitions| is set to false if adding transitions is not
@@ -6541,15 +6505,6 @@ class Map: public HeapObject {
   // found at all.
   Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
-
-  // Zaps the contents of backing data structures. Note that the
-  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
-  // holding weak references when incremental marking is used, because it also
-  // iterates over objects that are otherwise unreachable.
-  // In general we only want to call these functions in release mode when
-  // heap verification is turned on.
-  void ZapPrototypeTransitions();
-  void ZapTransitions();
 
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.
@@ -6611,11 +6566,8 @@ class Map: public HeapObject {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps the are transitioned to.
   static const int kMaxCachedPrototypeTransitions = 256;
-  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
-                                            Handle<Object> prototype);
-  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
-                                            Handle<Object> prototype,
-                                            Handle<Map> target_map);
+  static Handle<Map> TransitionToPrototype(Handle<Map> map,
+                                           Handle<Object> prototype);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -6699,7 +6651,57 @@ class Map: public HeapObject {
                               kPointerFieldsEndOffset,
                               kSize> BodyDescriptor;
 
+  // Compares this map to another to see if they describe equivalent objects.
+  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
+  // it had exactly zero inobject properties.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
+
  private:
+  bool EquivalentToForTransition(Map* other);
+  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
+  static Handle<Map> ShareDescriptor(Handle<Map> map,
+                                     Handle<DescriptorArray> descriptors,
+                                     Descriptor* descriptor);
+  static Handle<Map> CopyInstallDescriptors(
+      Handle<Map> map,
+      int new_descriptor,
+      Handle<DescriptorArray> descriptors);
+
+  // Zaps the contents of backing data structures. Note that the
+  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
+  // holding weak references when incremental marking is used, because it also
+  // iterates over objects that are otherwise unreachable.
+  // In general we only want to call these functions in release mode when
+  // heap verification is turned on.
+  void ZapPrototypeTransitions();
+  void ZapTransitions();
+
+  void DeprecateTransitionTree();
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
+
+  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
+  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
+
+  void PrintGeneralization(FILE* file,
+                           const char* reason,
+                           int modify_index,
+                           int split,
+                           int descriptors,
+                           bool constant_to_field,
+                           Representation old_representation,
+                           Representation new_representation);
+
+  static inline void SetPrototypeTransitions(
+      Handle<Map> map,
+      Handle<FixedArray> prototype_transitions);
+
+  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
 
