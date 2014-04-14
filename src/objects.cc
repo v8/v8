@@ -9474,11 +9474,16 @@ void Map::ClearNonLiveTransitions(Heap* heap) {
     }
   }
 
+  // Note that we never eliminate a transition array, though we might right-trim
+  // such that number_of_transitions() == 0. If this assumption changes,
+  // TransitionArray::CopyInsert() will need to deal with the case that a
+  // transition array disappeared during GC.
   int trim = t->number_of_transitions() - transition_index;
   if (trim > 0) {
     RightTrimFixedArray<Heap::FROM_GC>(heap, t, t->IsSimpleTransition()
         ? trim : trim * TransitionArray::kTransitionSize);
   }
+  ASSERT(HasTransitionArray());
 }
 
 
