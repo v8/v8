@@ -6144,8 +6144,6 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HValue*,
                                  HObjectAccess);
-  DECLARE_INSTRUCTION_FACTORY_P4(HLoadNamedField, HValue*, HValue*,
-                                 HObjectAccess, Handle<Map>);
 
   HValue* object() { return OperandAt(0); }
   HValue* dependency() {
@@ -6157,8 +6155,6 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   Representation field_representation() const {
       return access_.representation();
   }
-
-  Unique<Map> map() const { return map_; }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
   virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
@@ -6179,15 +6175,13 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     HLoadNamedField* b = HLoadNamedField::cast(other);
-    return access_.Equals(b->access_) && map_ == b->map_;
+    return access_.Equals(b->access_);
   }
 
  private:
   HLoadNamedField(HValue* object,
                   HValue* dependency,
-                  HObjectAccess access,
-                  Handle<Map> map = Handle<Map>::null())
-      : access_(access), map_(map) {
+                  HObjectAccess access) : access_(access) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
     SetOperandAt(1, dependency != NULL ? dependency : object);
@@ -6221,7 +6215,6 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   HObjectAccess access_;
-  Unique<Map> map_;
 };
 
 

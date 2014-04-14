@@ -5370,7 +5370,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     access = HObjectAccess::ForHeapNumberValue();
   }
   return New<HLoadNamedField>(
-      checked_object, static_cast<HValue*>(NULL), access, info->field_map());
+      checked_object, static_cast<HValue*>(NULL), access);
 }
 
 
@@ -5415,12 +5415,6 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
                                     value, STORE_TO_INITIALIZED_ENTRY);
     }
   } else {
-    if (!info->field_map().is_null()) {
-      ASSERT(field_access.representation().IsHeapObject());
-      BuildCheckHeapObject(value);
-      value = BuildCheckMap(value, info->field_map());
-    }
-
     // This is a normal store.
     instr = New<HStoreNamedField>(
         checked_object->ActualValue(), field_access, value,
@@ -5484,12 +5478,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
   }
   if (info->access_.offset() != access_.offset()) return false;
   if (info->access_.IsInobject() != access_.IsInobject()) return false;
-  if (!field_map_.is_identical_to(info->field_map_)) {
-    if (!IsLoad()) return false;
-
-    // Throw away type information for merging polymorphic loads.
-    field_map_ = info->field_map_ = Handle<Map>();
-  }
   info->GeneralizeRepresentation(r);
   return true;
 }
@@ -5509,26 +5497,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
   }
 
   if (lookup_.IsField()) {
-    // Construct the object field access.
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
-
-    if (access_.representation().IsHeapObject()) {
-      // Figure out the field type from the accessor map.
-      HeapType* field_type = lookup_.GetFieldTypeFromMap(*map);
-      if (field_type->IsClass()) {
-        Handle<Map> field_map = field_type->AsClass();
-        if (field_map->is_stable()) {  // TODO(bmeurer)
-          field_map_ = field_map;
-          field_map_->AddDependentCompilationInfo(
-              DependentCode::kPrototypeCheckGroup, top_info());
-
-          // Add dependency on the map that introduced the field.
-          Handle<Map> field_owner = handle(lookup_.GetFieldOwnerFromMap(*map));
-          field_owner->AddDependentCompilationInfo(
-              DependentCode::kFieldTypeGroup, top_info());
-        }
-      }
-    }
   } else if (lookup_.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
     if (!callback->IsAccessorPair()) return false;

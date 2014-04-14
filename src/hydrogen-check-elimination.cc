@@ -382,13 +382,7 @@ class HCheckTable : public ZoneObject {
 
   void ReduceLoadNamedField(HLoadNamedField* instr) {
     // Reduce a load of the map field when it is known to be a constant.
-    if (!IsMapAccess(instr->access())) {
-      // Check if we introduce a map here.
-      if (!instr->map().IsNull()) {
-        Insert(instr, instr, instr->map());
-      }
-      return;
-    }
+    if (!IsMapAccess(instr->access())) return;
 
     HValue* object = instr->object()->ActualValue();
     MapSet maps = FindMaps(object);

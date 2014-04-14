@@ -1218,12 +1218,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   ASSERT(!receiver->map()->is_deprecated());
   if (!lookup->CanHoldValue(value)) {
     Handle<Map> target(lookup->GetTransitionTarget());
-    Representation field_representation = value->OptimalRepresentation();
-    Handle<HeapType> field_type = value->OptimalType(
-        lookup->isolate(), field_representation);
     Map::GeneralizeRepresentation(
         target, target->LastAdded(),
-        field_representation, field_type, FORCE_FIELD);
+        value->OptimalRepresentation(), FORCE_FIELD);
     // Lookup the transition again since the transition tree may have changed
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);

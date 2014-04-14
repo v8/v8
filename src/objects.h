@@ -1509,8 +1509,6 @@ class Object : public MaybeObject {
     return true;
   }
 
-  Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
-
   inline MaybeObject* AllocateNewStorageFor(Heap* heap,
                                             Representation representation);
 
@@ -2582,7 +2580,6 @@ class JSObject: public JSReceiver {
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
-                                            Handle<HeapType> new_field_type,
                                             StoreMode store_mode);
 
   // Convert the object to use the canonical dictionary
@@ -3408,14 +3405,12 @@ class DescriptorArray: public FixedArray {
   inline Name* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
-  inline void SetValue(int descriptor_number, Object* value);
   inline Object** GetValueSlot(int descriptor_number);
   inline Object** GetDescriptorStartSlot(int descriptor_number);
   inline Object** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
-  inline HeapType* GetFieldType(int descriptor_number);
   inline Object* GetConstant(int descriptor_number);
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
@@ -3423,6 +3418,7 @@ class DescriptorArray: public FixedArray {
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
+  inline void InitializeRepresentations(Representation representation);
   inline void SetRepresentation(int descriptor_number,
                                 Representation representation);
 
@@ -5954,9 +5950,6 @@ class DependentCode: public FixedArray {
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
-    // Group of code that omit run-time type checks for the field(s) introduced
-    // by this map.
-    kFieldTypeGroup,
     // Group of code that depends on tenuring information in AllocationSites
     // not being changed.
     kAllocationSiteTenuringChangedGroup,
@@ -6227,9 +6220,6 @@ class Map: public HeapObject {
   Map* FindRootMap();
   Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
-  Map* FindFieldOwner(int descriptor);
-
-  void UpdateDescriptor(int descriptor_number, Descriptor* desc);
 
   inline int GetInObjectPropertyOffset(int index);
 
@@ -6239,19 +6229,13 @@ class Map: public HeapObject {
                               int target_number_of_fields,
                               int target_inobject,
                               int target_unused);
-  static Handle<Map> GeneralizeAllFieldRepresentations(Handle<Map> map);
-  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> old_field_type,
-                                              Handle<HeapType> new_field_type,
-                                              Isolate* isolate)
-      V8_WARN_UNUSED_RESULT;
-  static void GeneralizeFieldType(Handle<Map> map,
-                                  int modify_index,
-                                  Handle<HeapType> new_field_type);
+  static Handle<Map> GeneralizeAllFieldRepresentations(
+      Handle<Map> map,
+      Representation new_representation);
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
       int modify_index,
       Representation new_representation,
-      Handle<HeapType> new_field_type,
       StoreMode store_mode);
   static Handle<Map> CopyGeneralizeAllRepresentations(
       Handle<Map> map,
@@ -6267,9 +6251,7 @@ class Map: public HeapObject {
                            int descriptors,
                            bool constant_to_field,
                            Representation old_representation,
-                           Representation new_representation,
-                           HeapType* old_field_type,
-                           HeapType* new_field_type);
+                           Representation new_representation);
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
