@@ -8252,34 +8252,6 @@ THREADED_TEST(TypeSwitch) {
 }
 
 
-// For use within the TestSecurityHandler() test.
-static bool g_security_callback_result = false;
-static bool NamedSecurityTestCallback(Local<v8::Object> global,
-                                      Local<Value> name,
-                                      v8::AccessType type,
-                                      Local<Value> data) {
-  // Always allow read access.
-  if (type == v8::ACCESS_GET)
-    return true;
-
-  // Sometimes allow other access.
-  return g_security_callback_result;
-}
-
-
-static bool IndexedSecurityTestCallback(Local<v8::Object> global,
-                                        uint32_t key,
-                                        v8::AccessType type,
-                                        Local<Value> data) {
-  // Always allow read access.
-  if (type == v8::ACCESS_GET)
-    return true;
-
-  // Sometimes allow other access.
-  return g_security_callback_result;
-}
-
-
 static int trouble_nesting = 0;
 static void TroubleCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
@@ -8403,6 +8375,36 @@ TEST(TryCatchFinallyUsingTryCatchHandler) {
       "  { try { throw ''; } finally { throw 0; }"
       "})()");
   CHECK(try_catch.HasCaught());
+}
+
+
+// For use within the TestSecurityHandler() test.
+static bool g_security_callback_result = false;
+static bool NamedSecurityTestCallback(Local<v8::Object> global,
+                                      Local<Value> name,
+                                      v8::AccessType type,
+                                      Local<Value> data) {
+  printf("a\n");
+  // Always allow read access.
+  if (type == v8::ACCESS_GET)
+    return true;
+
+  // Sometimes allow other access.
+  return g_security_callback_result;
+}
+
+
+static bool IndexedSecurityTestCallback(Local<v8::Object> global,
+                                        uint32_t key,
+                                        v8::AccessType type,
+                                        Local<Value> data) {
+  printf("b\n");
+  // Always allow read access.
+  if (type == v8::ACCESS_GET)
+    return true;
+
+  // Sometimes allow other access.
+  return g_security_callback_result;
 }
 
 
@@ -8574,6 +8576,61 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
     CHECK(!access_f3->Run()->Equals(v8_num(101)));
     CHECK(access_f3->Run()->IsUndefined());
   }
+}
+
+
+static bool named_security_check_with_gc_called;
+
+static bool NamedSecurityCallbackWithGC(Local<v8::Object> global,
+                                        Local<Value> name,
+                                        v8::AccessType type,
+                                        Local<Value> data) {
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  named_security_check_with_gc_called = true;
+  return true;
+}
+
+
+static bool indexed_security_check_with_gc_called;
+
+static bool IndexedSecurityTestCallbackWithGC(Local<v8::Object> global,
+                                              uint32_t key,
+                                              v8::AccessType type,
+                                              Local<Value> data) {
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  indexed_security_check_with_gc_called = true;
+  return true;
+}
+
+
+TEST(SecurityTestGCAllowed) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedSecurityCallbackWithGC,
+                                           IndexedSecurityTestCallbackWithGC);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("obj"), object_template->NewInstance());
+
+  named_security_check_with_gc_called = false;
+  CompileRun("obj.foo = new String(1001);");
+  CHECK(named_security_check_with_gc_called);
+
+  indexed_security_check_with_gc_called = false;
+  CompileRun("obj[0] = new String(1002);");
+  CHECK(indexed_security_check_with_gc_called);
+
+  named_security_check_with_gc_called = false;
+  CHECK(CompileRun("obj.foo")->ToString()->Equals(v8_str("1001")));
+  CHECK(named_security_check_with_gc_called);
+
+  indexed_security_check_with_gc_called = false;
+  CHECK(CompileRun("obj[0]")->ToString()->Equals(v8_str("1002")));
+  CHECK(indexed_security_check_with_gc_called);
 }
 
 
