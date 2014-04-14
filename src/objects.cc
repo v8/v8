@@ -691,6 +691,13 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
+// TODO(mstarzinger): Temporary wrapper until target is handlified.
+Handle<NameDictionary> NameDictionaryShrink(Handle<NameDictionary> dict,
+                                            Handle<Name> name) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(), dict->Shrink(*name), NameDictionary);
+}
+
+
 Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
                                                   Handle<Name> name,
                                                   DeleteMode mode) {
@@ -720,7 +727,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
       Handle<Object> deleted(dictionary->DeleteProperty(entry, mode), isolate);
       if (*deleted == isolate->heap()->true_value()) {
         Handle<NameDictionary> new_properties =
-            NameDictionary::Shrink(dictionary, *name);
+            NameDictionaryShrink(dictionary, name);
         object->set_properties(*new_properties);
       }
       return deleted;
@@ -13164,12 +13171,12 @@ bool JSObject::ShouldConvertToFastDoubleElements(
 // together, so even though this function belongs in objects-debug.cc,
 // we keep it here instead to satisfy certain compilers.
 #ifdef OBJECT_PRINT
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::Print(FILE* out) {
-  int capacity = DerivedHashTable::Capacity();
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::Print(FILE* out) {
+  int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k)) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k)) {
       PrintF(out, " ");
       if (k->IsString()) {
         String::cast(k)->StringPrint(out);
@@ -13185,15 +13192,15 @@ void Dictionary<Derived, Shape, Key>::Print(FILE* out) {
 #endif
 
 
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::CopyValuesTo(FixedArray* elements) {
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
-    Object* k =  Dictionary::KeyAt(i);
-    if (Dictionary::IsKey(k)) {
+    Object* k =  Dictionary<Shape, Key>::KeyAt(i);
+    if (Dictionary<Shape, Key>::IsKey(k)) {
       elements->set(pos++, ValueAt(i), mode);
     }
   }
@@ -13897,26 +13904,25 @@ class InternalizedStringKey : public HashTableKey {
 };
 
 
-template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::IteratePrefix(ObjectVisitor* v) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::IteratePrefix(ObjectVisitor* v) {
   IteratePointers(v, 0, kElementsStartOffset);
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::IterateElements(ObjectVisitor* v) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
   IteratePointers(v,
                   kElementsStartOffset,
                   kHeaderSize + length() * kPointerSize);
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* HashTable<Derived, Shape, Key>::Allocate(
-    Heap* heap,
-    int at_least_space_for,
-    MinimumCapacity capacity_option,
-    PretenureFlag pretenure) {
+template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
+                                             int at_least_space_for,
+                                             MinimumCapacity capacity_option,
+                                             PretenureFlag pretenure) {
   ASSERT(!capacity_option || IsPowerOf2(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
@@ -13937,23 +13943,10 @@ MaybeObject* HashTable<Derived, Shape, Key>::Allocate(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-Handle<Derived> HashTable<Derived, Shape, Key>::New(
-    Isolate* isolate,
-    int at_least_space_for,
-    MinimumCapacity capacity_option,
-    PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate,
-      Allocate(isolate->heap(), at_least_space_for, capacity_option, pretenure),
-      Derived);
-}
-
-
 // Find entry for key otherwise return kNotFound.
 int NameDictionary::FindEntry(Name* key) {
   if (!key->IsUniqueName()) {
-    return DerivedHashTable::FindEntry(key);
+    return HashTable<NameDictionaryShape, Name*>::FindEntry(key);
   }
 
   // Optimized for unique names. Knowledge of the key type allows:
@@ -13990,8 +13983,8 @@ int NameDictionary::FindEntry(Name* key) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::Rehash(Derived* new_table, Key key) {
+template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
   ASSERT(NumberOfElements() < new_table->Capacity());
 
   DisallowHeapAllocation no_gc;
@@ -14010,7 +14003,7 @@ void HashTable<Derived, Shape, Key>::Rehash(Derived* new_table, Key key) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = get(from_index);
     if (IsKey(k)) {
-      uint32_t hash = HashTable::HashForObject(key, k);
+      uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -14020,16 +14013,16 @@ void HashTable<Derived, Shape, Key>::Rehash(Derived* new_table, Key key) {
   }
   new_table->SetNumberOfElements(NumberOfElements());
   new_table->SetNumberOfDeletedElements(0);
+  return new_table;
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-uint32_t HashTable<Derived, Shape, Key>::EntryForProbe(
-    Key key,
-    Object* k,
-    int probe,
-    uint32_t expected) {
-  uint32_t hash = HashTable::HashForObject(key, k);
+template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
+                                              Object* k,
+                                              int probe,
+                                              uint32_t expected) {
+  uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
   uint32_t capacity = Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -14040,10 +14033,10 @@ uint32_t HashTable<Derived, Shape, Key>::EntryForProbe(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::Swap(uint32_t entry1,
-                                          uint32_t entry2,
-                                          WriteBarrierMode mode) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Swap(uint32_t entry1,
+                                 uint32_t entry2,
+                                 WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
   Object* temp[Shape::kEntrySize];
@@ -14059,8 +14052,8 @@ void HashTable<Derived, Shape, Key>::Swap(uint32_t entry1,
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::Rehash(Key key) {
+template<typename Shape, typename Key>
+void HashTable<Shape, Key>::Rehash(Key key) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   uint32_t capacity = Capacity();
@@ -14092,11 +14085,10 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* HashTable<Derived, Shape, Key>::EnsureCapacity(
-    int n,
-    Key key,
-    PretenureFlag pretenure) {
+template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n,
+                                                   Key key,
+                                                   PretenureFlag pretenure) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   int nod = NumberOfDeletedElements();
@@ -14120,45 +14112,44 @@ MaybeObject* HashTable<Derived, Shape, Key>::EnsureCapacity(
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  Rehash(Derived::cast(obj), key);
-  return Derived::cast(obj);
+  return Rehash(HashTable::cast(obj), key);
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-Handle<Derived> HashTable<Derived, Shape, Key>::Shrink(Handle<Derived> table,
-                                                       Key key) {
-  int capacity = table->Capacity();
-  int nof = table->NumberOfElements();
+template<typename Shape, typename Key>
+MaybeObject* HashTable<Shape, Key>::Shrink(Key key) {
+  int capacity = Capacity();
+  int nof = NumberOfElements();
 
   // Shrink to fit the number of elements if only a quarter of the
   // capacity is filled with elements.
-  if (nof > (capacity >> 2)) return table;
+  if (nof > (capacity >> 2)) return this;
   // Allocate a new dictionary with room for at least the current
   // number of elements. The allocation method will make sure that
   // there is extra room in the dictionary for additions. Don't go
   // lower than room for 16 elements.
   int at_least_room_for = nof;
-  if (at_least_room_for < 16) return table;
+  if (at_least_room_for < 16) return this;
 
-  Isolate* isolate = table->GetIsolate();
   const int kMinCapacityForPretenure = 256;
   bool pretenure =
       (at_least_room_for > kMinCapacityForPretenure) &&
-      !isolate->heap()->InNewSpace(*table);
-  Handle<Derived> new_table = New(
-      isolate,
-      at_least_room_for,
-      USE_DEFAULT_MINIMUM_CAPACITY,
-      pretenure ? TENURED : NOT_TENURED);
+      !GetHeap()->InNewSpace(this);
+  Object* obj;
+  { MaybeObject* maybe_obj =
+        Allocate(GetHeap(),
+                 at_least_room_for,
+                 USE_DEFAULT_MINIMUM_CAPACITY,
+                 pretenure ? TENURED : NOT_TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
 
-  table->Rehash(*new_table, key);
-  return new_table;
+  return Rehash(HashTable::cast(obj), key);
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-uint32_t HashTable<Derived, Shape, Key>::FindInsertionEntry(uint32_t hash) {
+template<typename Shape, typename Key>
+uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
@@ -14175,165 +14166,129 @@ uint32_t HashTable<Derived, Shape, Key>::FindInsertionEntry(uint32_t hash) {
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 
-template class HashTable<StringTable, StringTableShape, HashTableKey*>;
+template class HashTable<StringTableShape, HashTableKey*>;
 
-template class HashTable<CompilationCacheTable,
-                         CompilationCacheShape,
-                         HashTableKey*>;
+template class HashTable<CompilationCacheShape, HashTableKey*>;
 
-template class HashTable<MapCache, MapCacheShape, HashTableKey*>;
+template class HashTable<MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTable, ObjectHashTableShape, Object*>;
+template class HashTable<ObjectHashTableShape, Object*>;
 
-template class HashTable<WeakHashTable, WeakHashTableShape<2>, Object*>;
+template class HashTable<WeakHashTableShape<2>, Object*>;
 
-template class Dictionary<NameDictionary, NameDictionaryShape, Name*>;
+template class Dictionary<NameDictionaryShape, Name*>;
 
-template class Dictionary<SeededNumberDictionary,
-                          SeededNumberDictionaryShape,
-                          uint32_t>;
+template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
 
-template class Dictionary<UnseededNumberDictionary,
-                          UnseededNumberDictionaryShape,
-                          uint32_t>;
+template class Dictionary<UnseededNumberDictionaryShape, uint32_t>;
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject* Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
     Allocate(Heap* heap, int n, PretenureFlag pretenure);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
+    uint32_t, Object*);
+
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     AtPut(uint32_t, Object*);
 
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    AtPut(uint32_t, Object*);
-
-template Object*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
-template Object*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
-template Object*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::SlowReverseLookup(
+template Object* Dictionary<NameDictionaryShape, Name*>::SlowReverseLookup(
     Object*);
 
-template void
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    CopyKeysTo(
-        FixedArray*,
-        PropertyAttributes,
-        Dictionary<SeededNumberDictionary,
-                   SeededNumberDictionaryShape,
-                   uint32_t>::SortMode);
+template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
+    FixedArray*,
+    PropertyAttributes,
+    Dictionary<SeededNumberDictionaryShape, uint32_t>::SortMode);
 
-template Object*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
+template Object* Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
     int, JSObject::DeleteMode);
 
-template Handle<Object>
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape, Name*> >,
+template Handle<Object> Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
+    Handle<Dictionary<NameDictionaryShape, Name*> >,
     int,
     JSObject::DeleteMode);
 
-template Object*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     DeleteProperty(int, JSObject::DeleteMode);
 
 template Handle<Object>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    DeleteProperty(
-        Handle<Dictionary<SeededNumberDictionary,
-                          SeededNumberDictionaryShape,
-                          uint32_t> >,
-        int,
-        JSObject::DeleteMode);
+Dictionary<SeededNumberDictionaryShape, uint32_t>::DeleteProperty(
+    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
+    int,
+    JSObject::DeleteMode);
 
-template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape, Name*>::
-    Shrink(Handle<NameDictionary>, Name* n);
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Shrink(Name* n);
 
-template Handle<SeededNumberDictionary>
-HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    Shrink(Handle<SeededNumberDictionary>, uint32_t);
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
+    uint32_t);
+template Handle<FixedArray>
+Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
+    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
+    uint32_t);
 
-template void Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    CopyKeysTo(
-        FixedArray*,
-        int,
-        PropertyAttributes,
-        Dictionary<NameDictionary, NameDictionaryShape, Name*>::SortMode);
+template void Dictionary<NameDictionaryShape, Name*>::CopyKeysTo(
+    FixedArray*,
+    int,
+    PropertyAttributes,
+    Dictionary<NameDictionaryShape, Name*>::SortMode);
 
 template int
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    NumberOfElementsFilterAttributes(PropertyAttributes);
+Dictionary<NameDictionaryShape, Name*>::NumberOfElementsFilterAttributes(
+    PropertyAttributes);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::Add(
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Add(
     Name*, Object*, PropertyDetails);
 
 template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    GenerateNewEnumerationIndices();
+Dictionary<NameDictionaryShape, Name*>::GenerateNewEnumerationIndices();
 
 template int
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+Dictionary<SeededNumberDictionaryShape, uint32_t>::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::Add(
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Add(
     uint32_t, Object*, PropertyDetails);
 
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    Add(uint32_t, Object*, PropertyDetails);
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::Add(
+    uint32_t, Object*, PropertyDetails);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
     EnsureCapacity(int, Name*);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::AddEntry(
+template MaybeObject* Dictionary<NameDictionaryShape, Name*>::AddEntry(
     Name*, Object*, PropertyDetails, uint32_t);
 
 template
-int Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    NumberOfEnumElements();
+int Dictionary<SeededNumberDictionaryShape, uint32_t>::NumberOfEnumElements();
 
 template
-int Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    NumberOfEnumElements();
+int Dictionary<NameDictionaryShape, Name*>::NumberOfEnumElements();
 
 template
-int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    FindEntry(uint32_t);
+int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -15179,14 +15134,13 @@ MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::Allocate(
-    Heap* heap,
-    int at_least_space_for,
-    PretenureFlag pretenure) {
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
+                                              int at_least_space_for,
+                                              PretenureFlag pretenure) {
   Object* obj;
   { MaybeObject* maybe_obj =
-      DerivedHashTable::Allocate(
+      HashTable<Shape, Key>::Allocate(
           heap,
           at_least_space_for,
           USE_DEFAULT_MINIMUM_CAPACITY,
@@ -15194,7 +15148,7 @@ MaybeObject* Dictionary<Derived, Shape, Key>::Allocate(
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   // Initialize the next enumeration index.
-  Dictionary::cast(obj)->
+  Dictionary<Shape, Key>::cast(obj)->
       SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return obj;
 }
@@ -15206,10 +15160,10 @@ void NameDictionary::DoGenerateNewEnumerationIndices(
                           dictionary->GenerateNewEnumerationIndices());
 }
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
-  Heap* heap = Dictionary::GetHeap();
-  int length = DerivedHashTable::NumberOfElements();
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
+  Heap* heap = Dictionary<Shape, Key>::GetHeap();
+  int length = HashTable<Shape, Key>::NumberOfElements();
 
   // Allocate and initialize iteration order array.
   Object* obj;
@@ -15228,10 +15182,10 @@ MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
   FixedArray* enumeration_order = FixedArray::cast(obj);
 
   // Fill the enumeration order array with property details.
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
+    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
       int index = DetailsAt(i).dictionary_index();
       enumeration_order->set(pos++, Smi::FromInt(index));
     }
@@ -15248,10 +15202,10 @@ MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
   }
 
   // Update the dictionary with new indices.
-  capacity = DerivedHashTable::Capacity();
+  capacity = HashTable<Shape, Key>::Capacity();
   pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
+    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
       PropertyDetails details = DetailsAt(i);
       PropertyDetails new_details = PropertyDetails(
@@ -15265,8 +15219,8 @@ MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
   return this;
 }
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::EnsureCapacity(int n, Key key) {
   // Check whether there are enough enumeration indices to add n elements.
   if (Shape::kIsEnumerable &&
       !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
@@ -15276,14 +15230,14 @@ MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
-  return DerivedHashTable::EnsureCapacity(n, key);
+  return HashTable<Shape, Key>::EnsureCapacity(n, key);
 }
 
 
 // TODO(ishell): Temporary wrapper until handlified.
-template<typename Derived, typename Shape, typename Key>
-Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
-    Handle<Dictionary<Derived, Shape, Key> > dictionary,
+template<typename Shape, typename Key>
+Handle<Object> Dictionary<Shape, Key>::DeleteProperty(
+    Handle<Dictionary<Shape, Key> > dictionary,
     int entry,
     JSObject::DeleteMode mode) {
   CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
@@ -15292,28 +15246,44 @@ Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-Object* Dictionary<Derived, Shape, Key>::DeleteProperty(
-    int entry,
-    JSReceiver::DeleteMode mode) {
-  Heap* heap = Dictionary::GetHeap();
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
+                                               JSReceiver::DeleteMode mode) {
+  Heap* heap = Dictionary<Shape, Key>::GetHeap();
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
   if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return heap->false_value();
   }
   SetEntry(entry, heap->the_hole_value(), heap->the_hole_value());
-  DerivedHashTable::ElementRemoved();
+  HashTable<Shape, Key>::ElementRemoved();
   return heap->true_value();
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::AtPut(Key key, Object* value) {
+// TODO(ishell): Temporary wrapper until handlified.
+template<typename Shape, typename Key>
+Handle<FixedArray> Dictionary<Shape, Key>::Shrink(
+    Handle<Dictionary<Shape, Key> > dictionary,
+    Key key) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Shrink(key),
+                     FixedArray);
+}
+
+
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::Shrink(Key key) {
+  return HashTable<Shape, Key>::Shrink(key);
+}
+
+
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   int entry = this->FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != Dictionary::kNotFound) {
+  if (entry != Dictionary<Shape, Key>::kNotFound) {
     ValueAtPut(entry, value);
     return this;
   }
@@ -15330,43 +15300,41 @@ MaybeObject* Dictionary<Derived, Shape, Key>::AtPut(Key key, Object* value) {
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::Add(
-    Key key,
-    Object* value,
-    PropertyDetails details) {
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::Add(Key key,
+                                         Object* value,
+                                         PropertyDetails details) {
   // Valdate key is absent.
-  SLOW_ASSERT((this->FindEntry(key) == Dictionary::kNotFound));
+  SLOW_ASSERT((this->FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
   // Check whether the dictionary should be extended.
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 
 // Add a key, value pair to the dictionary.
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
-    Key key,
-    Object* value,
-    PropertyDetails details,
-    uint32_t hash) {
+template<typename Shape, typename Key>
+MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
+                                              Object* value,
+                                              PropertyDetails details,
+                                              uint32_t hash) {
   // Compute the key object.
   Object* k;
   { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
-  uint32_t entry = Dictionary::FindInsertionEntry(hash);
+  uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
   if (!details.IsDeleted() &&
       details.dictionary_index() == 0 &&
@@ -15378,9 +15346,9 @@ MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
     SetNextEnumerationIndex(index + 1);
   }
   SetEntry(entry, k, value, details);
-  ASSERT((Dictionary::KeyAt(entry)->IsNumber() ||
-          Dictionary::KeyAt(entry)->IsName()));
-  DerivedHashTable::ElementAdded();
+  ASSERT((Dictionary<Shape, Key>::KeyAt(entry)->IsNumber() ||
+          Dictionary<Shape, Key>::KeyAt(entry)->IsName()));
+  HashTable<Shape, Key>::ElementAdded();
   return this;
 }
 
@@ -15494,14 +15462,14 @@ MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
 
 
 
-template<typename Derived, typename Shape, typename Key>
-int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
+template<typename Shape, typename Key>
+int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
     PropertyAttributes filter) {
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -15512,31 +15480,31 @@ int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-int Dictionary<Derived, Shape, Key>::NumberOfEnumElements() {
+template<typename Shape, typename Key>
+int Dictionary<Shape, Key>::NumberOfEnumElements() {
   return NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(DONT_ENUM | SYMBOLIC));
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::CopyKeysTo(
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     PropertyAttributes filter,
-    typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
-     Object* k = DerivedHashTable::KeyAt(i);
-     if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
+     Object* k = HashTable<Shape, Key>::KeyAt(i);
+     if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted()) continue;
        PropertyAttributes attr = details.attributes();
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
-  if (sort_mode == Dictionary::SORTED) {
+  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
     storage->SortPairs(storage, index);
   }
   ASSERT(storage->length() >= index);
@@ -15578,24 +15546,24 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::CopyKeysTo(
+template<typename Shape, typename Key>
+void Dictionary<Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     int index,
     PropertyAttributes filter,
-    typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = DerivedHashTable::KeyAt(i);
-    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = HashTable<Shape, Key>::KeyAt(i);
+    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) storage->set(index++, k);
     }
   }
-  if (sort_mode == Dictionary::SORTED) {
+  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
     storage->SortPairs(storage, index);
   }
   ASSERT(storage->length() >= index);
@@ -15603,12 +15571,12 @@ void Dictionary<Derived, Shape, Key>::CopyKeysTo(
 
 
 // Backwards lookup (slow).
-template<typename Derived, typename Shape, typename Key>
-Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
-  int capacity = DerivedHashTable::Capacity();
+template<typename Shape, typename Key>
+Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
+  int capacity = HashTable<Shape, Key>::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k =  DerivedHashTable::KeyAt(i);
-    if (Dictionary::IsKey(k)) {
+    Object* k =  HashTable<Shape, Key>::KeyAt(i);
+    if (Dictionary<Shape, Key>::IsKey(k)) {
       Object* e = ValueAt(i);
       if (e->IsPropertyCell()) {
         e = PropertyCell::cast(e)->value();
@@ -15616,7 +15584,7 @@ Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
       if (e == value) return k;
     }
   }
-  Heap* heap = Dictionary::GetHeap();
+  Heap* heap = Dictionary<Shape, Key>::GetHeap();
   return heap->undefined_value();
 }
 
@@ -15626,11 +15594,18 @@ Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
     int n,
     Handle<Object> key,
     PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTable,
-                   ObjectHashTableShape,
-                   Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->EnsureCapacity(n, *key, pretenure),
+                     ObjectHashTable);
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Shrink(
+    Handle<ObjectHashTable> table, Handle<Object> key) {
+  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
+  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
+                     table_base->Shrink(*key),
                      ObjectHashTable);
 }
 
