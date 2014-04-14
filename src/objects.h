@@ -6927,10 +6927,6 @@ class SharedFunctionInfo: public HeapObject {
   void TrimOptimizedCodeMap(int shrink_by);
 
   // Add a new entry to the optimized code map.
-  MUST_USE_RESULT MaybeObject* AddToOptimizedCodeMap(Context* native_context,
-                                                     Code* code,
-                                                     FixedArray* literals,
-                                                     BailoutId osr_ast_id);
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     Handle<Code> code,
