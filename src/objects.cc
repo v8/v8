@@ -1818,23 +1818,6 @@ static Handle<Object> NewStorageFor(Isolate* isolate,
 }
 
 
-static Handle<Map> CopyAddFieldDescriptor(Handle<Map> map,
-                                          Handle<Name> name,
-                                          int index,
-                                          PropertyAttributes attributes,
-                                          Representation representation,
-                                          TransitionFlag flag) {
-  FieldDescriptor new_field_desc(name, index, attributes, representation);
-  Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
-  int unused_property_fields = map->unused_property_fields() - 1;
-  if (unused_property_fields < 0) {
-    unused_property_fields += JSObject::kFieldsAdded;
-  }
-  new_map->set_unused_property_fields(unused_property_fields);
-  return new_map;
-}
-
-
 void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -1858,14 +1841,21 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
     return;
   }
 
-  // Compute the new index for new field.
-  int index = object->map()->NextFreePropertyIndex();
-
   // Allocate new instance descriptors with (name, index) added
   if (object->IsJSContextExtensionObject()) value_type = FORCE_TAGGED;
   Representation representation = value->OptimalRepresentation(value_type);
-  Handle<Map> new_map = CopyAddFieldDescriptor(
-      handle(object->map()), name, index, attributes, representation, flag);
+
+  // Compute the new index for new field.
+  int index = object->map()->NextFreePropertyIndex();
+
+  FieldDescriptor new_field_desc(name, index, attributes, representation);
+  Handle<Map> new_map = Map::CopyAddDescriptor(
+      handle(object->map()), &new_field_desc, flag);
+  int unused_property_fields = new_map->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += JSObject::kFieldsAdded;
+  }
+  new_map->set_unused_property_fields(unused_property_fields);
 
   JSObject::MigrateToMap(object, new_map);
 
@@ -1880,33 +1870,19 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
 }
 
 
-static Handle<Map> CopyAddConstantDescriptor(Handle<Map> map,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyAttributes attributes,
-                                             TransitionFlag flag) {
-  ConstantDescriptor new_constant_desc(name, value, attributes);
-  return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
-}
-
-
 void JSObject::AddConstantProperty(Handle<JSObject> object,
                                    Handle<Name> name,
                                    Handle<Object> constant,
                                    PropertyAttributes attributes,
                                    TransitionFlag initial_flag) {
-  TransitionFlag flag =
-      // Do not add transitions to global objects.
-      (object->IsGlobalObject() ||
-      // Don't add transitions to special properties with non-trivial
-      // attributes.
-       attributes != NONE)
-      ? OMIT_TRANSITION
-      : initial_flag;
+  ASSERT(!object->IsGlobalObject());
+  // Don't add transitions to special properties with non-trivial attributes.
+  TransitionFlag flag = attributes != NONE ? OMIT_TRANSITION : initial_flag;
 
   // Allocate new instance descriptors with (name, constant) added.
-  Handle<Map> new_map = CopyAddConstantDescriptor(
-      handle(object->map()), name, constant, attributes, flag);
+  ConstantDescriptor new_constant_desc(name, constant, attributes);
+  Handle<Map> new_map = Map::CopyAddDescriptor(
+      handle(object->map()), &new_constant_desc, flag);
 
   JSObject::MigrateToMap(object, new_map);
 }
@@ -4403,13 +4379,13 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 
 
 Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
-                                    Handle<JSObject> obj,
+                                    Handle<Map> fast_map,
                                     PropertyNormalizationMode mode) {
-  int index = obj->map()->Hash() % kEntries;
+  int index = fast_map->Hash() % kEntries;
   Handle<Object> result = handle(cache->get(index), cache->GetIsolate());
   if (result->IsMap() &&
-      Handle<Map>::cast(result)->EquivalentToForNormalization(obj->map(),
-                                                              mode)) {
+      Handle<Map>::cast(result)->EquivalentToForNormalization(
+          *fast_map, mode)) {
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) {
       Handle<Map>::cast(result)->SharedMapVerify();
@@ -4420,8 +4396,8 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
-      Handle<Map> fresh = Map::CopyNormalized(handle(obj->map()), mode,
-                                              SHARED_NORMALIZED_MAP);
+      Handle<Map> fresh = Map::CopyNormalized(
+          fast_map, mode, SHARED_NORMALIZED_MAP);
 
       ASSERT(memcmp(fresh->address(),
                     Handle<Map>::cast(result)->address(),
@@ -4438,8 +4414,7 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
   }
 
   Isolate* isolate = cache->GetIsolate();
-  Handle<Map> map = Map::CopyNormalized(handle(obj->map()), mode,
-                                        SHARED_NORMALIZED_MAP);
+  Handle<Map> map = Map::CopyNormalized(fast_map, mode, SHARED_NORMALIZED_MAP);
   ASSERT(map->is_dictionary_map());
   cache->set(index, *map);
   isolate->counters()->normalized_maps()->Increment();
@@ -4533,7 +4508,8 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
 
   Handle<NormalizedMapCache> cache(
       isolate->context()->native_context()->normalized_map_cache());
-  Handle<Map> new_map = NormalizedMapCache::Get(cache, object, mode);
+  Handle<Map> new_map = NormalizedMapCache::Get(
+      cache, handle(object->map()), mode);
   ASSERT(new_map->is_dictionary_map());
 
   // From here on we cannot fail and we shouldn't GC anymore.

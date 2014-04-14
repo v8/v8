@@ -4739,7 +4739,7 @@ class NormalizedMapCache: public FixedArray {
   static const int kEntries = 64;
 
   static Handle<Map> Get(Handle<NormalizedMapCache> cache,
-                         Handle<JSObject> object,
+                         Handle<Map> fast_map,
                          PropertyNormalizationMode mode);
 
   void Clear();
