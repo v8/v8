@@ -124,7 +124,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         __ Push(reg);
       }
       if ((non_object_regs & (1 << r)) != 0) {
-        __ PushInt64AsTwoSmis(reg);
+        __ PushRegisterAsTwoSmis(reg);
       }
     }
 
@@ -149,7 +149,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
-        __ PopInt64AsTwoSmis(reg);
+        __ PopRegisterAsTwoSmis(reg);
       }
     }
 

@@ -1142,7 +1142,8 @@ Handle<String> Scanner::AllocateInternalizedString(Isolate* isolate) {
 double Scanner::DoubleValue() {
   ASSERT(is_literal_one_byte());
   return StringToDouble(
-      unicode_cache_, Vector<const char>::cast(literal_one_byte_string()),
+      unicode_cache_,
+      literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
 }
 
@@ -1201,7 +1202,7 @@ int DuplicateFinder::AddNumber(Vector<const uint8_t> key, int value) {
 
   int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY;
   double double_value = StringToDouble(
-      unicode_constants_, Vector<const char>::cast(key), flags, 0.0);
+      unicode_constants_, key, flags, 0.0);
   int length;
   const char* string;
   if (!std::isfinite(double_value)) {

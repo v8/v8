@@ -83,19 +83,17 @@ TEST(HeapMaps) {
 
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
-  bool exc;
   Handle<Object> handle(obj, isolate);
   Object* print_string =
-      *Execution::ToString(isolate, handle, &exc);
+      *Execution::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
-  bool exc;
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Object* print_string =
-      *Execution::ToString(isolate, handle, &exc);
+      *Execution::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -103,10 +101,9 @@ static void CheckSmi(Isolate* isolate, int value, const char* string) {
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Object* obj = CcTest::heap()->NumberFromDouble(value)->ToObjectChecked();
   CHECK(obj->IsNumber());
-  bool exc;
   Handle<Object> handle(obj, isolate);
   Object* print_string =
-      *Execution::ToString(isolate, handle, &exc);
+      *Execution::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -293,8 +290,10 @@ TEST(GarbageCollection) {
     JSReceiver::SetProperty(
         obj, prop_namex, twenty_four, NONE, SLOPPY).Check();
 
-    CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
-    CHECK_EQ(Smi::FromInt(24), *Object::GetProperty(obj, prop_namex));
+    CHECK_EQ(Smi::FromInt(23),
+             *Object::GetProperty(obj, prop_name).ToHandleChecked());
+    CHECK_EQ(Smi::FromInt(24),
+             *Object::GetProperty(obj, prop_namex).ToHandleChecked());
   }
 
   heap->CollectGarbage(NEW_SPACE);
@@ -302,7 +301,8 @@ TEST(GarbageCollection) {
   // Function should be alive.
   CHECK(JSReceiver::HasLocalProperty(global, name));
   // Check function is retained.
-  Handle<Object> func_value = Object::GetProperty(global, name);
+  Handle<Object> func_value =
+      Object::GetProperty(global, name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
 
@@ -319,9 +319,11 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   CHECK(JSReceiver::HasLocalProperty(global, obj_name));
-  Handle<Object> obj = Object::GetProperty(global, obj_name);
+  Handle<Object> obj =
+      Object::GetProperty(global, obj_name).ToHandleChecked();
   CHECK(obj->IsJSObject());
-  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
+  CHECK_EQ(Smi::FromInt(23),
+           *Object::GetProperty(obj, prop_name).ToHandleChecked());
 }
 
 
@@ -645,11 +647,13 @@ TEST(FunctionAllocation) {
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
   JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
+  CHECK_EQ(Smi::FromInt(23),
+           *Object::GetProperty(obj, prop_name).ToHandleChecked());
   // Check that we can add properties to function objects.
   JSReceiver::SetProperty(
       function, prop_name, twenty_four, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(24), *Object::GetProperty(function, prop_name));
+  CHECK_EQ(Smi::FromInt(24),
+           *Object::GetProperty(function, prop_name).ToHandleChecked());
 }
 
 
@@ -660,8 +664,8 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
-  Handle<Object> object =
-      Object::GetProperty(CcTest::i_isolate()->global_object(), object_string);
+  Handle<Object> object = Object::GetProperty(
+      CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
@@ -742,7 +746,8 @@ TEST(JSObjectMaps) {
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
-  CHECK_EQ(Smi::FromInt(23), *Object::GetProperty(obj, prop_name));
+  CHECK_EQ(Smi::FromInt(23),
+           *Object::GetProperty(obj, prop_name).ToHandleChecked());
 
   // Check the map has changed
   CHECK(*initial_map != obj->map());
@@ -756,8 +761,8 @@ TEST(JSArray) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("Array");
-  Handle<Object> fun_obj =
-      Object::GetProperty(CcTest::i_isolate()->global_object(), name);
+  Handle<Object> fun_obj = Object::GetProperty(
+      CcTest::i_isolate()->global_object(), name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(fun_obj);
 
   // Allocate the object.
@@ -805,8 +810,8 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> object_string(String::cast(CcTest::heap()->Object_string()));
-  Handle<Object> object =
-      Object::GetProperty(CcTest::i_isolate()->global_object(), object_string);
+  Handle<Object> object = Object::GetProperty(
+      CcTest::i_isolate()->global_object(), object_string).ToHandleChecked();
   Handle<JSFunction> constructor = Handle<JSFunction>::cast(object);
   Handle<JSObject> obj = factory->NewJSObject(constructor);
   Handle<String> first = factory->InternalizeUtf8String("first");
@@ -830,10 +835,10 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*i::Object::GetElement(isolate, obj, 1).ToHandleChecked(),
            *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
 
-  CHECK_EQ(*Object::GetProperty(obj, first),
-           *Object::GetProperty(clone, first));
-  CHECK_EQ(*Object::GetProperty(obj, second),
-           *Object::GetProperty(clone, second));
+  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
+           *Object::GetProperty(clone, first).ToHandleChecked());
+  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
+           *Object::GetProperty(clone, second).ToHandleChecked());
 
   // Flip the values.
   JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
@@ -847,10 +852,10 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*i::Object::GetElement(isolate, obj, 0).ToHandleChecked(),
            *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
 
-  CHECK_EQ(*Object::GetProperty(obj, second),
-           *Object::GetProperty(clone, first));
-  CHECK_EQ(*Object::GetProperty(obj, first),
-           *Object::GetProperty(clone, second));
+  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
+           *Object::GetProperty(clone, first).ToHandleChecked());
+  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
+           *Object::GetProperty(clone, second).ToHandleChecked());
 }
 
 
@@ -1069,8 +1074,8 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Handle<Object> func_value =
-      Object::GetProperty(CcTest::i_isolate()->global_object(), foo_name);
+  Handle<Object> func_value = Object::GetProperty(
+      CcTest::i_isolate()->global_object(), foo_name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
@@ -1120,7 +1125,7 @@ TEST(TestCodeFlushingPreAged) {
 
   // Check function is compiled.
   Handle<Object> func_value =
-      Object::GetProperty(isolate->global_object(), foo_name);
+      Object::GetProperty(isolate->global_object(), foo_name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
@@ -1185,7 +1190,7 @@ TEST(TestCodeFlushingIncremental) {
 
   // Check function is compiled.
   Handle<Object> func_value =
-      Object::GetProperty(isolate->global_object(), foo_name);
+      Object::GetProperty(isolate->global_object(), foo_name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
@@ -1262,12 +1267,12 @@ TEST(TestCodeFlushingIncrementalScavenge) {
 
   // Check functions are compiled.
   Handle<Object> func_value =
-      Object::GetProperty(isolate->global_object(), foo_name);
+      Object::GetProperty(isolate->global_object(), foo_name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
   Handle<Object> func_value2 =
-      Object::GetProperty(isolate->global_object(), bar_name);
+      Object::GetProperty(isolate->global_object(), bar_name).ToHandleChecked();
   CHECK(func_value2->IsJSFunction());
   Handle<JSFunction> function2 = Handle<JSFunction>::cast(func_value2);
   CHECK(function2->shared()->is_compiled());
@@ -1324,7 +1329,7 @@ TEST(TestCodeFlushingIncrementalAbort) {
 
   // Check function is compiled.
   Handle<Object> func_value =
-      Object::GetProperty(isolate->global_object(), foo_name);
+      Object::GetProperty(isolate->global_object(), foo_name).ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
@@ -3845,6 +3850,114 @@ TEST(NextCodeLinkIsWeak2) {
   heap->CollectAllAvailableGarbage();
   // Now mortal code should be dead.
   CHECK_EQ(*old_head, new_head->next_code_link());
+}
+
+
+static bool weak_ic_cleared = false;
+
+static void ClearWeakIC(const v8::WeakCallbackData<v8::Object, void>& data) {
+  printf("clear weak is called\n");
+  weak_ic_cleared = true;
+  v8::Persistent<v8::Value>* p =
+      reinterpret_cast<v8::Persistent<v8::Value>*>(data.GetParameter());
+  CHECK(p->IsNearDeath());
+  p->Reset();
+}
+
+
+// Checks that the value returned by execution of the source is weak.
+void CheckWeakness(const char* source) {
+  i::FLAG_stress_compaction = false;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Persistent<v8::Object> garbage;
+  {
+    v8::HandleScope scope(isolate);
+    garbage.Reset(isolate, CompileRun(source)->ToObject());
+  }
+  weak_ic_cleared = false;
+  garbage.SetWeak(static_cast<void*>(&garbage), &ClearWeakIC);
+  Heap* heap = CcTest::i_isolate()->heap();
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  CHECK(weak_ic_cleared);
+}
+
+
+// Each of the following "weak IC" tests creates an IC that embeds a map with
+// the prototype pointing to _proto_ and checks that the _proto_ dies on GC.
+TEST(WeakMapInMonomorphicLoadIC) {
+  CheckWeakness("function loadIC(obj) {"
+                "  return obj.name;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   loadIC(obj);"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicKeyedLoadIC) {
+  CheckWeakness("function keyedLoadIC(obj, field) {"
+                "  return obj[field];"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   keyedLoadIC(obj, 'name');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicStoreIC) {
+  CheckWeakness("function storeIC(obj, value) {"
+                "  obj.name = value;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   storeIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicKeyedStoreIC) {
+  CheckWeakness("function keyedStoreIC(obj, field, value) {"
+                "  obj[field] = value;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   keyedStoreIC(obj, 'x');"
+                "   return proto;"
+                " })();");
+}
+
+
+TEST(WeakMapInMonomorphicCompareNilIC) {
+  CheckWeakness("function compareNilIC(obj) {"
+                "  return obj == null;"
+                "}"
+                " (function() {"
+                "   var proto = {'name' : 'weak'};"
+                "   var obj = Object.create(proto);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   compareNilIC(obj);"
+                "   return proto;"
+                " })();");
 }
 
 

@@ -271,7 +271,7 @@ class TypeImpl : public Config::Base {
   bool NowIs(TypeImpl* that);
   template<class TypeHandle>
   bool NowIs(TypeHandle that)  { return this->NowIs(*that); }
-  bool NowContains(i::Object* val);
+  inline bool NowContains(i::Object* val);
   bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
 
   bool IsClass() { return Config::is_class(this); }

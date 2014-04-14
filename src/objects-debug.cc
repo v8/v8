@@ -663,19 +663,21 @@ void Code::CodeVerify() {
 
 
 void Code::VerifyEmbeddedObjectsDependency() {
+  if (!CanContainWeakObjects()) return;
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     Object* obj = it.rinfo()->target_object();
     if (IsWeakObject(obj)) {
       if (obj->IsMap()) {
         Map* map = Map::cast(obj);
-        CHECK(map->dependent_code()->Contains(
-            DependentCode::kWeaklyEmbeddedGroup, this));
+        DependentCode::DependencyGroup group = is_optimized_code() ?
+            DependentCode::kWeakCodeGroup : DependentCode::kWeakICGroup;
+        CHECK(map->dependent_code()->Contains(group, this));
       } else if (obj->IsJSObject()) {
         Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
         WeakHashTable* table = WeakHashTable::cast(raw_table);
         CHECK(DependentCode::cast(table->Lookup(obj))->Contains(
-            DependentCode::kWeaklyEmbeddedGroup, this));
+            DependentCode::kWeakCodeGroup, this));
       }
     }
   }

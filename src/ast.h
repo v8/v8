@@ -1394,7 +1394,7 @@ class Literal V8_FINAL : public Expression {
   static bool Match(void* literal1, void* literal2) {
     Handle<String> s1 = static_cast<Literal*>(literal1)->ToString();
     Handle<String> s2 = static_cast<Literal*>(literal2)->ToString();
-    return s1->Equals(*s2);
+    return String::Equals(s1, s2);
   }
 
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }

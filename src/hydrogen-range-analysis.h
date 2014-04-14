@@ -57,6 +57,7 @@ class HRangeAnalysisPhase : public HPhase {
     worklist_.Add(value, zone());
   }
   void PropagateMinusZeroChecks(HValue* value);
+  void PoisonRanges();
 
   ZoneList<HValue*> changed_ranges_;
 

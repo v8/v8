@@ -82,17 +82,22 @@ class FunctionEntry BASE_EMBEDDED {
 };
 
 
-class ScriptDataImpl : public ScriptData {
+class ScriptData {
  public:
-  explicit ScriptDataImpl(Vector<unsigned> store)
+  explicit ScriptData(Vector<unsigned> store)
       : store_(store),
         owns_store_(true) { }
 
-  // Create an empty ScriptDataImpl that is guaranteed to not satisfy
+  // Create an empty ScriptData that is guaranteed to not satisfy
   // a SanityCheck.
-  ScriptDataImpl() : owns_store_(false) { }
+  ScriptData() : owns_store_(false) { }
 
-  virtual ~ScriptDataImpl();
+  // The created ScriptData won't take ownership of the data. If the alignment
+  // is not correct, this will copy the data (and the created ScriptData will
+  // take ownership of the copy).
+  static ScriptData* New(const char* data, int length);
+
+  virtual ~ScriptData();
   virtual int Length();
   virtual const char* Data();
   virtual bool HasError();
@@ -128,6 +133,10 @@ class ScriptDataImpl : public ScriptData {
   unsigned version() { return store_[PreparseDataConstants::kVersionOffset]; }
 
  private:
+  // Disable copying and assigning; because of owns_store they won't be correct.
+  ScriptData(const ScriptData&);
+  ScriptData& operator=(const ScriptData&);
+
   friend class v8::ScriptCompiler;
   Vector<unsigned> store_;
   unsigned char* symbol_data_;
@@ -140,30 +149,8 @@ class ScriptDataImpl : public ScriptData {
   // Reads a number from the current symbols
   int ReadNumber(byte** source);
 
-  ScriptDataImpl(const char* backing_store, int length)
-      : store_(reinterpret_cast<unsigned*>(const_cast<char*>(backing_store)),
-               length / static_cast<int>(sizeof(unsigned))),
-        owns_store_(false) {
-    ASSERT_EQ(0, static_cast<int>(
-        reinterpret_cast<intptr_t>(backing_store) % sizeof(unsigned)));
-  }
-
   // Read strings written by ParserRecorder::WriteString.
   static const char* ReadString(unsigned* start, int* chars);
-
-  friend class ScriptData;
-};
-
-
-class PreParserApi {
- public:
-  // Pre-parse a character stream and return full preparse data.
-  //
-  // This interface is here instead of in preparser.h because it instantiates a
-  // preparser recorder object that is suited to the parser's purposes.  Also,
-  // the preparser doesn't know about ScriptDataImpl.
-  static ScriptDataImpl* PreParse(Isolate* isolate,
-                                  Utf16CharacterStream* source);
 };
 
 
@@ -682,7 +669,7 @@ class Parser : public ParserBase<ParserTraits> {
   // Report syntax error
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
 
-  void SetCachedData(ScriptDataImpl** data,
+  void SetCachedData(ScriptData** data,
                      CachedDataMode cached_data_mode) {
     cached_data_mode_ = cached_data_mode;
     if (cached_data_mode == NO_CACHED_DATA) {
@@ -695,7 +682,7 @@ class Parser : public ParserBase<ParserTraits> {
   }
 
   bool inside_with() const { return scope_->inside_with(); }
-  ScriptDataImpl** cached_data() const { return cached_data_; }
+  ScriptData** cached_data() const { return cached_data_; }
   CachedDataMode cached_data_mode() const { return cached_data_mode_; }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
@@ -814,7 +801,7 @@ class Parser : public ParserBase<ParserTraits> {
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
-  ScriptDataImpl** cached_data_;
+  ScriptData** cached_data_;
   CachedDataMode cached_data_mode_;
 
   CompilationInfo* info_;

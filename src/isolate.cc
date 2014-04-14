@@ -850,8 +850,8 @@ Failure* Isolate::StackOverflow() {
   // constructor.  Instead, we copy the pre-constructed boilerplate and
   // attach the stack trace as a hidden property.
   Handle<String> key = factory()->stack_overflow_string();
-  Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(Object::GetProperty(js_builtins_object(), key));
+  Handle<JSObject> boilerplate = Handle<JSObject>::cast(
+      Object::GetProperty(js_builtins_object(), key).ToHandleChecked());
   Handle<JSObject> exception = JSObject::Copy(boilerplate);
   DoThrow(*exception, NULL);
 
@@ -859,9 +859,13 @@ Failure* Isolate::StackOverflow() {
   Handle<Object> error =
       GetProperty(js_builtins_object(), "$Error").ToHandleChecked();
   if (!error->IsJSObject()) return Failure::Exception();
+
+  Handle<String> stackTraceLimit =
+      factory()->InternalizeUtf8String("stackTraceLimit");
+  ASSERT(!stackTraceLimit.is_null());
   Handle<Object> stack_trace_limit =
-      GetProperty(
-          Handle<JSObject>::cast(error), "stackTraceLimit").ToHandleChecked();
+      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
+                                stackTraceLimit);
   if (!stack_trace_limit->IsNumber()) return Failure::Exception();
   double dlimit = stack_trace_limit->Number();
   int limit = std::isnan(dlimit) ? 0 : static_cast<int>(dlimit);
@@ -1050,8 +1054,8 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
 
   Handle<String> error_key =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error"));
-  Handle<Object> error_constructor = GlobalObject::GetPropertyNoExceptionThrown(
-      js_builtins_object(), error_key);
+  Handle<Object> error_constructor = Object::GetProperty(
+      js_builtins_object(), error_key).ToHandleChecked();
 
   DisallowHeapAllocation no_gc;
   for (Object* prototype = *obj; !prototype->IsNull();
@@ -1131,10 +1135,9 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // before throwing as uncaught exception.  Note that the pending
       // exception object to be set later must not be turned into a string.
       if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
-        bool failed = false;
-        exception_arg =
-            Execution::ToDetailString(this, exception_arg, &failed);
-        if (failed) {
+        MaybeHandle<Object> maybe_exception =
+            Execution::ToDetailString(this, exception_arg);
+        if (!maybe_exception.ToHandle(&exception_arg)) {
           exception_arg = factory()->InternalizeOneByteString(
               STATIC_ASCII_VECTOR("exception"));
         }

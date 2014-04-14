@@ -1208,8 +1208,8 @@ void Logger::LogRuntime(Vector<const char> format,
       i++;
       ASSERT('0' <= format[i] && format[i] <= '9');
       // No exception expected when getting an element from an array literal.
-      Handle<Object> obj =
-          Object::GetElementNoExceptionThrown(isolate_, args, format[i] - '0');
+      Handle<Object> obj = Object::GetElement(
+          isolate_, args, format[i] - '0').ToHandleChecked();
       i++;
       switch (format[i]) {
         case 's':

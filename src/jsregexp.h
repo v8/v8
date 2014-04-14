@@ -55,10 +55,10 @@ class RegExpImpl {
 
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
-                                            Handle<String> pattern,
-                                            Handle<String> flags,
-                                            bool* has_pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> CreateRegExpLiteral(
+      Handle<JSFunction> constructor,
+      Handle<String> pattern,
+      Handle<String> flags);
 
   // Returns a string representation of a regular expression.
   // Implements RegExp.prototype.toString, see ECMA-262 section 15.10.6.4.

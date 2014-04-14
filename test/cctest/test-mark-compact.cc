@@ -173,7 +173,8 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     CHECK(JSReceiver::HasLocalProperty(global, func_name));
-    Handle<Object> func_value = Object::GetProperty(global, func_name);
+    Handle<Object> func_value =
+        Object::GetProperty(global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     Handle<JSObject> obj = factory->NewJSObject(function);
@@ -190,10 +191,12 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
     CHECK(JSReceiver::HasLocalProperty(global, obj_name));
-    Handle<Object> object = Object::GetProperty(global, obj_name);
+    Handle<Object> object =
+        Object::GetProperty(global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
-    CHECK_EQ(*Object::GetProperty(object, prop_name), Smi::FromInt(23));
+    CHECK_EQ(*Object::GetProperty(object, prop_name).ToHandleChecked(),
+             Smi::FromInt(23));
   }
 }
 

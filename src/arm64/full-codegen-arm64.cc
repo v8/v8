@@ -4238,13 +4238,14 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   }
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
 
-  if (check->Equals(isolate()->heap()->number_string())) {
+  Factory* factory = isolate()->factory();
+  if (String::Equals(check, factory->number_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof number_string");
     __ JumpIfSmi(x0, if_true);
     __ Ldr(x0, FieldMemOperand(x0, HeapObject::kMapOffset));
     __ CompareRoot(x0, Heap::kHeapNumberMapRootIndex);
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->string_string())) {
+  } else if (String::Equals(check, factory->string_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof string_string");
     __ JumpIfSmi(x0, if_false);
     // Check for undetectable objects => false.
@@ -4252,22 +4253,22 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ Ldrb(x1, FieldMemOperand(x0, Map::kBitFieldOffset));
     __ TestAndSplit(x1, 1 << Map::kIsUndetectable, if_true, if_false,
                     fall_through);
-  } else if (check->Equals(isolate()->heap()->symbol_string())) {
+  } else if (String::Equals(check, factory->symbol_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof symbol_string");
     __ JumpIfSmi(x0, if_false);
     __ CompareObjectType(x0, x0, x1, SYMBOL_TYPE);
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->boolean_string())) {
+  } else if (String::Equals(check, factory->boolean_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof boolean_string");
     __ JumpIfRoot(x0, Heap::kTrueValueRootIndex, if_true);
     __ CompareRoot(x0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
   } else if (FLAG_harmony_typeof &&
-             check->Equals(isolate()->heap()->null_string())) {
+             String::Equals(check, factory->null_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof null_string");
     __ CompareRoot(x0, Heap::kNullValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
-  } else if (check->Equals(isolate()->heap()->undefined_string())) {
+  } else if (String::Equals(check, factory->undefined_string())) {
     ASM_LOCATION(
         "FullCodeGenerator::EmitLiteralCompareTypeof undefined_string");
     __ JumpIfRoot(x0, Heap::kUndefinedValueRootIndex, if_true);
@@ -4277,7 +4278,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ Ldrb(x1, FieldMemOperand(x0, Map::kBitFieldOffset));
     __ TestAndSplit(x1, 1 << Map::kIsUndetectable, if_false, if_true,
                     fall_through);
-  } else if (check->Equals(isolate()->heap()->function_string())) {
+  } else if (String::Equals(check, factory->function_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof function_string");
     __ JumpIfSmi(x0, if_false);
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
@@ -4285,7 +4286,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ CompareAndSplit(x11, JS_FUNCTION_PROXY_TYPE, eq, if_true, if_false,
                        fall_through);
 
-  } else if (check->Equals(isolate()->heap()->object_string())) {
+  } else if (String::Equals(check, factory->object_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof object_string");
     __ JumpIfSmi(x0, if_false);
     if (!FLAG_harmony_typeof) {

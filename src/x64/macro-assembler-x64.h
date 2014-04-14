@@ -726,12 +726,12 @@ class MacroAssembler: public Assembler {
 
   void Push(Smi* smi);
 
-  // Save away a 64-bit integer on the stack as two 32-bit integers
+  // Save away a raw integer with pointer size on the stack as two integers
   // masquerading as smis so that the garbage collector skips visiting them.
-  void PushInt64AsTwoSmis(Register src, Register scratch = kScratchRegister);
-  // Reconstruct a 64-bit integer from two 32-bit integers masquerading as
-  // smis on the top of stack.
-  void PopInt64AsTwoSmis(Register dst, Register scratch = kScratchRegister);
+  void PushRegisterAsTwoSmis(Register src, Register scratch = kScratchRegister);
+  // Reconstruct a raw integer with pointer size from two integers masquerading
+  // as smis on the top of stack.
+  void PopRegisterAsTwoSmis(Register dst, Register scratch = kScratchRegister);
 
   void Test(const Operand& dst, Smi* source);
 

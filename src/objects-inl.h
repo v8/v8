@@ -1081,6 +1081,13 @@ bool Object::HasSpecificClassOf(String* name) {
 }
 
 
+MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
+                                        Handle<Name> name) {
+  PropertyAttributes attributes;
+  return GetPropertyWithReceiver(object, object, name, &attributes);
+}
+
+
 MaybeHandle<Object> Object::GetElement(Isolate* isolate,
                                        Handle<Object> object,
                                        uint32_t index) {
@@ -1092,19 +1099,39 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate,
 }
 
 
-Handle<Object> Object::GetElementNoExceptionThrown(Isolate* isolate,
-                                                   Handle<Object> object,
-                                                   uint32_t index) {
-  Handle<Object> result =
-      Object::GetElementWithReceiver(
-          isolate, object, object, index).ToHandleChecked();
-  return result;
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
+                                                 Handle<Name> name) {
+  uint32_t index;
+  Isolate* isolate = name->GetIsolate();
+  if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
+  return GetProperty(object, name);
 }
 
 
-MaybeObject* Object::GetProperty(Name* key) {
-  PropertyAttributes attributes;
-  return GetPropertyWithReceiver(this, key, &attributes);
+MaybeHandle<Object> JSProxy::GetElementWithHandler(Handle<JSProxy> proxy,
+                                                   Handle<Object> receiver,
+                                                   uint32_t index) {
+  return GetPropertyWithHandler(
+      proxy, receiver, proxy->GetIsolate()->factory()->Uint32ToString(index));
+}
+
+
+MaybeHandle<Object> JSProxy::SetElementWithHandler(Handle<JSProxy> proxy,
+                                                   Handle<JSReceiver> receiver,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictMode strict_mode) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  return SetPropertyWithHandler(
+      proxy, receiver, name, value, NONE, strict_mode);
+}
+
+
+bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<String> name = isolate->factory()->Uint32ToString(index);
+  return HasPropertyWithHandler(proxy, name);
 }
 
 
@@ -2835,7 +2862,7 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 }
 
 
-DescriptorArray::WhitenessWitness::WhitenessWitness(FixedArray* array)
+DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
     : marking_(array->GetHeap()->incremental_marking()) {
   marking_->EnterNoMarkingScope();
   ASSERT(!marking_->IsMarking() ||
@@ -3024,15 +3051,6 @@ void Name::set_hash_field(uint32_t value) {
 }
 
 
-Handle<Object> GlobalObject::GetPropertyNoExceptionThrown(
-    Handle<GlobalObject> global,
-    Handle<Name> name) {
-  Handle<Object> result = Object::GetProperty(global, name);
-  CHECK_NOT_EMPTY_HANDLE(name->GetIsolate(), result);
-  return result;
-}
-
-
 bool Name::Equals(Name* other) {
   if (other == this) return true;
   if ((this->IsInternalizedString() && other->IsInternalizedString()) ||
@@ -3040,6 +3058,17 @@ bool Name::Equals(Name* other) {
     return false;
   }
   return String::cast(this)->SlowEquals(String::cast(other));
+}
+
+
+bool Name::Equals(Handle<Name> one, Handle<Name> two) {
+  if (one.is_identical_to(two)) return true;
+  if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
+      one->IsSymbol() || two->IsSymbol()) {
+    return false;
+  }
+  return String::SlowEquals(Handle<String>::cast(one),
+                            Handle<String>::cast(two));
 }
 
 
@@ -3057,27 +3086,20 @@ bool String::Equals(String* other) {
 }
 
 
+bool String::Equals(Handle<String> one, Handle<String> two) {
+  if (one.is_identical_to(two)) return true;
+  if (one->IsInternalizedString() && two->IsInternalizedString()) {
+    return false;
+  }
+  return SlowEquals(one, two);
+}
+
+
 Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
   if (!string->IsConsString()) return string;
   Handle<ConsString> cons = Handle<ConsString>::cast(string);
   if (cons->IsFlat()) return handle(cons->first());
   return SlowFlatten(cons, pretenure);
-}
-
-
-MaybeObject* String::TryFlatten(PretenureFlag pretenure) {
-  if (!StringShape(this).IsCons()) return this;
-  ConsString* cons = ConsString::cast(this);
-  if (cons->IsFlat()) return cons->first();
-  return SlowTryFlatten(pretenure);
-}
-
-
-String* String::TryFlattenGetString(PretenureFlag pretenure) {
-  MaybeObject* flat = TryFlatten(pretenure);
-  Object* successfully_flattened;
-  if (!flat->ToObject(&successfully_flattened)) return this;
-  return String::cast(successfully_flattened);
 }
 
 
@@ -4767,6 +4789,34 @@ void Code::set_marked_for_deoptimization(bool flag) {
 }
 
 
+bool Code::is_weak_stub() {
+  return CanBeWeakStub() && WeakStubField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+void Code::mark_as_weak_stub() {
+  ASSERT(CanBeWeakStub());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = WeakStubField::update(previous, true);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
+bool Code::is_invalidated_weak_stub() {
+  return is_weak_stub() && InvalidatedWeakStubField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+void Code::mark_as_invalidated_weak_stub() {
+  ASSERT(is_inline_cache_stub());
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = InvalidatedWeakStubField::update(previous, true);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
 bool Code::is_inline_cache_stub() {
   Kind kind = this->kind();
   switch (kind) {
@@ -4910,6 +4960,13 @@ class Code::FindAndReplacePattern {
 };
 
 
+bool Code::IsWeakObjectInIC(Object* object) {
+  return object->IsMap() && Map::cast(object)->CanTransition() &&
+         FLAG_collect_maps &&
+         FLAG_weak_embedded_maps_in_ic;
+}
+
+
 Object* Map::prototype() {
   return READ_FIELD(this, kPrototypeOffset);
 }
@@ -4924,21 +4981,17 @@ void Map::set_prototype(Object* value, WriteBarrierMode mode) {
 
 // If the descriptor is using the empty transition array, install a new empty
 // transition array that will have place for an element transition.
-static MaybeObject* EnsureHasTransitionArray(Map* map) {
-  TransitionArray* transitions;
-  MaybeObject* maybe_transitions;
+static void EnsureHasTransitionArray(Handle<Map> map) {
+  Handle<TransitionArray> transitions;
   if (!map->HasTransitionArray()) {
-    maybe_transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions = TransitionArray::Allocate(map->GetIsolate(), 0);
     transitions->set_back_pointer_storage(map->GetBackPointer());
   } else if (!map->transitions()->IsFullTransitionArray()) {
-    maybe_transitions = map->transitions()->ExtendToFullTransitionArray();
-    if (!maybe_transitions->To(&transitions)) return maybe_transitions;
+    transitions = TransitionArray::ExtendToFullTransitionArray(map);
   } else {
-    return map;
+    return;
   }
-  map->set_transitions(transitions);
-  return transitions;
+  map->set_transitions(*transitions);
 }
 
 
@@ -4979,12 +5032,11 @@ void Map::ClearTransitions(Heap* heap, WriteBarrierMode mode) {
 }
 
 
-void Map::AppendDescriptor(Descriptor* desc,
-                           const DescriptorArray::WhitenessWitness& witness) {
+void Map::AppendDescriptor(Descriptor* desc) {
   DescriptorArray* descriptors = instance_descriptors();
   int number_of_own_descriptors = NumberOfOwnDescriptors();
   ASSERT(descriptors->number_of_descriptors() == number_of_own_descriptors);
-  descriptors->Append(desc, witness);
+  descriptors->Append(desc);
   SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 }
 
@@ -5050,19 +5102,18 @@ FixedArray* Map::GetPrototypeTransitions() {
 }
 
 
-MaybeObject* Map::SetPrototypeTransitions(FixedArray* proto_transitions) {
-  MaybeObject* allow_prototype = EnsureHasTransitionArray(this);
-  if (allow_prototype->IsFailure()) return allow_prototype;
-  int old_number_of_transitions = NumberOfProtoTransitions();
+void Map::SetPrototypeTransitions(
+    Handle<Map> map, Handle<FixedArray> proto_transitions) {
+  EnsureHasTransitionArray(map);
+  int old_number_of_transitions = map->NumberOfProtoTransitions();
 #ifdef DEBUG
-  if (HasPrototypeTransitions()) {
-    ASSERT(GetPrototypeTransitions() != proto_transitions);
-    ZapPrototypeTransitions();
+  if (map->HasPrototypeTransitions()) {
+    ASSERT(map->GetPrototypeTransitions() != *proto_transitions);
+    map->ZapPrototypeTransitions();
   }
 #endif
-  transitions()->SetPrototypeTransitions(proto_transitions);
-  SetNumberOfProtoTransitions(old_number_of_transitions);
-  return this;
+  map->transitions()->SetPrototypeTransitions(*proto_transitions);
+  map->SetNumberOfProtoTransitions(old_number_of_transitions);
 }
 
 

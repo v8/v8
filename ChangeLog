@@ -1,3 +1,13 @@
+2014-04-14: Version 3.26.13
+
+        Make maps in monomorphic IC stubs weak (issue 2073).
+
+        x64: Make sure that the upper half of a 64bit register contains 0 for
+        int32 values (Chromium issue 360611).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-11: Version 3.26.12
 
         Do not use ranges after range analysis (Chromium issue 361608).

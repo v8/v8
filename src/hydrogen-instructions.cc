@@ -509,6 +509,7 @@ bool HValue::CanReplaceWithDummyUses() {
       !(block()->IsReachable() ||
         IsBlockEntry() ||
         IsControlInstruction() ||
+        IsArgumentsObject() ||
         IsCapturedObject() ||
         IsSimulate() ||
         IsEnterInlined() ||
@@ -586,17 +587,6 @@ void HValue::SetBlock(HBasicBlock* block) {
 void HValue::PrintTypeTo(StringStream* stream) {
   if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
   stream->Add(" type:%s", type().ToString());
-}
-
-
-void HValue::PrintRangeTo(StringStream* stream) {
-  if (range() == NULL || range()->IsMostGeneric()) return;
-  // Note: The c1visualizer syntax for locals allows only a sequence of the
-  // following characters: A-Za-z0-9_-|:
-  stream->Add(" range:%d_%d%s",
-              range()->lower(),
-              range()->upper(),
-              range()->CanBeMinusZero() ? "_m0" : "");
 }
 
 
@@ -700,7 +690,6 @@ void HSourcePosition::PrintTo(FILE* out) {
 void HInstruction::PrintTo(StringStream* stream) {
   PrintMnemonicTo(stream);
   PrintDataTo(stream);
-  PrintRangeTo(stream);
   PrintChangesTo(stream);
   PrintTypeTo(stream);
   if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
@@ -2498,7 +2487,6 @@ void HPhi::PrintTo(StringStream* stream) {
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
-  PrintRangeTo(stream);
   PrintTypeTo(stream);
   stream->Add("]");
 }

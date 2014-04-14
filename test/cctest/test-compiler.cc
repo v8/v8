@@ -40,8 +40,8 @@ static Handle<Object> GetGlobalProperty(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  return GlobalObject::GetPropertyNoExceptionThrown(
-      isolate->global_object(), internalized_name);
+  return Object::GetProperty(
+      isolate->global_object(), internalized_name).ToHandleChecked();
 }
 
 
@@ -82,10 +82,8 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile(buffer.start());
   if (fun.is_null()) return -1;
 
-  bool has_pending_exception;
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -103,10 +101,8 @@ static double Add(Isolate* isolate, int x, int y) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
-  bool has_pending_exception;
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -123,10 +119,8 @@ static double Abs(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
-  bool has_pending_exception;
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -144,10 +138,8 @@ static double Sum(Isolate* isolate, int n) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
-  bool has_pending_exception;
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(isolate, fun, global, 0, NULL).Check();
   return GetGlobalProperty("result")->Number();
 }
 
@@ -166,11 +158,8 @@ TEST(Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  bool has_pending_exception;
   Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
-  Execution::Call(
-      CcTest::i_isolate(), fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(CcTest::i_isolate(), fun, global, 0, NULL).Check();
 }
 
 
@@ -200,11 +189,9 @@ TEST(Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
-  bool has_pending_exception;
   Handle<JSObject> global(CcTest::i_isolate()->context()->global_object());
   Execution::Call(
-      CcTest::i_isolate(), fun, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+      CcTest::i_isolate(), fun, global, 0, NULL).Check();
   CHECK_EQ(511.0, GetGlobalProperty("r")->Number());
 }
 
@@ -216,11 +203,9 @@ TEST(UncaughtThrow) {
   const char* source = "throw 42;";
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
-  bool has_pending_exception;
   Isolate* isolate = fun->GetIsolate();
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(isolate, fun, global, 0, NULL, &has_pending_exception);
-  CHECK(has_pending_exception);
+  CHECK(Execution::Call(isolate, fun, global, 0, NULL).is_null());
   CHECK_EQ(42.0, isolate->pending_exception()->Number());
 }
 
@@ -245,16 +230,13 @@ TEST(C2JSFrames) {
   Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
-  bool has_pending_exception;
   Handle<JSObject> global(isolate->context()->global_object());
-  Execution::Call(
-      isolate, fun0, global, 0, NULL, &has_pending_exception);
-  CHECK(!has_pending_exception);
+  Execution::Call(isolate, fun0, global, 0, NULL).Check();
 
   Handle<String> foo_string = isolate->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("foo"));
   Handle<Object> fun1 = Object::GetProperty(
-      isolate->global_object(), foo_string);
+      isolate->global_object(), foo_string).ToHandleChecked();
   CHECK(fun1->IsJSFunction());
 
   Handle<Object> argv[] = { isolate->factory()->InternalizeOneByteString(
@@ -263,9 +245,7 @@ TEST(C2JSFrames) {
                   Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),
-                  argv,
-                  &has_pending_exception);
-  CHECK(!has_pending_exception);
+                  argv).Check();
 }
 
 

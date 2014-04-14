@@ -35,7 +35,7 @@
 namespace v8 {
 namespace internal {
 
-class ScriptDataImpl;
+class ScriptData;
 class HydrogenCodeStub;
 
 // ParseRestriction is used to restrict the set of valid statements in a
@@ -83,7 +83,7 @@ class CompilationInfo {
   Handle<Script> script() const { return script_; }
   HydrogenCodeStub* code_stub() const {return code_stub_; }
   v8::Extension* extension() const { return extension_; }
-  ScriptDataImpl** cached_data() const { return cached_data_; }
+  ScriptData** cached_data() const { return cached_data_; }
   CachedDataMode cached_data_mode() const {
     return cached_data_mode_;
   }
@@ -189,7 +189,7 @@ class CompilationInfo {
     ASSERT(!is_lazy());
     extension_ = extension;
   }
-  void SetCachedData(ScriptDataImpl** cached_data,
+  void SetCachedData(ScriptData** cached_data,
                      CachedDataMode cached_data_mode) {
     cached_data_mode_ = cached_data_mode;
     if (cached_data_mode == NO_CACHED_DATA) {
@@ -412,7 +412,7 @@ class CompilationInfo {
 
   // Fields possibly needed for eager compilation, NULL by default.
   v8::Extension* extension_;
-  ScriptDataImpl** cached_data_;
+  ScriptData** cached_data_;
   CachedDataMode cached_data_mode_;
 
   // The context of the caller for eval code, and the global context for a
@@ -641,7 +641,7 @@ class Compiler : public AllStatic {
       bool is_shared_cross_origin,
       Handle<Context> context,
       v8::Extension* extension,
-      ScriptDataImpl** cached_data,
+      ScriptData** cached_data,
       CachedDataMode cached_data_mode,
       NativesFlag is_natives_code);
 

@@ -156,7 +156,7 @@ TEST(ScanHTMLEndComments) {
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptDataImpl data(log.ExtractData());
+    i::ScriptData data(log.ExtractData());
     CHECK(!data.has_error());
   }
 
@@ -172,7 +172,7 @@ TEST(ScanHTMLEndComments) {
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptDataImpl data(log.ExtractData());
+    i::ScriptData data(log.ExtractData());
     CHECK(data.has_error());
   }
 }
@@ -358,7 +358,7 @@ TEST(StandAlonePreParser) {
     preparser.set_allow_natives_syntax(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptDataImpl data(log.ExtractData());
+    i::ScriptData data(log.ExtractData());
     CHECK(!data.has_error());
   }
 }
@@ -392,7 +392,7 @@ TEST(StandAlonePreParserNoNatives) {
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptDataImpl data(log.ExtractData());
+    i::ScriptData data(log.ExtractData());
     // Data contains syntax error.
     CHECK(data.has_error());
   }
@@ -468,7 +468,7 @@ TEST(StoringNumbersInPreParseData) {
     F::FakeWritingSymbolIdInPreParseData(&log, (3 << i) + (5 << (i - 6)));
   }
   i::Vector<unsigned> store = log.ExtractData();
-  i::ScriptDataImpl script_data(store);
+  i::ScriptData script_data(store);
   script_data.Initialize();
   // Check that we get the same symbols back.
   for (int i = 0; i < 18; ++i) {
@@ -510,7 +510,7 @@ TEST(RegressChromium62639) {
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  i::ScriptDataImpl data(log.ExtractData());
+  i::ScriptData data(log.ExtractData());
   CHECK(data.has_error());
 }
 
@@ -544,7 +544,7 @@ TEST(Regress928) {
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  i::ScriptDataImpl data(log.ExtractData());
+  i::ScriptData data(log.ExtractData());
   CHECK(!data.has_error());
   data.Initialize();
 
@@ -1239,7 +1239,7 @@ TEST(ScopePositions) {
 }
 
 
-i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
+i::Handle<i::String> FormatMessage(i::ScriptData* data) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   const char* message = data->BuildMessage();
@@ -1257,10 +1257,8 @@ i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
   i::Handle<i::Object> format_fun =
       i::GetProperty(builtins, "FormatMessage").ToHandleChecked();
   i::Handle<i::Object> arg_handles[] = { format, args_array };
-  bool has_exception = false;
   i::Handle<i::Object> result = i::Execution::Call(
-      isolate, format_fun, builtins, 2, arg_handles, &has_exception);
-  CHECK(!has_exception);
+      isolate, format_fun, builtins, 2, arg_handles).ToHandleChecked();
   CHECK(result->IsString());
   for (int i = 0; i < args.length(); i++) {
     i::DeleteArray(args[i]);
@@ -1321,7 +1319,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
-  i::ScriptDataImpl data(log.ExtractData());
+  i::ScriptData data(log.ExtractData());
 
   // Parse the data
   i::FunctionLiteral* function;
@@ -1368,7 +1366,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     }
     // Check that preparser and parser produce the same error.
     i::Handle<i::String> preparser_message = FormatMessage(&data);
-    if (!message_string->Equals(*preparser_message)) {
+    if (!i::String::Equals(message_string, preparser_message)) {
       i::OS::Print(
           "Expected parser and preparser to produce the same error on:\n"
           "\t%s\n"
@@ -2106,7 +2104,7 @@ TEST(DontRegressPreParserDataSizes) {
         factory->NewStringFromUtf8(i::CStrVector(program)));
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::ScriptDataImpl* data = NULL;
+    i::ScriptData* data = NULL;
     info.SetCachedData(&data, i::PRODUCE_CACHED_DATA);
     i::Parser::Parse(&info, true);
     CHECK(data);

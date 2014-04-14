@@ -106,7 +106,7 @@ def BuildRevisionRanges(cr_releases):
     range_lists.setdefault(cr_releases[-1][1], []).append(cr_releases[-1][0])
 
   # Stringify and comma-separate the range lists.
-  return dict((rev, ",".join(ran)) for rev, ran in range_lists.iteritems())
+  return dict((rev, ", ".join(ran)) for rev, ran in range_lists.iteritems())
 
 
 def MatchSafe(match):
@@ -166,6 +166,8 @@ class RetrieveV8Releases(Step):
       "version": version,
       # Merged patches if available in the form 'r1234, r2345'.
       "patches_merged": patches,
+      # Default for easier output formatting.
+      "chromium_revision": "",
     }, self["patch"]
 
   def GetReleasesFromBranch(self, branch):

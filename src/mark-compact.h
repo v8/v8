@@ -609,7 +609,7 @@ class MarkCompactCollector {
   void VerifyMarkbitsAreClean();
   static void VerifyMarkbitsAreClean(PagedSpace* space);
   static void VerifyMarkbitsAreClean(NewSpace* space);
-  void VerifyWeakEmbeddedObjectsInOptimizedCode();
+  void VerifyWeakEmbeddedObjectsInCode();
   void VerifyOmittedMapChecks();
 #endif
 
@@ -870,8 +870,11 @@ class MarkCompactCollector {
   void ClearNonLivePrototypeTransitions(Map* map);
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
 
-  void ClearAndDeoptimizeDependentCode(DependentCode* dependent_code);
+  void ClearDependentCode(DependentCode* dependent_code);
+  void ClearDependentICList(Object* head);
   void ClearNonLiveDependentCode(DependentCode* dependent_code);
+  int ClearNonLiveDependentCodeInGroup(DependentCode* dependent_code, int group,
+                                       int start, int end, int new_start);
 
   // Marking detaches initial maps from SharedFunctionInfo objects
   // to make this reference weak. We need to reattach initial maps

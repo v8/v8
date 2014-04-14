@@ -515,6 +515,8 @@ DEFINE_bool(trace_external_memory, false,
             "it is adjusted.")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
+DEFINE_bool(weak_embedded_maps_in_ic, true,
+            "make maps embedded in inline cache stubs")
 DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
             "make maps embedded in optimized code weak")
 DEFINE_bool(weak_embedded_objects_in_optimized_code, true,

@@ -122,7 +122,7 @@ enum ConversionFlags {
 
 // Converts a string into a double value according to ECMA-262 9.3.1
 double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const char> str,
+                      Vector<const uint8_t> str,
                       int flags,
                       double empty_string_val = 0);
 double StringToDouble(UnicodeCache* unicode_cache,
@@ -134,6 +134,16 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       const char* str,
                       int flags,
                       double empty_string_val = 0);
+
+// Converts a string into an integer.
+double StringToInt(UnicodeCache* unicode_cache,
+                   Vector<const uint8_t> vector,
+                   int radix);
+
+
+double StringToInt(UnicodeCache* unicode_cache,
+                   Vector<const uc16> vector,
+                   int radix);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

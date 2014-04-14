@@ -105,7 +105,7 @@ class ToplevelTest(unittest.TestCase):
     self.assertEquals({"10": "100", "9": "99:99", "3": "91:98"},
                       B([["100", "10"], ["99", "9"], ["91", "3"]]))
     self.assertEquals({"13": "101", "12": "100:100", "9": "94:97",
-                       "3": "91:93,98:99"},
+                       "3": "91:93, 98:99"},
                       B([["101", "13"], ["100", "12"], ["98", "3"],
                          ["94", "9"], ["91", "3"]]))
 
@@ -1245,9 +1245,9 @@ LOG=N
       {"bleeding_edge": "", "patches_merged": "", "version": "3.22.3",
        "chromium_revision": "4567", "branch": "trunk", "revision": "345"},
       {"patches_merged": "", "bleeding_edge": "", "version": "3.21.2",
-       "branch": "3.21", "revision": "123"},
+       "chromium_revision": "", "branch": "3.21", "revision": "123"},
       {"patches_merged": "12", "bleeding_edge": "", "version": "3.3.1.1",
-       "branch": "3.3", "revision": "234"}
+       "chromium_revision": "", "branch": "3.3", "revision": "234"}
     ]
     self.assertEquals(expected_json, json.loads(FileToText(json_output)))
 

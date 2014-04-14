@@ -1217,31 +1217,6 @@ CompileEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeNewFunctionEvent(func) {
-  return new NewFunctionEvent(func);
-}
-
-
-function NewFunctionEvent(func) {
-  this.func = func;
-}
-
-
-NewFunctionEvent.prototype.eventType = function() {
-  return Debug.DebugEvent.NewFunction;
-};
-
-
-NewFunctionEvent.prototype.name = function() {
-  return this.func.name;
-};
-
-
-NewFunctionEvent.prototype.setBreakPoint = function(p) {
-  Debug.setBreakPoint(this.func, p || 0);
-};
-
-
 function MakeScriptCollectedEvent(exec_state, id) {
   return new ScriptCollectedEvent(exec_state, id);
 }

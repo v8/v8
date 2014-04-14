@@ -378,11 +378,11 @@ MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
   // Call toJSON function.
   if (key->IsSmi()) key = factory_->NumberToString(key);
   Handle<Object> argv[] = { key };
-  bool has_exception = false;
   HandleScope scope(isolate_);
-  object = Execution::Call(isolate_, fun, object, 1, argv, &has_exception);
-  // Return empty handle to signal an exception.
-  if (has_exception) return MaybeHandle<Object>();
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, object,
+      Execution::Call(isolate_, fun, object, 1, argv),
+      Object);
   return scope.CloseAndEscape(object);
 }
 
@@ -486,10 +486,11 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
       GetProperty(builtins, "JSONSerializeAdapter").ToHandleChecked());
 
   Handle<Object> argv[] = { key, object };
-  bool has_exception = false;
-  Handle<Object> result =
-      Execution::Call(isolate_, builtin, object, 2, argv, &has_exception);
-  if (has_exception) return EXCEPTION;
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, result,
+      Execution::Call(isolate_, builtin, object, 2, argv),
+      EXCEPTION);
   if (result->IsUndefined()) return UNCHANGED;
   if (deferred_key) {
     if (key->IsSmi()) key = factory_->NumberToString(key);
@@ -515,17 +516,16 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
-  bool has_exception = false;
   String* class_name = object->class_name();
   if (class_name == isolate_->heap()->String_string()) {
-    Handle<Object> value =
-        Execution::ToString(isolate_, object, &has_exception);
-    if (has_exception) return EXCEPTION;
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, value, Execution::ToString(isolate_, object), EXCEPTION);
     SerializeString(Handle<String>::cast(value));
   } else if (class_name == isolate_->heap()->Number_string()) {
-    Handle<Object> value =
-        Execution::ToNumber(isolate_, object, &has_exception);
-    if (has_exception) return EXCEPTION;
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, value, Execution::ToNumber(isolate_, object), EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else {

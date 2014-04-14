@@ -123,6 +123,22 @@ void HRangeAnalysisPhase::Run() {
       block = NULL;
     }
   }
+
+  // The ranges are not valid anymore due to SSI vs. SSA!
+  PoisonRanges();
+}
+
+
+void HRangeAnalysisPhase::PoisonRanges() {
+#ifdef DEBUG
+  for (int i = 0; i < graph()->blocks()->length(); ++i) {
+    HBasicBlock* block = graph()->blocks()->at(i);
+    for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
+      HInstruction* instr = it.Current();
+      if (instr->HasRange()) instr->PoisonRange();
+    }
+  }
+#endif
 }
 
 

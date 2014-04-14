@@ -72,10 +72,11 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 }
 
 
-void CodeStub::RecordCodeGeneration(Code* code, Isolate* isolate) {
+void CodeStub::RecordCodeGeneration(Handle<Code> code, Isolate* isolate) {
+  IC::RegisterWeakMapDependency(code);
   SmartArrayPointer<const char> name = GetName();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, name.get()));
-  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), code));
+  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, *code, name.get()));
+  GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), *code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
@@ -91,7 +92,7 @@ Handle<Code> CodeStub::GetCodeCopy(Isolate* isolate,
   Handle<Code> ic = GetCode(isolate);
   ic = isolate->factory()->CopyCode(ic);
   ic->FindAndReplace(pattern);
-  RecordCodeGeneration(*ic, isolate);
+  RecordCodeGeneration(ic, isolate);
   return ic;
 }
 
@@ -154,7 +155,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
     Handle<Code> new_object = GenerateCode(isolate);
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
-    RecordCodeGeneration(*new_object, isolate);
+    RecordCodeGeneration(new_object, isolate);
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {

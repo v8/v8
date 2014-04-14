@@ -928,7 +928,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     bool is_shared_cross_origin,
     Handle<Context> context,
     v8::Extension* extension,
-    ScriptDataImpl** cached_data,
+    ScriptData** cached_data,
     CachedDataMode cached_data_mode,
     NativesFlag natives) {
   if (cached_data_mode == NO_CACHED_DATA) {

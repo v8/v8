@@ -231,7 +231,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
     } else if (context->IsCatchContext()) {
       // Catch contexts have the variable name in the extension slot.
-      if (name->Equals(String::cast(context->extension()))) {
+      if (String::Equals(name, handle(String::cast(context->extension())))) {
         if (FLAG_trace_contexts) {
           PrintF("=> found in catch context\n");
         }

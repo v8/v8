@@ -312,7 +312,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
-          Serializer::enabled() || target->ic_age() != heap->global_ic_age())) {
+          Serializer::enabled() || target->ic_age() != heap->global_ic_age() ||
+          target->is_invalidated_weak_stub())) {
     IC::Clear(target->GetIsolate(), rinfo->pc(),
               rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -501,9 +502,14 @@ void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
     Object** slot = constant_pool->RawFieldOfElementAt(index);
     HeapObject* object = HeapObject::cast(*slot);
     heap->mark_compact_collector()->RecordSlot(slot, slot, object);
-    if (!(constant_pool->get_weak_object_state() ==
+    bool is_weak_object =
+        (constant_pool->get_weak_object_state() ==
               ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
-          Code::IsWeakObjectInOptimizedCode(object))) {
+         Code::IsWeakObjectInOptimizedCode(object)) ||
+        (constant_pool->get_weak_object_state() ==
+              ConstantPoolArray::WEAK_OBJECTS_IN_IC &&
+         Code::IsWeakObjectInIC(object));
+    if (!is_weak_object) {
       StaticVisitor::MarkObject(heap, object);
     }
   }

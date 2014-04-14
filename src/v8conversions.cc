@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "assert-scope.h"
 #include "conversions-inl.h"
 #include "v8conversions.h"
 #include "dtoa.h"
@@ -81,51 +82,18 @@ void StringCharacterStreamIterator::operator++() {
 
 
 double StringToDouble(UnicodeCache* unicode_cache,
-                      String* str, int flags, double empty_string_val) {
-  StringShape shape(str);
-  // TODO(dcarney): Use a Visitor here.
-  if (shape.IsSequentialAscii()) {
-    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
-    const uint8_t* end = begin + str->length();
-    return InternalStringToDouble(unicode_cache, begin, end, flags,
-                                  empty_string_val);
-  } else if (shape.IsSequentialTwoByte()) {
-    const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
-    const uc16* end = begin + str->length();
-    return InternalStringToDouble(unicode_cache, begin, end, flags,
-                                  empty_string_val);
+                      String* string,
+                      int flags,
+                      double empty_string_val) {
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = string->GetFlatContent();
+  // ECMA-262 section 15.1.2.3, empty string is NaN
+  if (flat.IsAscii()) {
+    return StringToDouble(
+        unicode_cache, flat.ToOneByteVector(), flags, empty_string_val);
   } else {
-    ConsStringIteratorOp op;
-    StringCharacterStream stream(str, &op);
-    return InternalStringToDouble(unicode_cache,
-                                  StringCharacterStreamIterator(&stream),
-                                  StringCharacterStreamIterator::EndMarker(),
-                                  flags,
-                                  empty_string_val);
-  }
-}
-
-
-double StringToInt(UnicodeCache* unicode_cache,
-                   String* str,
-                   int radix) {
-  StringShape shape(str);
-  // TODO(dcarney): Use a Visitor here.
-  if (shape.IsSequentialAscii()) {
-    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
-    const uint8_t* end = begin + str->length();
-    return InternalStringToInt(unicode_cache, begin, end, radix);
-  } else if (shape.IsSequentialTwoByte()) {
-    const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
-    const uc16* end = begin + str->length();
-    return InternalStringToInt(unicode_cache, begin, end, radix);
-  } else {
-    ConsStringIteratorOp op;
-    StringCharacterStream stream(str, &op);
-    return InternalStringToInt(unicode_cache,
-                               StringCharacterStreamIterator(&stream),
-                               StringCharacterStreamIterator::EndMarker(),
-                               radix);
+    return StringToDouble(
+        unicode_cache, flat.ToUC16Vector(), flags, empty_string_val);
   }
 }
 

@@ -539,17 +539,16 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
   if (seq_ascii) {
     Vector<const uint8_t> chars(seq_source_->GetChars() +  beg_pos, length);
     number = StringToDouble(isolate()->unicode_cache(),
-                             Vector<const char>::cast(chars),
-                             NO_FLAGS,  // Hex, octal or trailing junk.
-                             OS::nan_value());
+                            chars,
+                            NO_FLAGS,  // Hex, octal or trailing junk.
+                            OS::nan_value());
   } else {
     Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);
     Vector<const uint8_t> result =
         Vector<const uint8_t>(buffer.start(), length);
     number = StringToDouble(isolate()->unicode_cache(),
-                            // TODO(dcarney): Convert StringToDouble to uint_t.
-                            Vector<const char>::cast(result),
+                            result,
                             NO_FLAGS,  // Hex, octal or trailing junk.
                             0.0);
     buffer.Dispose();

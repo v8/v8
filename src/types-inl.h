@@ -13,6 +13,20 @@
 namespace v8 {
 namespace internal {
 
+template<class Config>
+bool TypeImpl<Config>::NowContains(i::Object* value) {
+  DisallowHeapAllocation no_allocation;
+  if (this->IsAny()) return true;
+  if (value->IsHeapObject()) {
+    i::Map* map = i::HeapObject::cast(value)->map();
+    for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
+      if (*it.Current() == map) return true;
+    }
+  }
+  return this->Contains(value);
+}
+
+
 // static
 Type* ZoneTypeConfig::handle(Type* type) {
   return type;

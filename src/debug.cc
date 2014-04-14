@@ -774,19 +774,19 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   }
 
   // Execute the shared function in the debugger context.
-  bool caught_exception;
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);
 
-  Handle<Object> exception =
+  Handle<Object> exception;
+  MaybeHandle<Object> result =
       Execution::TryCall(function,
                          Handle<Object>(context->global_object(), isolate),
                          0,
                          NULL,
-                         &caught_exception);
+                         &exception);
 
   // Check for caught exceptions.
-  if (caught_exception) {
+  if (result.is_null()) {
     ASSERT(!isolate->has_pending_exception());
     MessageLocation computed_location;
     isolate->ComputeLocation(&computed_location);
@@ -1118,29 +1118,25 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
           STATIC_ASCII_VECTOR("IsBreakPointTriggered"));
   Handle<GlobalObject> debug_global(debug_context()->global_object());
   Handle<JSFunction> check_break_point =
-    Handle<JSFunction>::cast(GlobalObject::GetPropertyNoExceptionThrown(
-        debug_global, is_break_point_triggered_string));
+    Handle<JSFunction>::cast(Object::GetProperty(
+        debug_global, is_break_point_triggered_string).ToHandleChecked());
 
   // Get the break id as an object.
   Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
 
   // Call HandleBreakPointx.
-  bool caught_exception;
   Handle<Object> argv[] = { break_id, break_point_object };
-  Handle<Object> result = Execution::TryCall(check_break_point,
-                                             isolate_->js_builtins_object(),
-                                             ARRAY_SIZE(argv),
-                                             argv,
-                                             &caught_exception);
-
-  // If exception or non boolean result handle as not triggered
-  if (caught_exception || !result->IsBoolean()) {
-    return false;
-  }
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, result,
+      Execution::TryCall(check_break_point,
+                         isolate_->js_builtins_object(),
+                         ARRAY_SIZE(argv),
+                         argv),
+      false);
 
   // Return whether the break point is triggered.
-  ASSERT(!result.is_null());
-  return (*result)->IsTrue();
+  return result->IsTrue();
 }
 
 
@@ -2463,13 +2459,14 @@ void Debug::ClearMirrorCache() {
   // Clear the mirror cache.
   Handle<String> function_name = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("ClearMirrorCache"));
-  Handle<Object> fun = GlobalObject::GetPropertyNoExceptionThrown(
-      isolate_->global_object(), function_name);
+  Handle<Object> fun = Object::GetProperty(
+      isolate_->global_object(), function_name).ToHandleChecked();
   ASSERT(fun->IsJSFunction());
-  bool caught_exception;
-  Execution::TryCall(Handle<JSFunction>::cast(fun),
+  Execution::TryCall(
+      Handle<JSFunction>::cast(fun),
       Handle<JSObject>(Debug::debug_context()->global_object()),
-      0, NULL, &caught_exception);
+      0,
+      NULL);
 }
 
 
@@ -2590,112 +2587,85 @@ Debugger::Debugger(Isolate* isolate)
 Debugger::~Debugger() {}
 
 
-Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
-                                      int argc,
-                                      Handle<Object> argv[],
-                                      bool* caught_exception) {
+MaybeHandle<Object> Debugger::MakeJSObject(
+    Vector<const char> constructor_name,
+    int argc,
+    Handle<Object> argv[]) {
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
 
   // Create the execution state object.
   Handle<String> constructor_str =
       isolate_->factory()->InternalizeUtf8String(constructor_name);
   ASSERT(!constructor_str.is_null());
-  Handle<Object> constructor = GlobalObject::GetPropertyNoExceptionThrown(
-      isolate_->global_object(), constructor_str);
+  Handle<Object> constructor = Object::GetProperty(
+      isolate_->global_object(), constructor_str).ToHandleChecked();
   ASSERT(constructor->IsJSFunction());
-  if (!constructor->IsJSFunction()) {
-    *caught_exception = true;
-    return isolate_->factory()->undefined_value();
-  }
-  Handle<Object> js_object = Execution::TryCall(
+  if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
+  return Execution::TryCall(
       Handle<JSFunction>::cast(constructor),
       Handle<JSObject>(isolate_->debug()->debug_context()->global_object()),
       argc,
-      argv,
-      caught_exception);
-  return js_object;
+      argv);
 }
 
 
-Handle<Object> Debugger::MakeExecutionState(bool* caught_exception) {
+MaybeHandle<Object> Debugger::MakeExecutionState() {
   // Create the execution state object.
   Handle<Object> break_id = isolate_->factory()->NewNumberFromInt(
       isolate_->debug()->break_id());
   Handle<Object> argv[] = { break_id };
-  return MakeJSObject(CStrVector("MakeExecutionState"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
+  return MakeJSObject(CStrVector("MakeExecutionState"), ARRAY_SIZE(argv), argv);
 }
 
 
-Handle<Object> Debugger::MakeBreakEvent(Handle<Object> exec_state,
-                                        Handle<Object> break_points_hit,
-                                        bool* caught_exception) {
+MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
+  Handle<Object> exec_state;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, exec_state, MakeExecutionState(), Object);
   // Create the new break event object.
   Handle<Object> argv[] = { exec_state, break_points_hit };
-  return MakeJSObject(CStrVector("MakeBreakEvent"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
+  return MakeJSObject(CStrVector("MakeBreakEvent"), ARRAY_SIZE(argv), argv);
 }
 
 
-Handle<Object> Debugger::MakeExceptionEvent(Handle<Object> exec_state,
-                                            Handle<Object> exception,
-                                            bool uncaught,
-                                            bool* caught_exception) {
-  Factory* factory = isolate_->factory();
+MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
+                                                 bool uncaught) {
+  Handle<Object> exec_state;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, exec_state, MakeExecutionState(), Object);
   // Create the new exception event object.
   Handle<Object> argv[] = { exec_state,
                             exception,
-                            factory->ToBoolean(uncaught) };
-  return MakeJSObject(CStrVector("MakeExceptionEvent"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
+                            isolate_->factory()->ToBoolean(uncaught) };
+  return MakeJSObject(CStrVector("MakeExceptionEvent"), ARRAY_SIZE(argv), argv);
 }
 
 
-Handle<Object> Debugger::MakeNewFunctionEvent(Handle<Object> function,
-                                              bool* caught_exception) {
-  // Create the new function event object.
-  Handle<Object> argv[] = { function };
-  return MakeJSObject(CStrVector("MakeNewFunctionEvent"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
-}
-
-
-Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
-                                          bool before,
-                                          bool* caught_exception) {
+MaybeHandle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
+                                               bool before) {
   Factory* factory = isolate_->factory();
   // Create the compile event object.
-  Handle<Object> exec_state = MakeExecutionState(caught_exception);
+  Handle<Object> exec_state;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, exec_state, MakeExecutionState(), Object);
   Handle<Object> script_wrapper = GetScriptWrapper(script);
   Handle<Object> argv[] = { exec_state,
                             script_wrapper,
                             factory->ToBoolean(before) };
-  return MakeJSObject(CStrVector("MakeCompileEvent"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
+  return MakeJSObject(CStrVector("MakeCompileEvent"), ARRAY_SIZE(argv), argv);
 }
 
 
-Handle<Object> Debugger::MakeScriptCollectedEvent(int id,
-                                                  bool* caught_exception) {
+MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
   // Create the script collected event object.
-  Handle<Object> exec_state = MakeExecutionState(caught_exception);
+  Handle<Object> exec_state;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate_, exec_state, MakeExecutionState(), Object);
   Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id), isolate_);
   Handle<Object> argv[] = { exec_state, id_object };
 
-  return MakeJSObject(CStrVector("MakeScriptCollectedEvent"),
-                      ARRAY_SIZE(argv),
-                      argv,
-                      caught_exception);
+  return MakeJSObject(
+      CStrVector("MakeScriptCollectedEvent"), ARRAY_SIZE(argv), argv);
 }
 
 
@@ -2724,17 +2694,11 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   // Clear all current stepping setup.
   debug->ClearStepping();
   // Create the event data object.
-  bool caught_exception = false;
-  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
   Handle<Object> event_data;
-  if (!caught_exception) {
-    event_data = MakeExceptionEvent(exec_state, exception, uncaught,
-                                    &caught_exception);
-  }
   // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, event_data, MakeExceptionEvent(exception, uncaught),
+      /* void */ ;);
 
   // Process debug event.
   ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
@@ -2756,17 +2720,10 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
 
   // Create the event data object.
-  bool caught_exception = false;
-  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
   Handle<Object> event_data;
-  if (!caught_exception) {
-    event_data = MakeBreakEvent(exec_state, break_points_hit,
-                                &caught_exception);
-  }
   // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, event_data, MakeBreakEvent(break_points_hit), /* void */ ;);
 
   // Process debug event.
   ProcessDebugEvent(v8::Break,
@@ -2788,12 +2745,10 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   if (debugger.FailedToEnter()) return;
 
   // Create the event data object.
-  bool caught_exception = false;
-  Handle<Object> event_data = MakeCompileEvent(script, true, &caught_exception);
+  Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, event_data, MakeCompileEvent(script, true), /* void */ ;);
 
   // Process debug event.
   ProcessDebugEvent(v8::BeforeCompile,
@@ -2833,8 +2788,8 @@ void Debugger::OnAfterCompile(Handle<Script> script,
           STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
   Handle<GlobalObject> debug_global(debug->debug_context()->global_object());
   Handle<Object> update_script_break_points =
-      GlobalObject::GetPropertyNoExceptionThrown(
-          debug_global, update_script_break_points_string);
+      Object::GetProperty(
+          debug_global, update_script_break_points_string).ToHandleChecked();
   if (!update_script_break_points->IsJSFunction()) {
     return;
   }
@@ -2845,14 +2800,11 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Handle<JSValue> wrapper = GetScriptWrapper(script);
 
   // Call UpdateScriptBreakPoints expect no exceptions.
-  bool caught_exception;
   Handle<Object> argv[] = { wrapper };
-  Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
-                     isolate_->js_builtins_object(),
-                     ARRAY_SIZE(argv),
-                     argv,
-                     &caught_exception);
-  if (caught_exception) {
+  if (Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
+                         isolate_->js_builtins_object(),
+                         ARRAY_SIZE(argv),
+                         argv).is_null()) {
     return;
   }
   // Bail out based on state or if there is no listener for this event
@@ -2860,17 +2812,13 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.
-  Handle<Object> event_data = MakeCompileEvent(script,
-                                               false,
-                                               &caught_exception);
+  Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, event_data, MakeCompileEvent(script, false), /* void */ ;);
+
   // Process debug event.
-  ProcessDebugEvent(v8::AfterCompile,
-                    Handle<JSObject>::cast(event_data),
-                    true);
+  ProcessDebugEvent(v8::AfterCompile, Handle<JSObject>::cast(event_data), true);
 }
 
 
@@ -2887,13 +2835,10 @@ void Debugger::OnScriptCollected(int id) {
   if (debugger.FailedToEnter()) return;
 
   // Create the script collected state object.
-  bool caught_exception = false;
-  Handle<Object> event_data = MakeScriptCollectedEvent(id,
-                                                       &caught_exception);
+  Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (caught_exception) {
-    return;
-  }
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, event_data, MakeScriptCollectedEvent(id), /* void */ ;);
 
   // Process debug event.
   ProcessDebugEvent(v8::ScriptCollected,
@@ -2913,11 +2858,10 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   }
 
   // Create the execution state.
-  bool caught_exception = false;
-  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
-  if (caught_exception) {
-    return;
-  }
+  Handle<Object> exec_state;
+  // Bail out and don't call debugger if exception.
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, exec_state, MakeExecutionState(), /* void */ ;);
   // First notify the message handler if any.
   if (message_handler_ != NULL) {
     NotifyMessageHandler(event,
@@ -2988,12 +2932,10 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
                             exec_state,
                             event_data,
                             event_listener_data_ };
-  bool caught_exception;
   Execution::TryCall(fun,
                      isolate_->global_object(),
                      ARRAY_SIZE(argv),
-                     argv,
-                     &caught_exception);
+                     argv);
   // Silently ignore exceptions from debug event listeners.
 }
 
@@ -3347,9 +3289,8 @@ bool Debugger::IsDebuggerActive() {
 }
 
 
-Handle<Object> Debugger::Call(Handle<JSFunction> fun,
-                              Handle<Object> data,
-                              bool* pending_exception) {
+MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
+                                   Handle<Object> data) {
   // When calling functions in the debugger prevent it from beeing unloaded.
   Debugger::never_unload_debugger_ = true;
 
@@ -3360,22 +3301,20 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
   }
 
   // Create the execution state.
-  bool caught_exception = false;
-  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
-  if (caught_exception) {
-    return isolate_->factory()->undefined_value();
-  }
+  Handle<Object> exec_state;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, exec_state,
+      MakeExecutionState(),
+      isolate_->factory()->undefined_value());
 
   Handle<Object> argv[] = { exec_state, data };
-  Handle<Object> result = Execution::Call(
+  return Execution::Call(
       isolate_,
       fun,
       Handle<Object>(isolate_->debug()->debug_context_->global_proxy(),
                      isolate_),
       ARRAY_SIZE(argv),
-      argv,
-      pending_exception);
-  return result;
+      argv);
 }
 
 
@@ -3594,8 +3533,8 @@ v8::Handle<v8::Object> MessageImpl::GetEventData() const {
 
 
 v8::Handle<v8::String> MessageImpl::GetJSON() const {
-  v8::EscapableHandleScope scope(
-      reinterpret_cast<v8::Isolate*>(event_data_->GetIsolate()));
+  Isolate* isolate = event_data_->GetIsolate();
+  v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
 
   if (IsEvent()) {
     // Call toJSONProtocol on the debug event object.
@@ -3604,11 +3543,11 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
     if (!fun->IsJSFunction()) {
       return v8::Handle<v8::String>();
     }
-    bool caught_exception;
-    Handle<Object> json = Execution::TryCall(Handle<JSFunction>::cast(fun),
-                                             event_data_,
-                                             0, NULL, &caught_exception);
-    if (caught_exception || !json->IsString()) {
+
+    MaybeHandle<Object> maybe_json =
+        Execution::TryCall(Handle<JSFunction>::cast(fun), event_data_, 0, NULL);
+    Handle<Object> json;
+    if (!maybe_json.ToHandle(&json) || !json->IsString()) {
       return v8::Handle<v8::String>();
     }
     return scope.Escape(v8::Utils::ToLocal(Handle<String>::cast(json)));

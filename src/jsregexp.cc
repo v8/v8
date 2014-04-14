@@ -66,14 +66,13 @@
 namespace v8 {
 namespace internal {
 
-Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
-                                               Handle<String> pattern,
-                                               Handle<String> flags,
-                                               bool* has_pending_exception) {
+MaybeHandle<Object> RegExpImpl::CreateRegExpLiteral(
+    Handle<JSFunction> constructor,
+    Handle<String> pattern,
+    Handle<String> flags) {
   // Call the construct code with 2 arguments.
   Handle<Object> argv[] = { pattern, flags };
-  return Execution::New(constructor, ARRAY_SIZE(argv), argv,
-                        has_pending_exception);
+  return Execution::New(constructor, ARRAY_SIZE(argv), argv);
 }
 
 

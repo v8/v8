@@ -381,14 +381,14 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
   for (int i = 0; i < argc; ++i) {
     argv[i] = args.at<Object>(i + 1);
   }
-  bool pending_exception;
-  Handle<Object> result = Execution::Call(isolate,
-                                          function,
-                                          args.receiver(),
-                                          argc,
-                                          argv.start(),
-                                          &pending_exception);
-  if (pending_exception) return Failure::Exception();
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate,
+                      function,
+                      args.receiver(),
+                      argc,
+                      argv.start()));
   return *result;
 }
 
@@ -1174,15 +1174,13 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
   Handle<JSFunction> function = args.called_function();
   ASSERT(function->shared()->IsApiFunction());
 
-  FunctionTemplateInfo* fun_data = function->shared()->get_api_func_data();
+  Handle<FunctionTemplateInfo> fun_data(
+      function->shared()->get_api_func_data(), isolate);
   if (is_construct) {
-    Handle<FunctionTemplateInfo> desc(fun_data, isolate);
-    bool pending_exception = false;
-    isolate->factory()->ConfigureInstance(
-        desc, Handle<JSObject>::cast(args.receiver()), &pending_exception);
-    ASSERT(isolate->has_pending_exception() == pending_exception);
-    if (pending_exception) return Failure::Exception();
-    fun_data = *desc;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, fun_data,
+        isolate->factory()->ConfigureInstance(
+            fun_data, Handle<JSObject>::cast(args.receiver())));
   }
 
   SharedFunctionInfo* shared = function->shared();
@@ -1194,7 +1192,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
     }
   }
 
-  Object* raw_holder = TypeCheck(heap, args.length(), &args[0], fun_data);
+  Object* raw_holder = TypeCheck(heap, args.length(), &args[0], *fun_data);
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!

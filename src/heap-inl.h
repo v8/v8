@@ -490,6 +490,41 @@ void Heap::ScavengePointer(HeapObject** p) {
 }
 
 
+AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
+  // Check if there is potentially a memento behind the object. If
+  // the last word of the momento is on another page we return
+  // immediately.
+  Address object_address = object->address();
+  Address memento_address = object_address + object->Size();
+  Address last_memento_word_address = memento_address + kPointerSize;
+  if (!NewSpacePage::OnSamePage(object_address,
+                                last_memento_word_address)) {
+    return NULL;
+  }
+
+  HeapObject* candidate = HeapObject::FromAddress(memento_address);
+  if (candidate->map() != allocation_memento_map()) return NULL;
+
+  // Either the object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here. Note that technically we do not have
+  // to compare with the current top pointer of the from space page during GC,
+  // since we always install filler objects above the top pointer of a from
+  // space page when performing a garbage collection. However, always performing
+  // the test makes it possible to have a single, unified version of
+  // FindAllocationMemento that is used both by the GC and the mutator.
+  Address top = NewSpaceTop();
+  ASSERT(memento_address == top ||
+         memento_address + HeapObject::kHeaderSize <= top ||
+         !NewSpacePage::OnSamePage(memento_address, top));
+  if (memento_address == top) return NULL;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return NULL;
+  return memento;
+}
+
+
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
                                         ScratchpadSlotMode mode) {
   Heap* heap = object->GetHeap();
@@ -498,25 +533,8 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
 
-  // Check if there is potentially a memento behind the object. If
-  // the last word of the momento is on another page we return
-  // immediatelly. Note that we do not have to compare with the current
-  // top pointer of the from space page, since we always install filler
-  // objects above the top pointer of a from space page when performing
-  // a garbage collection.
-  Address object_address = object->address();
-  Address memento_address = object_address + object->Size();
-  Address last_memento_word_address = memento_address + kPointerSize;
-  if (!NewSpacePage::OnSamePage(object_address,
-                                last_memento_word_address)) {
-    return;
-  }
-
-  HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  if (candidate->map() != heap->allocation_memento_map()) return;
-
-  AllocationMemento* memento = AllocationMemento::cast(candidate);
-  if (!memento->IsValid()) return;
+  AllocationMemento* memento = heap->FindAllocationMemento(object);
+  if (memento == NULL) return;
 
   if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
     heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
@@ -557,25 +575,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   return CollectGarbage(collector, gc_reason, collector_reason, callbackFlags);
-}
-
-
-MaybeObject* Heap::PrepareForCompare(String* str) {
-  // Always flatten small strings and force flattening of long strings
-  // after we have accumulated a certain amount we failed to flatten.
-  static const int kMaxAlwaysFlattenLength = 32;
-  static const int kFlattenLongThreshold = 16*KB;
-
-  const int length = str->length();
-  MaybeObject* obj = str->TryFlatten();
-  if (length <= kMaxAlwaysFlattenLength ||
-      unflattened_strings_length_ >= kFlattenLongThreshold) {
-    return obj;
-  }
-  if (obj->IsFailure()) {
-    unflattened_strings_length_ += length;
-  }
-  return str;
 }
 
 

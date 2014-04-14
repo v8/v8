@@ -137,15 +137,12 @@ TEST(StressJS) {
       factory->NewStringFromAscii(Vector<const char>("get", 3));
   ASSERT(instance_descriptors->IsEmpty());
 
-  Handle<DescriptorArray> new_descriptors = factory->NewDescriptorArray(0, 1);
-
-  v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
-  map->set_instance_descriptors(*new_descriptors);
+  Map::EnsureDescriptorSlack(map, 1);
 
   CallbacksDescriptor d(name,
                         foreign,
                         static_cast<PropertyAttributes>(0));
-  map->AppendDescriptor(&d, witness);
+  map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::NewFromUtf8(CcTest::isolate(), "Foo"),

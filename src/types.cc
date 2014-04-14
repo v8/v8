@@ -372,19 +372,6 @@ bool TypeImpl<Config>::Contains(i::Object* value) {
 
 
 template<class Config>
-bool TypeImpl<Config>::NowContains(i::Object* value) {
-  DisallowHeapAllocation no_allocation;
-  if (value->IsHeapObject()) {
-    i::Map* map = i::HeapObject::cast(value)->map();
-    for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
-      if (*it.Current() == map) return true;
-    }
-  }
-  return this->Contains(value);
-}
-
-
-template<class Config>
 bool TypeImpl<Config>::InUnion(StructHandle unioned, int current_size) {
   ASSERT(!this->IsUnion());
   for (int i = 0; i < current_size; ++i) {

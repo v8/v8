@@ -55,10 +55,6 @@ class Factory V8_FINAL {
 
   Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
-  Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors,
-                                             int slack = 0);
-  Handle<TransitionArray> NewTransitionArray(int number_of_transitions);
-  Handle<TransitionArray> NewSimpleTransitionArray(Handle<Map> target);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
       PretenureFlag pretenure);
@@ -507,9 +503,8 @@ class Factory V8_FINAL {
   // Installs interceptors on the instance.  'desc' is a function template,
   // and instance is an object instance created by the function of this
   // function template.
-  void ConfigureInstance(Handle<FunctionTemplateInfo> desc,
-                         Handle<JSObject> instance,
-                         bool* pending_exception);
+  MUST_USE_RESULT MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
+      Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance);
 
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   inline Handle<type> name() {                                                 \

@@ -38,13 +38,13 @@ class Execution V8_FINAL : public AllStatic {
   // and the function called is not in strict mode, receiver is converted to
   // an object.
   //
-  static Handle<Object> Call(Isolate* isolate,
-                             Handle<Object> callable,
-                             Handle<Object> receiver,
-                             int argc,
-                             Handle<Object> argv[],
-                             bool* pending_exception,
-                             bool convert_receiver = false);
+  MUST_USE_RESULT static MaybeHandle<Object> Call(
+      Isolate* isolate,
+      Handle<Object> callable,
+      Handle<Object> receiver,
+      int argc,
+      Handle<Object> argv[],
+      bool convert_receiver = false);
 
   // Construct object from function, the caller supplies an array of
   // arguments. Arguments are Object* type. After function returns,
@@ -53,70 +53,67 @@ class Execution V8_FINAL : public AllStatic {
   // *pending_exception tells whether the invoke resulted in
   // a pending exception.
   //
-  static Handle<Object> New(Handle<JSFunction> func,
-                            int argc,
-                            Handle<Object> argv[],
-                            bool* pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> New(Handle<JSFunction> func,
+                                                 int argc,
+                                                 Handle<Object> argv[]);
 
   // Call a function, just like Call(), but make sure to silently catch
   // any thrown exceptions. The return value is either the result of
   // calling the function (if caught exception is false) or the exception
   // that occurred (if caught exception is true).
-  static Handle<Object> TryCall(Handle<JSFunction> func,
-                                Handle<Object> receiver,
-                                int argc,
-                                Handle<Object> argv[],
-                                bool* caught_exception);
+  static MaybeHandle<Object> TryCall(
+      Handle<JSFunction> func,
+      Handle<Object> receiver,
+      int argc,
+      Handle<Object> argv[],
+      Handle<Object>* exception_out = NULL);
 
   // ECMA-262 9.3
-  static Handle<Object> ToNumber(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToNumber(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.4
-  static Handle<Object> ToInteger(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToInteger(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.5
-  static Handle<Object> ToInt32(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToInt32(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.6
-  static Handle<Object> ToUint32(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToUint32(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8
-  static Handle<Object> ToString(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToString(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.8
-  static Handle<Object> ToDetailString(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
+      Isolate* isolate, Handle<Object> obj);
 
   // ECMA-262 9.9
-  static Handle<Object> ToObject(
-      Isolate* isolate, Handle<Object> obj, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> ToObject(
+      Isolate* isolate, Handle<Object> obj);
 
   // Create a new date object from 'time'.
-  static Handle<Object> NewDate(
-      Isolate* isolate, double time, bool* exc);
+  MUST_USE_RESULT static MaybeHandle<Object> NewDate(
+      Isolate* isolate, double time);
 
   // Create a new regular expression object from 'pattern' and 'flags'.
-  static Handle<JSRegExp> NewJSRegExp(Handle<String> pattern,
-                                      Handle<String> flags,
-                                      bool* exc);
+  MUST_USE_RESULT static MaybeHandle<JSRegExp> NewJSRegExp(
+      Handle<String> pattern, Handle<String> flags);
 
   // Used to implement [] notation on strings (calls JS code)
   static Handle<Object> CharAt(Handle<String> str, uint32_t index);
 
   static Handle<Object> GetFunctionFor();
-  static Handle<JSFunction> InstantiateFunction(
-      Handle<FunctionTemplateInfo> data, bool* exc);
-  static Handle<JSObject> InstantiateObject(Handle<ObjectTemplateInfo> data,
-                                            bool* exc);
-  static void ConfigureInstance(Isolate* isolate,
-                                Handle<Object> instance,
-                                Handle<Object> data,
-                                bool* exc);
+  MUST_USE_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
+      Handle<FunctionTemplateInfo> data);
+  MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
+      Handle<ObjectTemplateInfo> data);
+  MUST_USE_RESULT static MaybeHandle<Object> ConfigureInstance(
+      Isolate* isolate,  Handle<Object> instance, Handle<Object> data);
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
@@ -135,17 +132,16 @@ class Execution V8_FINAL : public AllStatic {
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Isolate* isolate,
                                             Handle<Object> object);
-  static Handle<Object> TryGetFunctionDelegate(Isolate* isolate,
-                                               Handle<Object> object,
-                                               bool* has_pending_exception);
+  MUST_USE_RESULT static MaybeHandle<Object> TryGetFunctionDelegate(
+      Isolate* isolate,
+      Handle<Object> object);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
   static Handle<Object> GetConstructorDelegate(Isolate* isolate,
                                                Handle<Object> object);
-  static Handle<Object> TryGetConstructorDelegate(Isolate* isolate,
-                                                  Handle<Object> object,
-                                                  bool* has_pending_exception);
+  static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
+                                                       Handle<Object> object);
 
   static void RunMicrotasks(Isolate* isolate);
   static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);

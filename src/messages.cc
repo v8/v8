@@ -154,22 +154,16 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<String> fmt_str =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("FormatMessage"));
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      GlobalObject::GetPropertyNoExceptionThrown(
-          isolate->js_builtins_object(), fmt_str));
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
+          isolate->js_builtins_object(), fmt_str).ToHandleChecked());
   Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
   Handle<Object> argv[] = { Handle<Object>(message->type(), isolate),
                             Handle<Object>(message->arguments(), isolate) };
 
-  bool caught_exception;
-  Handle<Object> result =
-      Execution::TryCall(fun,
-                         isolate->js_builtins_object(),
-                         ARRAY_SIZE(argv),
-                         argv,
-                         &caught_exception);
-
-  if (caught_exception || !result->IsString()) {
+  MaybeHandle<Object> maybe_result = Execution::TryCall(
+      fun, isolate->js_builtins_object(), ARRAY_SIZE(argv), argv);
+  Handle<Object> result;
+  if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("<error>"));
   }
   Handle<String> result_string = Handle<String>::cast(result);

@@ -794,7 +794,9 @@ class Assembler : public AssemblerBase {
   void movq(Register dst, int64_t value);
   void movq(Register dst, uint64_t value);
 
+  void movsxbl(Register dst, const Operand& src);
   void movsxbq(Register dst, const Operand& src);
+  void movsxwl(Register dst, const Operand& src);
   void movsxwq(Register dst, const Operand& src);
   void movsxlq(Register dst, Register src);
   void movsxlq(Register dst, const Operand& src);

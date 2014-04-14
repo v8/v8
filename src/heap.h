@@ -1169,15 +1169,6 @@ class Heap {
   // NULL is returned if string is in new space or not flattened.
   Map* InternalizedStringMapForString(String* str);
 
-  // Tries to flatten a string before compare operation.
-  //
-  // Returns a failure in case it was decided that flattening was
-  // necessary and failed.  Note, if flattening is not necessary the
-  // string might stay non-flat even when not a failure is returned.
-  //
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* PrepareForCompare(String* str);
-
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
 
@@ -1460,6 +1451,10 @@ class Heap {
     IGNORE_SCRATCHPAD_SLOT,
     RECORD_SCRATCHPAD_SLOT
   };
+
+  // If an object has an AllocationMemento trailing it, return it, otherwise
+  // return NULL;
+  inline AllocationMemento* FindAllocationMemento(HeapObject* object);
 
   // An object may have an AllocationSite associated with it through a trailing
   // AllocationMemento. Its feedback should be updated when objects are found

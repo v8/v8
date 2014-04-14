@@ -161,7 +161,8 @@ bool CompilationCacheScript::HasOrigin(
   // Were both scripts tagged by the embedder as being shared cross-origin?
   if (is_shared_cross_origin != script->is_shared_cross_origin()) return false;
   // Compare the two name strings for equality.
-  return String::cast(*name)->Equals(String::cast(script->name()));
+  return String::Equals(Handle<String>::cast(name),
+                        Handle<String>(String::cast(script->name())));
 }
 
 

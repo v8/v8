@@ -1389,11 +1389,29 @@ void Assembler::movl(const Operand& dst, Label* src) {
 }
 
 
+void Assembler::movsxbl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::movsxbq(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst, src);
   emit(0x0F);
   emit(0xBE);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::movsxwl(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xBF);
   emit_operand(dst, src);
 }
 
