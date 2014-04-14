@@ -793,8 +793,8 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
   Handle<Object> value;
   switch (result->type()) {
     case NORMAL: {
-      DisallowHeapAllocation no_gc;
-      value = handle(result->holder()->GetNormalizedProperty(result), isolate);
+      value = JSObject::GetNormalizedProperty(
+          handle(result->holder(), isolate), result);
       break;
     }
     case FIELD:
