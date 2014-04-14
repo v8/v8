@@ -192,6 +192,10 @@ class Instruction {
     return Mask(TestBranchFMask) == TestBranchFixed;
   }
 
+  bool IsImmBranch() const {
+    return BranchType() != UnknownBranchType;
+  }
+
   bool IsLdrLiteral() const {
     return Mask(LoadLiteralFMask) == LoadLiteralFixed;
   }

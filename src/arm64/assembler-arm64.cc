@@ -545,6 +545,40 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
 }
 
 
+void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
+  ASSERT(label->is_linked());
+  CheckLabelLinkChain(label);
+
+  int link_offset = label->pos();
+  int link_pcoffset;
+  bool end_of_chain = false;
+
+  while (!end_of_chain) {
+    Instruction * link = InstructionAt(link_offset);
+    link_pcoffset = link->ImmPCOffset();
+
+    // ADR instructions are not handled by veneers.
+    if (link->IsImmBranch()) {
+      int max_reachable_pc = InstructionOffset(link) +
+          Instruction::ImmBranchRange(link->BranchType());
+      typedef std::multimap<int, FarBranchInfo>::iterator unresolved_info_it;
+      std::pair<unresolved_info_it, unresolved_info_it> range;
+      range = unresolved_branches_.equal_range(max_reachable_pc);
+      unresolved_info_it it;
+      for (it = range.first; it != range.second; ++it) {
+        if (it->second.pc_offset_ == link_offset) {
+          unresolved_branches_.erase(it);
+          break;
+        }
+      }
+    }
+
+    end_of_chain = (link_pcoffset == 0);
+    link_offset = link_offset + link_pcoffset;
+  }
+}
+
+
 void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   if (unresolved_branches_.empty()) {
     ASSERT(next_veneer_pool_check_ == kMaxInt);
@@ -552,16 +586,9 @@ void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   }
 
   if (label->is_linked()) {
-    // Branches to this label will be resolved when the label is bound below.
-    std::multimap<int, FarBranchInfo>::iterator it_tmp, it;
-    it = unresolved_branches_.begin();
-    while (it != unresolved_branches_.end()) {
-      it_tmp = it++;
-      if (it_tmp->second.label_ == label) {
-        CHECK(it_tmp->first >= pc_offset());
-        unresolved_branches_.erase(it_tmp);
-      }
-    }
+    // Branches to this label will be resolved when the label is bound, normally
+    // just after all the associated info has been deleted.
+    DeleteUnresolvedBranchInfoForLabelTraverse(label);
   }
   if (unresolved_branches_.empty()) {
     next_veneer_pool_check_ = kMaxInt;
