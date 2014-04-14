@@ -5579,7 +5579,8 @@ Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
   LOG_API(i_isolate, "NumberObject::New");
   ENTER_V8(i_isolate);
   i::Handle<i::Object> number = i_isolate->factory()->NewNumber(value);
-  i::Handle<i::Object> obj = i_isolate->factory()->ToObject(number);
+  i::Handle<i::Object> obj =
+      i::Object::ToObject(i_isolate, number).ToHandleChecked();
   return Utils::ToLocal(obj);
 }
 
@@ -5602,7 +5603,8 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
                                ? isolate->heap()->true_value()
                                : isolate->heap()->false_value(),
                                isolate);
-  i::Handle<i::Object> obj = isolate->factory()->ToObject(boolean);
+  i::Handle<i::Object> obj =
+      i::Object::ToObject(isolate, boolean).ToHandleChecked();
   return Utils::ToLocal(obj);
 }
 
@@ -5621,8 +5623,8 @@ Local<v8::Value> v8::StringObject::New(Handle<String> value) {
   EnsureInitializedForIsolate(isolate, "v8::StringObject::New()");
   LOG_API(isolate, "StringObject::New");
   ENTER_V8(isolate);
-  i::Handle<i::Object> obj =
-      isolate->factory()->ToObject(Utils::OpenHandle(*value));
+  i::Handle<i::Object> obj = i::Object::ToObject(
+      isolate, Utils::OpenHandle(*value)).ToHandleChecked();
   return Utils::ToLocal(obj);
 }
 
@@ -5642,8 +5644,8 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
   EnsureInitializedForIsolate(i_isolate, "v8::SymbolObject::New()");
   LOG_API(i_isolate, "SymbolObject::New");
   ENTER_V8(i_isolate);
-  i::Handle<i::Object> obj =
-      i_isolate->factory()->ToObject(Utils::OpenHandle(*value));
+  i::Handle<i::Object> obj = i::Object::ToObject(
+      i_isolate, Utils::OpenHandle(*value)).ToHandleChecked();
   return Utils::ToLocal(obj);
 }
 

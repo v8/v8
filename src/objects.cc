@@ -60,53 +60,25 @@
 namespace v8 {
 namespace internal {
 
-
-MUST_USE_RESULT static MaybeObject* CreateJSValue(JSFunction* constructor,
-                                                  Object* value) {
-  Object* result;
-  { MaybeObject* maybe_result =
-        constructor->GetHeap()->AllocateJSObject(constructor);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
+                                         Handle<Object> object,
+                                         Handle<Context> native_context) {
+  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+  Handle<JSFunction> constructor;
+  if (object->IsNumber()) {
+    constructor = handle(native_context->number_function(), isolate);
+  } else if (object->IsBoolean()) {
+    constructor = handle(native_context->boolean_function(), isolate);
+  } else if (object->IsString()) {
+    constructor = handle(native_context->string_function(), isolate);
+  } else if (object->IsSymbol()) {
+    constructor = handle(native_context->symbol_function(), isolate);
+  } else {
+    return MaybeHandle<JSReceiver>();
   }
-  JSValue::cast(result)->set_value(value);
+  Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+  Handle<JSValue>::cast(result)->set_value(*object);
   return result;
-}
-
-
-MaybeObject* Object::ToObject(Context* native_context) {
-  if (IsNumber()) {
-    return CreateJSValue(native_context->number_function(), this);
-  } else if (IsBoolean()) {
-    return CreateJSValue(native_context->boolean_function(), this);
-  } else if (IsString()) {
-    return CreateJSValue(native_context->string_function(), this);
-  } else if (IsSymbol()) {
-    return CreateJSValue(native_context->symbol_function(), this);
-  }
-  ASSERT(IsJSObject());
-  return this;
-}
-
-
-MaybeObject* Object::ToObject(Isolate* isolate) {
-  if (IsJSReceiver()) {
-    return this;
-  } else if (IsNumber()) {
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->number_function(), this);
-  } else if (IsBoolean()) {
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->boolean_function(), this);
-  } else if (IsString()) {
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->string_function(), this);
-  } else if (IsSymbol()) {
-    Context* native_context = isolate->context()->native_context();
-    return CreateJSValue(native_context->symbol_function(), this);
-  }
-
-  // Throw a type error.
-  return Failure::InternalError();
 }
 
 

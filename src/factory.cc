@@ -1670,17 +1670,6 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
 }
 
 
-Handle<Object> Factory::ToObject(Handle<Object> object) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(isolate()), Object);
-}
-
-
-Handle<Object> Factory::ToObject(Handle<Object> object,
-                                 Handle<Context> native_context) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(*native_context), Object);
-}
-
-
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.

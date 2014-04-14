@@ -423,10 +423,6 @@ class Factory V8_FINAL {
 
   Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
 
-  Handle<Object> ToObject(Handle<Object> object);
-  Handle<Object> ToObject(Handle<Object> object,
-                          Handle<Context> native_context);
-
   // Interface for creating error objects.
 
   Handle<Object> NewError(const char* maker, const char* message,

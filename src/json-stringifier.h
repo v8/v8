@@ -264,7 +264,7 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
       overflowed_(false) {
   factory_ = isolate_->factory();
   accumulator_store_ = Handle<JSValue>::cast(
-                           factory_->ToObject(factory_->empty_string()));
+      Object::ToObject(isolate, factory_->empty_string()).ToHandleChecked());
   part_length_ = kInitialPartLength;
   current_part_ = factory_->NewRawOneByteString(part_length_).ToHandleChecked();
   tojson_string_ = factory_->toJSON_string();
