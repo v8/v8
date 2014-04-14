@@ -10714,49 +10714,63 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Break) {
 }
 
 
-static Handle<Object> DebugLookupResultValue(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             Handle<Name> name,
-                                             LookupResult* result,
-                                             bool* has_caught = NULL) {
-  Handle<Object> value = isolate->factory()->undefined_value();
-  if  (!result->IsFound()) return value;
+static MaybeObject* DebugLookupResultValue(Heap* heap,
+                                           Object* receiver,
+                                           Name* name,
+                                           LookupResult* result,
+                                           bool* caught_exception) {
+  Object* value;
+  if (result->IsTransition()) return heap->undefined_value();
   switch (result->type()) {
     case NORMAL:
-      value = JSObject::GetNormalizedProperty(
-          handle(result->holder(), isolate), result);
-      break;
-    case FIELD:
-      value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
-                                       result->representation(),
-                                       result->GetFieldIndex().field_index());
-      break;
-    case CONSTANT:
-      return handle(result->GetConstant(), isolate);
-    case CALLBACKS: {
-      Handle<Object> structure(result->GetCallbackObject(), isolate);
-      if (structure->IsForeign() || structure->IsAccessorInfo()) {
-        MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
-            handle(result->holder(), isolate), receiver, structure, name);
-        if (!obj.ToHandle(&value)) {
-          value = handle(isolate->pending_exception(), isolate);
-          isolate->clear_pending_exception();
-          if (has_caught != NULL) *has_caught = true;
-          return value;
-        }
+      value = result->holder()->GetNormalizedProperty(result);
+      if (value->IsTheHole()) {
+        return heap->undefined_value();
       }
-      break;
+      return value;
+    case FIELD: {
+      Object* value;
+      MaybeObject* maybe_value =
+          JSObject::cast(result->holder())->FastPropertyAt(
+              result->representation(),
+              result->GetFieldIndex().field_index());
+      if (!maybe_value->To(&value)) return maybe_value;
+      if (value->IsTheHole()) {
+        return heap->undefined_value();
+      }
+      return value;
+    }
+    case CONSTANT:
+      return result->GetConstant();
+    case CALLBACKS: {
+      Object* structure = result->GetCallbackObject();
+      if (structure->IsForeign() || structure->IsAccessorInfo()) {
+        Isolate* isolate = heap->isolate();
+        HandleScope scope(isolate);
+        MaybeHandle<Object> maybe_value = JSObject::GetPropertyWithCallback(
+            handle(result->holder(), isolate),
+            handle(receiver, isolate),
+            handle(structure, isolate),
+            handle(name, isolate));
+        Handle<Object> value;
+        if (maybe_value.ToHandle(&value)) return *value;
+        Object* exception = heap->isolate()->pending_exception();
+        heap->isolate()->clear_pending_exception();
+        if (caught_exception != NULL) *caught_exception = true;
+        return exception;
+      } else {
+        return heap->undefined_value();
+      }
     }
     case INTERCEPTOR:
-      break;
+      return heap->undefined_value();
     case HANDLER:
     case NONEXISTENT:
       UNREACHABLE();
-      break;
+      return heap->undefined_value();
   }
-  ASSERT(!value->IsTheHole() || result->IsReadOnly());
-  return value->IsTheHole()
-      ? Handle<Object>::cast(isolate->factory()->undefined_value()) : value;
+  UNREACHABLE();  // keep the compiler happy
+  return heap->undefined_value();
 }
 
 
@@ -10830,23 +10844,29 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
         result_callback_obj = Handle<Object>(result.GetCallbackObject(),
                                              isolate);
       }
-
-
-      bool has_caught;
-      Handle<Object> value = DebugLookupResultValue(
-          isolate, obj, name, &result, &has_caught);
+      Smi* property_details = result.GetPropertyDetails().AsSmi();
+      // DebugLookupResultValue can cause GC so details from LookupResult needs
+      // to be copied to handles before this.
+      bool caught_exception = false;
+      Object* raw_value;
+      { MaybeObject* maybe_raw_value =
+            DebugLookupResultValue(isolate->heap(), *obj, *name,
+                                   &result, &caught_exception);
+        if (!maybe_raw_value->ToObject(&raw_value)) return maybe_raw_value;
+      }
+      Handle<Object> value(raw_value, isolate);
 
       // If the callback object is a fixed array then it contains JavaScript
       // getter and/or setter.
-      bool has_js_accessors = result.IsPropertyCallbacks() &&
-                              result_callback_obj->IsAccessorPair();
+      bool hasJavaScriptAccessors = result.IsPropertyCallbacks() &&
+                                    result_callback_obj->IsAccessorPair();
       Handle<FixedArray> details =
-          isolate->factory()->NewFixedArray(has_js_accessors ? 5 : 2);
+          isolate->factory()->NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
       details->set(0, *value);
-      details->set(1, result.GetPropertyDetails().AsSmi());
-      if (has_js_accessors) {
+      details->set(1, property_details);
+      if (hasJavaScriptAccessors) {
         AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
-        details->set(2, isolate->heap()->ToBoolean(has_caught));
+        details->set(2, isolate->heap()->ToBoolean(caught_exception));
         details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
         details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
       }
@@ -10872,7 +10892,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetProperty) {
 
   LookupResult result(isolate);
   obj->Lookup(*name, &result);
-  return *DebugLookupResultValue(isolate, obj, name, &result);
+  if (result.IsFound()) {
+    return DebugLookupResultValue(isolate->heap(), *obj, *name, &result, NULL);
+  }
+  return isolate->heap()->undefined_value();
 }
 
 
