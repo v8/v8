@@ -286,6 +286,7 @@ bool Object::IsExternalTwoByteString() {
          String::cast(this)->IsTwoByteRepresentation();
 }
 
+
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
   return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray() ||
@@ -2723,14 +2724,6 @@ void DescriptorArray::SetRepresentation(int descriptor_index,
 }
 
 
-void DescriptorArray::InitializeRepresentations(Representation representation) {
-  int length = number_of_descriptors();
-  for (int i = 0; i < length; i++) {
-    SetRepresentation(i, representation);
-  }
-}
-
-
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return RawFieldOfElementAt(ToValueIndex(descriptor_number));
@@ -2740,6 +2733,11 @@ Object** DescriptorArray::GetValueSlot(int descriptor_number) {
 Object* DescriptorArray::GetValue(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return get(ToValueIndex(descriptor_number));
+}
+
+
+void DescriptorArray::SetValue(int descriptor_index, Object* value) {
+  set(ToValueIndex(descriptor_index), value);
 }
 
 
@@ -2758,6 +2756,12 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
   ASSERT(GetDetails(descriptor_number).type() == FIELD);
   return GetDetails(descriptor_number).field_index();
+}
+
+
+HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
+  ASSERT(GetDetails(descriptor_number).type() == FIELD);
+  return HeapType::cast(GetValue(descriptor_number));
 }
 
 

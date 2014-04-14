@@ -5476,6 +5476,7 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 #ifdef VERIFY_HEAP
 void Heap::Verify() {
   CHECK(HasBeenSetUp());
+  HandleScope scope(isolate());
 
   store_buffer()->Verify();
 
