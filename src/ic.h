@@ -196,10 +196,10 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name);
 #endif
 
-  Failure* TypeError(const char* type,
-                     Handle<Object> object,
-                     Handle<Object> key);
-  Failure* ReferenceError(const char* type, Handle<String> name);
+  MaybeHandle<Object> TypeError(const char* type,
+                                Handle<Object> object,
+                                Handle<Object> key);
+  MaybeHandle<Object> ReferenceError(const char* type, Handle<String> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address,
@@ -397,8 +397,8 @@ class LoadIC: public IC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
 
-  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
-                                    Handle<String> name);
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                           Handle<String> name);
 
  protected:
   virtual Code::Kind kind() const { return Code::LOAD_IC; }
@@ -459,8 +459,8 @@ class KeyedLoadIC: public LoadIC {
     ASSERT(target()->is_keyed_load_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Load(Handle<Object> object,
-                                    Handle<Object> key);
+  MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
+                                           Handle<Object> key);
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
@@ -564,7 +564,7 @@ class StoreIC: public IC {
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       StrictMode strict_mode);
 
-  MUST_USE_RESULT MaybeObject* Store(
+  MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object,
       Handle<String> name,
       Handle<Object> value,
@@ -653,9 +653,9 @@ class KeyedStoreIC: public StoreIC {
     ASSERT(target()->is_keyed_store_stub());
   }
 
-  MUST_USE_RESULT MaybeObject* Store(Handle<Object> object,
-                                     Handle<Object> name,
-                                     Handle<Object> value);
+  MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
+                                            Handle<Object> name,
+                                            Handle<Object> value);
 
   // Code generators for stub routines.  Only called once at startup.
   static void GenerateInitialize(MacroAssembler* masm) { GenerateMiss(masm); }
@@ -860,9 +860,9 @@ class BinaryOpIC: public IC {
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
 
-  MaybeObject* Transition(Handle<AllocationSite> allocation_site,
-                          Handle<Object> left,
-                          Handle<Object> right) V8_WARN_UNUSED_RESULT;
+  MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
+                                 Handle<Object> left,
+                                 Handle<Object> right) V8_WARN_UNUSED_RESULT;
 };
 
 
@@ -944,7 +944,7 @@ class CompareNilIC: public IC {
  public:
   explicit CompareNilIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  MUST_USE_RESULT MaybeObject* CompareNil(Handle<Object> object);
+  Handle<Object> CompareNil(Handle<Object> object);
 
   static Handle<Code> GetUninitialized();
 
@@ -952,8 +952,8 @@ class CompareNilIC: public IC {
                     Code* target,
                     ConstantPoolArray* constant_pool);
 
-  static MUST_USE_RESULT MaybeObject* DoCompareNilSlow(NilValue nil,
-                                                       Handle<Object> object);
+  static Handle<Object> DoCompareNilSlow(Isolate* isolate, NilValue nil,
+                                         Handle<Object> object);
 };
 
 
@@ -961,7 +961,7 @@ class ToBooleanIC: public IC {
  public:
   explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
 
-  MaybeObject* ToBoolean(Handle<Object> object);
+  Handle<Object> ToBoolean(Handle<Object> object);
 };
 
 
