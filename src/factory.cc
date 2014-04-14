@@ -1332,17 +1332,6 @@ Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
-                                                Handle<Name> name,
-                                                Handle<Object> value,
-                                                PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(),
-                     dict->Add(*name, *value, details),
-                     NameDictionary);
-}
-
-
 static Handle<GlobalObject> NewGlobalObjectFromMap(Isolate* isolate,
                                                    Handle<Map> map) {
   CALL_HEAP_FUNCTION(isolate,
@@ -1385,7 +1374,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
     Handle<Name> name(descs->GetKey(i));
     Handle<Object> value(descs->GetCallbacksObject(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(value);
-    NameDictionaryAdd(dictionary, name, cell, d);
+    NameDictionary::AddNameEntry(dictionary, name, cell, d);
   }
 
   // Allocate the global object and initialize it with the backing store.
