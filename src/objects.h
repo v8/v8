@@ -4093,6 +4093,12 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(Name* key);
+
+  // TODO(mstarzinger): Temporary wrapper until handlified.
+  static Handle<NameDictionary> Add(Handle<NameDictionary> dict,
+                                    Handle<Name> name,
+                                    Handle<Object> value,
+                                    PropertyDetails details);
 };
 
 

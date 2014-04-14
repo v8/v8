@@ -2996,10 +2996,6 @@ bool Heap::CreateInitialObjects() {
         NameDictionary::Allocate(this, Runtime::kNumFunctions);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  { MaybeObject* maybe_obj = Runtime::InitializeIntrinsicFunctionNames(this,
-                                                                       obj);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
   set_intrinsic_function_names(NameDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
@@ -6180,6 +6176,11 @@ bool Heap::CreateHeapObjects() {
   array_buffers_list_ = undefined_value();
   allocation_sites_list_ = undefined_value();
   weak_object_to_code_table_ = undefined_value();
+
+  HandleScope scope(isolate());
+  Runtime::InitializeIntrinsicFunctionNames(
+      isolate(), handle(intrinsic_function_names(), isolate()));
+
   return true;
 }
 
