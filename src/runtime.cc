@@ -6278,7 +6278,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   ASSERT(args.length() == 1);
-  return BasicJsonStringifier::StringifyString(isolate, string);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, BasicJsonStringifier::StringifyString(isolate, string));
+  return *result;
 }
 
 
@@ -6286,7 +6289,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_BasicJSONStringify) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   BasicJsonStringifier stringifier(isolate);
-  return stringifier.Stringify(Handle<Object>(args[0], isolate));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, stringifier.Stringify(args.at<Object>(0)));
+  return *result;
 }
 
 
