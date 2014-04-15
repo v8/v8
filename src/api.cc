@@ -2274,12 +2274,12 @@ bool StackFrame::IsConstructor() const {
 // --- J S O N ---
 
 Local<Value> JSON::Parse(Local<String> json_string) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> string = Utils::OpenHandle(*json_string);
+  i::Isolate* isolate = string->GetIsolate();
   EnsureInitializedForIsolate(isolate, "v8::JSON::Parse");
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
-  i::Handle<i::String> source =
-      i::String::Flatten(Utils::OpenHandle(*json_string));
+  i::Handle<i::String> source = i::String::Flatten(string);
   EXCEPTION_PREAMBLE(isolate);
   i::MaybeHandle<i::Object> maybe_result =
       source->IsSeqOneByteString() ? i::JsonParser<true>::Parse(source)
@@ -2417,31 +2417,33 @@ bool Value::IsUint32() const {
 
 
 bool Value::IsDate() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   return obj->HasSpecificClassOf(isolate->heap()->Date_string());
 }
 
 
 bool Value::IsStringObject() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   return obj->HasSpecificClassOf(isolate->heap()->String_string());
 }
 
 
 bool Value::IsSymbolObject() const {
-  // TODO(svenpanne): these and other test functions should be written such
-  // that they do not use Isolate::Current().
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   return obj->HasSpecificClassOf(isolate->heap()->Symbol_string());
 }
 
 
 bool Value::IsNumberObject() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   return obj->HasSpecificClassOf(isolate->heap()->Number_string());
 }
 
@@ -2467,10 +2469,10 @@ static bool CheckConstructor(i::Isolate* isolate,
 
 
 bool Value::IsNativeError() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsJSObject()) {
     i::Handle<i::JSObject> js_obj(i::JSObject::cast(*obj));
+    i::Isolate* isolate = js_obj->GetIsolate();
     return CheckConstructor(isolate, js_obj, "$Error") ||
         CheckConstructor(isolate, js_obj, "$EvalError") ||
         CheckConstructor(isolate, js_obj, "$RangeError") ||
@@ -2485,8 +2487,9 @@ bool Value::IsNativeError() const {
 
 
 bool Value::IsBooleanObject() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   return obj->HasSpecificClassOf(isolate->heap()->Boolean_string());
 }
 
@@ -2572,7 +2575,7 @@ Local<Number> Value::ToNumber() const {
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "ToNumber");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2590,7 +2593,7 @@ Local<Integer> Value::ToInteger() const {
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "ToInteger");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2738,45 +2741,55 @@ void v8::DataView::CheckCast(Value* that) {
 
 
 void v8::Date::CheckCast(v8::Value* that) {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_string()),
+  i::Isolate* isolate = NULL;
+  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  Utils::ApiCheck(isolate != NULL &&
+                  obj->HasSpecificClassOf(isolate->heap()->Date_string()),
                   "v8::Date::Cast()",
                   "Could not convert to date");
 }
 
 
 void v8::StringObject::CheckCast(v8::Value* that) {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->HasSpecificClassOf(isolate->heap()->String_string()),
+  i::Isolate* isolate = NULL;
+  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  Utils::ApiCheck(isolate != NULL &&
+                  obj->HasSpecificClassOf(isolate->heap()->String_string()),
                   "v8::StringObject::Cast()",
                   "Could not convert to StringObject");
 }
 
 
 void v8::SymbolObject::CheckCast(v8::Value* that) {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Symbol_string()),
+  i::Isolate* isolate = NULL;
+  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  Utils::ApiCheck(isolate != NULL &&
+                  obj->HasSpecificClassOf(isolate->heap()->Symbol_string()),
                   "v8::SymbolObject::Cast()",
                   "Could not convert to SymbolObject");
 }
 
 
 void v8::NumberObject::CheckCast(v8::Value* that) {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Number_string()),
+  i::Isolate* isolate = NULL;
+  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  Utils::ApiCheck(isolate != NULL &&
+                  obj->HasSpecificClassOf(isolate->heap()->Number_string()),
                   "v8::NumberObject::Cast()",
                   "Could not convert to NumberObject");
 }
 
 
 void v8::BooleanObject::CheckCast(v8::Value* that) {
-  i::Isolate* isolate = i::Isolate::Current();
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  Utils::ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Boolean_string()),
+  i::Isolate* isolate = NULL;
+  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  Utils::ApiCheck(isolate != NULL &&
+                  obj->HasSpecificClassOf(isolate->heap()->Boolean_string()),
                   "v8::BooleanObject::Cast()",
                   "Could not convert to BooleanObject");
 }
@@ -2801,7 +2814,7 @@ double Value::NumberValue() const {
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "NumberValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2819,7 +2832,7 @@ int64_t Value::IntegerValue() const {
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "IntegerValue");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2841,7 +2854,7 @@ Local<Int32> Value::ToInt32() const {
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "ToInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2858,7 +2871,7 @@ Local<Uint32> Value::ToUint32() const {
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "ToUInt32");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2876,7 +2889,7 @@ Local<Uint32> Value::ToArrayIndex() const {
     if (i::Smi::cast(*obj)->value() >= 0) return Utils::Uint32ToLocal(obj);
     return Local<Uint32>();
   }
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
   LOG_API(isolate, "ToArrayIndex");
   ENTER_V8(isolate);
   EXCEPTION_PREAMBLE(isolate);
@@ -2904,7 +2917,7 @@ int32_t Value::Int32Value() const {
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "Int32Value (slow)");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -2981,13 +2994,11 @@ bool Value::StrictEquals(Handle<Value> that) const {
 
 
 bool Value::SameValue(Handle<Value> that) const {
-  i::Isolate* isolate = i::Isolate::Current();
   if (!Utils::ApiCheck(this != NULL && !that.IsEmpty(),
                        "v8::Value::SameValue()",
                        "Reading from empty handle")) {
     return false;
   }
-  LOG_API(isolate, "SameValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
   return obj->SameValue(*other);
@@ -2999,7 +3010,7 @@ uint32_t Value::Uint32Value() const {
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
   } else {
-    i::Isolate* isolate = i::Isolate::Current();
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
     LOG_API(isolate, "Uint32Value");
     ENTER_V8(isolate);
     EXCEPTION_PREAMBLE(isolate);
@@ -5586,10 +5597,10 @@ Local<v8::Value> v8::NumberObject::New(Isolate* isolate, double value) {
 
 
 double v8::NumberObject::ValueOf() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "NumberObject::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  i::Isolate* isolate = jsvalue->GetIsolate();
+  LOG_API(isolate, "NumberObject::NumberValue");
   return jsvalue->value()->Number();
 }
 
@@ -5610,30 +5621,31 @@ Local<v8::Value> v8::BooleanObject::New(bool value) {
 
 
 bool v8::BooleanObject::ValueOf() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "BooleanObject::BooleanValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  i::Isolate* isolate = jsvalue->GetIsolate();
+  LOG_API(isolate, "BooleanObject::BooleanValue");
   return jsvalue->value()->IsTrue();
 }
 
 
 Local<v8::Value> v8::StringObject::New(Handle<String> value) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> string = Utils::OpenHandle(*value);
+  i::Isolate* isolate = string->GetIsolate();
   EnsureInitializedForIsolate(isolate, "v8::StringObject::New()");
   LOG_API(isolate, "StringObject::New");
   ENTER_V8(isolate);
-  i::Handle<i::Object> obj = i::Object::ToObject(
-      isolate, Utils::OpenHandle(*value)).ToHandleChecked();
+  i::Handle<i::Object> obj =
+      i::Object::ToObject(isolate, string).ToHandleChecked();
   return Utils::ToLocal(obj);
 }
 
 
 Local<v8::String> v8::StringObject::ValueOf() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "StringObject::StringValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  i::Isolate* isolate = jsvalue->GetIsolate();
+  LOG_API(isolate, "StringObject::StringValue");
   return Utils::ToLocal(
       i::Handle<i::String>(i::String::cast(jsvalue->value())));
 }
@@ -5651,10 +5663,10 @@ Local<v8::Value> v8::SymbolObject::New(Isolate* isolate, Handle<Symbol> value) {
 
 
 Local<v8::Symbol> v8::SymbolObject::ValueOf() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "SymbolObject::SymbolValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  i::Isolate* isolate = jsvalue->GetIsolate();
+  LOG_API(isolate, "SymbolObject::SymbolValue");
   return Utils::ToLocal(
       i::Handle<i::Symbol>(i::Symbol::cast(jsvalue->value())));
 }
@@ -5679,10 +5691,10 @@ Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
 
 
 double v8::Date::ValueOf() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
+  i::Isolate* isolate = jsdate->GetIsolate();
+  LOG_API(isolate, "Date::NumberValue");
   return jsdate->value()->Number();
 }
 
@@ -6086,7 +6098,7 @@ i::Handle<i::JSTypedArray> NewTypedArray(
 #define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                       \
   Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,      \
                                     size_t byte_offset, size_t length) {     \
-    i::Isolate* isolate = i::Isolate::Current();                             \
+    i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();    \
     EnsureInitializedForIsolate(isolate,                                     \
         "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");     \
     LOG_API(isolate,                                                         \
@@ -6110,13 +6122,13 @@ TYPED_ARRAYS(TYPED_ARRAY_NEW)
 
 Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
                               size_t byte_offset, size_t byte_length) {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
+  i::Isolate* isolate = buffer->GetIsolate();
   EnsureInitializedForIsolate(
       isolate, "v8::DataView::New(void*, size_t, size_t)");
   LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
   ENTER_V8(isolate);
   i::Handle<i::JSDataView> obj = isolate->factory()->NewJSDataView();
-  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
   SetupArrayBufferView(
       isolate, obj, buffer, byte_offset, byte_length);
   return Utils::ToLocal(obj);
