@@ -2179,12 +2179,7 @@ static uint32_t Hash(RegisteredExtension* extension) {
 }
 
 
-static bool MatchRegisteredExtensions(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-Genesis::ExtensionStates::ExtensionStates()
-  : map_(MatchRegisteredExtensions, 8) { }
+Genesis::ExtensionStates::ExtensionStates() : map_(HashMap::PointersMatch, 8) {}
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {

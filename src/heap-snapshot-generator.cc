@@ -732,7 +732,7 @@ size_t HeapObjectsMap::GetUsedMemorySize() const {
 
 
 HeapEntriesMap::HeapEntriesMap()
-    : entries_(HeapThingsMatch) {
+    : entries_(HashMap::PointersMatch) {
 }
 
 
@@ -751,7 +751,7 @@ void HeapEntriesMap::Pair(HeapThing thing, int entry) {
 
 
 HeapObjectsSet::HeapObjectsSet()
-    : entries_(HeapEntriesMap::HeapThingsMatch) {
+    : entries_(HashMap::PointersMatch) {
 }
 
 

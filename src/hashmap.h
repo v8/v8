@@ -98,6 +98,11 @@ class TemplateHashMapImpl {
   Entry* Start() const;
   Entry* Next(Entry* p) const;
 
+  // Some match functions defined for convenience.
+  static bool PointersMatch(void* key1, void* key2) {
+    return key1 == key2;
+  }
+
  private:
   MatchFun match_;
   Entry* map_;

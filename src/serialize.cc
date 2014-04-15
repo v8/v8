@@ -586,7 +586,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
-    : encodings_(Match),
+    : encodings_(HashMap::PointersMatch),
       isolate_(isolate) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance(isolate_);
@@ -680,7 +680,7 @@ class CodeAddressMap: public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(&PointerEquals) {}
+    NameMap() : impl_(HashMap::PointersMatch) {}
 
     ~NameMap() {
       for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
@@ -720,10 +720,6 @@ class CodeAddressMap: public CodeEventLogger {
     }
 
    private:
-    static bool PointerEquals(void* lhs, void* rhs) {
-      return lhs == rhs;
-    }
-
     static char* CopyName(const char* name, int name_size) {
       char* result = NewArray<char>(name_size + 1);
       for (int i = 0; i < name_size; ++i) {

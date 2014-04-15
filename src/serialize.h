@@ -124,8 +124,6 @@ class ExternalReferenceEncoder {
 
   int IndexOf(Address key) const;
 
-  static bool Match(void* key1, void* key2) { return key1 == key2; }
-
   void Put(Address key, int index);
 
   Isolate* isolate_;
@@ -414,7 +412,7 @@ class SerializationAddressMapper {
  public:
   SerializationAddressMapper()
       : no_allocation_(),
-        serialization_map_(new HashMap(&SerializationMatchFun)) { }
+        serialization_map_(new HashMap(HashMap::PointersMatch)) { }
 
   ~SerializationAddressMapper() {
     delete serialization_map_;
@@ -438,10 +436,6 @@ class SerializationAddressMapper {
   }
 
  private:
-  static bool SerializationMatchFun(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
   static uint32_t Hash(HeapObject* obj) {
     return static_cast<int32_t>(reinterpret_cast<intptr_t>(obj->address()));
   }

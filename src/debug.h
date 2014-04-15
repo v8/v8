@@ -175,7 +175,9 @@ class BreakLocationIterator {
 class ScriptCache : private HashMap {
  public:
   explicit ScriptCache(Isolate* isolate)
-    : HashMap(ScriptMatch), isolate_(isolate), collected_scripts_(10) {}
+      : HashMap(HashMap::PointersMatch),
+        isolate_(isolate),
+        collected_scripts_(10) {}
   virtual ~ScriptCache() { Clear(); }
 
   // Add script to the cache.
@@ -192,9 +194,6 @@ class ScriptCache : private HashMap {
   static uint32_t Hash(int key) {
     return ComputeIntegerHash(key, v8::internal::kZeroHashSeed);
   }
-
-  // Scripts match if their keys (script id) match.
-  static bool ScriptMatch(void* key1, void* key2) { return key1 == key2; }
 
   // Clear the cache releasing all the weak handles.
   void Clear();
