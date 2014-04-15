@@ -1199,11 +1199,16 @@ void Assembler::LoadRelocated(const CPURegister& rt, const Operand& operand) {
 }
 
 
-inline void Assembler::CheckBuffer() {
+inline void Assembler::CheckBufferSpace() {
   ASSERT(pc_ < (buffer_ + buffer_size_));
   if (buffer_space() < kGap) {
     GrowBuffer();
   }
+}
+
+
+inline void Assembler::CheckBuffer() {
+  CheckBufferSpace();
   if (pc_offset() >= next_veneer_pool_check_) {
     CheckVeneerPool(false, true);
   }

@@ -3656,7 +3656,7 @@ class BaseShape {
   }
 };
 
-template<typename Shape, typename Key>
+template<typename Derived, typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
   // Wrapper methods
@@ -3709,8 +3709,16 @@ class HashTable: public FixedArray {
   }
 
   // Returns a new HashTable object. Might return Failure.
+  // TODO(ishell): this will be eventually replaced by New().
   MUST_USE_RESULT static MaybeObject* Allocate(
       Heap* heap,
+      int at_least_space_for,
+      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Returns a new HashTable object.
+  static Handle<Derived> New(
+      Isolate* isolate,
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
       PretenureFlag pretenure = NOT_TENURED);
@@ -3824,10 +3832,10 @@ class HashTable: public FixedArray {
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  MUST_USE_RESULT MaybeObject* Rehash(HashTable* new_table, Key key);
+  void Rehash(Derived* new_table, Key key);
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT MaybeObject* Shrink(Key key);
+  static Handle<Derived> Shrink(Handle<Derived> table, Key key);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(
@@ -3880,7 +3888,11 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-class StringTable: public HashTable<StringTableShape, HashTableKey*> {
+// TODO(ishell): Make StringTable a singleton class and move
+//   Heap::InternalizeStringXX() methods here.
+class StringTable: public HashTable<StringTable,
+                                    StringTableShape,
+                                    HashTableKey*> {
  public:
   // Find string in the string table.  If it is not there yet, it is
   // added.  The return value is the string table which might have
@@ -3932,7 +3944,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
 //
 // Maps keys that are a fixed array of unique names to a map.
 // Used for canonicalize maps for object literals.
-class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
+class MapCache: public HashTable<MapCache, MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a name key, otherwise return null.
   Object* Lookup(FixedArray* key);
@@ -3944,33 +3956,36 @@ class MapCache: public HashTable<MapCacheShape, HashTableKey*> {
 };
 
 
-template <typename Shape, typename Key>
-class Dictionary: public HashTable<Shape, Key> {
+template <typename Derived, typename Shape, typename Key>
+class Dictionary: public HashTable<Derived, Shape, Key> {
+ protected:
+  typedef HashTable<Derived, Shape, Key> DerivedHashTable;
+
  public:
-  static inline Dictionary<Shape, Key>* cast(Object* obj) {
-    return reinterpret_cast<Dictionary<Shape, Key>*>(obj);
+  static inline Dictionary* cast(Object* obj) {
+    return reinterpret_cast<Dictionary*>(obj);
   }
 
   // Returns the value at entry.
   Object* ValueAt(int entry) {
-    return this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 1);
+    return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
-    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 1, value);
+    this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
   }
 
   // Returns the property details for the property at entry.
   PropertyDetails DetailsAt(int entry) {
     ASSERT(entry >= 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(
-        Smi::cast(this->get(HashTable<Shape, Key>::EntryToIndex(entry) + 2)));
+        Smi::cast(this->get(DerivedHashTable::EntryToIndex(entry) + 2)));
   }
 
   // Set the details for entry.
   void DetailsAtPut(int entry, PropertyDetails value) {
-    this->set(HashTable<Shape, Key>::EntryToIndex(entry) + 2, value.AsSmi());
+    this->set(DerivedHashTable::EntryToIndex(entry) + 2, value.AsSmi());
   }
 
   // Sorting support
@@ -3980,16 +3995,14 @@ class Dictionary: public HashTable<Shape, Key> {
   Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
   // TODO(ishell): Temporary wrapper until handlified.
   static Handle<Object> DeleteProperty(
-      Handle<Dictionary<Shape, Key> > dictionary,
+      Handle<Dictionary> dictionary,
       int entry,
       JSObject::DeleteMode mode);
 
   // Attempt to shrink the dictionary after deletion of key.
-  MUST_USE_RESULT MaybeObject* Shrink(Key key);
-  // TODO(ishell): Temporary wrapper until handlified.
-  MUST_USE_RESULT static Handle<FixedArray> Shrink(
-      Handle<Dictionary<Shape, Key> > dictionary,
-      Key key);
+  static inline Handle<Derived> Shrink(Handle<Derived> dictionary, Key key) {
+    return DerivedHashTable::Shrink(dictionary, key);
+  }
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
@@ -4059,8 +4072,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Generate new enumeration indices to avoid enumeration index overflow.
   MUST_USE_RESULT MaybeObject* GenerateNewEnumerationIndices();
-  static const int kMaxNumberKeyIndex =
-      HashTable<Shape, Key>::kPrefixStartIndex;
+  static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 };
 
@@ -4078,7 +4090,9 @@ class NameDictionaryShape : public BaseShape<Name*> {
 };
 
 
-class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
+class NameDictionary: public Dictionary<NameDictionary,
+                                        NameDictionaryShape,
+                                        Name*> {
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4093,6 +4107,12 @@ class NameDictionary: public Dictionary<NameDictionaryShape, Name*> {
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(Name* key);
+
+  // TODO(mstarzinger): Temporary wrapper until handlified.
+  static Handle<NameDictionary> AddNameEntry(Handle<NameDictionary> dict,
+                                             Handle<Name> name,
+                                             Handle<Object> value,
+                                             PropertyDetails details);
 };
 
 
@@ -4128,7 +4148,9 @@ class UnseededNumberDictionaryShape : public NumberDictionaryShape {
 
 
 class SeededNumberDictionary
-    : public Dictionary<SeededNumberDictionaryShape, uint32_t> {
+    : public Dictionary<SeededNumberDictionary,
+                        SeededNumberDictionaryShape,
+                        uint32_t> {
  public:
   static SeededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4181,7 +4203,9 @@ class SeededNumberDictionary
 
 
 class UnseededNumberDictionary
-    : public Dictionary<UnseededNumberDictionaryShape, uint32_t> {
+    : public Dictionary<UnseededNumberDictionary,
+                        UnseededNumberDictionaryShape,
+                        uint32_t> {
  public:
   static UnseededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4217,7 +4241,10 @@ class ObjectHashTableShape : public BaseShape<Object*> {
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTableShape, Object*> {
+class ObjectHashTable: public HashTable<ObjectHashTable,
+                                        ObjectHashTableShape,
+                                        Object*> {
+  typedef HashTable<ObjectHashTable, ObjectHashTableShape, Object*> HashTable_;
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4231,8 +4258,8 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape, Object*> {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Attempt to shrink hash table after removal of key.
-  static Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
-                                        Handle<Object> key);
+  static inline Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
+                                               Handle<Object> key);
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
@@ -4430,7 +4457,9 @@ class WeakHashTableShape : public BaseShape<Object*> {
 // WeakHashTable maps keys that are arbitrary objects to object values.
 // It is used for the global weak hash table that maps objects
 // embedded in optimized code to dependent code lists.
-class WeakHashTable: public HashTable<WeakHashTableShape<2>, Object*> {
+class WeakHashTable: public HashTable<WeakHashTable,
+                                      WeakHashTableShape<2>,
+                                      Object*> {
  public:
   static inline WeakHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4716,7 +4745,7 @@ class NormalizedMapCache: public FixedArray {
   static const int kEntries = 64;
 
   static Handle<Map> Get(Handle<NormalizedMapCache> cache,
-                         Handle<JSObject> object,
+                         Handle<Map> fast_map,
                          PropertyNormalizationMode mode);
 
   void Clear();
@@ -6209,21 +6238,13 @@ class Map: public HeapObject {
   inline Map* elements_transition_map();
   static Handle<TransitionArray> SetElementsTransitionMap(
       Handle<Map> map, Handle<Map> transitioned_map);
-  inline void SetTransition(int transition_index, Map* target);
   inline Map* GetTransition(int transition_index);
   inline int SearchTransition(Name* name);
   inline FixedArrayBase* GetInitialElements();
 
   DECL_ACCESSORS(transitions, TransitionArray)
-  inline void ClearTransitions(Heap* heap,
-                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  void DeprecateTransitionTree();
-  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
 
   Map* FindRootMap();
-  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
-  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   inline int GetInObjectPropertyOffset(int index);
 
@@ -6247,15 +6268,6 @@ class Map: public HeapObject {
       StoreMode store_mode,
       PropertyAttributes attributes,
       const char* reason);
-
-  void PrintGeneralization(FILE* file,
-                           const char* reason,
-                           int modify_index,
-                           int split,
-                           int descriptors,
-                           bool constant_to_field,
-                           Representation old_representation,
-                           Representation new_representation);
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
@@ -6322,8 +6334,6 @@ class Map: public HeapObject {
   //    2 + 2 * i: prototype
   //    3 + 2 * i: target map
   inline FixedArray* GetPrototypeTransitions();
-  static inline void SetPrototypeTransitions(
-      Handle<Map> map, Handle<FixedArray> prototype_transitions);
   inline bool HasPrototypeTransitions();
 
   static const int kProtoTransitionHeaderSize = 1;
@@ -6415,7 +6425,6 @@ class Map: public HeapObject {
   // Same as above, but does not touch the prototype chain.
   static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
 
-  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyReplaceDescriptors(
       Handle<Map> map,
@@ -6428,25 +6437,17 @@ class Map: public HeapObject {
       Handle<DescriptorArray> descriptors,
       TransitionFlag flag,
       SimpleTransitionFlag simple_flag = FULL_TRANSITION);
-  static Handle<Map> CopyInstallDescriptors(
-      Handle<Map> map,
-      int new_descriptor,
-      Handle<DescriptorArray> descriptors);
-  static Handle<Map> ShareDescriptor(Handle<Map> map,
-                                     Handle<DescriptorArray> descriptors,
-                                     Descriptor* descriptor);
   static Handle<Map> CopyAddDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
-  static Handle<Map> CopyReplaceDescriptor(
-      Handle<Map> map,
-      Handle<DescriptorArray> descriptors,
-      Descriptor* descriptor,
-      int index,
-      TransitionFlag flag);
+  static Handle<Map> CopyReplaceDescriptor(Handle<Map> map,
+                                           Handle<DescriptorArray> descriptors,
+                                           Descriptor* descriptor,
+                                           int index,
+                                           TransitionFlag flag);
 
   static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
@@ -6522,14 +6523,6 @@ class Map: public HeapObject {
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
-  bool EquivalentToForTransition(Map* other);
-
-  // Compares this map to another to see if they describe equivalent objects.
-  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
-  // it had exactly zero inobject properties.
-  // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
-
   // Returns the map that this map transitions to if its elements_kind
   // is changed to |elements_kind|, or NULL if no such map is cached yet.
   // |safe_to_add_transitions| is set to false if adding transitions is not
@@ -6541,15 +6534,6 @@ class Map: public HeapObject {
   // found at all.
   Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
-
-  // Zaps the contents of backing data structures. Note that the
-  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
-  // holding weak references when incremental marking is used, because it also
-  // iterates over objects that are otherwise unreachable.
-  // In general we only want to call these functions in release mode when
-  // heap verification is turned on.
-  void ZapPrototypeTransitions();
-  void ZapTransitions();
 
   bool CanTransition() {
     // Only JSObject and subtypes have map transitions and back pointers.
@@ -6611,11 +6595,8 @@ class Map: public HeapObject {
   // transitions are in the form of a map where the keys are prototype objects
   // and the values are the maps the are transitioned to.
   static const int kMaxCachedPrototypeTransitions = 256;
-  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
-                                            Handle<Object> prototype);
-  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
-                                            Handle<Object> prototype,
-                                            Handle<Map> target_map);
+  static Handle<Map> TransitionToPrototype(Handle<Map> map,
+                                           Handle<Object> prototype);
 
   static const int kMaxPreAllocatedPropertyFields = 255;
 
@@ -6699,7 +6680,57 @@ class Map: public HeapObject {
                               kPointerFieldsEndOffset,
                               kSize> BodyDescriptor;
 
+  // Compares this map to another to see if they describe equivalent objects.
+  // If |mode| is set to CLEAR_INOBJECT_PROPERTIES, |other| is treated as if
+  // it had exactly zero inobject properties.
+  // The "shared" flags of both this map and |other| are ignored.
+  bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
+
  private:
+  bool EquivalentToForTransition(Map* other);
+  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
+  static Handle<Map> ShareDescriptor(Handle<Map> map,
+                                     Handle<DescriptorArray> descriptors,
+                                     Descriptor* descriptor);
+  static Handle<Map> CopyInstallDescriptors(
+      Handle<Map> map,
+      int new_descriptor,
+      Handle<DescriptorArray> descriptors);
+
+  // Zaps the contents of backing data structures. Note that the
+  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
+  // holding weak references when incremental marking is used, because it also
+  // iterates over objects that are otherwise unreachable.
+  // In general we only want to call these functions in release mode when
+  // heap verification is turned on.
+  void ZapPrototypeTransitions();
+  void ZapTransitions();
+
+  void DeprecateTransitionTree();
+  void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
+
+  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
+  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
+
+  void PrintGeneralization(FILE* file,
+                           const char* reason,
+                           int modify_index,
+                           int split,
+                           int descriptors,
+                           bool constant_to_field,
+                           Representation old_representation,
+                           Representation new_representation);
+
+  static inline void SetPrototypeTransitions(
+      Handle<Map> map,
+      Handle<FixedArray> prototype_transitions);
+
+  static Handle<Map> GetPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype);
+  static Handle<Map> PutPrototypeTransition(Handle<Map> map,
+                                            Handle<Object> prototype,
+                                            Handle<Map> target_map);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
 
@@ -6925,10 +6956,6 @@ class SharedFunctionInfo: public HeapObject {
   void TrimOptimizedCodeMap(int shrink_by);
 
   // Add a new entry to the optimized code map.
-  MUST_USE_RESULT MaybeObject* AddToOptimizedCodeMap(Context* native_context,
-                                                     Code* code,
-                                                     FixedArray* literals,
-                                                     BailoutId osr_ast_id);
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     Handle<Code> code,
@@ -8202,7 +8229,8 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 };
 
 
-class CompilationCacheTable: public HashTable<CompilationCacheShape,
+class CompilationCacheTable: public HashTable<CompilationCacheTable,
+                                              CompilationCacheShape,
                                               HashTableKey*> {
  public:
   // Find cached value for a string key, otherwise return null.
@@ -8303,7 +8331,8 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
 };
 
 
-class CodeCacheHashTable: public HashTable<CodeCacheHashTableShape,
+class CodeCacheHashTable: public HashTable<CodeCacheHashTable,
+                                           CodeCacheHashTableShape,
                                            HashTableKey*> {
  public:
   Object* Lookup(Name* name, Code::Flags flags);
@@ -8353,7 +8382,9 @@ class PolymorphicCodeCache: public Struct {
 
 
 class PolymorphicCodeCacheHashTable
-    : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
+    : public HashTable<PolymorphicCodeCacheHashTable,
+                       CodeCacheHashTableShape,
+                       HashTableKey*> {
  public:
   Object* Lookup(MapHandleList* maps, int code_kind);
 

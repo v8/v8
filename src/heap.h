@@ -716,12 +716,6 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED,
       AllocationSite* allocation_site = NULL);
 
-  MUST_USE_RESULT MaybeObject* AllocateJSArrayStorage(
-      JSArray* array,
-      int length,
-      int capacity,
-      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
-
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
@@ -983,14 +977,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CopyConstantPoolArrayWithMap(
       ConstantPoolArray* src, Map* map);
 
-  // Allocates a fixed array initialized with the hole values.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFixedArrayWithHoles(
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
-
   MUST_USE_RESULT MaybeObject* AllocateConstantPoolArray(
       int number_of_int64_entries,
       int number_of_code_ptr_entries,
@@ -1001,13 +987,6 @@ class Heap {
   // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedDoubleArray(
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a fixed double array with hole values. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFixedDoubleArrayWithHoles(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 

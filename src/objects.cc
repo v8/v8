@@ -524,7 +524,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 
   // No accessible property found.
   *attributes = ABSENT;
-  isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_GET);
+  isolate->ReportFailedAccessCheck(object, v8::ACCESS_GET);
   RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return isolate->factory()->undefined_value();
 }
@@ -588,7 +588,8 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     }
   }
 
-  object->GetIsolate()->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+  object->GetIsolate()->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+  // TODO(yangguo): Issue 3269, check for scheduled exception missing?
   return ABSENT;
 }
 
@@ -633,17 +634,6 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<NameDictionary> NameDictionaryAdd(Handle<NameDictionary> dict,
-                                                Handle<Name> name,
-                                                Handle<Object> value,
-                                                PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(),
-                     dict->Add(*name, *value, details),
-                     NameDictionary);
-}
-
-
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> value,
@@ -663,8 +653,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       store_value = object->GetIsolate()->factory()->NewPropertyCell(value);
     }
 
-    property_dictionary =
-        NameDictionaryAdd(property_dictionary, name, store_value, details);
+    property_dictionary = NameDictionary::AddNameEntry(
+        property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
     return;
   }
@@ -692,13 +682,6 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   } else {
     property_dictionary->SetEntry(entry, *name, *value, details);
   }
-}
-
-
-// TODO(mstarzinger): Temporary wrapper until target is handlified.
-Handle<NameDictionary> NameDictionaryShrink(Handle<NameDictionary> dict,
-                                            Handle<Name> name) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(), dict->Shrink(*name), NameDictionary);
 }
 
 
@@ -731,7 +714,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
       Handle<Object> deleted(dictionary->DeleteProperty(entry, mode), isolate);
       if (*deleted == isolate->heap()->true_value()) {
         Handle<NameDictionary> new_properties =
-            NameDictionaryShrink(dictionary, name);
+            NameDictionary::Shrink(dictionary, *name);
         object->set_properties(*new_properties);
       }
       return deleted;
@@ -789,7 +772,7 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
         // property from the current object, we still check that we have
         // access to it.
         Handle<JSObject> checked = Handle<JSObject>::cast(current);
-        if (!isolate->MayNamedAccessWrapper(checked, name, v8::ACCESS_GET)) {
+        if (!isolate->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
           return JSObject::GetPropertyWithFailedAccessCheck(
               checked, receiver, result, name, attributes);
         }
@@ -810,8 +793,8 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
   Handle<Object> value;
   switch (result->type()) {
     case NORMAL: {
-      DisallowHeapAllocation no_gc;
-      value = handle(result->holder()->GetNormalizedProperty(result), isolate);
+      value = JSObject::GetNormalizedProperty(
+          handle(result->holder(), isolate), result);
       break;
     }
     case FIELD:
@@ -885,8 +868,8 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
-      if (!isolate->MayIndexedAccessWrapper(js_object, index, v8::ACCESS_GET)) {
-        isolate->ReportFailedAccessCheckWrapper(js_object, v8::ACCESS_GET);
+      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
+        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
         RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
       }
@@ -1824,23 +1807,6 @@ static Handle<Object> NewStorageFor(Isolate* isolate,
 }
 
 
-static Handle<Map> CopyAddFieldDescriptor(Handle<Map> map,
-                                          Handle<Name> name,
-                                          int index,
-                                          PropertyAttributes attributes,
-                                          Representation representation,
-                                          TransitionFlag flag) {
-  FieldDescriptor new_field_desc(name, index, attributes, representation);
-  Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
-  int unused_property_fields = map->unused_property_fields() - 1;
-  if (unused_property_fields < 0) {
-    unused_property_fields += JSObject::kFieldsAdded;
-  }
-  new_map->set_unused_property_fields(unused_property_fields);
-  return new_map;
-}
-
-
 void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -1864,14 +1830,21 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
     return;
   }
 
-  // Compute the new index for new field.
-  int index = object->map()->NextFreePropertyIndex();
-
   // Allocate new instance descriptors with (name, index) added
   if (object->IsJSContextExtensionObject()) value_type = FORCE_TAGGED;
   Representation representation = value->OptimalRepresentation(value_type);
-  Handle<Map> new_map = CopyAddFieldDescriptor(
-      handle(object->map()), name, index, attributes, representation, flag);
+
+  // Compute the new index for new field.
+  int index = object->map()->NextFreePropertyIndex();
+
+  FieldDescriptor new_field_desc(name, index, attributes, representation);
+  Handle<Map> new_map = Map::CopyAddDescriptor(
+      handle(object->map()), &new_field_desc, flag);
+  int unused_property_fields = new_map->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += JSObject::kFieldsAdded;
+  }
+  new_map->set_unused_property_fields(unused_property_fields);
 
   JSObject::MigrateToMap(object, new_map);
 
@@ -1886,33 +1859,19 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
 }
 
 
-static Handle<Map> CopyAddConstantDescriptor(Handle<Map> map,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyAttributes attributes,
-                                             TransitionFlag flag) {
-  ConstantDescriptor new_constant_desc(name, value, attributes);
-  return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
-}
-
-
 void JSObject::AddConstantProperty(Handle<JSObject> object,
                                    Handle<Name> name,
                                    Handle<Object> constant,
                                    PropertyAttributes attributes,
                                    TransitionFlag initial_flag) {
-  TransitionFlag flag =
-      // Do not add transitions to global objects.
-      (object->IsGlobalObject() ||
-      // Don't add transitions to special properties with non-trivial
-      // attributes.
-       attributes != NONE)
-      ? OMIT_TRANSITION
-      : initial_flag;
+  ASSERT(!object->IsGlobalObject());
+  // Don't add transitions to special properties with non-trivial attributes.
+  TransitionFlag flag = attributes != NONE ? OMIT_TRANSITION : initial_flag;
 
   // Allocate new instance descriptors with (name, constant) added.
-  Handle<Map> new_map = CopyAddConstantDescriptor(
-      handle(object->map()), name, constant, attributes, flag);
+  ConstantDescriptor new_constant_desc(name, constant, attributes);
+  Handle<Map> new_map = Map::CopyAddDescriptor(
+      handle(object->map()), &new_constant_desc, flag);
 
   JSObject::MigrateToMap(object, new_map);
 }
@@ -1944,7 +1903,8 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
     value = cell;
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
-  Handle<NameDictionary> result = NameDictionaryAdd(dict, name, value, details);
+  Handle<NameDictionary> result =
+      NameDictionary::AddNameEntry(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
 }
 
@@ -2607,7 +2567,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Add missing transitions.
   Handle<Map> new_map = split_map;
   for (; descriptor < descriptors; descriptor++) {
-    new_map = Map::CopyInstallDescriptors(new_map, descriptor, new_descriptors);
+    new_map = CopyInstallDescriptors(new_map, descriptor, new_descriptors);
   }
 
   new_map->set_owns_descriptors(true);
@@ -3381,7 +3341,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
   }
 
   Isolate* isolate = object->GetIsolate();
-  isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
+  isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return value;
 }
@@ -3931,7 +3891,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, lookup, name, value,
                                               true, strict_mode);
     }
@@ -4071,7 +4031,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
+    if (!isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
       return SetPropertyWithFailedAccessCheck(object, &lookup, name, value,
                                               false, SLOPPY);
     }
@@ -4263,7 +4223,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
   if (object->IsAccessCheckNeeded()) {
     Heap* heap = object->GetHeap();
     Handle<JSObject> obj = Handle<JSObject>::cast(object);
-    if (!heap->isolate()->MayNamedAccessWrapper(obj, name, v8::ACCESS_HAS)) {
+    if (!heap->isolate()->MayNamedAccess(obj, name, v8::ACCESS_HAS)) {
       return JSObject::GetPropertyAttributeWithFailedAccessCheck(
           obj, lookup, name, continue_search);
     }
@@ -4316,8 +4276,9 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+      // TODO(yangguo): Issue 3269, check for scheduled exception missing?
       return ABSENT;
     }
   }
@@ -4408,13 +4369,13 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 
 
 Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
-                                    Handle<JSObject> obj,
+                                    Handle<Map> fast_map,
                                     PropertyNormalizationMode mode) {
-  int index = obj->map()->Hash() % kEntries;
+  int index = fast_map->Hash() % kEntries;
   Handle<Object> result = handle(cache->get(index), cache->GetIsolate());
   if (result->IsMap() &&
-      Handle<Map>::cast(result)->EquivalentToForNormalization(obj->map(),
-                                                              mode)) {
+      Handle<Map>::cast(result)->EquivalentToForNormalization(
+          *fast_map, mode)) {
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) {
       Handle<Map>::cast(result)->SharedMapVerify();
@@ -4425,8 +4386,8 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
-      Handle<Map> fresh = Map::CopyNormalized(handle(obj->map()), mode,
-                                              SHARED_NORMALIZED_MAP);
+      Handle<Map> fresh = Map::CopyNormalized(
+          fast_map, mode, SHARED_NORMALIZED_MAP);
 
       ASSERT(memcmp(fresh->address(),
                     Handle<Map>::cast(result)->address(),
@@ -4443,8 +4404,7 @@ Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
   }
 
   Isolate* isolate = cache->GetIsolate();
-  Handle<Map> map = Map::CopyNormalized(handle(obj->map()), mode,
-                                        SHARED_NORMALIZED_MAP);
+  Handle<Map> map = Map::CopyNormalized(fast_map, mode, SHARED_NORMALIZED_MAP);
   ASSERT(map->is_dictionary_map());
   cache->set(index, *map);
   isolate->counters()->normalized_maps()->Increment();
@@ -4503,7 +4463,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionaryAdd(dictionary, key, value, d);
+        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
         break;
       }
       case FIELD: {
@@ -4512,7 +4472,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
             object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionaryAdd(dictionary, key, value, d);
+        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
@@ -4520,7 +4480,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        dictionary = NameDictionaryAdd(dictionary, key, value, d);
+        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -4538,7 +4498,8 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
 
   Handle<NormalizedMapCache> cache(
       isolate->context()->native_context()->normalized_map_cache());
-  Handle<Map> new_map = NormalizedMapCache::Get(cache, object, mode);
+  Handle<Map> new_map = NormalizedMapCache::Get(
+      cache, handle(object->map()), mode);
   ASSERT(new_map->is_dictionary_map());
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -5193,8 +5154,8 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_DELETE);
+      !isolate->MayIndexedAccess(object, index, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->false_value();
   }
@@ -5262,8 +5223,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_DELETE);
+      !isolate->MayNamedAccess(object, name, v8::ACCESS_DELETE)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -5492,10 +5453,9 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   if (!object->map()->is_extensible()) return object;
 
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object,
-                                      isolate->factory()->undefined_value(),
-                                      v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
+      !isolate->MayNamedAccess(
+          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -5576,10 +5536,9 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
   Isolate* isolate = object->GetIsolate();
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object,
-                                      isolate->factory()->undefined_value(),
-                                      v8::ACCESS_KEYS)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
+      !isolate->MayNamedAccess(
+          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
@@ -6268,7 +6227,7 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
 bool JSObject::CanSetCallback(Handle<JSObject> object, Handle<Name> name) {
   Isolate* isolate = object->GetIsolate();
   ASSERT(!object->IsAccessCheckNeeded() ||
-         isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET));
+         isolate->MayNamedAccess(object, name, v8::ACCESS_SET));
 
   // Check if there is an API defined callback object which prohibits
   // callback overwriting in this object or its prototype chain.
@@ -6391,8 +6350,9 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
+      !isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
+    // TODO(yangguo): Issue 3269, check for scheduled exception missing?
     return;
   }
 
@@ -6575,8 +6535,8 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
+      !isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
   }
@@ -6661,8 +6621,8 @@ Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(object, name, v8::ACCESS_HAS)) {
-    isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+      !isolate->MayNamedAccess(object, name, v8::ACCESS_HAS)) {
+    isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
     RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->undefined_value();
   }
@@ -6766,7 +6726,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
     new_instance_size -= map->inobject_properties() * kPointerSize;
   }
 
-  Handle<Map> result = Map::RawCopy(map, new_instance_size);
+  Handle<Map> result = RawCopy(map, new_instance_size);
 
   if (mode != CLEAR_INOBJECT_PROPERTIES) {
     result->set_inobject_properties(map->inobject_properties());
@@ -6811,7 +6771,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   ASSERT(map->NumberOfOwnDescriptors() ==
          map->instance_descriptors()->number_of_descriptors());
 
-  Handle<Map> result = Map::CopyDropDescriptors(map);
+  Handle<Map> result = CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
   Handle<TransitionArray> transitions =
       TransitionArray::CopyInsert(map, name, result, SIMPLE_TRANSITION);
@@ -6822,7 +6782,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     if (old_size == 0) {
       descriptors = DescriptorArray::Allocate(map->GetIsolate(), 0, 1);
     } else {
-      Map::EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
+      EnsureDescriptorSlack(map, old_size < 4 ? 1 : old_size / 2);
       descriptors = handle(map->instance_descriptors());
     }
   }
@@ -6847,7 +6807,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors,
                                         TransitionFlag flag,
                                         SimpleTransitionFlag simple_flag) {
-  return Map::CopyReplaceDescriptors(
+  return CopyReplaceDescriptors(
       map, descriptors, flag, Handle<Name>::null(), simple_flag);
 }
 
@@ -6882,7 +6842,7 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
-  Handle<Map> result = Map::CopyDropDescriptors(map);
+  Handle<Map> result = CopyDropDescriptors(map);
 
   result->InitializeDescriptors(*descriptors);
   result->SetNumberOfOwnDescriptors(new_descriptor + 1);
@@ -6930,7 +6890,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   if (insert_transition && map->owns_descriptors()) {
     // In case the map owned its own descriptors, share the descriptors and
     // transfer ownership to the new map.
-    Handle<Map> new_map = Map::CopyDropDescriptors(map);
+    Handle<Map> new_map = CopyDropDescriptors(map);
 
     SetElementsTransitionMap(map, new_map);
 
@@ -6944,7 +6904,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   // In case the map did not own its own descriptors, a split is forced by
   // copying the map; creating a new descriptor array cell.
   // Create a new free-floating map only if we are not allowed to store it.
-  Handle<Map> new_map = Map::Copy(map);
+  Handle<Map> new_map = Copy(map);
 
   new_map->set_elements_kind(kind);
 
@@ -6966,9 +6926,9 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
   // transfer ownership to the new map.
   Handle<Map> new_map;
   if (map->owns_descriptors()) {
-    new_map = Map::CopyDropDescriptors(map);
+    new_map = CopyDropDescriptors(map);
   } else {
-    new_map = Map::Copy(map);
+    new_map = Copy(map);
   }
 
   Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
@@ -6993,7 +6953,7 @@ Handle<Map> Map::Copy(Handle<Map> map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
-  return Map::CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
 }
 
 
@@ -7037,14 +6997,14 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
   if (flag == INSERT_TRANSITION &&
       map->owns_descriptors() &&
       map->CanHaveMoreTransitions()) {
-    return Map::ShareDescriptor(map, descriptors, descriptor);
+    return ShareDescriptor(map, descriptors, descriptor);
   }
 
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       descriptors, map->NumberOfOwnDescriptors(), 1);
   new_descriptors->Append(descriptor);
 
-  return Map::CopyReplaceDescriptors(
+  return CopyReplaceDescriptors(
       map, new_descriptors, flag, descriptor->GetKey(), SIMPLE_TRANSITION);
 }
 
@@ -7060,10 +7020,9 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
   // We replace the key if it is already present.
   int index = old_descriptors->SearchWithCache(*descriptor->GetKey(), *map);
   if (index != DescriptorArray::kNotFound) {
-    return Map::CopyReplaceDescriptor(
-        map, old_descriptors, descriptor, index, flag);
+    return CopyReplaceDescriptor(map, old_descriptors, descriptor, index, flag);
   }
-  return Map::CopyAddDescriptor(map, descriptor, flag);
+  return CopyAddDescriptor(map, descriptor, flag);
 }
 
 
@@ -7139,8 +7098,7 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
       (insertion_index == descriptors->number_of_descriptors() - 1)
       ? SIMPLE_TRANSITION
       : FULL_TRANSITION;
-  return Map::CopyReplaceDescriptors(
-      map, new_descriptors, flag, key, simple_flag);
+  return CopyReplaceDescriptors(map, new_descriptors, flag, key, simple_flag);
 }
 
 
@@ -9576,52 +9534,38 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<Code> code,
     Handle<FixedArray> literals,
     BailoutId osr_ast_id) {
-  CALL_HEAP_FUNCTION_VOID(
-      shared->GetIsolate(),
-      shared->AddToOptimizedCodeMap(
-          *native_context, *code, *literals, osr_ast_id));
-}
-
-
-MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
-                                                       Code* code,
-                                                       FixedArray* literals,
-                                                       BailoutId osr_ast_id) {
+  Isolate* isolate = shared->GetIsolate();
   ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
   ASSERT(native_context->IsNativeContext());
   STATIC_ASSERT(kEntryLength == 4);
-  Heap* heap = GetHeap();
-  FixedArray* new_code_map;
-  Object* value = optimized_code_map();
-  Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
+  Handle<FixedArray> new_code_map;
+  Handle<Object> value(shared->optimized_code_map(), isolate);
+  int old_length;
   if (value->IsSmi()) {
     // No optimized code map.
-    ASSERT_EQ(0, Smi::cast(value)->value());
+    ASSERT_EQ(0, Smi::cast(*value)->value());
     // Create 3 entries per context {context, code, literals}.
-    MaybeObject* maybe = heap->AllocateFixedArray(kInitialLength);
-    if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(kEntriesStart + kContextOffset, native_context);
-    new_code_map->set(kEntriesStart + kCachedCodeOffset, code);
-    new_code_map->set(kEntriesStart + kLiteralsOffset, literals);
-    new_code_map->set(kEntriesStart + kOsrAstIdOffset, osr_ast_id_smi);
+    new_code_map = isolate->factory()->NewFixedArray(kInitialLength);
+    old_length = kEntriesStart;
   } else {
     // Copy old map and append one new entry.
-    FixedArray* old_code_map = FixedArray::cast(value);
-    ASSERT_EQ(-1, SearchOptimizedCodeMap(native_context, osr_ast_id));
-    int old_length = old_code_map->length();
-    int new_length = old_length + kEntryLength;
-    MaybeObject* maybe = old_code_map->CopySize(new_length);
-    if (!maybe->To(&new_code_map)) return maybe;
-    new_code_map->set(old_length + kContextOffset, native_context);
-    new_code_map->set(old_length + kCachedCodeOffset, code);
-    new_code_map->set(old_length + kLiteralsOffset, literals);
-    new_code_map->set(old_length + kOsrAstIdOffset, osr_ast_id_smi);
+    Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
+    ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context, osr_ast_id));
+    old_length = old_code_map->length();
+    new_code_map = isolate->factory()->CopySizeFixedArray(
+        old_code_map, old_length + kEntryLength);
     // Zap the old map for the sake of the heap verifier.
     if (Heap::ShouldZapGarbage()) {
       Object** data = old_code_map->data_start();
-      MemsetPointer(data, heap->the_hole_value(), old_length);
+      MemsetPointer(data, isolate->heap()->the_hole_value(), old_length);
     }
   }
+  new_code_map->set(old_length + kContextOffset, *native_context);
+  new_code_map->set(old_length + kCachedCodeOffset, *code);
+  new_code_map->set(old_length + kLiteralsOffset, *literals);
+  new_code_map->set(old_length + kOsrAstIdOffset,
+                    Smi::FromInt(osr_ast_id.ToInt()));
+
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
     ASSERT(new_code_map->get(i + kContextOffset)->IsNativeContext());
@@ -9632,8 +9576,7 @@ MaybeObject* SharedFunctionInfo::AddToOptimizedCodeMap(Context* native_context,
     ASSERT(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
-  set_optimized_code_map(new_code_map);
-  return new_code_map;
+  shared->set_optimized_code_map(*new_code_map);
 }
 
 
@@ -9675,6 +9618,7 @@ void SharedFunctionInfo::ClearOptimizedCodeMap() {
 
 void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
                                                    const char* reason) {
+  DisallowHeapAllocation no_gc;
   if (optimized_code_map()->IsSmi()) return;
 
   FixedArray* code_map = FixedArray::cast(optimized_code_map());
@@ -10264,6 +10208,7 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 
 int SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
                                                BailoutId osr_ast_id) {
+  DisallowHeapAllocation no_gc;
   ASSERT(native_context->IsNativeContext());
   if (!FLAG_cache_optimized_code) return -1;
   Object* value = optimized_code_map();
@@ -11510,7 +11455,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
     Factory* factory = map->GetIsolate()->factory();
     cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
 
-    Map::SetPrototypeTransitions(map, cache);
+    SetPrototypeTransitions(map, cache);
   }
 
   // Reload number of transitions as GC might shrink them.
@@ -11790,6 +11735,18 @@ void DependentCode::AddToDependentICList(Handle<Code> stub) {
 }
 
 
+Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
+                                       Handle<Object> prototype) {
+  Handle<Map> new_map = GetPrototypeTransition(map, prototype);
+  if (new_map.is_null()) {
+    new_map = Copy(map);
+    PutPrototypeTransition(map, prototype, new_map);
+    new_map->set_prototype(*prototype);
+  }
+  return new_map;
+}
+
+
 Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
                                       Handle<Object> value,
                                       bool skip_hidden_prototypes) {
@@ -11860,12 +11817,7 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
   }
 
-  Handle<Map> new_map = Map::GetPrototypeTransition(map, value);
-  if (new_map.is_null()) {
-    new_map = Map::Copy(map);
-    Map::PutPrototypeTransition(map, value, new_map);
-    new_map->set_prototype(*value);
-  }
+  Handle<Map> new_map = Map::TransitionToPrototype(map, value);
   ASSERT(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 
@@ -12524,8 +12476,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
 
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_SET)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_SET);
+    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_SET)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
       return value;
     }
@@ -13183,12 +13135,12 @@ bool JSObject::ShouldConvertToFastDoubleElements(
 // together, so even though this function belongs in objects-debug.cc,
 // we keep it here instead to satisfy certain compilers.
 #ifdef OBJECT_PRINT
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::Print(FILE* out) {
-  int capacity = HashTable<Shape, Key>::Capacity();
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::Print(FILE* out) {
+  int capacity = DerivedHashTable::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k)) {
+    Object* k = DerivedHashTable::KeyAt(i);
+    if (DerivedHashTable::IsKey(k)) {
       PrintF(out, " ");
       if (k->IsString()) {
         String::cast(k)->StringPrint(out);
@@ -13204,15 +13156,15 @@ void Dictionary<Shape, Key>::Print(FILE* out) {
 #endif
 
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyValuesTo(FixedArray* elements) {
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::CopyValuesTo(FixedArray* elements) {
   int pos = 0;
-  int capacity = HashTable<Shape, Key>::Capacity();
+  int capacity = DerivedHashTable::Capacity();
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < capacity; i++) {
-    Object* k =  Dictionary<Shape, Key>::KeyAt(i);
-    if (Dictionary<Shape, Key>::IsKey(k)) {
+    Object* k =  Dictionary::KeyAt(i);
+    if (Dictionary::IsKey(k)) {
       elements->set(pos++, ValueAt(i), mode);
     }
   }
@@ -13303,8 +13255,9 @@ bool JSObject::HasRealNamedProperty(Handle<JSObject> object,
   SealHandleScope shs(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+      // TODO(yangguo): Issue 3269, check for scheduled exception missing?
       return false;
     }
   }
@@ -13320,8 +13273,9 @@ bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
   HandleScope scope(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+    if (!isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+      // TODO(yangguo): Issue 3269, check for scheduled exception missing?
       return false;
     }
   }
@@ -13345,8 +13299,9 @@ bool JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
   SealHandleScope shs(isolate);
   // Check access rights if needed.
   if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_HAS);
+    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+      // TODO(yangguo): Issue 3269, check for scheduled exception missing?
       return false;
     }
   }
@@ -13916,25 +13871,26 @@ class InternalizedStringKey : public HashTableKey {
 };
 
 
-template<typename Shape, typename Key>
-void HashTable<Shape, Key>::IteratePrefix(ObjectVisitor* v) {
+template<typename Derived, typename Shape, typename Key>
+void HashTable<Derived, Shape, Key>::IteratePrefix(ObjectVisitor* v) {
   IteratePointers(v, 0, kElementsStartOffset);
 }
 
 
-template<typename Shape, typename Key>
-void HashTable<Shape, Key>::IterateElements(ObjectVisitor* v) {
+template<typename Derived, typename Shape, typename Key>
+void HashTable<Derived, Shape, Key>::IterateElements(ObjectVisitor* v) {
   IteratePointers(v,
                   kElementsStartOffset,
                   kHeaderSize + length() * kPointerSize);
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
-                                             int at_least_space_for,
-                                             MinimumCapacity capacity_option,
-                                             PretenureFlag pretenure) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* HashTable<Derived, Shape, Key>::Allocate(
+    Heap* heap,
+    int at_least_space_for,
+    MinimumCapacity capacity_option,
+    PretenureFlag pretenure) {
   ASSERT(!capacity_option || IsPowerOf2(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
@@ -13955,10 +13911,23 @@ MaybeObject* HashTable<Shape, Key>::Allocate(Heap* heap,
 }
 
 
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> HashTable<Derived, Shape, Key>::New(
+    Isolate* isolate,
+    int at_least_space_for,
+    MinimumCapacity capacity_option,
+    PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate,
+      Allocate(isolate->heap(), at_least_space_for, capacity_option, pretenure),
+      Derived);
+}
+
+
 // Find entry for key otherwise return kNotFound.
 int NameDictionary::FindEntry(Name* key) {
   if (!key->IsUniqueName()) {
-    return HashTable<NameDictionaryShape, Name*>::FindEntry(key);
+    return DerivedHashTable::FindEntry(key);
   }
 
   // Optimized for unique names. Knowledge of the key type allows:
@@ -13995,8 +13964,8 @@ int NameDictionary::FindEntry(Name* key) {
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
+template<typename Derived, typename Shape, typename Key>
+void HashTable<Derived, Shape, Key>::Rehash(Derived* new_table, Key key) {
   ASSERT(NumberOfElements() < new_table->Capacity());
 
   DisallowHeapAllocation no_gc;
@@ -14015,7 +13984,7 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = get(from_index);
     if (IsKey(k)) {
-      uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
+      uint32_t hash = HashTable::HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -14025,16 +13994,16 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
   }
   new_table->SetNumberOfElements(NumberOfElements());
   new_table->SetNumberOfDeletedElements(0);
-  return new_table;
 }
 
 
-template<typename Shape, typename Key>
-uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
-                                              Object* k,
-                                              int probe,
-                                              uint32_t expected) {
-  uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
+template<typename Derived, typename Shape, typename Key>
+uint32_t HashTable<Derived, Shape, Key>::EntryForProbe(
+    Key key,
+    Object* k,
+    int probe,
+    uint32_t expected) {
+  uint32_t hash = HashTable::HashForObject(key, k);
   uint32_t capacity = Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -14045,10 +14014,10 @@ uint32_t HashTable<Shape, Key>::EntryForProbe(Key key,
 }
 
 
-template<typename Shape, typename Key>
-void HashTable<Shape, Key>::Swap(uint32_t entry1,
-                                 uint32_t entry2,
-                                 WriteBarrierMode mode) {
+template<typename Derived, typename Shape, typename Key>
+void HashTable<Derived, Shape, Key>::Swap(uint32_t entry1,
+                                          uint32_t entry2,
+                                          WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
   Object* temp[Shape::kEntrySize];
@@ -14064,8 +14033,8 @@ void HashTable<Shape, Key>::Swap(uint32_t entry1,
 }
 
 
-template<typename Shape, typename Key>
-void HashTable<Shape, Key>::Rehash(Key key) {
+template<typename Derived, typename Shape, typename Key>
+void HashTable<Derived, Shape, Key>::Rehash(Key key) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
   uint32_t capacity = Capacity();
@@ -14097,10 +14066,11 @@ void HashTable<Shape, Key>::Rehash(Key key) {
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n,
-                                                   Key key,
-                                                   PretenureFlag pretenure) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* HashTable<Derived, Shape, Key>::EnsureCapacity(
+    int n,
+    Key key,
+    PretenureFlag pretenure) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   int nod = NumberOfDeletedElements();
@@ -14124,44 +14094,45 @@ MaybeObject* HashTable<Shape, Key>::EnsureCapacity(int n,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  return Rehash(HashTable::cast(obj), key);
+  Rehash(Derived::cast(obj), key);
+  return Derived::cast(obj);
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* HashTable<Shape, Key>::Shrink(Key key) {
-  int capacity = Capacity();
-  int nof = NumberOfElements();
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> HashTable<Derived, Shape, Key>::Shrink(Handle<Derived> table,
+                                                       Key key) {
+  int capacity = table->Capacity();
+  int nof = table->NumberOfElements();
 
   // Shrink to fit the number of elements if only a quarter of the
   // capacity is filled with elements.
-  if (nof > (capacity >> 2)) return this;
+  if (nof > (capacity >> 2)) return table;
   // Allocate a new dictionary with room for at least the current
   // number of elements. The allocation method will make sure that
   // there is extra room in the dictionary for additions. Don't go
   // lower than room for 16 elements.
   int at_least_room_for = nof;
-  if (at_least_room_for < 16) return this;
+  if (at_least_room_for < 16) return table;
 
+  Isolate* isolate = table->GetIsolate();
   const int kMinCapacityForPretenure = 256;
   bool pretenure =
       (at_least_room_for > kMinCapacityForPretenure) &&
-      !GetHeap()->InNewSpace(this);
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        Allocate(GetHeap(),
-                 at_least_room_for,
-                 USE_DEFAULT_MINIMUM_CAPACITY,
-                 pretenure ? TENURED : NOT_TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+      !isolate->heap()->InNewSpace(*table);
+  Handle<Derived> new_table = New(
+      isolate,
+      at_least_room_for,
+      USE_DEFAULT_MINIMUM_CAPACITY,
+      pretenure ? TENURED : NOT_TENURED);
 
-  return Rehash(HashTable::cast(obj), key);
+  table->Rehash(*new_table, key);
+  return new_table;
 }
 
 
-template<typename Shape, typename Key>
-uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
+template<typename Derived, typename Shape, typename Key>
+uint32_t HashTable<Derived, Shape, Key>::FindInsertionEntry(uint32_t hash) {
   uint32_t capacity = Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
@@ -14178,129 +14149,175 @@ uint32_t HashTable<Shape, Key>::FindInsertionEntry(uint32_t hash) {
 // Force instantiation of template instances class.
 // Please note this list is compiler dependent.
 
-template class HashTable<StringTableShape, HashTableKey*>;
+template class HashTable<StringTable, StringTableShape, HashTableKey*>;
 
-template class HashTable<CompilationCacheShape, HashTableKey*>;
+template class HashTable<CompilationCacheTable,
+                         CompilationCacheShape,
+                         HashTableKey*>;
 
-template class HashTable<MapCacheShape, HashTableKey*>;
+template class HashTable<MapCache, MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTableShape, Object*>;
+template class HashTable<ObjectHashTable, ObjectHashTableShape, Object*>;
 
-template class HashTable<WeakHashTableShape<2>, Object*>;
+template class HashTable<WeakHashTable, WeakHashTableShape<2>, Object*>;
 
-template class Dictionary<NameDictionaryShape, Name*>;
+template class Dictionary<NameDictionary, NameDictionaryShape, Name*>;
 
-template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
+template class Dictionary<SeededNumberDictionary,
+                          SeededNumberDictionaryShape,
+                          uint32_t>;
 
-template class Dictionary<UnseededNumberDictionaryShape, uint32_t>;
+template class Dictionary<UnseededNumberDictionary,
+                          UnseededNumberDictionaryShape,
+                          uint32_t>;
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
+template MaybeObject* Dictionary<NameDictionary, NameDictionaryShape, Name*>::
     Allocate(Heap* heap, int n, PretenureFlag pretenure);
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
-    uint32_t, Object*);
-
-template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     AtPut(uint32_t, Object*);
 
-template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+    AtPut(uint32_t, Object*);
+
+template Object*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
-template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+template Object*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
-template Object* Dictionary<NameDictionaryShape, Name*>::SlowReverseLookup(
+template Object*
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::SlowReverseLookup(
     Object*);
 
-template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
-    FixedArray*,
-    PropertyAttributes,
-    Dictionary<SeededNumberDictionaryShape, uint32_t>::SortMode);
+template void
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    CopyKeysTo(
+        FixedArray*,
+        PropertyAttributes,
+        Dictionary<SeededNumberDictionary,
+                   SeededNumberDictionaryShape,
+                   uint32_t>::SortMode);
 
-template Object* Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
+template Object*
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
     int, JSObject::DeleteMode);
 
-template Handle<Object> Dictionary<NameDictionaryShape, Name*>::DeleteProperty(
-    Handle<Dictionary<NameDictionaryShape, Name*> >,
+template Handle<Object>
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
+    Handle<Dictionary<NameDictionary, NameDictionaryShape, Name*> >,
     int,
     JSObject::DeleteMode);
 
-template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+template Object*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     DeleteProperty(int, JSObject::DeleteMode);
 
 template Handle<Object>
-Dictionary<SeededNumberDictionaryShape, uint32_t>::DeleteProperty(
-    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
-    int,
-    JSObject::DeleteMode);
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    DeleteProperty(
+        Handle<Dictionary<SeededNumberDictionary,
+                          SeededNumberDictionaryShape,
+                          uint32_t> >,
+        int,
+        JSObject::DeleteMode);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Shrink(Name* n);
+template Handle<NameDictionary>
+HashTable<NameDictionary, NameDictionaryShape, Name*>::
+    Shrink(Handle<NameDictionary>, Name* n);
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
-    uint32_t);
-template Handle<FixedArray>
-Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
-    Handle<Dictionary<SeededNumberDictionaryShape, uint32_t> >,
-    uint32_t);
+template Handle<SeededNumberDictionary>
+HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    Shrink(Handle<SeededNumberDictionary>, uint32_t);
 
-template void Dictionary<NameDictionaryShape, Name*>::CopyKeysTo(
-    FixedArray*,
-    int,
-    PropertyAttributes,
-    Dictionary<NameDictionaryShape, Name*>::SortMode);
+template void Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+    CopyKeysTo(
+        FixedArray*,
+        int,
+        PropertyAttributes,
+        Dictionary<NameDictionary, NameDictionaryShape, Name*>::SortMode);
 
 template int
-Dictionary<NameDictionaryShape, Name*>::NumberOfElementsFilterAttributes(
-    PropertyAttributes);
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+    NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::Add(
+template MaybeObject*
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::Add(
     Name*, Object*, PropertyDetails);
 
 template MaybeObject*
-Dictionary<NameDictionaryShape, Name*>::GenerateNewEnumerationIndices();
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+    GenerateNewEnumerationIndices();
 
 template int
-Dictionary<SeededNumberDictionaryShape, uint32_t>::
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Add(
+template MaybeObject*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::Add(
     uint32_t, Object*, PropertyDetails);
 
-template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::Add(
-    uint32_t, Object*, PropertyDetails);
+template MaybeObject*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+    Add(uint32_t, Object*, PropertyDetails);
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
-template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::
+template MaybeObject*
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::
     EnsureCapacity(int, Name*);
 
-template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
-template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+template MaybeObject*
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
-template MaybeObject* Dictionary<NameDictionaryShape, Name*>::AddEntry(
+template MaybeObject*
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::AddEntry(
     Name*, Object*, PropertyDetails, uint32_t);
 
 template
-int Dictionary<SeededNumberDictionaryShape, uint32_t>::NumberOfEnumElements();
+int Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    NumberOfEnumElements();
 
 template
-int Dictionary<NameDictionaryShape, Name*>::NumberOfEnumElements();
+int Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+    NumberOfEnumElements();
 
 template
-int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
+int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    FindEntry(uint32_t);
+
+
+Handle<NameDictionary> NameDictionary::AddNameEntry(Handle<NameDictionary> dict,
+                                                    Handle<Name> name,
+                                                    Handle<Object> value,
+                                                    PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dict->GetIsolate(),
+                     dict->Add(*name, *value, details),
+                     NameDictionary);
+}
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -14834,7 +14851,7 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
         isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Handle<NameDictionary> dictionary = NameDictionaryAdd(
+    Handle<NameDictionary> dictionary = NameDictionary::AddNameEntry(
         handle(global->property_dictionary()), name, cell, details);
     global->set_properties(*dictionary);
     return cell;
@@ -14917,6 +14934,7 @@ class TwoCharHashTableKey : public HashTableKey {
 
 
 bool StringTable::LookupStringIfExists(String* string, String** result) {
+  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
   InternalizedStringKey key(string);
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
@@ -14932,6 +14950,7 @@ bool StringTable::LookupStringIfExists(String* string, String** result) {
 bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
                                                uint16_t c2,
                                                String** result) {
+  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
   TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
@@ -14945,6 +14964,7 @@ bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
 
 
 MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
+  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
   int entry = FindEntry(key);
 
   // String already in table.
@@ -15146,13 +15166,14 @@ MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
-                                              int at_least_space_for,
-                                              PretenureFlag pretenure) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::Allocate(
+    Heap* heap,
+    int at_least_space_for,
+    PretenureFlag pretenure) {
   Object* obj;
   { MaybeObject* maybe_obj =
-      HashTable<Shape, Key>::Allocate(
+      DerivedHashTable::Allocate(
           heap,
           at_least_space_for,
           USE_DEFAULT_MINIMUM_CAPACITY,
@@ -15160,7 +15181,7 @@ MaybeObject* Dictionary<Shape, Key>::Allocate(Heap* heap,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   // Initialize the next enumeration index.
-  Dictionary<Shape, Key>::cast(obj)->
+  Dictionary::cast(obj)->
       SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return obj;
 }
@@ -15172,10 +15193,10 @@ void NameDictionary::DoGenerateNewEnumerationIndices(
                           dictionary->GenerateNewEnumerationIndices());
 }
 
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
-  Heap* heap = Dictionary<Shape, Key>::GetHeap();
-  int length = HashTable<Shape, Key>::NumberOfElements();
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
+  Heap* heap = Dictionary::GetHeap();
+  int length = DerivedHashTable::NumberOfElements();
 
   // Allocate and initialize iteration order array.
   Object* obj;
@@ -15194,10 +15215,10 @@ MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   FixedArray* enumeration_order = FixedArray::cast(obj);
 
   // Fill the enumeration order array with property details.
-  int capacity = HashTable<Shape, Key>::Capacity();
+  int capacity = DerivedHashTable::Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
+    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
       int index = DetailsAt(i).dictionary_index();
       enumeration_order->set(pos++, Smi::FromInt(index));
     }
@@ -15214,10 +15235,10 @@ MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   }
 
   // Update the dictionary with new indices.
-  capacity = HashTable<Shape, Key>::Capacity();
+  capacity = DerivedHashTable::Capacity();
   pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary<Shape, Key>::IsKey(Dictionary<Shape, Key>::KeyAt(i))) {
+    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
       PropertyDetails details = DetailsAt(i);
       PropertyDetails new_details = PropertyDetails(
@@ -15231,8 +15252,8 @@ MaybeObject* Dictionary<Shape, Key>::GenerateNewEnumerationIndices() {
   return this;
 }
 
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::EnsureCapacity(int n, Key key) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
   // Check whether there are enough enumeration indices to add n elements.
   if (Shape::kIsEnumerable &&
       !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
@@ -15242,14 +15263,14 @@ MaybeObject* Dictionary<Shape, Key>::EnsureCapacity(int n, Key key) {
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
   }
-  return HashTable<Shape, Key>::EnsureCapacity(n, key);
+  return DerivedHashTable::EnsureCapacity(n, key);
 }
 
 
 // TODO(ishell): Temporary wrapper until handlified.
-template<typename Shape, typename Key>
-Handle<Object> Dictionary<Shape, Key>::DeleteProperty(
-    Handle<Dictionary<Shape, Key> > dictionary,
+template<typename Derived, typename Shape, typename Key>
+Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
+    Handle<Dictionary<Derived, Shape, Key> > dictionary,
     int entry,
     JSObject::DeleteMode mode) {
   CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
@@ -15258,44 +15279,28 @@ Handle<Object> Dictionary<Shape, Key>::DeleteProperty(
 }
 
 
-template<typename Shape, typename Key>
-Object* Dictionary<Shape, Key>::DeleteProperty(int entry,
-                                               JSReceiver::DeleteMode mode) {
-  Heap* heap = Dictionary<Shape, Key>::GetHeap();
+template<typename Derived, typename Shape, typename Key>
+Object* Dictionary<Derived, Shape, Key>::DeleteProperty(
+    int entry,
+    JSReceiver::DeleteMode mode) {
+  Heap* heap = Dictionary::GetHeap();
   PropertyDetails details = DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
   if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return heap->false_value();
   }
   SetEntry(entry, heap->the_hole_value(), heap->the_hole_value());
-  HashTable<Shape, Key>::ElementRemoved();
+  DerivedHashTable::ElementRemoved();
   return heap->true_value();
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
-template<typename Shape, typename Key>
-Handle<FixedArray> Dictionary<Shape, Key>::Shrink(
-    Handle<Dictionary<Shape, Key> > dictionary,
-    Key key) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Shrink(key),
-                     FixedArray);
-}
-
-
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::Shrink(Key key) {
-  return HashTable<Shape, Key>::Shrink(key);
-}
-
-
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::AtPut(Key key, Object* value) {
   int entry = this->FindEntry(key);
 
   // If the entry is present set the value;
-  if (entry != Dictionary<Shape, Key>::kNotFound) {
+  if (entry != Dictionary::kNotFound) {
     ValueAtPut(entry, value);
     return this;
   }
@@ -15312,41 +15317,43 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
-  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
-      Dictionary<Shape, Key>::Hash(key));
+  return Dictionary::cast(obj)->AddEntry(
+      key, value, details, Dictionary::Hash(key));
 }
 
 
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::Add(Key key,
-                                         Object* value,
-                                         PropertyDetails details) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::Add(
+    Key key,
+    Object* value,
+    PropertyDetails details) {
   // Valdate key is absent.
-  SLOW_ASSERT((this->FindEntry(key) == Dictionary<Shape, Key>::kNotFound));
+  SLOW_ASSERT((this->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
   Object* obj;
   { MaybeObject* maybe_obj = EnsureCapacity(1, key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
-      Dictionary<Shape, Key>::Hash(key));
+  return Dictionary::cast(obj)->AddEntry(
+      key, value, details, Dictionary::Hash(key));
 }
 
 
 // Add a key, value pair to the dictionary.
-template<typename Shape, typename Key>
-MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
-                                              Object* value,
-                                              PropertyDetails details,
-                                              uint32_t hash) {
+template<typename Derived, typename Shape, typename Key>
+MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
+    Key key,
+    Object* value,
+    PropertyDetails details,
+    uint32_t hash) {
   // Compute the key object.
   Object* k;
   { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
 
-  uint32_t entry = Dictionary<Shape, Key>::FindInsertionEntry(hash);
+  uint32_t entry = Dictionary::FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
   if (!details.IsDeleted() &&
       details.dictionary_index() == 0 &&
@@ -15358,9 +15365,9 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
     SetNextEnumerationIndex(index + 1);
   }
   SetEntry(entry, k, value, details);
-  ASSERT((Dictionary<Shape, Key>::KeyAt(entry)->IsNumber() ||
-          Dictionary<Shape, Key>::KeyAt(entry)->IsName()));
-  HashTable<Shape, Key>::ElementAdded();
+  ASSERT((Dictionary::KeyAt(entry)->IsNumber() ||
+          Dictionary::KeyAt(entry)->IsName()));
+  DerivedHashTable::ElementAdded();
   return this;
 }
 
@@ -15474,14 +15481,14 @@ MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
 
 
 
-template<typename Shape, typename Key>
-int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
+template<typename Derived, typename Shape, typename Key>
+int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
     PropertyAttributes filter) {
-  int capacity = HashTable<Shape, Key>::Capacity();
+  int capacity = DerivedHashTable::Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
-    Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = DerivedHashTable::KeyAt(i);
+    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
@@ -15492,31 +15499,31 @@ int Dictionary<Shape, Key>::NumberOfElementsFilterAttributes(
 }
 
 
-template<typename Shape, typename Key>
-int Dictionary<Shape, Key>::NumberOfEnumElements() {
+template<typename Derived, typename Shape, typename Key>
+int Dictionary<Derived, Shape, Key>::NumberOfEnumElements() {
   return NumberOfElementsFilterAttributes(
       static_cast<PropertyAttributes>(DONT_ENUM | SYMBOLIC));
 }
 
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyKeysTo(
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     PropertyAttributes filter,
-    typename Dictionary<Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
-  int capacity = HashTable<Shape, Key>::Capacity();
+  int capacity = DerivedHashTable::Capacity();
   int index = 0;
   for (int i = 0; i < capacity; i++) {
-     Object* k = HashTable<Shape, Key>::KeyAt(i);
-     if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+     Object* k = DerivedHashTable::KeyAt(i);
+     if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
        PropertyDetails details = DetailsAt(i);
        if (details.IsDeleted()) continue;
        PropertyAttributes attr = details.attributes();
        if ((attr & filter) == 0) storage->set(index++, k);
      }
   }
-  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
+  if (sort_mode == Dictionary::SORTED) {
     storage->SortPairs(storage, index);
   }
   ASSERT(storage->length() >= index);
@@ -15558,24 +15565,24 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
 }
 
 
-template<typename Shape, typename Key>
-void Dictionary<Shape, Key>::CopyKeysTo(
+template<typename Derived, typename Shape, typename Key>
+void Dictionary<Derived, Shape, Key>::CopyKeysTo(
     FixedArray* storage,
     int index,
     PropertyAttributes filter,
-    typename Dictionary<Shape, Key>::SortMode sort_mode) {
+    typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   ASSERT(storage->length() >= NumberOfElementsFilterAttributes(filter));
-  int capacity = HashTable<Shape, Key>::Capacity();
+  int capacity = DerivedHashTable::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k = HashTable<Shape, Key>::KeyAt(i);
-    if (HashTable<Shape, Key>::IsKey(k) && !FilterKey(k, filter)) {
+    Object* k = DerivedHashTable::KeyAt(i);
+    if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) == 0) storage->set(index++, k);
     }
   }
-  if (sort_mode == Dictionary<Shape, Key>::SORTED) {
+  if (sort_mode == Dictionary::SORTED) {
     storage->SortPairs(storage, index);
   }
   ASSERT(storage->length() >= index);
@@ -15583,12 +15590,12 @@ void Dictionary<Shape, Key>::CopyKeysTo(
 
 
 // Backwards lookup (slow).
-template<typename Shape, typename Key>
-Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
-  int capacity = HashTable<Shape, Key>::Capacity();
+template<typename Derived, typename Shape, typename Key>
+Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
+  int capacity = DerivedHashTable::Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* k =  HashTable<Shape, Key>::KeyAt(i);
-    if (Dictionary<Shape, Key>::IsKey(k)) {
+    Object* k =  DerivedHashTable::KeyAt(i);
+    if (Dictionary::IsKey(k)) {
       Object* e = ValueAt(i);
       if (e->IsPropertyCell()) {
         e = PropertyCell::cast(e)->value();
@@ -15596,7 +15603,7 @@ Object* Dictionary<Shape, Key>::SlowReverseLookup(Object* value) {
       if (e == value) return k;
     }
   }
-  Heap* heap = Dictionary<Shape, Key>::GetHeap();
+  Heap* heap = Dictionary::GetHeap();
   return heap->undefined_value();
 }
 
@@ -15606,18 +15613,11 @@ Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
     int n,
     Handle<Object> key,
     PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
+  Handle<HashTable<ObjectHashTable,
+                   ObjectHashTableShape,
+                   Object*> > table_base = table;
   CALL_HEAP_FUNCTION(table_base->GetIsolate(),
                      table_base->EnsureCapacity(n, *key, pretenure),
-                     ObjectHashTable);
-}
-
-
-Handle<ObjectHashTable> ObjectHashTable::Shrink(
-    Handle<ObjectHashTable> table, Handle<Object> key) {
-  Handle<HashTable<ObjectHashTableShape, Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->Shrink(*key),
                      ObjectHashTable);
 }
 

@@ -1694,6 +1694,10 @@ class Assembler : public AssemblerBase {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
   }
 
+  ptrdiff_t InstructionOffset(Instruction* instr) const {
+    return reinterpret_cast<byte*>(instr) - buffer_;
+  }
+
   // Register encoding.
   static Instr Rd(CPURegister rd) {
     ASSERT(rd.code() != kSPRegInternalCode);
@@ -2040,6 +2044,7 @@ class Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
+  void CheckBufferSpace();
   void CheckBuffer();
 
   // Pc offset of the next constant pool check.
@@ -2182,6 +2187,11 @@ class Assembler : public AssemblerBase {
   // not later attempt (likely unsuccessfully) to patch it to branch directly to
   // the label.
   void DeleteUnresolvedBranchInfoForLabel(Label* label);
+  // This function deletes the information related to the label by traversing
+  // the label chain, and for each PC-relative instruction in the chain checking
+  // if pending unresolved information exists. Its complexity is proportional to
+  // the length of the label chain.
+  void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
  private:
   PositionsRecorder positions_recorder_;
@@ -2238,7 +2248,7 @@ class PatchingAssembler : public Assembler {
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
+    assembler->CheckBufferSpace();
   }
 };
 

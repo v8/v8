@@ -693,28 +693,41 @@ void Isolate::SetFailedAccessCheckCallback(
 }
 
 
-void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
+static inline AccessCheckInfo* GetAccessCheckInfo(Isolate* isolate,
+                                                  Handle<JSObject> receiver) {
+  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
+  if (!constructor->shared()->IsApiFunction()) return NULL;
+
+  Object* data_obj =
+     constructor->shared()->get_api_func_data()->access_check_info();
+  if (data_obj == isolate->heap()->undefined_value()) return NULL;
+
+  return AccessCheckInfo::cast(data_obj);
+}
+
+
+void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver,
+                                      v8::AccessType type) {
   if (!thread_local_top()->failed_access_check_callback_) return;
 
   ASSERT(receiver->IsAccessCheckNeeded());
   ASSERT(context());
 
   // Get the data object from access check info.
-  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  if (!constructor->shared()->IsApiFunction()) return;
-  Object* data_obj =
-      constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == heap_.undefined_value()) return;
-
   HandleScope scope(this);
-  Handle<JSObject> receiver_handle(receiver);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  { VMState<EXTERNAL> state(this);
-    thread_local_top()->failed_access_check_callback_(
-      v8::Utils::ToLocal(receiver_handle),
+  Handle<Object> data;
+  { DisallowHeapAllocation no_gc;
+    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
+    if (!access_check_info) return;
+    data = handle(access_check_info->data(), this);
+  }
+
+  // Leaving JavaScript.
+  VMState<EXTERNAL> state(this);
+  thread_local_top()->failed_access_check_callback_(
+      v8::Utils::ToLocal(receiver),
       type,
       v8::Utils::ToLocal(data));
-  }
 }
 
 
@@ -724,13 +737,14 @@ enum MayAccessDecision {
 
 
 static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
-                                           JSObject* receiver,
+                                           Handle<JSObject> receiver,
                                            v8::AccessType type) {
+  DisallowHeapAllocation no_gc;
   // During bootstrapping, callback functions are not enabled yet.
   if (isolate->bootstrapper()->IsActive()) return YES;
 
   if (receiver->IsJSGlobalProxy()) {
-    Object* receiver_context = JSGlobalProxy::cast(receiver)->native_context();
+    Object* receiver_context = JSGlobalProxy::cast(*receiver)->native_context();
     if (!receiver_context->IsContext()) return NO;
 
     // Get the native context of current top context.
@@ -748,16 +762,14 @@ static MayAccessDecision MayAccessPreCheck(Isolate* isolate,
 }
 
 
-bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
+bool Isolate::MayNamedAccess(Handle<JSObject> receiver,
+                             Handle<Object> key,
                              v8::AccessType type) {
   ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
-  // The callers of this method are not expecting a GC.
-  DisallowHeapAllocation no_gc;
-
   // Skip checks for hidden properties access.  Note, we do not
   // require existence of a context in this case.
-  if (key == heap_.hidden_string()) return true;
+  if (key.is_identical_to(factory()->hidden_string())) return true;
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
@@ -766,39 +778,30 @@ bool Isolate::MayNamedAccess(JSObject* receiver, Object* key,
   MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
   if (decision != UNKNOWN) return decision == YES;
 
-  // Get named access check callback
-  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  if (!constructor->shared()->IsApiFunction()) return false;
-
-  Object* data_obj =
-     constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == heap_.undefined_value()) return false;
-
-  Object* fun_obj = AccessCheckInfo::cast(data_obj)->named_callback();
-  v8::NamedSecurityCallback callback =
-      v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
-
-  if (!callback) return false;
-
   HandleScope scope(this);
-  Handle<JSObject> receiver_handle(receiver, this);
-  Handle<Object> key_handle(key, this);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  LOG(this, ApiNamedSecurityCheck(key));
-  bool result = false;
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(this);
-    result = callback(v8::Utils::ToLocal(receiver_handle),
-                      v8::Utils::ToLocal(key_handle),
-                      type,
-                      v8::Utils::ToLocal(data));
+  Handle<Object> data;
+  v8::NamedSecurityCallback callback;
+  { DisallowHeapAllocation no_gc;
+    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
+    if (!access_check_info) return false;
+    Object* fun_obj = access_check_info->named_callback();
+    callback = v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
+    if (!callback) return false;
+    data = handle(access_check_info->data(), this);
   }
-  return result;
+
+  LOG(this, ApiNamedSecurityCheck(*key));
+
+  // Leaving JavaScript.
+  VMState<EXTERNAL> state(this);
+  return callback(v8::Utils::ToLocal(receiver),
+                  v8::Utils::ToLocal(key),
+                  type,
+                  v8::Utils::ToLocal(data));
 }
 
 
-bool Isolate::MayIndexedAccess(JSObject* receiver,
+bool Isolate::MayIndexedAccess(Handle<JSObject> receiver,
                                uint32_t index,
                                v8::AccessType type) {
   ASSERT(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
@@ -809,34 +812,25 @@ bool Isolate::MayIndexedAccess(JSObject* receiver,
   MayAccessDecision decision = MayAccessPreCheck(this, receiver, type);
   if (decision != UNKNOWN) return decision == YES;
 
-  // Get indexed access check callback
-  JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
-  if (!constructor->shared()->IsApiFunction()) return false;
-
-  Object* data_obj =
-      constructor->shared()->get_api_func_data()->access_check_info();
-  if (data_obj == heap_.undefined_value()) return false;
-
-  Object* fun_obj = AccessCheckInfo::cast(data_obj)->indexed_callback();
-  v8::IndexedSecurityCallback callback =
-      v8::ToCData<v8::IndexedSecurityCallback>(fun_obj);
-
-  if (!callback) return false;
-
   HandleScope scope(this);
-  Handle<JSObject> receiver_handle(receiver, this);
-  Handle<Object> data(AccessCheckInfo::cast(data_obj)->data(), this);
-  LOG(this, ApiIndexedSecurityCheck(index));
-  bool result = false;
-  {
-    // Leaving JavaScript.
-    VMState<EXTERNAL> state(this);
-    result = callback(v8::Utils::ToLocal(receiver_handle),
-                      index,
-                      type,
-                      v8::Utils::ToLocal(data));
+  Handle<Object> data;
+  v8::IndexedSecurityCallback callback;
+  { DisallowHeapAllocation no_gc;
+    // Get named access check callback
+    AccessCheckInfo* access_check_info = GetAccessCheckInfo(this, receiver);
+    if (!access_check_info) return false;
+    Object* fun_obj = access_check_info->indexed_callback();
+    callback = v8::ToCData<v8::IndexedSecurityCallback>(fun_obj);
+    if (!callback) return false;
+    data = handle(access_check_info->data(), this);
   }
-  return result;
+
+  LOG(this, ApiIndexedSecurityCheck(index));
+
+  // Leaving JavaScript.
+  VMState<EXTERNAL> state(this);
+  return callback(
+      v8::Utils::ToLocal(receiver), index, type, v8::Utils::ToLocal(data));
 }
 
 

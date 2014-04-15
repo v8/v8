@@ -785,31 +785,15 @@ class Isolate {
   // the result is false, the pending exception is guaranteed to be
   // set.
 
-  // TODO(yangguo): temporary wrappers
-  bool MayNamedAccessWrapper(Handle<JSObject> receiver,
-                             Handle<Object> key,
-                             v8::AccessType type) {
-    return MayNamedAccess(*receiver, *key, type);
-  }
-  bool MayIndexedAccessWrapper(Handle<JSObject> receiver,
-                               uint32_t index,
-                               v8::AccessType type) {
-    return MayIndexedAccess(*receiver, index, type);
-  }
-  void ReportFailedAccessCheckWrapper(Handle<JSObject> receiver,
-                                      v8::AccessType type) {
-    ReportFailedAccessCheck(*receiver, type);
-  }
-
-  bool MayNamedAccess(JSObject* receiver,
-                      Object* key,
+  bool MayNamedAccess(Handle<JSObject> receiver,
+                      Handle<Object> key,
                       v8::AccessType type);
-  bool MayIndexedAccess(JSObject* receiver,
+  bool MayIndexedAccess(Handle<JSObject> receiver,
                         uint32_t index,
                         v8::AccessType type);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
-  void ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type);
+  void ReportFailedAccessCheck(Handle<JSObject> receiver, v8::AccessType type);
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.

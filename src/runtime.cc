@@ -1717,11 +1717,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
     if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccessWrapper(Handle<JSObject>::cast(obj),
-                                        isolate->factory()->proto_string(),
-                                        v8::ACCESS_GET)) {
-      isolate->ReportFailedAccessCheckWrapper(Handle<JSObject>::cast(obj),
-                                              v8::ACCESS_GET);
+        !isolate->MayNamedAccess(Handle<JSObject>::cast(obj),
+                                 isolate->factory()->proto_string(),
+                                 v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(obj),
+                                       v8::ACCESS_GET);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
@@ -1749,10 +1749,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
   if (obj->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccessWrapper(obj,
-                                      isolate->factory()->proto_string(),
-                                      v8::ACCESS_SET)) {
-    isolate->ReportFailedAccessCheckWrapper(obj, v8::ACCESS_SET);
+      !isolate->MayNamedAccess(
+          obj, isolate->factory()->proto_string(), v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(obj, v8::ACCESS_SET);
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
   }
@@ -1851,11 +1850,11 @@ static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
   if (name->AsArrayIndex(&index)) {
     // TODO(1095): we should traverse hidden prototype hierachy as well.
     if (CheckGenericAccess(
-            obj, obj, index, access_type, &Isolate::MayIndexedAccessWrapper)) {
+            obj, obj, index, access_type, &Isolate::MayIndexedAccess)) {
       return ACCESS_ALLOWED;
     }
 
-    obj->GetIsolate()->ReportFailedAccessCheckWrapper(obj, access_type);
+    obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
     return ACCESS_FORBIDDEN;
   }
 
@@ -1866,7 +1865,7 @@ static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
   if (!lookup.IsProperty()) return ACCESS_ABSENT;
   Handle<JSObject> holder(lookup.holder(), isolate);
   if (CheckGenericAccess<Handle<Object> >(
-          obj, holder, name, access_type, &Isolate::MayNamedAccessWrapper)) {
+          obj, holder, name, access_type, &Isolate::MayNamedAccess)) {
     return ACCESS_ALLOWED;
   }
 
@@ -1894,7 +1893,7 @@ static AccessCheckResult CheckPropertyAccess(Handle<JSObject> obj,
       break;
   }
 
-  isolate->ReportFailedAccessCheckWrapper(obj, access_type);
+  isolate->ReportFailedAccessCheck(obj, access_type);
   return ACCESS_FORBIDDEN;
 }
 
@@ -5793,10 +5792,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   if (obj->IsJSGlobalProxy()) {
     // Only collect names if access is permitted.
     if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccessWrapper(obj,
-                                        isolate->factory()->undefined_value(),
-                                        v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheckWrapper(obj, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccess(
+            obj, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheck(obj, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -5813,10 +5811,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   for (int i = 0; i < length; i++) {
     // Only collect names if access is permitted.
     if (jsproto->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccessWrapper(jsproto,
-                                        isolate->factory()->undefined_value(),
-                                        v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheckWrapper(jsproto, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccess(
+            jsproto, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheck(jsproto, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -5966,10 +5963,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
   if (object->IsJSGlobalProxy()) {
     // Do access checks before going to the global object.
     if (object->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccessWrapper(object,
-                                        isolate->factory()->undefined_value(),
-                                        v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheckWrapper(object, v8::ACCESS_KEYS);
+        !isolate->MayNamedAccess(
+            object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
+      isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
@@ -10718,63 +10714,49 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Break) {
 }
 
 
-static MaybeObject* DebugLookupResultValue(Heap* heap,
-                                           Object* receiver,
-                                           Name* name,
-                                           LookupResult* result,
-                                           bool* caught_exception) {
-  Object* value;
-  if (result->IsTransition()) return heap->undefined_value();
+static Handle<Object> DebugLookupResultValue(Isolate* isolate,
+                                             Handle<Object> receiver,
+                                             Handle<Name> name,
+                                             LookupResult* result,
+                                             bool* has_caught = NULL) {
+  Handle<Object> value = isolate->factory()->undefined_value();
+  if  (!result->IsFound()) return value;
   switch (result->type()) {
     case NORMAL:
-      value = result->holder()->GetNormalizedProperty(result);
-      if (value->IsTheHole()) {
-        return heap->undefined_value();
-      }
-      return value;
-    case FIELD: {
-      Object* value;
-      MaybeObject* maybe_value =
-          JSObject::cast(result->holder())->FastPropertyAt(
-              result->representation(),
-              result->GetFieldIndex().field_index());
-      if (!maybe_value->To(&value)) return maybe_value;
-      if (value->IsTheHole()) {
-        return heap->undefined_value();
-      }
-      return value;
-    }
+      value = JSObject::GetNormalizedProperty(
+          handle(result->holder(), isolate), result);
+      break;
+    case FIELD:
+      value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
+                                       result->representation(),
+                                       result->GetFieldIndex().field_index());
+      break;
     case CONSTANT:
-      return result->GetConstant();
+      return handle(result->GetConstant(), isolate);
     case CALLBACKS: {
-      Object* structure = result->GetCallbackObject();
+      Handle<Object> structure(result->GetCallbackObject(), isolate);
       if (structure->IsForeign() || structure->IsAccessorInfo()) {
-        Isolate* isolate = heap->isolate();
-        HandleScope scope(isolate);
-        MaybeHandle<Object> maybe_value = JSObject::GetPropertyWithCallback(
-            handle(result->holder(), isolate),
-            handle(receiver, isolate),
-            handle(structure, isolate),
-            handle(name, isolate));
-        Handle<Object> value;
-        if (maybe_value.ToHandle(&value)) return *value;
-        Object* exception = heap->isolate()->pending_exception();
-        heap->isolate()->clear_pending_exception();
-        if (caught_exception != NULL) *caught_exception = true;
-        return exception;
-      } else {
-        return heap->undefined_value();
+        MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
+            handle(result->holder(), isolate), receiver, structure, name);
+        if (!obj.ToHandle(&value)) {
+          value = handle(isolate->pending_exception(), isolate);
+          isolate->clear_pending_exception();
+          if (has_caught != NULL) *has_caught = true;
+          return value;
+        }
       }
+      break;
     }
     case INTERCEPTOR:
-      return heap->undefined_value();
+      break;
     case HANDLER:
     case NONEXISTENT:
       UNREACHABLE();
-      return heap->undefined_value();
+      break;
   }
-  UNREACHABLE();  // keep the compiler happy
-  return heap->undefined_value();
+  ASSERT(!value->IsTheHole() || result->IsReadOnly());
+  return value->IsTheHole()
+      ? Handle<Object>::cast(isolate->factory()->undefined_value()) : value;
 }
 
 
@@ -10848,29 +10830,23 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
         result_callback_obj = Handle<Object>(result.GetCallbackObject(),
                                              isolate);
       }
-      Smi* property_details = result.GetPropertyDetails().AsSmi();
-      // DebugLookupResultValue can cause GC so details from LookupResult needs
-      // to be copied to handles before this.
-      bool caught_exception = false;
-      Object* raw_value;
-      { MaybeObject* maybe_raw_value =
-            DebugLookupResultValue(isolate->heap(), *obj, *name,
-                                   &result, &caught_exception);
-        if (!maybe_raw_value->ToObject(&raw_value)) return maybe_raw_value;
-      }
-      Handle<Object> value(raw_value, isolate);
+
+
+      bool has_caught = false;
+      Handle<Object> value = DebugLookupResultValue(
+          isolate, obj, name, &result, &has_caught);
 
       // If the callback object is a fixed array then it contains JavaScript
       // getter and/or setter.
-      bool hasJavaScriptAccessors = result.IsPropertyCallbacks() &&
-                                    result_callback_obj->IsAccessorPair();
+      bool has_js_accessors = result.IsPropertyCallbacks() &&
+                              result_callback_obj->IsAccessorPair();
       Handle<FixedArray> details =
-          isolate->factory()->NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
+          isolate->factory()->NewFixedArray(has_js_accessors ? 5 : 2);
       details->set(0, *value);
-      details->set(1, property_details);
-      if (hasJavaScriptAccessors) {
+      details->set(1, result.GetPropertyDetails().AsSmi());
+      if (has_js_accessors) {
         AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
-        details->set(2, isolate->heap()->ToBoolean(caught_exception));
+        details->set(2, isolate->heap()->ToBoolean(has_caught));
         details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
         details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
       }
@@ -10896,10 +10872,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetProperty) {
 
   LookupResult result(isolate);
   obj->Lookup(*name, &result);
-  if (result.IsFound()) {
-    return DebugLookupResultValue(isolate->heap(), *obj, *name, &result, NULL);
-  }
-  return isolate->heap()->undefined_value();
+  return *DebugLookupResultValue(isolate, obj, name, &result);
 }
 
 
@@ -14867,18 +14840,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ObservationWeakMapCreate) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_UnwrapGlobalProxy) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  Object* object = args[0];
-  if (object->IsJSGlobalProxy()) {
-    object = object->GetPrototype(isolate);
-    if (object->IsNull()) return isolate->heap()->undefined_value();
-  }
-  return object;
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -14888,9 +14849,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   Handle<Object> key = args.at<Object>(2);
   SaveContext save(isolate);
   isolate->set_context(observer->context());
-  if (!isolate->MayNamedAccessWrapper(object,
-                                      isolate->factory()->undefined_value(),
-                                      v8::ACCESS_KEYS)) {
+  if (!isolate->MayNamedAccess(
+          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
     return isolate->heap()->false_value();
   }
   bool access_allowed = false;
@@ -14898,12 +14858,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   if (key->ToArrayIndex(&index) ||
       (key->IsString() && String::cast(*key)->AsArrayIndex(&index))) {
     access_allowed =
-        isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_GET) &&
-        isolate->MayIndexedAccessWrapper(object, index, v8::ACCESS_HAS);
+        isolate->MayIndexedAccess(object, index, v8::ACCESS_GET) &&
+        isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS);
   } else {
     access_allowed =
-        isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_GET) &&
-        isolate->MayNamedAccessWrapper(object, key, v8::ACCESS_HAS);
+        isolate->MayNamedAccess(object, key, v8::ACCESS_GET) &&
+        isolate->MayNamedAccess(object, key, v8::ACCESS_HAS);
   }
   return isolate->heap()->ToBoolean(access_allowed);
 }
@@ -15089,31 +15049,21 @@ static const Runtime::Function kIntrinsicFunctions[] = {
 #undef F
 
 
-MaybeObject* Runtime::InitializeIntrinsicFunctionNames(Heap* heap,
-                                                       Object* dictionary) {
-  ASSERT(dictionary != NULL);
-  ASSERT(NameDictionary::cast(dictionary)->NumberOfElements() == 0);
+void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
+                                               Handle<NameDictionary> dict) {
+  ASSERT(dict->NumberOfElements() == 0);
+  HandleScope scope(isolate);
   for (int i = 0; i < kNumFunctions; ++i) {
     const char* name = kIntrinsicFunctions[i].name;
     if (name == NULL) continue;
-    Object* name_string;
-    { MaybeObject* maybe_name_string =
-          heap->InternalizeUtf8String(name);
-      if (!maybe_name_string->ToObject(&name_string)) return maybe_name_string;
-    }
-    NameDictionary* name_dictionary = NameDictionary::cast(dictionary);
-    { MaybeObject* maybe_dictionary = name_dictionary->Add(
-          String::cast(name_string),
-          Smi::FromInt(i),
-          PropertyDetails(NONE, NORMAL, Representation::None()));
-      if (!maybe_dictionary->ToObject(&dictionary)) {
-        // Non-recoverable failure.  Calling code must restart heap
-        // initialization.
-        return maybe_dictionary;
-      }
-    }
+    Handle<NameDictionary> new_dict = NameDictionary::AddNameEntry(
+        dict,
+        isolate->factory()->InternalizeUtf8String(name),
+        Handle<Smi>(Smi::FromInt(i), isolate),
+        PropertyDetails(NONE, NORMAL, Representation::None()));
+    // The dictionary does not need to grow.
+    CHECK(new_dict.is_identical_to(dict));
   }
-  return dictionary;
 }
 
 

@@ -32,6 +32,11 @@ class Factory V8_FINAL {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocate a new fixed double array with hole values.
+  Handle<FixedDoubleArray> NewFixedDoubleArrayWithHoles(
+      int size,
+      PretenureFlag pretenure = NOT_TENURED);
+
   Handle<ConstantPoolArray> NewConstantPoolArray(
       int number_of_int64_entries,
       int number_of_code_ptr_entries,
