@@ -464,7 +464,7 @@ function APPLY_PREPARE(args) {
 }
 
 
-function APPLY_OVERFLOW(length) {
+function STACK_OVERFLOW(length) {
   throw %MakeRangeError('stack_overflow', []);
 }
 

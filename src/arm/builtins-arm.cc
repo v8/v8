@@ -1284,7 +1284,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ ldr(r1, MemOperand(fp, kFunctionOffset));
     __ Push(r1, r0);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     // End of stack check.
 
     // Push current limit and index.
@@ -1407,6 +1407,26 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
+static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
+                                      Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- r0 : actual number of arguments
+  //  -- r1 : function (passed through to callee)
+  //  -- r2 : expected number of arguments
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(r5, Heap::kRealStackLimitRootIndex);
+  // Make r5 the space we have left. The stack might already be overflowed
+  // here which will cause r5 to become negative.
+  __ sub(r5, sp, r5);
+  // Check if the arguments will overflow the stack.
+  __ cmp(r5, Operand(r2, LSL, kPointerSizeLog2));
+  __ b(le, stack_overflow);  // Signed comparison.
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
   __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -1446,6 +1466,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r2 : expected number of arguments
   // -----------------------------------
 
+  Label stack_overflow;
+  ArgumentAdaptorStackCheck(masm, &stack_overflow);
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
@@ -1545,6 +1567,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ Jump(r3);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ bkpt(0);
+  }
 }
 
 

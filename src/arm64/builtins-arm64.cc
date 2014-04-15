@@ -1280,7 +1280,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // There is not enough stack space, so use a builtin to throw an appropriate
     // error.
     __ Push(function, argc);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     // We should never return from the APPLY_OVERFLOW builtin.
     if (__ emit_debug_code()) {
       __ Unreachable();
@@ -1400,6 +1400,28 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
+static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
+                                      Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- x0 : actual number of arguments
+  //  -- x1 : function (passed through to callee)
+  //  -- x2 : expected number of arguments
+  // -----------------------------------
+  // Check the stack for overflow.
+  // We are not trying to catch interruptions (e.g. debug break and
+  // preemption) here, so the "real stack limit" is checked.
+  Label enough_stack_space;
+  __ LoadRoot(x10, Heap::kRealStackLimitRootIndex);
+  // Make x10 the space we have left. The stack might already be overflowed
+  // here which will cause x10 to become negative.
+  __ Sub(x10, jssp, x10);
+  __ Mov(x11, jssp);
+  // Check if the arguments will overflow the stack.
+  __ Cmp(x10, Operand(x2, LSL, kPointerSizeLog2));
+  __ B(le, stack_overflow);
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(x10, x0);
   __ Mov(x11, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
@@ -1432,6 +1454,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- x1 : function (passed through to callee)
   //  -- x2 : expected number of arguments
   // -----------------------------------
+
+  Label stack_overflow;
+  ArgumentAdaptorStackCheck(masm, &stack_overflow);
 
   Register argc_actual = x0;  // Excluding the receiver.
   Register argc_expected = x2;  // Excluding the receiver.
@@ -1552,6 +1577,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Call the entry point without adapting the arguments.
   __ Bind(&dont_adapt_arguments);
   __ Jump(code_entry);
+
+  __ Bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ Brk(0);
+  }
 }
 
 
