@@ -651,17 +651,6 @@ function ArrayUnshift(arg1) {  // length == 1
   if (IS_ARRAY(this) && !is_sealed) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
-    if (num_arguments == 0 && ObjectIsFrozen(this)) {
-      // In the zero argument case, values from the prototype come into the
-      // object. This can't be allowed on frozen arrays.
-      for (var i = 0; i < len; i++) {
-        if (!this.hasOwnProperty(i) && !IS_UNDEFINED(this[i])) {
-          throw MakeTypeError("array_functions_on_frozen",
-                              ["Array.prototype.shift"]);
-        }
-      }
-    }
-
     SimpleMove(this, 0, 0, len, num_arguments);
   }
 
