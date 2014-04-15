@@ -4917,10 +4917,8 @@ class ExternalUint8ClampedArray: public ExternalArray {
                                    int index);
   inline void set(int index, uint8_t value);
 
-  // This accessor applies the correct conversion from Smi, HeapNumber and
-  // undefined and clamps the converted value between 0 and 255.
-  Object* SetValue(uint32_t index, Object* value);
-
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined and clamps the converted value between 0 and 255.
   static Handle<Object> SetValue(Handle<ExternalUint8ClampedArray> array,
                                  uint32_t index,
                                  Handle<Object> value);
@@ -4945,13 +4943,11 @@ class ExternalInt8Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt8Array> array, int index);
   inline void set(int index, int8_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt8Array* cast(Object* obj);
@@ -4973,13 +4969,11 @@ class ExternalUint8Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalUint8Array> array, int index);
   inline void set(int index, uint8_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint8Array* cast(Object* obj);
@@ -5001,13 +4995,11 @@ class ExternalInt16Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt16Array> array, int index);
   inline void set(int index, int16_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt16Array* cast(Object* obj);
@@ -5030,13 +5022,11 @@ class ExternalUint16Array: public ExternalArray {
                                    int index);
   inline void set(int index, uint16_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint16Array* cast(Object* obj);
@@ -5058,13 +5048,11 @@ class ExternalInt32Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt32Array> array, int index);
   inline void set(int index, int32_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt32Array* cast(Object* obj);
@@ -5087,13 +5075,11 @@ class ExternalUint32Array: public ExternalArray {
                                    int index);
   inline void set(int index, uint32_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint32Array* cast(Object* obj);
@@ -5116,13 +5102,11 @@ class ExternalFloat32Array: public ExternalArray {
                                    int index);
   inline void set(int index, float value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalFloat32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloat32Array* cast(Object* obj);
@@ -5145,13 +5129,11 @@ class ExternalFloat64Array: public ExternalArray {
                                    int index);
   inline void set(int index, double value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalFloat64Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloat64Array* cast(Object* obj);

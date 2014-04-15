@@ -14791,11 +14791,14 @@ size_t JSTypedArray::element_size() {
 }
 
 
-Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
+Handle<Object> ExternalUint8ClampedArray::SetValue(
+    Handle<ExternalUint8ClampedArray> array,
+    uint32_t index,
+    Handle<Object> value) {
   uint8_t clamped_value = 0;
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       if (int_value < 0) {
         clamped_value = 0;
       } else if (int_value > 255) {
@@ -14804,7 +14807,7 @@ Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
         clamped_value = static_cast<uint8_t>(int_value);
       }
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       if (!(double_value > 0)) {
         // NaN and less than zero clamp to zero.
         clamped_value = 0;
@@ -14820,32 +14823,25 @@ Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, clamped_value);
+    array->set(index, clamped_value);
   }
-  return Smi::FromInt(clamped_value);
-}
-
-
-Handle<Object> ExternalUint8ClampedArray::SetValue(
-    Handle<ExternalUint8ClampedArray> array,
-    uint32_t index,
-    Handle<Object> value) {
-  return Handle<Object>(array->SetValue(index, *value), array->GetIsolate());
+  return handle(Smi::FromInt(clamped_value), array->GetIsolate());
 }
 
 
 template<typename ExternalArrayClass, typename ValueType>
-static MaybeObject* ExternalArrayIntSetter(Heap* heap,
-                                           ExternalArrayClass* receiver,
-                                           uint32_t index,
-                                           Object* value) {
+static Handle<Object> ExternalArrayIntSetter(
+    Isolate* isolate,
+    Handle<ExternalArrayClass> receiver,
+    uint32_t index,
+    Handle<Object> value) {
   ValueType cast_value = 0;
   if (index < static_cast<uint32_t>(receiver->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<ValueType>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
@@ -14854,88 +14850,47 @@ static MaybeObject* ExternalArrayIntSetter(Heap* heap,
     }
     receiver->set(index, cast_value);
   }
-  return heap->NumberFromInt32(cast_value);
+  return isolate->factory()->NewNumberFromInt(cast_value);
 }
 
 
 Handle<Object> ExternalInt8Array::SetValue(Handle<ExternalInt8Array> array,
                                            uint32_t index,
                                            Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
+  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-MaybeObject* ExternalInt8Array::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>
-      (GetHeap(), this, index, value);
+Handle<Object> ExternalUint8Array::SetValue(Handle<ExternalUint8Array> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-Handle<Object> ExternalUint8Array::SetValue(
-    Handle<ExternalUint8Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
+Handle<Object> ExternalInt16Array::SetValue(Handle<ExternalInt16Array> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-MaybeObject* ExternalUint8Array::SetValue(uint32_t index,
-                                                 Object* value) {
-  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>
-      (GetHeap(), this, index, value);
-}
-
-
-Handle<Object> ExternalInt16Array::SetValue(
-    Handle<ExternalInt16Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalInt16Array::SetValue(uint32_t index,
-                                          Object* value) {
-  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>
-      (GetHeap(), this, index, value);
-}
-
-
-Handle<Object> ExternalUint16Array::SetValue(
-    Handle<ExternalUint16Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalUint16Array::SetValue(uint32_t index,
-                                                  Object* value) {
-  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>
-      (GetHeap(), this, index, value);
+Handle<Object> ExternalUint16Array::SetValue(Handle<ExternalUint16Array> array,
+                                             uint32_t index,
+                                             Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
 Handle<Object> ExternalInt32Array::SetValue(Handle<ExternalInt32Array> array,
-                                          uint32_t index,
-                                          Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalInt32Array::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>
-      (GetHeap(), this, index, value);
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
@@ -14943,30 +14898,22 @@ Handle<Object> ExternalUint32Array::SetValue(
     Handle<ExternalUint32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalUint32Array::SetValue(uint32_t index, Object* value) {
   uint32_t cast_value = 0;
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<uint32_t>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, cast_value);
+    array->set(index, cast_value);
   }
-  return heap->NumberFromUint32(cast_value);
+  return array->GetIsolate()->factory()->NewNumberFromUint(cast_value);
 }
 
 
@@ -14974,30 +14921,22 @@ Handle<Object> ExternalFloat32Array::SetValue(
     Handle<ExternalFloat32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalFloat32Array::SetValue(uint32_t index, Object* value) {
   float cast_value = static_cast<float>(OS::nan_value());
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<float>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<float>(double_value);
     } else {
       // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, cast_value);
+    array->set(index, cast_value);
   }
-  return heap->AllocateHeapNumber(cast_value);
+  return array->GetIsolate()->factory()->NewNumber(cast_value);
 }
 
 
@@ -15005,29 +14944,18 @@ Handle<Object> ExternalFloat64Array::SetValue(
     Handle<ExternalFloat64Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalFloat64Array::SetValue(uint32_t index, Object* value) {
   double double_value = OS::nan_value();
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
-    if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
-      double_value = static_cast<double>(int_value);
-    } else if (value->IsHeapNumber()) {
-      double_value = HeapNumber::cast(value)->value();
+  if (index < static_cast<uint32_t>(array->length())) {
+    if (value->IsNumber()) {
+      double_value = value->Number();
     } else {
       // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, double_value);
+    array->set(index, double_value);
   }
-  return heap->AllocateHeapNumber(double_value);
+  return array->GetIsolate()->factory()->NewNumber(double_value);
 }
 
 
