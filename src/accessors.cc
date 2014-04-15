@@ -37,9 +37,31 @@
 #include "isolate.h"
 #include "list-inl.h"
 #include "property-details.h"
+#include "api.h"
 
 namespace v8 {
 namespace internal {
+
+
+static Handle<AccessorInfo> MakeAccessor(Isolate* isolate,
+                                         Handle<String> name,
+                                         AccessorGetterCallback getter,
+                                         AccessorSetterCallback setter,
+                                         PropertyAttributes attributes) {
+  Factory* factory = isolate->factory();
+  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  info->set_property_attributes(attributes);
+  info->set_all_can_read(true);
+  info->set_all_can_write(true);
+  info->set_prohibits_overwriting(false);
+  info->set_name(*factory->length_string());
+  info->set_property_attributes(attributes);
+  Handle<Object> get = v8::FromCData(isolate, getter);
+  Handle<Object> set = v8::FromCData(isolate, setter);
+  info->set_getter(*get);
+  info->set_setter(*set);
+  return info;
+}
 
 
 template <class C>
@@ -233,24 +255,42 @@ const AccessorDescriptor Accessors::ArrayLength = {
 // Accessors::StringLength
 //
 
-
-MaybeObject* Accessors::StringGetLength(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
-  Object* value = object;
-  if (object->IsJSValue()) value = JSValue::cast(object)->value();
-  if (value->IsString()) return Smi::FromInt(String::cast(value)->length());
-  // If object is not a string we return 0 to be compatible with WebKit.
-  // Note: Firefox returns the length of ToString(object).
-  return Smi::FromInt(0);
+void Accessors::StringLengthGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* value = *Utils::OpenHandle(*info.This());
+  Object* result;
+  if (value->IsJSValue()) value = JSValue::cast(value)->value();
+  if (value->IsString()) {
+    result = Smi::FromInt(String::cast(value)->length());
+  } else {
+    // If object is not a string we return 0 to be compatible with WebKit.
+    // Note: Firefox returns the length of ToString(object).
+    result = Smi::FromInt(0);
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::StringLength = {
-  StringGetLength,
-  IllegalSetter,
-  0
-};
+void Accessors::StringLengthSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::StringLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &StringLengthGetter,
+                      &StringLengthSetter,
+                      attributes);
+}
 
 
 //

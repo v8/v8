@@ -419,10 +419,9 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
         v8::ToCData<v8::AccessorGetterCallback>(data->getter());
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
-    Handle<JSObject> self = Handle<JSObject>::cast(receiver);
     Handle<String> key = Handle<String>::cast(name);
-    LOG(isolate, ApiNamedPropertyAccess("load", *self, *name));
-    PropertyCallbackArguments args(isolate, data->data(), *self, *object);
+    LOG(isolate, ApiNamedPropertyAccess("load", *object, *name));
+    PropertyCallbackArguments args(isolate, data->data(), *receiver, *object);
     v8::Handle<v8::Value> result =
         args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -2884,8 +2883,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
     if (call_fun == NULL) return value;
     Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("store", *object, *name));
-    PropertyCallbackArguments args(
-        isolate, data->data(), *object, JSObject::cast(*holder));
+    PropertyCallbackArguments args(isolate, data->data(), *object, *holder);
     args.Call(call_fun,
               v8::Utils::ToLocal(key),
               v8::Utils::ToLocal(value));
@@ -12137,13 +12135,12 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
     v8::AccessorGetterCallback call_fun =
         v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
     if (call_fun == NULL) return isolate->factory()->undefined_value();
-    Handle<JSObject> self = Handle<JSObject>::cast(receiver);
     Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key = isolate->factory()->NumberToString(number);
-    LOG(isolate, ApiNamedPropertyAccess("load", *self, *key));
+    LOG(isolate, ApiNamedPropertyAccess("load", *holder_handle, *key));
     PropertyCallbackArguments
-        args(isolate, data->data(), *self, *holder_handle);
+        args(isolate, data->data(), *receiver, *holder_handle);
     v8::Handle<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) return isolate->factory()->undefined_value();

@@ -911,10 +911,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         Handle<Map>(native_context()->string_function()->initial_map());
     Map::EnsureDescriptorSlack(string_map, 1);
 
-    Handle<Foreign> string_length(
-        factory->NewForeign(&Accessors::StringLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Handle<AccessorInfo> string_length(
+        Accessors::StringLengthInfo(isolate, attribs));
 
     {  // Add length.
       CallbacksDescriptor d(factory->length_string(), string_length, attribs);
