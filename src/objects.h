@@ -9723,11 +9723,10 @@ class Oddball: public HeapObject {
   DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
-  static void Initialize(Isolate* isolate,
-                         Handle<Oddball> oddball,
-                         const char* to_string,
-                         Handle<Object> to_number,
-                         byte kind);
+  MUST_USE_RESULT MaybeObject* Initialize(Heap* heap,
+                                          const char* to_string,
+                                          Object* to_number,
+                                          byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;

@@ -2094,6 +2094,11 @@ class Heap {
 
   void CreateFixedStubs();
 
+  MUST_USE_RESULT MaybeObject* CreateOddball(Map* map,
+                                             const char* to_string,
+                                             Object* to_number,
+                                             byte kind);
+
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
@@ -2870,10 +2875,10 @@ class RegExpResultsCache {
                         ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
-  static void Enter(Isolate* isolate,
-                    Handle<String> key_string,
-                    Handle<Object> key_pattern,
-                    Handle<FixedArray> value_array,
+  static void Enter(Heap* heap,
+                    String* key_string,
+                    Object* key_pattern,
+                    FixedArray* value_array,
                     ResultsCacheType type);
   static void Clear(FixedArray* cache);
   static const int kRegExpResultsCacheSize = 0x100;

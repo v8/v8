@@ -14,11 +14,6 @@ namespace internal {
 
 class Factory V8_FINAL {
  public:
-  Handle<Oddball> NewOddball(Handle<Map> map,
-                             const char* to_string,
-                             Handle<Object> to_number,
-                             byte kind);
-
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int size,

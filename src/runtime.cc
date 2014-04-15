@@ -4730,10 +4730,10 @@ static MaybeObject* SearchRegExpMultiple(
       fixed_array->set(fixed_array->length() - 1,
                        Smi::FromInt(builder.length()));
       // Cache the result and turn the FixedArray into a COW array.
-      RegExpResultsCache::Enter(isolate,
-                                subject,
-                                handle(regexp->data(), isolate),
-                                fixed_array,
+      RegExpResultsCache::Enter(isolate->heap(),
+                                *subject,
+                                regexp->data(),
+                                *fixed_array,
                                 RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
     return *builder.ToJSArray(result_array);
@@ -6750,10 +6750,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   if (limit == 0xffffffffu) {
     if (result->HasFastObjectElements()) {
-      RegExpResultsCache::Enter(isolate,
-                                subject,
-                                pattern,
-                                elements,
+      RegExpResultsCache::Enter(isolate->heap(),
+                                *subject,
+                                *pattern,
+                                *elements,
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
