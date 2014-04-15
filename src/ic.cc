@@ -442,7 +442,7 @@ void IC::RegisterWeakMapDependency(Handle<Code> stub) {
     MapHandleList maps;
     stub->FindAllMaps(&maps);
     if (maps.length() == 1 && stub->IsWeakObjectInIC(*maps.at(0))) {
-      maps.at(0)->AddDependentIC(stub);
+      Map::AddDependentIC(maps.at(0), stub);
       stub->mark_as_weak_stub();
       if (FLAG_enable_ool_constant_pool) {
         stub->constant_pool()->set_weak_object_state(

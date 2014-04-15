@@ -11689,35 +11689,41 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
-void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+// static
+void Map::AddDependentCompilationInfo(Handle<Map> map,
+                                      DependentCode::DependencyGroup group,
                                       CompilationInfo* info) {
-  Handle<DependentCode> dep(dependent_code());
   Handle<DependentCode> codes =
-      DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
+      DependentCode::Insert(handle(map->dependent_code(), info->isolate()),
+                            group, info->object_wrapper());
+  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
+  info->dependencies(group)->Add(map, info->zone());
 }
 
 
-void Map::AddDependentCode(DependentCode::DependencyGroup group,
+// static
+void Map::AddDependentCode(Handle<Map> map,
+                           DependentCode::DependencyGroup group,
                            Handle<Code> code) {
   Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+      Handle<DependentCode>(map->dependent_code()), group, code);
+  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
 }
 
 
-void Map::AddDependentIC(Handle<Code> stub) {
+// static
+void Map::AddDependentIC(Handle<Map> map,
+                         Handle<Code> stub) {
   ASSERT(stub->next_code_link()->IsUndefined());
-  int n = dependent_code()->number_of_entries(DependentCode::kWeakICGroup);
+  int n = map->dependent_code()->number_of_entries(DependentCode::kWeakICGroup);
   if (n == 0) {
     // Slow path: insert the head of the list with possible heap allocation.
-    AddDependentCode(DependentCode::kWeakICGroup, stub);
+    Map::AddDependentCode(map, DependentCode::kWeakICGroup, stub);
   } else {
     // Fast path: link the stub to the existing head of the list without any
     // heap allocation.
     ASSERT(n == 1);
-    dependent_code()->AddToDependentICList(stub);
+    map->dependent_code()->AddToDependentICList(stub);
   }
 }
 
@@ -16604,14 +16610,16 @@ void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
 }
 
 
-void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
-  Handle<DependentCode> dep(dependent_code());
+// static
+void PropertyCell::AddDependentCompilationInfo(Handle<PropertyCell> cell,
+                                               CompilationInfo* info) {
   Handle<DependentCode> codes =
-      DependentCode::Insert(dep, DependentCode::kPropertyCellChangedGroup,
+      DependentCode::Insert(handle(cell->dependent_code(), info->isolate()),
+                            DependentCode::kPropertyCellChangedGroup,
                             info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != cell->dependent_code()) cell->set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
-      Handle<HeapObject>(this), info->zone());
+      cell, info->zone());
 }
 
 

@@ -4925,7 +4925,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         Handle<GlobalObject> global(current_info()->global_object());
         Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
         if (cell->type()->IsConstant()) {
-          cell->AddDependentCompilationInfo(top_info());
+          PropertyCell::AddDependentCompilationInfo(cell, top_info());
           Handle<Object> constant_object = cell->type()->AsConstant();
           if (constant_object->IsConsString()) {
             constant_object =
@@ -5552,11 +5552,12 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMap(Handle<Map> map) {
     Handle<Map> field_map = field_type->AsClass();
     if (field_map->is_stable()) {
       field_map_ = field_map;
-      field_map_->AddDependentCompilationInfo(
-          DependentCode::kPrototypeCheckGroup, top_info());
+      Map::AddDependentCompilationInfo(
+          field_map_, DependentCode::kPrototypeCheckGroup, top_info());
 
       // Add dependency on the map that introduced the field.
-      lookup_.GetFieldOwnerFromMap(*map)->AddDependentCompilationInfo(
+      Map::AddDependentCompilationInfo(
+          handle(lookup_.GetFieldOwnerFromMap(*map), isolate()),
           DependentCode::kFieldTypeGroup, top_info());
     }
   }
@@ -6826,16 +6827,16 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
 HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
                                                    CompilationInfo* info) {
   HConstant* constant_value = New<HConstant>(constant);
+  Handle<Map> map(constant->map(), info->isolate());
 
   if (constant->map()->CanOmitMapChecks()) {
-    constant->map()->AddDependentCompilationInfo(
-        DependentCode::kPrototypeCheckGroup, info);
+    Map::AddDependentCompilationInfo(
+        map, DependentCode::kPrototypeCheckGroup, info);
     return constant_value;
   }
 
   AddInstruction(constant_value);
-  HCheckMaps* check =
-      Add<HCheckMaps>(constant_value, handle(constant->map()), info);
+  HCheckMaps* check = Add<HCheckMaps>(constant_value, map, info);
   check->ClearDependsOnFlag(kElementsKind);
   return check;
 }

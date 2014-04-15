@@ -3407,8 +3407,8 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
     // TODO(titzer): collect dependent map checks into a list.
     check_map->omit_ = true;
     if (map->CanTransition()) {
-      map->AddDependentCompilationInfo(
-          DependentCode::kPrototypeCheckGroup, info);
+      Map::AddDependentCompilationInfo(
+          map, DependentCode::kPrototypeCheckGroup, info);
     }
   }
   return check_map;
