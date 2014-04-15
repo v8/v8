@@ -3333,7 +3333,7 @@ bool Debugger::StartAgent(const char* name, int port,
     // Once become suspended, V8 will stay so indefinitely long, until remote
     // debugger connects and issues "continue" command.
     Debugger::message_handler_ = StubMessageHandler2;
-    v8::Debug::DebugBreak();
+    v8::Debug::DebugBreak(reinterpret_cast<v8::Isolate*>(isolate_));
   }
 
   if (agent_ == NULL) {

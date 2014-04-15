@@ -556,16 +556,6 @@ class Isolate {
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  // Get the debugger from the default isolate. Preinitializes the
-  // default isolate if needed.
-  static Debugger* GetDefaultIsolateDebugger();
-#endif
-
-  // Get the stack guard from the default isolate. Preinitializes the
-  // default isolate if needed.
-  static StackGuard* GetDefaultIsolateStackGuard();
-
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
@@ -1123,11 +1113,6 @@ class Isolate {
   SweeperThread** sweeper_threads() {
     return sweeper_thread_;
   }
-
-  // PreInits and returns a default isolate. Needed when a new thread tries
-  // to create a Locker for the first time (the lock itself is in the isolate).
-  // TODO(svenpanne) This method is on death row...
-  static v8::Isolate* GetDefaultIsolateForLocking();
 
   int id() const { return static_cast<int>(id_); }
 

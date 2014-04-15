@@ -212,19 +212,6 @@ struct StaticInitializer {
   }
 } static_initializer;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-Debugger* Isolate::GetDefaultIsolateDebugger() {
-  EnsureDefaultIsolate();
-  return default_isolate_->debugger();
-}
-#endif
-
-
-StackGuard* Isolate::GetDefaultIsolateStackGuard() {
-  EnsureDefaultIsolate();
-  return default_isolate_->stack_guard();
-}
-
 
 void Isolate::EnterDefaultIsolate() {
   EnsureDefaultIsolate();
@@ -235,12 +222,6 @@ void Isolate::EnterDefaultIsolate() {
   if (data == NULL || data->isolate() != default_isolate_) {
     default_isolate_->Enter();
   }
-}
-
-
-v8::Isolate* Isolate::GetDefaultIsolateForLocking() {
-  EnsureDefaultIsolate();
-  return reinterpret_cast<v8::Isolate*>(default_isolate_);
 }
 
 

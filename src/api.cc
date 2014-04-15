@@ -6522,12 +6522,7 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::TerminateExecution(Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  if (isolate != NULL) {
-    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
-  } else {
-    i::Isolate::GetDefaultIsolateStackGuard()->TerminateExecution();
-  }
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
 }
 
 
@@ -6844,34 +6839,19 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 
 
 void Debug::DebugBreak(Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  if (isolate != NULL) {
-    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
-  } else {
-    i::Isolate::GetDefaultIsolateStackGuard()->DebugBreak();
-  }
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
 }
 
 
 void Debug::CancelDebugBreak(Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  if (isolate != NULL) {
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
-  } else {
-    i::Isolate::GetDefaultIsolateStackGuard()->Continue(i::DEBUGBREAK);
-  }
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
 }
 
 
-void Debug::DebugBreakForCommand(ClientData* data, Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  if (isolate != NULL) {
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    internal_isolate->debugger()->EnqueueDebugCommand(data);
-  } else {
-    i::Isolate::GetDefaultIsolateDebugger()->EnqueueDebugCommand(data);
-  }
+void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debugger()->EnqueueDebugCommand(data);
 }
 
 
@@ -6890,21 +6870,6 @@ void Debug::SendCommand(Isolate* isolate,
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debugger()->ProcessCommand(
       i::Vector<const uint16_t>(command, length), client_data);
-}
-
-
-void Debug::SendCommand(const uint16_t* command, int length,
-                        ClientData* client_data,
-                        Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  if (isolate != NULL) {
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    internal_isolate->debugger()->ProcessCommand(
-        i::Vector<const uint16_t>(command, length), client_data);
-  } else {
-    i::Isolate::GetDefaultIsolateDebugger()->ProcessCommand(
-        i::Vector<const uint16_t>(command, length), client_data);
-  }
 }
 
 
@@ -7004,16 +6969,9 @@ Local<Context> Debug::GetDebugContext() {
 }
 
 
-void Debug::SetLiveEditEnabled(bool enable, Isolate* isolate) {
-  // If no isolate is supplied, use the default isolate.
-  i::Debugger* debugger;
-  if (isolate != NULL) {
-    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    debugger = internal_isolate->debugger();
-  } else {
-    debugger = i::Isolate::GetDefaultIsolateDebugger();
-  }
-  debugger->set_live_edit_enabled(enable);
+void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debugger()->set_live_edit_enabled(enable);
 }
 
 
