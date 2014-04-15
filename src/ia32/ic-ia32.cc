@@ -1282,7 +1282,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Address delta_address = test_instruction_address + 1;
   // The delta to the start of the map check instruction and the
   // condition code uses at the patched jump.
-  int8_t delta = *reinterpret_cast<int8_t*>(delta_address);
+  uint8_t delta = *reinterpret_cast<uint8_t*>(delta_address);
   if (FLAG_trace_ic) {
     PrintF("[  patching ic at %p, test=%p, delta=%d\n",
            address, test_instruction_address, delta);
