@@ -227,15 +227,13 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
 ScriptData* ScriptData::New(const char* data, int length) {
   // The length is obviously invalid.
   if (length % sizeof(unsigned) != 0) {
-    return new ScriptData();
+    return NULL;
   }
 
   int deserialized_data_length = length / sizeof(unsigned);
   unsigned* deserialized_data;
-  ScriptData* script_data = new ScriptData();
-  script_data->owns_store_ =
-      reinterpret_cast<intptr_t>(data) % sizeof(unsigned) != 0;
-  if (script_data->owns_store_) {
+  bool owns_store = reinterpret_cast<intptr_t>(data) % sizeof(unsigned) != 0;
+  if (owns_store) {
     // Copy the data to align it.
     deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
     i::CopyBytes(reinterpret_cast<char*>(deserialized_data),
@@ -244,9 +242,9 @@ ScriptData* ScriptData::New(const char* data, int length) {
     // If aligned, don't create a copy of the data.
     deserialized_data = reinterpret_cast<unsigned*>(const_cast<char*>(data));
   }
-  script_data->store_ =
-      Vector<unsigned>(deserialized_data, deserialized_data_length);
-  return script_data;
+  return new ScriptData(
+      Vector<unsigned>(deserialized_data, deserialized_data_length),
+      owns_store);
 }
 
 
@@ -740,9 +738,9 @@ Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
       return parser_->LookupCachedSymbol(symbol_id);
     }
   } else if (parser_->cached_data_mode() == PRODUCE_CACHED_DATA) {
-    if (parser_->log_->ShouldLogSymbols()) {
-      parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
-    }
+    // Parser is never used inside lazy functions (it falls back to PreParser
+    // instead), so we can produce the symbol data unconditionally.
+    parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
   }
   Handle<String> result =
       parser_->scanner()->AllocateInternalizedString(parser_->isolate());
@@ -3138,10 +3136,10 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 }
 
 
-void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
+void Parser::ReportInvalidCachedData(Handle<String> name, bool* ok) {
   SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
   const char* element[1] = { name_string.get() };
-  ReportMessage("invalid_preparser_data",
+  ReportMessage("invalid_cached_data_function",
                 Vector<const char*>(element, 1));
   *ok = false;
 }
@@ -3402,7 +3400,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           if (entry.end_pos() <= function_block_pos) {
             // End position greater than end of stream is safe, and hard
             // to check.
-            ReportInvalidPreparseData(function_name, CHECK_OK);
+            ReportInvalidCachedData(function_name, CHECK_OK);
           }
           scanner()->SeekForward(entry.end_pos() - 1);
 
@@ -3415,20 +3413,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
           scope_->SetStrictMode(entry.strict_mode());
         } else {
           // This case happens when we have preparse data but it doesn't contain
-          // an entry for the function. As a safety net, fall back to eager
-          // parsing. It is unclear whether PreParser's laziness analysis can
-          // produce different results than the Parser's laziness analysis (see
-          // https://codereview.chromium.org/7565003 ). In this case, we must
-          // discard all the preparse data, since the symbol data will be wrong.
-          is_lazily_parsed = false;
-          cached_data_mode_ = NO_CACHED_DATA;
+          // an entry for the function. Fail the compilation.
+          ReportInvalidCachedData(function_name, CHECK_OK);
         }
       } else {
         // With no cached data, we partially parse the function, without
         // building an AST. This gathers the data needed to build a lazy
         // function.
-        // FIXME(marja): Now the PreParser doesn't need to log functions /
-        // symbols; only errors -> clean that up.
         SingletonLogger logger;
         PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
         if (result == PreParser::kPreParseStackOverflow) {

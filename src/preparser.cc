@@ -88,7 +88,6 @@ void PreParserTraits::ReportMessageAt(int start_pos,
 
 
 PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
-  pre_parser_->LogSymbol();
   if (scanner->current_token() == Token::FUTURE_RESERVED_WORD) {
     return PreParserIdentifier::FutureReserved();
   } else if (scanner->current_token() ==
@@ -109,7 +108,6 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
 
 PreParserExpression PreParserTraits::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) {
-  pre_parser_->LogSymbol();
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {
     return PreParserExpression::UseStrictStringLiteral();
   }
@@ -932,10 +930,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
 void PreParser::ParseLazyFunctionLiteralBody(bool* ok) {
   int body_start = position();
-  bool is_logging = log_->ShouldLogSymbols();
-  if (is_logging) log_->PauseRecording();
   ParseSourceElements(Token::RBRACE, ok);
-  if (is_logging) log_->ResumeRecording();
   if (!*ok) return;
 
   // Position right after terminal '}'.
@@ -964,13 +959,6 @@ PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
 }
 
 #undef CHECK_OK
-
-
-void PreParser::LogSymbol() {
-  if (log_->ShouldLogSymbols()) {
-    scanner()->LogSymbol(log_, position());
-  }
-}
 
 
 } }  // v8::internal

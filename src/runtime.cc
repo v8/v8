@@ -655,9 +655,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateGlobalPrivateSymbol) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewSymbolWrapper) {
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(Symbol, symbol, 0);
-  return symbol->ToObject(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, symbol, 0);
+  return *Object::ToObject(isolate, symbol).ToHandleChecked();
 }
 
 
@@ -6849,10 +6850,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStringWrapper) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(String, value, 0);
-  return value->ToObject(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(String, value, 0);
+  return *Object::ToObject(isolate, value).ToHandleChecked();
 }
 
 
@@ -8952,16 +8953,16 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PushWithContext) {
   if (args[0]->IsJSReceiver()) {
     extension_object = args.at<JSReceiver>(0);
   } else {
-    // Convert the object to a proper JavaScript object.
-    Handle<Object> object = isolate->factory()->ToObject(args.at<Object>(0));
-    if (object.is_null()) {
+    // Try to convert the object to a proper JavaScript object.
+    MaybeHandle<JSReceiver> maybe_object =
+        Object::ToObject(isolate, args.at<Object>(0));
+    if (!maybe_object.ToHandle(&extension_object)) {
       Handle<Object> handle = args.at<Object>(0);
       Handle<Object> result =
           isolate->factory()->NewTypeError("with_expression",
                                            HandleVector(&handle, 1));
       return isolate->Throw(*result);
     }
-    extension_object = Handle<JSReceiver>::cast(object);
   }
 
   Handle<JSFunction> function;
@@ -11366,7 +11367,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       ASSERT(!receiver->IsNull());
       Context* context = Context::cast(it.frame()->context());
       Handle<Context> native_context(Context::cast(context->native_context()));
-      receiver = isolate->factory()->ToObject(receiver, native_context);
+      receiver = Object::ToObject(
+          isolate, receiver, native_context).ToHandleChecked();
     }
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);

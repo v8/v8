@@ -39,7 +39,7 @@ namespace internal {
 // Abstract interface for preparse data recorder.
 class ParserRecorder {
  public:
-  ParserRecorder() : should_log_symbols_(false) { }
+  ParserRecorder() { }
   virtual ~ParserRecorder() { }
 
   // Logs the scope and some details of a function literal in the source.
@@ -58,8 +58,6 @@ class ParserRecorder {
                           const char* argument_opt,
                           bool is_reference_error) = 0;
 
-  // Logs a symbol creation of a literal or identifier.
-  bool ShouldLogSymbols() { return should_log_symbols_; }
   // The following functions are only callable on CompleteParserRecorder
   // and are guarded by calls to ShouldLogSymbols.
   virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) {
@@ -68,11 +66,6 @@ class ParserRecorder {
   virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) {
     UNREACHABLE();
   }
-  virtual void PauseRecording() { UNREACHABLE(); }
-  virtual void ResumeRecording() { UNREACHABLE(); }
-
- protected:
-  bool should_log_symbols_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
@@ -188,16 +181,6 @@ class CompleteParserRecorder : public ParserRecorder {
                           const char* message,
                           const char* argument_opt,
                           bool is_reference_error_);
-
-  virtual void PauseRecording() {
-    ASSERT(should_log_symbols_);
-    should_log_symbols_ = false;
-  }
-
-  virtual void ResumeRecording() {
-    ASSERT(!should_log_symbols_);
-    should_log_symbols_ = !has_error();
-  }
 
   virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal);
   virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal);

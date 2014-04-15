@@ -1076,6 +1076,13 @@ MaybeObject* Object::ToSmi() {
 }
 
 
+MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
+                                         Handle<Object> object) {
+  return ToObject(
+      isolate, object, handle(isolate->context()->native_context(), isolate));
+}
+
+
 bool Object::HasSpecificClassOf(String* name) {
   return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
 }

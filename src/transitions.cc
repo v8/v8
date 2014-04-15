@@ -124,26 +124,11 @@ Handle<TransitionArray> TransitionArray::CopyInsert(Handle<Map> map,
 
   Handle<TransitionArray> result = Allocate(map->GetIsolate(), new_size);
 
-  // The map's transition array may have disappeared or grown smaller during
-  // the allocation above as it was weakly traversed. Trim the result copy if
-  // needed, and recompute variables.
+  // The map's transition array may grown smaller during the allocation above as
+  // it was weakly traversed, though it is guaranteed not to disappear. Trim the
+  // result copy if needed, and recompute variables.
+  ASSERT(map->HasTransitionArray());
   DisallowHeapAllocation no_gc;
-  if (!map->HasTransitionArray()) {
-    if (flag == SIMPLE_TRANSITION) {
-      ASSERT(result->length() >= kSimpleTransitionSize);
-      result->Shrink(kSimpleTransitionSize);
-      result->set(kSimpleTransitionTarget, *target);
-    } else {
-      ASSERT(result->length() >= ToKeyIndex(1));
-      result->Shrink(ToKeyIndex(1));
-      result->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
-      result->NoIncrementalWriteBarrierSet(0, *name, *target);
-    }
-    result->set_back_pointer_storage(map->GetBackPointer());
-
-    return result;
-  }
-
   TransitionArray* array = map->transitions();
   if (array->number_of_transitions() != number_of_transitions) {
     ASSERT(array->number_of_transitions() < number_of_transitions);

@@ -83,7 +83,6 @@ CompleteParserRecorder::CompleteParserRecorder()
 #ifdef DEBUG
   prev_start_ = -1;
 #endif
-  should_log_symbols_ = true;
 }
 
 
@@ -106,7 +105,6 @@ void CompleteParserRecorder::LogMessage(int start_pos,
   STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 4);
   WriteString(CStrVector(message));
   if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
-  should_log_symbols_ = false;
 }
 
 
@@ -120,7 +118,6 @@ void CompleteParserRecorder::WriteString(Vector<const char> str) {
 
 void CompleteParserRecorder::LogOneByteSymbol(int start,
                                               Vector<const uint8_t> literal) {
-  ASSERT(should_log_symbols_);
   int hash = vector_hash(literal);
   LogSymbol(start, hash, true, literal);
 }
@@ -128,7 +125,6 @@ void CompleteParserRecorder::LogOneByteSymbol(int start,
 
 void CompleteParserRecorder::LogTwoByteSymbol(int start,
                                               Vector<const uint16_t> literal) {
-  ASSERT(should_log_symbols_);
   int hash = vector_hash(literal);
   LogSymbol(start, hash, false, Vector<const byte>::cast(literal));
 }

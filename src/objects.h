@@ -1523,7 +1523,11 @@ class Object : public MaybeObject {
 
   // Convert to a JSObject if needed.
   // native_context is used when creating wrapper object.
-  MUST_USE_RESULT MaybeObject* ToObject(Context* native_context);
+  static inline MaybeHandle<JSReceiver> ToObject(Isolate* isolate,
+                                                 Handle<Object> object);
+  static MaybeHandle<JSReceiver> ToObject(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Context> context);
 
   // Converts this to a Smi if possible.
   // Failure is returned otherwise.

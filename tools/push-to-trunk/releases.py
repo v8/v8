@@ -39,6 +39,9 @@ MERGE_MESSAGE_RE = re.compile(r"^.*[M|m]erged (.+)(\)| into).*$", re.M)
 # new format).
 ROLLBACK_MESSAGE_RE = re.compile(r"^.*[R|r]ollback of (.+)(\)| in).*$", re.M)
 
+# Expression for retrieving the code review link.
+REVIEW_LINK_RE = re.compile(r"^Review URL: (.+)$", re.M)
+
 # Expression with three versions (historical) for extracting the v8 revision
 # from the chromium DEPS file.
 DEPS_RE = re.compile(r'^\s*(?:"v8_revision": "'
@@ -134,8 +137,7 @@ class RetrieveV8Releases(Step):
   def GetBleedingEdgeFromPush(self, title):
     return MatchSafe(PUSH_MESSAGE_RE.match(title))
 
-  def GetMergedPatches(self, git_hash):
-    body = self.GitLog(n=1, format="%B", git_hash=git_hash)
+  def GetMergedPatches(self, body):
     patches = MatchSafe(MERGE_MESSAGE_RE.search(body))
     if not patches:
       patches = MatchSafe(ROLLBACK_MESSAGE_RE.search(body))
@@ -148,16 +150,18 @@ class RetrieveV8Releases(Step):
     self.ReadAndPersistVersion()
     base_version = [self["major"], self["minor"], self["build"]]
     version = ".".join(base_version)
+    body = self.GitLog(n=1, format="%B", git_hash=git_hash)
 
     patches = ""
     if self["patch"] != "0":
       version += ".%s" % self["patch"]
-      patches = self.GetMergedPatches(git_hash)
+      patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
+    revision = self.GitSVNFindSVNRev(git_hash)
     return {
       # The SVN revision on the branch.
-      "revision": self.GitSVNFindSVNRev(git_hash),
+      "revision": revision,
       # The SVN revision on bleeding edge (only for newer trunk pushes).
       "bleeding_edge": self.GetBleedingEdgeFromPush(title),
       # The branch name.
@@ -168,6 +172,12 @@ class RetrieveV8Releases(Step):
       "patches_merged": patches,
       # Default for easier output formatting.
       "chromium_revision": "",
+      # Link to the CL on code review. Trunk pushes are not uploaded, so this
+      # field will be populated below with the recent roll CL link.
+      "review_link": MatchSafe(REVIEW_LINK_RE.search(body)),
+      # Link to the commit message on google code.
+      "revision_link": ("https://code.google.com/p/v8/source/detail?r=%s"
+                        % revision),
     }, self["patch"]
 
   def GetReleasesFromBranch(self, branch):
