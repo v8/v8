@@ -1554,6 +1554,18 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 }
 
 
+Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
+                                            Handle<Object> call_trap,
+                                            Handle<Object> construct_trap,
+                                            Handle<Object> prototype) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSFunctionProxy(
+          *handler, *call_trap, *construct_trap, *prototype),
+      JSProxy);
+}
+
+
 void Factory::BecomeJSObject(Handle<JSReceiver> object) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),

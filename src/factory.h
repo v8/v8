@@ -388,6 +388,11 @@ class Factory V8_FINAL {
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
+  Handle<JSProxy> NewJSFunctionProxy(Handle<Object> handler,
+                                     Handle<Object> call_trap,
+                                     Handle<Object> construct_trap,
+                                     Handle<Object> prototype);
+
   // Change the type of the argument into a JS object/function and reinitialize.
   void BecomeJSObject(Handle<JSReceiver> object);
   void BecomeJSFunction(Handle<JSReceiver> object);
