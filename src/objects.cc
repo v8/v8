@@ -13089,26 +13089,15 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
 void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
                                            uint32_t index,
                                            Handle<Object> value) {
-  CALL_HEAP_FUNCTION_VOID(array->GetIsolate(),
-                          array->JSArrayUpdateLengthFromIndex(index, *value));
-}
-
-
-MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
-                                                   Object* value) {
   uint32_t old_len = 0;
-  CHECK(length()->ToArrayIndex(&old_len));
+  CHECK(array->length()->ToArrayIndex(&old_len));
   // Check to see if we need to update the length. For now, we make
   // sure that the length stays within 32-bits (unsigned).
   if (index >= old_len && index != 0xffffffff) {
-    Object* len;
-    { MaybeObject* maybe_len =
-          GetHeap()->NumberFromDouble(static_cast<double>(index) + 1);
-      if (!maybe_len->ToObject(&len)) return maybe_len;
-    }
-    set_length(len);
+    Handle<Object> len = array->GetIsolate()->factory()->NewNumber(
+        static_cast<double>(index) + 1);
+    array->set_length(*len);
   }
-  return value;
 }
 
 
@@ -14526,107 +14515,88 @@ Handle<NameDictionary> NameDictionary::AddNameEntry(Handle<NameDictionary> dict,
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
     Handle<JSObject> object, uint32_t limit) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->PrepareSlowElementsForSort(limit),
-                     Object);
-}
-
-
-// Collates undefined and unexisting elements below limit from position
-// zero of the elements. The object stays in Dictionary mode.
-MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
-  ASSERT(HasDictionaryElements());
+  ASSERT(object->HasDictionaryElements());
+  Isolate* isolate = object->GetIsolate();
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
-  SeededNumberDictionary* dict = element_dictionary();
-  HeapNumber* result_double = NULL;
-  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
-    // Allocate space for result before we start mutating the object.
-    Object* new_double;
-    { MaybeObject* maybe_new_double = GetHeap()->AllocateHeapNumber(0.0);
-      if (!maybe_new_double->ToObject(&new_double)) return maybe_new_double;
-    }
-    result_double = HeapNumber::cast(new_double);
-  }
-
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        SeededNumberDictionary::Allocate(GetHeap(), dict->NumberOfElements());
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  SeededNumberDictionary* new_dict = SeededNumberDictionary::cast(obj);
-
-  DisallowHeapAllocation no_alloc;
+  Handle<SeededNumberDictionary> dict(object->element_dictionary(), isolate);
+  Handle<SeededNumberDictionary> new_dict =
+      isolate->factory()->NewSeededNumberDictionary(dict->NumberOfElements());
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
   int capacity = dict->Capacity();
+  Handle<Smi> bailout(Smi::FromInt(-1), isolate);
+  // Entry to the new dictionary does not cause it to grow, as we have
+  // allocated one that is large enough for all entries.
+  DisallowHeapAllocation no_gc;
   for (int i = 0; i < capacity; i++) {
     Object* k = dict->KeyAt(i);
-    if (dict->IsKey(k)) {
-      ASSERT(k->IsNumber());
-      ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
-      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
-      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
-      Object* value = dict->ValueAt(i);
-      PropertyDetails details = dict->DetailsAt(i);
-      if (details.type() == CALLBACKS || details.IsReadOnly()) {
-        // Bail out and do the sorting of undefineds and array holes in JS.
-        // Also bail out if the element is not supposed to be moved.
-        return Smi::FromInt(-1);
-      }
-      uint32_t key = NumberToUint32(k);
-      // In the following we assert that adding the entry to the new dictionary
-      // does not cause GC.  This is the case because we made sure to allocate
-      // the dictionary big enough above, so it need not grow.
-      if (key < limit) {
-        if (value->IsUndefined()) {
-          undefs++;
-        } else {
-          if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
-            // Adding an entry with the key beyond smi-range requires
-            // allocation. Bailout.
-            return Smi::FromInt(-1);
-          }
-          new_dict->AddNumberEntry(pos, value, details)->ToObjectUnchecked();
-          pos++;
-        }
+    if (!dict->IsKey(k)) continue;
+
+    ASSERT(k->IsNumber());
+    ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
+    ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
+    ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
+
+    HandleScope scope(isolate);
+    Handle<Object> value(dict->ValueAt(i), isolate);
+    PropertyDetails details = dict->DetailsAt(i);
+    if (details.type() == CALLBACKS || details.IsReadOnly()) {
+      // Bail out and do the sorting of undefineds and array holes in JS.
+      // Also bail out if the element is not supposed to be moved.
+      return bailout;
+    }
+
+    uint32_t key = NumberToUint32(k);
+    if (key < limit) {
+      if (value->IsUndefined()) {
+        undefs++;
+      } else if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+        // Adding an entry with the key beyond smi-range requires
+        // allocation. Bailout.
+        return bailout;
       } else {
-        if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
-          // Adding an entry with the key beyond smi-range requires
-          // allocation. Bailout.
-          return Smi::FromInt(-1);
-        }
-        new_dict->AddNumberEntry(key, value, details)->ToObjectUnchecked();
+        Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+            new_dict, pos, value, details);
+        ASSERT(result.is_identical_to(new_dict));
+        USE(result);
+        pos++;
       }
+    } else if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return bailout;
+    } else {
+      Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+          new_dict, key, value, details);
+      ASSERT(result.is_identical_to(new_dict));
+      USE(result);
     }
   }
 
   uint32_t result = pos;
   PropertyDetails no_details = PropertyDetails(NONE, NORMAL, 0);
-  Heap* heap = GetHeap();
   while (undefs > 0) {
     if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
       // Adding an entry with the key beyond smi-range requires
       // allocation. Bailout.
-      return Smi::FromInt(-1);
+      return bailout;
     }
-    new_dict->AddNumberEntry(pos, heap->undefined_value(), no_details)->
-        ToObjectUnchecked();
+    HandleScope scope(isolate);
+    Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+        new_dict, pos, isolate->factory()->undefined_value(), no_details);
+    ASSERT(result.is_identical_to(new_dict));
+    USE(result);
     pos++;
     undefs--;
   }
 
-  set_elements(new_dict);
+  object->set_elements(*new_dict);
 
-  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
-    return Smi::FromInt(static_cast<int>(result));
-  }
-
-  ASSERT_NE(NULL, result_double);
-  result_double->set_value(static_cast<double>(result));
-  return result_double;
+  AllowHeapAllocation allocate_return_value;
+  return isolate->factory()->NewNumberFromUint(result);
 }
 
 

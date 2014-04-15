@@ -2242,10 +2242,10 @@ class JSObject: public JSReceiver {
   static Handle<Object> PrepareElementsForSort(Handle<JSObject> object,
                                                uint32_t limit);
   // As PrepareElementsForSort, but only on objects where elements is
-  // a dictionary, and it will stay a dictionary.
+  // a dictionary, and it will stay a dictionary.  Collates undefined and
+  // unexisting elements below limit from position zero of the elements.
   static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
                                                    uint32_t limit);
-  MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
       Handle<JSObject> object,
@@ -10273,9 +10273,6 @@ class JSArray: public JSObject {
   static void JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
                                            uint32_t index,
                                            Handle<Object> value);
-
-  MUST_USE_RESULT MaybeObject* JSArrayUpdateLengthFromIndex(uint32_t index,
-                                                            Object* value);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
