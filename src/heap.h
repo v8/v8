@@ -735,22 +735,6 @@ class Heap {
                                                        Object* construct_trap,
                                                        Object* prototype);
 
-  // Reinitialize a JSReceiver into an (empty) JS object of respective type and
-  // size, but keeping the original prototype.  The receiver must have at least
-  // the size of the new object.  The object is reinitialized and behaves as an
-  // object that has been freshly allocated.
-  // Returns failure if an error occured, otherwise object.
-  MUST_USE_RESULT MaybeObject* ReinitializeJSReceiver(JSReceiver* object,
-                                                      InstanceType type,
-                                                      int size);
-
-  // Reinitialize an JSGlobalProxy based on a constructor.  The object
-  // must have the same size as objects allocated using the
-  // constructor.  The object is reinitialized and behaves as an
-  // object that has been freshly allocated using the constructor.
-  MUST_USE_RESULT MaybeObject* ReinitializeJSGlobalProxy(
-      JSFunction* constructor, JSGlobalProxy* global);
-
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -997,16 +981,6 @@ class Heap {
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);
-
-  // Allocates a function initialized with a shared part.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFunction(
-      Map* function_map,
-      SharedFunctionInfo* shared,
-      Object* prototype,
-      PretenureFlag pretenure = TENURED);
 
   // Sloppy mode arguments object size.
   static const int kSloppyArgumentsObjectSize =
@@ -2197,16 +2171,6 @@ class Heap {
 
   // Slow part of scavenge object.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
-
-  // Initializes a function with a shared part and prototype.
-  // Note: this code was factored out of AllocateFunction such that
-  // other parts of the VM could use it. Specifically, a function that creates
-  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
-  // Please note this does not perform a garbage collection.
-  inline void InitializeFunction(
-      JSFunction* function,
-      SharedFunctionInfo* shared,
-      Object* prototype);
 
   // Total RegExp code ever generated
   double total_regexp_code_generated_;

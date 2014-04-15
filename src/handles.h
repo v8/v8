@@ -324,10 +324,6 @@ Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
 
-Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
-    Handle<JSFunction> constructor,
-    Handle<JSGlobalProxy> global);
-
 void AddWeakObjectToCodeDependency(Heap* heap,
                                    Handle<Object> object,
                                    Handle<Code> code);

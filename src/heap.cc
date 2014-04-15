@@ -4093,36 +4093,6 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space,
 }
 
 
-void Heap::InitializeFunction(JSFunction* function,
-                              SharedFunctionInfo* shared,
-                              Object* prototype) {
-  ASSERT(!prototype->IsMap());
-  function->initialize_properties();
-  function->initialize_elements();
-  function->set_shared(shared);
-  function->set_code(shared->code());
-  function->set_prototype_or_initial_map(prototype);
-  function->set_context(undefined_value());
-  function->set_literals_or_bindings(empty_fixed_array());
-  function->set_next_function_link(undefined_value());
-}
-
-
-MaybeObject* Heap::AllocateFunction(Map* function_map,
-                                    SharedFunctionInfo* shared,
-                                    Object* prototype,
-                                    PretenureFlag pretenure) {
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(function_map, space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  InitializeFunction(JSFunction::cast(result), shared, prototype);
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // To get fast allocation and map sharing for arguments objects we
   // allocate them based on an arguments boilerplate.
@@ -4399,94 +4369,6 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   }
   // Return the new clone.
   return clone;
-}
-
-
-MaybeObject* Heap::ReinitializeJSReceiver(
-    JSReceiver* object, InstanceType type, int size) {
-  ASSERT(type >= FIRST_JS_OBJECT_TYPE);
-
-  // Allocate fresh map.
-  // TODO(rossberg): Once we optimize proxies, cache these maps.
-  Map* map;
-  MaybeObject* maybe = AllocateMap(type, size);
-  if (!maybe->To<Map>(&map)) return maybe;
-
-  // Check that the receiver has at least the size of the fresh object.
-  int size_difference = object->map()->instance_size() - map->instance_size();
-  ASSERT(size_difference >= 0);
-
-  map->set_prototype(object->map()->prototype());
-
-  // Allocate the backing storage for the properties.
-  int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties;
-  maybe = AllocateFixedArray(prop_size, TENURED);
-  if (!maybe->ToObject(&properties)) return maybe;
-
-  // Functions require some allocation, which might fail here.
-  SharedFunctionInfo* shared = NULL;
-  if (type == JS_FUNCTION_TYPE) {
-    String* name;
-    OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
-                         HashSeed());
-    maybe = InternalizeStringWithKey(&key);
-    if (!maybe->To<String>(&name)) return maybe;
-    maybe = AllocateSharedFunctionInfo(name);
-    if (!maybe->To<SharedFunctionInfo>(&shared)) return maybe;
-  }
-
-  // Because of possible retries of this function after failure,
-  // we must NOT fail after this point, where we have changed the type!
-
-  // Reset the map for the object.
-  object->set_map(map);
-  JSObject* jsobj = JSObject::cast(object);
-
-  // Reinitialize the object from the constructor map.
-  InitializeJSObjectFromMap(jsobj, FixedArray::cast(properties), map);
-
-  // Functions require some minimal initialization.
-  if (type == JS_FUNCTION_TYPE) {
-    map->set_function_with_prototype(true);
-    InitializeFunction(JSFunction::cast(object), shared, the_hole_value());
-    JSFunction::cast(object)->set_context(
-        isolate()->context()->native_context());
-  }
-
-  // Put in filler if the new object is smaller than the old.
-  if (size_difference > 0) {
-    CreateFillerObjectAt(
-        object->address() + map->instance_size(), size_difference);
-  }
-
-  return object;
-}
-
-
-MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
-                                             JSGlobalProxy* object) {
-  ASSERT(constructor->has_initial_map());
-  Map* map = constructor->initial_map();
-
-  // Check that the already allocated object has the same size and type as
-  // objects allocated using the constructor.
-  ASSERT(map->instance_size() == object->map()->instance_size());
-  ASSERT(map->instance_type() == object->map()->instance_type());
-
-  // Allocate the backing storage for the properties.
-  int prop_size = map->unused_property_fields() - map->inobject_properties();
-  Object* properties;
-  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, TENURED);
-    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
-  }
-
-  // Reset the map for the object.
-  object->set_map(constructor->initial_map());
-
-  // Reinitialize the object from the constructor map.
-  InitializeJSObjectFromMap(object, FixedArray::cast(properties), map);
-  return object;
 }
 
 

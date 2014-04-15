@@ -124,16 +124,6 @@ Address HandleScope::current_limit_address(Isolate* isolate) {
 }
 
 
-Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
-    Handle<JSFunction> constructor,
-    Handle<JSGlobalProxy> global) {
-  CALL_HEAP_FUNCTION(
-      constructor->GetIsolate(),
-      constructor->GetHeap()->ReinitializeJSGlobalProxy(*constructor, *global),
-      JSGlobalProxy);
-}
-
-
 MaybeHandle<Object> GetProperty(Handle<JSReceiver> obj,
                                 const char* name) {
   Isolate* isolate = obj->GetIsolate();

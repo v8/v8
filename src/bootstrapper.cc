@@ -766,9 +766,10 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
 
   if (global_object.location() != NULL) {
     ASSERT(global_object->IsJSGlobalProxy());
-    return ReinitializeJSGlobalProxy(
-        global_proxy_function,
-        Handle<JSGlobalProxy>::cast(global_object));
+    Handle<JSGlobalProxy> global_proxy =
+        Handle<JSGlobalProxy>::cast(global_object);
+    factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
+    return global_proxy;
   } else {
     return Handle<JSGlobalProxy>::cast(
         factory()->NewJSObject(global_proxy_function, TENURED));
