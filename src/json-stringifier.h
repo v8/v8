@@ -399,7 +399,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
-        isolate_->Throw<Object>(factory_->NewTypeError(
+        isolate_->Throw(*factory_->NewTypeError(
             "circular_structure", HandleVector<Object>(NULL, 0)));
         return EXCEPTION;
       }
