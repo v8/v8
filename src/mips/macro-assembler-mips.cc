@@ -3313,13 +3313,24 @@ void MacroAssembler::CopyBytes(Register src,
 
   // TODO(kalmard) check if this can be optimized to use sw in most cases.
   // Can't use unaligned access - copy byte by byte.
-  sb(scratch, MemOperand(dst, 0));
-  srl(scratch, scratch, 8);
-  sb(scratch, MemOperand(dst, 1));
-  srl(scratch, scratch, 8);
-  sb(scratch, MemOperand(dst, 2));
-  srl(scratch, scratch, 8);
-  sb(scratch, MemOperand(dst, 3));
+  if (kArchEndian == kLittle) {
+    sb(scratch, MemOperand(dst, 0));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 1));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 2));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 3));
+  } else {
+    sb(scratch, MemOperand(dst, 3));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 2));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 1));
+    srl(scratch, scratch, 8);
+    sb(scratch, MemOperand(dst, 0));
+  }
+
   Addu(dst, dst, 4);
 
   Subu(length, length, Operand(kPointerSize));
@@ -3424,11 +3435,12 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   bind(&have_double_value);
   sll(scratch1, key_reg, kDoubleSizeLog2 - kSmiTagSize);
   Addu(scratch1, scratch1, elements_reg);
-  sw(mantissa_reg, FieldMemOperand(
-     scratch1, FixedDoubleArray::kHeaderSize - elements_offset));
-  uint32_t offset = FixedDoubleArray::kHeaderSize - elements_offset +
-      sizeof(kHoleNanLower32);
-  sw(exponent_reg, FieldMemOperand(scratch1, offset));
+  sw(mantissa_reg,
+      FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize - elements_offset
+          + kHoleNanLower32Offset));
+  sw(exponent_reg,
+      FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize - elements_offset
+          + kHoleNanUpper32Offset));
   jmp(&done);
 
   bind(&maybe_nan);
@@ -3526,7 +3538,11 @@ void MacroAssembler::CheckMap(Register obj,
 
 void MacroAssembler::MovFromFloatResult(DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
-    Move(dst, v0, v1);
+    if (kArchEndian == kLittle) {
+      Move(dst, v0, v1);
+    } else {
+      Move(dst, v1, v0);
+    }
   } else {
     Move(dst, f0);  // Reg f0 is o32 ABI FP return value.
   }
@@ -3535,7 +3551,11 @@ void MacroAssembler::MovFromFloatResult(DoubleRegister dst) {
 
 void MacroAssembler::MovFromFloatParameter(DoubleRegister dst) {
   if (IsMipsSoftFloatABI) {
-    Move(dst, a0, a1);
+    if (kArchEndian == kLittle) {
+      Move(dst, a0, a1);
+    } else {
+      Move(dst, a1, a0);
+    }
   } else {
     Move(dst, f12);  // Reg f12 is o32 ABI FP first argument value.
   }
@@ -3546,7 +3566,11 @@ void MacroAssembler::MovToFloatParameter(DoubleRegister src) {
   if (!IsMipsSoftFloatABI) {
     Move(f12, src);
   } else {
-    Move(a0, a1, src);
+    if (kArchEndian == kLittle) {
+      Move(a0, a1, src);
+    } else {
+      Move(a1, a0, src);
+    }
   }
 }
 
@@ -3555,7 +3579,11 @@ void MacroAssembler::MovToFloatResult(DoubleRegister src) {
   if (!IsMipsSoftFloatABI) {
     Move(f0, src);
   } else {
-    Move(v0, v1, src);
+    if (kArchEndian == kLittle) {
+      Move(v0, v1, src);
+    } else {
+      Move(v1, v0, src);
+    }
   }
 }
 
@@ -3572,8 +3600,13 @@ void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
       Move(f14, src2);
     }
   } else {
-    Move(a0, a1, src1);
-    Move(a2, a3, src2);
+    if (kArchEndian == kLittle) {
+      Move(a0, a1, src1);
+      Move(a2, a3, src2);
+    } else {
+      Move(a1, a0, src1);
+      Move(a3, a2, src2);
+    }
   }
 }
 

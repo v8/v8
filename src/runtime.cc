@@ -9158,8 +9158,15 @@ static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
 #else
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   return reinterpret_cast<uint32_t>(x) |
       (reinterpret_cast<ObjectPair>(y) << 32);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+    return reinterpret_cast<uint32_t>(y) |
+        (reinterpret_cast<ObjectPair>(x) << 32);
+#else
+#error Unknown endianness
+#endif
 }
 #endif
 

@@ -1961,11 +1961,18 @@ class HeapNumber: public HeapObject {
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
   // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
-  // is a mixture of sign, exponent and mantissa.  Our current platforms are all
-  // little endian apart from non-EABI arm which is little endian with big
-  // endian floating point word ordering!
+  // is a mixture of sign, exponent and mantissa. The offsets of two 32 bit
+  // words within double numbers are endian dependent and they are set
+  // accordingly.
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const int kMantissaOffset = kValueOffset + 4;
+  static const int kExponentOffset = kValueOffset;
+#else
+#error Unknown byte ordering
+#endif
 
   static const int kSize = kValueOffset + kDoubleSize;
   static const uint32_t kSignMask = 0x80000000u;
@@ -7418,9 +7425,9 @@ class SharedFunctionInfo: public HeapObject {
   // The construction counter for inobject slack tracking is stored in the
   // most significant byte of compiler_hints which is otherwise unused.
   // Its offset depends on the endian-ness of the architecture.
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kConstructionCountOffset = kCompilerHintsOffset + 3;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif defined(V8_TARGET_BIG_ENDIAN)
   static const int kConstructionCountOffset = kCompilerHintsOffset + 0;
 #else
 #error Unknown byte ordering
@@ -7494,12 +7501,12 @@ class SharedFunctionInfo: public HeapObject {
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif defined(V8_TARGET_BIG_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);

@@ -470,9 +470,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       if (count_constructions) {
         __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
-        __ lw(a0, FieldMemOperand(a2, Map::kInstanceSizesOffset));
-        __ Ext(a0, a0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
-                kBitsPerByte);
+        __ lbu(a0, FieldMemOperand(a2, Map::kPreAllocatedPropertyFieldsOffset));
         __ sll(at, a0, kPointerSizeLog2);
         __ addu(a0, t5, at);
         __ sll(at, a3, kPointerSizeLog2);
@@ -525,12 +523,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ lbu(a3, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
       // The field instance sizes contains both pre-allocated property fields
       // and in-object properties.
-      __ lw(a0, FieldMemOperand(a2, Map::kInstanceSizesOffset));
-      __ Ext(t6, a0, Map::kPreAllocatedPropertyFieldsByte * kBitsPerByte,
-             kBitsPerByte);
+      __ lbu(t6, FieldMemOperand(a2, Map::kPreAllocatedPropertyFieldsOffset));
       __ Addu(a3, a3, Operand(t6));
-      __ Ext(t6, a0, Map::kInObjectPropertiesByte * kBitsPerByte,
-              kBitsPerByte);
+      __ lbu(t6, FieldMemOperand(a2, Map::kInObjectPropertiesOffset));
       __ subu(a3, a3, t6);
 
       // Done if no extra properties are to be allocated.

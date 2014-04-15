@@ -75,7 +75,11 @@ inline unsigned int FastD2UI(double x) {
   if (x < k2Pow52) {
     x += k2Pow52;
     uint32_t result;
+#ifndef V8_TARGET_BIG_ENDIAN
     Address mantissa_ptr = reinterpret_cast<Address>(&x);
+#else
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+#endif
     // Copy least significant 32 bits of mantissa.
     OS::MemCopy(&result, mantissa_ptr, sizeof(result));
     return negative ? ~result + 1 : result;
