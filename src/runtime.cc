@@ -555,15 +555,16 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
 }
 
 
-static MaybeObject* CreateArrayLiteralImpl(Isolate* isolate,
+static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
                                            Handle<FixedArray> literals,
                                            int literals_index,
                                            Handle<FixedArray> elements,
                                            int flags) {
   Handle<AllocationSite> site;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, site,
-      GetLiteralAllocationSite(isolate, literals, literals_index, elements));
+      GetLiteralAllocationSite(isolate, literals, literals_index, elements),
+      JSObject);
 
   bool enable_mementos = (flags & ArrayLiteral::kDisableMementos) == 0;
   Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()));
@@ -575,8 +576,7 @@ static MaybeObject* CreateArrayLiteralImpl(Isolate* isolate,
   Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
                                              hints);
   usage_context.ExitScope(site, boilerplate);
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
-  return *copy;
+  return copy;
 }
 
 
@@ -588,8 +588,11 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateArrayLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
-  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
-                                flags);
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+      CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                             flags));
+  return *result;
 }
 
 
@@ -600,8 +603,11 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateArrayLiteralStubBailout) {
   CONVERT_SMI_ARG_CHECKED(literals_index, 1);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, elements, 2);
 
-  return CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
-                                ArrayLiteral::kShallowElements);
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+     CreateArrayLiteralImpl(isolate, literals, literals_index, elements,
+                            ArrayLiteral::kShallowElements));
+  return *result;
 }
 
 
@@ -610,11 +616,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
   ASSERT(args.length() == 1);
   Handle<Object> name(args[0], isolate);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Symbol* symbol;
-  MaybeObject* maybe = isolate->heap()->AllocateSymbol();
-  if (!maybe->To(&symbol)) return maybe;
+  Handle<Symbol> symbol = isolate->factory()->NewSymbol();
   if (name->IsString()) symbol->set_name(*name);
-  return symbol;
+  return *symbol;
 }
 
 
@@ -623,11 +627,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
   ASSERT(args.length() == 1);
   Handle<Object> name(args[0], isolate);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
-  Symbol* symbol;
-  MaybeObject* maybe = isolate->heap()->AllocatePrivateSymbol();
-  if (!maybe->To(&symbol)) return maybe;
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (name->IsString()) symbol->set_name(*name);
-  return symbol;
+  return *symbol;
 }
 
 
@@ -1725,19 +1727,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
       RETURN_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
-    obj = handle(obj->GetPrototype(isolate), isolate);
+    obj = Object::GetPrototype(isolate, obj);
   } while (obj->IsJSObject() &&
            JSObject::cast(*obj)->map()->is_hidden_prototype());
   return *obj;
 }
 
 
-static inline Object* GetPrototypeSkipHiddenPrototypes(Isolate* isolate,
-                                                       Object* receiver) {
-  Object* current = receiver->GetPrototype(isolate);
+static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
+    Isolate* isolate, Handle<Object> receiver) {
+  Handle<Object> current = Object::GetPrototype(isolate, receiver);
   while (current->IsJSObject() &&
-         JSObject::cast(current)->map()->is_hidden_prototype()) {
-    current = current->GetPrototype(isolate);
+         JSObject::cast(*current)->map()->is_hidden_prototype()) {
+    current = Object::GetPrototype(isolate, current);
   }
   return current;
 }
@@ -1756,14 +1758,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     return isolate->heap()->undefined_value();
   }
   if (obj->map()->is_observed()) {
-    Handle<Object> old_value(
-        GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
+    Handle<Object> old_value = GetPrototypeSkipHiddenPrototypes(isolate, obj);
 
     Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
     RETURN_IF_EMPTY_HANDLE(isolate, result);
 
-    Handle<Object> new_value(
-        GetPrototypeSkipHiddenPrototypes(isolate, *obj), isolate);
+    Handle<Object> new_value = GetPrototypeSkipHiddenPrototypes(isolate, obj);
     if (!new_value->SameValue(*old_value)) {
       JSObject::EnqueueChangeRecord(obj, "setPrototype",
                                     isolate->factory()->proto_string(),
@@ -1778,15 +1778,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   ASSERT(args.length() == 2);
   // See ECMA-262, section 15.3.5.3, page 88 (steps 5 - 8).
-  Object* O = args[0];
-  Object* V = args[1];
+  Handle<Object> O = args.at<Object>(0);
+  Handle<Object> V = args.at<Object>(1);
   while (true) {
-    Object* prototype = V->GetPrototype(isolate);
+    Handle<Object> prototype = Object::GetPrototype(isolate, V);
     if (prototype->IsNull()) return isolate->heap()->false_value();
-    if (O == prototype) return isolate->heap()->true_value();
+    if (*O == *prototype) return isolate->heap()->true_value();
     V = prototype;
   }
 }
@@ -13184,10 +13184,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugConstructedBy) {
 // Find the effective prototype object as returned by __proto__.
 // args[0]: the object to find the prototype for.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPrototype) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  return GetPrototypeSkipHiddenPrototypes(isolate, obj);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  return *GetPrototypeSkipHiddenPrototypes(isolate, obj);
 }
 
 
@@ -14531,31 +14531,35 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
   Object* key = args[1];
 
-  int finger_index = cache->finger_index();
-  Object* o = cache->get(finger_index);
-  if (o == key) {
-    // The fastest case: hit the same place again.
-    return cache->get(finger_index + 1);
-  }
+  {
+    DisallowHeapAllocation no_alloc;
 
-  for (int i = finger_index - 2;
-       i >= JSFunctionResultCache::kEntriesIndex;
-       i -= 2) {
-    o = cache->get(i);
+    int finger_index = cache->finger_index();
+    Object* o = cache->get(finger_index);
     if (o == key) {
-      cache->set_finger_index(i);
-      return cache->get(i + 1);
+      // The fastest case: hit the same place again.
+      return cache->get(finger_index + 1);
     }
-  }
 
-  int size = cache->size();
-  ASSERT(size <= cache->length());
+    for (int i = finger_index - 2;
+         i >= JSFunctionResultCache::kEntriesIndex;
+         i -= 2) {
+      o = cache->get(i);
+      if (o == key) {
+        cache->set_finger_index(i);
+        return cache->get(i + 1);
+      }
+    }
 
-  for (int i = size - 2; i > finger_index; i -= 2) {
-    o = cache->get(i);
-    if (o == key) {
-      cache->set_finger_index(i);
-      return cache->get(i + 1);
+    int size = cache->size();
+    ASSERT(size <= cache->length());
+
+    for (int i = size - 2; i > finger_index; i -= 2) {
+      o = cache->get(i);
+      if (o == key) {
+        cache->set_finger_index(i);
+        return cache->get(i + 1);
+      }
     }
   }
 
@@ -14585,8 +14589,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
 #endif
 
   // Function invocation may have cleared the cache.  Reread all the data.
-  finger_index = cache_handle->finger_index();
-  size = cache_handle->size();
+  int finger_index = cache_handle->finger_index();
+  int size = cache_handle->size();
 
   // If we have spare room, put new data into it, otherwise evict post finger
   // entry which is likely to be the least recently used.

@@ -907,6 +907,7 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 
 
 Object* Object::GetPrototype(Isolate* isolate) {
+  DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
     Context* context = isolate->context()->native_context();
     return context->number_function()->instance_prototype();
@@ -935,6 +936,12 @@ Object* Object::GetPrototype(Isolate* isolate) {
   } else {
     return isolate->heap()->null_value();
   }
+}
+
+
+Handle<Object> Object::GetPrototype(Isolate* isolate,
+                                    Handle<Object> object) {
+  return handle(object->GetPrototype(isolate), isolate);
 }
 
 
