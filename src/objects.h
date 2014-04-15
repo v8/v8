@@ -1511,8 +1511,9 @@ class Object : public MaybeObject {
 
   Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
 
-  inline MaybeObject* AllocateNewStorageFor(Heap* heap,
-                                            Representation representation);
+  inline static Handle<Object> NewStorageFor(Isolate* isolate,
+                                             Handle<Object> object,
+                                             Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -2608,9 +2609,6 @@ class JSObject: public JSReceiver {
                                         int unused_property_fields);
 
   // Access fast-case object properties at index.
-  MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
-      Representation representation,
-      int index);
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        int index);

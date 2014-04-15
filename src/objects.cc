@@ -1824,17 +1824,6 @@ String* JSReceiver::constructor_name() {
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> NewStorageFor(Isolate* isolate,
-                                    Handle<Object> object,
-                                    Representation representation) {
-  Heap* heap = isolate->heap();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->AllocateNewStorageFor(heap, representation),
-                     Object);
-}
-
-
 void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -2247,7 +2236,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
       if (old_details.representation().IsNone()) {
         value = handle(Smi::FromInt(0), isolate);
       }
-      value = NewStorageFor(isolate, value, details.representation());
+      value = Object::NewStorageFor(isolate, value, details.representation());
     }
     ASSERT(!(details.representation().IsDouble() && value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
@@ -5846,8 +5835,8 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         Representation representation,
                                         int index) {
   Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->FastPropertyAt(representation, index), Object);
+  Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
+  return Object::NewStorageFor(isolate, raw_value, representation);
 }
 
 
@@ -5947,7 +5936,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
         } else {
           Representation representation = details.representation();
-          value = NewStorageFor(isolate, value, representation);
+          value = Object::NewStorageFor(isolate, value, representation);
         }
         if (copying) {
           copy->FastPropertyAtPut(index, *value);

@@ -5023,7 +5023,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
           if (!result.representation().IsDouble()) {
             keyed_lookup_cache->Update(receiver_map, key, offset);
           }
-          return receiver->FastPropertyAt(result.representation(), offset);
+          HandleScope scope(isolate);
+          return *JSObject::FastPropertyAt(
+              handle(receiver, isolate), result.representation(), offset);
         }
       } else {
         // Attempt dictionary lookup.

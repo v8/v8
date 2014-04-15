@@ -294,16 +294,17 @@ bool Object::HasValidElements() {
 }
 
 
-MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
-                                           Representation representation) {
-  if (representation.IsSmi() && IsUninitialized()) {
-    return Smi::FromInt(0);
+Handle<Object> Object::NewStorageFor(Isolate* isolate,
+                                     Handle<Object> object,
+                                     Representation representation) {
+  if (representation.IsSmi() && object->IsUninitialized()) {
+    return handle(Smi::FromInt(0), isolate);
   }
-  if (!representation.IsDouble()) return this;
-  if (IsUninitialized()) {
-    return heap->AllocateHeapNumber(0);
+  if (!representation.IsDouble()) return object;
+  if (object->IsUninitialized()) {
+    return isolate->factory()->NewHeapNumber(0);
   }
-  return heap->AllocateHeapNumber(Number());
+  return isolate->factory()->NewHeapNumber(object->Number());
 }
 
 
@@ -1985,13 +1986,6 @@ void JSObject::SetInternalField(int index, Smi* value) {
   // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
   WRITE_FIELD(this, offset, value);
-}
-
-
-MaybeObject* JSObject::FastPropertyAt(Representation representation,
-                                      int index) {
-  Object* raw_value = RawFastPropertyAt(index);
-  return raw_value->AllocateNewStorageFor(GetHeap(), representation);
 }
 
 
