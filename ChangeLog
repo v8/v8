@@ -1,7 +1,249 @@
-2014-03-18: Sentinel
+2014-04-15: Sentinel
 
         The ChangeLog file is no longer maintained on bleeding_edge. This
         sentinel should stay on top of this list.
+
+
+2014-04-15: Version 3.26.15
+
+        Fix result of LCodeGen::DoWrapReceiver for strict functions and builtins
+        (Chromium issue 362128).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-15: Version 3.26.14
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-14: Version 3.26.13
+
+        Make maps in monomorphic IC stubs weak (issue 2073).
+
+        x64: Make sure that the upper half of a 64bit register contains 0 for
+        int32 values (Chromium issue 360611).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-11: Version 3.26.12
+
+        Do not use ranges after range analysis (Chromium issue 361608).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.11
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-10: Version 3.26.10
+
+        Allow the embedder to pass the virtual memory limit to v8.
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-09: Version 3.26.9
+
+        Fix invalid local property lookup for transitions (Chromium issue
+        361025).
+
+        MIPS: Fixed flooring division by -1 (issue 3259).
+
+        Fixed flooring division by -1 on ARM (issue 3259).
+
+        Make `String.prototype.contains` throw when passing a regular expression
+        (issue 3261).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-08: Version 3.26.8
+
+        Yet another regression test for range analysis (issue 3204).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-07: Version 3.26.7
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-04: Version 3.26.6
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.5
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-03: Version 3.26.4
+
+        Make stray 'return' an early error.
+
+        Show references from weak containers as weak in heap snapshots (Chromium
+        issue 356590).
+
+        Make invalid LHSs that are calls late errors (Chromium issue 358346).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-02: Version 3.26.3
+
+        Support typed arrays in IsMoreGeneralElementsKindTransition (Chromium
+        issue 357054).
+
+        Remove debugger_auto_break flag.
+
+        Store i18n meta data in hidden symbols instead of js accessible
+        properties (Chromium issue 354967).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.2
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-01: Version 3.26.1
+
+        Fix Type::Intersect to skip uninhabited bitsets (Chromium issue 357330).
+
+        Fix PrepareKeyedOperand on arm (Chromium issue 358057).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-31: Version 3.26.0
+
+        Deprecate Start/StopCpuProfiling methods (issue 3213).
+
+        Don't crash if we get a timezone change notification on an uninitialized
+        isolate (Chromium issue 357362).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-28: Version 3.25.30
+
+        NativeContext::map_cache reference should be strong in heap snapshots
+        (Chromium issue 357060).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.29
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-27: Version 3.25.28
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.27
+
+        Promise constructor should not be enumerable (Chromium issue 352597).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-26: Version 3.25.26
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.25
+
+        Roll ICU 239289:258359 and add support for external ICU data tables
+        (issue 3142, Chromium issue 72633).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-25: Version 3.25.24
+
+        Add support for per-isolate private symbols.
+
+        No longer OOM on invalid string length (issue 3060).
+
+        Remove Failure::OutOfMemory propagation and
+        V8::IgnoreOutOfMemoryException (issue 3060).
+
+        Tentative Windows dll build fix: Don't V8_EXPORT ScriptCompiler::Source
+        (issue 3228).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-24: Version 3.25.23
+
+        Rename A64 port to ARM64 port (Chromium issue 354405).
+
+        Fix missing access check in Runtime_SetPrototype (Chromium issue
+        354123).
+
+        Fix polymorphic hydrogen handling of SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 354391).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.22
+
+        Increase the "local variables in a function" limit (issue 3205).
+
+        Implement ES6 symbol registry and predefined symbols.
+
+        Throw exception on invalid string length instead of OOM (Chromium issue
+        349329).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.21
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-20: Version 3.25.20
+
+        Fix polymorphic keyed loads for SLOPPY_ARGUMENTS_ELEMENTS (Chromium
+        issue 350867).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.19
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.18
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-19: Version 3.25.17
+
+        Performance and stability improvements on all platforms.
+
+
+2014-03-18: Version 3.25.16
+
+        Apply numeric casts correctly in typed arrays and related code (Chromium
+        issue 353004).
+
+        Performance and stability improvements on all platforms.
 
 
 2014-03-18: Version 3.25.15
@@ -77,24 +319,7 @@
 
 2014-03-14: Version 3.25.10
 
-        MIPS: Remove uses of CanBeNegative() in HMod (issue 3204).
-
-        MIPS: Remove uses of RangeCanInclude() in flooring division by power of
-        2 (issue 3204).
-
-        MIPS: Fix uses of range analysis results in HChange (issue 3204).
-
-        Make translation of modulus operation '--stress-opt'-proof (Chromium
-        issue 352059).
-
-        Remove uses of CanBeNegative() in HMod (issue 3204).
-
-        Remove uses of RangeCanInclude() in flooring division by power of 2
-        (issue 3204).
-
-        Fix uses of range analysis results in HChange (issue 3204).
-
-        Performance and stability improvements on all platforms.
+        This version was not committed due to script failures.
 
 
 2014-03-13: Version 3.25.9
