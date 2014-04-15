@@ -790,8 +790,23 @@ class Parser : public ParserBase<ParserTraits> {
 
   Handle<String> LookupCachedSymbol(int symbol_id);
 
-  PreParser::PreParseResult LazyParseFunctionLiteral(
-       SingletonLogger* logger);
+  // Skip over a lazy function, either using cached data if we have it, or
+  // by parsing the function with PreParser. Consumes the ending }.
+  void SkipLazyFunctionBody(Handle<String> function_name,
+                            int* materialized_literal_count,
+                            int* expected_property_count,
+                            bool* ok);
+
+  PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
+      SingletonLogger* logger);
+
+  // Consumes the ending }.
+  ZoneList<Statement*>* ParseEagerFunctionBody(Handle<String> function_name,
+                                               int pos,
+                                               Variable* fvar,
+                                               Token::Value fvar_init_op,
+                                               bool is_generator,
+                                               bool* ok);
 
   Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
