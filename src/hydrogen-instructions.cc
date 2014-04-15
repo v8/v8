@@ -3382,6 +3382,10 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
+  if (!map().IsNull()) {
+    stream->Add(" (%p)", *map().handle());
+  }
+
   if (HasDependency()) {
     stream->Add(" ");
     dependency()->PrintNameTo(stream);

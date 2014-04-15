@@ -5370,7 +5370,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     access = HObjectAccess::ForHeapNumberValue();
   }
   return New<HLoadNamedField>(
-      checked_object, static_cast<HValue*>(NULL), access);
+      checked_object, static_cast<HValue*>(NULL), access, info->field_map());
 }
 
 
@@ -5380,8 +5380,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     HValue* value) {
   bool transition_to_field = info->lookup()->IsTransition();
   // TODO(verwaest): Move this logic into PropertyAccessInfo.
-  HObjectAccess field_access = HObjectAccess::ForField(
-      info->map(), info->lookup(), info->name());
+  HObjectAccess field_access = info->access();
 
   HStoreNamedField *instr;
   if (field_access.representation().IsDouble()) {
@@ -5415,6 +5414,18 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
                                     value, STORE_TO_INITIALIZED_ENTRY);
     }
   } else {
+    if (!info->field_map().is_null()) {
+      ASSERT(field_access.representation().IsHeapObject());
+      BuildCheckHeapObject(value);
+      value = BuildCheckMap(value, info->field_map());
+
+      // TODO(bmeurer): This is a dirty hack to avoid repeating the smi check
+      // that was already performed by the HCheckHeapObject above in the
+      // HStoreNamedField below. We should really do this right instead and
+      // make Crankshaft aware of Representation::HeapObject().
+      field_access = field_access.WithRepresentation(Representation::Tagged());
+    }
+
     // This is a normal store.
     instr = New<HStoreNamedField>(
         checked_object->ActualValue(), field_access, value,
@@ -5478,6 +5489,12 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
   }
   if (info->access_.offset() != access_.offset()) return false;
   if (info->access_.IsInobject() != access_.IsInobject()) return false;
+  if (!field_map_.is_identical_to(info->field_map_)) {
+    if (!IsLoad()) return false;
+
+    // Throw away type information for merging polymorphic loads.
+    field_map_ = info->field_map_ = Handle<Map>();
+  }
   info->GeneralizeRepresentation(r);
   return true;
 }
@@ -5497,7 +5514,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
   }
 
   if (lookup_.IsField()) {
+    // Construct the object field access.
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
+
+    // Load field map for heap objects.
+    if (access_.representation().IsHeapObject()) LoadFieldMap(map);
   } else if (lookup_.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
     if (!callback->IsAccessorPair()) return false;
@@ -5521,6 +5542,24 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
   }
 
   return true;
+}
+
+
+void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMap(Handle<Map> map) {
+  // Figure out the field type from the accessor map.
+  HeapType* field_type = lookup_.GetFieldTypeFromMap(*map);
+  if (field_type->IsClass()) {
+    Handle<Map> field_map = field_type->AsClass();
+    if (field_map->is_stable()) {
+      field_map_ = field_map;
+      field_map_->AddDependentCompilationInfo(
+          DependentCode::kPrototypeCheckGroup, top_info());
+
+      // Add dependency on the map that introduced the field.
+      lookup_.GetFieldOwnerFromMap(*map)->AddDependentCompilationInfo(
+          DependentCode::kFieldTypeGroup, top_info());
+    }
+  }
 }
 
 
@@ -5560,6 +5599,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   Handle<Map> map = this->map();
   map->LookupTransition(NULL, *name_, &lookup_);
   if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
+    // Construct the object field access.
+    access_ = HObjectAccess::ForField(map, &lookup_, name_);
+
+    // Load field map for heap objects.
+    if (access_.representation().IsHeapObject()) LoadFieldMap(transition());
     return true;
   }
   return false;

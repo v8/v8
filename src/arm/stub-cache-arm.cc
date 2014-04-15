@@ -430,7 +430,14 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   } else if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
-    __ JumpIfSmi(value_reg, miss_label);
+    HeapType* field_type = descriptors->GetFieldType(descriptor);
+    if (field_type->IsClass()) {
+      __ CheckMap(value_reg, scratch1, field_type->AsClass(),
+                  miss_label, DO_SMI_CHECK);
+    } else {
+      ASSERT(HeapType::Any()->Is(field_type));
+      __ JumpIfSmi(value_reg, miss_label);
+    }
   } else if (representation.IsDouble()) {
     Label do_store, heap_number;
     __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
@@ -592,7 +599,14 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
-    __ JumpIfSmi(value_reg, miss_label);
+    HeapType* field_type = lookup->GetFieldType();
+    if (field_type->IsClass()) {
+      __ CheckMap(value_reg, scratch1, field_type->AsClass(),
+                  miss_label, DO_SMI_CHECK);
+    } else {
+      ASSERT(HeapType::Any()->Is(field_type));
+      __ JumpIfSmi(value_reg, miss_label);
+    }
   } else if (representation.IsDouble()) {
     // Load the double storage.
     if (index < 0) {

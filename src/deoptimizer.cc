@@ -1840,7 +1840,7 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     // We also need to make sure that the representation of all fields
     // in the given object are general enough to hold a tagged value.
     Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
-        Handle<Map>::cast(MaterializeNextValue()), Representation::Tagged());
+        Handle<Map>::cast(MaterializeNextValue()));
     switch (map->instance_type()) {
       case HEAP_NUMBER_TYPE: {
         // Reuse the HeapNumber value directly as it is already properly
@@ -3341,7 +3341,7 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
 
       Handle<Object> map_object = slot_refs_[current_slot_].GetValue(isolate);
       Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
-          Handle<Map>::cast(map_object), Representation::Tagged());
+          Handle<Map>::cast(map_object));
       current_slot_++;
       // TODO(jarin) this should be unified with the code in
       // Deoptimizer::MaterializeNextHeapObject()

@@ -415,7 +415,15 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
             if (value->IsSmi() && expected_representation.IsDouble()) {
               value = factory()->NewHeapNumber(
                   Handle<Smi>::cast(value)->value());
+            } else if (expected_representation.IsHeapObject() &&
+                       !target->instance_descriptors()->GetFieldType(
+                           descriptor)->NowContains(value)) {
+              Handle<HeapType> value_type(value->OptimalType(
+                      isolate(), expected_representation));
+              Map::GeneralizeFieldType(target, descriptor, value_type);
             }
+            ASSERT(target->instance_descriptors()->GetFieldType(
+                    descriptor)->NowContains(value));
             properties.Add(value, zone());
             map = target;
             continue;
