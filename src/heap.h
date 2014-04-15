@@ -2110,9 +2110,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedTypedArray(
       ExternalArrayType array_type);
 
-  // Allocate empty fixed double array.
-  MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
-
   // Allocate empty constant pool array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyConstantPoolArray();
 

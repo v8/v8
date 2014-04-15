@@ -2147,6 +2147,10 @@ class JSReceiver: public HeapObject {
 // Forward declaration for JSObject::GetOrCreateHiddenPropertiesHashTable.
 class ObjectHashTable;
 
+// Forward declaration for JSObject::Copy.
+class AllocationSite;
+
+
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
 // Note that the map of JSObject changes during execution to enable inline
@@ -2655,6 +2659,8 @@ class JSObject: public JSReceiver {
     kObjectIsShallowArray = 1
   };
 
+  static Handle<JSObject> Copy(Handle<JSObject> object,
+                               Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
   static Handle<JSObject> DeepCopy(Handle<JSObject> object,
                                    AllocationSiteUsageContext* site_context,
