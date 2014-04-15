@@ -1632,9 +1632,12 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
-Handle<String> Factory::NumberToString(Handle<Object> number) {
+Handle<String> Factory::NumberToString(Handle<Object> number,
+                                       bool check_number_string_cache) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->NumberToString(*number), String);
+                     isolate()->heap()->NumberToString(
+                         *number, check_number_string_cache),
+                     String);
 }
 
 

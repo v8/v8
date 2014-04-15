@@ -491,7 +491,8 @@ class Factory V8_FINAL {
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code);
 
-  Handle<String> NumberToString(Handle<Object> number);
+  Handle<String> NumberToString(Handle<Object> number,
+                                bool check_number_string_cache = true);
   Handle<String> Uint32ToString(uint32_t value);
 
   enum ApiInstanceType {

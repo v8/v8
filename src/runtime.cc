@@ -1405,7 +1405,7 @@ static bool DataViewSetValue(
     Type result;                                                              \
     if (DataViewGetValue(                                                     \
           isolate, holder, offset, is_little_endian, &result)) {              \
-      return isolate->heap()->Converter(result);                              \
+      return *isolate->factory()->Converter(result);                          \
     } else {                                                                  \
       return isolate->Throw(*isolate->factory()->NewRangeError(               \
           "invalid_data_view_accessor_offset",                                \
@@ -1413,14 +1413,14 @@ static bool DataViewSetValue(
     }                                                                         \
   }
 
-DATA_VIEW_GETTER(Uint8, uint8_t, NumberFromUint32)
-DATA_VIEW_GETTER(Int8, int8_t, NumberFromInt32)
-DATA_VIEW_GETTER(Uint16, uint16_t, NumberFromUint32)
-DATA_VIEW_GETTER(Int16, int16_t, NumberFromInt32)
-DATA_VIEW_GETTER(Uint32, uint32_t, NumberFromUint32)
-DATA_VIEW_GETTER(Int32, int32_t, NumberFromInt32)
-DATA_VIEW_GETTER(Float32, float, NumberFromDouble)
-DATA_VIEW_GETTER(Float64, double, NumberFromDouble)
+DATA_VIEW_GETTER(Uint8, uint8_t, NewNumberFromUint)
+DATA_VIEW_GETTER(Int8, int8_t, NewNumberFromInt)
+DATA_VIEW_GETTER(Uint16, uint16_t, NewNumberFromUint)
+DATA_VIEW_GETTER(Int16, int16_t, NewNumberFromInt)
+DATA_VIEW_GETTER(Uint32, uint32_t, NewNumberFromUint)
+DATA_VIEW_GETTER(Int32, int32_t, NewNumberFromInt)
+DATA_VIEW_GETTER(Float32, float, NewNumber)
+DATA_VIEW_GETTER(Float64, double, NewNumber)
 
 #undef DATA_VIEW_GETTER
 
@@ -6858,80 +6858,64 @@ bool Runtime::IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToString) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
-  Object* number = args[0];
+  Handle<Object> number = args.at<Object>(0);
   RUNTIME_ASSERT(number->IsNumber());
 
-  return isolate->heap()->NumberToString(number);
+  return *isolate->factory()->NumberToString(number);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToStringSkipCache) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
-  Object* number = args[0];
+  Handle<Object> number = args.at<Object>(0);
   RUNTIME_ASSERT(number->IsNumber());
 
-  return isolate->heap()->NumberToString(number, false);
+  return *isolate->factory()->NumberToString(number, false);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToInteger) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-
-  // We do not include 0 so that we don't have to treat +0 / -0 cases.
-  if (number > 0 && number <= Smi::kMaxValue) {
-    return Smi::FromInt(static_cast<int>(number));
-  }
-  return isolate->heap()->NumberFromDouble(DoubleToInteger(number));
+  return *isolate->factory()->NewNumber(DoubleToInteger(number));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToIntegerMapMinusZero) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-
-  // We do not include 0 so that we don't have to treat +0 / -0 cases.
-  if (number > 0 && number <= Smi::kMaxValue) {
-    return Smi::FromInt(static_cast<int>(number));
-  }
-
   double double_value = DoubleToInteger(number);
   // Map both -0 and +0 to +0.
   if (double_value == 0) double_value = 0;
 
-  return isolate->heap()->NumberFromDouble(double_value);
+  return *isolate->factory()->NewNumber(double_value);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToJSUint32) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_NUMBER_CHECKED(int32_t, number, Uint32, args[0]);
-  return isolate->heap()->NumberFromUint32(number);
+  return *isolate->factory()->NewNumberFromUint(number);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToJSInt32) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(number, 0);
-
-  // We do not include 0 so that we don't have to treat +0 / -0 cases.
-  if (number > 0 && number <= Smi::kMaxValue) {
-    return Smi::FromInt(static_cast<int>(number));
-  }
-  return isolate->heap()->NumberFromInt32(DoubleToInt32(number));
+  return *isolate->factory()->NewNumberFromInt(DoubleToInt32(number));
 }
 
 
@@ -6957,89 +6941,78 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToSmi) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_AllocateHeapNumber) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
-  return isolate->heap()->AllocateHeapNumber(0);
+  return *isolate->factory()->NewHeapNumber(0);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberAdd) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return isolate->heap()->NumberFromDouble(x + y);
+  return *isolate->factory()->NewNumber(x + y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberSub) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return isolate->heap()->NumberFromDouble(x - y);
+  return *isolate->factory()->NewNumber(x - y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMul) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return isolate->heap()->NumberFromDouble(x * y);
+  return *isolate->factory()->NewNumber(x * y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberUnaryMinus) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(-x);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberAlloc) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 0);
-
-  return isolate->heap()->NumberFromDouble(9876543210.0);
+  return *isolate->factory()->NewNumber(-x);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberDiv) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return isolate->heap()->NumberFromDouble(x / y);
+  return *isolate->factory()->NewNumber(x / y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberMod) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-
-  x = modulo(x, y);
-  // NumberFromDouble may return a Smi instead of a Number object
-  return isolate->heap()->NumberFromDouble(x);
+  return *isolate->factory()->NewNumber(modulo(x, y));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberImul) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(x * y);
+  return *isolate->factory()->NewNumberFromInt(x * y);
 }
 
 
@@ -7418,62 +7391,63 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberOr) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(x | y);
+  return *isolate->factory()->NewNumberFromInt(x | y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberAnd) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(x & y);
+  return *isolate->factory()->NewNumberFromInt(x & y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberXor) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(x ^ y);
+  return *isolate->factory()->NewNumberFromInt(x ^ y);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberShl) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(x << (y & 0x1f));
+  return *isolate->factory()->NewNumberFromInt(x << (y & 0x1f));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberShr) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(uint32_t, x, Uint32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromUint32(x >> (y & 0x1f));
+  return *isolate->factory()->NewNumberFromUint(x >> (y & 0x1f));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberSar) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
   CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return isolate->heap()->NumberFromInt32(ArithmeticShiftRight(x, y & 0x1f));
+  return *isolate->factory()->NewNumberFromInt(
+      ArithmeticShiftRight(x, y & 0x1f));
 }
 
 
@@ -7673,11 +7647,11 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StringCompare) {
 
 #define RUNTIME_UNARY_MATH(Name, name)                                         \
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math##Name) {                           \
-  SealHandleScope shs(isolate);                                                \
+  HandleScope scope(isolate);                                                  \
   ASSERT(args.length() == 1);                                                  \
   isolate->counters()->math_##name()->Increment();                             \
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);                                            \
-  return isolate->heap()->AllocateHeapNumber(std::name(x));                    \
+  return *isolate->factory()->NewHeapNumber(std::name(x));                     \
 }
 
 RUNTIME_UNARY_MATH(Acos, acos)
@@ -7688,31 +7662,31 @@ RUNTIME_UNARY_MATH(Log, log)
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleHi) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   uint64_t integer = double_to_uint64(x);
   integer = (integer >> 32) & 0xFFFFFFFFu;
-  return isolate->heap()->NumberFromDouble(static_cast<int32_t>(integer));
+  return *isolate->factory()->NewNumber(static_cast<int32_t>(integer));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DoubleLo) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(
+  return *isolate->factory()->NewNumber(
       static_cast<int32_t>(double_to_uint64(x) & 0xFFFFFFFFu));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ConstructDouble) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_NUMBER_CHECKED(uint32_t, hi, Uint32, args[0]);
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
-  return isolate->heap()->AllocateHeapNumber(uint64_to_double(result));
+  return *isolate->factory()->NewNumber(uint64_to_double(result));
 }
 
 
@@ -7720,7 +7694,7 @@ static const double kPiDividedBy4 = 0.78539816339744830962;
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MathAtan2) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_atan2()->Increment();
 
@@ -7738,35 +7712,35 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MathAtan2) {
   } else {
     result = std::atan2(x, y);
   }
-  return isolate->heap()->AllocateHeapNumber(result);
+  return *isolate->factory()->NewNumber(result);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MathExp) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_exp()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   lazily_initialize_fast_exp();
-  return isolate->heap()->NumberFromDouble(fast_exp(x));
+  return *isolate->factory()->NewNumber(fast_exp(x));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MathFloor) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_floor()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(std::floor(x));
+  return *isolate->factory()->NewNumber(std::floor(x));
 }
 
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
 // Used if SSE2/VFP3 is not available.
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPowSlow) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
 
@@ -7776,20 +7750,20 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPowSlow) {
   // custom powi() function than the generic pow().
   if (args[1]->IsSmi()) {
     int y = args.smi_at(1);
-    return isolate->heap()->NumberFromDouble(power_double_int(x, y));
+    return *isolate->factory()->NewNumber(power_double_int(x, y));
   }
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   double result = power_helper(x, y);
   if (std::isnan(result)) return isolate->heap()->nan_value();
-  return isolate->heap()->AllocateHeapNumber(result);
+  return *isolate->factory()->NewNumber(result);
 }
 
 
 // Fast version of Math.pow if we know that y is not an integer and y is not
 // -0.5 or 0.5.  Used as slow case from full codegen.
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPow) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   isolate->counters()->math_pow()->Increment();
 
@@ -7800,13 +7774,13 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MathPow) {
   } else {
     double result = power_double_double(x, y);
     if (std::isnan(result)) return isolate->heap()->nan_value();
-    return isolate->heap()->AllocateHeapNumber(result);
+    return *isolate->factory()->NewNumber(result);
   }
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_round()->Increment();
 
@@ -7844,27 +7818,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return isolate->heap()->AllocateHeapNumber(std::floor(value + 0.5));
+  return *isolate->factory()->NewNumber(std::floor(value + 0.5));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MathSqrt) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
+  return *isolate->factory()->NewNumber(fast_sqrt(x));
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MathFround) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   float xf = static_cast<float>(x);
-  return isolate->heap()->AllocateHeapNumber(xf);
+  return *isolate->factory()->NewNumber(xf);
 }
 
 
@@ -7889,30 +7863,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
 
   DateCache* date_cache = isolate->date_cache();
 
-  Object* value = NULL;
+  Handle<Object> value;;
   bool is_value_nan = false;
   if (std::isnan(time)) {
-    value = isolate->heap()->nan_value();
+    value = isolate->factory()->nan_value();
     is_value_nan = true;
   } else if (!is_utc &&
              (time < -DateCache::kMaxTimeBeforeUTCInMs ||
               time > DateCache::kMaxTimeBeforeUTCInMs)) {
-    value = isolate->heap()->nan_value();
+    value = isolate->factory()->nan_value();
     is_value_nan = true;
   } else {
     time = is_utc ? time : date_cache->ToUTC(static_cast<int64_t>(time));
     if (time < -DateCache::kMaxTimeInMs ||
         time > DateCache::kMaxTimeInMs) {
-      value = isolate->heap()->nan_value();
+      value = isolate->factory()->nan_value();
       is_value_nan = true;
     } else  {
-      MaybeObject* maybe_result =
-          isolate->heap()->AllocateHeapNumber(DoubleToInteger(time));
-      if (!maybe_result->ToObject(&value)) return maybe_result;
+      value = isolate->factory()->NewNumber(DoubleToInteger(time));
     }
   }
-  date->SetValue(value, is_value_nan);
-  return value;
+  date->SetValue(*value, is_value_nan);
+  return *value;
 }
 
 
@@ -9579,7 +9551,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugTrace) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 0);
 
   // According to ECMA-262, section 15.9.1, page 117, the precision of
@@ -9587,7 +9559,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCurrentTime) {
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
   double millis = std::floor(OS::TimeCurrentMillis());
-  return isolate->heap()->NumberFromDouble(millis);
+  return *isolate->factory()->NewNumber(millis);
 }
 
 
@@ -9638,13 +9610,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateToUTC) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   int64_t time = isolate->date_cache()->ToUTC(static_cast<int64_t>(x));
 
-  return isolate->heap()->NumberFromDouble(static_cast<double>(time));
+  return *isolate->factory()->NewNumber(static_cast<double>(time));
 }
 
 
