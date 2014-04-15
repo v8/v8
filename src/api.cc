@@ -244,24 +244,6 @@ static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
 }
 
 
-// Some initializing API functions are called early and may be
-// called on a thread different from static initializer thread.
-// If Isolate API is used, Isolate::Enter() will initialize TLS so
-// Isolate::Current() works. If it's a legacy case, then the thread
-// may not have TLS initialized yet. However, in initializing APIs it
-// may be too early to call EnsureInitialized() - some pre-init
-// parameters still have to be configured.
-static inline i::Isolate* EnterIsolateIfNeeded() {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  if (isolate != NULL)
-    return isolate;
-
-  i::Isolate::EnterDefaultIsolate();
-  isolate = i::Isolate::Current();
-  return isolate;
-}
-
-
 StartupDataDecompressor::StartupDataDecompressor()
     : raw_data(i::NewArray<char*>(V8::GetCompressedStartupDataCount())) {
   for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
@@ -391,14 +373,14 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
 
 
 void V8::SetFatalErrorHandler(FatalErrorCallback that) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   isolate->set_exception_behavior(that);
 }
 
 
 void V8::SetAllowCodeGenerationFromStringsCallback(
     AllowCodeGenerationFromStringsCallback callback) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   isolate->set_allow_code_gen_callback(callback);
 }
 
@@ -6308,13 +6290,13 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
 
 
 void V8::SetCounterFunction(CounterLookupCallback callback) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   isolate->stats_table()->SetCounterFunction(callback);
 }
 
 
 void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   isolate->stats_table()->SetCreateHistogramFunction(callback);
   isolate->InitializeLoggingAndCounters();
   isolate->counters()->ResetHistograms();
@@ -6322,7 +6304,7 @@ void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
 
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
-  i::Isolate* isolate = EnterIsolateIfNeeded();
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
   isolate->stats_table()->
       SetAddHistogramSampleFunction(callback);
 }

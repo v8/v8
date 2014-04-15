@@ -1671,10 +1671,7 @@ Isolate::~Isolate() {
   // Has to be called while counters_ are still alive
   runtime_zone_.DeleteKeptSegment();
 
-  // The entry stack must be empty when we get here,
-  // except for the default isolate, where it can
-  // still contain up to one entry stack item
-  ASSERT(entry_stack_ == NULL || this == default_isolate_);
+  // The entry stack must be empty when we get here.
   ASSERT(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
 
   delete entry_stack_;
