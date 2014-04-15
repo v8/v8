@@ -37,6 +37,16 @@ Handle<Box> Factory::NewBox(Handle<Object> value) {
 }
 
 
+Handle<Oddball> Factory::NewOddball(Handle<Map> map,
+                                    const char* to_string,
+                                    Handle<Object> to_number,
+                                    byte kind) {
+  Handle<Oddball> oddball = New<Oddball>(map, OLD_POINTER_SPACE);
+  Oddball::Initialize(isolate(), oddball, to_string, to_number, kind);
+  return oddball;
+}
+
+
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
