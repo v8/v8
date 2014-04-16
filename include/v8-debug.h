@@ -190,32 +190,28 @@ class V8_EXPORT Debug {
                                     Handle<Value> data = Handle<Value>());
 
   // Schedule a debugger break to happen when JavaScript code is run
-  // in the given isolate. If no isolate is provided the default
-  // isolate is used.
-  static void DebugBreak(Isolate* isolate = NULL);
+  // in the given isolate.
+  static void DebugBreak(Isolate* isolate);
 
   // Remove scheduled debugger break in given isolate if it has not
-  // happened yet. If no isolate is provided the default isolate is
-  // used.
-  static void CancelDebugBreak(Isolate* isolate = NULL);
+  // happened yet.
+  static void CancelDebugBreak(Isolate* isolate);
 
   // Break execution of JavaScript in the given isolate (this method
   // can be invoked from a non-VM thread) for further client command
   // execution on a VM thread. Client data is then passed in
   // EventDetails to EventCallback2 at the moment when the VM actually
-  // stops. If no isolate is provided the default isolate is used.
-  static void DebugBreakForCommand(ClientData* data = NULL,
-                                   Isolate* isolate = NULL);
+  // stops.
+  static void DebugBreakForCommand(Isolate* isolate, ClientData* data);
+
+  // TODO(svenpanne) Remove this when Chrome is updated.
+  static void DebugBreakForCommand(ClientData* data, Isolate* isolate) {
+    DebugBreakForCommand(isolate, data);
+  }
 
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler2(MessageHandler2 handler);
 
-  // If no isolate is provided the default isolate is
-  // used.
-  // TODO(dcarney): remove
-  static void SendCommand(const uint16_t* command, int length,
-                          ClientData* client_data = NULL,
-                          Isolate* isolate = NULL);
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
                           ClientData* client_data = NULL);
@@ -331,7 +327,12 @@ class V8_EXPORT Debug {
    * (default Isolate if not provided). V8 will abort if LiveEdit is
    * unexpectedly used. LiveEdit is enabled by default.
    */
-  static void SetLiveEditEnabled(bool enable, Isolate* isolate = NULL);
+  static void SetLiveEditEnabled(Isolate* isolate, bool enable);
+
+  // TODO(svenpanne) Remove this when Chrome is updated.
+  static void SetLiveEditEnabled(bool enable, Isolate* isolate) {
+    SetLiveEditEnabled(isolate, enable);
+  }
 };
 
 

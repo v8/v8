@@ -3382,6 +3382,10 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
+  if (!map().IsNull()) {
+    stream->Add(" (%p)", *map().handle());
+  }
+
   if (HasDependency()) {
     stream->Add(" ");
     dependency()->PrintNameTo(stream);
@@ -3403,8 +3407,8 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
     // TODO(titzer): collect dependent map checks into a list.
     check_map->omit_ = true;
     if (map->CanTransition()) {
-      map->AddDependentCompilationInfo(
-          DependentCode::kPrototypeCheckGroup, info);
+      Map::AddDependentCompilationInfo(
+          map, DependentCode::kPrototypeCheckGroup, info);
     }
   }
   return check_map;

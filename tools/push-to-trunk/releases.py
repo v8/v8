@@ -168,6 +168,8 @@ class RetrieveV8Releases(Step):
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.
       "version": version,
+      # The date of the commit.
+      "date": self.GitLog(n=1, format="%ci", git_hash=git_hash),
       # Merged patches if available in the form 'r1234, r2345'.
       "patches_merged": patches,
       # Default for easier output formatting.

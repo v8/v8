@@ -60,6 +60,23 @@
 namespace v8 {
 namespace internal {
 
+Handle<HeapType> Object::OptimalType(Isolate* isolate,
+                                     Representation representation) {
+  if (!FLAG_track_field_types) return HeapType::Any(isolate);
+  if (representation.IsNone()) return HeapType::None(isolate);
+  if (representation.IsHeapObject() && IsHeapObject()) {
+    // We can track only JavaScript objects with stable maps.
+    Handle<Map> map(HeapObject::cast(this)->map(), isolate);
+    if (map->is_stable() &&
+        map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
+        map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE) {
+      return HeapType::Class(map, isolate);
+    }
+  }
+  return HeapType::Any(isolate);
+}
+
+
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object,
                                          Handle<Context> native_context) {
@@ -210,9 +227,9 @@ static inline To* CheckedCast(void *from) {
 }
 
 
-static MaybeObject* PerformCompare(const BitmaskCompareDescriptor& descriptor,
-                                   char* ptr,
-                                   Heap* heap) {
+static Handle<Object> PerformCompare(const BitmaskCompareDescriptor& descriptor,
+                                     char* ptr,
+                                     Isolate* isolate) {
   uint32_t bitmask = descriptor.bitmask;
   uint32_t compare_value = descriptor.compare_value;
   uint32_t value;
@@ -232,26 +249,27 @@ static MaybeObject* PerformCompare(const BitmaskCompareDescriptor& descriptor,
       break;
     default:
       UNREACHABLE();
-      return NULL;
+      return isolate->factory()->undefined_value();
   }
-  return heap->ToBoolean((bitmask & value) == (bitmask & compare_value));
+  return isolate->factory()->ToBoolean(
+      (bitmask & value) == (bitmask & compare_value));
 }
 
 
-static MaybeObject* PerformCompare(const PointerCompareDescriptor& descriptor,
-                                   char* ptr,
-                                   Heap* heap) {
+static Handle<Object> PerformCompare(const PointerCompareDescriptor& descriptor,
+                                     char* ptr,
+                                     Isolate* isolate) {
   uintptr_t compare_value =
       reinterpret_cast<uintptr_t>(descriptor.compare_value);
   uintptr_t value = *CheckedCast<uintptr_t>(ptr);
-  return heap->ToBoolean(compare_value == value);
+  return isolate->factory()->ToBoolean(compare_value == value);
 }
 
 
-static MaybeObject* GetPrimitiveValue(
+static Handle<Object> GetPrimitiveValue(
     const PrimitiveValueDescriptor& descriptor,
     char* ptr,
-    Heap* heap) {
+    Isolate* isolate) {
   int32_t int32_value = 0;
   switch (descriptor.data_type) {
     case kDescriptorInt8Type:
@@ -271,29 +289,36 @@ static MaybeObject* GetPrimitiveValue(
       break;
     case kDescriptorUint32Type: {
       uint32_t value = *CheckedCast<uint32_t>(ptr);
-      return heap->NumberFromUint32(value);
+      AllowHeapAllocation allow_gc;
+      return isolate->factory()->NewNumberFromUint(value);
     }
     case kDescriptorBoolType: {
       uint8_t byte = *CheckedCast<uint8_t>(ptr);
-      return heap->ToBoolean(byte & (0x1 << descriptor.bool_offset));
+      return isolate->factory()->ToBoolean(
+          byte & (0x1 << descriptor.bool_offset));
     }
     case kDescriptorFloatType: {
       float value = *CheckedCast<float>(ptr);
-      return heap->NumberFromDouble(value);
+      AllowHeapAllocation allow_gc;
+      return isolate->factory()->NewNumber(value);
     }
     case kDescriptorDoubleType: {
       double value = *CheckedCast<double>(ptr);
-      return heap->NumberFromDouble(value);
+      AllowHeapAllocation allow_gc;
+      return isolate->factory()->NewNumber(value);
     }
   }
-  return heap->NumberFromInt32(int32_value);
+  AllowHeapAllocation allow_gc;
+  return isolate->factory()->NewNumberFromInt(int32_value);
 }
 
 
-static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
-                                                DeclaredAccessorInfo* info,
-                                                Isolate* isolate) {
-  char* current = reinterpret_cast<char*>(receiver);
+static Handle<Object> GetDeclaredAccessorProperty(
+    Handle<Object> receiver,
+    Handle<DeclaredAccessorInfo> info,
+    Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  char* current = reinterpret_cast<char*>(*receiver);
   DeclaredAccessorDescriptorIterator iterator(info->descriptor());
   while (true) {
     const DeclaredAccessorDescriptorData* data = iterator.Next();
@@ -301,7 +326,7 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
       case kDescriptorReturnObject: {
         ASSERT(iterator.Complete());
         current = *CheckedCast<char*>(current);
-        return *CheckedCast<Object*>(current);
+        return handle(*CheckedCast<Object*>(current), isolate);
       }
       case kDescriptorPointerDereference:
         ASSERT(!iterator.Complete());
@@ -324,31 +349,21 @@ static MaybeObject* GetDeclaredAccessorProperty(Object* receiver,
         ASSERT(iterator.Complete());
         return PerformCompare(data->bitmask_compare_descriptor,
                               current,
-                              isolate->heap());
+                              isolate);
       case kDescriptorPointerCompare:
         ASSERT(iterator.Complete());
         return PerformCompare(data->pointer_compare_descriptor,
                               current,
-                              isolate->heap());
+                              isolate);
       case kDescriptorPrimitiveValue:
         ASSERT(iterator.Complete());
         return GetPrimitiveValue(data->primitive_value_descriptor,
                                  current,
-                                 isolate->heap());
+                                 isolate);
     }
   }
   UNREACHABLE();
-  return NULL;
-}
-
-
-static Handle<Object> GetDeclaredAccessorProperty(
-    Handle<Object> receiver,
-    Handle<DeclaredAccessorInfo> info,
-    Isolate* isolate) {
-  CALL_HEAP_FUNCTION(isolate,
-                     GetDeclaredAccessorProperty(*receiver, *info, isolate),
-                     Object);
+  return isolate->factory()->undefined_value();
 }
 
 
@@ -392,12 +407,10 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     // so we do not support it for now.
     if (name->IsSymbol()) return isolate->factory()->undefined_value();
     if (structure->IsDeclaredAccessorInfo()) {
-      CALL_HEAP_FUNCTION(
-          isolate,
-          GetDeclaredAccessorProperty(*receiver,
-                                      DeclaredAccessorInfo::cast(*structure),
-                                      isolate),
-          Object);
+      return GetDeclaredAccessorProperty(
+          receiver,
+          Handle<DeclaredAccessorInfo>::cast(structure),
+          isolate);
     }
 
     Handle<ExecutableAccessorInfo> data =
@@ -894,6 +907,7 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 
 
 Object* Object::GetPrototype(Isolate* isolate) {
+  DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
     Context* context = isolate->context()->native_context();
     return context->number_function()->instance_prototype();
@@ -922,6 +936,12 @@ Object* Object::GetPrototype(Isolate* isolate) {
   } else {
     return isolate->heap()->null_value();
   }
+}
+
+
+Handle<Object> Object::GetPrototype(Isolate* isolate,
+                                    Handle<Object> object) {
+  return handle(object->GetPrototype(isolate), isolate);
 }
 
 
@@ -1402,7 +1422,9 @@ void Map::PrintGeneralization(FILE* file,
                               int descriptors,
                               bool constant_to_field,
                               Representation old_representation,
-                              Representation new_representation) {
+                              Representation new_representation,
+                              HeapType* old_field_type,
+                              HeapType* new_field_type) {
   PrintF(file, "[generalizing ");
   constructor_name()->PrintOn(file);
   PrintF(file, "] ");
@@ -1412,13 +1434,19 @@ void Map::PrintGeneralization(FILE* file,
   } else {
     PrintF(file, "{symbol %p}", static_cast<void*>(name));
   }
+  PrintF(file, ":");
   if (constant_to_field) {
-    PrintF(file, ":c->f");
+    PrintF(file, "c");
   } else {
-    PrintF(file, ":%s->%s",
-           old_representation.Mnemonic(),
-           new_representation.Mnemonic());
+    PrintF(file, "%s", old_representation.Mnemonic());
+    PrintF(file, "{");
+    old_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
+    PrintF(file, "}");
   }
+  PrintF(file, "->%s", new_representation.Mnemonic());
+  PrintF(file, "{");
+  new_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
+  PrintF(file, "}");
   PrintF(file, " (");
   if (strlen(reason) > 0) {
     PrintF(file, "%s", reason);
@@ -1796,17 +1824,6 @@ String* JSReceiver::constructor_name() {
 }
 
 
-// TODO(mstarzinger): Temporary wrapper until handlified.
-static Handle<Object> NewStorageFor(Isolate* isolate,
-                                    Handle<Object> object,
-                                    Representation representation) {
-  Heap* heap = isolate->heap();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->AllocateNewStorageFor(heap, representation),
-                     Object);
-}
-
-
 void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -1837,7 +1854,8 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
   // Compute the new index for new field.
   int index = object->map()->NextFreePropertyIndex();
 
-  FieldDescriptor new_field_desc(name, index, attributes, representation);
+  Handle<HeapType> type = value->OptimalType(isolate, representation);
+  FieldDescriptor new_field_desc(name, index, type, attributes, representation);
   Handle<Map> new_map = Map::CopyAddDescriptor(
       handle(object->map()), &new_field_desc, flag);
   int unused_property_fields = new_map->unused_property_fields() - 1;
@@ -2218,7 +2236,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
       if (old_details.representation().IsNone()) {
         value = handle(Smi::FromInt(0), isolate);
       }
-      value = NewStorageFor(isolate, value, details.representation());
+      value = Object::NewStorageFor(isolate, value, details.representation());
     }
     ASSERT(!(details.representation().IsDouble() && value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
@@ -2229,12 +2247,15 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   for (int i = old_nof; i < new_nof; i++) {
     PropertyDetails details = new_descriptors->GetDetails(i);
     if (details.type() != FIELD) continue;
+    Handle<Object> value;
     if (details.representation().IsDouble()) {
-      int target_index = new_descriptors->GetFieldIndex(i) - inobject;
-      if (target_index < 0) target_index += total_size;
-      Handle<Object> box = isolate->factory()->NewHeapNumber(0);
-      array->set(target_index, *box);
+      value = isolate->factory()->NewHeapNumber(0);
+    } else {
+      value = isolate->factory()->uninitialized_value();
     }
+    int target_index = new_descriptors->GetFieldIndex(i) - inobject;
+    if (target_index < 0) target_index += total_size;
+    array->set(target_index, *value);
   }
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -2277,9 +2298,11 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
                                              int modify_index,
                                              Representation new_representation,
+                                             Handle<HeapType> new_field_type,
                                              StoreMode store_mode) {
   Handle<Map> new_map = Map::GeneralizeRepresentation(
-      handle(object->map()), modify_index, new_representation, store_mode);
+      handle(object->map()), modify_index, new_representation,
+      new_field_type, store_mode);
   if (object->map() == *new_map) return;
   return MigrateToMap(object, new_map);
 }
@@ -2300,16 +2323,22 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
                                                   StoreMode store_mode,
                                                   PropertyAttributes attributes,
                                                   const char* reason) {
+  Isolate* isolate = map->GetIsolate();
   Handle<Map> new_map = Copy(map);
 
   DescriptorArray* descriptors = new_map->instance_descriptors();
-  descriptors->InitializeRepresentations(Representation::Tagged());
+  int length = descriptors->number_of_descriptors();
+  for (int i = 0; i < length; i++) {
+    descriptors->SetRepresentation(i, Representation::Tagged());
+    if (descriptors->GetDetails(i).type() == FIELD) {
+      descriptors->SetValue(i, HeapType::Any());
+    }
+  }
 
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);
   if (store_mode == FORCE_FIELD && details.type() != FIELD) {
-    FieldDescriptor d(handle(descriptors->GetKey(modify_index),
-                             map->GetIsolate()),
+    FieldDescriptor d(handle(descriptors->GetKey(modify_index), isolate),
                       new_map->NumberOfFields(),
                       attributes,
                       Representation::Tagged());
@@ -2322,11 +2351,15 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
   }
 
   if (FLAG_trace_generalization) {
+    HeapType* field_type = (details.type() == FIELD)
+        ? map->instance_descriptors()->GetFieldType(modify_index)
+        : NULL;
     map->PrintGeneralization(stdout, reason, modify_index,
                         new_map->NumberOfOwnDescriptors(),
                         new_map->NumberOfOwnDescriptors(),
                         details.type() == CONSTANT && store_mode == FORCE_FIELD,
-                        Representation::Tagged(), Representation::Tagged());
+                        details.representation(), Representation::Tagged(),
+                        field_type, HeapType::Any());
   }
   return new_map;
 }
@@ -2391,6 +2424,8 @@ Map* Map::FindRootMap() {
 Map* Map::FindUpdatedMap(int verbatim,
                          int length,
                          DescriptorArray* descriptors) {
+  DisallowHeapAllocation no_allocation;
+
   // This can only be called on roots of transition trees.
   ASSERT(GetBackPointer()->IsUndefined());
 
@@ -2425,6 +2460,8 @@ Map* Map::FindUpdatedMap(int verbatim,
 Map* Map::FindLastMatchMap(int verbatim,
                            int length,
                            DescriptorArray* descriptors) {
+  DisallowHeapAllocation no_allocation;
+
   // This can only be called on roots of transition trees.
   ASSERT(GetBackPointer()->IsUndefined());
 
@@ -2440,17 +2477,102 @@ Map* Map::FindLastMatchMap(int verbatim,
     Map* next = transitions->GetTarget(transition);
     DescriptorArray* next_descriptors = next->instance_descriptors();
 
-    if (next_descriptors->GetValue(i) != descriptors->GetValue(i)) break;
-
     PropertyDetails details = descriptors->GetDetails(i);
     PropertyDetails next_details = next_descriptors->GetDetails(i);
     if (details.type() != next_details.type()) break;
     if (details.attributes() != next_details.attributes()) break;
     if (!details.representation().Equals(next_details.representation())) break;
+    if (next_details.type() == FIELD) {
+      if (!descriptors->GetFieldType(i)->NowIs(
+              next_descriptors->GetFieldType(i))) break;
+    } else {
+      if (descriptors->GetValue(i) != next_descriptors->GetValue(i)) break;
+    }
 
     current = next;
   }
   return current;
+}
+
+
+Map* Map::FindFieldOwner(int descriptor) {
+  DisallowHeapAllocation no_allocation;
+  ASSERT_EQ(FIELD, instance_descriptors()->GetDetails(descriptor).type());
+  Map* result = this;
+  while (true) {
+    Object* back = result->GetBackPointer();
+    if (back->IsUndefined()) break;
+    Map* parent = Map::cast(back);
+    if (parent->NumberOfOwnDescriptors() <= descriptor) break;
+    result = parent;
+  }
+  return result;
+}
+
+
+void Map::UpdateDescriptor(int descriptor_number, Descriptor* desc) {
+  DisallowHeapAllocation no_allocation;
+  if (HasTransitionArray()) {
+    TransitionArray* transitions = this->transitions();
+    for (int i = 0; i < transitions->number_of_transitions(); ++i) {
+      transitions->GetTarget(i)->UpdateDescriptor(descriptor_number, desc);
+    }
+  }
+  instance_descriptors()->Replace(descriptor_number, desc);;
+}
+
+
+// static
+Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> old_field_type,
+                                          Handle<HeapType> new_field_type,
+                                          Isolate* isolate) {
+  if (new_field_type->NowIs(old_field_type)) return old_field_type;
+  if (old_field_type->NowIs(new_field_type)) return new_field_type;
+  return HeapType::Any(isolate);
+}
+
+
+// static
+void Map::GeneralizeFieldType(Handle<Map> map,
+                              int modify_index,
+                              Handle<HeapType> new_field_type) {
+  Isolate* isolate = map->GetIsolate();
+  Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
+  Handle<DescriptorArray> descriptors(
+      field_owner->instance_descriptors(), isolate);
+
+  // Check if we actually need to generalize the field type at all.
+  Handle<HeapType> old_field_type(
+      descriptors->GetFieldType(modify_index), isolate);
+  if (new_field_type->NowIs(old_field_type)) {
+    ASSERT(Map::GeneralizeFieldType(old_field_type,
+                                    new_field_type,
+                                    isolate)->NowIs(old_field_type));
+    return;
+  }
+
+  // Determine the generalized new field type.
+  new_field_type = Map::GeneralizeFieldType(
+      old_field_type, new_field_type, isolate);
+
+  PropertyDetails details = descriptors->GetDetails(modify_index);
+  FieldDescriptor d(handle(descriptors->GetKey(modify_index), isolate),
+                    descriptors->GetFieldIndex(modify_index),
+                    new_field_type,
+                    details.attributes(),
+                    details.representation());
+  field_owner->UpdateDescriptor(modify_index, &d);
+  field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
+      isolate, DependentCode::kFieldTypeGroup);
+
+  if (FLAG_trace_generalization) {
+    map->PrintGeneralization(
+        stdout, "field type generalization",
+        modify_index, map->NumberOfOwnDescriptors(),
+        map->NumberOfOwnDescriptors(), false,
+        details.representation(), details.representation(),
+        *old_field_type, *new_field_type);
+  }
 }
 
 
@@ -2475,6 +2597,7 @@ Map* Map::FindLastMatchMap(int verbatim,
 Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
                                           int modify_index,
                                           Representation new_representation,
+                                          Handle<HeapType> new_field_type,
                                           StoreMode store_mode) {
   Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
   PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
@@ -2487,11 +2610,28 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   if (old_representation.IsNone() &&
       !new_representation.IsNone() &&
       !new_representation.IsDouble()) {
+    ASSERT(old_details.type() == FIELD);
+    ASSERT(old_descriptors->GetFieldType(modify_index)->NowIs(
+            HeapType::None()));
+    if (FLAG_trace_generalization) {
+      old_map->PrintGeneralization(
+          stdout, "uninitialized field",
+          modify_index, old_map->NumberOfOwnDescriptors(),
+          old_map->NumberOfOwnDescriptors(), false,
+          old_representation, new_representation,
+          old_descriptors->GetFieldType(modify_index), *new_field_type);
+    }
     old_descriptors->SetRepresentation(modify_index, new_representation);
+    old_descriptors->SetValue(modify_index, *new_field_type);
     return old_map;
   }
 
-  int descriptors = old_map->NumberOfOwnDescriptors();
+  if (new_representation.Equals(old_representation) &&
+      old_details.type() == FIELD) {
+    Map::GeneralizeFieldType(old_map, modify_index, new_field_type);
+    return old_map;
+  }
+
   Handle<Map> root_map(old_map->FindRootMap());
 
   // Check the state of the root map.
@@ -2507,6 +2647,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         old_details.attributes(), "root modification");
   }
 
+  int descriptors = old_map->NumberOfOwnDescriptors();
   Map* raw_updated = root_map->FindUpdatedMap(
       verbatim, descriptors, *old_descriptors);
   if (raw_updated == NULL) {
@@ -2536,12 +2677,20 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   ASSERT(store_mode == ALLOW_AS_CONSTANT ||
          new_descriptors->GetDetails(modify_index).type() == FIELD);
 
+  Isolate* isolate = new_descriptors->GetIsolate();
   old_representation =
       new_descriptors->GetDetails(modify_index).representation();
   Representation updated_representation =
       new_representation.generalize(old_representation);
   if (!updated_representation.Equals(old_representation)) {
     new_descriptors->SetRepresentation(modify_index, updated_representation);
+  }
+  if (new_descriptors->GetDetails(modify_index).type() == FIELD) {
+    Handle<HeapType> field_type(
+        new_descriptors->GetFieldType(modify_index), isolate);
+    new_field_type = Map::GeneralizeFieldType(
+        field_type, new_field_type, isolate);
+    new_descriptors->SetValue(modify_index, *new_field_type);
   }
 
   Handle<Map> split_map(root_map->FindLastMatchMap(
@@ -2557,11 +2706,21 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       old_descriptors->GetKey(descriptor), *new_descriptors);
 
   if (FLAG_trace_generalization) {
+    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
+    PropertyDetails new_details = new_descriptors->GetDetails(modify_index);
+    Handle<HeapType> old_field_type = (old_details.type() == FIELD)
+        ? handle(old_descriptors->GetFieldType(modify_index), isolate)
+        : HeapType::Constant(handle(old_descriptors->GetValue(modify_index),
+                                    isolate), isolate);
+    Handle<HeapType> new_field_type = (new_details.type() == FIELD)
+        ? handle(new_descriptors->GetFieldType(modify_index), isolate)
+        : HeapType::Constant(handle(new_descriptors->GetValue(modify_index),
+                                    isolate), isolate);
     old_map->PrintGeneralization(
         stdout, "", modify_index, descriptor, descriptors,
-        old_descriptors->GetDetails(modify_index).type() == CONSTANT &&
-            store_mode == FORCE_FIELD,
-        old_representation, updated_representation);
+        old_details.type() == CONSTANT && store_mode == FORCE_FIELD,
+        old_details.representation(), new_details.representation(),
+        *old_field_type, *new_field_type);
   }
 
   // Add missing transitions.
@@ -2577,13 +2736,13 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
 // Generalize the representation of all FIELD descriptors.
 Handle<Map> Map::GeneralizeAllFieldRepresentations(
-    Handle<Map> map,
-    Representation new_representation) {
+    Handle<Map> map) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
-  for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
-    PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() == FIELD) {
-      map = GeneralizeRepresentation(map, i, new_representation, FORCE_FIELD);
+  for (int i = 0; i < map->NumberOfOwnDescriptors(); ++i) {
+    if (descriptors->GetDetails(i).type() == FIELD) {
+      map = GeneralizeRepresentation(map, i, Representation::Tagged(),
+                                     HeapType::Any(map->GetIsolate()),
+                                     FORCE_FIELD);
     }
   }
   return map;
@@ -3722,7 +3881,9 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
   // transition that matches the object. This achieves what is needed.
   Handle<Map> original_map(object->map());
   GeneralizeFieldRepresentation(
-      object, 0, Representation::None(), ALLOW_AS_CONSTANT);
+      object, 0, Representation::None(),
+      HeapType::None(object->GetIsolate()),
+      ALLOW_AS_CONSTANT);
   object->map()->set_migration_target(true);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
@@ -3751,7 +3912,7 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
   Handle<Map> transition_map(lookup->GetTransitionTarget());
   int descriptor = transition_map->LastAdded();
 
-  DescriptorArray* descriptors = transition_map->instance_descriptors();
+  Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
   PropertyDetails details = descriptors->GetDetails(descriptor);
 
   if (details.type() == CALLBACKS || attributes != details.attributes()) {
@@ -3768,17 +3929,19 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
   // Keep the target CONSTANT if the same value is stored.
   // TODO(verwaest): Also support keeping the placeholder
   // (value->IsUninitialized) as constant.
-  if (!lookup->CanHoldValue(value) ||
-      (details.type() == CONSTANT &&
-       descriptors->GetValue(descriptor) != *value)) {
-    transition_map = Map::GeneralizeRepresentation(transition_map,
-        descriptor, value->OptimalRepresentation(), FORCE_FIELD);
+  if (!lookup->CanHoldValue(value)) {
+    Representation field_representation = value->OptimalRepresentation();
+    Handle<HeapType> field_type = value->OptimalType(
+        lookup->isolate(), field_representation);
+    transition_map = Map::GeneralizeRepresentation(
+        transition_map, descriptor,
+        field_representation, field_type, FORCE_FIELD);
   }
 
   JSObject::MigrateToMap(object, transition_map);
 
   // Reload.
-  descriptors = transition_map->instance_descriptors();
+  descriptors = handle(transition_map->instance_descriptors());
   details = descriptors->GetDetails(descriptor);
 
   if (details.type() != FIELD) return value;
@@ -3800,11 +3963,13 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
 static void SetPropertyToField(LookupResult* lookup,
                                Handle<Object> value) {
   Representation representation = lookup->representation();
-  if (!lookup->CanHoldValue(value) ||
-      lookup->type() == CONSTANT) {
+  if (lookup->type() == CONSTANT || !lookup->CanHoldValue(value)) {
+    Representation field_representation = value->OptimalRepresentation();
+    Handle<HeapType> field_type = value->OptimalType(
+        lookup->isolate(), field_representation);
     JSObject::GeneralizeFieldRepresentation(handle(lookup->holder()),
                                             lookup->GetDescriptorIndex(),
-                                            value->OptimalRepresentation(),
+                                            field_representation, field_type,
                                             FORCE_FIELD);
     DescriptorArray* desc = lookup->holder()->map()->instance_descriptors();
     int descriptor = lookup->GetDescriptorIndex();
@@ -3840,7 +4005,8 @@ static void ConvertAndSetLocalProperty(LookupResult* lookup,
   int descriptor_index = lookup->GetDescriptorIndex();
   if (lookup->GetAttributes() == attributes) {
     JSObject::GeneralizeFieldRepresentation(
-        object, descriptor_index, Representation::Tagged(), FORCE_FIELD);
+        object, descriptor_index, Representation::Tagged(),
+        HeapType::Any(lookup->isolate()), FORCE_FIELD);
   } else {
     Handle<Map> old_map(object->map());
     Handle<Map> new_map = Map::CopyGeneralizeAllRepresentations(old_map,
@@ -5669,8 +5835,8 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         Representation representation,
                                         int index) {
   Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     object->FastPropertyAt(representation, index), Object);
+  Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
+  return Object::NewStorageFor(isolate, raw_value, representation);
 }
 
 
@@ -5770,7 +5936,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
         } else {
           Representation representation = details.representation();
-          value = NewStorageFor(isolate, value, representation);
+          value = Object::NewStorageFor(isolate, value, representation);
         }
         if (copying) {
           copy->FastPropertyAtPut(index, *value);
@@ -6828,7 +6994,13 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
     map->set_transitions(*transitions);
     result->SetBackPointer(*map);
   } else {
-    descriptors->InitializeRepresentations(Representation::Tagged());
+    int length = descriptors->number_of_descriptors();
+    for (int i = 0; i < length; i++) {
+      descriptors->SetRepresentation(i, Representation::Tagged());
+      if (descriptors->GetDetails(i).type() == FIELD) {
+        descriptors->SetValue(i, HeapType::Any());
+      }
+    }
   }
 
   return result;
@@ -8015,16 +8187,27 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
         (left_details.type() == CONSTANT &&
          right_details.type() == CONSTANT &&
          left->GetValue(descriptor) != right->GetValue(descriptor))) {
+      ASSERT(left_details.type() == CONSTANT || left_details.type() == FIELD);
+      ASSERT(right_details.type() == CONSTANT || right_details.type() == FIELD);
       Representation representation = left_details.representation().generalize(
           right_details.representation());
-      FieldDescriptor d(handle(left->GetKey(descriptor)),
+      Handle<HeapType> left_type = (left_details.type() == FIELD)
+          ? handle(left->GetFieldType(descriptor), isolate)
+          : left->GetValue(descriptor)->OptimalType(isolate, representation);
+      Handle<HeapType> right_type = (right_details.type() == FIELD)
+          ? handle(right->GetFieldType(descriptor), isolate)
+          : right->GetValue(descriptor)->OptimalType(isolate, representation);
+      Handle<HeapType> field_type = Map::GeneralizeFieldType(
+          left_type, right_type, isolate);
+      FieldDescriptor d(handle(left->GetKey(descriptor), isolate),
                         current_offset++,
+                        field_type,
                         right_details.attributes(),
                         representation);
       result->Set(descriptor, &d);
     } else {
-      Descriptor d(handle(right->GetKey(descriptor)),
-                   handle(right->GetValue(descriptor), right->GetIsolate()),
+      Descriptor d(handle(right->GetKey(descriptor), isolate),
+                   handle(right->GetValue(descriptor), isolate),
                    right_details);
       result->Set(descriptor, &d);
     }
@@ -8033,16 +8216,27 @@ Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
   // |valid| -> |new_size|
   for (; descriptor < new_size; descriptor++) {
     PropertyDetails right_details = right->GetDetails(descriptor);
-    if (right_details.type() == FIELD ||
-        (store_mode == FORCE_FIELD && descriptor == modify_index)) {
-      FieldDescriptor d(handle(right->GetKey(descriptor)),
+    if (right_details.type() == FIELD) {
+      FieldDescriptor d(handle(right->GetKey(descriptor), isolate),
                         current_offset++,
+                        handle(right->GetFieldType(descriptor), isolate),
                         right_details.attributes(),
                         right_details.representation());
       result->Set(descriptor, &d);
+    } else if (store_mode == FORCE_FIELD && descriptor == modify_index) {
+      ASSERT_EQ(CONSTANT, right_details.type());
+      Representation field_representation = right_details.representation();
+      Handle<HeapType> field_type = right->GetValue(descriptor)->OptimalType(
+          isolate, field_representation);
+      FieldDescriptor d(handle(right->GetKey(descriptor), isolate),
+                        current_offset++,
+                        field_type,
+                        right_details.attributes(),
+                        field_representation);
+      result->Set(descriptor, &d);
     } else {
-      Descriptor d(handle(right->GetKey(descriptor)),
-                   handle(right->GetValue(descriptor), right->GetIsolate()),
+      Descriptor d(handle(right->GetKey(descriptor), isolate),
+                   handle(right->GetValue(descriptor), isolate),
                    right_details);
       result->Set(descriptor, &d);
     }
@@ -11491,35 +11685,41 @@ void Map::ZapPrototypeTransitions() {
 }
 
 
-void Map::AddDependentCompilationInfo(DependentCode::DependencyGroup group,
+// static
+void Map::AddDependentCompilationInfo(Handle<Map> map,
+                                      DependentCode::DependencyGroup group,
                                       CompilationInfo* info) {
-  Handle<DependentCode> dep(dependent_code());
   Handle<DependentCode> codes =
-      DependentCode::Insert(dep, group, info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
-  info->dependencies(group)->Add(Handle<HeapObject>(this), info->zone());
+      DependentCode::Insert(handle(map->dependent_code(), info->isolate()),
+                            group, info->object_wrapper());
+  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
+  info->dependencies(group)->Add(map, info->zone());
 }
 
 
-void Map::AddDependentCode(DependentCode::DependencyGroup group,
+// static
+void Map::AddDependentCode(Handle<Map> map,
+                           DependentCode::DependencyGroup group,
                            Handle<Code> code) {
   Handle<DependentCode> codes = DependentCode::Insert(
-      Handle<DependentCode>(dependent_code()), group, code);
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+      Handle<DependentCode>(map->dependent_code()), group, code);
+  if (*codes != map->dependent_code()) map->set_dependent_code(*codes);
 }
 
 
-void Map::AddDependentIC(Handle<Code> stub) {
+// static
+void Map::AddDependentIC(Handle<Map> map,
+                         Handle<Code> stub) {
   ASSERT(stub->next_code_link()->IsUndefined());
-  int n = dependent_code()->number_of_entries(DependentCode::kWeakICGroup);
+  int n = map->dependent_code()->number_of_entries(DependentCode::kWeakICGroup);
   if (n == 0) {
     // Slow path: insert the head of the list with possible heap allocation.
-    AddDependentCode(DependentCode::kWeakICGroup, stub);
+    Map::AddDependentCode(map, DependentCode::kWeakICGroup, stub);
   } else {
     // Fast path: link the stub to the existing head of the list without any
     // heap allocation.
     ASSERT(n == 1);
-    dependent_code()->AddToDependentICList(stub);
+    map->dependent_code()->AddToDependentICList(stub);
   }
 }
 
@@ -12885,26 +13085,15 @@ bool Map::IsValidElementsTransition(ElementsKind from_kind,
 void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
                                            uint32_t index,
                                            Handle<Object> value) {
-  CALL_HEAP_FUNCTION_VOID(array->GetIsolate(),
-                          array->JSArrayUpdateLengthFromIndex(index, *value));
-}
-
-
-MaybeObject* JSArray::JSArrayUpdateLengthFromIndex(uint32_t index,
-                                                   Object* value) {
   uint32_t old_len = 0;
-  CHECK(length()->ToArrayIndex(&old_len));
+  CHECK(array->length()->ToArrayIndex(&old_len));
   // Check to see if we need to update the length. For now, we make
   // sure that the length stays within 32-bits (unsigned).
   if (index >= old_len && index != 0xffffffff) {
-    Object* len;
-    { MaybeObject* maybe_len =
-          GetHeap()->NumberFromDouble(static_cast<double>(index) + 1);
-      if (!maybe_len->ToObject(&len)) return maybe_len;
-    }
-    set_length(len);
+    Handle<Object> len = array->GetIsolate()->factory()->NewNumber(
+        static_cast<double>(index) + 1);
+    array->set_length(*len);
   }
-  return value;
 }
 
 
@@ -14322,107 +14511,88 @@ Handle<NameDictionary> NameDictionary::AddNameEntry(Handle<NameDictionary> dict,
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
     Handle<JSObject> object, uint32_t limit) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->PrepareSlowElementsForSort(limit),
-                     Object);
-}
-
-
-// Collates undefined and unexisting elements below limit from position
-// zero of the elements. The object stays in Dictionary mode.
-MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
-  ASSERT(HasDictionaryElements());
+  ASSERT(object->HasDictionaryElements());
+  Isolate* isolate = object->GetIsolate();
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
-  SeededNumberDictionary* dict = element_dictionary();
-  HeapNumber* result_double = NULL;
-  if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
-    // Allocate space for result before we start mutating the object.
-    Object* new_double;
-    { MaybeObject* maybe_new_double = GetHeap()->AllocateHeapNumber(0.0);
-      if (!maybe_new_double->ToObject(&new_double)) return maybe_new_double;
-    }
-    result_double = HeapNumber::cast(new_double);
-  }
-
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        SeededNumberDictionary::Allocate(GetHeap(), dict->NumberOfElements());
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  SeededNumberDictionary* new_dict = SeededNumberDictionary::cast(obj);
-
-  DisallowHeapAllocation no_alloc;
+  Handle<SeededNumberDictionary> dict(object->element_dictionary(), isolate);
+  Handle<SeededNumberDictionary> new_dict =
+      isolate->factory()->NewSeededNumberDictionary(dict->NumberOfElements());
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
   int capacity = dict->Capacity();
+  Handle<Smi> bailout(Smi::FromInt(-1), isolate);
+  // Entry to the new dictionary does not cause it to grow, as we have
+  // allocated one that is large enough for all entries.
+  DisallowHeapAllocation no_gc;
   for (int i = 0; i < capacity; i++) {
     Object* k = dict->KeyAt(i);
-    if (dict->IsKey(k)) {
-      ASSERT(k->IsNumber());
-      ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
-      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
-      ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
-      Object* value = dict->ValueAt(i);
-      PropertyDetails details = dict->DetailsAt(i);
-      if (details.type() == CALLBACKS || details.IsReadOnly()) {
-        // Bail out and do the sorting of undefineds and array holes in JS.
-        // Also bail out if the element is not supposed to be moved.
-        return Smi::FromInt(-1);
-      }
-      uint32_t key = NumberToUint32(k);
-      // In the following we assert that adding the entry to the new dictionary
-      // does not cause GC.  This is the case because we made sure to allocate
-      // the dictionary big enough above, so it need not grow.
-      if (key < limit) {
-        if (value->IsUndefined()) {
-          undefs++;
-        } else {
-          if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
-            // Adding an entry with the key beyond smi-range requires
-            // allocation. Bailout.
-            return Smi::FromInt(-1);
-          }
-          new_dict->AddNumberEntry(pos, value, details)->ToObjectUnchecked();
-          pos++;
-        }
+    if (!dict->IsKey(k)) continue;
+
+    ASSERT(k->IsNumber());
+    ASSERT(!k->IsSmi() || Smi::cast(k)->value() >= 0);
+    ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() >= 0);
+    ASSERT(!k->IsHeapNumber() || HeapNumber::cast(k)->value() <= kMaxUInt32);
+
+    HandleScope scope(isolate);
+    Handle<Object> value(dict->ValueAt(i), isolate);
+    PropertyDetails details = dict->DetailsAt(i);
+    if (details.type() == CALLBACKS || details.IsReadOnly()) {
+      // Bail out and do the sorting of undefineds and array holes in JS.
+      // Also bail out if the element is not supposed to be moved.
+      return bailout;
+    }
+
+    uint32_t key = NumberToUint32(k);
+    if (key < limit) {
+      if (value->IsUndefined()) {
+        undefs++;
+      } else if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
+        // Adding an entry with the key beyond smi-range requires
+        // allocation. Bailout.
+        return bailout;
       } else {
-        if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
-          // Adding an entry with the key beyond smi-range requires
-          // allocation. Bailout.
-          return Smi::FromInt(-1);
-        }
-        new_dict->AddNumberEntry(key, value, details)->ToObjectUnchecked();
+        Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+            new_dict, pos, value, details);
+        ASSERT(result.is_identical_to(new_dict));
+        USE(result);
+        pos++;
       }
+    } else if (key > static_cast<uint32_t>(Smi::kMaxValue)) {
+      // Adding an entry with the key beyond smi-range requires
+      // allocation. Bailout.
+      return bailout;
+    } else {
+      Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+          new_dict, key, value, details);
+      ASSERT(result.is_identical_to(new_dict));
+      USE(result);
     }
   }
 
   uint32_t result = pos;
   PropertyDetails no_details = PropertyDetails(NONE, NORMAL, 0);
-  Heap* heap = GetHeap();
   while (undefs > 0) {
     if (pos > static_cast<uint32_t>(Smi::kMaxValue)) {
       // Adding an entry with the key beyond smi-range requires
       // allocation. Bailout.
-      return Smi::FromInt(-1);
+      return bailout;
     }
-    new_dict->AddNumberEntry(pos, heap->undefined_value(), no_details)->
-        ToObjectUnchecked();
+    HandleScope scope(isolate);
+    Handle<Object> result = SeededNumberDictionary::AddNumberEntry(
+        new_dict, pos, isolate->factory()->undefined_value(), no_details);
+    ASSERT(result.is_identical_to(new_dict));
+    USE(result);
     pos++;
     undefs--;
   }
 
-  set_elements(new_dict);
+  object->set_elements(*new_dict);
 
-  if (result <= static_cast<uint32_t>(Smi::kMaxValue)) {
-    return Smi::FromInt(static_cast<int>(result));
-  }
-
-  ASSERT_NE(NULL, result_double);
-  result_double->set_value(static_cast<double>(result));
-  return result_double;
+  AllowHeapAllocation allocate_return_value;
+  return isolate->factory()->NewNumberFromUint(result);
 }
 
 
@@ -14593,11 +14763,14 @@ size_t JSTypedArray::element_size() {
 }
 
 
-Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
+Handle<Object> ExternalUint8ClampedArray::SetValue(
+    Handle<ExternalUint8ClampedArray> array,
+    uint32_t index,
+    Handle<Object> value) {
   uint8_t clamped_value = 0;
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       if (int_value < 0) {
         clamped_value = 0;
       } else if (int_value > 255) {
@@ -14606,7 +14779,7 @@ Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
         clamped_value = static_cast<uint8_t>(int_value);
       }
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       if (!(double_value > 0)) {
         // NaN and less than zero clamp to zero.
         clamped_value = 0;
@@ -14622,32 +14795,25 @@ Object* ExternalUint8ClampedArray::SetValue(uint32_t index, Object* value) {
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, clamped_value);
+    array->set(index, clamped_value);
   }
-  return Smi::FromInt(clamped_value);
-}
-
-
-Handle<Object> ExternalUint8ClampedArray::SetValue(
-    Handle<ExternalUint8ClampedArray> array,
-    uint32_t index,
-    Handle<Object> value) {
-  return Handle<Object>(array->SetValue(index, *value), array->GetIsolate());
+  return handle(Smi::FromInt(clamped_value), array->GetIsolate());
 }
 
 
 template<typename ExternalArrayClass, typename ValueType>
-static MaybeObject* ExternalArrayIntSetter(Heap* heap,
-                                           ExternalArrayClass* receiver,
-                                           uint32_t index,
-                                           Object* value) {
+static Handle<Object> ExternalArrayIntSetter(
+    Isolate* isolate,
+    Handle<ExternalArrayClass> receiver,
+    uint32_t index,
+    Handle<Object> value) {
   ValueType cast_value = 0;
   if (index < static_cast<uint32_t>(receiver->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<ValueType>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<ValueType>(DoubleToInt32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
@@ -14656,88 +14822,47 @@ static MaybeObject* ExternalArrayIntSetter(Heap* heap,
     }
     receiver->set(index, cast_value);
   }
-  return heap->NumberFromInt32(cast_value);
+  return isolate->factory()->NewNumberFromInt(cast_value);
 }
 
 
 Handle<Object> ExternalInt8Array::SetValue(Handle<ExternalInt8Array> array,
                                            uint32_t index,
                                            Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
+  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-MaybeObject* ExternalInt8Array::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalInt8Array, int8_t>
-      (GetHeap(), this, index, value);
+Handle<Object> ExternalUint8Array::SetValue(Handle<ExternalUint8Array> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-Handle<Object> ExternalUint8Array::SetValue(
-    Handle<ExternalUint8Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
+Handle<Object> ExternalInt16Array::SetValue(Handle<ExternalInt16Array> array,
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
-MaybeObject* ExternalUint8Array::SetValue(uint32_t index,
-                                                 Object* value) {
-  return ExternalArrayIntSetter<ExternalUint8Array, uint8_t>
-      (GetHeap(), this, index, value);
-}
-
-
-Handle<Object> ExternalInt16Array::SetValue(
-    Handle<ExternalInt16Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalInt16Array::SetValue(uint32_t index,
-                                          Object* value) {
-  return ExternalArrayIntSetter<ExternalInt16Array, int16_t>
-      (GetHeap(), this, index, value);
-}
-
-
-Handle<Object> ExternalUint16Array::SetValue(
-    Handle<ExternalUint16Array> array,
-    uint32_t index,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalUint16Array::SetValue(uint32_t index,
-                                                  Object* value) {
-  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>
-      (GetHeap(), this, index, value);
+Handle<Object> ExternalUint16Array::SetValue(Handle<ExternalUint16Array> array,
+                                             uint32_t index,
+                                             Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalUint16Array, uint16_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
 Handle<Object> ExternalInt32Array::SetValue(Handle<ExternalInt32Array> array,
-                                          uint32_t index,
-                                          Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalInt32Array::SetValue(uint32_t index, Object* value) {
-  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>
-      (GetHeap(), this, index, value);
+                                            uint32_t index,
+                                            Handle<Object> value) {
+  return ExternalArrayIntSetter<ExternalInt32Array, int32_t>(
+      array->GetIsolate(), array, index, value);
 }
 
 
@@ -14745,30 +14870,22 @@ Handle<Object> ExternalUint32Array::SetValue(
     Handle<ExternalUint32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalUint32Array::SetValue(uint32_t index, Object* value) {
   uint32_t cast_value = 0;
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<uint32_t>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<uint32_t>(DoubleToUint32(double_value));
     } else {
       // Clamp undefined to zero (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, cast_value);
+    array->set(index, cast_value);
   }
-  return heap->NumberFromUint32(cast_value);
+  return array->GetIsolate()->factory()->NewNumberFromUint(cast_value);
 }
 
 
@@ -14776,30 +14893,22 @@ Handle<Object> ExternalFloat32Array::SetValue(
     Handle<ExternalFloat32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalFloat32Array::SetValue(uint32_t index, Object* value) {
   float cast_value = static_cast<float>(OS::nan_value());
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
+  if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
+      int int_value = Handle<Smi>::cast(value)->value();
       cast_value = static_cast<float>(int_value);
     } else if (value->IsHeapNumber()) {
-      double double_value = HeapNumber::cast(value)->value();
+      double double_value = Handle<HeapNumber>::cast(value)->value();
       cast_value = static_cast<float>(double_value);
     } else {
       // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, cast_value);
+    array->set(index, cast_value);
   }
-  return heap->AllocateHeapNumber(cast_value);
+  return array->GetIsolate()->factory()->NewNumber(cast_value);
 }
 
 
@@ -14807,29 +14916,18 @@ Handle<Object> ExternalFloat64Array::SetValue(
     Handle<ExternalFloat64Array> array,
     uint32_t index,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(array->GetIsolate(),
-                     array->SetValue(index, *value),
-                     Object);
-}
-
-
-MaybeObject* ExternalFloat64Array::SetValue(uint32_t index, Object* value) {
   double double_value = OS::nan_value();
-  Heap* heap = GetHeap();
-  if (index < static_cast<uint32_t>(length())) {
-    if (value->IsSmi()) {
-      int int_value = Smi::cast(value)->value();
-      double_value = static_cast<double>(int_value);
-    } else if (value->IsHeapNumber()) {
-      double_value = HeapNumber::cast(value)->value();
+  if (index < static_cast<uint32_t>(array->length())) {
+    if (value->IsNumber()) {
+      double_value = value->Number();
     } else {
       // Clamp undefined to NaN (default). All other types have been
       // converted to a number type further up in the call chain.
       ASSERT(value->IsUndefined());
     }
-    set(index, double_value);
+    array->set(index, double_value);
   }
-  return heap->AllocateHeapNumber(double_value);
+  return array->GetIsolate()->factory()->NewNumber(double_value);
 }
 
 
@@ -16478,14 +16576,16 @@ void PropertyCell::SetValueInferType(Handle<PropertyCell> cell,
 }
 
 
-void PropertyCell::AddDependentCompilationInfo(CompilationInfo* info) {
-  Handle<DependentCode> dep(dependent_code());
+// static
+void PropertyCell::AddDependentCompilationInfo(Handle<PropertyCell> cell,
+                                               CompilationInfo* info) {
   Handle<DependentCode> codes =
-      DependentCode::Insert(dep, DependentCode::kPropertyCellChangedGroup,
+      DependentCode::Insert(handle(cell->dependent_code(), info->isolate()),
+                            DependentCode::kPropertyCellChangedGroup,
                             info->object_wrapper());
-  if (*codes != dependent_code()) set_dependent_code(*codes);
+  if (*codes != cell->dependent_code()) cell->set_dependent_code(*codes);
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
-      Handle<HeapObject>(this), info->zone());
+      cell, info->zone());
 }
 
 

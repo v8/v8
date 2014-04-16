@@ -9,6 +9,27 @@
 namespace v8 {
 namespace internal {
 
+
+template<typename T>
+Handle<T> Factory::New(Handle<Map> map, AllocationSpace space) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->Allocate(*map, space),
+      T);
+}
+
+
+template<typename T>
+Handle<T> Factory::New(Handle<Map> map,
+                       AllocationSpace space,
+                       Handle<AllocationSite> allocation_site) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->Allocate(*map, space, *allocation_site),
+      T);
+}
+
+
 Handle<Box> Factory::NewBox(Handle<Object> value) {
   Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
   result->set_value(*value);
@@ -347,9 +368,7 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
   Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
       ? cons_ascii_string_map() : cons_string_map();
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->Allocate(*map, NEW_SPACE),
-                     ConsString);
+  return New<ConsString>(map, NEW_SPACE);
 }
 
 
@@ -371,8 +390,7 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    return isolate()->Throw<String>(
-        isolate()->factory()->NewInvalidStringLengthError());
+    return isolate()->Throw<String>(NewInvalidStringLengthError());
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -455,9 +473,7 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
 Handle<SlicedString> Factory::NewRawSlicedString(String::Encoding encoding) {
   Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
       ? sliced_ascii_string_map() : sliced_string_map();
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->Allocate(*map, NEW_SPACE),
-                     SlicedString);
+  return New<SlicedString>(map, NEW_SPACE);
 }
 
 
@@ -896,20 +912,6 @@ Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
 }
 
 
-Handle<JSFunction> Factory::BaseNewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> function_info,
-    Handle<Map> function_map,
-    PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFunction(*function_map,
-                                          *function_info,
-                                          isolate()->heap()->the_hole_value(),
-                                          pretenure),
-                     JSFunction);
-}
-
-
 static Handle<Map> MapForNewFunction(Isolate *isolate,
                                      Handle<SharedFunctionInfo> function_info) {
   Context *context = isolate->context()->native_context();
@@ -923,9 +925,10 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> function_info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
-      function_info,
+  Handle<JSFunction> result = NewFunctionHelper(
       MapForNewFunction(isolate(), function_info),
+      function_info,
+      the_hole_value(),
       pretenure);
 
   if (function_info->ic_age() != isolate()->heap()->global_ic_age()) {
@@ -1332,14 +1335,6 @@ Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
 }
 
 
-static Handle<GlobalObject> NewGlobalObjectFromMap(Isolate* isolate,
-                                                   Handle<Map> map) {
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->Allocate(*map, OLD_POINTER_SPACE),
-                     GlobalObject);
-}
-
-
 Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   ASSERT(constructor->has_initial_map());
   Handle<Map> map(constructor->initial_map());
@@ -1378,7 +1373,7 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
   }
 
   // Allocate the global object and initialize it with the backing store.
-  Handle<GlobalObject> global = NewGlobalObjectFromMap(isolate(), map);
+  Handle<GlobalObject> global = New<GlobalObject>(map, OLD_POINTER_SPACE);
   isolate()->heap()->InitializeJSObjectFromMap(*global, *dictionary, *map);
 
   // Create a new map for the global object.
@@ -1438,8 +1433,7 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 int length,
                                                 PretenureFlag pretenure) {
   ASSERT(length <= elements->length());
-  Handle<JSArray> array =
-      isolate()->factory()->NewJSArray(elements_kind, pretenure);
+  Handle<JSArray> array = NewJSArray(elements_kind, pretenure);
 
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(length));
@@ -1554,19 +1548,107 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 }
 
 
-void Factory::BecomeJSObject(Handle<JSReceiver> object) {
-  CALL_HEAP_FUNCTION_VOID(
+Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
+                                            Handle<Object> call_trap,
+                                            Handle<Object> construct_trap,
+                                            Handle<Object> prototype) {
+  CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->ReinitializeJSReceiver(
-          *object, JS_OBJECT_TYPE, JSObject::kHeaderSize));
+      isolate()->heap()->AllocateJSFunctionProxy(
+          *handler, *call_trap, *construct_trap, *prototype),
+      JSProxy);
+}
+
+
+void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
+                                     InstanceType type,
+                                     int size) {
+  ASSERT(type >= FIRST_JS_OBJECT_TYPE);
+
+  // Allocate fresh map.
+  // TODO(rossberg): Once we optimize proxies, cache these maps.
+  Handle<Map> map = NewMap(type, size);
+
+  // Check that the receiver has at least the size of the fresh object.
+  int size_difference = object->map()->instance_size() - map->instance_size();
+  ASSERT(size_difference >= 0);
+
+  map->set_prototype(object->map()->prototype());
+
+  // Allocate the backing storage for the properties.
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
+
+  Heap* heap = isolate()->heap();
+  MaybeHandle<SharedFunctionInfo> shared;
+  if (type == JS_FUNCTION_TYPE) {
+    OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
+                         heap->HashSeed());
+    Handle<String> name = InternalizeStringWithKey(&key);
+    shared = NewSharedFunctionInfo(name);
+  }
+
+  // In order to keep heap in consistent state there must be no allocations
+  // before object re-initialization is finished and filler object is installed.
+  DisallowHeapAllocation no_allocation;
+
+  // Reset the map for the object.
+  object->set_map(*map);
+  Handle<JSObject> jsobj = Handle<JSObject>::cast(object);
+
+  // Reinitialize the object from the constructor map.
+  heap->InitializeJSObjectFromMap(*jsobj, *properties, *map);
+
+  // Functions require some minimal initialization.
+  if (type == JS_FUNCTION_TYPE) {
+    map->set_function_with_prototype(true);
+    Handle<JSFunction> js_function = Handle<JSFunction>::cast(object);
+    InitializeFunction(js_function, shared.ToHandleChecked(), the_hole_value());
+    js_function->set_context(isolate()->context()->native_context());
+  }
+
+  // Put in filler if the new object is smaller than the old.
+  if (size_difference > 0) {
+    heap->CreateFillerObjectAt(
+        object->address() + map->instance_size(), size_difference);
+  }
+}
+
+
+void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
+                                        Handle<JSFunction> constructor) {
+  ASSERT(constructor->has_initial_map());
+  Handle<Map> map(constructor->initial_map(), isolate());
+
+  // Check that the already allocated object has the same size and type as
+  // objects allocated using the constructor.
+  ASSERT(map->instance_size() == object->map()->instance_size());
+  ASSERT(map->instance_type() == object->map()->instance_type());
+
+  // Allocate the backing storage for the properties.
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
+
+  // In order to keep heap in consistent state there must be no allocations
+  // before object re-initialization is finished.
+  DisallowHeapAllocation no_allocation;
+
+  // Reset the map for the object.
+  object->set_map(constructor->initial_map());
+
+  Heap* heap = isolate()->heap();
+  // Reinitialize the object from the constructor map.
+  heap->InitializeJSObjectFromMap(*object, *properties, *map);
+}
+
+
+void Factory::BecomeJSObject(Handle<JSReceiver> object) {
+  ReinitializeJSReceiver(object, JS_OBJECT_TYPE, JSObject::kHeaderSize);
 }
 
 
 void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
-  CALL_HEAP_FUNCTION_VOID(
-      isolate(),
-      isolate()->heap()->ReinitializeJSReceiver(
-          *object, JS_FUNCTION_TYPE, JSFunction::kSize));
+  ReinitializeJSReceiver(object, JS_FUNCTION_TYPE, JSFunction::kSize);
 }
 
 
@@ -1620,9 +1702,12 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
-Handle<String> Factory::NumberToString(Handle<Object> number) {
+Handle<String> Factory::NumberToString(Handle<Object> number,
+                                       bool check_number_string_cache) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->NumberToString(*number), String);
+                     isolate()->heap()->NumberToString(
+                         *number, check_number_string_cache),
+                     String);
 }
 
 
@@ -1652,46 +1737,52 @@ Handle<UnseededNumberDictionary> Factory::DictionaryAtNumberPut(
 }
 
 
-Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
-                                              Handle<Object> prototype) {
-  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFunction(*isolate()->sloppy_function_map(),
-                                          *function_share,
-                                          *prototype),
-      JSFunction);
+void Factory::InitializeFunction(Handle<JSFunction> function,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Handle<Object> prototype) {
+  ASSERT(!prototype->IsMap());
+  function->initialize_properties();
+  function->initialize_elements();
+  function->set_shared(*shared);
+  function->set_code(shared->code());
+  function->set_prototype_or_initial_map(*prototype);
+  function->set_context(*undefined_value());
+  function->set_literals_or_bindings(*empty_fixed_array());
+  function->set_next_function_link(*undefined_value());
+}
+
+
+Handle<JSFunction> Factory::NewFunctionHelper(Handle<Map> function_map,
+                                              Handle<SharedFunctionInfo> shared,
+                                              Handle<Object> prototype,
+                                              PretenureFlag pretenure) {
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
+  Handle<JSFunction> fun = New<JSFunction>(function_map, space);
+  InitializeFunction(fun, shared, prototype);
+  return fun;
 }
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Object> prototype) {
-  Handle<JSFunction> fun = NewFunctionHelper(name, prototype);
+  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
+  Handle<JSFunction> fun = NewFunctionHelper(
+      isolate()->sloppy_function_map(), function_share, prototype);
   fun->set_context(isolate()->context()->native_context());
   return fun;
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
-    Handle<String> name,
-    StrictMode strict_mode) {
-  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = strict_mode == SLOPPY
-      ? isolate()->sloppy_function_without_prototype_map()
-      : isolate()->strict_function_without_prototype_map();
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFunction(
-                         *map,
-                         *function_share,
-                         *the_hole_value()),
-                     JSFunction);
 }
 
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     Handle<String> name,
     StrictMode strict_mode) {
-  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name, strict_mode);
+  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
+  Handle<Map> map = strict_mode == SLOPPY
+      ? isolate()->sloppy_function_without_prototype_map()
+      : isolate()->strict_function_without_prototype_map();
+  Handle<JSFunction> fun =
+      NewFunctionHelper(map, function_share, the_hole_value());
   fun->set_context(isolate()->context()->native_context());
   return fun;
 }

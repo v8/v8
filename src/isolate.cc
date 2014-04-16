@@ -212,19 +212,6 @@ struct StaticInitializer {
   }
 } static_initializer;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-Debugger* Isolate::GetDefaultIsolateDebugger() {
-  EnsureDefaultIsolate();
-  return default_isolate_->debugger();
-}
-#endif
-
-
-StackGuard* Isolate::GetDefaultIsolateStackGuard() {
-  EnsureDefaultIsolate();
-  return default_isolate_->stack_guard();
-}
-
 
 void Isolate::EnterDefaultIsolate() {
   EnsureDefaultIsolate();
@@ -235,12 +222,6 @@ void Isolate::EnterDefaultIsolate() {
   if (data == NULL || data->isolate() != default_isolate_) {
     default_isolate_->Enter();
   }
-}
-
-
-v8::Isolate* Isolate::GetDefaultIsolateForLocking() {
-  EnsureDefaultIsolate();
-  return reinterpret_cast<v8::Isolate*>(default_isolate_);
 }
 
 
@@ -1690,10 +1671,7 @@ Isolate::~Isolate() {
   // Has to be called while counters_ are still alive
   runtime_zone_.DeleteKeptSegment();
 
-  // The entry stack must be empty when we get here,
-  // except for the default isolate, where it can
-  // still contain up to one entry stack item
-  ASSERT(entry_stack_ == NULL || this == default_isolate_);
+  // The entry stack must be empty when we get here.
   ASSERT(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
 
   delete entry_stack_;

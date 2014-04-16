@@ -1017,7 +1017,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ Push(Operand(rbp, kFunctionOffset));
     __ Push(rax);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     __ bind(&okay);
     // End of stack check.
 
@@ -1322,6 +1322,31 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
+static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
+                                       Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- rax : actual number of arguments
+  //  -- rbx : expected number of arguments
+  //  -- rdi: function (passed through to callee)
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  Label okay;
+  __ LoadRoot(rdx, Heap::kRealStackLimitRootIndex);
+  __ movp(rcx, rsp);
+  // Make rcx the space we have left. The stack might already be overflowed
+  // here which will cause rcx to become negative.
+  __ subp(rcx, rdx);
+  // Make rdx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
+  // Check if the arguments will overflow the stack.
+  __ cmpp(rcx, rdx);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ pushq(rbp);
   __ movp(rbp, rsp);
@@ -1366,6 +1391,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   Label invoke, dont_adapt_arguments;
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->arguments_adaptors(), 1);
+
+  Label stack_overflow;
+  ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
   Label enough, too_few;
   __ movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
@@ -1439,6 +1467,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ jmp(rdx);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ int3();
+  }
 }
 
 

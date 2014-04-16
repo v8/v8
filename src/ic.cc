@@ -442,7 +442,7 @@ void IC::RegisterWeakMapDependency(Handle<Code> stub) {
     MapHandleList maps;
     stub->FindAllMaps(&maps);
     if (maps.length() == 1 && stub->IsWeakObjectInIC(*maps.at(0))) {
-      maps.at(0)->AddDependentIC(stub);
+      Map::AddDependentIC(maps.at(0), stub);
       stub->mark_as_weak_stub();
       if (FLAG_enable_ool_constant_pool) {
         stub->constant_pool()->set_weak_object_state(
@@ -1231,9 +1231,12 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   ASSERT(!receiver->map()->is_deprecated());
   if (!lookup->CanHoldValue(value)) {
     Handle<Map> target(lookup->GetTransitionTarget());
+    Representation field_representation = value->OptimalRepresentation();
+    Handle<HeapType> field_type = value->OptimalType(
+        lookup->isolate(), field_representation);
     Map::GeneralizeRepresentation(
         target, target->LastAdded(),
-        value->OptimalRepresentation(), FORCE_FIELD);
+        field_representation, field_type, FORCE_FIELD);
     // Lookup the transition again since the transition tree may have changed
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);

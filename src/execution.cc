@@ -740,13 +740,12 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   Handle<Object> index_object = factory->NewNumberFromInt(int_index);
   Handle<Object> index_arg[] = { index_object };
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result,
-      TryCall(Handle<JSFunction>::cast(char_at),
-              string,
-              ARRAY_SIZE(index_arg),
-              index_arg),
-      factory->undefined_value());
+  if (!TryCall(Handle<JSFunction>::cast(char_at),
+               string,
+               ARRAY_SIZE(index_arg),
+               index_arg).ToHandle(&result)) {
+    return factory->undefined_value();
+  }
   return result;
 }
 

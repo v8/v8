@@ -1127,13 +1127,12 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   // Call HandleBreakPointx.
   Handle<Object> argv[] = { break_id, break_point_object };
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, result,
-      Execution::TryCall(check_break_point,
-                         isolate_->js_builtins_object(),
-                         ARRAY_SIZE(argv),
-                         argv),
-      false);
+  if (!Execution::TryCall(check_break_point,
+                          isolate_->js_builtins_object(),
+                          ARRAY_SIZE(argv),
+                          argv).ToHandle(&result)) {
+    return false;
+  }
 
   // Return whether the break point is triggered.
   return result->IsTrue();
@@ -2620,8 +2619,7 @@ MaybeHandle<Object> Debugger::MakeExecutionState() {
 
 MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
   Handle<Object> exec_state;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, exec_state, MakeExecutionState(), Object);
+  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new break event object.
   Handle<Object> argv[] = { exec_state, break_points_hit };
   return MakeJSObject(CStrVector("MakeBreakEvent"), ARRAY_SIZE(argv), argv);
@@ -2631,8 +2629,7 @@ MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
 MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
                                                  bool uncaught) {
   Handle<Object> exec_state;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, exec_state, MakeExecutionState(), Object);
+  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new exception event object.
   Handle<Object> argv[] = { exec_state,
                             exception,
@@ -2643,24 +2640,21 @@ MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
 
 MaybeHandle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
                                                bool before) {
-  Factory* factory = isolate_->factory();
-  // Create the compile event object.
   Handle<Object> exec_state;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, exec_state, MakeExecutionState(), Object);
+  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
+  // Create the compile event object.
   Handle<Object> script_wrapper = GetScriptWrapper(script);
   Handle<Object> argv[] = { exec_state,
                             script_wrapper,
-                            factory->ToBoolean(before) };
+                            isolate_->factory()->ToBoolean(before) };
   return MakeJSObject(CStrVector("MakeCompileEvent"), ARRAY_SIZE(argv), argv);
 }
 
 
 MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
-  // Create the script collected event object.
   Handle<Object> exec_state;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate_, exec_state, MakeExecutionState(), Object);
+  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
+  // Create the script collected event object.
   Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id), isolate_);
   Handle<Object> argv[] = { exec_state, id_object };
 
@@ -2696,9 +2690,7 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, event_data, MakeExceptionEvent(exception, uncaught),
-      /* void */ ;);
+  if (!MakeExceptionEvent(exception, uncaught).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
@@ -2722,8 +2714,7 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, event_data, MakeBreakEvent(break_points_hit), /* void */ ;);
+  if (!MakeBreakEvent(break_points_hit).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::Break,
@@ -2747,8 +2738,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, event_data, MakeCompileEvent(script, true), /* void */ ;);
+  if (!MakeCompileEvent(script, true).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::BeforeCompile,
@@ -2814,8 +2804,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   // Create the compile state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, event_data, MakeCompileEvent(script, false), /* void */ ;);
+  if (!MakeCompileEvent(script, false).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AfterCompile, Handle<JSObject>::cast(event_data), true);
@@ -2837,8 +2826,7 @@ void Debugger::OnScriptCollected(int id) {
   // Create the script collected state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, event_data, MakeScriptCollectedEvent(id), /* void */ ;);
+  if (!MakeScriptCollectedEvent(id).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::ScriptCollected,
@@ -2860,8 +2848,8 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   // Create the execution state.
   Handle<Object> exec_state;
   // Bail out and don't call debugger if exception.
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, exec_state, MakeExecutionState(), /* void */ ;);
+  if (!MakeExecutionState().ToHandle(&exec_state)) return;
+
   // First notify the message handler if any.
   if (message_handler_ != NULL) {
     NotifyMessageHandler(event,
@@ -3302,10 +3290,9 @@ MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
 
   // Create the execution state.
   Handle<Object> exec_state;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, exec_state,
-      MakeExecutionState(),
-      isolate_->factory()->undefined_value());
+  if (!MakeExecutionState().ToHandle(&exec_state)) {
+    return isolate_->factory()->undefined_value();
+  }
 
   Handle<Object> argv[] = { exec_state, data };
   return Execution::Call(
@@ -3333,7 +3320,7 @@ bool Debugger::StartAgent(const char* name, int port,
     // Once become suspended, V8 will stay so indefinitely long, until remote
     // debugger connects and issues "continue" command.
     Debugger::message_handler_ = StubMessageHandler2;
-    v8::Debug::DebugBreak();
+    v8::Debug::DebugBreak(reinterpret_cast<v8::Isolate*>(isolate_));
   }
 
   if (agent_ == NULL) {

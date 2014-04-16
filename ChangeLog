@@ -1,3 +1,14 @@
+2014-04-16: Version 3.26.16
+
+        Removed EnterIsolateIfNeeded and a soon-to-be-useless assertion
+        (Chromium issue 359977).
+
+        Removed GetDefaultIsolate{Debugger,ForLocking,StackGuard} (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-15: Version 3.26.15
 
         Fix result of LCodeGen::DoWrapReceiver for strict functions and builtins

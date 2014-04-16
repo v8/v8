@@ -7,6 +7,7 @@
 
 #include "isolate.h"
 #include "factory.h"
+#include "types.h"
 
 namespace v8 {
 namespace internal {
@@ -74,8 +75,15 @@ class FieldDescriptor V8_FINAL : public Descriptor {
                   int field_index,
                   PropertyAttributes attributes,
                   Representation representation)
-      : Descriptor(key, handle(Smi::FromInt(0), key->GetIsolate()), attributes,
+      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes,
                    FIELD, representation, field_index) {}
+  FieldDescriptor(Handle<Name> key,
+                  int field_index,
+                  Handle<HeapType> field_type,
+                  PropertyAttributes attributes,
+                  Representation representation)
+      : Descriptor(key, field_type, attributes, FIELD,
+                   representation, field_index) { }
 };
 
 
@@ -177,9 +185,26 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
     number_ = number;
   }
 
-  bool CanHoldValue(Handle<Object> value) {
-    if (IsNormal()) return true;
-    return value->FitsRepresentation(details_.representation());
+  bool CanHoldValue(Handle<Object> value) const {
+    switch (type()) {
+      case NORMAL:
+        return true;
+      case FIELD:
+        return value->FitsRepresentation(representation()) &&
+            GetFieldType()->NowContains(value);
+      case CONSTANT:
+        ASSERT(GetConstant() != *value ||
+               value->FitsRepresentation(representation()));
+        return GetConstant() == *value;
+      case CALLBACKS:
+      case HANDLER:
+      case INTERCEPTOR:
+        return true;
+      case NONEXISTENT:
+        UNREACHABLE();
+    }
+    UNREACHABLE();
+    return true;
   }
 
   void TransitionResult(JSObject* holder, Map* target) {
@@ -456,6 +481,33 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
            lookup_type_ == TRANSITION_TYPE);
     ASSERT(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetFieldIndex(number_);
+  }
+
+  HeapType* GetFieldType() const {
+    ASSERT(type() == FIELD);
+    if (lookup_type_ == DESCRIPTOR_TYPE) {
+      return GetFieldTypeFromMap(holder()->map());
+    }
+    ASSERT(lookup_type_ == TRANSITION_TYPE);
+    return GetFieldTypeFromMap(transition_);
+  }
+
+  HeapType* GetFieldTypeFromMap(Map* map) const {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+           lookup_type_ == TRANSITION_TYPE);
+    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    return map->instance_descriptors()->GetFieldType(number_);
+  }
+
+  Map* GetFieldOwner() const {
+    return GetFieldOwnerFromMap(holder()->map());
+  }
+
+  Map* GetFieldOwnerFromMap(Map* map) const {
+    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+           lookup_type_ == TRANSITION_TYPE);
+    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    return map->FindFieldOwner(number_);
   }
 
   void Iterate(ObjectVisitor* visitor);

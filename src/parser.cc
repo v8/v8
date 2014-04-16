@@ -3258,9 +3258,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::IsParenthesizedFlag parenthesized = parenthesized_function_
       ? FunctionLiteral::kIsParenthesized
       : FunctionLiteral::kNotParenthesized;
-  FunctionLiteral::IsGeneratorFlag generator = is_generator
-      ? FunctionLiteral::kIsGenerator
-      : FunctionLiteral::kNotGenerator;
   DeferredFeedbackSlotProcessor* slot_processor;
   AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;
@@ -3389,132 +3386,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_parsed) {
-      int function_block_pos = position();
-      FunctionEntry entry;
-      if (cached_data_mode_ == CONSUME_CACHED_DATA) {
-        // If we have cached data, we use it to skip parsing the function body.
-        // The data contains the information we need to construct the lazy
-        // function.
-        entry = (*cached_data())->GetFunctionEntry(function_block_pos);
-        if (entry.is_valid()) {
-          if (entry.end_pos() <= function_block_pos) {
-            // End position greater than end of stream is safe, and hard
-            // to check.
-            ReportInvalidCachedData(function_name, CHECK_OK);
-          }
-          scanner()->SeekForward(entry.end_pos() - 1);
-
-          scope->set_end_position(entry.end_pos());
-          Expect(Token::RBRACE, CHECK_OK);
-          isolate()->counters()->total_preparse_skipped()->Increment(
-              scope->end_position() - function_block_pos);
-          materialized_literal_count = entry.literal_count();
-          expected_property_count = entry.property_count();
-          scope_->SetStrictMode(entry.strict_mode());
-        } else {
-          // This case happens when we have preparse data but it doesn't contain
-          // an entry for the function. Fail the compilation.
-          ReportInvalidCachedData(function_name, CHECK_OK);
-        }
-      } else {
-        // With no cached data, we partially parse the function, without
-        // building an AST. This gathers the data needed to build a lazy
-        // function.
-        SingletonLogger logger;
-        PreParser::PreParseResult result = LazyParseFunctionLiteral(&logger);
-        if (result == PreParser::kPreParseStackOverflow) {
-          // Propagate stack overflow.
-          set_stack_overflow();
-          *ok = false;
-          return NULL;
-        }
-        if (logger.has_error()) {
-          const char* arg = logger.argument_opt();
-          Vector<const char*> args;
-          if (arg != NULL) {
-            args = Vector<const char*>(&arg, 1);
-          }
-          ParserTraits::ReportMessageAt(
-              Scanner::Location(logger.start(), logger.end()),
-              logger.message(), args, logger.is_reference_error());
-          *ok = false;
-          return NULL;
-        }
-        scope->set_end_position(logger.end());
-        Expect(Token::RBRACE, CHECK_OK);
-        isolate()->counters()->total_preparse_skipped()->Increment(
-            scope->end_position() - function_block_pos);
-        materialized_literal_count = logger.literals();
-        expected_property_count = logger.properties();
-        scope_->SetStrictMode(logger.strict_mode());
-        if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
-          ASSERT(log_);
-          // Position right after terminal '}'.
-          int body_end = scanner()->location().end_pos;
-          log_->LogFunction(function_block_pos, body_end,
-                            materialized_literal_count,
-                            expected_property_count,
-                            scope_->strict_mode());
-        }
-      }
-    }
-
-    if (!is_lazily_parsed) {
-      // Everything inside an eagerly parsed function will be parsed eagerly
-      // (see comment above).
-      ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
-      body = new(zone()) ZoneList<Statement*>(8, zone());
-      if (fvar != NULL) {
-        VariableProxy* fproxy = scope_->NewUnresolved(
-            factory(), function_name, Interface::NewConst());
-        fproxy->BindTo(fvar);
-        body->Add(factory()->NewExpressionStatement(
-            factory()->NewAssignment(fvar_init_op,
-                                     fproxy,
-                                     factory()->NewThisFunction(pos),
-                                     RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition), zone());
-      }
-
-      // For generators, allocate and yield an iterator on function entry.
-      if (is_generator) {
-        ZoneList<Expression*>* arguments =
-            new(zone()) ZoneList<Expression*>(0, zone());
-        CallRuntime* allocation = factory()->NewCallRuntime(
-            isolate()->factory()->empty_string(),
-            Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
-            arguments, pos);
-        VariableProxy* init_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Assignment* assignment = factory()->NewAssignment(
-            Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Yield* yield = factory()->NewYield(
-            get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
-        body->Add(factory()->NewExpressionStatement(
-            yield, RelocInfo::kNoPosition), zone());
-      }
-
-      ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
-
-      if (is_generator) {
-        VariableProxy* get_proxy = factory()->NewVariableProxy(
-            function_state_->generator_object_variable());
-        Expression *undefined = factory()->NewLiteral(
-            isolate()->factory()->undefined_value(), RelocInfo::kNoPosition);
-        Yield* yield = factory()->NewYield(
-            get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
-        body->Add(factory()->NewExpressionStatement(
-            yield, RelocInfo::kNoPosition), zone());
-      }
-
+      SkipLazyFunctionBody(function_name, &materialized_literal_count,
+                           &expected_property_count, CHECK_OK);
+    } else {
+      body = ParseEagerFunctionBody(function_name, pos, fvar, fvar_init_op,
+                                    is_generator, CHECK_OK);
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       handler_count = function_state.handler_count();
-
-      Expect(Token::RBRACE, CHECK_OK);
-      scope->set_end_position(scanner()->location().end_pos);
     }
 
     // Validate strict mode. We can do this only after parsing the function,
@@ -3558,6 +3437,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
+  FunctionLiteral::IsGeneratorFlag generator = is_generator
+      ? FunctionLiteral::kIsGenerator
+      : FunctionLiteral::kNotGenerator;
   FunctionLiteral* function_literal =
       factory()->NewFunctionLiteral(function_name,
                                     scope,
@@ -3582,7 +3464,149 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 }
 
 
-PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
+void Parser::SkipLazyFunctionBody(Handle<String> function_name,
+                                  int* materialized_literal_count,
+                                  int* expected_property_count,
+                                  bool* ok) {
+  int function_block_pos = position();
+  if (cached_data_mode_ == CONSUME_CACHED_DATA) {
+    // If we have cached data, we use it to skip parsing the function body. The
+    // data contains the information we need to construct the lazy function.
+    FunctionEntry entry =
+        (*cached_data())->GetFunctionEntry(function_block_pos);
+    if (entry.is_valid()) {
+      if (entry.end_pos() <= function_block_pos) {
+        // End position greater than end of stream is safe, and hard to check.
+        ReportInvalidCachedData(function_name, ok);
+        if (!*ok) {
+          return;
+        }
+      }
+      scanner()->SeekForward(entry.end_pos() - 1);
+
+      scope_->set_end_position(entry.end_pos());
+      Expect(Token::RBRACE, ok);
+      if (!*ok) {
+        return;
+      }
+      isolate()->counters()->total_preparse_skipped()->Increment(
+          scope_->end_position() - function_block_pos);
+      *materialized_literal_count = entry.literal_count();
+      *expected_property_count = entry.property_count();
+      scope_->SetStrictMode(entry.strict_mode());
+    } else {
+      // This case happens when we have preparse data but it doesn't contain an
+      // entry for the function. Fail the compilation.
+      ReportInvalidCachedData(function_name, ok);
+      return;
+    }
+  } else {
+    // With no cached data, we partially parse the function, without building an
+    // AST. This gathers the data needed to build a lazy function.
+    SingletonLogger logger;
+    PreParser::PreParseResult result =
+        ParseLazyFunctionBodyWithPreParser(&logger);
+    if (result == PreParser::kPreParseStackOverflow) {
+      // Propagate stack overflow.
+      set_stack_overflow();
+      *ok = false;
+      return;
+    }
+    if (logger.has_error()) {
+      const char* arg = logger.argument_opt();
+      Vector<const char*> args;
+      if (arg != NULL) {
+        args = Vector<const char*>(&arg, 1);
+      }
+      ParserTraits::ReportMessageAt(
+          Scanner::Location(logger.start(), logger.end()),
+          logger.message(), args, logger.is_reference_error());
+      *ok = false;
+      return;
+    }
+    scope_->set_end_position(logger.end());
+    Expect(Token::RBRACE, ok);
+    if (!*ok) {
+      return;
+    }
+    isolate()->counters()->total_preparse_skipped()->Increment(
+        scope_->end_position() - function_block_pos);
+    *materialized_literal_count = logger.literals();
+    *expected_property_count = logger.properties();
+    scope_->SetStrictMode(logger.strict_mode());
+    if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
+      ASSERT(log_);
+      // Position right after terminal '}'.
+      int body_end = scanner()->location().end_pos;
+      log_->LogFunction(function_block_pos, body_end,
+                        *materialized_literal_count,
+                        *expected_property_count,
+                        scope_->strict_mode());
+    }
+  }
+}
+
+
+ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
+    Handle<String> function_name, int pos, Variable* fvar,
+    Token::Value fvar_init_op, bool is_generator, bool* ok) {
+  // Everything inside an eagerly parsed function will be parsed eagerly
+  // (see comment above).
+  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8, zone());
+  if (fvar != NULL) {
+    VariableProxy* fproxy = scope_->NewUnresolved(
+        factory(), function_name, Interface::NewConst());
+    fproxy->BindTo(fvar);
+    body->Add(factory()->NewExpressionStatement(
+        factory()->NewAssignment(fvar_init_op,
+                                 fproxy,
+                                 factory()->NewThisFunction(pos),
+                                 RelocInfo::kNoPosition),
+        RelocInfo::kNoPosition), zone());
+  }
+
+  // For generators, allocate and yield an iterator on function entry.
+  if (is_generator) {
+    ZoneList<Expression*>* arguments =
+        new(zone()) ZoneList<Expression*>(0, zone());
+    CallRuntime* allocation = factory()->NewCallRuntime(
+        isolate()->factory()->empty_string(),
+        Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
+        arguments, pos);
+    VariableProxy* init_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Assignment* assignment = factory()->NewAssignment(
+        Token::INIT_VAR, init_proxy, allocation, RelocInfo::kNoPosition);
+    VariableProxy* get_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Yield* yield = factory()->NewYield(
+        get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
+    body->Add(factory()->NewExpressionStatement(
+        yield, RelocInfo::kNoPosition), zone());
+  }
+
+  ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
+
+  if (is_generator) {
+    VariableProxy* get_proxy = factory()->NewVariableProxy(
+        function_state_->generator_object_variable());
+    Expression *undefined = factory()->NewLiteral(
+        isolate()->factory()->undefined_value(), RelocInfo::kNoPosition);
+    Yield* yield = factory()->NewYield(
+        get_proxy, undefined, Yield::FINAL, RelocInfo::kNoPosition);
+    body->Add(factory()->NewExpressionStatement(
+        yield, RelocInfo::kNoPosition), zone());
+  }
+
+  Expect(Token::RBRACE, CHECK_OK);
+  scope_->set_end_position(scanner()->location().end_pos);
+
+  return body;
+}
+
+
+PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SingletonLogger* logger) {
   HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
   ASSERT_EQ(Token::LBRACE, scanner()->current_token());

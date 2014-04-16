@@ -1509,8 +1509,11 @@ class Object : public MaybeObject {
     return true;
   }
 
-  inline MaybeObject* AllocateNewStorageFor(Heap* heap,
-                                            Representation representation);
+  Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
+
+  inline static Handle<Object> NewStorageFor(Isolate* isolate,
+                                             Handle<Object> object,
+                                             Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -1574,6 +1577,7 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
+  static Handle<Object> GetPrototype(Isolate* isolate, Handle<Object> object);
   Map* GetMarkerMap(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object. May return
@@ -2240,10 +2244,10 @@ class JSObject: public JSReceiver {
   static Handle<Object> PrepareElementsForSort(Handle<JSObject> object,
                                                uint32_t limit);
   // As PrepareElementsForSort, but only on objects where elements is
-  // a dictionary, and it will stay a dictionary.
+  // a dictionary, and it will stay a dictionary.  Collates undefined and
+  // unexisting elements below limit from position zero of the elements.
   static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
                                                    uint32_t limit);
-  MUST_USE_RESULT MaybeObject* PrepareSlowElementsForSort(uint32_t limit);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
       Handle<JSObject> object,
@@ -2584,6 +2588,7 @@ class JSObject: public JSReceiver {
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
+                                            Handle<HeapType> new_field_type,
                                             StoreMode store_mode);
 
   // Convert the object to use the canonical dictionary
@@ -2604,9 +2609,6 @@ class JSObject: public JSReceiver {
                                         int unused_property_fields);
 
   // Access fast-case object properties at index.
-  MUST_USE_RESULT inline MaybeObject* FastPropertyAt(
-      Representation representation,
-      int index);
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        int index);
@@ -2744,7 +2746,7 @@ class JSObject: public JSReceiver {
   static const int kInitialMaxFastElementArray = 100000;
 
   static const int kFastPropertiesSoftLimit = 12;
-  static const int kMaxFastProperties = 64;
+  static const int kMaxFastProperties = 128;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -3409,12 +3411,14 @@ class DescriptorArray: public FixedArray {
   inline Name* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);
   inline Object* GetValue(int descriptor_number);
+  inline void SetValue(int descriptor_number, Object* value);
   inline Object** GetValueSlot(int descriptor_number);
   inline Object** GetDescriptorStartSlot(int descriptor_number);
   inline Object** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
+  inline HeapType* GetFieldType(int descriptor_number);
   inline Object* GetConstant(int descriptor_number);
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
@@ -3422,7 +3426,6 @@ class DescriptorArray: public FixedArray {
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
-  inline void InitializeRepresentations(Representation representation);
   inline void SetRepresentation(int descriptor_number,
                                 Representation representation);
 
@@ -4913,10 +4916,8 @@ class ExternalUint8ClampedArray: public ExternalArray {
                                    int index);
   inline void set(int index, uint8_t value);
 
-  // This accessor applies the correct conversion from Smi, HeapNumber and
-  // undefined and clamps the converted value between 0 and 255.
-  Object* SetValue(uint32_t index, Object* value);
-
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined and clamps the converted value between 0 and 255.
   static Handle<Object> SetValue(Handle<ExternalUint8ClampedArray> array,
                                  uint32_t index,
                                  Handle<Object> value);
@@ -4941,13 +4942,11 @@ class ExternalInt8Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt8Array> array, int index);
   inline void set(int index, int8_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt8Array* cast(Object* obj);
@@ -4969,13 +4968,11 @@ class ExternalUint8Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalUint8Array> array, int index);
   inline void set(int index, uint8_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint8Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint8Array* cast(Object* obj);
@@ -4997,13 +4994,11 @@ class ExternalInt16Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt16Array> array, int index);
   inline void set(int index, int16_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt16Array* cast(Object* obj);
@@ -5026,13 +5021,11 @@ class ExternalUint16Array: public ExternalArray {
                                    int index);
   inline void set(int index, uint16_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint16Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint16Array* cast(Object* obj);
@@ -5054,13 +5047,11 @@ class ExternalInt32Array: public ExternalArray {
   static inline Handle<Object> get(Handle<ExternalInt32Array> array, int index);
   inline void set(int index, int32_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalInt32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalInt32Array* cast(Object* obj);
@@ -5083,13 +5074,11 @@ class ExternalUint32Array: public ExternalArray {
                                    int index);
   inline void set(int index, uint32_t value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalUint32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalUint32Array* cast(Object* obj);
@@ -5112,13 +5101,11 @@ class ExternalFloat32Array: public ExternalArray {
                                    int index);
   inline void set(int index, float value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalFloat32Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloat32Array* cast(Object* obj);
@@ -5141,13 +5128,11 @@ class ExternalFloat64Array: public ExternalArray {
                                    int index);
   inline void set(int index, double value);
 
+  // This accessor applies the correct conversion from Smi, HeapNumber
+  // and undefined.
   static Handle<Object> SetValue(Handle<ExternalFloat64Array> array,
                                  uint32_t index,
                                  Handle<Object> value);
-
-  // This accessor applies the correct conversion from Smi, HeapNumber
-  // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
 
   // Casting.
   static inline ExternalFloat64Array* cast(Object* obj);
@@ -5983,6 +5968,9 @@ class DependentCode: public FixedArray {
     // Group of code that depends on global property values in property cells
     // not being changed.
     kPropertyCellChangedGroup,
+    // Group of code that omit run-time type checks for the field(s) introduced
+    // by this map.
+    kFieldTypeGroup,
     // Group of code that depends on tenuring information in AllocationSites
     // not being changed.
     kAllocationSiteTenuringChangedGroup,
@@ -6245,6 +6233,7 @@ class Map: public HeapObject {
   DECL_ACCESSORS(transitions, TransitionArray)
 
   Map* FindRootMap();
+  Map* FindFieldOwner(int descriptor);
 
   inline int GetInObjectPropertyOffset(int index);
 
@@ -6254,13 +6243,19 @@ class Map: public HeapObject {
                               int target_number_of_fields,
                               int target_inobject,
                               int target_unused);
-  static Handle<Map> GeneralizeAllFieldRepresentations(
-      Handle<Map> map,
-      Representation new_representation);
+  static Handle<Map> GeneralizeAllFieldRepresentations(Handle<Map> map);
+  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> old_field_type,
+                                              Handle<HeapType> new_field_type,
+                                              Isolate* isolate)
+      V8_WARN_UNUSED_RESULT;
+  static void GeneralizeFieldType(Handle<Map> map,
+                                  int modify_index,
+                                  Handle<HeapType> new_field_type);
   static Handle<Map> GeneralizeRepresentation(
       Handle<Map> map,
       int modify_index,
       Representation new_representation,
+      Handle<HeapType> new_field_type,
       StoreMode store_mode);
   static Handle<Map> CopyGeneralizeAllRepresentations(
       Handle<Map> map,
@@ -6562,12 +6557,15 @@ class Map: public HeapObject {
 
   inline bool CanOmitMapChecks();
 
-  void AddDependentCompilationInfo(DependentCode::DependencyGroup group,
-                                   CompilationInfo* info);
+  static void AddDependentCompilationInfo(Handle<Map> map,
+                                          DependentCode::DependencyGroup group,
+                                          CompilationInfo* info);
 
-  void AddDependentCode(DependentCode::DependencyGroup group,
-                        Handle<Code> code);
-  void AddDependentIC(Handle<Code> stub);
+  static void AddDependentCode(Handle<Map> map,
+                               DependentCode::DependencyGroup group,
+                               Handle<Code> code);
+  static void AddDependentIC(Handle<Map> map,
+                             Handle<Code> stub);
 
   bool IsMapInArrayPrototypeChain();
 
@@ -6712,6 +6710,8 @@ class Map: public HeapObject {
   Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
+  void UpdateDescriptor(int descriptor_number, Descriptor* desc);
+
   void PrintGeneralization(FILE* file,
                            const char* reason,
                            int modify_index,
@@ -6719,7 +6719,9 @@ class Map: public HeapObject {
                            int descriptors,
                            bool constant_to_field,
                            Representation old_representation,
-                           Representation new_representation);
+                           Representation new_representation,
+                           HeapType* old_field_type,
+                           HeapType* new_field_type);
 
   static inline void SetPrototypeTransitions(
       Handle<Map> map,
@@ -9806,9 +9808,8 @@ class PropertyCell: public Cell {
   static Handle<HeapType> UpdatedType(Handle<PropertyCell> cell,
                                       Handle<Object> value);
 
-  void AddDependentCompilationInfo(CompilationInfo* info);
-
-  void AddDependentCode(Handle<Code> code);
+  static void AddDependentCompilationInfo(Handle<PropertyCell> cell,
+                                          CompilationInfo* info);
 
   // Casting.
   static inline PropertyCell* cast(Object* obj);
@@ -10271,9 +10272,6 @@ class JSArray: public JSObject {
   static void JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
                                            uint32_t index,
                                            Handle<Object> value);
-
-  MUST_USE_RESULT MaybeObject* JSArrayUpdateLengthFromIndex(uint32_t index,
-                                                            Object* value);
 
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested

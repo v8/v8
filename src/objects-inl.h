@@ -286,6 +286,7 @@ bool Object::IsExternalTwoByteString() {
          String::cast(this)->IsTwoByteRepresentation();
 }
 
+
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
   return IsFixedArray() || IsFixedDoubleArray() || IsExternalArray() ||
@@ -293,16 +294,17 @@ bool Object::HasValidElements() {
 }
 
 
-MaybeObject* Object::AllocateNewStorageFor(Heap* heap,
-                                           Representation representation) {
-  if (representation.IsSmi() && IsUninitialized()) {
-    return Smi::FromInt(0);
+Handle<Object> Object::NewStorageFor(Isolate* isolate,
+                                     Handle<Object> object,
+                                     Representation representation) {
+  if (representation.IsSmi() && object->IsUninitialized()) {
+    return handle(Smi::FromInt(0), isolate);
   }
-  if (!representation.IsDouble()) return this;
-  if (IsUninitialized()) {
-    return heap->AllocateHeapNumber(0);
+  if (!representation.IsDouble()) return object;
+  if (object->IsUninitialized()) {
+    return isolate->factory()->NewHeapNumber(0);
   }
-  return heap->AllocateHeapNumber(Number());
+  return isolate->factory()->NewHeapNumber(object->Number());
 }
 
 
@@ -1987,13 +1989,6 @@ void JSObject::SetInternalField(int index, Smi* value) {
 }
 
 
-MaybeObject* JSObject::FastPropertyAt(Representation representation,
-                                      int index) {
-  Object* raw_value = RawFastPropertyAt(index);
-  return raw_value->AllocateNewStorageFor(GetHeap(), representation);
-}
-
-
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
@@ -2729,14 +2724,6 @@ void DescriptorArray::SetRepresentation(int descriptor_index,
 }
 
 
-void DescriptorArray::InitializeRepresentations(Representation representation) {
-  int length = number_of_descriptors();
-  for (int i = 0; i < length; i++) {
-    SetRepresentation(i, representation);
-  }
-}
-
-
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return RawFieldOfElementAt(ToValueIndex(descriptor_number));
@@ -2746,6 +2733,11 @@ Object** DescriptorArray::GetValueSlot(int descriptor_number) {
 Object* DescriptorArray::GetValue(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return get(ToValueIndex(descriptor_number));
+}
+
+
+void DescriptorArray::SetValue(int descriptor_index, Object* value) {
+  set(ToValueIndex(descriptor_index), value);
 }
 
 
@@ -2764,6 +2756,12 @@ PropertyType DescriptorArray::GetType(int descriptor_number) {
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
   ASSERT(GetDetails(descriptor_number).type() == FIELD);
   return GetDetails(descriptor_number).field_index();
+}
+
+
+HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
+  ASSERT(GetDetails(descriptor_number).type() == FIELD);
+  return HeapType::cast(GetValue(descriptor_number));
 }
 
 

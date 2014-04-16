@@ -233,6 +233,9 @@ DEFINE_bool(track_computed_fields, true, "track computed boilerplate fields")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
+DEFINE_bool(track_field_types, true, "track field types")
+DEFINE_implication(track_field_types, track_fields)
+DEFINE_implication(track_field_types, track_heap_object_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
 
 // Flags for optimization types.

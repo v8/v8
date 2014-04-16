@@ -388,6 +388,25 @@ class Factory V8_FINAL {
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
+  Handle<JSProxy> NewJSFunctionProxy(Handle<Object> handler,
+                                     Handle<Object> call_trap,
+                                     Handle<Object> construct_trap,
+                                     Handle<Object> prototype);
+
+  // Reinitialize a JSReceiver into an (empty) JS object of respective type and
+  // size, but keeping the original prototype.  The receiver must have at least
+  // the size of the new object.  The object is reinitialized and behaves as an
+  // object that has been freshly allocated.
+  void ReinitializeJSReceiver(
+      Handle<JSReceiver> object, InstanceType type, int size);
+
+  // Reinitialize an JSGlobalProxy based on a constructor.  The object
+  // must have the same size as objects allocated using the
+  // constructor.  The object is reinitialized and behaves as an
+  // object that has been freshly allocated using the constructor.
+  void ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> global,
+                                 Handle<JSFunction> constructor);
+
   // Change the type of the argument into a JS object/function and reinitialize.
   void BecomeJSObject(Handle<JSReceiver> object);
   void BecomeJSFunction(Handle<JSReceiver> object);
@@ -395,21 +414,29 @@ class Factory V8_FINAL {
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
 
-  Handle<JSFunction> NewFunctionWithoutPrototype(
-      Handle<String> name,
-      StrictMode strict_mode);
-
-  Handle<JSFunction> NewFunction(Handle<Object> super, bool is_global);
-
-  Handle<JSFunction> BaseNewFunctionFromSharedFunctionInfo(
-      Handle<SharedFunctionInfo> function_info,
-      Handle<Map> function_map,
-      PretenureFlag pretenure);
-
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info,
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
+
+  Handle<JSFunction> NewFunction(Handle<String> name,
+                                 InstanceType type,
+                                 int instance_size,
+                                 Handle<Code> code,
+                                 bool force_initial_map);
+
+  Handle<JSFunction> NewFunctionWithPrototype(Handle<String> name,
+                                              InstanceType type,
+                                              int instance_size,
+                                              Handle<JSObject> prototype,
+                                              Handle<Code> code,
+                                              bool force_initial_map);
+
+  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
+                                                 StrictMode strict_mode);
+
+  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
+                                                 Handle<Code> code);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
@@ -465,28 +492,8 @@ class Factory V8_FINAL {
   Handle<Object> NewEvalError(const char* message,
                               Vector< Handle<Object> > args);
 
-
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 InstanceType type,
-                                 int instance_size,
-                                 Handle<Code> code,
-                                 bool force_initial_map);
-
-  Handle<JSFunction> NewFunction(Handle<Map> function_map,
-      Handle<SharedFunctionInfo> shared, Handle<Object> prototype);
-
-
-  Handle<JSFunction> NewFunctionWithPrototype(Handle<String> name,
-                                              InstanceType type,
-                                              int instance_size,
-                                              Handle<JSObject> prototype,
-                                              Handle<Code> code,
-                                              bool force_initial_map);
-
-  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
-                                                 Handle<Code> code);
-
-  Handle<String> NumberToString(Handle<Object> number);
+  Handle<String> NumberToString(Handle<Object> number,
+                                bool check_number_string_cache = true);
   Handle<String> Uint32ToString(uint32_t value);
 
   enum ApiInstanceType {
@@ -597,12 +604,31 @@ class Factory V8_FINAL {
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }
 
-  Handle<JSFunction> NewFunctionHelper(Handle<String> name,
-                                       Handle<Object> prototype);
+  // Creates a heap object based on the map. The fields of the heap object are
+  // not initialized by New<>() functions. It's the responsibility of the caller
+  // to do that.
+  template<typename T>
+  Handle<T> New(Handle<Map> map, AllocationSpace space);
 
-  Handle<JSFunction> NewFunctionWithoutPrototypeHelper(
-      Handle<String> name,
-      StrictMode strict_mode);
+  template<typename T>
+  Handle<T> New(Handle<Map> map,
+                AllocationSpace space,
+                Handle<AllocationSite> allocation_site);
+
+  // Initializes a function with a shared part and prototype.
+  // Note: this code was factored out of NewFunctionHelper such that
+  // other parts of the VM could use it. Specifically, a function that creates
+  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
+  inline void InitializeFunction(Handle<JSFunction> function,
+                                 Handle<SharedFunctionInfo> shared,
+                                 Handle<Object> prototype);
+
+  // Creates a function initialized with a shared part.
+  inline Handle<JSFunction> NewFunctionHelper(
+      Handle<Map> function_map,
+      Handle<SharedFunctionInfo> shared,
+      Handle<Object> prototype,
+      PretenureFlag pretenure = TENURED);
 
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);

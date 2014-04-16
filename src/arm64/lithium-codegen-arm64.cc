@@ -5265,7 +5265,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       !instr->hydrogen()->value()->type().IsHeapObject()) {
     DeoptimizeIfSmi(value, instr->environment());
 
-    // We know that value is a smi now, so we can omit the check below.
+    // We know now that value is not a smi, so we can omit the check below.
     check_needed = OMIT_SMI_CHECK;
   }
 

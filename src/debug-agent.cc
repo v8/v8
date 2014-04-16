@@ -229,10 +229,10 @@ void DebuggerAgentSession::Run() {
     decoder.WriteUtf16(temp.start(), utf16_length);
 
     // Send the request received to the debugger.
-    v8::Debug::SendCommand(temp.start(),
+    v8::Debug::SendCommand(reinterpret_cast<v8::Isolate*>(agent_->isolate()),
+                           temp.start(),
                            utf16_length,
-                           NULL,
-                           reinterpret_cast<v8::Isolate*>(agent_->isolate()));
+                           NULL);
 
     if (is_closing_session) {
       // Session is closed.

@@ -438,9 +438,11 @@ class HGraph V8_FINAL : public ZoneObject {
   void MarkDependsOnEmptyArrayProtoElements() {
     // Add map dependency if not already added.
     if (depends_on_empty_array_proto_elements_) return;
-    isolate()->initial_object_prototype()->map()->AddDependentCompilationInfo(
+    Map::AddDependentCompilationInfo(
+        handle(isolate()->initial_object_prototype()->map()),
         DependentCode::kElementsCantBeAddedGroup, info());
-    isolate()->initial_array_prototype()->map()->AddDependentCompilationInfo(
+    Map::AddDependentCompilationInfo(
+        handle(isolate()->initial_array_prototype()->map()),
         DependentCode::kElementsCantBeAddedGroup, info());
     depends_on_empty_array_proto_elements_ = true;
   }
@@ -2414,14 +2416,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
     Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
+    Handle<Map> field_map() { return field_map_; }
     HObjectAccess access() { return access_; }
 
    private:
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Isolate* isolate() { return lookup_.isolate(); }
+    CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool LoadResult(Handle<Map> map);
+    void LoadFieldMap(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsCompatible(PropertyAccessInfo* other);
@@ -2440,6 +2445,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor_;
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
+    Handle<Map> field_map_;
     HObjectAccess access_;
   };
 

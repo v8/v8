@@ -949,7 +949,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Out of stack space.
     __ push(Operand(ebp, 4 * kPointerSize));  // push this
     __ push(eax);
-    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
     __ bind(&okay);
     // End of stack check.
 
@@ -1252,6 +1252,33 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
+static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
+                                       Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- eax : actual number of arguments
+  //  -- ebx : expected number of arguments
+  //  -- edi : function (passed through to callee)
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  ExternalReference real_stack_limit =
+      ExternalReference::address_of_real_stack_limit(masm->isolate());
+  __ mov(edx, Operand::StaticVariable(real_stack_limit));
+  // Make ecx the space we have left. The stack might already be overflowed
+  // here which will cause ecx to become negative.
+  __ mov(ecx, esp);
+  __ sub(ecx, edx);
+  // Make edx the space we need for the array when it is unrolled onto the
+  // stack.
+  __ mov(edx, ebx);
+  __ shl(edx, kPointerSizeLog2);
+  // Check if the arguments will overflow the stack.
+  __ cmp(ecx, edx);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ push(ebp);
   __ mov(ebp, esp);
@@ -1295,6 +1322,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   Label invoke, dont_adapt_arguments;
   __ IncrementCounter(masm->isolate()->counters()->arguments_adaptors(), 1);
+
+  Label stack_overflow;
+  ArgumentsAdaptorStackCheck(masm, &stack_overflow);
 
   Label enough, too_few;
   __ mov(edx, FieldOperand(edi, JSFunction::kCodeEntryOffset));
@@ -1370,6 +1400,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ jmp(edx);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ int3();
+  }
 }
 
 

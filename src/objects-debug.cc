@@ -299,6 +299,15 @@ void JSObject::JSObjectVerify() {
         if (value->IsUninitialized()) continue;
         if (r.IsSmi()) ASSERT(value->IsSmi());
         if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
+        HeapType* field_type = descriptors->GetFieldType(i);
+        if (field_type->IsClass()) {
+          Map* map = *field_type->AsClass();
+          CHECK(!map->is_stable() || HeapObject::cast(value)->map() == map);
+        } else if (r.IsNone()) {
+          CHECK(field_type->Is(HeapType::None()));
+        } else {
+          CHECK(HeapType::Any()->Is(field_type));
+        }
       }
     }
   }
