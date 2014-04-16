@@ -213,18 +213,6 @@ struct StaticInitializer {
 } static_initializer;
 
 
-void Isolate::EnterDefaultIsolate() {
-  EnsureDefaultIsolate();
-  ASSERT(default_isolate_ != NULL);
-
-  PerIsolateThreadData* data = CurrentPerIsolateThreadData();
-  // If not yet in default isolate - enter it.
-  if (data == NULL || data->isolate() != default_isolate_) {
-    default_isolate_->Enter();
-  }
-}
-
-
 Address Isolate::get_address_from_id(Isolate::AddressId id) {
   return isolate_addresses_[id];
 }

@@ -74,10 +74,6 @@ void Locker::Initialize(v8::Isolate* isolate) {
       isolate_->stack_guard()->ClearThread(access);
       isolate_->stack_guard()->InitThread(access);
     }
-    if (isolate_->IsDefaultIsolate()) {
-      // This only enters if not yet entered.
-      internal::Isolate::EnterDefaultIsolate();
-    }
   }
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
 }
@@ -98,9 +94,6 @@ bool Locker::IsActive() {
 Locker::~Locker() {
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
   if (has_lock_) {
-    if (isolate_->IsDefaultIsolate()) {
-      isolate_->Exit();
-    }
     if (top_level_) {
       isolate_->thread_manager()->FreeThreadResources();
     } else {
@@ -115,9 +108,6 @@ void Unlocker::Initialize(v8::Isolate* isolate) {
   ASSERT(isolate != NULL);
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
-  if (isolate_->IsDefaultIsolate()) {
-    isolate_->Exit();
-  }
   isolate_->thread_manager()->ArchiveThread();
   isolate_->thread_manager()->Unlock();
 }
@@ -127,9 +117,6 @@ Unlocker::~Unlocker() {
   ASSERT(!isolate_->thread_manager()->IsLockedByCurrentThread());
   isolate_->thread_manager()->Lock();
   isolate_->thread_manager()->RestoreThread();
-  if (isolate_->IsDefaultIsolate()) {
-    isolate_->Enter();
-  }
 }
 
 

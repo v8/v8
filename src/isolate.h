@@ -570,12 +570,6 @@ class Isolate {
 
   static Thread::LocalStorageKey per_isolate_thread_data_key();
 
-  // If a client attempts to create a Locker without specifying an isolate,
-  // we assume that the client is using legacy behavior. Set up the current
-  // thread to be inside the implicit isolate (or fail a check if we have
-  // switched to non-legacy behavior).
-  static void EnterDefaultIsolate();
-
   // Mutex for serializing access to break control structures.
   RecursiveMutex* break_access() { return &break_access_; }
 

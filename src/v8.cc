@@ -60,22 +60,8 @@ v8::Platform* V8::platform_ = NULL;
 
 bool V8::Initialize(Deserializer* des) {
   InitializeOncePerProcess();
-
-  // The current thread may not yet had entered an isolate to run.
-  // Note the Isolate::Current() may be non-null because for various
-  // initialization purposes an initializing thread may be assigned an isolate
-  // but not actually enter it.
-  if (i::Isolate::CurrentPerIsolateThreadData() == NULL) {
-    i::Isolate::EnterDefaultIsolate();
-  }
-
-  ASSERT(i::Isolate::CurrentPerIsolateThreadData() != NULL);
-  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->thread_id().Equals(
-           i::ThreadId::Current()));
-  ASSERT(i::Isolate::CurrentPerIsolateThreadData()->isolate() ==
-         i::Isolate::Current());
-
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  if (isolate == NULL) return true;
   if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
 
