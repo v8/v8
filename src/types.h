@@ -337,8 +337,14 @@ class TypeImpl : public Config::Base {
   int NumConstants();
 
   template<class T> class Iterator;
-  inline Iterator<i::Map> Classes();
-  inline Iterator<i::Object> Constants();
+  Iterator<i::Map> Classes() {
+    if (this->IsBitset()) return Iterator<i::Map>();
+    return Iterator<i::Map>(Config::handle(this));
+  }
+  Iterator<i::Object> Constants() {
+    if (this->IsBitset()) return Iterator<i::Object>();
+    return Iterator<i::Object>(Config::handle(this));
+  }
 
   static inline TypeImpl* cast(typename Config::Base* object);
 
