@@ -3837,107 +3837,37 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
 }
 
 
-MaybeObject* Heap::CreateCode(const CodeDesc& desc,
-                              Code::Flags flags,
-                              Handle<Object> self_reference,
-                              bool immovable,
-                              bool crankshafted,
-                              int prologue_offset) {
-  // Allocate ByteArray and ConstantPoolArray before the Code object, so that we
-  // do not risk leaving uninitialized Code object (and breaking the heap).
-  ByteArray* reloc_info;
-  MaybeObject* maybe_reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
-  if (!maybe_reloc_info->To(&reloc_info)) return maybe_reloc_info;
-
-  ConstantPoolArray* constant_pool;
-  if (FLAG_enable_ool_constant_pool) {
-    MaybeObject* maybe_constant_pool = desc.origin->AllocateConstantPool(this);
-    if (!maybe_constant_pool->To(&constant_pool)) return maybe_constant_pool;
-  } else {
-    constant_pool = empty_constant_pool_array();
-  }
-
-  // Compute size.
-  int body_size = RoundUp(desc.instr_size, kObjectAlignment);
-  int obj_size = Code::SizeFor(body_size);
-  ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
+MaybeObject* Heap::AllocateCode(int object_size,
+                                bool immovable) {
+  ASSERT(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
   MaybeObject* maybe_result;
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
   HeapObject* result;
-  bool force_lo_space = obj_size > code_space()->AreaSize();
+  bool force_lo_space = object_size > code_space()->AreaSize();
   if (force_lo_space) {
-    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
   } else {
-    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
+    maybe_result = AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
   }
   if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
   if (immovable && !force_lo_space &&
-      // Objects on the first page of each space are never moved.
-      !code_space_->FirstPage()->Contains(result->address())) {
+     // Objects on the first page of each space are never moved.
+     !code_space_->FirstPage()->Contains(result->address())) {
     // Discard the first code allocation, which was on a page where it could be
     // moved.
-    CreateFillerObjectAt(result->address(), obj_size);
-    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    CreateFillerObjectAt(result->address(), object_size);
+    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
     if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
   }
 
-  // Initialize the object
   result->set_map_no_write_barrier(code_map());
   Code* code = Code::cast(result);
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
-  code->set_instruction_size(desc.instr_size);
-  code->set_relocation_info(reloc_info);
-  code->set_flags(flags);
-  code->set_raw_kind_specific_flags1(0);
-  code->set_raw_kind_specific_flags2(0);
-  code->set_is_crankshafted(crankshafted);
-  code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_raw_type_feedback_info(undefined_value());
-  code->set_next_code_link(undefined_value());
-  code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
-  code->set_prologue_offset(prologue_offset);
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
-    ASSERT(!code->marked_for_deoptimization());
-  }
-  if (code->is_inline_cache_stub()) {
-    ASSERT(!code->is_weak_stub());
-    ASSERT(!code->is_invalidated_weak_stub());
-  }
-
-  if (FLAG_enable_ool_constant_pool) {
-    desc.origin->PopulateConstantPool(constant_pool);
-  }
-  code->set_constant_pool(constant_pool);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (code->kind() == Code::FUNCTION) {
-    code->set_has_debug_break_slots(
-        isolate_->debugger()->IsDebuggerActive());
-  }
-#endif
-
-  // Allow self references to created code object by patching the handle to
-  // point to the newly allocated Code object.
-  if (!self_reference.is_null()) {
-    *(self_reference.location()) = code;
-  }
-  // Migrate generated code.
-  // The generated code can contain Object** values (typically from handles)
-  // that are dereferenced during the copy to point directly to the actual heap
-  // objects. These pointers can include references to the code object itself,
-  // through the self_reference parameter.
-  code->CopyFrom(desc);
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    code->Verify();
-  }
-#endif
   return code;
 }
 

@@ -444,6 +444,9 @@ class Factory V8_FINAL {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
+  // The reference to the Code object is stored in self_reference.
+  // This allows generated code to reference its own Code object
+  // by containing this handle.
   Handle<Code> NewCode(const CodeDesc& desc,
                        Code::Flags flags,
                        Handle<Object> self_reference,

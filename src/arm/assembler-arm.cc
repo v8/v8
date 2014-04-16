@@ -3548,14 +3548,15 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
-  ASSERT(FLAG_enable_ool_constant_pool);
-  return constant_pool_builder_.Allocate(heap);
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
+  if (!FLAG_enable_ool_constant_pool) {
+    return isolate->factory()->empty_constant_pool_array();
+  }
+  return constant_pool_builder_.New(isolate);
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
-  ASSERT(FLAG_enable_ool_constant_pool);
   constant_pool_builder_.Populate(this, constant_pool);
 }
 
@@ -3655,12 +3656,14 @@ void ConstantPoolBuilder::Relocate(int pc_delta) {
 }
 
 
-MaybeObject* ConstantPoolBuilder::Allocate(Heap* heap) {
+Handle<ConstantPoolArray> ConstantPoolBuilder::New(Isolate* isolate) {
   if (IsEmpty()) {
-    return heap->empty_constant_pool_array();
+    return isolate->factory()->empty_constant_pool_array();
   } else {
-    return heap->AllocateConstantPoolArray(count_of_64bit_, count_of_code_ptr_,
-                                           count_of_heap_ptr_, count_of_32bit_);
+    return isolate->factory()->NewConstantPoolArray(count_of_64bit_,
+                                                    count_of_code_ptr_,
+                                                    count_of_heap_ptr_,
+                                                    count_of_32bit_);
   }
 }
 

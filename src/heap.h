@@ -1082,19 +1082,7 @@ class Heap {
   // Maintain marking consistency for IncrementalMarking.
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);
 
-  // Makes a new native code object
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed. On success, the pointer to the Code object is stored in the
-  // self_reference. This allows generated code to reference its own Code
-  // object by containing this pointer.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateCode(
-      const CodeDesc& desc,
-      Code::Flags flags,
-      Handle<Object> self_reference,
-      bool immovable = false,
-      bool crankshafted = false,
-      int prologue_offset = Code::kPrologueOffsetNotSet);
+  MUST_USE_RESULT MaybeObject* AllocateCode(int object_size, bool immovable);
 
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 

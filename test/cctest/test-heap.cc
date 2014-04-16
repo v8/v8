@@ -117,30 +117,24 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Heap* heap = isolate->heap();
-  Object* code = heap->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   CHECK(code->IsCode());
 
-  HeapObject* obj = HeapObject::cast(code);
+  HeapObject* obj = HeapObject::cast(*code);
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
     Object* found = isolate->FindCodeObject(obj_addr + i);
-    CHECK_EQ(code, found);
+    CHECK_EQ(*code, found);
   }
 
-  Object* copy = heap->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(copy->IsCode());
-  HeapObject* obj_copy = HeapObject::cast(copy);
+  Handle<Code> copy = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  HeapObject* obj_copy = HeapObject::cast(*copy);
   Object* not_right = isolate->FindCodeObject(obj_copy->address() +
                                               obj_copy->Size() / 2);
-  CHECK(not_right != code);
+  CHECK(not_right != *code);
 }
 
 

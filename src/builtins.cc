@@ -1622,7 +1622,6 @@ void Builtins::InitBuiltinFunctionTable() {
 
 void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   ASSERT(!initialized_);
-  Heap* heap = isolate->heap();
 
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
@@ -1653,32 +1652,18 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       CodeDesc desc;
       masm.GetCode(&desc);
       Code::Flags flags =  functions[i].flags;
-      Object* code = NULL;
-      {
-        // During startup it's OK to always allocate and defer GC to later.
-        // This simplifies things because we don't need to retry.
-        AlwaysAllocateScope __scope__(isolate);
-        { MaybeObject* maybe_code =
-              heap->CreateCode(desc, flags, masm.CodeObject());
-          if (!maybe_code->ToObject(&code)) {
-            v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
-          }
-        }
-      }
+      Handle<Code> code =
+          isolate->factory()->NewCode(desc, flags, masm.CodeObject());
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
-              CodeCreateEvent(Logger::BUILTIN_TAG,
-                              Code::cast(code),
-                              functions[i].s_name));
-      GDBJIT(AddCode(GDBJITInterface::BUILTIN,
-                     functions[i].s_name,
-                     Code::cast(code)));
-      builtins_[i] = code;
+              CodeCreateEvent(Logger::BUILTIN_TAG, *code, functions[i].s_name));
+      GDBJIT(AddCode(GDBJITInterface::BUILTIN, functions[i].s_name, *code));
+      builtins_[i] = *code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
         CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
         PrintF(trace_scope.file(), "Builtin: %s\n", functions[i].s_name);
-        Code::cast(code)->Disassemble(functions[i].s_name, trace_scope.file());
+        code->Disassemble(functions[i].s_name, trace_scope.file());
         PrintF(trace_scope.file(), "\n");
       }
 #endif

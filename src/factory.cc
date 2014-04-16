@@ -4,6 +4,7 @@
 
 #include "factory.h"
 
+#include "macro-assembler.h"
 #include "isolate-inl.h"
 
 namespace v8 {
@@ -1274,17 +1275,77 @@ Handle<JSObject> Factory::NewExternal(void* value) {
 }
 
 
+Handle<Code> NewCodeHelper(Isolate* isolate, int object_size, bool immovable) {
+  CALL_HEAP_FUNCTION(isolate,
+                     isolate->heap()->AllocateCode(object_size, immovable),
+                     Code);
+}
+
+
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_ref,
                               bool immovable,
                               bool crankshafted,
                               int prologue_offset) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->CreateCode(
-                         desc, flags, self_ref, immovable, crankshafted,
-                         prologue_offset),
-                     Code);
+  Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
+  Handle<ConstantPoolArray> constant_pool =
+      desc.origin->NewConstantPool(isolate());
+
+  // Compute size.
+  int body_size = RoundUp(desc.instr_size, kObjectAlignment);
+  int obj_size = Code::SizeFor(body_size);
+
+  Handle<Code> code = NewCodeHelper(isolate(), obj_size, immovable);
+  ASSERT(!isolate()->code_range()->exists() ||
+         isolate()->code_range()->contains(code->address()));
+
+  // The code object has not been fully initialized yet.  We rely on the
+  // fact that no allocation will happen from this point on.
+  DisallowHeapAllocation no_gc;
+  code->set_gc_metadata(Smi::FromInt(0));
+  code->set_ic_age(isolate()->heap()->global_ic_age());
+  code->set_instruction_size(desc.instr_size);
+  code->set_relocation_info(*reloc_info);
+  code->set_flags(flags);
+  code->set_raw_kind_specific_flags1(0);
+  code->set_raw_kind_specific_flags2(0);
+  code->set_is_crankshafted(crankshafted);
+  code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_raw_type_feedback_info(*undefined_value());
+  code->set_next_code_link(*undefined_value());
+  code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_prologue_offset(prologue_offset);
+  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
+    code->set_marked_for_deoptimization(false);
+  }
+
+  desc.origin->PopulateConstantPool(*constant_pool);
+  code->set_constant_pool(*constant_pool);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (code->kind() == Code::FUNCTION) {
+    code->set_has_debug_break_slots(isolate()->debugger()->IsDebuggerActive());
+  }
+#endif
+
+  // Allow self references to created code object by patching the handle to
+  // point to the newly allocated Code object.
+  if (!self_ref.is_null()) *(self_ref.location()) = *code;
+
+  // Migrate generated code.
+  // The generated code can contain Object** values (typically from handles)
+  // that are dereferenced during the copy to point directly to the actual heap
+  // objects. These pointers can include references to the code object itself,
+  // through the self_reference parameter.
+  code->CopyFrom(desc);
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    code->Verify();
+  }
+#endif
+  return code;
 }
 
 
