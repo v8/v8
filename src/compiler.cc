@@ -1257,18 +1257,21 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
       info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (code.is_identical_to(info->isolate()->builtins()->CompileUnoptimized()))
+    if (code.is_identical_to(
+            info->isolate()->builtins()->CompileUnoptimized())) {
       return;
-    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
-    int column_num =
-        GetScriptColumnNumber(script, shared->start_position()) + 1;
-    USE(line_num);
-    String* script_name = script->name()->IsString()
-        ? String::cast(script->name())
-        : info->isolate()->heap()->empty_string();
+    }
     Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
     PROFILE(info->isolate(), CodeCreateEvent(
-        log_tag, *code, *shared, info, script_name, line_num, column_num));
+                log_tag,
+                *code,
+                *shared,
+                info,
+                script->name()->IsString()
+                    ? String::cast(script->name())
+                    : info->isolate()->heap()->empty_string(),
+                Script::GetLineNumber(script, shared->start_position()) + 1,
+                Script::GetColumnNumber(script, shared->start_position()) + 1));
   }
 
   GDBJIT(AddCode(Handle<String>(shared->DebugName()),

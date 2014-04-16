@@ -173,6 +173,18 @@ int LCodeGenBase::GetNextEmittedBlock() const {
 }
 
 
+static void AddWeakObjectToCodeDependency(Isolate* isolate,
+                                          Handle<Object> object,
+                                          Handle<Code> code) {
+  Heap* heap = isolate->heap();
+  heap->EnsureWeakObjectToCodeTable();
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(*object));
+  dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
+  CALL_HEAP_FUNCTION_VOID(isolate,
+                          heap->AddWeakObjectToCodeDependency(*object, *dep));
+}
+
+
 void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
   ASSERT(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
@@ -214,10 +226,10 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
     Map::AddDependentCode(maps.at(i), DependentCode::kWeakCodeGroup, code);
   }
   for (int i = 0; i < objects.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate()->heap(), objects.at(i), code);
+    AddWeakObjectToCodeDependency(isolate(), objects.at(i), code);
   }
   for (int i = 0; i < cells.length(); i++) {
-    AddWeakObjectToCodeDependency(isolate()->heap(), cells.at(i), code);
+    AddWeakObjectToCodeDependency(isolate(), cells.at(i), code);
   }
 }
 

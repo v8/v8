@@ -2643,7 +2643,7 @@ MaybeHandle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
   Handle<Object> exec_state;
   if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the compile event object.
-  Handle<Object> script_wrapper = GetScriptWrapper(script);
+  Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = { exec_state,
                             script_wrapper,
                             isolate_->factory()->ToBoolean(before) };
@@ -2787,7 +2787,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
 
   // Wrap the script object in a proper JS object before passing it
   // to JavaScript.
-  Handle<JSValue> wrapper = GetScriptWrapper(script);
+  Handle<Object> wrapper = Script::GetWrapper(script);
 
   // Call UpdateScriptBreakPoints expect no exceptions.
   Handle<Object> argv[] = { wrapper };
@@ -3525,8 +3525,8 @@ v8::Handle<v8::String> MessageImpl::GetJSON() const {
 
   if (IsEvent()) {
     // Call toJSONProtocol on the debug event object.
-    Handle<Object> fun =
-        GetProperty(event_data_, "toJSONProtocol").ToHandleChecked();
+    Handle<Object> fun = Object::GetProperty(
+        isolate, event_data_, "toJSONProtocol").ToHandleChecked();
     if (!fun->IsJSFunction()) {
       return v8::Handle<v8::String>();
     }

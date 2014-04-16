@@ -28,7 +28,6 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
-#include "allocation.h"
 #include "objects.h"
 
 namespace v8 {
@@ -280,53 +279,6 @@ class DeferredHandleScope {
   friend class HandleScopeImplementer;
 };
 
-
-// ----------------------------------------------------------------------------
-// Handle operations.
-// They might invoke garbage collection. The result is an handle to
-// an object of expected type, or the handle is an error if running out
-// of space or encountering an internal error.
-
-MUST_USE_RESULT MaybeHandle<Object> GetProperty(Handle<JSReceiver> obj,
-                                                const char* name);
-
-// Get the JS object corresponding to the given script; create it
-// if none exists.
-Handle<JSValue> GetScriptWrapper(Handle<Script> script);
-
-// Script line number computations. Note that the line number is zero-based.
-void InitScriptLineEnds(Handle<Script> script);
-// For string calculates an array of line end positions. If the string
-// does not end with a new line character, this character may optionally be
-// imagined.
-Handle<FixedArray> CalculateLineEnds(Handle<String> string,
-                                     bool with_imaginary_last_new_line);
-int GetScriptLineNumber(Handle<Script> script, int code_position);
-// The safe version does not make heap allocations but may work much slower.
-int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
-int GetScriptColumnNumber(Handle<Script> script, int code_position);
-Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script);
-
-// Computes the enumerable keys from interceptors. Used for debug mirrors and
-// by GetKeysInFixedArrayFor below.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
-                                                 Handle<JSObject> object);
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
-                                                   Handle<JSObject> object);
-
-enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
-
-// Computes the enumerable keys for a JSObject. Used for implementing
-// "for (n in object) { }".
-MUST_USE_RESULT MaybeHandle<FixedArray> GetKeysInFixedArrayFor(
-    Handle<JSReceiver> object, KeyCollectionType type);
-Handle<FixedArray> ReduceFixedArrayTo(Handle<FixedArray> array, int length);
-Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
-                                       bool cache_result);
-
-void AddWeakObjectToCodeDependency(Heap* heap,
-                                   Handle<Object> object,
-                                   Handle<Code> code);
 
 // Seal off the current HandleScope so that new handles can only be created
 // if a new HandleScope is entered.
