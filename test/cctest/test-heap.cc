@@ -99,12 +99,11 @@ static void CheckSmi(Isolate* isolate, int value, const char* string) {
 
 
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
-  Object* obj = CcTest::heap()->NumberFromDouble(value)->ToObjectChecked();
-  CHECK(obj->IsNumber());
-  Handle<Object> handle(obj, isolate);
-  Object* print_string =
-      *Execution::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
+  Handle<Object> number = isolate->factory()->NewNumber(value);
+  CHECK(number->IsNumber());
+  Handle<Object> print_string =
+      Execution::ToString(isolate, number).ToHandleChecked();
+  CHECK(String::cast(*print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
 
@@ -162,57 +161,54 @@ TEST(HeapObjects) {
   Heap* heap = isolate->heap();
 
   HandleScope sc(isolate);
-  Object* value = heap->NumberFromDouble(1.000123)->ToObjectChecked();
+  Handle<Object> value = factory->NewNumber(1.000123);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(1.000123, value->Number());
 
-  value = heap->NumberFromDouble(1.0)->ToObjectChecked();
+  value = factory->NewNumber(1.0);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1.0, value->Number());
 
-  value = heap->NumberFromInt32(1024)->ToObjectChecked();
+  value = factory->NewNumberFromInt(1024);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
   CHECK_EQ(1024.0, value->Number());
 
-  value = heap->NumberFromInt32(Smi::kMinValue)->ToObjectChecked();
+  value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
-  CHECK_EQ(Smi::kMinValue, Smi::cast(value)->value());
+  CHECK_EQ(Smi::kMinValue, Handle<Smi>::cast(value)->value());
 
-  value = heap->NumberFromInt32(Smi::kMaxValue)->ToObjectChecked();
+  value = factory->NewNumberFromInt(Smi::kMaxValue);
   CHECK(value->IsSmi());
   CHECK(value->IsNumber());
-  CHECK_EQ(Smi::kMaxValue, Smi::cast(value)->value());
+  CHECK_EQ(Smi::kMaxValue, Handle<Smi>::cast(value)->value());
 
 #if !defined(V8_TARGET_ARCH_X64) && !defined(V8_TARGET_ARCH_ARM64)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
-  value = heap->NumberFromInt32(Smi::kMinValue - 1)->ToObjectChecked();
+  value = factory->NewNumberFromInt(Smi::kMinValue - 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
 #endif
 
-  MaybeObject* maybe_value =
-      heap->NumberFromUint32(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  value = maybe_value->ToObjectChecked();
+  value = factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
            value->Number());
 
-  maybe_value = heap->NumberFromUint32(static_cast<uint32_t>(1) << 31);
-  value = maybe_value->ToObjectChecked();
+  value = factory->NewNumberFromUint(static_cast<uint32_t>(1) << 31);
   CHECK(value->IsHeapNumber());
   CHECK(value->IsNumber());
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
            value->Number());
 
   // nan oddball checks
-  CHECK(heap->nan_value()->IsNumber());
-  CHECK(std::isnan(heap->nan_value()->Number()));
+  CHECK(factory->nan_value()->IsNumber());
+  CHECK(std::isnan(factory->nan_value()->Number()));
 
   Handle<String> s = factory->NewStringFromAscii(CStrVector("fisk hest "));
   CHECK(s->IsString());
