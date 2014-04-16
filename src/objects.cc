@@ -10393,20 +10393,16 @@ bool JSFunction::PassesFilter(const char* raw_filter) {
 }
 
 
-MaybeObject* Oddball::Initialize(Heap* heap,
-                                 const char* to_string,
-                                 Object* to_number,
-                                 byte kind) {
-  String* internalized_to_string;
-  { MaybeObject* maybe_string =
-      heap->InternalizeUtf8String(
-          CStrVector(to_string));
-    if (!maybe_string->To(&internalized_to_string)) return maybe_string;
-  }
-  set_to_string(internalized_to_string);
-  set_to_number(to_number);
-  set_kind(kind);
-  return this;
+void Oddball::Initialize(Isolate* isolate,
+                         Handle<Oddball> oddball,
+                         const char* to_string,
+                         Handle<Object> to_number,
+                         byte kind) {
+  Handle<String> internalized_to_string =
+      isolate->factory()->InternalizeUtf8String(CStrVector(to_string));
+  oddball->set_to_string(*internalized_to_string);
+  oddball->set_to_number(*to_number);
+  oddball->set_kind(kind);
 }
 
 
@@ -14874,6 +14870,10 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
 template MaybeObject* Dictionary<NameDictionary, NameDictionaryShape, Name*>::
     Allocate(Heap* heap, int n, PretenureFlag pretenure);
 
+template Handle<NameDictionary>
+Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+    New(Isolate* isolate, int n, PretenureFlag pretenure);
+
 template MaybeObject*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     AtPut(uint32_t, Object*);
@@ -14925,6 +14925,10 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
                           uint32_t> >,
         int,
         JSObject::DeleteMode);
+
+template Handle<NameDictionary>
+HashTable<NameDictionary, NameDictionaryShape, Name*>::
+    New(Isolate*, int, MinimumCapacity, PretenureFlag);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape, Name*>::
@@ -15786,6 +15790,23 @@ MaybeObject* Dictionary<Derived, Shape, Key>::Allocate(
       SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return obj;
 }
+
+
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> Dictionary<Derived, Shape, Key>::New(
+    Isolate* isolate,
+    int at_least_space_for,
+    PretenureFlag pretenure) {
+  Handle<Derived> dict = DerivedHashTable::New(isolate,
+                                               at_least_space_for,
+                                               USE_DEFAULT_MINIMUM_CAPACITY,
+                                               pretenure);
+
+  // Initialize the next enumeration index.
+  dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
+  return dict;
+}
+
 
 
 void NameDictionary::DoGenerateNewEnumerationIndices(

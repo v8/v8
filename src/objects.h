@@ -4054,6 +4054,12 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Creates a new dictionary.
+  static Handle<Derived> New(
+      Isolate* isolate,
+      int at_least_space_for,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
 
@@ -9757,10 +9763,11 @@ class Oddball: public HeapObject {
   DECLARE_VERIFIER(Oddball)
 
   // Initialize the fields.
-  MUST_USE_RESULT MaybeObject* Initialize(Heap* heap,
-                                          const char* to_string,
-                                          Object* to_number,
-                                          byte kind);
+  static void Initialize(Isolate* isolate,
+                         Handle<Oddball> oddball,
+                         const char* to_string,
+                         Handle<Object> to_number,
+                         byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
