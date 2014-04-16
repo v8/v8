@@ -6398,17 +6398,6 @@ class Map: public HeapObject {
   static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
 
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
-  static Handle<Map> CopyReplaceDescriptors(
-      Handle<Map> map,
-      Handle<DescriptorArray> descriptors,
-      TransitionFlag flag,
-      Handle<Name> name,
-      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
-  static Handle<Map> CopyReplaceDescriptors(
-      Handle<Map> map,
-      Handle<DescriptorArray> descriptors,
-      TransitionFlag flag,
-      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
@@ -6440,6 +6429,8 @@ class Map: public HeapObject {
                                         TransitionFlag flag);
 
   static Handle<Map> CopyForObserved(Handle<Map> map);
+
+  static Handle<Map> CopyForFreeze(Handle<Map> map);
 
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode,
@@ -6686,6 +6677,12 @@ class Map: public HeapObject {
   static Handle<Map> CopyAddDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
+  static Handle<Map> CopyReplaceDescriptors(
+      Handle<Map> map,
+      Handle<DescriptorArray> descriptors,
+      TransitionFlag flag,
+      MaybeHandle<Name> maybe_name,
+      SimpleTransitionFlag simple_flag = FULL_TRANSITION);
 
   // Zaps the contents of backing data structures. Note that the
   // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects

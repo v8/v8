@@ -5756,16 +5756,7 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     JSObject::MigrateToMap(object, transition_map);
   } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
     // Create a new descriptor array with fully-frozen properties
-    int num_descriptors = old_map->NumberOfOwnDescriptors();
-    Handle<DescriptorArray> new_descriptors =
-        DescriptorArray::CopyUpToAddAttributes(
-            handle(old_map->instance_descriptors()), num_descriptors, FROZEN);
-    Handle<Map> new_map = Map::CopyReplaceDescriptors(
-        old_map, new_descriptors, INSERT_TRANSITION,
-        isolate->factory()->frozen_symbol());
-    new_map->freeze();
-    new_map->set_is_extensible(false);
-    new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+    Handle<Map> new_map = Map::CopyForFreeze(old_map);
     JSObject::MigrateToMap(object, new_map);
   } else {
     // Slow path: need to normalize properties for safety
@@ -6967,16 +6958,7 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
 Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
                                         Handle<DescriptorArray> descriptors,
                                         TransitionFlag flag,
-                                        SimpleTransitionFlag simple_flag) {
-  return CopyReplaceDescriptors(
-      map, descriptors, flag, Handle<Name>::null(), simple_flag);
-}
-
-
-Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
-                                        Handle<DescriptorArray> descriptors,
-                                        TransitionFlag flag,
-                                        Handle<Name> name,
+                                        MaybeHandle<Name> maybe_name,
                                         SimpleTransitionFlag simple_flag) {
   ASSERT(descriptors->IsSortedNoDuplicates());
 
@@ -6984,6 +6966,8 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
   result->InitializeDescriptors(*descriptors);
 
   if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
+    Handle<Name> name;
+    CHECK(maybe_name.ToHandle(&name));
     Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
         map, name, result, simple_flag);
     map->set_transitions(*transitions);
@@ -7120,7 +7104,8 @@ Handle<Map> Map::Copy(Handle<Map> map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> new_descriptors =
       DescriptorArray::CopyUpTo(descriptors, number_of_own_descriptors);
-  return CopyReplaceDescriptors(map, new_descriptors, OMIT_TRANSITION);
+  return CopyReplaceDescriptors(
+      map, new_descriptors, OMIT_TRANSITION, MaybeHandle<Name>());
 }
 
 
@@ -7150,6 +7135,20 @@ Handle<Map> Map::Create(Handle<JSFunction> constructor,
   copy->set_instance_size(copy->instance_size() + instance_size_delta);
   copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
   return copy;
+}
+
+
+Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
+  int num_descriptors = map->NumberOfOwnDescriptors();
+  Isolate* isolate = map->GetIsolate();
+  Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
+      handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
+  Handle<Map> new_map = Map::CopyReplaceDescriptors(
+      map, new_desc, INSERT_TRANSITION, isolate->factory()->frozen_symbol());
+  new_map->freeze();
+  new_map->set_is_extensible(false);
+  new_map->set_elements_kind(DICTIONARY_ELEMENTS);
+  return new_map;
 }
 
 
