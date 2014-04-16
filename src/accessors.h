@@ -42,22 +42,22 @@ namespace internal {
   V(FunctionName)                   \
   V(FunctionArguments)              \
   V(FunctionCaller)                 \
-  V(ArrayLength)                    \
-  V(ScriptType)                     \
-  V(ScriptCompilationType)          \
-  V(ScriptLineEnds)                 \
-  V(ScriptContextData)              \
-  V(ScriptEvalFromScript)           \
-  V(ScriptEvalFromScriptPosition)   \
-  V(ScriptEvalFromFunctionName)
+  V(ArrayLength)
 
 #define ACCESSOR_INFO_LIST(V)       \
   V(ScriptColumnOffset)             \
+  V(ScriptCompilationType)          \
+  V(ScriptContextData)              \
+  V(ScriptEvalFromScript)           \
+  V(ScriptEvalFromScriptPosition)   \
+  V(ScriptEvalFromFunctionName)     \
   V(ScriptId)                       \
+  V(ScriptLineEnds)                 \
   V(ScriptLineOffset)               \
   V(ScriptName)                     \
   V(ScriptSource)                   \
-  V(StringLength)                   \
+  V(ScriptType)                     \
+  V(StringLength)
 
 // Accessors contains all predefined proxy accessors.
 
@@ -137,25 +137,6 @@ class Accessors : public AllStatic {
                                      Object*,
                                      void*);
   static MaybeObject* ArrayGetLength(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetType(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetCompilationType(Isolate* isolate,
-                                               Object* object,
-                                               void*);
-  static MaybeObject* ScriptGetLineEnds(Isolate* isolate,
-                                        Object* object,
-                                        void*);
-  static MaybeObject* ScriptGetContextData(Isolate* isolate,
-                                           Object* object,
-                                           void*);
-  static MaybeObject* ScriptGetEvalFromScript(Isolate* isolate,
-                                              Object* object,
-                                              void*);
-  static MaybeObject* ScriptGetEvalFromScriptPosition(Isolate* isolate,
-                                                      Object* object,
-                                                      void*);
-  static MaybeObject* ScriptGetEvalFromFunctionName(Isolate* isolate,
-                                                    Object* object,
-                                                    void*);
 
   // Helper functions.
   static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);

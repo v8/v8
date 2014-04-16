@@ -478,19 +478,36 @@ Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
 //
 
 
-MaybeObject* Accessors::ScriptGetType(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->type();
+void Accessors::ScriptTypeGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->type();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptType = {
-  ScriptGetType,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptTypeSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptTypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("type")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptTypeGetter,
+                      &ScriptTypeSetter,
+                      attributes);
+}
 
 
 //
@@ -498,19 +515,37 @@ const AccessorDescriptor Accessors::ScriptType = {
 //
 
 
-MaybeObject* Accessors::ScriptGetCompilationType(Isolate* isolate,
-                                                 Object* object,
-                                                 void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Smi::FromInt(Script::cast(script)->compilation_type());
+void Accessors::ScriptCompilationTypeGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Smi::FromInt(
+      Script::cast(JSValue::cast(object)->value())->compilation_type());
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptCompilationType = {
-  ScriptGetCompilationType,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptCompilationTypeSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("compilation_type")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptCompilationTypeGetter,
+                      &ScriptCompilationTypeSetter,
+                      attributes);
+}
 
 
 //
@@ -518,12 +553,14 @@ const AccessorDescriptor Accessors::ScriptCompilationType = {
 //
 
 
-MaybeObject* Accessors::ScriptGetLineEnds(Isolate* isolate,
-                                          Object* object,
-                                          void*) {
-  JSValue* wrapper = JSValue::cast(object);
+void Accessors::ScriptLineEndsGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Script> script(Script::cast(wrapper->value()), isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Script::InitLineEnds(script);
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
@@ -532,15 +569,28 @@ MaybeObject* Accessors::ScriptGetLineEnds(Isolate* isolate,
          line_ends->map() == isolate->heap()->fixed_cow_array_map());
   Handle<JSArray> js_array =
       isolate->factory()->NewJSArrayWithElements(line_ends);
-  return *js_array;
+  info.GetReturnValue().Set(Utils::ToLocal(js_array));
 }
 
 
-const AccessorDescriptor Accessors::ScriptLineEnds = {
-  ScriptGetLineEnds,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptLineEndsSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("line_ends")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptLineEndsGetter,
+                      &ScriptLineEndsSetter,
+                      attributes);
+}
 
 
 //
@@ -548,19 +598,36 @@ const AccessorDescriptor Accessors::ScriptLineEnds = {
 //
 
 
-MaybeObject* Accessors::ScriptGetContextData(Isolate* isolate,
-                                             Object* object,
-                                             void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->context_data();
+void Accessors::ScriptContextDataGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->context_data();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptContextData = {
-  ScriptGetContextData,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptContextDataSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptContextDataInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("context_data")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptContextDataGetter,
+                      &ScriptContextDataSetter,
+                      attributes);
+}
 
 
 //
@@ -568,28 +635,46 @@ const AccessorDescriptor Accessors::ScriptContextData = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromScript(Isolate* isolate,
-                                                Object* object,
-                                                void*) {
-  Object* script = JSValue::cast(object)->value();
-  if (!Script::cast(script)->eval_from_shared()->IsUndefined()) {
+void Accessors::ScriptEvalFromScriptGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (!script->eval_from_shared()->IsUndefined()) {
     Handle<SharedFunctionInfo> eval_from_shared(
-        SharedFunctionInfo::cast(Script::cast(script)->eval_from_shared()));
-
+        SharedFunctionInfo::cast(script->eval_from_shared()));
     if (eval_from_shared->script()->IsScript()) {
       Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()));
-      return *Script::GetWrapper(eval_from_script);
+      result = Script::GetWrapper(eval_from_script);
     }
   }
-  return isolate->heap()->undefined_value();
+
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromScript = {
-  ScriptGetEvalFromScript,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromScriptSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("eval_from_script")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromScriptGetter,
+                      &ScriptEvalFromScriptSetter,
+                      attributes);
+}
 
 
 //
@@ -597,32 +682,45 @@ const AccessorDescriptor Accessors::ScriptEvalFromScript = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromScriptPosition(Isolate* isolate,
-                                                        Object* object,
-                                                        void*) {
-  Script* raw_script = Script::cast(JSValue::cast(object)->value());
+void Accessors::ScriptEvalFromScriptPositionGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Script> script(raw_script);
-
-  // If this is not a script compiled through eval there is no eval position.
-  if (script->compilation_type() != Script::COMPILATION_TYPE_EVAL) {
-    return script->GetHeap()->undefined_value();
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result = isolate->factory()->undefined_value();
+  if (script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
+    Handle<Code> code(SharedFunctionInfo::cast(
+        script->eval_from_shared())->code());
+    result = Handle<Object>(
+        Smi::FromInt(code->SourcePosition(code->instruction_start() +
+                     script->eval_from_instructions_offset()->value())),
+        isolate);
   }
-
-  // Get the function from where eval was called and find the source position
-  // from the instruction offset.
-  Handle<Code> code(SharedFunctionInfo::cast(
-      script->eval_from_shared())->code());
-  return Smi::FromInt(code->SourcePosition(code->instruction_start() +
-                      script->eval_from_instructions_offset()->value()));
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
-  ScriptGetEvalFromScriptPosition,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromScriptPositionSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromScriptPositionInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("eval_from_script_position")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromScriptPositionGetter,
+                      &ScriptEvalFromScriptPositionSetter,
+                      attributes);
+}
 
 
 //
@@ -630,28 +728,45 @@ const AccessorDescriptor Accessors::ScriptEvalFromScriptPosition = {
 //
 
 
-MaybeObject* Accessors::ScriptGetEvalFromFunctionName(Isolate* isolate,
-                                                      Object* object,
-                                                      void*) {
-  Object* script = JSValue::cast(object)->value();
-  Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(
-      Script::cast(script)->eval_from_shared()));
-
-
+void Accessors::ScriptEvalFromFunctionNameGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Script> script(
+      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
+  Handle<Object> result;
+  Handle<SharedFunctionInfo> shared(
+      SharedFunctionInfo::cast(script->eval_from_shared()));
   // Find the name of the function calling eval.
   if (!shared->name()->IsUndefined()) {
-    return shared->name();
+    result = Handle<Object>(shared->name(), isolate);
   } else {
-    return shared->inferred_name();
+    result = Handle<Object>(shared->inferred_name(), isolate);
   }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::ScriptEvalFromFunctionName = {
-  ScriptGetEvalFromFunctionName,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptEvalFromFunctionNameSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("eval_from_function_name")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptEvalFromFunctionNameGetter,
+                      &ScriptEvalFromFunctionNameSetter,
+                      attributes);
+}
 
 
 //
