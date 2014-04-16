@@ -36,23 +36,7 @@ namespace {
 
 using namespace v8::internal;
 
-
-void CheckIterResultObject(Isolate* isolate,
-                           Handle<JSObject> result,
-                           Handle<Object> value,
-                           bool done) {
-  CHECK(Object::GetProperty(isolate, result, "value").ToHandleChecked()
-      ->SameValue(*value));
-  CHECK(Object::GetProperty(isolate, result, "done").ToHandleChecked()
-      ->IsBoolean());
-  CHECK_EQ(Object::GetProperty(isolate, result, "done").ToHandleChecked()
-      ->BooleanValue(), done);
-}
-
-
 TEST(Set) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -61,11 +45,6 @@ TEST(Set) {
   CHECK_EQ(2, ordered_set->NumberOfBuckets());
   CHECK_EQ(0, ordered_set->NumberOfElements());
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
-
-  Handle<JSSetIterator> value_iterator =
-      JSSetIterator::Create(ordered_set, JSSetIterator::kKindValues);
-  Handle<JSSetIterator> value_iterator_2 =
-      JSSetIterator::Create(ordered_set, JSSetIterator::kKindValues);
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
@@ -89,18 +68,6 @@ TEST(Set) {
   CHECK(ordered_set->Contains(*obj2));
   CHECK(ordered_set->Contains(*obj3));
 
-  // Test iteration
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj1, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj2, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator), obj3, false);
-  CheckIterResultObject(isolate,
-                        JSSetIterator::Next(value_iterator),
-                        factory->undefined_value(),
-                        true);
-
   // Test growth
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
@@ -114,22 +81,6 @@ TEST(Set) {
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
   CHECK_EQ(4, ordered_set->NumberOfBuckets());
 
-  // Test iteration after growth
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj1, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj2, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj3, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj, false);
-  CheckIterResultObject(
-      isolate, JSSetIterator::Next(value_iterator_2), obj4, false);
-  CheckIterResultObject(isolate,
-                        JSSetIterator::Next(value_iterator_2),
-                        factory->undefined_value(),
-                        true);
-
   // Test shrinking
   ordered_set = OrderedHashSet::Remove(ordered_set, obj);
   ordered_set = OrderedHashSet::Remove(ordered_set, obj1);
@@ -141,8 +92,6 @@ TEST(Set) {
 
 
 TEST(Map) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -151,11 +100,6 @@ TEST(Map) {
   CHECK_EQ(2, ordered_map->NumberOfBuckets());
   CHECK_EQ(0, ordered_map->NumberOfElements());
   CHECK_EQ(0, ordered_map->NumberOfDeletedElements());
-
-  Handle<JSMapIterator> value_iterator =
-      JSMapIterator::Create(ordered_map, JSMapIterator::kKindValues);
-  Handle<JSMapIterator> key_iterator =
-      JSMapIterator::Create(ordered_map, JSMapIterator::kKindKeys);
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
@@ -184,18 +128,6 @@ TEST(Map) {
   CHECK(ordered_map->Lookup(*obj2)->SameValue(*val2));
   CHECK(ordered_map->Lookup(*obj3)->SameValue(*val3));
 
-  // Test iteration
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val1, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val2, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(value_iterator), val3, false);
-  CheckIterResultObject(isolate,
-                        JSMapIterator::Next(value_iterator),
-                        factory->undefined_value(),
-                        true);
-
   // Test growth
   ordered_map = OrderedHashMap::Put(ordered_map, obj, val);
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
@@ -208,22 +140,6 @@ TEST(Map) {
   CHECK(ordered_map->Lookup(*obj4)->SameValue(*val4));
   CHECK_EQ(5, ordered_map->NumberOfElements());
   CHECK_EQ(4, ordered_map->NumberOfBuckets());
-
-  // Test iteration after growth
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj1, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj2, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj3, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj, false);
-  CheckIterResultObject(
-      isolate, JSMapIterator::Next(key_iterator), obj4, false);
-  CheckIterResultObject(isolate,
-                        JSMapIterator::Next(key_iterator),
-                        factory->undefined_value(),
-                        true);
 
   // Test shrinking
   ordered_map = OrderedHashMap::Put(

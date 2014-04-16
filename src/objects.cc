@@ -1675,8 +1675,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
     case JS_MAP_TYPE:
-    case JS_SET_ITERATOR_TYPE:
-    case JS_MAP_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_REGEXP_TYPE:
@@ -16336,14 +16334,15 @@ void WeakHashTable::AddEntry(int entry, Object* key, Object* value) {
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure) {
   // Capacity must be a power of two, since we depend on being able
   // to divide and multiple by 2 (kLoadFactor) to derive capacity
   // from number of buckets. If we decide to change kLoadFactor
   // to something other than 2, capacity should be stored as another
   // field of this object.
+  const int kMinCapacity = 4;
   capacity = RoundUpToPowerOf2(Max(kMinCapacity, capacity));
   if (capacity > kMaxCapacity) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
@@ -16360,13 +16359,12 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
   table->SetNumberOfBuckets(num_buckets);
   table->SetNumberOfElements(0);
   table->SetNumberOfDeletedElements(0);
-  table->set_iterators(isolate->heap()->undefined_value());
   return table;
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::EnsureGrowable(
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
     Handle<Derived> table) {
   int nof = table->NumberOfElements();
   int nod = table->NumberOfDeletedElements();
@@ -16379,8 +16377,8 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::EnsureGrowable(
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Shrink(
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Shrink(
     Handle<Derived> table) {
   int nof = table->NumberOfElements();
   int capacity = table->Capacity();
@@ -16389,31 +16387,8 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Shrink(
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
-    Handle<Derived> table) {
-  Handle<Derived> new_table =
-      Allocate(table->GetIsolate(),
-               kMinCapacity,
-               table->GetHeap()->InNewSpace(*table) ? NOT_TENURED : TENURED);
-
-  new_table->set_iterators(table->iterators());
-  table->set_iterators(table->GetHeap()->undefined_value());
-
-  DisallowHeapAllocation no_allocation;
-  for (Object* object = new_table->iterators();
-       !object->IsUndefined();
-       object = Iterator::cast(object)->next_iterator()) {
-    Iterator::cast(object)->TableCleared();
-    Iterator::cast(object)->set_table(*new_table);
-  }
-
-  return new_table;
-}
-
-
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
+template<class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   Handle<Derived> new_table =
       Allocate(table->GetIsolate(),
@@ -16440,24 +16415,12 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     ++new_entry;
   }
   new_table->SetNumberOfElements(nof);
-
-  new_table->set_iterators(table->iterators());
-  table->set_iterators(table->GetHeap()->undefined_value());
-
-  DisallowHeapAllocation no_allocation;
-  for (Object* object = new_table->iterators();
-       !object->IsUndefined();
-       object = Iterator::cast(object)->next_iterator()) {
-    Iterator::cast(object)->TableCompacted();
-    Iterator::cast(object)->set_table(*new_table);
-  }
-
   return new_table;
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(Object* key) {
+template<class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::FindEntry(Object* key) {
   ASSERT(!key->IsTheHole());
   Object* hash = key->GetHash();
   if (hash->IsUndefined()) return kNotFound;
@@ -16472,9 +16435,9 @@ int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(Object* key) {
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::AddEntry(int hash) {
-  int entry = UsedCapacity();
+template<class Derived, int entrysize>
+int OrderedHashTable<Derived, entrysize>::AddEntry(int hash) {
+  int entry = NumberOfElements() + NumberOfDeletedElements();
   int bucket = HashToBucket(hash);
   int index = EntryToIndex(entry);
   Object* chain_entry = get(kHashTableStartIndex + bucket);
@@ -16485,32 +16448,19 @@ int OrderedHashTable<Derived, Iterator, entrysize>::AddEntry(int hash) {
 }
 
 
-template<class Derived, class Iterator, int entrysize>
-void OrderedHashTable<Derived, Iterator, entrysize>::RemoveEntry(int entry) {
+template<class Derived, int entrysize>
+void OrderedHashTable<Derived, entrysize>::RemoveEntry(int entry) {
   int index = EntryToIndex(entry);
   for (int i = 0; i < entrysize; ++i) {
     set_the_hole(index + i);
   }
   SetNumberOfElements(NumberOfElements() - 1);
   SetNumberOfDeletedElements(NumberOfDeletedElements() + 1);
-
-  DisallowHeapAllocation no_allocation;
-  for (Object* object = iterators();
-       !object->IsUndefined();
-       object = Iterator::cast(object)->next_iterator()) {
-    Iterator::cast(object)->EntryRemoved(entry);
-  }
 }
 
 
-template int OrderedHashTable<OrderedHashSet, JSSetIterator,
-    1>::FindEntry(Object* key);
-template int OrderedHashTable<OrderedHashMap, JSMapIterator,
-    2>::FindEntry(Object* key);
-
-
-template class OrderedHashTable<OrderedHashSet, JSSetIterator, 1>;
-template class OrderedHashTable<OrderedHashMap, JSMapIterator, 2>;
+template class OrderedHashTable<OrderedHashSet, 1>;
+template class OrderedHashTable<OrderedHashMap, 2>;
 
 
 bool OrderedHashSet::Contains(Object* key) {
@@ -16536,6 +16486,7 @@ Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
   int entry = table->FindEntry(*key);
   if (entry == kNotFound) return table;
   table->RemoveEntry(entry);
+  // TODO(adamk): Don't shrink if we're being iterated over
   return Shrink(table);
 }
 
@@ -16555,6 +16506,7 @@ Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
   if (value->IsTheHole()) {
     if (entry == kNotFound) return table;
     table->RemoveEntry(entry);
+    // TODO(adamk): Only shrink if not iterating
     return Shrink(table);
   }
 
@@ -16570,199 +16522,6 @@ Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
   table->set(index, *key);
   table->set(index + kValueOffset, *value);
   return table;
-}
-
-
-template<class Derived, class TableType>
-void OrderedHashTableIterator<Derived, TableType>::EntryRemoved(int index) {
-  int i = this->index()->value();
-  if (index < i) {
-    set_count(Smi::FromInt(count()->value() - 1));
-  }
-  if (index == i) {
-    Seek();
-  }
-}
-
-
-template<class Derived, class TableType>
-void OrderedHashTableIterator<Derived, TableType>::Close() {
-  if (Closed()) return;
-
-  DisallowHeapAllocation no_allocation;
-
-  Object* undefined = GetHeap()->undefined_value();
-  TableType* table = TableType::cast(this->table());
-  Object* previous = previous_iterator();
-  Object* next = next_iterator();
-
-  if (previous == undefined) {
-    ASSERT_EQ(table->iterators(), this);
-    table->set_iterators(next);
-  } else {
-    ASSERT_EQ(Derived::cast(previous)->next_iterator(), this);
-    Derived::cast(previous)->set_next_iterator(next);
-  }
-
-  if (!next->IsUndefined()) {
-    ASSERT_EQ(Derived::cast(next)->previous_iterator(), this);
-    Derived::cast(next)->set_previous_iterator(previous);
-  }
-
-  set_previous_iterator(undefined);
-  set_next_iterator(undefined);
-  set_table(undefined);
-}
-
-
-template<class Derived, class TableType>
-void OrderedHashTableIterator<Derived, TableType>::Seek() {
-  ASSERT(!Closed());
-
-  DisallowHeapAllocation no_allocation;
-
-  int index = this->index()->value();
-
-  TableType* table = TableType::cast(this->table());
-  int used_capacity = table->UsedCapacity();
-
-  while (index < used_capacity && table->KeyAt(index)->IsTheHole()) {
-    index++;
-  }
-  set_index(Smi::FromInt(index));
-}
-
-
-template<class Derived, class TableType>
-void OrderedHashTableIterator<Derived, TableType>::MoveNext() {
-  ASSERT(!Closed());
-
-  set_index(Smi::FromInt(index()->value() + 1));
-  set_count(Smi::FromInt(count()->value() + 1));
-  Seek();
-}
-
-
-template<class Derived, class TableType>
-Handle<JSObject> OrderedHashTableIterator<Derived, TableType>::Next(
-    Handle<Derived> iterator) {
-  Isolate* isolate = iterator->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<Object> object(iterator->table(), isolate);
-
-  if (!object->IsUndefined()) {
-    Handle<TableType> table = Handle<TableType>::cast(object);
-    int index = iterator->index()->value();
-    if (index < table->UsedCapacity()) {
-      int entry_index = table->EntryToIndex(index);
-      iterator->MoveNext();
-      Handle<Object> value = Derived::ValueForKind(iterator, entry_index);
-      return factory->NewIteratorResultObject(value, false);
-    } else {
-      iterator->Close();
-    }
-  }
-
-  return factory->NewIteratorResultObject(factory->undefined_value(), true);
-}
-
-
-template<class Derived, class TableType>
-Handle<Derived> OrderedHashTableIterator<Derived, TableType>::CreateInternal(
-    Handle<Map> map,
-    Handle<TableType> table,
-    int kind) {
-  Isolate* isolate = table->GetIsolate();
-
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-
-  Handle<Derived> new_iterator = Handle<Derived>::cast(
-      isolate->factory()->NewJSObjectFromMap(map));
-  new_iterator->set_previous_iterator(*undefined);
-  new_iterator->set_table(*table);
-  new_iterator->set_index(Smi::FromInt(0));
-  new_iterator->set_count(Smi::FromInt(0));
-  new_iterator->set_kind(Smi::FromInt(kind));
-
-  Handle<Object> old_iterator(table->iterators(), isolate);
-  if (!old_iterator->IsUndefined()) {
-    Handle<Derived>::cast(old_iterator)->set_previous_iterator(*new_iterator);
-    new_iterator->set_next_iterator(*old_iterator);
-  } else {
-    new_iterator->set_next_iterator(*undefined);
-  }
-
-  table->set_iterators(*new_iterator);
-
-  return new_iterator;
-}
-
-
-template Handle<JSObject> OrderedHashTableIterator<JSSetIterator,
-    OrderedHashSet>::Next(Handle<JSSetIterator> iterator);
-template Handle<JSObject> OrderedHashTableIterator<JSMapIterator,
-    OrderedHashMap>::Next(Handle<JSMapIterator> iterator);
-
-
-template class OrderedHashTableIterator<JSSetIterator, OrderedHashSet>;
-template class OrderedHashTableIterator<JSMapIterator, OrderedHashMap>;
-
-
-Handle<Object> JSSetIterator::ValueForKind(
-    Handle<JSSetIterator> iterator, int entry_index) {
-  int kind = iterator->kind()->value();
-  // Set.prototype only has values and entries.
-  ASSERT(kind == kKindValues || kind == kKindEntries);
-
-  Isolate* isolate = iterator->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<OrderedHashSet> table(
-      OrderedHashSet::cast(iterator->table()), isolate);
-  Handle<Object> value = Handle<Object>(table->get(entry_index), isolate);
-
-  if (kind == kKindEntries) {
-    Handle<FixedArray> array = factory->NewFixedArray(2);
-    array->set(0, *value);
-    array->set(1, *value);
-    return factory->NewJSArrayWithElements(array);
-  }
-
-  return value;
-}
-
-
-Handle<Object> JSMapIterator::ValueForKind(
-    Handle<JSMapIterator> iterator, int entry_index) {
-  int kind = iterator->kind()->value();
-  ASSERT(kind == kKindKeys || kind == kKindValues || kind == kKindEntries);
-
-  Isolate* isolate = iterator->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<OrderedHashMap> table(
-      OrderedHashMap::cast(iterator->table()), isolate);
-
-  switch (kind) {
-    case kKindKeys:
-      return Handle<Object>(table->get(entry_index), isolate);
-
-    case kKindValues:
-      return Handle<Object>(table->get(entry_index + 1), isolate);
-
-    case kKindEntries: {
-      Handle<Object> key(table->get(entry_index), isolate);
-      Handle<Object> value(table->get(entry_index + 1), isolate);
-      Handle<FixedArray> array = factory->NewFixedArray(2);
-      array->set(0, *key);
-      array->set(1, *value);
-      return factory->NewJSArrayWithElements(array);
-    }
-  }
-
-  UNREACHABLE();
-  return factory->undefined_value();
 }
 
 

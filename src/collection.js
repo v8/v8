@@ -113,29 +113,8 @@ function SetClear() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.clear', this]);
   }
-  %SetClear(this);
-}
-
-
-function SetForEach(f, receiver) {
-  if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.forEach', this]);
-  }
-
-  if (!IS_SPEC_FUNCTION(f)) {
-    throw MakeTypeError('called_non_callable', [f]);
-  }
-
-  var iterator = %SetCreateIterator(this, ITERATOR_KIND_VALUES);
-  var entry;
-  try {
-    while (!(entry = %SetIteratorNext(iterator)).done) {
-      %_CallFunction(receiver, entry.value, entry.value, this, f);
-    }
-  } finally {
-    %SetIteratorClose(iterator);
-  }
+  // Replace the internal table with a new empty table.
+  %SetInitialize(this);
 }
 
 
@@ -148,16 +127,13 @@ function SetUpSet() {
   %FunctionSetPrototype($Set, new $Object());
   %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
 
-  %FunctionSetLength(SetForEach, 1);
-
   // Set up the non-enumerable functions on the Set prototype object.
   InstallGetter($Set.prototype, "size", SetGetSize);
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     "add", SetAdd,
     "has", SetHas,
     "delete", SetDelete,
-    "clear", SetClear,
-    "forEach", SetForEach
+    "clear", SetClear
   ));
 }
 
@@ -226,29 +202,8 @@ function MapClear() {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.clear', this]);
   }
-  %MapClear(this);
-}
-
-
-function MapForEach(f, receiver) {
-  if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.forEach', this]);
-  }
-
-  if (!IS_SPEC_FUNCTION(f)) {
-    throw MakeTypeError('called_non_callable', [f]);
-  }
-
-  var iterator = %MapCreateIterator(this, ITERATOR_KIND_ENTRIES);
-  var entry;
-  try {
-    while (!(entry = %MapIteratorNext(iterator)).done) {
-      %_CallFunction(receiver, entry.value[1], entry.value[0], this, f);
-    }
-  } finally {
-    %MapIteratorClose(iterator);
-  }
+  // Replace the internal table with a new empty table.
+  %MapInitialize(this);
 }
 
 
@@ -261,8 +216,6 @@ function SetUpMap() {
   %FunctionSetPrototype($Map, new $Object());
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
-  %FunctionSetLength(MapForEach, 1);
-
   // Set up the non-enumerable functions on the Map prototype object.
   InstallGetter($Map.prototype, "size", MapGetSize);
   InstallFunctions($Map.prototype, DONT_ENUM, $Array(
@@ -270,8 +223,7 @@ function SetUpMap() {
     "set", MapSet,
     "has", MapHas,
     "delete", MapDelete,
-    "clear", MapClear,
-    "forEach", MapForEach
+    "clear", MapClear
   ));
 }
 
