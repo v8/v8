@@ -126,7 +126,7 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
   }
 
   if (!type->IsClass()) return false;
-  Handle<Map> map = type->AsClass();
+  Handle<Map> map = type->AsClass()->Map();
 
   switch (map->instance_type()) {
     case JS_ARRAY_TYPE:

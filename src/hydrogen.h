@@ -2380,7 +2380,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
         context = context->native_context();
         return handle(context->string_function()->initial_map());
       } else {
-        return type_->AsClass();
+        return type_->AsClass()->Map();
       }
     }
     Type* type() const { return type_; }
