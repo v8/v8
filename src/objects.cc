@@ -7930,10 +7930,10 @@ void CodeCache::RemoveByIndex(Object* name, Code* code, int index) {
 // lookup not to create a new entry.
 class CodeCacheHashTableKey : public HashTableKey {
  public:
-  CodeCacheHashTableKey(Name* name, Code::Flags flags)
-      : name_(name), flags_(flags), code_(NULL) { }
+  CodeCacheHashTableKey(Handle<Name> name, Code::Flags flags)
+      : name_(name), flags_(flags), code_() { }
 
-  CodeCacheHashTableKey(Name* name, Code* code)
+  CodeCacheHashTableKey(Handle<Name> name, Handle<Code> code)
       : name_(name), flags_(code->flags()), code_(code) { }
 
 
@@ -7952,7 +7952,7 @@ class CodeCacheHashTableKey : public HashTableKey {
     return name->Hash() ^ flags;
   }
 
-  uint32_t Hash() { return NameFlagsHashHelper(name_, flags_); }
+  uint32_t Hash() { return NameFlagsHashHelper(*name_, flags_); }
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* pair = FixedArray::cast(obj);
@@ -7962,67 +7962,60 @@ class CodeCacheHashTableKey : public HashTableKey {
   }
 
   MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
-    ASSERT(code_ != NULL);
+    Handle<Code> code = code_.ToHandleChecked();
     Object* obj;
     { MaybeObject* maybe_obj = heap->AllocateFixedArray(2);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* pair = FixedArray::cast(obj);
-    pair->set(0, name_);
-    pair->set(1, code_);
+    pair->set(0, *name_);
+    pair->set(1, *code);
     return pair;
   }
 
+  Handle<FixedArray> AsHandle() {
+    Isolate* isolate = name_->GetIsolate();
+    CALL_HEAP_FUNCTION(isolate,
+                       AsObject(isolate->heap()),
+                       FixedArray);
+  }
+
  private:
-  Name* name_;
+  Handle<Name> name_;
   Code::Flags flags_;
   // TODO(jkummerow): We should be able to get by without this.
-  Code* code_;
+  MaybeHandle<Code> code_;
 };
 
 
 Object* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
-  CodeCacheHashTableKey key(name, flags);
+  DisallowHeapAllocation no_alloc;
+  CodeCacheHashTableKey key(handle(name), flags);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
 
-MaybeObject* CodeCacheHashTable::Put(Name* name, Code* code) {
-  CodeCacheHashTableKey key(name, code);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  // Don't use |this|, as the table might have grown.
-  CodeCacheHashTable* cache = reinterpret_cast<CodeCacheHashTable*>(obj);
-
-  int entry = cache->FindInsertionEntry(key.Hash());
-  Object* k;
-  { MaybeObject* maybe_k = key.AsObject(GetHeap());
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
-
-  cache->set(EntryToIndex(entry), k);
-  cache->set(EntryToIndex(entry) + 1, code);
-  cache->ElementAdded();
-  return cache;
-}
-
-
 Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
     Handle<CodeCacheHashTable> cache, Handle<Name> name, Handle<Code> code) {
-  Isolate* isolate = cache->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     cache->Put(*name, *code),
-                     CodeCacheHashTable);
+  CodeCacheHashTableKey key(name, code);
+
+  Handle<CodeCacheHashTable> new_cache = EnsureCapacity(cache, 1, &key);
+
+  int entry = new_cache->FindInsertionEntry(key.Hash());
+  Handle<Object> k = key.AsHandle();
+
+  new_cache->set(EntryToIndex(entry), *k);
+  new_cache->set(EntryToIndex(entry) + 1, *code);
+  new_cache->ElementAdded();
+  return new_cache;
 }
 
 
 int CodeCacheHashTable::GetIndex(Name* name, Code::Flags flags) {
-  CodeCacheHashTableKey key(name, flags);
+  DisallowHeapAllocation no_alloc;
+  CodeCacheHashTableKey key(handle(name), flags);
   int entry = FindEntry(&key);
   return (entry == kNotFound) ? -1 : entry;
 }
@@ -14788,6 +14781,19 @@ MaybeObject* HashTable<Derived, Shape, Key>::EnsureCapacity(
 
 
 template<typename Derived, typename Shape, typename Key>
+Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
+    Handle<Derived> table,
+    int n,
+    Key key,
+    PretenureFlag pretenure) {
+  Isolate* isolate = table->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     table->EnsureCapacity(n, key, pretenure),
+                     Derived);
+}
+
+
+template<typename Derived, typename Shape, typename Key>
 Handle<Derived> HashTable<Derived, Shape, Key>::Shrink(Handle<Derived> table,
                                                        Key key) {
   int capacity = table->Capacity();
@@ -15647,7 +15653,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
-  cache = EnsureCapacityFor(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1, &key);
   Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
@@ -15664,7 +15670,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   Isolate* isolate = cache->GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, value->strict_mode(), scope_position);
-  cache = EnsureCapacityFor(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1, &key);
   Handle<Object> k = key.AsObject(isolate->factory());
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
@@ -15678,7 +15684,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value) {
   RegExpKey key(src, flags);
-  cache = EnsureCapacityFor(cache, 1, &key);
+  cache = EnsureCapacity(cache, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
   // We store the value in the key slot, and compare the search key
   // to the stored value with a custon IsMatch function during lookups.
@@ -15686,14 +15692,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutRegExp(
   cache->set(EntryToIndex(entry) + 1, *value);
   cache->ElementAdded();
   return cache;
-}
-
-
-Handle<CompilationCacheTable> CompilationCacheTable::EnsureCapacityFor(
-      Handle<CompilationCacheTable> cache, int n, HashTableKey* key) {
-  CALL_HEAP_FUNCTION(cache->GetIsolate(),
-                     cache->EnsureCapacity(n, key),
-                     CompilationCacheTable);
 }
 
 
@@ -15716,7 +15714,7 @@ void CompilationCacheTable::Remove(Object* value) {
 // StringsKey used for HashTable where key is array of internalized strings.
 class StringsKey : public HashTableKey {
  public:
-  explicit StringsKey(FixedArray* strings) : strings_(strings) { }
+  explicit StringsKey(Handle<FixedArray> strings) : strings_(strings) { }
 
   bool IsMatch(Object* strings) {
     FixedArray* o = FixedArray::cast(strings);
@@ -15728,7 +15726,7 @@ class StringsKey : public HashTableKey {
     return true;
   }
 
-  uint32_t Hash() { return HashForObject(strings_); }
+  uint32_t Hash() { return HashForObject(*strings_); }
 
   uint32_t HashForObject(Object* obj) {
     FixedArray* strings = FixedArray::cast(obj);
@@ -15740,34 +15738,32 @@ class StringsKey : public HashTableKey {
     return hash;
   }
 
-  Object* AsObject(Heap* heap) { return strings_; }
+  Object* AsObject(Heap* heap) { return *strings_; }
 
  private:
-  FixedArray* strings_;
+  Handle<FixedArray> strings_;
 };
 
 
 Object* MapCache::Lookup(FixedArray* array) {
-  StringsKey key(array);
+  DisallowHeapAllocation no_alloc;
+  StringsKey key(handle(array));
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
 
-MaybeObject* MapCache::Put(FixedArray* array, Map* value) {
+Handle<MapCache> MapCache::Put(
+    Handle<MapCache> map_cache, Handle<FixedArray> array, Handle<Map> value) {
   StringsKey key(array);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
 
-  MapCache* cache = reinterpret_cast<MapCache*>(obj);
-  int entry = cache->FindInsertionEntry(key.Hash());
-  cache->set(EntryToIndex(entry), array);
-  cache->set(EntryToIndex(entry) + 1, value);
-  cache->ElementAdded();
-  return cache;
+  Handle<MapCache> new_cache = EnsureCapacity(map_cache, 1, &key);
+  int entry = new_cache->FindInsertionEntry(key.Hash());
+  new_cache->set(EntryToIndex(entry), *array);
+  new_cache->set(EntryToIndex(entry) + 1, *value);
+  new_cache->ElementAdded();
+  return new_cache;
 }
 
 
@@ -15886,6 +15882,17 @@ MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
     }
   }
   return DerivedHashTable::EnsureCapacity(n, key);
+}
+
+
+
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
+    Handle<Derived> obj, int n, Key key) {
+  Isolate* isolate = obj->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     obj->EnsureCapacity(n, key),
+                     Derived);
 }
 
 
@@ -16230,20 +16237,6 @@ Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
 }
 
 
-Handle<ObjectHashTable> ObjectHashTable::EnsureCapacity(
-    Handle<ObjectHashTable> table,
-    int n,
-    Handle<Object> key,
-    PretenureFlag pretenure) {
-  Handle<HashTable<ObjectHashTable,
-                   ObjectHashTableShape,
-                   Object*> > table_base = table;
-  CALL_HEAP_FUNCTION(table_base->GetIsolate(),
-                     table_base->EnsureCapacity(n, *key, pretenure),
-                     ObjectHashTable);
-}
-
-
 Object* ObjectHashTable::Lookup(Object* key) {
   ASSERT(IsKey(key));
 
@@ -16284,7 +16277,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   }
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, key);
+  table = EnsureCapacity(table, 1, *key);
   table->AddEntry(table->FindInsertionEntry(Handle<Smi>::cast(hash)->value()),
                   *key,
                   *value);

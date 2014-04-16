@@ -3858,6 +3858,11 @@ class HashTable: public FixedArray {
       int n,
       Key key,
       PretenureFlag pretenure = NOT_TENURED);
+  static Handle<Derived> EnsureCapacity(
+      Handle<Derived> table,
+      int n,
+      Key key,
+      PretenureFlag pretenure = NOT_TENURED);
 };
 
 
@@ -3964,7 +3969,8 @@ class MapCache: public HashTable<MapCache, MapCacheShape, HashTableKey*> {
  public:
   // Find cached value for a name key, otherwise return null.
   Object* Lookup(FixedArray* key);
-  MUST_USE_RESULT MaybeObject* Put(FixedArray* key, Map* value);
+  static Handle<MapCache> Put(
+      Handle<MapCache> map_cache, Handle<FixedArray> key, Handle<Map> value);
   static inline MapCache* cast(Object* obj);
 
  private:
@@ -4062,6 +4068,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
+
+  static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
 
 #ifdef OBJECT_PRINT
   void Print(FILE* out = stdout);
@@ -4272,12 +4280,6 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
     ASSERT(obj->IsHashTable());
     return reinterpret_cast<ObjectHashTable*>(obj);
   }
-
-  static Handle<ObjectHashTable> EnsureCapacity(
-      Handle<ObjectHashTable> table,
-      int n,
-      Handle<Object> key,
-      PretenureFlag pretenure = NOT_TENURED);
 
   // Attempt to shrink hash table after removal of key.
   static inline Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
@@ -8285,8 +8287,6 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
   static Handle<CompilationCacheTable> PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
-  static Handle<CompilationCacheTable> EnsureCapacityFor(
-      Handle<CompilationCacheTable> cache, int n, HashTableKey* key);
   void Remove(Object* value);
 
   static inline CompilationCacheTable* cast(Object* obj);
@@ -8390,8 +8390,6 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTable,
   static const int kInitialSize = 64;
 
  private:
-  MUST_USE_RESULT MaybeObject* Put(Name* name, Code* code);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);
 };
 

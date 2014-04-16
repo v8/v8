@@ -2232,24 +2232,13 @@ Handle<MapCache> Factory::NewMapCache(int at_least_space_for) {
 }
 
 
-MUST_USE_RESULT static MaybeObject* UpdateMapCacheWith(Context* context,
-                                                       FixedArray* keys,
-                                                       Map* map) {
-  Object* result;
-  { MaybeObject* maybe_result =
-        MapCache::cast(context->map_cache())->Put(keys, map);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  context->set_map_cache(MapCache::cast(result));
-  return result;
-}
-
-
 Handle<MapCache> Factory::AddToMapCache(Handle<Context> context,
                                         Handle<FixedArray> keys,
                                         Handle<Map> map) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     UpdateMapCacheWith(*context, *keys, *map), MapCache);
+  Handle<MapCache> map_cache = handle(MapCache::cast(context->map_cache()));
+  Handle<MapCache> result = MapCache::Put(map_cache, keys, map);
+  context->set_map_cache(*result);
+  return result;
 }
 
 
