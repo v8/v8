@@ -297,15 +297,25 @@ namespace internal {
   F(SetAdd, 2, 1) \
   F(SetHas, 2, 1) \
   F(SetDelete, 2, 1) \
+  F(SetClear, 1, 1) \
   F(SetGetSize, 1, 1) \
+  F(SetCreateIterator, 2, 1) \
+  \
+  F(SetIteratorNext, 1, 1) \
+  F(SetIteratorClose, 1, 1) \
   \
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
   F(MapGet, 2, 1) \
   F(MapHas, 2, 1) \
   F(MapDelete, 2, 1) \
+  F(MapClear, 1, 1) \
   F(MapSet, 3, 1) \
   F(MapGetSize, 1, 1) \
+  F(MapCreateIterator, 2, 1) \
+  \
+  F(MapIteratorNext, 1, 1) \
+  F(MapIteratorClose, 1, 1) \
   \
   /* Harmony weak maps and sets */ \
   F(WeakCollectionInitialize, 1, 1) \
