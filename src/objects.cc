@@ -1907,22 +1907,7 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
     return;
   }
 
-  JSObject::MigrateToMap(object, new_map);
-
-  PropertyDetails details = new_map->GetLastDescriptorDetails();
-  if (details.type() != FIELD) return;
-
-  Representation representation = details.representation();
-  int index = details.field_index();
-
-  if (representation.IsDouble()) {
-    // Nothing more to be done.
-    if (value->IsUninitialized()) return;
-    HeapNumber* box = HeapNumber::cast(object->RawFastPropertyAt(index));
-    box->set_value(value->Number());
-  } else {
-    object->FastPropertyAtPut(index, *value);
-  }
+  JSObject::MigrateToNewProperty(object, new_map, value);
 }
 
 
@@ -3954,31 +3939,42 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
         field_representation, field_type, FORCE_FIELD);
   }
 
-  JSObject::MigrateToMap(object, transition_map);
+  JSObject::MigrateToNewProperty(object, transition_map, value);
+  return value;
+}
 
-  // Reload.
-  descriptors = handle(transition_map->instance_descriptors());
-  details = descriptors->GetDetails(descriptor);
 
-  if (details.type() != FIELD) return value;
+void JSObject::MigrateToNewProperty(Handle<JSObject> object,
+                                    Handle<Map> map,
+                                    Handle<Object> value) {
+  JSObject::MigrateToMap(object, map);
+  if (map->GetLastDescriptorDetails().type() != FIELD) return;
+  object->WriteToField(map->LastAdded(), *value);
+}
 
-  int field_index = descriptors->GetFieldIndex(descriptor);
+
+void JSObject::WriteToField(int descriptor, Object* value) {
+  DisallowHeapAllocation no_gc;
+
+  DescriptorArray* desc = map()->instance_descriptors();
+  PropertyDetails details = desc->GetDetails(descriptor);
+
+  ASSERT(details.type() == FIELD);
+
+  int field_index = desc->GetFieldIndex(descriptor);
   if (details.representation().IsDouble()) {
     // Nothing more to be done.
-    if (value->IsUninitialized()) return value;
-    HeapNumber* box = HeapNumber::cast(object->RawFastPropertyAt(field_index));
+    if (value->IsUninitialized()) return;
+    HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(field_index));
     box->set_value(value->Number());
   } else {
-    object->FastPropertyAtPut(field_index, *value);
+    FastPropertyAtPut(field_index, value);
   }
-
-  return value;
 }
 
 
 static void SetPropertyToField(LookupResult* lookup,
                                Handle<Object> value) {
-  Representation representation = lookup->representation();
   if (lookup->type() == CONSTANT || !lookup->CanHoldValue(value)) {
     Representation field_representation = value->OptimalRepresentation();
     Handle<HeapType> field_type = value->OptimalType(
@@ -3987,20 +3983,8 @@ static void SetPropertyToField(LookupResult* lookup,
                                             lookup->GetDescriptorIndex(),
                                             field_representation, field_type,
                                             FORCE_FIELD);
-    DescriptorArray* desc = lookup->holder()->map()->instance_descriptors();
-    int descriptor = lookup->GetDescriptorIndex();
-    representation = desc->GetDetails(descriptor).representation();
   }
-
-  if (representation.IsDouble()) {
-    HeapNumber* storage = HeapNumber::cast(lookup->holder()->RawFastPropertyAt(
-        lookup->GetFieldIndex().field_index()));
-    storage->set_value(value->Number());
-    return;
-  }
-
-  lookup->holder()->FastPropertyAtPut(
-      lookup->GetFieldIndex().field_index(), *value);
+  lookup->holder()->WriteToField(lookup->GetDescriptorIndex(), *value);
 }
 
 
@@ -4030,9 +4014,7 @@ static void ConvertAndSetLocalProperty(LookupResult* lookup,
     JSObject::MigrateToMap(object, new_map);
   }
 
-  DescriptorArray* descriptors = object->map()->instance_descriptors();
-  int index = descriptors->GetDetails(descriptor_index).field_index();
-  object->FastPropertyAtPut(index, *value);
+  object->WriteToField(descriptor_index, *value);
 }
 
 
@@ -5227,9 +5209,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
       int sorted_index = descriptors->GetSortedKeyIndex(0);
       if (descriptors->GetKey(sorted_index) == isolate->heap()->hidden_string()
           && sorted_index < object->map()->NumberOfOwnDescriptors()) {
-        ASSERT(descriptors->GetType(sorted_index) == FIELD);
-        object->FastPropertyAtPut(descriptors->GetFieldIndex(sorted_index),
-                                  *value);
+        object->WriteToField(sorted_index, *value);
         return object;
       }
     }

@@ -2610,6 +2610,7 @@ class JSObject: public JSReceiver {
                                        int index);
   inline Object* RawFastPropertyAt(int index);
   inline void FastPropertyAtPut(int index, Object* value);
+  void WriteToField(int descriptor, Object* value);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
@@ -2899,6 +2900,10 @@ class JSObject: public JSReceiver {
                               StoreFromKeyed store_mode,
                               ValueType value_type,
                               TransitionFlag flag);
+
+  static void MigrateToNewProperty(Handle<JSObject> object,
+                                   Handle<Map> transition,
+                                   Handle<Object> value);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
