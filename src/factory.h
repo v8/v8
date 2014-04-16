@@ -492,6 +492,8 @@ class Factory V8_FINAL {
   Handle<Object> NewEvalError(const char* message,
                               Vector< Handle<Object> > args);
 
+  Handle<JSObject> NewIteratorResultObject(Handle<Object> value, bool done);
+
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
   Handle<String> Uint32ToString(uint32_t value);
