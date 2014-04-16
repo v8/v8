@@ -4926,7 +4926,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
         if (cell->type()->IsConstant()) {
           PropertyCell::AddDependentCompilationInfo(cell, top_info());
-          Handle<Object> constant_object = cell->type()->AsConstant()->Value();
+          Handle<Object> constant_object = cell->type()->AsConstant();
           if (constant_object->IsConsString()) {
             constant_object =
                 String::Flatten(Handle<String>::cast(constant_object));
@@ -4999,7 +4999,7 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 static bool CanInlinePropertyAccess(Type* type) {
   if (type->Is(Type::NumberOrString())) return true;
   if (!type->IsClass()) return false;
-  Handle<Map> map = type->AsClass()->Map();
+  Handle<Map> map = type->AsClass();
   return map->IsJSObjectMap() &&
       !map->is_dictionary_map() &&
       !map->has_named_interceptor();
@@ -5991,7 +5991,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     Handle<GlobalObject> global(current_info()->global_object());
     Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
     if (cell->type()->IsConstant()) {
-      Handle<Object> constant = cell->type()->AsConstant()->Value();
+      Handle<Object> constant = cell->type()->AsConstant();
       if (value->IsConstant()) {
         HConstant* c_value = HConstant::cast(value);
         if (!constant.is_identical_to(c_value->handle(isolate()))) {
@@ -9943,7 +9943,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HValue* operand_to_check =
           left->block()->block_id() < right->block()->block_id() ? left : right;
       if (combined_type->IsClass()) {
-        Handle<Map> map = combined_type->AsClass()->Map();
+        Handle<Map> map = combined_type->AsClass();
         AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);

@@ -13,32 +13,6 @@
 namespace v8 {
 namespace internal {
 
-// -------------------------------------------------------------------------- //
-// TypeImpl
-
-template<class Config>
-TypeImpl<Config>::Iterator<i::Map> TypeImpl<Config>::Classes() {
-  if (this->IsBitset()) return Iterator<i::Map>();
-  return Iterator<i::Map>(Config::handle(this));
-}
-
-
-template<class Config>
-TypeImpl<Config>::Iterator<i::Object> TypeImpl<Config>::Constants() {
-  if (this->IsBitset()) return Iterator<i::Object>();
-  return Iterator<i::Object>(Config::handle(this));
-}
-
-
-template<class Config>
-TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
-  TypeImpl* t = static_cast<TypeImpl*>(object);
-  ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() ||
-         t->IsUnion() || t->IsArray() || t->IsFunction());
-  return t;
-}
-
-
 template<class Config>
 bool TypeImpl<Config>::NowContains(i::Object* value) {
   DisallowHeapAllocation no_allocation;
@@ -53,20 +27,9 @@ bool TypeImpl<Config>::NowContains(i::Object* value) {
 }
 
 
-// -------------------------------------------------------------------------- //
-// ZoneTypeConfig
-
 // static
-template<class T>
-T* ZoneTypeConfig::handle(T* type) {
+Type* ZoneTypeConfig::handle(Type* type) {
   return type;
-}
-
-
-// static
-template<class T>
-T* ZoneTypeConfig::cast(Type* type) {
-  return static_cast<T*>(type);
 }
 
 
@@ -77,20 +40,20 @@ bool ZoneTypeConfig::is_bitset(Type* type) {
 
 
 // static
-bool ZoneTypeConfig::is_struct(Type* type, int tag) {
-  return !is_bitset(type) && struct_tag(as_struct(type)) == tag;
+bool ZoneTypeConfig::is_struct(Type* type) {
+  return !is_bitset(type);
 }
 
 
 // static
 bool ZoneTypeConfig::is_class(Type* type) {
-  return is_struct(type, Type::StructuralType::kClassTag);
+  return is_struct(type) && struct_tag(as_struct(type)) == Type::kClassTag;
 }
 
 
 // static
 bool ZoneTypeConfig::is_constant(Type* type) {
-  return is_struct(type, Type::StructuralType::kConstantTag);
+  return is_struct(type) && struct_tag(as_struct(type)) == Type::kConstantTag;
 }
 
 
@@ -103,7 +66,7 @@ int ZoneTypeConfig::as_bitset(Type* type) {
 
 // static
 ZoneTypeConfig::Struct* ZoneTypeConfig::as_struct(Type* type) {
-  ASSERT(!is_bitset(type));
+  ASSERT(is_struct(type));
   return reinterpret_cast<Struct*>(type);
 }
 
@@ -144,7 +107,7 @@ ZoneTypeConfig::Type* ZoneTypeConfig::from_struct(Struct* structured) {
 // static
 ZoneTypeConfig::Type* ZoneTypeConfig::from_class(
     i::Handle<i::Map> map, int lub, Zone* zone) {
-  Struct* structured = struct_create(Type::StructuralType::kClassTag, 2, zone);
+  Struct* structured = struct_create(Type::kClassTag, 2, zone);
   structured[2] = from_bitset(lub);
   structured[3] = map.location();
   return from_struct(structured);
@@ -154,8 +117,7 @@ ZoneTypeConfig::Type* ZoneTypeConfig::from_class(
 // static
 ZoneTypeConfig::Type* ZoneTypeConfig::from_constant(
     i::Handle<i::Object> value, int lub, Zone* zone) {
-  Struct* structured =
-      struct_create(Type::StructuralType::kConstantTag, 2, zone);
+  Struct* structured = struct_create(Type::kConstantTag, 2, zone);
   structured[2] = from_bitset(lub);
   structured[3] = value.location();
   return from_struct(structured);
@@ -212,21 +174,11 @@ int ZoneTypeConfig::lub_bitset(Type* type) {
   return as_bitset(struct_get(as_struct(type), 0));
 }
 
-
 // -------------------------------------------------------------------------- //
-// HeapTypeConfig
 
 // static
-template<class T>
-i::Handle<T> HeapTypeConfig::handle(T* type) {
+i::Handle<HeapTypeConfig::Type> HeapTypeConfig::handle(Type* type) {
   return i::handle(type, i::HeapObject::cast(type)->GetIsolate());
-}
-
-
-// static
-template<class T>
-i::Handle<T> HeapTypeConfig::cast(i::Handle<Type> type) {
-  return i::Handle<T>::cast(type);
 }
 
 
@@ -249,14 +201,14 @@ bool HeapTypeConfig::is_constant(Type* type) {
 
 
 // static
-bool HeapTypeConfig::is_struct(Type* type, int tag) {
-  return type->IsFixedArray() && struct_tag(as_struct(type)) == tag;
+bool HeapTypeConfig::is_struct(Type* type) {
+  return type->IsFixedArray();
 }
 
 
 // static
 int HeapTypeConfig::as_bitset(Type* type) {
-  return i::Smi::cast(type)->value();
+  return Smi::cast(type)->value();
 }
 
 
