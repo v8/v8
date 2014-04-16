@@ -5493,7 +5493,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
     if (!IsLoad()) return false;
 
     // Throw away type information for merging polymorphic loads.
-    field_map_ = info->field_map_ = Handle<Map>();
+    info->field_map_ = Handle<Map>::null();
   }
   info->GeneralizeRepresentation(r);
   return true;
@@ -5518,7 +5518,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
 
     // Load field map for heap objects.
-    if (access_.representation().IsHeapObject()) LoadFieldMap(map);
+    LoadFieldMap(map);
   } else if (lookup_.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
     if (!callback->IsAccessorPair()) return false;
@@ -5546,9 +5546,13 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
 
 void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMap(Handle<Map> map) {
+  // Clear any previous field map.
+  field_map_ = Handle<Map>::null();
+
   // Figure out the field type from the accessor map.
   HeapType* field_type = lookup_.GetFieldTypeFromMap(*map);
   if (field_type->IsClass()) {
+    ASSERT(access_.representation().IsHeapObject());
     Handle<Map> field_map = field_type->AsClass();
     if (field_map->is_stable()) {
       field_map_ = field_map;
@@ -5604,7 +5608,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
 
     // Load field map for heap objects.
-    if (access_.representation().IsHeapObject()) LoadFieldMap(transition());
+    LoadFieldMap(transition());
     return true;
   }
   return false;
