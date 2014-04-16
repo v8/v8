@@ -107,6 +107,22 @@ class AssemblerBase: public Malloced {
 };
 
 
+// Avoids emitting debug code during the lifetime of this scope object.
+class DontEmitDebugCodeScope BASE_EMBEDDED {
+ public:
+  explicit DontEmitDebugCodeScope(AssemblerBase* assembler)
+      : assembler_(assembler), old_value_(assembler->emit_debug_code()) {
+    assembler_->set_emit_debug_code(false);
+  }
+  ~DontEmitDebugCodeScope() {
+    assembler_->set_emit_debug_code(old_value_);
+  };
+ private:
+  AssemblerBase* assembler_;
+  bool old_value_;
+};
+
+
 // Avoids using instructions that vary in size in unpredictable ways between the
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
