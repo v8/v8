@@ -773,9 +773,6 @@ class Heap {
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
-  // Allocates an AliasedArgumentsEntry.
-  MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
-
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
@@ -906,9 +903,6 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateSymbol();
   MUST_USE_RESULT MaybeObject* AllocatePrivateSymbol();
-
-  // Allocate a tenured AllocationSite. It's payload is null
-  MUST_USE_RESULT MaybeObject* AllocateAllocationSite();
 
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

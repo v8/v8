@@ -2424,16 +2424,6 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 }
 
 
-MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
-  AliasedArgumentsEntry* entry;
-  { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
-    if (!maybe_entry->To(&entry)) return maybe_entry;
-  }
-  entry->set_aliased_context_slot(aliased_context_slot);
-  return entry;
-}
-
-
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -2742,20 +2732,6 @@ MaybeObject* Heap::AllocatePropertyCell() {
   cell->set_value(the_hole_value());
   cell->set_type(HeapType::None());
   return result;
-}
-
-
-MaybeObject* Heap::AllocateAllocationSite() {
-  AllocationSite* site;
-  MaybeObject* maybe_result = Allocate(allocation_site_map(),
-                                       OLD_POINTER_SPACE);
-  if (!maybe_result->To(&site)) return maybe_result;
-  site->Initialize();
-
-  // Link the site
-  site->set_weak_next(allocation_sites_list());
-  set_allocation_sites_list(site);
-  return site;
 }
 
 

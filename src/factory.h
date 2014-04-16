@@ -255,6 +255,7 @@ class Factory V8_FINAL {
 
   Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
+  // Allocate a tenured AllocationSite. It's payload is null.
   Handle<AllocationSite> NewAllocationSite();
 
   Handle<Map> NewMap(
@@ -324,9 +325,6 @@ class Factory V8_FINAL {
       PretenureFlag pretenure = NOT_TENURED,
       bool allocate_properties = true,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
-
-  Handle<JSObject> NewJSObjectFromMapForDeoptimizer(
-      Handle<Map> map, PretenureFlag pretenure = NOT_TENURED);
 
   // JS modules are pretenured.
   Handle<JSModule> NewJSModule(Handle<Context> context,

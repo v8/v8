@@ -839,10 +839,14 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
 
 
 Handle<AllocationSite> Factory::NewAllocationSite() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateAllocationSite(),
-      AllocationSite);
+  Handle<Map> map = allocation_site_map();
+  Handle<AllocationSite> site = New<AllocationSite>(map, OLD_POINTER_SPACE);
+  site->Initialize();
+
+  // Link the site
+  site->set_weak_next(isolate()->heap()->allocation_sites_list());
+  isolate()->heap()->set_allocation_sites_list(*site);
+  return site;
 }
 
 
