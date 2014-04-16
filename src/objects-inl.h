@@ -713,8 +713,6 @@ bool Object::IsJSProxy() {
 TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
-TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
-TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
 TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
 TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
@@ -1927,10 +1925,6 @@ int JSObject::GetHeaderSize() {
       return JSSet::kSize;
     case JS_MAP_TYPE:
       return JSMap::kSize;
-    case JS_SET_ITERATOR_TYPE:
-      return JSSetIterator::kSize;
-    case JS_MAP_ITERATOR_TYPE:
-      return JSMapIterator::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
@@ -2999,8 +2993,6 @@ CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSMap)
-CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(Foreign)
@@ -5928,32 +5920,6 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 
 ACCESSORS(JSSet, table, Object, kTableOffset)
 ACCESSORS(JSMap, table, Object, kTableOffset)
-
-
-#define ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(name, type, offset)    \
-  template<class Derived, class TableType>                           \
-  type* OrderedHashTableIterator<Derived, TableType>::name() {       \
-    return type::cast(READ_FIELD(this, offset));                     \
-  }                                                                  \
-  template<class Derived, class TableType>                           \
-  void OrderedHashTableIterator<Derived, TableType>::set_##name(     \
-      type* value, WriteBarrierMode mode) {                          \
-    WRITE_FIELD(this, offset, value);                                \
-    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode); \
-  }
-
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Smi, kIndexOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(count, Smi, kCountOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Smi, kKindOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(next_iterator, Object,
-                                      kNextIteratorOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(previous_iterator, Object,
-                                      kPreviousIteratorOffset)
-
-#undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
-
-
 ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
 ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
 

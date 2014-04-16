@@ -170,12 +170,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapVerify();
       break;
-    case JS_SET_ITERATOR_TYPE:
-      JSSetIterator::cast(this)->JSSetIteratorVerify();
-      break;
-    case JS_MAP_ITERATOR_TYPE:
-      JSMapIterator::cast(this)->JSMapIteratorVerify();
-      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
@@ -717,7 +711,6 @@ void JSSet::JSSetVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  // TODO(arv): Verify OrderedHashTable too.
 }
 
 
@@ -726,39 +719,6 @@ void JSMap::JSMapVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  // TODO(arv): Verify OrderedHashTable too.
-}
-
-
-void JSSetIterator::JSSetIteratorVerify() {
-  CHECK(IsJSSetIterator());
-  JSObjectVerify();
-  VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(count()->IsSmi());
-  CHECK(kind()->IsSmi());
-  VerifyHeapPointer(next_iterator());
-  CHECK(next_iterator()->IsJSSetIterator() || next_iterator()->IsUndefined());
-  VerifyHeapPointer(table());
-  CHECK(previous_iterator()->IsJSSetIterator()
-        || previous_iterator()->IsUndefined());
-}
-
-
-void JSMapIterator::JSMapIteratorVerify() {
-  CHECK(IsJSMapIterator());
-  JSObjectVerify();
-  VerifyHeapPointer(table());
-  CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(count()->IsSmi());
-  CHECK(kind()->IsSmi());
-  VerifyHeapPointer(next_iterator());
-  CHECK(next_iterator()->IsJSMapIterator() || next_iterator()->IsUndefined());
-  VerifyHeapPointer(table());
-  CHECK(previous_iterator()->IsJSMapIterator()
-        || previous_iterator()->IsUndefined());
 }
 
 
