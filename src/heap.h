@@ -723,18 +723,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
 
-  // Allocates a Harmony proxy or function proxy.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSProxy(Object* handler,
-                                               Object* prototype);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSFunctionProxy(Object* handler,
-                                                       Object* call_trap,
-                                                       Object* construct_trap,
-                                                       Object* prototype);
-
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -1023,34 +1011,6 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateForeign(
       Address address, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a new SharedFunctionInfo object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateSharedFunctionInfo(Object* name);
-
-  // Allocates a new JSMessageObject object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note that this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSMessageObject(
-      String* type,
-      JSArray* arguments,
-      int start_position,
-      int end_position,
-      Object* script,
-      Object* stack_frames);
-
-  // Allocate a new external string object, which is backed by a string
-  // resource that resides outside the V8 heap.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
-  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.

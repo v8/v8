@@ -559,19 +559,45 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 
 MaybeHandle<String> Factory::NewExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateExternalStringFromAscii(resource),
-      String);
+  size_t length = resource->length();
+  if (length > static_cast<size_t>(String::kMaxLength)) {
+    isolate()->ThrowInvalidStringLength();
+    return MaybeHandle<String>();
+  }
+
+  Handle<Map> map = external_ascii_string_map();
+  Handle<ExternalAsciiString> external_string =
+      New<ExternalAsciiString>(map, NEW_SPACE);
+  external_string->set_length(static_cast<int>(length));
+  external_string->set_hash_field(String::kEmptyHashField);
+  external_string->set_resource(resource);
+
+  return external_string;
 }
 
 
 MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateExternalStringFromTwoByte(resource),
-      String);
+  size_t length = resource->length();
+  if (length > static_cast<size_t>(String::kMaxLength)) {
+    isolate()->ThrowInvalidStringLength();
+    return MaybeHandle<String>();
+  }
+
+  // For small strings we check whether the resource contains only
+  // one byte characters.  If yes, we use a different string map.
+  static const size_t kOneByteCheckLengthLimit = 32;
+  bool is_one_byte = length <= kOneByteCheckLengthLimit &&
+      String::IsOneByte(resource->data(), static_cast<int>(length));
+  Handle<Map> map = is_one_byte ?
+      external_string_with_one_byte_data_map() : external_string_map();
+  Handle<ExternalTwoByteString> external_string =
+      New<ExternalTwoByteString>(map, NEW_SPACE);
+  external_string->set_length(static_cast<int>(length));
+  external_string->set_hash_field(String::kEmptyHashField);
+  external_string->set_resource(resource);
+
+  return external_string;
 }
 
 
@@ -1614,10 +1640,18 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
 
 Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
                                     Handle<Object> prototype) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSProxy(*handler, *prototype),
-      JSProxy);
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Handle<Map> map = NewMap(JS_PROXY_TYPE, JSProxy::kSize);
+  map->set_prototype(*prototype);
+
+  // Allocate the proxy object.
+  Handle<JSProxy> result = New<JSProxy>(map, NEW_SPACE);
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(*handler);
+  result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
+  return result;
 }
 
 
@@ -1625,11 +1659,20 @@ Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<Object> handler,
                                             Handle<Object> call_trap,
                                             Handle<Object> construct_trap,
                                             Handle<Object> prototype) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSFunctionProxy(
-          *handler, *call_trap, *construct_trap, *prototype),
-      JSProxy);
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Handle<Map> map = NewMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
+  map->set_prototype(*prototype);
+
+  // Allocate the proxy object.
+  Handle<JSFunctionProxy> result = New<JSFunctionProxy>(map, NEW_SPACE);
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(*handler);
+  result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
+  result->set_call_trap(*call_trap);
+  result->set_construct_trap(*construct_trap);
+  return result;
 }
 
 
@@ -1757,21 +1800,57 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
     int end_position,
     Handle<Object> script,
     Handle<Object> stack_frames) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateJSMessageObject(*type,
-                         *arguments,
-                         start_position,
-                         end_position,
-                         *script,
-                         *stack_frames),
-                     JSMessageObject);
+  Handle<Map> map = message_object_map();
+  Handle<JSMessageObject> message = New<JSMessageObject>(map, NEW_SPACE);
+  message->set_properties(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  message->initialize_elements();
+  message->set_elements(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  message->set_type(*type);
+  message->set_arguments(*arguments);
+  message->set_start_position(start_position);
+  message->set_end_position(end_position);
+  message->set_script(*script);
+  message->set_stack_frames(*stack_frames);
+  return message;
 }
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateSharedFunctionInfo(*name),
-                     SharedFunctionInfo);
+  Handle<Map> map = shared_function_info_map();
+  Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map,
+                                                             OLD_POINTER_SPACE);
+
+  // Set pointer fields.
+  share->set_name(*name);
+  Code* illegal = isolate()->builtins()->builtin(Builtins::kIllegal);
+  share->set_code(illegal);
+  share->set_optimized_code_map(Smi::FromInt(0));
+  share->set_scope_info(ScopeInfo::Empty(isolate()));
+  Code* construct_stub =
+      isolate()->builtins()->builtin(Builtins::kJSConstructStubGeneric);
+  share->set_construct_stub(construct_stub);
+  share->set_instance_class_name(*Object_string());
+  share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
+  share->set_initial_map(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_ast_node_count(0);
+  share->set_counters(0);
+
+  // Set integer fields (smi or int, depending on the architecture).
+  share->set_length(0);
+  share->set_formal_parameter_count(0);
+  share->set_expected_nof_properties(0);
+  share->set_num_literals(0);
+  share->set_start_position_and_type(0);
+  share->set_end_position(0);
+  share->set_function_token_position(0);
+  // All compiler hints default to false or 0.
+  share->set_compiler_hints(0);
+  share->set_opt_count_and_bailout_reason(0);
+
+  return share;
 }
 
 

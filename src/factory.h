@@ -171,7 +171,8 @@ class Factory V8_FINAL {
   // Creates a new external String object.  There are two String encodings
   // in the system: ASCII and two byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
-  // because we cannot change the underlying buffer.
+  // because we cannot change the underlying buffer.  Note that these strings
+  // are backed by a string resource that resides outside the V8 heap.
   MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromAscii(
       const ExternalAsciiString::Resource* resource);
   MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
@@ -386,8 +387,10 @@ class Factory V8_FINAL {
 
   Handle<JSDataView> NewJSDataView();
 
+  // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
+  // Allocates a Harmony function proxy.
   Handle<JSProxy> NewJSFunctionProxy(Handle<Object> handler,
                                      Handle<Object> call_trap,
                                      Handle<Object> construct_trap,
@@ -545,6 +548,7 @@ class Factory V8_FINAL {
     return Handle<String>(&isolate()->heap()->hidden_string_);
   }
 
+  // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name,
       int number_of_literals,
@@ -553,6 +557,7 @@ class Factory V8_FINAL {
       Handle<ScopeInfo> scope_info);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
+  // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(
       Handle<String> type,
       Handle<JSArray> arguments,
