@@ -464,6 +464,7 @@ TEST(DisasmIa320) {
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  USE(code);
 #ifdef OBJECT_PRINT
   code->Print();
   byte* begin = code->instruction_start();
