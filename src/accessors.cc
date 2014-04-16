@@ -54,8 +54,7 @@ static Handle<AccessorInfo> MakeAccessor(Isolate* isolate,
   info->set_all_can_read(true);
   info->set_all_can_write(true);
   info->set_prohibits_overwriting(false);
-  info->set_name(*factory->length_string());
-  info->set_property_attributes(attributes);
+  info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
   Handle<Object> set = v8::FromCData(isolate, setter);
   info->set_getter(*get);
@@ -294,43 +293,40 @@ Handle<AccessorInfo> Accessors::StringLengthInfo(
 
 
 //
-// Accessors::ScriptSource
+// Accessors::ScriptColumnOffset
 //
 
 
-MaybeObject* Accessors::ScriptGetSource(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->source();
+void Accessors::ScriptColumnOffsetGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->column_offset();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptSource = {
-  ScriptGetSource,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptName
-//
-
-
-MaybeObject* Accessors::ScriptGetName(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->name();
+void Accessors::ScriptColumnOffsetSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
 }
 
 
-const AccessorDescriptor Accessors::ScriptName = {
-  ScriptGetName,
-  IllegalSetter,
-  0
-};
+Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("column_offset")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptColumnOffsetGetter,
+                      &ScriptColumnOffsetSetter,
+                      attributes);
+}
 
 
 //
@@ -338,17 +334,106 @@ const AccessorDescriptor Accessors::ScriptName = {
 //
 
 
-MaybeObject* Accessors::ScriptGetId(Isolate* isolate, Object* object, void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->id();
+void Accessors::ScriptIdGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* id = Script::cast(JSValue::cast(object)->value())->id();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(id, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptId = {
-  ScriptGetId,
-  IllegalSetter,
-  0
-};
+void Accessors::ScriptIdSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptIdInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("id")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptIdGetter,
+                      &ScriptIdSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptName
+//
+
+
+void Accessors::ScriptNameGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* source = Script::cast(JSValue::cast(object)->value())->name();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
+}
+
+
+void Accessors::ScriptNameSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->name_string(),
+                      &ScriptNameGetter,
+                      &ScriptNameSetter,
+                      attributes);
+}
+
+
+//
+// Accessors::ScriptSource
+//
+
+
+void Accessors::ScriptSourceGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* source = Script::cast(JSValue::cast(object)->value())->source();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
+}
+
+
+void Accessors::ScriptSourceSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> Accessors::ScriptSourceInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->source_string(),
+                      &ScriptSourceGetter,
+                      &ScriptSourceSetter,
+                      attributes);
+}
 
 
 //
@@ -356,39 +441,36 @@ const AccessorDescriptor Accessors::ScriptId = {
 //
 
 
-MaybeObject* Accessors::ScriptGetLineOffset(Isolate* isolate,
-                                            Object* object,
-                                            void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->line_offset();
+void Accessors::ScriptLineOffsetGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  Object* res = Script::cast(JSValue::cast(object)->value())->line_offset();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
 
-const AccessorDescriptor Accessors::ScriptLineOffset = {
-  ScriptGetLineOffset,
-  IllegalSetter,
-  0
-};
-
-
-//
-// Accessors::ScriptColumnOffset
-//
-
-
-MaybeObject* Accessors::ScriptGetColumnOffset(Isolate* isolate,
-                                              Object* object,
-                                              void*) {
-  Object* script = JSValue::cast(object)->value();
-  return Script::cast(script)->column_offset();
+void Accessors::ScriptLineOffsetSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
 }
 
 
-const AccessorDescriptor Accessors::ScriptColumnOffset = {
-  ScriptGetColumnOffset,
-  IllegalSetter,
-  0
-};
+Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("line_offset")));
+  return MakeAccessor(isolate,
+                      name,
+                      &ScriptLineOffsetGetter,
+                      &ScriptLineOffsetSetter,
+                      attributes);
+}
 
 
 //

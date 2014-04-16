@@ -1682,22 +1682,6 @@ bool Genesis::InstallNatives() {
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     Map::EnsureDescriptorSlack(script_map, 13);
 
-    Handle<Foreign> script_source(
-        factory()->NewForeign(&Accessors::ScriptSource));
-    Handle<Foreign> script_name(factory()->NewForeign(&Accessors::ScriptName));
-    Handle<String> id_string(factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("id")));
-    Handle<Foreign> script_id(factory()->NewForeign(&Accessors::ScriptId));
-    Handle<String> line_offset_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("line_offset")));
-    Handle<Foreign> script_line_offset(
-        factory()->NewForeign(&Accessors::ScriptLineOffset));
-    Handle<String> column_offset_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("column_offset")));
-    Handle<Foreign> script_column_offset(
-        factory()->NewForeign(&Accessors::ScriptColumnOffset));
     Handle<String> type_string(factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("type")));
     Handle<Foreign> script_type(factory()->NewForeign(&Accessors::ScriptType));
@@ -1733,30 +1717,44 @@ bool Genesis::InstallNatives() {
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+    Handle<AccessorInfo> script_column =
+        Accessors::ScriptColumnOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
-          factory()->source_string(), script_source, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_column->name())),
+                           script_column, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+    Handle<AccessorInfo> script_id =
+        Accessors::ScriptIdInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(factory()->name_string(), script_name, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_id->name())),
+                            script_id, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+
+    Handle<AccessorInfo> script_name =
+        Accessors::ScriptNameInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(id_string, script_id, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_name->name())),
+                            script_name, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+    Handle<AccessorInfo> script_line =
+        Accessors::ScriptLineOffsetInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(line_offset_string, script_line_offset, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line->name())),
+                           script_line, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+    Handle<AccessorInfo> script_source =
+        Accessors::ScriptSourceInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(
-          column_offset_string, script_column_offset, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source->name())),
+                            script_source, attribs);
       script_map->AppendDescriptor(&d);
     }
 

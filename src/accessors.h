@@ -43,11 +43,6 @@ namespace internal {
   V(FunctionArguments)              \
   V(FunctionCaller)                 \
   V(ArrayLength)                    \
-  V(ScriptSource)                   \
-  V(ScriptName)                     \
-  V(ScriptId)                       \
-  V(ScriptLineOffset)               \
-  V(ScriptColumnOffset)             \
   V(ScriptType)                     \
   V(ScriptCompilationType)          \
   V(ScriptLineEnds)                 \
@@ -57,6 +52,11 @@ namespace internal {
   V(ScriptEvalFromFunctionName)
 
 #define ACCESSOR_INFO_LIST(V)       \
+  V(ScriptColumnOffset)             \
+  V(ScriptId)                       \
+  V(ScriptLineOffset)               \
+  V(ScriptName)                     \
+  V(ScriptSource)                   \
   V(StringLength)                   \
 
 // Accessors contains all predefined proxy accessors.
@@ -137,16 +137,6 @@ class Accessors : public AllStatic {
                                      Object*,
                                      void*);
   static MaybeObject* ArrayGetLength(Isolate* isolate, Object* object, void*);
-  static MaybeObject* StringGetLength(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetName(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetId(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetSource(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ScriptGetLineOffset(Isolate* isolate,
-                                          Object* object,
-                                          void*);
-  static MaybeObject* ScriptGetColumnOffset(Isolate* isolate,
-                                            Object* object,
-                                            void*);
   static MaybeObject* ScriptGetType(Isolate* isolate, Object* object, void*);
   static MaybeObject* ScriptGetCompilationType(Isolate* isolate,
                                                Object* object,
