@@ -2416,17 +2416,18 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
     Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
-    Handle<Map> field_map() { return field_map_; }
+    SmallMapList* field_maps() { return &field_maps_; }
     HObjectAccess access() { return access_; }
 
    private:
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
+    Zone* zone() { return builder_->zone(); }
     Isolate* isolate() { return lookup_.isolate(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 
     bool LoadResult(Handle<Map> map);
-    void LoadFieldMap(Handle<Map> map);
+    void LoadFieldMaps(Handle<Map> map);
     bool LookupDescriptor();
     bool LookupInPrototypes();
     bool IsCompatible(PropertyAccessInfo* other);
@@ -2445,7 +2446,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSFunction> accessor_;
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
-    Handle<Map> field_map_;
+    SmallMapList field_maps_;
     HObjectAccess access_;
   };
 

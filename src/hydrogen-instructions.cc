@@ -3382,8 +3382,12 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
-  if (!map().IsNull()) {
-    stream->Add(" (%p)", *map().handle());
+  if (map_set_.size() != 0) {
+    stream->Add(" [%p", *map_set_.at(0).handle());
+    for (int i = 1; i < map_set_.size(); ++i) {
+      stream->Add(",%p", *map_set_.at(i).handle());
+    }
+    stream->Add("]");
   }
 
   if (HasDependency()) {
