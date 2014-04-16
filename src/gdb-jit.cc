@@ -1002,7 +1002,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 
   int GetScriptLineNumber(int pos) {
-    return script_->GetLineNumber(pos) + 1;
+    return GetScriptLineNumberSafe(script_, pos) + 1;
   }
 
 
@@ -2003,7 +2003,8 @@ void GDBJITInterface::AddCode(Handle<Name> name,
                               CompilationInfo* info) {
   if (!FLAG_gdbjit) return;
 
-  Script::InitLineEnds(script);
+  // Force initialization of line_ends array.
+  GetScriptLineNumber(script, 0);
 
   if (!name.is_null() && name->IsString()) {
     SmartArrayPointer<char> name_cstring =

@@ -806,6 +806,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
                                bool print_args,
                                bool print_line_number) {
   // constructor calls
+  HandleScope scope(isolate);
   DisallowHeapAllocation no_allocation;
   JavaScriptFrameIterator it(isolate);
   while (!it.done()) {
@@ -826,8 +827,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
         int source_pos = code->SourcePosition(pc);
         Object* maybe_script = shared->script();
         if (maybe_script->IsScript()) {
-          Script* script = Script::cast(maybe_script);
-          int line = script->GetLineNumber(source_pos) + 1;
+          Handle<Script> script(Script::cast(maybe_script));
+          int line = GetScriptLineNumberSafe(script, source_pos) + 1;
           Object* script_name_raw = script->name();
           if (script_name_raw->IsString()) {
             String* script_name = String::cast(script->name());
@@ -1170,7 +1171,7 @@ void StackFrame::PrintIndex(StringStream* accumulator,
 void JavaScriptFrame::Print(StringStream* accumulator,
                             PrintMode mode,
                             int index) const {
-  DisallowHeapAllocation no_gc;
+  HandleScope scope(isolate());
   Object* receiver = this->receiver();
   JSFunction* function = this->function();
 
@@ -1184,11 +1185,13 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   // doesn't contain scope info, scope_info will return 0 for the number of
   // parameters, stack local variables, context local variables, stack slots,
   // or context slots.
-  SharedFunctionInfo* shared = function->shared();
-  ScopeInfo* scope_info = shared->scope_info();
+  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
+
+  Handle<SharedFunctionInfo> shared(function->shared());
+  scope_info = Handle<ScopeInfo>(shared->scope_info());
   Object* script_obj = shared->script();
   if (script_obj->IsScript()) {
-    Script* script = Script::cast(script_obj);
+    Handle<Script> script(Script::cast(script_obj));
     accumulator->Add(" [");
     accumulator->PrintName(script->name());
 
@@ -1196,11 +1199,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     if (code != NULL && code->kind() == Code::FUNCTION &&
         pc >= code->instruction_start() && pc < code->instruction_end()) {
       int source_pos = code->SourcePosition(pc);
-      int line = script->GetLineNumber(source_pos) + 1;
+      int line = GetScriptLineNumberSafe(script, source_pos) + 1;
       accumulator->Add(":%d", line);
     } else {
       int function_start_pos = shared->start_position();
-      int line = script->GetLineNumber(function_start_pos) + 1;
+      int line = GetScriptLineNumberSafe(script, function_start_pos) + 1;
       accumulator->Add(":~%d", line);
     }
 

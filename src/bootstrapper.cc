@@ -2021,9 +2021,10 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
 static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      const char* function_name,
                                      BuiltinFunctionId id) {
-  Isolate* isolate = holder->GetIsolate();
+  Factory* factory = holder->GetIsolate()->factory();
+  Handle<String> name = factory->InternalizeUtf8String(function_name);
   Handle<Object> function_object =
-      Object::GetProperty(isolate, holder, function_name).ToHandleChecked();
+      Object::GetProperty(holder, name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   function->shared()->set_function_data(Smi::FromInt(id));
 }
@@ -2130,8 +2131,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         false);
   }
 
-  Handle<Object> Error = Object::GetProperty(
-      isolate, global, "Error").ToHandleChecked();
+  Handle<Object> Error = GetProperty(global, "Error").ToHandleChecked();
   if (Error->IsJSObject()) {
     Handle<String> name = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("stackTraceLimit"));
@@ -2312,8 +2312,10 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
   HandleScope scope(isolate());
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<Object> function_object = Object::GetProperty(
-        isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
+    Handle<String> name =
+        factory()->InternalizeUtf8String(Builtins::GetName(id));
+    Handle<Object> function_object =
+        Object::GetProperty(builtins, name).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
     builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {

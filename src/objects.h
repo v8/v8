@@ -1535,10 +1535,7 @@ class Object : public MaybeObject {
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
-  MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Isolate* isolate,
-      Handle<Object> object,
-      const char* key);
+
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
       Handle<Object> object,
       Handle<Name> key);
@@ -2111,14 +2108,6 @@ class JSReceiver: public HeapObject {
                    bool search_hidden_prototypes = false);
   void Lookup(Name* name, LookupResult* result);
 
-  enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
-
-  // Computes the enumerable keys for a JSObject. Used for implementing
-  // "for (n in object) { }".
-  MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
-      Handle<JSReceiver> object,
-      KeyCollectionType type);
-
  protected:
   Smi* GenerateIdentityHash();
 
@@ -2533,15 +2522,6 @@ class JSObject: public JSReceiver {
   // objects.
   inline bool HasNamedInterceptor();
   inline bool HasIndexedInterceptor();
-
-  // Computes the enumerable keys from interceptors. Used for debug mirrors and
-  // by JSReceiver::GetKeys.
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForNamedInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver);
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForIndexedInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver);
 
   // Support functions for v8 api (needed for correct interceptor behavior).
   static bool HasRealNamedProperty(Handle<JSObject> object,
@@ -6861,22 +6841,6 @@ class Script: public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-  // Convert code position into column number.
-  static int GetColumnNumber(Handle<Script> script, int code_pos);
-
-  // Convert code position into (zero-based) line number.
-  // The non-handlified version does not allocate, but may be much slower.
-  static int GetLineNumber(Handle<Script> script, int code_pos);
-  int GetLineNumber(int code_pos);
-
-  static Handle<Object> GetNameOrSourceURL(Handle<Script> script);
-
-  // Init line_ends array with code positions of line ends inside script source.
-  static void InitLineEnds(Handle<Script> script);
-
-  // Get the JS object wrapping the given script; create it if none exists.
-  static Handle<JSObject> GetWrapper(Handle<Script> script);
-
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
   DECLARE_VERIFIER(Script)
@@ -6898,8 +6862,6 @@ class Script: public Struct {
   static const int kSize = kFlagsOffset + kPointerSize;
 
  private:
-  int GetLineNumberWithArray(int code_pos);
-
   // Bit positions in the flags field.
   static const int kCompilationTypeBit = 0;
   static const int kCompilationStateBit = 1;
@@ -9276,9 +9238,6 @@ class String: public Name {
     int32_t type = string->map()->instance_type();
     return VisitFlat(visitor, string, offset, string->length(), type);
   }
-
-  static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
-                                              bool include_ending_line);
 
  private:
   friend class Name;

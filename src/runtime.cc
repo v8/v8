@@ -2870,7 +2870,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetScript) {
   Handle<Object> script = Handle<Object>(fun->shared()->script(), isolate);
   if (!script->IsScript()) return isolate->heap()->undefined_value();
 
-  return *Script::GetWrapper(Handle<Script>::cast(script));
+  return *GetScriptWrapper(Handle<Script>::cast(script));
 }
 
 
@@ -5727,8 +5727,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNames) {
   isolate->counters()->for_in()->Increment();
   Handle<FixedArray> elements;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, elements,
-      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
+      isolate, elements, GetKeysInFixedArrayFor(object, INCLUDE_PROTOS));
   return *isolate->factory()->NewJSArrayWithElements(elements);
 }
 
@@ -5750,8 +5749,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNamesFast) {
   Handle<JSReceiver> object(raw_object);
   Handle<FixedArray> content;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, content,
-      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
+      isolate, content, GetKeysInFixedArrayFor(object, INCLUDE_PROTOS));
 
   // Test again, since cache may have been built by preceding call.
   if (object->IsSimpleEnum()) return object->map();
@@ -5933,10 +5931,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetNamedInterceptorPropertyNames) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
   if (obj->HasNamedInterceptor()) {
-    Handle<JSArray> result;
-    if (JSObject::GetKeysForNamedInterceptor(obj, obj).ToHandle(&result)) {
-      return *result;
-    }
+    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
   }
   return isolate->heap()->undefined_value();
 }
@@ -5950,10 +5946,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetIndexedInterceptorElementNames) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
   if (obj->HasIndexedInterceptor()) {
-    Handle<JSArray> result;
-    if (JSObject::GetKeysForIndexedInterceptor(obj, obj).ToHandle(&result)) {
-      return *result;
-    }
+    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
   }
   return isolate->heap()->undefined_value();
 }
@@ -5983,8 +5977,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
 
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, contents,
-      JSReceiver::GetKeys(object, JSReceiver::LOCAL_ONLY));
+      isolate, contents, GetKeysInFixedArrayFor(object, LOCAL_ONLY));
 
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
   // property array and since the result is mutable we have to create
@@ -11455,9 +11448,7 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalContext(
       Handle<JSObject> ext(JSObject::cast(function_context->extension()));
       Handle<FixedArray> keys;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, keys,
-          JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS),
-          JSObject);
+          isolate, keys, GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS), JSObject);
 
       for (int i = 0; i < keys->length(); i++) {
         // Names of variables introduced by eval are strings.
@@ -11612,8 +11603,7 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeClosure(
     Handle<JSObject> ext(JSObject::cast(context->extension()));
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys,
-        JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS), JSObject);
+        isolate, keys, GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS), JSObject);
 
     for (int i = 0; i < keys->length(); i++) {
       HandleScope scope(isolate);
@@ -12947,7 +12937,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
     //   instances->set(i, *GetScriptWrapper(script))
     // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
     // already have dereferenced the instances handle.
-    Handle<JSObject> wrapper = Script::GetWrapper(script);
+    Handle<JSValue> wrapper = GetScriptWrapper(script);
     instances->set(i, *wrapper);
   }
 
@@ -13358,7 +13348,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
 
   if (old_script->IsScript()) {
     Handle<Script> script_handle = Handle<Script>::cast(old_script);
-    return *Script::GetWrapper(script_handle);
+    return *(GetScriptWrapper(script_handle));
   } else {
     return isolate->heap()->null_value();
   }
@@ -14374,7 +14364,7 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   if (script.is_null()) return factory->undefined_value();
 
   // Return the script found.
-  return Script::GetWrapper(script);
+  return GetScriptWrapper(script);
 }
 
 

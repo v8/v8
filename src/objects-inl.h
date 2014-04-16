@@ -1106,19 +1106,6 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
 }
 
 
-MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
-                                        Handle<Object> object,
-                                        const char* name) {
-  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  ASSERT(!str.is_null());
-#ifdef DEBUG
-  uint32_t index;  // Assert that the name is not an array index.
-  ASSERT(!str->AsArrayIndex(&index));
-#endif  // DEBUG
-  return GetProperty(object, str);
-}
-
-
 MaybeHandle<Object> JSProxy::GetElementWithHandler(Handle<JSProxy> proxy,
                                                    Handle<Object> receiver,
                                                    uint32_t index) {

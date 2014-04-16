@@ -372,10 +372,9 @@ MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
   HandleScope handleScope(isolate);
 
-  Handle<Object> js_builtin = Object::GetProperty(
-      isolate,
-      handle(isolate->native_context()->builtins(), isolate),
-      name).ToHandleChecked();
+  Handle<Object> js_builtin =
+      GetProperty(Handle<JSObject>(isolate->native_context()->builtins()),
+                  name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(js_builtin);
   int argc = args.length() - 1;
   ScopedVector<Handle<Object> > argv(argc);
