@@ -6817,12 +6817,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
   int position = 0;
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
     // Try using cached chars where possible.
-    Object* obj;
-    { MaybeObject* maybe_obj =
-          isolate->heap()->AllocateUninitializedFixedArray(length);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
+    elements = isolate->factory()->NewUninitializedFixedArray(length);
+
     DisallowHeapAllocation no_gc;
     String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
@@ -7995,35 +7991,26 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewArgumentsFast) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewStrictArgumentsFast) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-
-  JSFunction* callee = JSFunction::cast(args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
   Object** parameters = reinterpret_cast<Object**>(args[1]);
-  const int length = args.smi_at(2);
+  CONVERT_SMI_ARG_CHECKED(length, 2);
 
-  Object* result;
-  { MaybeObject* maybe_result =
-        isolate->heap()->AllocateArgumentsObject(callee, length);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  // Allocate the elements if needed.
+  Handle<JSObject> result =
+        isolate->factory()->NewArgumentsObject(callee, length);
+
   if (length > 0) {
-    // Allocate the fixed array.
-    FixedArray* array;
-    { MaybeObject* maybe_obj =
-          isolate->heap()->AllocateUninitializedFixedArray(length);
-      if (!maybe_obj->To(&array)) return maybe_obj;
-    }
-
+    Handle<FixedArray> array =
+        isolate->factory()->NewUninitializedFixedArray(length);
     DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
       array->set(i, *--parameters, mode);
     }
-    JSObject::cast(result)->set_elements(array);
+    result->set_elements(*array);
   }
-  return result;
+  return *result;
 }
 
 
