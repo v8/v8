@@ -1615,7 +1615,7 @@ int UnboundScript::GetLineNumber(int code_pos) {
   LOG_API(isolate, "UnboundScript::GetLineNumber");
   if (obj->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(*obj));
-    return i::GetScriptLineNumber(script, code_pos);
+    return i::Script::GetLineNumber(script, code_pos);
   } else {
     return -1;
   }
@@ -1983,11 +1983,9 @@ MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
     int argc,
     i::Handle<i::Object> argv[]) {
   i::Isolate* isolate = i::Isolate::Current();
-  i::Handle<i::String> fmt_str =
-      isolate->factory()->InternalizeUtf8String(name);
   i::Handle<i::Object> object_fun =
       i::Object::GetProperty(
-          isolate->js_builtins_object(), fmt_str).ToHandleChecked();
+          isolate, isolate->js_builtins_object(), name).ToHandleChecked();
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(object_fun);
   return i::Execution::Call(isolate, fun, recv, argc, argv);
 }
@@ -2156,7 +2154,8 @@ int StackFrame::GetLineNumber() const {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> line = GetProperty(self, "lineNumber").ToHandleChecked();
+  i::Handle<i::Object> line = i::Object::GetProperty(
+      isolate, self, "lineNumber").ToHandleChecked();
   if (!line->IsSmi()) {
     return Message::kNoLineNumberInfo;
   }
@@ -2169,7 +2168,8 @@ int StackFrame::GetColumn() const {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> column = GetProperty(self, "column").ToHandleChecked();
+  i::Handle<i::Object> column = i::Object::GetProperty(
+      isolate, self, "column").ToHandleChecked();
   if (!column->IsSmi()) {
     return Message::kNoColumnInfo;
   }
@@ -2182,8 +2182,8 @@ int StackFrame::GetScriptId() const {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> scriptId =
-      GetProperty(self, "scriptId").ToHandleChecked();
+  i::Handle<i::Object> scriptId = i::Object::GetProperty(
+      isolate, self, "scriptId").ToHandleChecked();
   if (!scriptId->IsSmi()) {
     return Message::kNoScriptIdInfo;
   }
@@ -2196,7 +2196,8 @@ Local<String> StackFrame::GetScriptName() const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> name = GetProperty(self, "scriptName").ToHandleChecked();
+  i::Handle<i::Object> name = i::Object::GetProperty(
+      isolate, self, "scriptName").ToHandleChecked();
   if (!name->IsString()) {
     return Local<String>();
   }
@@ -2209,8 +2210,8 @@ Local<String> StackFrame::GetScriptNameOrSourceURL() const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> name =
-      GetProperty(self, "scriptNameOrSourceURL").ToHandleChecked();
+  i::Handle<i::Object> name = i::Object::GetProperty(
+      isolate, self, "scriptNameOrSourceURL").ToHandleChecked();
   if (!name->IsString()) {
     return Local<String>();
   }
@@ -2223,8 +2224,8 @@ Local<String> StackFrame::GetFunctionName() const {
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> name =
-      GetProperty(self, "functionName").ToHandleChecked();
+  i::Handle<i::Object> name = i::Object::GetProperty(
+      isolate, self, "functionName").ToHandleChecked();
   if (!name->IsString()) {
     return Local<String>();
   }
@@ -2237,7 +2238,8 @@ bool StackFrame::IsEval() const {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> is_eval = GetProperty(self, "isEval").ToHandleChecked();
+  i::Handle<i::Object> is_eval = i::Object::GetProperty(
+      isolate, self, "isEval").ToHandleChecked();
   return is_eval->IsTrue();
 }
 
@@ -2247,8 +2249,8 @@ bool StackFrame::IsConstructor() const {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> is_constructor =
-      GetProperty(self, "isConstructor").ToHandleChecked();
+  i::Handle<i::Object> is_constructor = i::Object::GetProperty(
+      isolate, self, "isConstructor").ToHandleChecked();
   return is_constructor->IsTrue();
 }
 
@@ -2430,23 +2432,16 @@ bool Value::IsNumberObject() const {
 }
 
 
-static i::Object* LookupBuiltin(i::Isolate* isolate,
-                                const char* builtin_name) {
-  i::Handle<i::String> string =
-      isolate->factory()->InternalizeUtf8String(builtin_name);
-  return *i::Object::GetProperty(
-      isolate->js_builtins_object(), string).ToHandleChecked();
-}
-
-
 static bool CheckConstructor(i::Isolate* isolate,
                              i::Handle<i::JSObject> obj,
                              const char* class_name) {
-  i::Object* constr = obj->map()->constructor();
+  i::Handle<i::Object> constr(obj->map()->constructor(), isolate);
   if (!constr->IsJSFunction()) return false;
-  i::JSFunction* func = i::JSFunction::cast(constr);
-  return func->shared()->native() &&
-      constr == LookupBuiltin(isolate, class_name);
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(constr);
+  return func->shared()->native() && constr.is_identical_to(
+      i::Object::GetProperty(isolate,
+                             isolate->js_builtins_object(),
+                             class_name).ToHandleChecked());
 }
 
 
@@ -3209,8 +3204,8 @@ Local<Array> v8::Object::GetPropertyNames() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::FixedArray> value;
-  has_pending_exception =
-      !i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS).ToHandle(&value);
+  has_pending_exception = !i::JSReceiver::GetKeys(
+      self, i::JSReceiver::INCLUDE_PROTOS).ToHandle(&value);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Array>());
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -3231,8 +3226,8 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::FixedArray> value;
-  has_pending_exception =
-      !i::GetKeysInFixedArrayFor(self, i::LOCAL_ONLY).ToHandle(&value);
+  has_pending_exception = !i::JSReceiver::GetKeys(
+      self, i::JSReceiver::LOCAL_ONLY).ToHandle(&value);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Array>());
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -4043,7 +4038,7 @@ ScriptOrigin Function::GetScriptOrigin() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    i::Handle<i::Object> scriptName = GetScriptNameOrSourceURL(script);
+    i::Handle<i::Object> scriptName = i::Script::GetNameOrSourceURL(script);
     v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(func->GetIsolate());
     v8::ScriptOrigin origin(
         Utils::ToLocal(scriptName),
@@ -4062,7 +4057,7 @@ int Function::GetScriptLineNumber() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    return i::GetScriptLineNumber(script, func->shared()->start_position());
+    return i::Script::GetLineNumber(script, func->shared()->start_position());
   }
   return kLineOffsetNotFound;
 }
@@ -4072,7 +4067,7 @@ int Function::GetScriptColumnNumber() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    return i::GetScriptColumnNumber(script, func->shared()->start_position());
+    return i::Script::GetColumnNumber(script, func->shared()->start_position());
   }
   return kLineOffsetNotFound;
 }

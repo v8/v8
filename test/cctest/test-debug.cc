@@ -7510,7 +7510,7 @@ static void DebugBreakInlineListener(
     OS::SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[5]", break_id, i);
     v8::Local<v8::Value> result = CompileRun(script);
     CHECK_EQ(expected_line_number[i],
-             i::GetScriptLineNumber(source_script, result->Int32Value()));
+             i::Script::GetLineNumber(source_script, result->Int32Value()));
   }
   v8::Debug::SetDebugEventListener2(NULL);
   v8::V8::TerminateExecution(CcTest::isolate());

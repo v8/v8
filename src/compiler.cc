@@ -1257,12 +1257,13 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
       info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (code.is_identical_to(info->isolate()->builtins()->CompileUnoptimized()))
+    if (code.is_identical_to(
+            info->isolate()->builtins()->CompileUnoptimized())) {
       return;
-    int line_num = GetScriptLineNumber(script, shared->start_position()) + 1;
+    }
+    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
     int column_num =
-        GetScriptColumnNumber(script, shared->start_position()) + 1;
-    USE(line_num);
+        Script::GetColumnNumber(script, shared->start_position()) + 1;
     String* script_name = script->name()->IsString()
         ? String::cast(script->name())
         : info->isolate()->heap()->empty_string();

@@ -524,7 +524,7 @@ MaybeObject* Accessors::ScriptGetLineEnds(Isolate* isolate,
   JSValue* wrapper = JSValue::cast(object);
   HandleScope scope(isolate);
   Handle<Script> script(Script::cast(wrapper->value()), isolate);
-  InitScriptLineEnds(script);
+  Script::InitLineEnds(script);
   ASSERT(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   // We do not want anyone to modify this array from JS.
@@ -578,7 +578,7 @@ MaybeObject* Accessors::ScriptGetEvalFromScript(Isolate* isolate,
 
     if (eval_from_shared->script()->IsScript()) {
       Handle<Script> eval_from_script(Script::cast(eval_from_shared->script()));
-      return *GetScriptWrapper(eval_from_script);
+      return *Script::GetWrapper(eval_from_script);
     }
   }
   return isolate->heap()->undefined_value();
