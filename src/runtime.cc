@@ -9600,13 +9600,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   const char* zone =
       isolate->date_cache()->LocalTimezone(static_cast<int64_t>(x));
-  return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
+  return *isolate->factory()->NewStringFromUtf8(CStrVector(zone));
 }
 
 
@@ -13610,6 +13610,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 #ifdef V8_I18N_SUPPORT
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
@@ -13626,7 +13627,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY,
                       &icu_length, &error);
   if (U_FAILURE(error) || icu_length == 0) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
   }
 
   char result[ULOC_FULLNAME_CAPACITY];
@@ -13635,10 +13636,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
 
   if (U_FAILURE(error)) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
   }
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+  return *factory->NewStringFromOneByte(OneByteVector(result));
 }
 
 
@@ -13690,7 +13691,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 0);
 
@@ -13702,10 +13704,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
   uloc_toLanguageTag(
       default_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
   if (U_SUCCESS(status)) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+    return *factory->NewStringFromOneByte(OneByteVector(result));
   }
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector("und"));
+  return *factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("und"));
 }
 
 
@@ -14416,13 +14418,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
 
 // Returns V8 version as a string.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 0);
 
   const char* version_string = v8::V8::GetVersion();
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector(version_string),
-                                                  NOT_TENURED);
+  return *isolate->factory()->NewStringFromOneByte(
+      OneByteVector(version_string), NOT_TENURED);
 }
 
 

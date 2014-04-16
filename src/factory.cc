@@ -281,9 +281,21 @@ Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
 
 Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
                                           PretenureFlag pretenure) {
+  // Check for ASCII first since this is the common case.
+  const char* start = string.start();
+  int length = string.length();
+  int non_ascii_start = String::NonAsciiStart(start, length);
+  if (non_ascii_start >= length) {
+    // If the string is ASCII, we do not need to convert the characters
+    // since UTF8 is backwards compatible with ASCII.
+    return NewStringFromOneByte(Vector<const uint8_t>::cast(string), pretenure);
+  }
+  // Non-ASCII and we need to decode.
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromUtf8(string, pretenure),
+      isolate()->heap()->AllocateStringFromUtf8Slow(string,
+                                                    non_ascii_start,
+                                                    pretenure),
       String);
 }
 

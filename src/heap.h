@@ -788,16 +788,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
       Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
-  // TODO(dcarney): remove this function.
-  MUST_USE_RESULT inline MaybeObject* AllocateStringFromOneByte(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return AllocateStringFromOneByte(Vector<const uint8_t>::cast(str),
-                                     pretenure);
-  }
-  MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
       int non_ascii_start,
