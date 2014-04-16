@@ -17,7 +17,7 @@ namespace internal {
 // TypeImpl
 
 template<class Config>
-typename i::TypeImpl<Config>::template Iterator<i::Map>
+typename v8::internal::TypeImpl<Config>::template Iterator<i::Map>
 TypeImpl<Config>::Classes() {
   if (this->IsBitset()) return Iterator<i::Map>();
   return Iterator<i::Map>(Config::handle(this));
@@ -25,7 +25,7 @@ TypeImpl<Config>::Classes() {
 
 
 template<class Config>
-typename i::TypeImpl<Config>::template Iterator<i::Object>
+typename v8::internal::TypeImpl<Config>::template Iterator<i::Object>
 TypeImpl<Config>::Constants() {
   if (this->IsBitset()) return Iterator<i::Object>();
   return Iterator<i::Object>(Config::handle(this));
