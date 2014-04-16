@@ -7514,6 +7514,7 @@ void Map::UpdateCodeCache(Handle<Map> map,
                           Handle<Name> name,
                           Handle<Code> code) {
   Isolate* isolate = map->GetIsolate();
+  HandleScope scope(isolate);
   // Allocate the code cache if not present.
   if (map->code_cache()->IsFixedArray()) {
     Handle<Object> result = isolate->factory()->NewCodeCache();
