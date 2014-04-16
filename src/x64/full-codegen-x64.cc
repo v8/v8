@@ -74,7 +74,7 @@ class JumpPatchSite BASE_EMBEDDED {
   void EmitPatchInfo() {
     if (patch_site_.is_bound()) {
       int delta_to_patch_site = masm_->SizeOfCodeGeneratedSince(&patch_site_);
-      ASSERT(is_int8(delta_to_patch_site));
+      ASSERT(is_uint8(delta_to_patch_site));
       __ testl(rax, Immediate(delta_to_patch_site));
 #ifdef DEBUG
       info_emitted_ = true;
@@ -363,6 +363,9 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
 }
 
 
+static const byte kJnsOffset = kPointerSize == kInt64Size ? 0x1d : 0x14;
+
+
 void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
                                                 Label* back_edge_target) {
   Comment cmnt(masm_, "[ Back edge bookkeeping");
@@ -373,17 +376,22 @@ void FullCodeGenerator::EmitBackEdgeBookkeeping(IterationStatement* stmt,
   int weight = Min(kMaxBackEdgeWeight,
                    Max(1, distance / kCodeSizeMultiplier));
   EmitProfilingCounterDecrement(weight);
+
   __ j(positive, &ok, Label::kNear);
-  __ call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
+  {
+    PredictableCodeSizeScope predictible_code_size_scope(masm_, kJnsOffset);
+    DontEmitDebugCodeScope dont_emit_debug_code_scope(masm_);
+    __ call(isolate()->builtins()->InterruptCheck(), RelocInfo::CODE_TARGET);
 
-  // Record a mapping of this PC offset to the OSR id.  This is used to find
-  // the AST id from the unoptimized code in order to use it as a key into
-  // the deoptimization input data found in the optimized code.
-  RecordBackEdge(stmt->OsrEntryId());
+    // Record a mapping of this PC offset to the OSR id.  This is used to find
+    // the AST id from the unoptimized code in order to use it as a key into
+    // the deoptimization input data found in the optimized code.
+    RecordBackEdge(stmt->OsrEntryId());
 
-  EmitProfilingCounterReset();
-
+    EmitProfilingCounterReset();
+  }
   __ bind(&ok);
+
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   // Record a mapping of the OSR id to this PC.  This is used if the OSR
   // entry becomes the target of a bailout.  We don't expect it to be, but
@@ -4844,7 +4852,6 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 
 
 static const byte kJnsInstruction = 0x79;
-static const byte kJnsOffset = kPointerSize == kInt64Size ? 0x1d : 0x14;
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
 #ifdef DEBUG

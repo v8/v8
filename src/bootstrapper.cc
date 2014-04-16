@@ -911,10 +911,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         Handle<Map>(native_context()->string_function()->initial_map());
     Map::EnsureDescriptorSlack(string_map, 1);
 
-    Handle<Foreign> string_length(
-        factory->NewForeign(&Accessors::StringLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE | READ_ONLY);
+    Handle<AccessorInfo> string_length(
+        Accessors::StringLengthInfo(isolate, attribs));
 
     {  // Add length.
       CallbacksDescriptor d(factory->length_string(), string_length, attribs);
@@ -2179,12 +2179,7 @@ static uint32_t Hash(RegisteredExtension* extension) {
 }
 
 
-static bool MatchRegisteredExtensions(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-Genesis::ExtensionStates::ExtensionStates()
-  : map_(MatchRegisteredExtensions, 8) { }
+Genesis::ExtensionStates::ExtensionStates() : map_(HashMap::PointersMatch, 8) {}
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {

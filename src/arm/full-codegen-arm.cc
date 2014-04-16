@@ -4767,7 +4767,8 @@ void FullCodeGenerator::EnterFinallyBlock() {
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(ip, Operand(has_pending_message));
-  __ ldr(r1, MemOperand(ip));
+  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
+  __ ldrb(r1, MemOperand(ip));
   __ SmiTag(r1);
   __ push(r1);
 
@@ -4793,7 +4794,8 @@ void FullCodeGenerator::ExitFinallyBlock() {
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ mov(ip, Operand(has_pending_message));
-  __ str(r1, MemOperand(ip));
+  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
+  __ strb(r1, MemOperand(ip));
 
   __ pop(r1);
   ExternalReference pending_message_obj =

@@ -98,8 +98,6 @@ void DumpBacktrace() {
 
 // Contains protection against recursive calls (faults while handling faults).
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
-  i::AllowHandleDereference allow_deref;
-  i::AllowDeferredHandleDereference allow_deferred_deref;
   fflush(stdout);
   fflush(stderr);
   i::OS::PrintError("\n\n#\n# Fatal error in %s, line %d\n# ", file, line);

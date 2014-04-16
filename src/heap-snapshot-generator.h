@@ -315,9 +315,6 @@ class HeapEntriesMap {
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)),
         v8::internal::kZeroHashSeed);
   }
-  static bool HeapThingsMatch(HeapThing key1, HeapThing key2) {
-    return key1 == key2;
-  }
 
   HashMap entries_;
 

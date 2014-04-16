@@ -1087,7 +1087,7 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
-      CHECK_EQ(Smi::cast(results[i]->ToSmi()->ToObjectChecked())->value(),
+      CHECK_EQ(Handle<Smi>::cast(Object::ToSmi(isolate, results[i]))->value(),
                result->ToInt32()->Value());
     }
   }

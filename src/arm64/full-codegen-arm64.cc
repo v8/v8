@@ -4821,8 +4821,9 @@ void FullCodeGenerator::EnterFinallyBlock() {
 
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
+  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
   __ Mov(x11, has_pending_message);
-  __ Ldr(x11, MemOperand(x11));
+  __ Ldrb(x11, MemOperand(x11));
   __ SmiTag(x11);
 
   __ Push(x10, x11);
@@ -4850,7 +4851,8 @@ void FullCodeGenerator::ExitFinallyBlock() {
   ExternalReference has_pending_message =
       ExternalReference::address_of_has_pending_message(isolate());
   __ Mov(x13, has_pending_message);
-  __ Str(x11, MemOperand(x13));
+  STATIC_ASSERT(sizeof(bool) == 1);   // NOLINT(runtime/sizeof)
+  __ Strb(x11, MemOperand(x13));
 
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());

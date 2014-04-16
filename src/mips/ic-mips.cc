@@ -918,7 +918,7 @@ static void KeyedStoreGenerateGenericHelper(
   // We have to see if the double version of the hole is present. If so
   // go to the runtime.
   __ Addu(address, elements,
-          Operand(FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32)
+          Operand(FixedDoubleArray::kHeaderSize + kHoleNanUpper32Offset
                   - kHeapObjectTag));
   __ sll(at, key, kPointerSizeLog2);
   __ addu(address, address, at);

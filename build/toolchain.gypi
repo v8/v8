@@ -278,6 +278,57 @@
           'V8_TARGET_ARCH_IA32',
         ],
       }],  # v8_target_arch=="ia32"
+      ['v8_target_arch=="mips"', {
+        'defines': [
+          'V8_TARGET_ARCH_MIPS',
+        ],
+        'variables': {
+          'mipscompiler': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
+        },
+        'conditions': [
+          ['mipscompiler=="yes"', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': ['-EB'],
+                'ldflags': ['-EB'],
+                'conditions': [
+                  [ 'v8_use_mips_abi_hardfloat=="true"', {
+                    'cflags': ['-mhard-float'],
+                    'ldflags': ['-mhard-float'],
+                  }, {
+                    'cflags': ['-msoft-float'],
+                    'ldflags': ['-msoft-float'],
+                  }],
+                  ['mips_arch_variant=="mips32r2"', {
+                    'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                  }],
+                  ['mips_arch_variant=="mips32r1"', {
+                    'cflags': ['-mips32', '-Wa,-mips32'],
+                  }],
+                ],
+              }],
+            ],
+          }],
+          [ 'v8_can_use_fpu_instructions=="true"', {
+            'defines': [
+              'CAN_USE_FPU_INSTRUCTIONS',
+            ],
+          }],
+          [ 'v8_use_mips_abi_hardfloat=="true"', {
+            'defines': [
+              '__mips_hard_float=1',
+              'CAN_USE_FPU_INSTRUCTIONS',
+            ],
+          }, {
+            'defines': [
+              '__mips_soft_float=1'
+            ],
+          }],
+          ['mips_arch_variant=="mips32r2"', {
+            'defines': ['_MIPS_ARCH_MIPS32R2',],
+          }],
+        ],
+      }],  # v8_target_arch=="mips"
       ['v8_target_arch=="mipsel"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS',
@@ -380,7 +431,7 @@
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
-         v8_target_arch=="mipsel")', {
+         v8_target_arch=="mips" or v8_target_arch=="mipsel")', {
         # Check whether the host compiler and target compiler support the
         # '-m32' option and set it if so.
         'target_conditions': [

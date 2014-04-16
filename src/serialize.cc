@@ -276,9 +276,20 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       ACCESSOR, \
       Accessors::k##name, \
       "Accessors::" #name);
-
   ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
 #undef ACCESSOR_DESCRIPTOR_DECLARATION
+
+#define ACCESSOR_INFO_DECLARATION(name) \
+  Add(FUNCTION_ADDR(&Accessors::name##Getter), \
+      ACCESSOR, \
+      Accessors::k##name##Getter, \
+      "Accessors::" #name "Getter"); \
+  Add(FUNCTION_ADDR(&Accessors::name##Setter), \
+      ACCESSOR, \
+      Accessors::k##name##Setter, \
+      "Accessors::" #name "Setter");
+  ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
+#undef ACCESSOR_INFO_DECLARATION
 
   StubCache* stub_cache = isolate->stub_cache();
 
@@ -575,7 +586,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
-    : encodings_(Match),
+    : encodings_(HashMap::PointersMatch),
       isolate_(isolate) {
   ExternalReferenceTable* external_references =
       ExternalReferenceTable::instance(isolate_);
@@ -669,7 +680,7 @@ class CodeAddressMap: public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(&PointerEquals) {}
+    NameMap() : impl_(HashMap::PointersMatch) {}
 
     ~NameMap() {
       for (HashMap::Entry* p = impl_.Start(); p != NULL; p = impl_.Next(p)) {
@@ -709,10 +720,6 @@ class CodeAddressMap: public CodeEventLogger {
     }
 
    private:
-    static bool PointerEquals(void* lhs, void* rhs) {
-      return lhs == rhs;
-    }
-
     static char* CopyName(const char* name, int name_size) {
       char* result = NewArray<char>(name_size + 1);
       for (int i = 0; i < name_size; ++i) {

@@ -591,11 +591,11 @@ class ElementsAccessorBase : public ElementsAccessor {
     return ElementsTraits::Kind;
   }
 
-  static void ValidateContents(JSObject* holder, int length) {
+  static void ValidateContents(Handle<JSObject> holder, int length) {
   }
 
-  static void ValidateImpl(JSObject* holder) {
-    FixedArrayBase* fixed_array_base = holder->elements();
+  static void ValidateImpl(Handle<JSObject> holder) {
+    Handle<FixedArrayBase> fixed_array_base(holder->elements());
     // When objects are first allocated, its elements are Failures.
     if (fixed_array_base->IsFailure()) return;
     if (!fixed_array_base->IsHeapObject()) return;
@@ -603,7 +603,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (fixed_array_base->IsFiller()) return;
     int length = 0;
     if (holder->IsJSArray()) {
-      Object* length_obj = JSArray::cast(holder)->length();
+      Object* length_obj = Handle<JSArray>::cast(holder)->length();
       if (length_obj->IsSmi()) {
         length = Smi::cast(length_obj)->value();
       }
@@ -615,7 +615,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   virtual void Validate(Handle<JSObject> holder) V8_FINAL V8_OVERRIDE {
     DisallowHeapAllocation no_gc;
-    ElementsAccessorSubclass::ValidateImpl(*holder);
+    ElementsAccessorSubclass::ValidateImpl(holder);
   }
 
   static bool HasElementImpl(Handle<Object> receiver,
@@ -1063,21 +1063,24 @@ class FastElementsAccessor
     return !Handle<BackingStore>::cast(backing_store)->is_the_hole(key);
   }
 
-  static void ValidateContents(JSObject* holder, int length) {
+  static void ValidateContents(Handle<JSObject> holder, int length) {
 #if DEBUG
-    FixedArrayBase* elements = holder->elements();
-    Heap* heap = elements->GetHeap();
+    Isolate* isolate = holder->GetIsolate();
+    HandleScope scope(isolate);
+    Handle<FixedArrayBase> elements(holder->elements(), isolate);
     Map* map = elements->map();
     ASSERT((IsFastSmiOrObjectElementsKind(KindTraits::Kind) &&
-            (map == heap->fixed_array_map() ||
-             map == heap->fixed_cow_array_map())) ||
+            (map == isolate->heap()->fixed_array_map() ||
+             map == isolate->heap()->fixed_cow_array_map())) ||
            (IsFastDoubleElementsKind(KindTraits::Kind) ==
-            ((map == heap->fixed_array_map() && length == 0) ||
-             map == heap->fixed_double_array_map())));
+            ((map == isolate->heap()->fixed_array_map() && length == 0) ||
+             map == isolate->heap()->fixed_double_array_map())));
+    DisallowHeapAllocation no_gc;
     for (int i = 0; i < length; i++) {
-      BackingStore* backing_store = BackingStore::cast(elements);
+      HandleScope scope(isolate);
+      Handle<BackingStore> backing_store = Handle<BackingStore>::cast(elements);
       ASSERT((!IsFastSmiElementsKind(KindTraits::Kind) ||
-              static_cast<Object*>(backing_store->get(i))->IsSmi()) ||
+              BackingStore::get(backing_store, i)->IsSmi()) ||
              (IsFastHoleyElementsKind(KindTraits::Kind) ==
               backing_store->is_the_hole(i)));
     }

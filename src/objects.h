@@ -924,16 +924,10 @@ class MaybeObject BASE_EMBEDDED {
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
   inline bool IsException();
-  INLINE(bool IsTheHole());
-  INLINE(bool IsUninitialized());
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
     return true;
-  }
-  inline Failure* ToFailureUnchecked() {
-    ASSERT(IsFailure());
-    return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
     // TODO(jkummerow): Turn this back into an ASSERT when we can be certain
@@ -950,13 +944,6 @@ class MaybeObject BASE_EMBEDDED {
   inline bool To(T** obj) {
     if (IsFailure()) return false;
     *obj = T::cast(reinterpret_cast<Object*>(this));
-    return true;
-  }
-
-  template<typename T>
-    inline bool ToHandle(Handle<T>* obj, Isolate* isolate) {
-    if (IsFailure()) return false;
-    *obj = handle(T::cast(reinterpret_cast<Object*>(this)), isolate);
     return true;
   }
 
@@ -1710,8 +1697,6 @@ class Failure: public MaybeObject {
   // Returns the space that needs to be collected for RetryAfterGC failures.
   inline AllocationSpace allocation_space() const;
 
-  inline bool IsInternalError() const;
-
   static inline Failure* RetryAfterGC(AllocationSpace space);
   static inline Failure* RetryAfterGC();  // NEW_SPACE
   static inline Failure* Exception();
@@ -1961,11 +1946,18 @@ class HeapNumber: public HeapObject {
   // Layout description.
   static const int kValueOffset = HeapObject::kHeaderSize;
   // IEEE doubles are two 32 bit words.  The first is just mantissa, the second
-  // is a mixture of sign, exponent and mantissa.  Our current platforms are all
-  // little endian apart from non-EABI arm which is little endian with big
-  // endian floating point word ordering!
+  // is a mixture of sign, exponent and mantissa. The offsets of two 32 bit
+  // words within double numbers are endian dependent and they are set
+  // accordingly.
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kMantissaOffset = kValueOffset;
   static const int kExponentOffset = kValueOffset + 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const int kMantissaOffset = kValueOffset + 4;
+  static const int kExponentOffset = kValueOffset;
+#else
+#error Unknown byte ordering
+#endif
 
   static const int kSize = kValueOffset + kDoubleSize;
   static const uint32_t kSignMask = 0x80000000u;
@@ -2146,6 +2138,10 @@ class JSReceiver: public HeapObject {
 
 // Forward declaration for JSObject::GetOrCreateHiddenPropertiesHashTable.
 class ObjectHashTable;
+
+// Forward declaration for JSObject::Copy.
+class AllocationSite;
+
 
 // The JSObject describes real heap allocated JavaScript objects with
 // properties.
@@ -2655,6 +2651,8 @@ class JSObject: public JSReceiver {
     kObjectIsShallowArray = 1
   };
 
+  static Handle<JSObject> Copy(Handle<JSObject> object,
+                               Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
   static Handle<JSObject> DeepCopy(Handle<JSObject> object,
                                    AllocationSiteUsageContext* site_context,
@@ -3157,7 +3155,6 @@ class FixedDoubleArray: public FixedArrayBase {
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline int64_t get_representation(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
@@ -4911,7 +4908,6 @@ class ExternalUint8ClampedArray: public ExternalArray {
 
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  MUST_USE_RESULT inline Object* get(int index);
   static inline Handle<Object> get(Handle<ExternalUint8ClampedArray> array,
                                    int index);
   inline void set(int index, uint8_t value);
@@ -4938,7 +4934,6 @@ class ExternalInt8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int8_t get_scalar(int index);
-  MUST_USE_RESULT inline Object* get(int index);
   static inline Handle<Object> get(Handle<ExternalInt8Array> array, int index);
   inline void set(int index, int8_t value);
 
@@ -4964,7 +4959,6 @@ class ExternalUint8Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint8_t get_scalar(int index);
-  MUST_USE_RESULT inline Object* get(int index);
   static inline Handle<Object> get(Handle<ExternalUint8Array> array, int index);
   inline void set(int index, uint8_t value);
 
@@ -4990,7 +4984,6 @@ class ExternalInt16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int16_t get_scalar(int index);
-  MUST_USE_RESULT inline Object* get(int index);
   static inline Handle<Object> get(Handle<ExternalInt16Array> array, int index);
   inline void set(int index, int16_t value);
 
@@ -5016,7 +5009,6 @@ class ExternalUint16Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint16_t get_scalar(int index);
-  MUST_USE_RESULT inline Object* get(int index);
   static inline Handle<Object> get(Handle<ExternalUint16Array> array,
                                    int index);
   inline void set(int index, uint16_t value);
@@ -5043,7 +5035,6 @@ class ExternalInt32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline int32_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<ExternalInt32Array> array, int index);
   inline void set(int index, int32_t value);
 
@@ -5069,7 +5060,6 @@ class ExternalUint32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline uint32_t get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<ExternalUint32Array> array,
                                    int index);
   inline void set(int index, uint32_t value);
@@ -5096,7 +5086,6 @@ class ExternalFloat32Array: public ExternalArray {
  public:
   // Setter and getter.
   inline float get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<ExternalFloat32Array> array,
                                    int index);
   inline void set(int index, float value);
@@ -5123,7 +5112,6 @@ class ExternalFloat64Array: public ExternalArray {
  public:
   // Setter and getter.
   inline double get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<ExternalFloat64Array> array,
                                    int index);
   inline void set(int index, double value);
@@ -5183,7 +5171,6 @@ class FixedTypedArray: public FixedTypedArrayBase {
   }
 
   inline ElementType get_scalar(int index);
-  MUST_USE_RESULT inline MaybeObject* get(int index);
   static inline Handle<Object> get(Handle<FixedTypedArray> array, int index);
   inline void set(int index, ElementType value);
 
@@ -5192,8 +5179,6 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  MUST_USE_RESULT MaybeObject* SetValue(uint32_t index, Object* value);
-
   static Handle<Object> SetValue(Handle<FixedTypedArray<Traits> > array,
                                  uint32_t index,
                                  Handle<Object> value);
@@ -5211,7 +5196,6 @@ class FixedTypedArray: public FixedTypedArrayBase {
       typedef elementType ElementType;                                        \
       static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
       static const char* Designator() { return #type " array"; }              \
-      static inline MaybeObject* ToObject(Heap* heap, elementType scalar);    \
       static inline Handle<Object> ToHandle(Isolate* isolate,                 \
                                             elementType scalar);              \
       static inline elementType defaultValue();                               \
@@ -7412,9 +7396,9 @@ class SharedFunctionInfo: public HeapObject {
   // The construction counter for inobject slack tracking is stored in the
   // most significant byte of compiler_hints which is otherwise unused.
   // Its offset depends on the endian-ness of the architecture.
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kConstructionCountOffset = kCompilerHintsOffset + 3;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif defined(V8_TARGET_BIG_ENDIAN)
   static const int kConstructionCountOffset = kCompilerHintsOffset + 0;
 #else
 #error Unknown byte ordering
@@ -7488,12 +7472,12 @@ class SharedFunctionInfo: public HeapObject {
   static const int kNativeBitWithinByte =
       (kNative + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#if defined(V8_TARGET_LITTLE_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte;
   static const int kNativeByteOffset = kCompilerHintsOffset +
       (kNative + kCompilerHintsSmiTagSize) / kBitsPerByte;
-#elif __BYTE_ORDER == __BIG_ENDIAN
+#elif defined(V8_TARGET_BIG_ENDIAN)
   static const int kStrictModeByteOffset = kCompilerHintsOffset +
       (kCompilerHintsSize - 1) -
       ((kStrictModeFunction + kCompilerHintsSmiTagSize) / kBitsPerByte);

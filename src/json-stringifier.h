@@ -39,17 +39,18 @@ class BasicJsonStringifier BASE_EMBEDDED {
  public:
   explicit BasicJsonStringifier(Isolate* isolate);
 
-  MaybeObject* Stringify(Handle<Object> object);
+  MUST_USE_RESULT MaybeHandle<Object> Stringify(Handle<Object> object);
 
-  INLINE(static MaybeObject* StringifyString(Isolate* isolate,
-                                             Handle<String> object));
+  MUST_USE_RESULT INLINE(static MaybeHandle<Object> StringifyString(
+      Isolate* isolate,
+      Handle<String> object));
 
  private:
   static const int kInitialPartLength = 32;
   static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
 
-  enum Result { UNCHANGED, SUCCESS, EXCEPTION, CIRCULAR, STACK_OVERFLOW };
+  enum Result { UNCHANGED, SUCCESS, EXCEPTION };
 
   void Accumulate();
 
@@ -91,9 +92,9 @@ class BasicJsonStringifier BASE_EMBEDDED {
                           bool deferred_key);
 
   template <typename ResultType, typename Char>
-  INLINE(static MaybeObject* StringifyString_(Isolate* isolate,
-                                              Vector<Char> vector,
-                                              Handle<String> result));
+  INLINE(static Handle<String> StringifyString_(Isolate* isolate,
+                                                Vector<Char> vector,
+                                                Handle<String> result));
 
   // Entry point to serialize the object.
   INLINE(Result SerializeObject(Handle<Object> obj)) {
@@ -272,29 +273,25 @@ BasicJsonStringifier::BasicJsonStringifier(Isolate* isolate)
 }
 
 
-MaybeObject* BasicJsonStringifier::Stringify(Handle<Object> object) {
-  switch (SerializeObject(object)) {
-    case UNCHANGED:
-      return isolate_->heap()->undefined_value();
-    case SUCCESS: {
-      ShrinkCurrentPart();
-      Accumulate();
-      if (overflowed_) return isolate_->ThrowInvalidStringLength();
-      return *accumulator();
+MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object) {
+  Result result = SerializeObject(object);
+  if (result == UNCHANGED) return isolate_->factory()->undefined_value();
+  if (result == SUCCESS) {
+    ShrinkCurrentPart();
+    Accumulate();
+    if (overflowed_) {
+      return isolate_->Throw<Object>(
+          isolate_->factory()->NewInvalidStringLengthError());
     }
-    case CIRCULAR:
-      return isolate_->Throw(*factory_->NewTypeError(
-                 "circular_structure", HandleVector<Object>(NULL, 0)));
-    case STACK_OVERFLOW:
-      return isolate_->StackOverflow();
-    default:
-      return Failure::Exception();
+    return accumulator();
   }
+  ASSERT(result == EXCEPTION);
+  return MaybeHandle<Object>();
 }
 
 
-MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
-                                                   Handle<String> object) {
+MaybeHandle<Object> BasicJsonStringifier::StringifyString(
+    Isolate* isolate,  Handle<String> object) {
   static const int kJsonQuoteWorstCaseBlowup = 6;
   static const int kSpaceForQuotes = 2;
   int worst_case_length =
@@ -328,9 +325,9 @@ MaybeObject* BasicJsonStringifier::StringifyString(Isolate* isolate,
 
 
 template <typename ResultType, typename Char>
-MaybeObject* BasicJsonStringifier::StringifyString_(Isolate* isolate,
-                                                    Vector<Char> vector,
-                                                    Handle<String> result) {
+Handle<String> BasicJsonStringifier::StringifyString_(Isolate* isolate,
+                                                      Vector<Char> vector,
+                                                      Handle<String> result) {
   DisallowHeapAllocation no_gc;
   int final_size = 0;
   ResultType* dest = ResultType::cast(*result);
@@ -339,7 +336,7 @@ MaybeObject* BasicJsonStringifier::StringifyString_(Isolate* isolate,
                                           dest->GetChars() + 1,
                                           vector.length());
   dest->Set(final_size++, '\"');
-  return *SeqString::Truncate(Handle<SeqString>::cast(result), final_size);
+  return SeqString::Truncate(Handle<SeqString>::cast(result), final_size);
 }
 
 
@@ -390,7 +387,10 @@ MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
 BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     Handle<Object> object) {
   StackLimitCheck check(isolate_);
-  if (check.HasOverflowed()) return STACK_OVERFLOW;
+  if (check.HasOverflowed()) {
+    isolate_->StackOverflow();
+    return EXCEPTION;
+  }
 
   int length = Smi::cast(stack_->length())->value();
   {
@@ -398,7 +398,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     FixedArray* elements = FixedArray::cast(stack_->elements());
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
-        return CIRCULAR;
+        AllowHeapAllocation allow_to_return_error;
+        isolate_->Throw(*factory_->NewTypeError(
+            "circular_structure", HandleVector<Object>(NULL, 0)));
+        return EXCEPTION;
       }
     }
   }
@@ -686,7 +689,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       }
       Result result = SerializeProperty(property, comma, key);
       if (!comma && result == SUCCESS) comma = true;
-      if (result >= EXCEPTION) return result;
+      if (result == EXCEPTION) return result;
     }
   } else {
     Handle<FixedArray> contents;
@@ -720,7 +723,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
           isolate_, property, maybe_property, EXCEPTION);
       Result result = SerializeProperty(property, comma, key_handle);
       if (!comma && result == SUCCESS) comma = true;
-      if (result >= EXCEPTION) return result;
+      if (result == EXCEPTION) return result;
     }
   }
 

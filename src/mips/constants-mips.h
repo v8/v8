@@ -55,6 +55,18 @@ enum ArchVariants {
   static const ArchVariants kArchVariant = kMips32r1;
 #endif
 
+enum Endianness {
+  kLittle,
+  kBig
+};
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  static const Endianness kArchEndian = kLittle;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  static const Endianness kArchEndian = kBig;
+#else
+#error Unknown endianness
+#endif
 
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
 // Use floating-point coprocessor instructions. This flag is raised when
@@ -69,6 +81,15 @@ const bool IsMipsSoftFloatABI = true;
 const bool IsMipsSoftFloatABI = true;
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kHoleNanUpper32Offset = 4;
+const uint32_t kHoleNanLower32Offset = 0;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kHoleNanUpper32Offset = 0;
+const uint32_t kHoleNanLower32Offset = 4;
+#else
+#error Unknown endianness
+#endif
 
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate MIPS32 instructions.

@@ -211,11 +211,6 @@ void AddressToTraceMap::RemoveRange(Address start, Address end) {
 }
 
 
-static bool AddressesMatch(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
 void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
     delete *info;
 }
@@ -225,7 +220,7 @@ AllocationTracker::AllocationTracker(
     HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(AddressesMatch),
+      id_to_function_info_index_(HashMap::PointersMatch),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";

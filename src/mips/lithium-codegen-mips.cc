@@ -3219,7 +3219,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   __ ldc1(result, MemOperand(scratch));
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ lw(scratch, MemOperand(scratch, sizeof(kHoleNanLower32)));
+    __ lw(scratch, MemOperand(scratch, kHoleNanUpper32Offset));
     DeoptimizeIf(eq, instr->environment(), scratch, Operand(kHoleNanUpper32));
   }
 }
@@ -4085,7 +4085,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ SmiTst(value, scratch);
       DeoptimizeIf(eq, instr->environment(), scratch, Operand(zero_reg));
 
-      // We know that value is a smi now, so we can omit the check below.
+      // We know now that value is not a smi, so we can omit the check below.
       check_needed = OMIT_SMI_CHECK;
     }
   } else if (representation.IsDouble()) {

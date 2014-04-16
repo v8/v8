@@ -4790,21 +4790,6 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
 }
 
 
-MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
-  int size = FixedDoubleArray::SizeFor(0);
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  // Initialize the object.
-  reinterpret_cast<FixedDoubleArray*>(result)->set_map_no_write_barrier(
-      fixed_double_array_map());
-  reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     int length,
     PretenureFlag pretenure) {

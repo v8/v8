@@ -559,13 +559,14 @@ class ConvertToDoubleStub : public PlatformCodeStub {
 
 
 void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
-#ifndef BIG_ENDIAN_FLOATING_POINT
-  Register exponent = result1_;
-  Register mantissa = result2_;
-#else
-  Register exponent = result2_;
-  Register mantissa = result1_;
-#endif
+  Register exponent, mantissa;
+  if (kArchEndian == kLittle) {
+    exponent = result1_;
+    mantissa = result2_;
+  } else {
+    exponent = result2_;
+    mantissa = result1_;
+  }
   Label not_special;
   // Convert from Smi to integer.
   __ sra(source_, source_, kSmiTagSize);
@@ -671,8 +672,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register input_high = scratch2;
   Register input_low = scratch3;
 
-  __ lw(input_low, MemOperand(input_reg, double_offset));
-  __ lw(input_high, MemOperand(input_reg, double_offset + kIntSize));
+  __ lw(input_low,
+      MemOperand(input_reg, double_offset + Register::kMantissaOffset));
+  __ lw(input_high,
+      MemOperand(input_reg, double_offset + Register::kExponentOffset));
 
   Label normal_exponent, restore_sign;
   // Extract the biased exponent in result.
@@ -3532,9 +3535,15 @@ void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
   {
     Label loop;
     __ bind(&loop);
-    __ lwr(scratch1, MemOperand(src));
-    __ Addu(src, src, Operand(kReadAlignment));
-    __ lwl(scratch1, MemOperand(src, -1));
+    if (kArchEndian == kBig) {
+      __ lwl(scratch1, MemOperand(src));
+      __ Addu(src, src, Operand(kReadAlignment));
+      __ lwr(scratch1, MemOperand(src, -1));
+    } else {
+      __ lwr(scratch1, MemOperand(src));
+      __ Addu(src, src, Operand(kReadAlignment));
+      __ lwl(scratch1, MemOperand(src, -1));
+    }
     __ sw(scratch1, MemOperand(dest));
     __ Addu(dest, dest, Operand(kReadAlignment));
     __ Subu(scratch2, limit, dest);
