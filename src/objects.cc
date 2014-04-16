@@ -7272,23 +7272,15 @@ void Map::UpdateCodeCache(Handle<Map> map,
                           Handle<Name> name,
                           Handle<Code> code) {
   Isolate* isolate = map->GetIsolate();
-  CALL_HEAP_FUNCTION_VOID(isolate,
-                          map->UpdateCodeCache(*name, *code));
-}
-
-
-MaybeObject* Map::UpdateCodeCache(Name* name, Code* code) {
   // Allocate the code cache if not present.
-  if (code_cache()->IsFixedArray()) {
-    Object* result;
-    { MaybeObject* maybe_result = GetHeap()->AllocateCodeCache();
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    set_code_cache(result);
+  if (map->code_cache()->IsFixedArray()) {
+    Handle<Object> result = isolate->factory()->NewCodeCache();
+    map->set_code_cache(*result);
   }
 
   // Update the code cache.
-  return CodeCache::cast(code_cache())->Update(name, code);
+  Handle<CodeCache> code_cache(CodeCache::cast(map->code_cache()), isolate);
+  CodeCache::Update(code_cache, name, code);
 }
 
 
@@ -7525,30 +7517,29 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
 }
 
 
-MaybeObject* CodeCache::Update(Name* name, Code* code) {
+void CodeCache::Update(
+    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
   // The number of monomorphic stubs for normal load/store/call IC's can grow to
   // a large number and therefore they need to go into a hash table. They are
   // used to load global properties from cells.
   if (code->type() == Code::NORMAL) {
     // Make sure that a hash table is allocated for the normal load code cache.
-    if (normal_type_cache()->IsUndefined()) {
-      Object* result;
-      { MaybeObject* maybe_result =
-            CodeCacheHashTable::Allocate(GetHeap(),
-                                         CodeCacheHashTable::kInitialSize);
-        if (!maybe_result->ToObject(&result)) return maybe_result;
-      }
-      set_normal_type_cache(result);
+    if (code_cache->normal_type_cache()->IsUndefined()) {
+      Handle<Object> result =
+          CodeCacheHashTable::New(code_cache->GetIsolate(),
+                                  CodeCacheHashTable::kInitialSize);
+      code_cache->set_normal_type_cache(*result);
     }
-    return UpdateNormalTypeCache(name, code);
+    UpdateNormalTypeCache(code_cache, name, code);
   } else {
-    ASSERT(default_cache()->IsFixedArray());
-    return UpdateDefaultCache(name, code);
+    ASSERT(code_cache->default_cache()->IsFixedArray());
+    UpdateDefaultCache(code_cache, name, code);
   }
 }
 
 
-MaybeObject* CodeCache::UpdateDefaultCache(Name* name, Code* code) {
+void CodeCache::UpdateDefaultCache(
+    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
   // When updating the default code cache we disregard the type encoded in the
   // flags. This allows call constant stubs to overwrite call field
   // stubs, etc.
@@ -7556,37 +7547,40 @@ MaybeObject* CodeCache::UpdateDefaultCache(Name* name, Code* code) {
 
   // First check whether we can update existing code cache without
   // extending it.
-  FixedArray* cache = default_cache();
+  Handle<FixedArray> cache = handle(code_cache->default_cache());
   int length = cache->length();
-  int deleted_index = -1;
-  for (int i = 0; i < length; i += kCodeCacheEntrySize) {
-    Object* key = cache->get(i);
-    if (key->IsNull()) {
-      if (deleted_index < 0) deleted_index = i;
-      continue;
-    }
-    if (key->IsUndefined()) {
-      if (deleted_index >= 0) i = deleted_index;
-      cache->set(i + kCodeCacheEntryNameOffset, name);
-      cache->set(i + kCodeCacheEntryCodeOffset, code);
-      return this;
-    }
-    if (name->Equals(Name::cast(key))) {
-      Code::Flags found =
-          Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
-      if (Code::RemoveTypeFromFlags(found) == flags) {
-        cache->set(i + kCodeCacheEntryCodeOffset, code);
-        return this;
+  {
+    DisallowHeapAllocation no_alloc;
+    int deleted_index = -1;
+    for (int i = 0; i < length; i += kCodeCacheEntrySize) {
+      Object* key = cache->get(i);
+      if (key->IsNull()) {
+        if (deleted_index < 0) deleted_index = i;
+        continue;
+      }
+      if (key->IsUndefined()) {
+        if (deleted_index >= 0) i = deleted_index;
+        cache->set(i + kCodeCacheEntryNameOffset, *name);
+        cache->set(i + kCodeCacheEntryCodeOffset, *code);
+        return;
+      }
+      if (name->Equals(Name::cast(key))) {
+        Code::Flags found =
+            Code::cast(cache->get(i + kCodeCacheEntryCodeOffset))->flags();
+        if (Code::RemoveTypeFromFlags(found) == flags) {
+          cache->set(i + kCodeCacheEntryCodeOffset, *code);
+          return;
+        }
       }
     }
-  }
 
-  // Reached the end of the code cache.  If there were deleted
-  // elements, reuse the space for the first of them.
-  if (deleted_index >= 0) {
-    cache->set(deleted_index + kCodeCacheEntryNameOffset, name);
-    cache->set(deleted_index + kCodeCacheEntryCodeOffset, code);
-    return this;
+    // Reached the end of the code cache.  If there were deleted
+    // elements, reuse the space for the first of them.
+    if (deleted_index >= 0) {
+      cache->set(deleted_index + kCodeCacheEntryNameOffset, *name);
+      cache->set(deleted_index + kCodeCacheEntryCodeOffset, *code);
+      return;
+    }
   }
 
   // Extend the code cache with some new entries (at least one). Must be a
@@ -7594,29 +7588,22 @@ MaybeObject* CodeCache::UpdateDefaultCache(Name* name, Code* code) {
   int new_length = length + ((length >> 1)) + kCodeCacheEntrySize;
   new_length = new_length - new_length % kCodeCacheEntrySize;
   ASSERT((new_length % kCodeCacheEntrySize) == 0);
-  Object* result;
-  { MaybeObject* maybe_result = cache->CopySize(new_length);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  cache = FixedArray::CopySize(cache, new_length);
 
   // Add the (name, code) pair to the new cache.
-  cache = FixedArray::cast(result);
-  cache->set(length + kCodeCacheEntryNameOffset, name);
-  cache->set(length + kCodeCacheEntryCodeOffset, code);
-  set_default_cache(cache);
-  return this;
+  cache->set(length + kCodeCacheEntryNameOffset, *name);
+  cache->set(length + kCodeCacheEntryCodeOffset, *code);
+  code_cache->set_default_cache(*cache);
 }
 
 
-MaybeObject* CodeCache::UpdateNormalTypeCache(Name* name, Code* code) {
+void CodeCache::UpdateNormalTypeCache(
+    Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code) {
   // Adding a new entry can cause a new cache to be allocated.
-  CodeCacheHashTable* cache = CodeCacheHashTable::cast(normal_type_cache());
-  Object* new_cache;
-  { MaybeObject* maybe_new_cache = cache->Put(name, code);
-    if (!maybe_new_cache->ToObject(&new_cache)) return maybe_new_cache;
-  }
-  set_normal_type_cache(new_cache);
-  return this;
+  Handle<CodeCacheHashTable> cache(
+      CodeCacheHashTable::cast(code_cache->normal_type_cache()));
+  Handle<Object> new_cache = CodeCacheHashTable::Put(cache, name, code);
+  code_cache->set_normal_type_cache(*new_cache);
 }
 
 
@@ -7779,6 +7766,15 @@ MaybeObject* CodeCacheHashTable::Put(Name* name, Code* code) {
   cache->set(EntryToIndex(entry) + 1, code);
   cache->ElementAdded();
   return cache;
+}
+
+
+Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
+    Handle<CodeCacheHashTable> cache, Handle<Name> name, Handle<Code> code) {
+  Isolate* isolate = cache->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     cache->Put(*name, *code),
+                     CodeCacheHashTable);
 }
 
 
@@ -8048,6 +8044,15 @@ MaybeObject* FixedArray::CopySize(int new_length, PretenureFlag pretenure) {
     result->set(i, get(i), mode);
   }
   return result;
+}
+
+
+Handle<FixedArray> FixedArray::CopySize(
+    Handle<FixedArray> array, int new_length, PretenureFlag pretenure) {
+  Isolate* isolate = array->GetIsolate();
+  CALL_HEAP_FUNCTION(isolate,
+                     array->CopySize(new_length, pretenure),
+                     FixedArray);
 }
 
 

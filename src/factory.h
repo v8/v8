@@ -214,6 +214,8 @@ class Factory V8_FINAL {
   // the old generation).
   Handle<Struct> NewStruct(InstanceType type);
 
+  Handle<CodeCache> NewCodeCache();
+
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);
 

@@ -695,6 +695,14 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 
+Handle<CodeCache> Factory::NewCodeCache() {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateCodeCache(),
+      CodeCache);
+}
+
+
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
   Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(

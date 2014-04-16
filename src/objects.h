@@ -3060,6 +3060,9 @@ class FixedArray: public FixedArrayBase {
   MUST_USE_RESULT inline MaybeObject* Copy();
   MUST_USE_RESULT MaybeObject* CopySize(int new_length,
                                         PretenureFlag pretenure = NOT_TENURED);
+  static Handle<FixedArray> CopySize(Handle<FixedArray> array,
+                                     int new_length,
+                                     PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
   MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromJSArray(
@@ -6471,7 +6474,6 @@ class Map: public HeapObject {
   static void UpdateCodeCache(Handle<Map> map,
                               Handle<Name> name,
                               Handle<Code> code);
-  MUST_USE_RESULT MaybeObject* UpdateCodeCache(Name* name, Code* code);
 
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
@@ -8256,7 +8258,8 @@ class CodeCache: public Struct {
   DECL_ACCESSORS(normal_type_cache, Object)
 
   // Add the code object to the cache.
-  MUST_USE_RESULT MaybeObject* Update(Name* name, Code* code);
+  static void Update(
+      Handle<CodeCache> cache, Handle<Name> name, Handle<Code> code);
 
   // Lookup code object in the cache. Returns code object if found and undefined
   // if not.
@@ -8283,8 +8286,10 @@ class CodeCache: public Struct {
   static const int kSize = kNormalTypeCacheOffset + kPointerSize;
 
  private:
-  MUST_USE_RESULT MaybeObject* UpdateDefaultCache(Name* name, Code* code);
-  MUST_USE_RESULT MaybeObject* UpdateNormalTypeCache(Name* name, Code* code);
+  static void UpdateDefaultCache(
+      Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code);
+  static void UpdateNormalTypeCache(
+      Handle<CodeCache> code_cache, Handle<Name> name, Handle<Code> code);
   Object* LookupDefaultCache(Name* name, Code::Flags flags);
   Object* LookupNormalTypeCache(Name* name, Code::Flags flags);
 
@@ -8327,7 +8332,10 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTable,
                                            HashTableKey*> {
  public:
   Object* Lookup(Name* name, Code::Flags flags);
-  MUST_USE_RESULT MaybeObject* Put(Name* name, Code* code);
+  static Handle<CodeCacheHashTable> Put(
+      Handle<CodeCacheHashTable> table,
+      Handle<Name> name,
+      Handle<Code> code);
 
   int GetIndex(Name* name, Code::Flags flags);
   void RemoveByIndex(int index);
@@ -8338,6 +8346,8 @@ class CodeCacheHashTable: public HashTable<CodeCacheHashTable,
   static const int kInitialSize = 64;
 
  private:
+  MUST_USE_RESULT MaybeObject* Put(Name* name, Code* code);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeCacheHashTable);
 };
 
