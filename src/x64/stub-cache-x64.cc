@@ -496,7 +496,8 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   } else if (representation.IsHeapObject()) {
     HeapType* field_type = descriptors->GetFieldType(descriptor);
     if (field_type->IsClass()) {
-      __ CheckMap(value_reg, field_type->AsClass(), miss_label, DO_SMI_CHECK);
+      __ CheckMap(value_reg, field_type->AsClass()->Map(),
+                  miss_label, DO_SMI_CHECK);
     } else {
       ASSERT(HeapType::Any()->Is(field_type));
       __ JumpIfSmi(value_reg, miss_label);
@@ -646,7 +647,8 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   } else if (representation.IsHeapObject()) {
     HeapType* field_type = lookup->GetFieldType();
     if (field_type->IsClass()) {
-      __ CheckMap(value_reg, field_type->AsClass(), miss_label, DO_SMI_CHECK);
+      __ CheckMap(value_reg, field_type->AsClass()->Map(),
+                  miss_label, DO_SMI_CHECK);
     } else {
       ASSERT(HeapType::Any()->Is(field_type));
       __ JumpIfSmi(value_reg, miss_label);
@@ -753,7 +755,9 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
   int depth = 0;
 
   Handle<JSObject> current = Handle<JSObject>::null();
-  if (type->IsConstant()) current = Handle<JSObject>::cast(type->AsConstant());
+  if (type->IsConstant()) {
+    current = Handle<JSObject>::cast(type->AsConstant()->Value());
+  }
   Handle<JSObject> prototype = Handle<JSObject>::null();
   Handle<Map> current_map = receiver_map;
   Handle<Map> holder_map(holder->map());

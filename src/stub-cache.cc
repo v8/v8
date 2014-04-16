@@ -901,7 +901,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
   // check that the global property cell is empty.
   if (last_map->IsJSGlobalObjectMap()) {
     Handle<JSGlobalObject> global = last.is_null()
-        ? Handle<JSGlobalObject>::cast(type->AsConstant())
+        ? Handle<JSGlobalObject>::cast(type->AsConstant()->Value())
         : Handle<JSGlobalObject>::cast(last);
     GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
   }

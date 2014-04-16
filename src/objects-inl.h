@@ -87,13 +87,6 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 
-#define FIXED_TYPED_ARRAY_CAST_ACCESSOR(type)   \
-  template<>                                    \
-  type* type::cast(Object* object) {            \
-    SLOW_ASSERT(object->Is##type());            \
-    return reinterpret_cast<type*>(object);     \
-  }
-
 #define INT_ACCESSORS(holder, name, offset)                             \
   int holder::name() { return READ_INT_FIELD(this, offset); }           \
   void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
