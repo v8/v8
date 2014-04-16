@@ -139,7 +139,7 @@ class Types {
       types.push_back(Type::Constant(*it, region));
     }
 
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 50; ++i) {
       types.push_back(Fuzz());
     }
   }
