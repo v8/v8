@@ -673,16 +673,6 @@ bool MaybeObject::IsException() {
 }
 
 
-bool MaybeObject::IsTheHole() {
-  return !IsFailure() && ToObjectUnchecked()->IsTheHole();
-}
-
-
-bool MaybeObject::IsUninitialized() {
-  return !IsFailure() && ToObjectUnchecked()->IsUninitialized();
-}
-
-
 Failure* Failure::cast(MaybeObject* obj) {
   ASSERT(HAS_FAILURE_TAG(obj));
   return reinterpret_cast<Failure*>(obj);
@@ -1298,11 +1288,6 @@ Smi* Smi::FromIntptr(intptr_t value) {
 
 Failure::Type Failure::type() const {
   return static_cast<Type>(value() & kFailureTypeTagMask);
-}
-
-
-bool Failure::IsInternalError() const {
-  return type() == INTERNAL_ERROR;
 }
 
 

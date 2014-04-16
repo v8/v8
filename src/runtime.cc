@@ -7272,6 +7272,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
                                          uint32_t array_length,
                                          String* separator,
                                          Vector<Char> buffer) {
+  DisallowHeapAllocation no_gc;
   int previous_separator_position = 0;
   int separator_length = separator->length();
   int cursor = 0;
@@ -7310,10 +7311,10 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(JSArray, elements_array, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, elements_array, 0);
   RUNTIME_ASSERT(elements_array->HasFastSmiOrObjectElements());
   CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
-  CONVERT_ARG_CHECKED(String, separator, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
   // (increasing order) and strings.
   // array_length is length of original array (used to add separators);
@@ -7323,25 +7324,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   int string_length = 0;
   bool is_ascii = separator->IsOneByteRepresentation();
   bool overflow = false;
-  CONVERT_NUMBER_CHECKED(int, elements_length,
-                         Int32, elements_array->length());
+  CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
   RUNTIME_ASSERT((elements_length & 1) == 0);  // Even length.
-  FixedArray* elements = FixedArray::cast(elements_array->elements());
-  for (int i = 0; i < elements_length; i += 2) {
-    RUNTIME_ASSERT(elements->get(i)->IsNumber());
-    RUNTIME_ASSERT(elements->get(i + 1)->IsString());
-    String* string = String::cast(elements->get(i + 1));
-    int length = string->length();
-    if (is_ascii && !string->IsOneByteRepresentation()) {
-      is_ascii = false;
+
+  { DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(elements_array->elements());
+    for (int i = 0; i < elements_length; i += 2) {
+      RUNTIME_ASSERT(elements->get(i)->IsNumber());
+      RUNTIME_ASSERT(elements->get(i + 1)->IsString());
+      String* string = String::cast(elements->get(i + 1));
+      int length = string->length();
+      if (is_ascii && !string->IsOneByteRepresentation()) {
+        is_ascii = false;
+      }
+      if (length > String::kMaxLength ||
+          String::kMaxLength - length < string_length) {
+        overflow = true;
+        break;
+      }
+      string_length += length;
     }
-    if (length > String::kMaxLength ||
-        String::kMaxLength - length < string_length) {
-      overflow = true;
-      break;
-    }
-    string_length += length;
   }
+
   int separator_length = separator->length();
   if (!overflow && separator_length > 0) {
     if (array_length <= 0x7fffffffu) {
@@ -7368,32 +7372,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   }
 
   if (is_ascii) {
-    MaybeObject* result_allocation =
-        isolate->heap()->AllocateRawOneByteString(string_length);
-    if (result_allocation->IsFailure()) return result_allocation;
-    SeqOneByteString* result_string =
-        SeqOneByteString::cast(result_allocation->ToObjectUnchecked());
-    JoinSparseArrayWithSeparator<uint8_t>(elements,
-                                          elements_length,
-                                          array_length,
-                                          separator,
-                                          Vector<uint8_t>(
-                                              result_string->GetChars(),
-                                              string_length));
-    return result_string;
+    Handle<SeqOneByteString> result = isolate->factory()->NewRawOneByteString(
+        string_length).ToHandleChecked();
+    JoinSparseArrayWithSeparator<uint8_t>(
+        FixedArray::cast(elements_array->elements()),
+        elements_length,
+        array_length,
+        *separator,
+        Vector<uint8_t>(result->GetChars(), string_length));
+    return *result;
   } else {
-    MaybeObject* result_allocation =
-        isolate->heap()->AllocateRawTwoByteString(string_length);
-    if (result_allocation->IsFailure()) return result_allocation;
-    SeqTwoByteString* result_string =
-        SeqTwoByteString::cast(result_allocation->ToObjectUnchecked());
-    JoinSparseArrayWithSeparator<uc16>(elements,
-                                       elements_length,
-                                       array_length,
-                                       separator,
-                                       Vector<uc16>(result_string->GetChars(),
-                                                    string_length));
-    return result_string;
+    Handle<SeqTwoByteString> result = isolate->factory()->NewRawTwoByteString(
+        string_length).ToHandleChecked();
+    JoinSparseArrayWithSeparator<uc16>(
+        FixedArray::cast(elements_array->elements()),
+        elements_length,
+        array_length,
+        *separator,
+        Vector<uc16>(result->GetChars(), string_length));
+    return *result;
   }
 }
 
@@ -9171,15 +9168,6 @@ static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
 #endif
 
 
-static inline MaybeObject* Unhole(Heap* heap,
-                                  MaybeObject* x,
-                                  PropertyAttributes attributes) {
-  ASSERT(!x->IsTheHole() || (attributes & READ_ONLY) != 0);
-  USE(attributes);
-  return x->IsTheHole() ? heap->undefined_value() : x;
-}
-
-
 static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
                                            JSObject* holder) {
   ASSERT(!holder->IsGlobalObject());
@@ -9249,7 +9237,11 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
         ASSERT(!value->IsTheHole());
         return MakePair(value, *receiver);
       case IMMUTABLE_CHECK_INITIALIZED:
-        return MakePair(Unhole(isolate->heap(), value, attributes), *receiver);
+        if (value->IsTheHole()) {
+          ASSERT((attributes & READ_ONLY) != 0);
+          value = isolate->heap()->undefined_value();
+        }
+        return MakePair(value, *receiver);
       case MISSING_BINDING:
         UNREACHABLE();
         return MakePair(NULL, NULL);

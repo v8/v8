@@ -924,16 +924,10 @@ class MaybeObject BASE_EMBEDDED {
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
   inline bool IsException();
-  INLINE(bool IsTheHole());
-  INLINE(bool IsUninitialized());
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
     return true;
-  }
-  inline Failure* ToFailureUnchecked() {
-    ASSERT(IsFailure());
-    return reinterpret_cast<Failure*>(this);
   }
   inline Object* ToObjectUnchecked() {
     // TODO(jkummerow): Turn this back into an ASSERT when we can be certain
@@ -950,13 +944,6 @@ class MaybeObject BASE_EMBEDDED {
   inline bool To(T** obj) {
     if (IsFailure()) return false;
     *obj = T::cast(reinterpret_cast<Object*>(this));
-    return true;
-  }
-
-  template<typename T>
-    inline bool ToHandle(Handle<T>* obj, Isolate* isolate) {
-    if (IsFailure()) return false;
-    *obj = handle(T::cast(reinterpret_cast<Object*>(this)), isolate);
     return true;
   }
 
@@ -1709,8 +1696,6 @@ class Failure: public MaybeObject {
 
   // Returns the space that needs to be collected for RetryAfterGC failures.
   inline AllocationSpace allocation_space() const;
-
-  inline bool IsInternalError() const;
 
   static inline Failure* RetryAfterGC(AllocationSpace space);
   static inline Failure* RetryAfterGC();  // NEW_SPACE

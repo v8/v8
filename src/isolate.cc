@@ -893,7 +893,6 @@ Failure* Isolate::ReThrow(Object* exception) {
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
-  if (exception->IsFailure()) return exception->ToFailureUnchecked();
   return Failure::Exception();
 }
 
