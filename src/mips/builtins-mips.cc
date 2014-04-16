@@ -1421,6 +1421,27 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
+static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
+                                      Label* stack_overflow) {
+  // ----------- S t a t e -------------
+  //  -- a0 : actual number of arguments
+  //  -- a1 : function (passed through to callee)
+  //  -- a2 : expected number of arguments
+  // -----------------------------------
+  // Check the stack for overflow. We are not trying to catch
+  // interruptions (e.g. debug break and preemption) here, so the "real stack
+  // limit" is checked.
+  __ LoadRoot(t1, Heap::kRealStackLimitRootIndex);
+  // Make t1 the space we have left. The stack might already be overflowed
+  // here which will cause t1 to become negative.
+  __ subu(t1, sp, t1);
+  // Check if the arguments will overflow the stack.
+  __ sll(at, a2, kPointerSizeLog2);
+  // Signed comparison.
+  __ Branch(stack_overflow, le, t1, Operand(at));
+}
+
+
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ sll(a0, a0, kSmiTagSize);
   __ li(t0, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
@@ -1455,6 +1476,8 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- a2: expected arguments count
   // -----------------------------------
 
+  Label stack_overflow;
+  ArgumentAdaptorStackCheck(masm, &stack_overflow);
   Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
@@ -1563,6 +1586,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   __ Jump(a3);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope frame(masm, StackFrame::MANUAL);
+    EnterArgumentsAdaptorFrame(masm);
+    __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+    __ break_(0xCC);
+  }
 }
 
 
