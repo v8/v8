@@ -6,6 +6,7 @@
 
 #include "macro-assembler.h"
 #include "isolate-inl.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -722,10 +723,11 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 
 
 Handle<CodeCache> Factory::NewCodeCache() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateCodeCache(),
-      CodeCache);
+  Handle<CodeCache> code_cache =
+      Handle<CodeCache>::cast(NewStruct(CODE_CACHE_TYPE));
+  code_cache->set_default_cache(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code_cache->set_normal_type_cache(*undefined_value(), SKIP_WRITE_BARRIER);
+  return code_cache;
 }
 
 
@@ -1017,17 +1019,26 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<Object> Factory::NewNumber(double value,
                                   PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->NumberFromDouble(value, pretenure), Object);
+  // We need to distinguish the minus zero value and this cannot be
+  // done after conversion to int. Doing this by comparing bit
+  // patterns is faster than using fpclassify() et al.
+  if (IsMinusZero(value)) return NewHeapNumber(-0.0, pretenure);
+
+  int int_value = FastD2I(value);
+  if (value == int_value && Smi::IsValid(int_value)) {
+    return handle(Smi::FromInt(int_value), isolate());
+  }
+
+  // Materialize the value in the heap.
+  return NewHeapNumber(value, pretenure);
 }
 
 
 Handle<Object> Factory::NewNumberFromInt(int32_t value,
                                          PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->NumberFromInt32(value, pretenure), Object);
+  if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
+  // Bypass NumberFromDouble to avoid various redundant checks.
+  return NewHeapNumber(FastI2D(value), pretenure);
 }
 
 
@@ -1854,18 +1865,78 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
 }
 
 
-Handle<String> Factory::NumberToString(Handle<Object> number,
-                                       bool check_number_string_cache) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->NumberToString(
-                         *number, check_number_string_cache),
-                     String);
+static inline int NumberCacheHash(Handle<FixedArray> cache,
+                                  Handle<Object> number) {
+  int mask = (cache->length() >> 1) - 1;
+  if (number->IsSmi()) {
+    return Handle<Smi>::cast(number)->value() & mask;
+  } else {
+    DoubleRepresentation rep(number->Number());
+    return
+        (static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32)) & mask;
+  }
 }
 
 
-Handle<String> Factory::Uint32ToString(uint32_t value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->Uint32ToString(value), String);
+Handle<Object> Factory::GetNumberStringCache(Handle<Object> number) {
+  DisallowHeapAllocation no_gc;
+  int hash = NumberCacheHash(number_string_cache(), number);
+  Object* key = number_string_cache()->get(hash * 2);
+  if (key == *number || (key->IsHeapNumber() && number->IsHeapNumber() &&
+                         key->Number() == number->Number())) {
+    return Handle<String>(
+        String::cast(number_string_cache()->get(hash * 2 + 1)), isolate());
+  }
+  return undefined_value();
+}
+
+
+void Factory::SetNumberStringCache(Handle<Object> number,
+                                   Handle<String> string) {
+  int hash = NumberCacheHash(number_string_cache(), number);
+  if (number_string_cache()->get(hash * 2) != *undefined_value()) {
+    int full_size = isolate()->heap()->FullSizeNumberStringCacheLength();
+    if (number_string_cache()->length() != full_size) {
+      // The first time we have a hash collision, we move to the full sized
+      // number string cache.  The idea is to have a small number string
+      // cache in the snapshot to keep  boot-time memory usage down.
+      // If we expand the number string cache already while creating
+      // the snapshot then that didn't work out.
+      ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
+      Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
+      isolate()->heap()->set_number_string_cache(*new_cache);
+      return;
+    }
+  }
+  number_string_cache()->set(hash * 2, *number);
+  number_string_cache()->set(hash * 2 + 1, *string);
+}
+
+
+Handle<String> Factory::NumberToString(Handle<Object> number,
+                                       bool check_number_string_cache) {
+  isolate()->counters()->number_to_string_runtime()->Increment();
+  if (check_number_string_cache) {
+    Handle<Object> cached = GetNumberStringCache(number);
+    if (!cached->IsUndefined()) return Handle<String>::cast(cached);
+  }
+
+  char arr[100];
+  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  const char* str;
+  if (number->IsSmi()) {
+    int num = Handle<Smi>::cast(number)->value();
+    str = IntToCString(num, buffer);
+  } else {
+    double num = Handle<HeapNumber>::cast(number)->value();
+    str = DoubleToCString(num, buffer);
+  }
+
+  // We tenure the allocated string since it is referenced from the
+  // number-string cache which lives in the old space.
+  Handle<String> js_string = NewStringFromOneByte(OneByteVector(str), TENURED);
+  SetNumberStringCache(number, js_string);
+  return js_string;
 }
 
 

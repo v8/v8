@@ -755,9 +755,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
                                                   int instance_size);
 
-  // Allocates an empty code cache.
-  MUST_USE_RESULT MaybeObject* AllocateCodeCache();
-
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
@@ -982,21 +979,9 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateArgumentsObject(
       Object* callee, int length);
 
-  // Same as NewNumberFromDouble, but may return a preallocated/immutable
-  // number object (e.g., minus_zero_value_, nan_value_)
-  MUST_USE_RESULT MaybeObject* NumberFromDouble(
-      double value, PretenureFlag pretenure = NOT_TENURED);
-
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT MaybeObject* AllocateHeapNumber(
       double value, PretenureFlag pretenure = NOT_TENURED);
-
-  // Converts an int into either a Smi or a HeapNumber object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* NumberFromInt32(
-      int32_t value, PretenureFlag pretenure = NOT_TENURED);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1367,13 +1352,6 @@ class Heap {
 
   bool CreateApiObjects();
 
-  // Attempt to find the number in a small cache.  If we finds it, return
-  // the string representation of the number.  Otherwise return undefined.
-  Object* GetNumberStringCache(Object* number);
-
-  // Update the cache with a new number-string pair.
-  void SetNumberStringCache(Object* number, String* str);
-
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
   inline int64_t AdjustAmountOfExternalAllocatedMemory(
@@ -1469,11 +1447,6 @@ class Heap {
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
   // Generated code can treat direct references to this root as constant.
   bool RootCanBeTreatedAsConstant(RootListIndex root_index);
-
-  MUST_USE_RESULT MaybeObject* NumberToString(
-      Object* number, bool check_number_string_cache = true);
-  MUST_USE_RESULT MaybeObject* Uint32ToString(
-      uint32_t value, bool check_number_string_cache = true);
 
   Map* MapForFixedTypedArray(ExternalArrayType array_type);
   RootListIndex RootIndexForFixedTypedArray(
@@ -2119,9 +2092,6 @@ class Heap {
   // Allocates a small number to string cache.
   MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
   // Creates and installs the full-sized number string cache.
-  void AllocateFullSizeNumberStringCache();
-  // Get the length of the number to string cache based on the max semispace
-  // size.
   int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();

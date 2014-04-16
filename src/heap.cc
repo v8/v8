@@ -2408,17 +2408,6 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 }
 
 
-MaybeObject* Heap::AllocateCodeCache() {
-  CodeCache* code_cache;
-  { MaybeObject* maybe_code_cache = AllocateStruct(CODE_CACHE_TYPE);
-    if (!maybe_code_cache->To(&code_cache)) return maybe_code_cache;
-  }
-  code_cache->set_default_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code_cache->set_normal_type_cache(undefined_value(), SKIP_WRITE_BARRIER);
-  return code_cache;
-}
-
-
 MaybeObject* Heap::AllocatePolymorphicCodeCache() {
   return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
 }
@@ -3255,124 +3244,12 @@ int Heap::FullSizeNumberStringCacheLength() {
 }
 
 
-void Heap::AllocateFullSizeNumberStringCache() {
-  // The idea is to have a small number string cache in the snapshot to keep
-  // boot-time memory usage down.  If we expand the number string cache already
-  // while creating the snapshot then that didn't work out.
-  ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
-  MaybeObject* maybe_obj =
-      AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
-  Object* new_cache;
-  if (maybe_obj->ToObject(&new_cache)) {
-    // We don't bother to repopulate the cache with entries from the old cache.
-    // It will be repopulated soon enough with new strings.
-    set_number_string_cache(FixedArray::cast(new_cache));
-  }
-  // If allocation fails then we just return without doing anything.  It is only
-  // a cache, so best effort is OK here.
-}
-
-
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();
   for (int i = 0; i < len; i++) {
     number_string_cache()->set_undefined(i);
   }
-}
-
-
-static inline int double_get_hash(double d) {
-  DoubleRepresentation rep(d);
-  return static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32);
-}
-
-
-static inline int smi_get_hash(Smi* smi) {
-  return smi->value();
-}
-
-
-Object* Heap::GetNumberStringCache(Object* number) {
-  int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number)) & mask;
-  } else {
-    hash = double_get_hash(number->Number()) & mask;
-  }
-  Object* key = number_string_cache()->get(hash * 2);
-  if (key == number) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
-  } else if (key->IsHeapNumber() &&
-             number->IsHeapNumber() &&
-             key->Number() == number->Number()) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
-  }
-  return undefined_value();
-}
-
-
-void Heap::SetNumberStringCache(Object* number, String* string) {
-  int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number)) & mask;
-  } else {
-    hash = double_get_hash(number->Number()) & mask;
-  }
-  if (number_string_cache()->get(hash * 2) != undefined_value() &&
-      number_string_cache()->length() != FullSizeNumberStringCacheLength()) {
-    // The first time we have a hash collision, we move to the full sized
-    // number string cache.
-    AllocateFullSizeNumberStringCache();
-    return;
-  }
-  number_string_cache()->set(hash * 2, number);
-  number_string_cache()->set(hash * 2 + 1, string);
-}
-
-
-MaybeObject* Heap::NumberToString(Object* number,
-                                  bool check_number_string_cache) {
-  isolate_->counters()->number_to_string_runtime()->Increment();
-  if (check_number_string_cache) {
-    Object* cached = GetNumberStringCache(number);
-    if (cached != undefined_value()) {
-      return cached;
-    }
-  }
-
-  char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
-  const char* str;
-  if (number->IsSmi()) {
-    int num = Smi::cast(number)->value();
-    str = IntToCString(num, buffer);
-  } else {
-    double num = HeapNumber::cast(number)->value();
-    str = DoubleToCString(num, buffer);
-  }
-
-  Object* js_string;
-
-  // We tenure the allocated string since it is referenced from the
-  // number-string cache which lives in the old space.
-  MaybeObject* maybe_js_string =
-      AllocateStringFromOneByte(CStrVector(str), TENURED);
-  if (maybe_js_string->ToObject(&js_string)) {
-    SetNumberStringCache(number, String::cast(js_string));
-  }
-  return maybe_js_string;
-}
-
-
-MaybeObject* Heap::Uint32ToString(uint32_t value,
-                                  bool check_number_string_cache) {
-  Object* number;
-  MaybeObject* maybe = NumberFromUint32(value);
-  if (!maybe->To<Object>(&number)) return maybe;
-  return NumberToString(number, check_number_string_cache);
 }
 
 
@@ -3510,24 +3387,6 @@ ExternalArray* Heap::EmptyExternalArrayForMap(Map* map) {
 FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
   return FixedTypedArrayBase::cast(
       roots_[RootIndexForEmptyFixedTypedArray(map->elements_kind())]);
-}
-
-
-MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
-  // We need to distinguish the minus zero value and this cannot be
-  // done after conversion to int. Doing this by comparing bit
-  // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) {
-    return AllocateHeapNumber(-0.0, pretenure);
-  }
-
-  int int_value = FastD2I(value);
-  if (value == int_value && Smi::IsValid(int_value)) {
-    return Smi::FromInt(int_value);
-  }
-
-  // Materialize the value in the heap.
-  return AllocateHeapNumber(value, pretenure);
 }
 
 

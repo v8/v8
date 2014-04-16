@@ -269,14 +269,6 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
 }
 
 
-MaybeObject* Heap::NumberFromInt32(
-    int32_t value, PretenureFlag pretenure) {
-  if (Smi::IsValid(value)) return Smi::FromInt(value);
-  // Bypass NumberFromDouble to avoid various redundant checks.
-  return AllocateHeapNumber(FastI2D(value), pretenure);
-}
-
-
 MaybeObject* Heap::NumberFromUint32(
     uint32_t value, PretenureFlag pretenure) {
   if (static_cast<int32_t>(value) >= 0 &&

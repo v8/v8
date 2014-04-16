@@ -283,6 +283,7 @@ class Factory V8_FINAL {
       Handle<ConstantPoolArray> array);
 
   // Numbers (e.g. literals) are pretenured by the parser.
+  // The return value may be a smi or a heap number.
   Handle<Object> NewNumber(double value,
                            PretenureFlag pretenure = NOT_TENURED);
 
@@ -500,7 +501,10 @@ class Factory V8_FINAL {
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
-  Handle<String> Uint32ToString(uint32_t value);
+
+  Handle<String> Uint32ToString(uint32_t value) {
+    return NumberToString(NewNumberFromUint(value));
+  }
 
   enum ApiInstanceType {
     JavaScriptObject,
@@ -645,6 +649,13 @@ class Factory V8_FINAL {
   Handle<MapCache> AddToMapCache(Handle<Context> context,
                                  Handle<FixedArray> keys,
                                  Handle<Map> map);
+
+  // Attempt to find the number in a small cache.  If we finds it, return
+  // the string representation of the number.  Otherwise return undefined.
+  Handle<Object> GetNumberStringCache(Handle<Object> number);
+
+  // Update the cache with a new number-string pair.
+  void SetNumberStringCache(Handle<Object> number, Handle<String> string);
 };
 
 } }  // namespace v8::internal
