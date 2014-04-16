@@ -66,8 +66,8 @@
 //      LAZY_INSTANCE_INITIALIZER;
 //
 // WARNINGS:
-// - This implementation of LazyInstance is NOT THREAD-SAFE by default. See
-//   ThreadSafeInitOnceTrait declared below for that.
+// - This implementation of LazyInstance IS THREAD-SAFE by default. See
+//   SingleThreadInitOnceTrait if you don't care about thread safety.
 // - Lazy initialization comes with a cost. Make sure that you don't use it on
 //   critical path. Consider adding your initialization code to a function
 //   which is explicitly called once.
@@ -227,7 +227,7 @@ struct LazyInstanceImpl {
 
 template <typename T,
           typename CreateTrait = DefaultConstructTrait<T>,
-          typename InitOnceTrait = SingleThreadInitOnceTrait,
+          typename InitOnceTrait = ThreadSafeInitOnceTrait,
           typename DestroyTrait = LeakyInstanceTrait<T> >
 struct LazyStaticInstance {
   typedef LazyInstanceImpl<T, StaticallyAllocatedInstanceTrait<T>,
@@ -237,7 +237,7 @@ struct LazyStaticInstance {
 
 template <typename T,
           typename CreateTrait = DefaultConstructTrait<T>,
-          typename InitOnceTrait = SingleThreadInitOnceTrait,
+          typename InitOnceTrait = ThreadSafeInitOnceTrait,
           typename DestroyTrait = LeakyInstanceTrait<T> >
 struct LazyInstance {
   // A LazyInstance is a LazyStaticInstance.
@@ -248,7 +248,7 @@ struct LazyInstance {
 
 template <typename T,
           typename CreateTrait = DefaultCreateTrait<T>,
-          typename InitOnceTrait = SingleThreadInitOnceTrait,
+          typename InitOnceTrait = ThreadSafeInitOnceTrait,
           typename DestroyTrait = LeakyInstanceTrait<T> >
 struct LazyDynamicInstance {
   typedef LazyInstanceImpl<T, DynamicallyAllocatedInstanceTrait<T>,
