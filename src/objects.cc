@@ -1823,6 +1823,62 @@ String* JSReceiver::constructor_name() {
 }
 
 
+MaybeHandle<Map> Map::CopyWithField(Handle<Map> map,
+                                    Handle<Name> name,
+                                    Handle<HeapType> type,
+                                    PropertyAttributes attributes,
+                                    Representation representation,
+                                    TransitionFlag flag) {
+  ASSERT(DescriptorArray::kNotFound ==
+         map->instance_descriptors()->Search(
+             *name, map->NumberOfOwnDescriptors()));
+
+  // Ensure the descriptor array does not get too big.
+  if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors) {
+    return MaybeHandle<Map>();
+  }
+
+  // Normalize the object if the name is an actual name (not the
+  // hidden strings) and is not a real identifier.
+  // Normalize the object if it will have too many fast properties.
+  Isolate* isolate = map->GetIsolate();
+  if (!name->IsCacheable(isolate)) return MaybeHandle<Map>();
+
+  // Compute the new index for new field.
+  int index = map->NextFreePropertyIndex();
+
+  if (map->instance_type() == JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
+    representation = Representation::Tagged();
+    type = HeapType::Any(isolate);
+  }
+
+  FieldDescriptor new_field_desc(name, index, type, attributes, representation);
+  Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
+  int unused_property_fields = new_map->unused_property_fields() - 1;
+  if (unused_property_fields < 0) {
+    unused_property_fields += JSObject::kFieldsAdded;
+  }
+  new_map->set_unused_property_fields(unused_property_fields);
+  return new_map;
+}
+
+
+MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
+                                       Handle<Name> name,
+                                       Handle<Object> constant,
+                                       PropertyAttributes attributes,
+                                       TransitionFlag flag) {
+  // Ensure the descriptor array does not get too big.
+  if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors) {
+    return MaybeHandle<Map>();
+  }
+
+  // Allocate new instance descriptors with (name, constant) added.
+  ConstantDescriptor new_constant_desc(name, constant, attributes);
+  return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
+}
+
+
 void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -1831,39 +1887,33 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
                                ValueType value_type,
                                TransitionFlag flag) {
   ASSERT(!object->IsJSGlobalProxy());
-  ASSERT(DescriptorArray::kNotFound ==
-         object->map()->instance_descriptors()->Search(
-             *name, object->map()->NumberOfOwnDescriptors()));
 
-  // Normalize the object if the name is an actual name (not the
-  // hidden strings) and is not a real identifier.
-  // Normalize the object if it will have too many fast properties.
-  Isolate* isolate = object->GetIsolate();
-  if (!name->IsCacheable(isolate) ||
-      object->TooManyFastProperties(store_mode)) {
+  MaybeHandle<Map> maybe_map;
+  if (value->IsJSFunction()) {
+    maybe_map = Map::CopyWithConstant(
+        handle(object->map()), name, value, attributes, flag);
+  } else if (!object->TooManyFastProperties(store_mode)) {
+    Isolate* isolate = object->GetIsolate();
+    Representation representation = value->OptimalRepresentation(value_type);
+    maybe_map = Map::CopyWithField(
+        handle(object->map(), isolate), name,
+        value->OptimalType(isolate, representation),
+        attributes, representation, flag);
+  }
+
+  Handle<Map> new_map;
+  if (!maybe_map.ToHandle(&new_map)) {
     NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
-    AddSlowProperty(object, name, value, attributes);
     return;
   }
 
-  // Allocate new instance descriptors with (name, index) added
-  if (object->IsJSContextExtensionObject()) value_type = FORCE_TAGGED;
-  Representation representation = value->OptimalRepresentation(value_type);
-
-  // Compute the new index for new field.
-  int index = object->map()->NextFreePropertyIndex();
-
-  Handle<HeapType> type = value->OptimalType(isolate, representation);
-  FieldDescriptor new_field_desc(name, index, type, attributes, representation);
-  Handle<Map> new_map = Map::CopyAddDescriptor(
-      handle(object->map()), &new_field_desc, flag);
-  int unused_property_fields = new_map->unused_property_fields() - 1;
-  if (unused_property_fields < 0) {
-    unused_property_fields += JSObject::kFieldsAdded;
-  }
-  new_map->set_unused_property_fields(unused_property_fields);
-
   JSObject::MigrateToMap(object, new_map);
+
+  PropertyDetails details = new_map->GetLastDescriptorDetails();
+  if (details.type() != FIELD) return;
+
+  Representation representation = details.representation();
+  int index = details.field_index();
 
   if (representation.IsDouble()) {
     // Nothing more to be done.
@@ -1873,24 +1923,6 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
   } else {
     object->FastPropertyAtPut(index, *value);
   }
-}
-
-
-void JSObject::AddConstantProperty(Handle<JSObject> object,
-                                   Handle<Name> name,
-                                   Handle<Object> constant,
-                                   PropertyAttributes attributes,
-                                   TransitionFlag initial_flag) {
-  ASSERT(!object->IsGlobalObject());
-  // Don't add transitions to special properties with non-trivial attributes.
-  TransitionFlag flag = attributes != NONE ? OMIT_TRANSITION : initial_flag;
-
-  // Allocate new instance descriptors with (name, constant) added.
-  ConstantDescriptor new_constant_desc(name, constant, attributes);
-  Handle<Map> new_map = Map::CopyAddDescriptor(
-      handle(object->map()), &new_constant_desc, flag);
-
-  JSObject::MigrateToMap(object, new_map);
 }
 
 
@@ -1958,25 +1990,11 @@ MaybeHandle<Object> JSObject::AddProperty(
   }
 
   if (object->HasFastProperties()) {
-    // Ensure the descriptor array does not get too big.
-    if (object->map()->NumberOfOwnDescriptors() <= kMaxNumberOfDescriptors) {
-      // TODO(verwaest): Support other constants.
-      // if (mode == ALLOW_AS_CONSTANT &&
-      //     !value->IsTheHole() &&
-      //     !value->IsConsString()) {
-      if (value->IsJSFunction()) {
-        AddConstantProperty(object, name, value, attributes, transition_flag);
-      } else {
-        AddFastProperty(object, name, value, attributes, store_mode,
-                        value_type, transition_flag);
-      }
-    } else {
-      // Normalize the object to prevent very large instance descriptors.
-      // This eliminates unwanted N^2 allocation and lookup behavior.
-      NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
-      AddSlowProperty(object, name, value, attributes);
-    }
-  } else {
+    AddFastProperty(object, name, value, attributes, store_mode,
+                    value_type, transition_flag);
+  }
+
+  if (!object->HasFastProperties()) {
     AddSlowProperty(object, name, value, attributes);
   }
 
@@ -6616,15 +6634,6 @@ static bool TryAccessorTransition(Handle<JSObject> self,
 }
 
 
-static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
-                                        Handle<Name> name,
-                                        Handle<AccessorPair> accessors,
-                                        PropertyAttributes attributes) {
-  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
-  return Map::CopyInsertDescriptor(map, &new_accessors_desc, INSERT_TRANSITION);
-}
-
-
 bool JSObject::DefineFastAccessor(Handle<JSObject> object,
                                   Handle<Name> name,
                                   AccessorComponent component,
@@ -6689,8 +6698,11 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
       ? AccessorPair::Copy(Handle<AccessorPair>(source_accessors))
       : isolate->factory()->NewAccessorPair();
   accessors->set(component, *accessor);
-  Handle<Map> new_map = CopyInsertDescriptor(Handle<Map>(object->map()),
-                                             name, accessors, attributes);
+
+  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
+  Handle<Map> new_map = Map::CopyInsertDescriptor(
+      handle(object->map()), &new_accessors_desc, INSERT_TRANSITION);
+
   JSObject::MigrateToMap(object, new_map);
   return true;
 }

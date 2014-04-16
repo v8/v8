@@ -2891,18 +2891,6 @@ class JSObject: public JSReceiver {
       StoreMode mode = ALLOW_AS_CONSTANT,
       TransitionFlag flag = INSERT_TRANSITION);
 
-  // Add a constant function property to a fast-case object.
-  // This leaves a CONSTANT_TRANSITION in the old map, and
-  // if it is called on a second object with this map, a
-  // normal property is added instead, with a map transition.
-  // This avoids the creation of many maps with the same constant
-  // function, all orphaned.
-  static void AddConstantProperty(Handle<JSObject> object,
-                                  Handle<Name> name,
-                                  Handle<Object> constant,
-                                  PropertyAttributes attributes,
-                                  TransitionFlag flag);
-
   // Add a property to a fast-case object.
   static void AddFastProperty(Handle<JSObject> object,
                               Handle<Name> name,
@@ -6416,9 +6404,6 @@ class Map: public HeapObject {
       Handle<DescriptorArray> descriptors,
       TransitionFlag flag,
       SimpleTransitionFlag simple_flag = FULL_TRANSITION);
-  static Handle<Map> CopyAddDescriptor(Handle<Map> map,
-                                       Descriptor* descriptor,
-                                       TransitionFlag flag);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
@@ -6427,6 +6412,21 @@ class Map: public HeapObject {
                                            Descriptor* descriptor,
                                            int index,
                                            TransitionFlag flag);
+
+  MUST_USE_RESULT static MaybeHandle<Map> CopyWithField(
+      Handle<Map> map,
+      Handle<Name> name,
+      Handle<HeapType> type,
+      PropertyAttributes attributes,
+      Representation representation,
+      TransitionFlag flag);
+
+  MUST_USE_RESULT static MaybeHandle<Map> CopyWithConstant(
+      Handle<Map> map,
+      Handle<Name> name,
+      Handle<Object> constant,
+      PropertyAttributes attributes,
+      TransitionFlag flag);
 
   static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
@@ -6678,6 +6678,9 @@ class Map: public HeapObject {
       Handle<Map> map,
       int new_descriptor,
       Handle<DescriptorArray> descriptors);
+  static Handle<Map> CopyAddDescriptor(Handle<Map> map,
+                                       Descriptor* descriptor,
+                                       TransitionFlag flag);
 
   // Zaps the contents of backing data structures. Note that the
   // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
