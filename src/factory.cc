@@ -1304,17 +1304,6 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 }
 
 
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
-                                                        Handle<Code> code) {
-  Handle<JSFunction> function = NewFunctionWithoutPrototype(name, SLOPPY);
-  function->shared()->set_code(*code);
-  function->set_code(*code);
-  ASSERT(!function->has_initial_map());
-  ASSERT(!function->has_prototype());
-  return function;
-}
-
-
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   Handle<FixedArray> array = NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(*scope_info_map());
@@ -2025,13 +2014,12 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 }
 
 
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
-    Handle<String> name,
-    StrictMode strict_mode) {
+Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
+                                                        Handle<Code> code) {
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  info->set_code(*code);
   Handle<Context> context(isolate()->context()->native_context());
-  Handle<JSFunction> fun = NewFunction(info, context, MaybeHandle<Object>());
-  return fun;
+  return NewFunction(info, context, MaybeHandle<Object>());
 }
 
 

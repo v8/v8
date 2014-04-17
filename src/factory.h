@@ -442,9 +442,6 @@ class Factory V8_FINAL {
                                               bool force_initial_map);
 
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
-                                                 StrictMode strict_mode);
-
-  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code);
 
   // Create a serialized scope info.

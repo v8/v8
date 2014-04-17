@@ -484,15 +484,11 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // 262 15.3.4.
   Handle<String> empty_string =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
+  Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
   Handle<JSFunction> empty_function =
-      factory->NewFunctionWithoutPrototype(empty_string, SLOPPY);
+      factory->NewFunctionWithoutPrototype(empty_string, code);
 
   // --- E m p t y ---
-  Handle<Code> code =
-      Handle<Code>(isolate->builtins()->builtin(
-          Builtins::kEmptyFunction));
-  empty_function->set_code(*code);
-  empty_function->shared()->set_code(*code);
   Handle<String> source =
       factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("() {}"));
   Handle<Script> script = factory->NewScript(source);
@@ -567,13 +563,11 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
   if (throw_type_error_function.is_null()) {
     Handle<String> name = factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("ThrowTypeError"));
-    throw_type_error_function =
-      factory()->NewFunctionWithoutPrototype(name, SLOPPY);
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
+    throw_type_error_function =
+        factory()->NewFunctionWithoutPrototype(name, code);
     throw_type_error_function->set_map(native_context()->sloppy_function_map());
-    throw_type_error_function->set_code(*code);
-    throw_type_error_function->shared()->set_code(*code);
     throw_type_error_function->shared()->DontAdaptArguments();
 
     JSObject::PreventExtensions(throw_type_error_function).Assert();
