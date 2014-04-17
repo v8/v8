@@ -7045,6 +7045,7 @@ static inline void StringBuilderConcatHelper(String* special,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
                                              int array_length) {
+  DisallowHeapAllocation no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
@@ -7079,36 +7080,13 @@ static inline void StringBuilderConcatHelper(String* special,
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
-  int array_length = args.smi_at(1);
-  CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
-
-  // This assumption is used by the slice encoding in one or two smis.
-  ASSERT(Smi::kMaxValue >= String::kMaxLength);
-
-  JSObject::EnsureCanContainHeapObjectElements(array);
-
-  int special_length = special->length();
-  if (!array->HasFastObjectElements()) {
-    return isolate->Throw(isolate->heap()->illegal_argument_string());
-  }
-  FixedArray* fixed_array = FixedArray::cast(array->elements());
-  if (fixed_array->length() < array_length) {
-    array_length = fixed_array->length();
-  }
-
-  if (array_length == 0) {
-    return isolate->heap()->empty_string();
-  } else if (array_length == 1) {
-    Object* first = fixed_array->get(0);
-    if (first->IsString()) return first;
-  }
-
-  bool one_byte = special->HasOnlyOneByteChars();
+// Returns the result length of the concatenation.
+// On illegal argument, -1 is returned.
+static inline int StringBuilderConcatLength(int special_length,
+                                            FixedArray* fixed_array,
+                                            int array_length,
+                                            bool* one_byte) {
+  DisallowHeapAllocation no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
@@ -7127,66 +7105,97 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
         len = -smi_value;
         // Get the position and check that it is a positive smi.
         i++;
-        if (i >= array_length) {
-          return isolate->Throw(isolate->heap()->illegal_argument_string());
-        }
+        if (i >= array_length) return -1;
         Object* next_smi = fixed_array->get(i);
-        if (!next_smi->IsSmi()) {
-          return isolate->Throw(isolate->heap()->illegal_argument_string());
-        }
+        if (!next_smi->IsSmi()) return -1;
         pos = Smi::cast(next_smi)->value();
-        if (pos < 0) {
-          return isolate->Throw(isolate->heap()->illegal_argument_string());
-        }
+        if (pos < 0) return -1;
       }
       ASSERT(pos >= 0);
       ASSERT(len >= 0);
-      if (pos > special_length || len > special_length - pos) {
-        return isolate->Throw(isolate->heap()->illegal_argument_string());
-      }
+      if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (one_byte && !element->HasOnlyOneByteChars()) {
-        one_byte = false;
+      if (*one_byte && !element->HasOnlyOneByteChars()) {
+        *one_byte = false;
       }
     } else {
       ASSERT(!elt->IsTheHole());
-      return isolate->Throw(isolate->heap()->illegal_argument_string());
+      return -1;
     }
     if (increment > String::kMaxLength - position) {
-      return isolate->ThrowInvalidStringLength();
+      return kMaxInt;  // Provoke throw on allocation.
     }
     position += increment;
   }
+  return position;
+}
 
-  int length = position;
-  Object* object;
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
+  int array_length = args.smi_at(1);
+  CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
+
+  // This assumption is used by the slice encoding in one or two smis.
+  ASSERT(Smi::kMaxValue >= String::kMaxLength);
+
+  JSObject::EnsureCanContainHeapObjectElements(array);
+
+  int special_length = special->length();
+  if (!array->HasFastObjectElements()) {
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
+  }
+
+  int length;
+  bool one_byte = special->HasOnlyOneByteChars();
+
+  { DisallowHeapAllocation no_gc;
+    FixedArray* fixed_array = FixedArray::cast(array->elements());
+    if (fixed_array->length() < array_length) {
+      array_length = fixed_array->length();
+    }
+
+    if (array_length == 0) {
+      return isolate->heap()->empty_string();
+    } else if (array_length == 1) {
+      Object* first = fixed_array->get(0);
+      if (first->IsString()) return first;
+    }
+    length = StringBuilderConcatLength(
+        special_length, fixed_array, array_length, &one_byte);
+  }
+
+  if (length == -1) {
+    return isolate->Throw(isolate->heap()->illegal_argument_string());
+  }
 
   if (one_byte) {
-    { MaybeObject* maybe_object =
-          isolate->heap()->AllocateRawOneByteString(length);
-      if (!maybe_object->ToObject(&object)) return maybe_object;
-    }
-    SeqOneByteString* answer = SeqOneByteString::cast(object);
+    Handle<SeqOneByteString> answer;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, answer,
+        isolate->factory()->NewRawOneByteString(length));
     StringBuilderConcatHelper(*special,
                               answer->GetChars(),
-                              fixed_array,
+                              FixedArray::cast(array->elements()),
                               array_length);
-    return answer;
+    return *answer;
   } else {
-    { MaybeObject* maybe_object =
-          isolate->heap()->AllocateRawTwoByteString(length);
-      if (!maybe_object->ToObject(&object)) return maybe_object;
-    }
-    SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+    Handle<SeqTwoByteString> answer;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, answer,
+        isolate->factory()->NewRawTwoByteString(length));
     StringBuilderConcatHelper(*special,
                               answer->GetChars(),
-                              fixed_array,
+                              FixedArray::cast(array->elements()),
                               array_length);
-    return answer;
+    return *answer;
   }
 }
 
@@ -8814,10 +8823,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Call) {
   }
 
   for (int i = 0; i < argc; ++i) {
-     MaybeObject* maybe = args[1 + i];
-     Object* object;
-     if (!maybe->To<Object>(&object)) return maybe;
-     argv[i] = Handle<Object>(object, isolate);
+     argv[i] = Handle<Object>(args[1 + i], isolate);
   }
 
   Handle<JSReceiver> hfun(fun);
@@ -9716,9 +9722,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   // Compile source string in the native context.
   ParseRestriction restriction = function_literal_only
       ? ONLY_SINGLE_FUNCTION_LITERAL : NO_PARSE_RESTRICTION;
-  Handle<JSFunction> fun = Compiler::GetFunctionFromEval(
-      source, context, SLOPPY, restriction, RelocInfo::kNoPosition);
-  RETURN_IF_EMPTY_HANDLE(isolate, fun);
+  Handle<JSFunction> fun;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, fun,
+      Compiler::GetFunctionFromEval(
+          source, context, SLOPPY, restriction, RelocInfo::kNoPosition));
   return *fun;
 }
 
@@ -9745,10 +9753,12 @@ static ObjectPair CompileGlobalEval(Isolate* isolate,
   // Deal with a normal eval call with a string argument. Compile it
   // and return the compiled function bound in the local context.
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
-  Handle<JSFunction> compiled = Compiler::GetFunctionFromEval(
-      source, context, strict_mode, restriction, scope_position);
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, compiled,
-                               MakePair(Failure::Exception(), NULL));
+  Handle<JSFunction> compiled;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, compiled,
+      Compiler::GetFunctionFromEval(
+          source, context, strict_mode, restriction, scope_position),
+      MakePair(Failure::Exception(), NULL));
   return MakePair(*compiled, *receiver);
 }
 
@@ -12771,29 +12781,32 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeArgumentsObject(
 
 
 // Compile and evaluate source for the given context.
-static MaybeObject* DebugEvaluate(Isolate* isolate,
-                                  Handle<Context> context,
-                                  Handle<Object> context_extension,
-                                  Handle<Object> receiver,
-                                  Handle<String> source) {
+static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
+                                         Handle<Context> context,
+                                         Handle<Object> context_extension,
+                                         Handle<Object> receiver,
+                                         Handle<String> source) {
   if (context_extension->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
     Handle<JSFunction> closure(context->closure(), isolate);
     context = isolate->factory()->NewWithContext(closure, context, extension);
   }
 
-  Handle<JSFunction> eval_fun =
+  Handle<JSFunction> eval_fun;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, eval_fun,
       Compiler::GetFunctionFromEval(source,
                                     context,
                                     SLOPPY,
                                     NO_PARSE_RESTRICTION,
-                                    RelocInfo::kNoPosition);
-  RETURN_IF_EMPTY_HANDLE(isolate, eval_fun);
+                                    RelocInfo::kNoPosition),
+      Object);
 
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result,
-      Execution::Call(isolate, eval_fun, receiver, 0, NULL));
+      Execution::Call(isolate, eval_fun, receiver, 0, NULL),
+      Object);
 
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
@@ -12803,7 +12816,7 @@ static MaybeObject* DebugEvaluate(Isolate* isolate,
 
   // Clear the oneshot breakpoints so that the debugger does not step further.
   isolate->debug()->ClearStepping();
-  return *result;
+  return result;
 }
 
 
@@ -12867,13 +12880,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   context = isolate->factory()->NewWithContext(function, context, materialized);
 
   Handle<Object> receiver(frame->receiver(), isolate);
-  Object* evaluate_result_object;
-  { MaybeObject* maybe_result =
-    DebugEvaluate(isolate, context, context_extension, receiver, source);
-    if (!maybe_result->ToObject(&evaluate_result_object)) return maybe_result;
-  }
-
-  Handle<Object> result(evaluate_result_object, isolate);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      DebugEvaluate(isolate, context, context_extension, receiver, source));
 
   // Write back potential changes to materialized stack locals to the stack.
   UpdateStackLocalsFromMaterializedObject(
@@ -12915,7 +12925,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   // debugger was invoked.
   Handle<Context> context = isolate->native_context();
   Handle<Object> receiver = isolate->global_object();
-  return DebugEvaluate(isolate, context, context_extension, receiver, source);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      DebugEvaluate(isolate, context, context_extension, receiver, source));
+  return *result;
 }
 
 
