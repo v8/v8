@@ -272,22 +272,28 @@ class Types {
         int i = rng_.NextInt(static_cast<int>(values.size()));
         return Type::Constant(values[i], region_);
       }
-      case 3:  // array
-        return Type::Array(Fuzz(depth / 2), region_);
+      case 3: {  // array
+        TypeHandle element = Fuzz(depth / 2);
+        return Type::Array(element, region_);
+      }
       case 4:
       case 5:
       case 6: {  // function
-        TypeHandle type = Type::Function(
-            Fuzz(depth / 2), Fuzz(depth / 2), rand() % 3, region_);
+        TypeHandle result = Fuzz(depth / 2);
+        TypeHandle receiver = Fuzz(depth / 2);
+        int arity = rng_.NextInt(3);
+        TypeHandle type = Type::Function(result, receiver, arity, region_);
         for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          type->AsFunction()->InitParameter(i, Fuzz(depth - 1));
+          TypeHandle parameter = Fuzz(depth - 1);
+          type->AsFunction()->InitParameter(i, parameter);
         }
       }
       default: {  // union
         int n = rng_.NextInt(10);
         TypeHandle type = None;
         for (int i = 0; i < n; ++i) {
-          type = Type::Union(type, Fuzz(depth - 1), region_);
+          TypeHandle operand = Fuzz(depth - 1);
+          type = Type::Union(type, operand, region_);
         }
         return type;
       }
