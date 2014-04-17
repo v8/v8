@@ -2620,16 +2620,16 @@ HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
         object, Add<HConstant>(JSArray::kSize), allocation_site);
   }
 
-  // We have to initialize the elements pointer if allocation folding is
-  // turned off.
-  if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
-    HConstant* empty_fixed_array = Add<HConstant>(
-        isolate()->factory()->empty_fixed_array());
-    Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-        empty_fixed_array, INITIALIZING_STORE);
-  }
-
   if (length > 0) {
+    // We have to initialize the elements pointer if allocation folding is
+    // turned off.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      HConstant* empty_fixed_array = Add<HConstant>(
+          isolate()->factory()->empty_fixed_array());
+      Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+          empty_fixed_array, INITIALIZING_STORE);
+    }
+
     HValue* boilerplate_elements = AddLoadElements(boilerplate);
     HValue* object_elements;
     if (IsFastDoubleElementsKind(kind)) {
