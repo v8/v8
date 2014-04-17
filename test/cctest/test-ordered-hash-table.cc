@@ -41,12 +41,14 @@ void CheckIterResultObject(Isolate* isolate,
                            Handle<JSObject> result,
                            Handle<Object> value,
                            bool done) {
-  CHECK(Object::GetProperty(isolate, result, "value").ToHandleChecked()
-      ->SameValue(*value));
-  CHECK(Object::GetProperty(isolate, result, "done").ToHandleChecked()
-      ->IsBoolean());
-  CHECK_EQ(Object::GetProperty(isolate, result, "done").ToHandleChecked()
-      ->BooleanValue(), done);
+  Handle<Object> value_object =
+      Object::GetProperty(isolate, result, "value").ToHandleChecked();
+  Handle<Object> done_object =
+      Object::GetProperty(isolate, result, "done").ToHandleChecked();
+
+  CHECK_EQ(*value_object, *value);
+  CHECK(done_object->IsBoolean());
+  CHECK_EQ(done_object->BooleanValue(), done);
 }
 
 
