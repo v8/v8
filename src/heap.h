@@ -993,15 +993,6 @@ class Heap {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(String* string);
 
-  // Allocates an uninitialized object.  The memory is non-executable if the
-  // hardware and OS allow.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes,
-                                                  AllocationSpace space,
-                                                  AllocationSpace retry_space);
-
   // Initialize a filler object to keep the ability to iterate over the heap
   // when shortening objects.
   void CreateFillerObjectAt(Address addr, int size);
@@ -1997,6 +1988,14 @@ class Heap {
     if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
   }
+
+  // Allocates an uninitialized object.  The memory is non-executable if the
+  // hardware and OS allow.  This is the single choke-point for allocations
+  // performed by the runtime and should not be bypassed (to extend this to
+  // inlined allocations, use the Heap::DisableInlineAllocation() support).
+  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes,
+                                                  AllocationSpace space,
+                                                  AllocationSpace retry_space);
 
   // Allocate an uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(

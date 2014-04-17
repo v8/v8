@@ -3542,8 +3542,8 @@ TEST(Regress169928) {
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
-  MaybeObject* maybe_object = CcTest::heap()->AllocateRaw(
-      AllocationMemento::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
+  MaybeObject* maybe_object = CcTest::heap()->new_space()->AllocateRaw(
+      AllocationMemento::kSize + kPointerSize);
   Object* obj = NULL;
   CHECK(maybe_object->ToObject(&obj));
   Address addr_obj = reinterpret_cast<Address>(
