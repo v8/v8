@@ -452,10 +452,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  &zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    ThrowRegExpException(re,
-                         pattern,
-                         compile_data.error,
-                         "malformed_regexp");
+    USE(ThrowRegExpException(re,
+                             pattern,
+                             compile_data.error,
+                             "malformed_regexp"));
     return false;
   }
   RegExpEngine::CompilationResult result =
