@@ -19523,7 +19523,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
       case SetResourceConstraints: {
         static const int K = 1024;
         v8::ResourceConstraints constraints;
-        constraints.set_max_young_space_size(256 * K);
+        constraints.set_max_new_space_size(256 * K);
         constraints.set_max_old_space_size(4 * K * K);
         v8::SetResourceConstraints(CcTest::isolate(), &constraints);
         break;

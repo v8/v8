@@ -3894,8 +3894,8 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit,
                          uint32_t number_of_processors);
 
-  int max_young_space_size() const { return max_young_space_size_; }
-  void set_max_young_space_size(int value) { max_young_space_size_ = value; }
+  int max_new_space_size() const { return max_new_space_size_; }
+  void set_max_new_space_size(int value) { max_new_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
   int max_executable_size() const { return max_executable_size_; }
@@ -3914,7 +3914,7 @@ class V8_EXPORT ResourceConstraints {
   }
 
  private:
-  int max_young_space_size_;
+  int max_new_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;

@@ -1381,9 +1381,30 @@ class Heap {
   static const intptr_t kMinimumOldGenerationAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
+  static const int kLumpOfMemory = (i::kPointerSize / 4) * i::MB;
+
+  // The new space size has to be a power of 2.
+  static const int kMaxNewSpaceSizeLowMemoryDevice = 2 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeMediumMemoryDevice = 8 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeHighMemoryDevice = 16 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeHugeMemoryDevice = 16 * kLumpOfMemory;
+
+  // The old space size has to be a multiple of Page::kPageSize.
+  static const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+
+  // The executable size has to be a multiple of Page::kPageSize.
+  static const int kMaxExecutableSizeLowMemoryDevice = 128 * kLumpOfMemory;
+  static const int kMaxExecutableSizeMediumMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHighMemoryDevice = 512 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+
   intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size) {
-    intptr_t limit = FLAG_stress_compaction ?
-        old_gen_size + old_gen_size / 10 : old_gen_size * 4;
+    intptr_t limit = FLAG_stress_compaction
+        ? old_gen_size + old_gen_size / 10
+        : old_gen_size * old_space_growing_factor_;
     limit = Max(limit, kMinimumOldGenerationAllocationLimit);
     limit += new_space_.Capacity();
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
@@ -1743,6 +1764,11 @@ class Heap {
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
   intptr_t maximum_committed_;
+
+  // The old space growing factor is used in the old space heap growing
+  // strategy. The new old space size is the current old space size times
+  // old_space_growing_factor_.
+  int old_space_growing_factor_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
