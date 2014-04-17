@@ -8042,41 +8042,27 @@ void CodeCacheHashTable::RemoveByIndex(int index) {
 }
 
 
-void PolymorphicCodeCache::Update(Handle<PolymorphicCodeCache> cache,
+void PolymorphicCodeCache::Update(Handle<PolymorphicCodeCache> code_cache,
                                   MapHandleList* maps,
                                   Code::Flags flags,
                                   Handle<Code> code) {
-  Isolate* isolate = cache->GetIsolate();
-  CALL_HEAP_FUNCTION_VOID(isolate, cache->Update(maps, flags, *code));
-}
-
-
-MaybeObject* PolymorphicCodeCache::Update(MapHandleList* maps,
-                                          Code::Flags flags,
-                                          Code* code) {
-  // Initialize cache if necessary.
-  if (cache()->IsUndefined()) {
-    Object* result;
-    { MaybeObject* maybe_result =
-          PolymorphicCodeCacheHashTable::Allocate(
-              GetHeap(),
-              PolymorphicCodeCacheHashTable::kInitialSize);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    set_cache(result);
+  Isolate* isolate = code_cache->GetIsolate();
+  if (code_cache->cache()->IsUndefined()) {
+    Handle<PolymorphicCodeCacheHashTable> result =
+        PolymorphicCodeCacheHashTable::New(
+            isolate,
+            PolymorphicCodeCacheHashTable::kInitialSize);
+    code_cache->set_cache(*result);
   } else {
     // This entry shouldn't be contained in the cache yet.
-    ASSERT(PolymorphicCodeCacheHashTable::cast(cache())
+    ASSERT(PolymorphicCodeCacheHashTable::cast(code_cache->cache())
                ->Lookup(maps, flags)->IsUndefined());
   }
-  PolymorphicCodeCacheHashTable* hash_table =
-      PolymorphicCodeCacheHashTable::cast(cache());
-  Object* new_cache;
-  { MaybeObject* maybe_new_cache = hash_table->Put(maps, flags, code);
-    if (!maybe_new_cache->ToObject(&new_cache)) return maybe_new_cache;
-  }
-  set_cache(new_cache);
-  return this;
+  Handle<PolymorphicCodeCacheHashTable> hash_table =
+      handle(PolymorphicCodeCacheHashTable::cast(code_cache->cache()));
+  Handle<PolymorphicCodeCacheHashTable> new_cache =
+      PolymorphicCodeCacheHashTable::Put(hash_table, maps, flags, code);
+  code_cache->set_cache(*new_cache);
 }
 
 
@@ -8098,8 +8084,10 @@ Handle<Object> PolymorphicCodeCache::Lookup(MapHandleList* maps,
 class PolymorphicCodeCacheHashTableKey : public HashTableKey {
  public:
   // Callers must ensure that |maps| outlives the newly constructed object.
-  PolymorphicCodeCacheHashTableKey(MapHandleList* maps, int code_flags)
-      : maps_(maps),
+  PolymorphicCodeCacheHashTableKey(
+      Isolate* isolate, MapHandleList* maps, int code_flags)
+      : isolate_(isolate),
+        maps_(maps),
         code_flags_(code_flags) {}
 
   bool IsMatch(Object* other) {
@@ -8165,6 +8153,12 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return list;
   }
 
+  Handle<FixedArray> AsHandle() {
+    CALL_HEAP_FUNCTION(isolate_,
+                       AsObject(isolate_->heap()),
+                       FixedArray);
+  }
+
  private:
   static MapHandleList* FromObject(Object* obj,
                                    int* code_flags,
@@ -8178,6 +8172,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return maps;
   }
 
+  Isolate* isolate_;
   MapHandleList* maps_;  // weak.
   int code_flags_;
   static const int kDefaultListAllocationSize = kMaxKeyedPolymorphism + 1;
@@ -8185,30 +8180,29 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
 
 
 Object* PolymorphicCodeCacheHashTable::Lookup(MapHandleList* maps,
-                                              int code_flags) {
-  PolymorphicCodeCacheHashTableKey key(maps, code_flags);
+                                              int code_kind) {
+  DisallowHeapAllocation no_alloc;
+  PolymorphicCodeCacheHashTableKey key(GetIsolate(), maps, code_kind);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
 }
 
 
-MaybeObject* PolymorphicCodeCacheHashTable::Put(MapHandleList* maps,
-                                                int code_flags,
-                                                Code* code) {
-  PolymorphicCodeCacheHashTableKey key(maps, code_flags);
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, &key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  PolymorphicCodeCacheHashTable* cache =
-      reinterpret_cast<PolymorphicCodeCacheHashTable*>(obj);
+Handle<PolymorphicCodeCacheHashTable> PolymorphicCodeCacheHashTable::Put(
+      Handle<PolymorphicCodeCacheHashTable> hash_table,
+      MapHandleList* maps,
+      int code_kind,
+      Handle<Code> code) {
+  PolymorphicCodeCacheHashTableKey key(
+      hash_table->GetIsolate(), maps, code_kind);
+  Handle<PolymorphicCodeCacheHashTable> cache =
+      EnsureCapacity(hash_table, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
-  { MaybeObject* maybe_obj = key.AsObject(GetHeap());
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  cache->set(EntryToIndex(entry), obj);
-  cache->set(EntryToIndex(entry) + 1, code);
+
+  Handle<FixedArray> obj = key.AsHandle();
+  cache->set(EntryToIndex(entry), *obj);
+  cache->set(EntryToIndex(entry) + 1, *code);
   cache->ElementAdded();
   return cache;
 }

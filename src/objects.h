@@ -8407,9 +8407,6 @@ class PolymorphicCodeCache: public Struct {
                      Code::Flags flags,
                      Handle<Code> code);
 
-  MUST_USE_RESULT MaybeObject* Update(MapHandleList* maps,
-                                      Code::Flags flags,
-                                      Code* code);
 
   // Returns an undefined value if the entry is not found.
   Handle<Object> Lookup(MapHandleList* maps, Code::Flags flags);
@@ -8435,9 +8432,11 @@ class PolymorphicCodeCacheHashTable
  public:
   Object* Lookup(MapHandleList* maps, int code_kind);
 
-  MUST_USE_RESULT MaybeObject* Put(MapHandleList* maps,
-                                   int code_kind,
-                                   Code* code);
+  static Handle<PolymorphicCodeCacheHashTable> Put(
+      Handle<PolymorphicCodeCacheHashTable> hash_table,
+      MapHandleList* maps,
+      int code_kind,
+      Handle<Code> code);
 
   static inline PolymorphicCodeCacheHashTable* cast(Object* obj);
 
