@@ -105,6 +105,12 @@ namespace internal {
 #define RUNTIME_ASSERT(value) \
   if (!(value)) return isolate->ThrowIllegalOperation();
 
+#define RUNTIME_ASSERT_HANDLIFIED(value, T)                          \
+  if (!(value)) {                                                    \
+    isolate->ThrowIllegalOperation();                                \
+    return MaybeHandle<T>();                                         \
+  }
+
 // Cast the given object to a value of the specified type and store
 // it in a variable with the given name.  If the object is not of the
 // expected type call IllegalOperation and return.
@@ -115,6 +121,10 @@ namespace internal {
 #define CONVERT_ARG_HANDLE_CHECKED(Type, name, index)                \
   RUNTIME_ASSERT(args[index]->Is##Type());                           \
   Handle<Type> name = args.at<Type>(index);
+
+#define CONVERT_NUMBER_ARG_HANDLE_CHECKED(name, index)               \
+  RUNTIME_ASSERT(args[index]->IsNumber());                           \
+  Handle<Object> name = args.at<Object>(index);
 
 // Cast the given object to a boolean and store it in a variable with
 // the given name.  If the object is not a boolean call IllegalOperation
@@ -483,6 +493,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateObjectLiteral) {
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool has_function_literal = (flags & ObjectLiteral::kHasFunction) != 0;
 
+  RUNTIME_ASSERT(literals_index >= 0 && literals_index < literals->length());
+
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(literals->get(literals_index), isolate);
   Handle<AllocationSite> site;
@@ -560,6 +572,8 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
                                            int literals_index,
                                            Handle<FixedArray> elements,
                                            int flags) {
+  RUNTIME_ASSERT_HANDLIFIED(literals_index >= 0 &&
+                            literals_index < literals->length(), JSObject);
   Handle<AllocationSite> site;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, site,
@@ -614,7 +628,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateArrayLiteralStubBailout) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  Handle<Object> name = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
   Handle<Symbol> symbol = isolate->factory()->NewSymbol();
   if (name->IsString()) symbol->set_name(*name);
@@ -625,7 +639,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateSymbol) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CreatePrivateSymbol) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  Handle<Object> name = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
   Handle<Symbol> symbol = isolate->factory()->NewPrivateSymbol();
   if (name->IsString()) symbol->set_name(*name);
@@ -691,7 +705,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSProxy) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  Handle<Object> prototype = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
   if (!prototype->IsJSReceiver()) prototype = isolate->factory()->null_value();
   return *isolate->factory()->NewJSProxy(handler, prototype);
 }
@@ -701,10 +715,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSFunctionProxy) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, handler, 0);
-  Handle<Object> call_trap = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, call_trap, 1);
   RUNTIME_ASSERT(call_trap->IsJSFunction() || call_trap->IsJSFunctionProxy());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, construct_trap, 2);
-  Handle<Object> prototype = args.at<Object>(3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 3);
   if (!prototype->IsJSReceiver()) prototype = isolate->factory()->null_value();
   return *isolate->factory()->NewJSFunctionProxy(
       handler, call_trap, construct_trap, prototype);
@@ -714,7 +728,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateJSFunctionProxy) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSProxy());
 }
 
@@ -722,7 +736,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSProxy) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSFunctionProxy) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSFunctionProxy());
 }
 
@@ -817,7 +831,7 @@ bool Runtime::SetupArrayBufferAllocatingData(
       data = V8::ArrayBufferAllocator()->Allocate(allocated_length);
     } else {
       data =
-        V8::ArrayBufferAllocator()->AllocateUninitialized(allocated_length);
+          V8::ArrayBufferAllocator()->AllocateUninitialized(allocated_length);
     }
     if (data == NULL) return false;
   } else {
@@ -854,32 +868,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, byteLength, 1);
-  size_t allocated_length;
-  if (byteLength->IsSmi()) {
-    allocated_length = Smi::cast(*byteLength)->value();
-  } else {
-    ASSERT(byteLength->IsHeapNumber());
-    double value = HeapNumber::cast(*byteLength)->value();
-
-    ASSERT(value >= 0);
-
-    if (value > std::numeric_limits<size_t>::max()) {
-      return isolate->Throw(
-          *isolate->factory()->NewRangeError("invalid_array_buffer_length",
-            HandleVector<Object>(NULL, 0)));
-    }
-
-    allocated_length = static_cast<size_t>(value);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byteLength, 1);
+  size_t allocated_length = 0;
+  if (!TryNumberToSize(isolate, *byteLength, &allocated_length)) {
+    return isolate->Throw(
+        *isolate->factory()->NewRangeError("invalid_array_buffer_length",
+                                           HandleVector<Object>(NULL, 0)));
   }
-
   if (!Runtime::SetupArrayBufferAllocatingData(isolate,
                                                holder, allocated_length)) {
-      return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_array_buffer_length",
-            HandleVector<Object>(NULL, 0)));
+    return isolate->Throw(
+        *isolate->factory()->NewRangeError("invalid_array_buffer_length",
+                                           HandleVector<Object>(NULL, 0)));
   }
-
   return *holder;
 }
 
@@ -897,15 +898,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferSliceImpl) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
-  CONVERT_DOUBLE_ARG_CHECKED(first, 2);
-  size_t start = static_cast<size_t>(first);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
+  size_t start = 0;
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
   size_t target_length = NumberToSize(isolate, target->byte_length());
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 
   size_t source_byte_length = NumberToSize(isolate, source->byte_length());
-  CHECK(start <= source_byte_length);
-  CHECK(source_byte_length - start >= target_length);
+  RUNTIME_ASSERT(start <= source_byte_length);
+  RUNTIME_ASSERT(source_byte_length - start >= target_length);
   uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
   uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
   CopyBytes(target_data, source_data + start, target_length);
@@ -923,6 +925,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
   if (array_buffer->backing_store() == NULL) {
     CHECK(Smi::FromInt(0) == array_buffer->byte_length());
@@ -968,8 +971,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
   CONVERT_SMI_ARG_CHECKED(arrayId, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, maybe_buffer, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset_object, 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, byte_length_object, 4);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset_object, 3);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length_object, 4);
 
   ASSERT(holder->GetInternalFieldCount() ==
       v8::ArrayBufferView::kInternalFieldCount);
@@ -988,19 +991,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitialize) {
       &fixed_elements_kind,
       &element_size);
 
+  size_t byte_offset = 0;
+  size_t byte_length = 0;
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset_object, &byte_offset));
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length_object, &byte_length));
+
   holder->set_byte_offset(*byte_offset_object);
   holder->set_byte_length(*byte_length_object);
-
-  size_t byte_offset = NumberToSize(isolate, *byte_offset_object);
-  size_t byte_length = NumberToSize(isolate, *byte_length_object);
 
   CHECK_EQ(0, static_cast<int>(byte_length % element_size));
   size_t length = byte_length / element_size;
 
   if (length > static_cast<unsigned>(Smi::kMaxValue)) {
-    return isolate->Throw(*isolate->factory()->
-          NewRangeError("invalid_typed_array_length",
-            HandleVector<Object>(NULL, 0)));
+    return isolate->Throw(
+        *isolate->factory()->NewRangeError("invalid_typed_array_length",
+                                           HandleVector<Object>(NULL, 0)));
   }
 
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
@@ -1183,6 +1188,7 @@ enum TypedArraySetResultCodes {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, source_obj, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, offset_obj, 2);
@@ -1240,6 +1246,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArraySetFastCases) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayMaxSizeInHeap) {
+  ASSERT(args.length() == 0);
   ASSERT_OBJECT_SIZE(
       FLAG_typed_array_max_size_in_heap + FixedTypedArrayBase::kDataOffset);
   return Smi::FromInt(FLAG_typed_array_max_size_in_heap);
@@ -1518,7 +1525,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAdd) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<Object> key(args[1], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   table = OrderedHashSet::Add(table, key);
   holder->set_table(*table);
@@ -1530,7 +1537,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetHas) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<Object> key(args[1], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   return isolate->heap()->ToBoolean(table->Contains(*key));
 }
@@ -1540,7 +1547,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  Handle<Object> key(args[1], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   table = OrderedHashSet::Remove(table, key);
   holder->set_table(*table);
@@ -1687,7 +1694,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionSet) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  Handle<Object> value(args[2], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
@@ -1699,7 +1706,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_WeakCollectionSet) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   if (!obj->IsJSObject()) return isolate->heap()->null_value();
   return JSObject::cast(obj)->class_name();
 }
@@ -1775,8 +1782,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
   HandleScope shs(isolate);
   ASSERT(args.length() == 2);
   // See ECMA-262, section 15.3.5.3, page 88 (steps 5 - 8).
-  Handle<Object> O = args.at<Object>(0);
-  Handle<Object> V = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, O, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, V, 1);
   while (true) {
     Handle<Object> prototype = Object::GetPrototype(isolate, V);
     if (prototype->IsNull()) return isolate->heap()->false_value();
@@ -2035,7 +2042,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateApiFunction) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsTemplate) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* arg = args[0];
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg, 0);
   bool result = arg->IsObjectTemplateInfo() || arg->IsFunctionTemplateInfo();
   return isolate->heap()->ToBoolean(result);
 }
@@ -2045,7 +2052,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetTemplateField) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(HeapObject, templ, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1)
+  CONVERT_SMI_ARG_CHECKED(index, 1);
   int offset = index * kPointerSize + HeapObject::kHeaderSize;
   InstanceType type = templ->map()->instance_type();
   RUNTIME_ASSERT(type == FUNCTION_TEMPLATE_INFO_TYPE ||
@@ -2145,7 +2152,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareGlobals) {
   Handle<GlobalObject> global = Handle<GlobalObject>(
       isolate->context()->global_object());
 
-  Handle<Context> context = args.at<Context>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Context, context, 0);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 1);
   CONVERT_SMI_ARG_CHECKED(flags, 2);
 
@@ -2242,13 +2249,13 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareContextSlot) {
   // Declarations are always made in a function or native context.  In the
   // case of eval code, the context passed is the context of the caller,
   // which may be some nested context and not the declaration context.
-  RUNTIME_ASSERT(args[0]->IsContext());
-  Handle<Context> context(Context::cast(args[0])->declaration_context());
-
-  Handle<String> name(String::cast(args[1]));
-  PropertyAttributes mode = static_cast<PropertyAttributes>(args.smi_at(2));
+  CONVERT_ARG_HANDLE_CHECKED(Context, context_arg, 0);
+  Handle<Context> context(context_arg->declaration_context());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  CONVERT_SMI_ARG_CHECKED(mode_arg, 2);
+  PropertyAttributes mode = static_cast<PropertyAttributes>(mode_arg);
   RUNTIME_ASSERT(mode == READ_ONLY || mode == NONE);
-  Handle<Object> initial_value(args[3], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, initial_value, 3);
 
   int index;
   PropertyAttributes attributes;
@@ -2347,7 +2354,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
   bool assign = args.length() == 3;
 
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RUNTIME_ASSERT(args[1]->IsSmi());
   CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 1);
 
   // According to ECMA-262, section 12.2, page 62, the property must
@@ -2403,7 +2409,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_InitializeConstGlobal) {
   // is the second.
   RUNTIME_ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  Handle<Object> value = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
   // Get the current global object from top.
   GlobalObject* global = isolate->context()->global_object();
@@ -2477,14 +2483,12 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_InitializeConstContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
-  Handle<Object> value(args[0], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   ASSERT(!value->IsTheHole());
-
   // Initializations are always done in a function or native context.
-  RUNTIME_ASSERT(args[1]->IsContext());
-  Handle<Context> context(Context::cast(args[1])->declaration_context());
-
-  Handle<String> name(String::cast(args[2]));
+  CONVERT_ARG_HANDLE_CHECKED(Context, context_arg, 1);
+  Handle<Context> context(context_arg->declaration_context());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
 
   int index;
   PropertyAttributes attributes;
@@ -2610,6 +2614,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpConstructResult) {
   ASSERT(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(size, 0);
   RUNTIME_ASSERT(size >= 0 && size <= FixedArray::kMaxLength);
+  CONVERT_ARG_HANDLE_CHECKED(Object, index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, input, 2);
   Handle<FixedArray> elements =  isolate->factory()->NewFixedArray(size);
   Handle<Map> regexp_map(isolate->native_context()->regexp_result_map());
   Handle<JSObject> object =
@@ -2618,8 +2624,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpConstructResult) {
   array->set_elements(*elements);
   array->set_length(Smi::FromInt(size));
   // Write in-object properties after the length of the array.
-  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, args[1]);
-  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, args[2]);
+  array->InObjectPropertyAtPut(JSRegExpResult::kIndexIndex, *index);
+  array->InObjectPropertyAtPut(JSRegExpResult::kInputIndex, *input);
   return *array;
 }
 
@@ -2780,9 +2786,9 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_MaterializeRegExpLiteral) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 0);
-  int index = args.smi_at(1);
-  Handle<String> pattern = args.at<String>(2);
-  Handle<String> flags = args.at<String>(3);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
 
   // Get the RegExp function from the context in the literals array.
   // This is the RegExp function from the context in which the
@@ -3005,7 +3011,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
-  Handle<Object> code = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, code, 1);
 
   if (code->IsNull()) return *target;
   RUNTIME_ASSERT(code->IsJSFunction());
@@ -3260,7 +3266,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CharFromCode) {
   HandleScope handlescope(isolate);
   ASSERT(args.length() == 1);
   if (args[0]->IsNumber()) {
-    uint32_t code = NumberToUint32(args[0]) & 0xffff;
+    CONVERT_NUMBER_CHECKED(uint32_t, code, Uint32, args[0]);
+    code &= 0xffff;
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
   return isolate->heap()->empty_string();
@@ -4358,8 +4365,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringIndexOf) {
 
   CONVERT_ARG_HANDLE_CHECKED(String, sub, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  Object* index = args[2];
   uint32_t start_index;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
@@ -4410,8 +4417,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringLastIndexOf) {
 
   CONVERT_ARG_HANDLE_CHECKED(String, sub, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
 
-  Object* index = args[2];
   uint32_t start_index;
   if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
 
@@ -4537,7 +4544,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_SubString) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
   HandleScope handles(isolate);
-  ASSERT_EQ(3, args.length());
+  ASSERT(args.length() == 3);
 
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
@@ -4961,8 +4968,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetProperty) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -5454,8 +5461,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetNativeFlag) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetInlineBuiltinFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
-
-  Handle<Object> object = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(*object);
@@ -5470,7 +5476,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   RUNTIME_ASSERT(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(store_index, 1);
-  Handle<Object> value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, literals, 3);
   CONVERT_SMI_ARG_CHECKED(literal_index, 4);
 
@@ -5527,6 +5533,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
   SealHandleScope shs(isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  ASSERT(args.length() == 1);
   if (!isolate->IsDebuggerActive() || !isolate->debug()->StepInActive()) {
     return isolate->heap()->false_value();
   }
@@ -5545,6 +5552,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
   SealHandleScope shs(isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  ASSERT(args.length() == 1);
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
@@ -5625,8 +5633,8 @@ static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0)
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
-  Handle<Object> object = args.at<Object>(0);
 
   uint32_t index;
   const bool key_is_array_index = key->AsArrayIndex(&index);
@@ -5949,7 +5957,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetIndexedInterceptorElementNames) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
   HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 1);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, raw_object, 0);
   Handle<JSObject> object(raw_object);
 
@@ -5999,6 +6007,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, raw_key, 0);
 
   // Compute the frame holding the arguments.
   JavaScriptFrameIterator it(isolate);
@@ -6011,25 +6020,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArgumentsProperty) {
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
   uint32_t index;
-  if (args[0]->ToArrayIndex(&index) && index < n) {
+  if (raw_key->ToArrayIndex(&index) && index < n) {
     return frame->GetParameter(index);
   }
 
   HandleScope scope(isolate);
-  if (args[0]->IsSymbol()) {
+  if (raw_key->IsSymbol()) {
     // Lookup in the initial Object.prototype object.
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
-        Object::GetProperty(
-            isolate->initial_object_prototype(), args.at<Symbol>(0)));
+        Object::GetProperty(isolate->initial_object_prototype(),
+                            Handle<Symbol>::cast(raw_key)));
     return *result;
   }
 
   // Convert the key to a string.
   Handle<Object> converted;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, converted, Execution::ToString(isolate, args.at<Object>(0)));
+      isolate, converted, Execution::ToString(isolate, raw_key));
   Handle<String> key = Handle<String>::cast(converted);
 
   // Try to convert the string key into an array index.
@@ -6082,8 +6091,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ToFastProperties) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ToBool) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, object, 0);
 
-  return isolate->heap()->ToBoolean(args[0]->BooleanValue());
+  return isolate->heap()->ToBoolean(object->BooleanValue());
 }
 
 
@@ -6091,8 +6101,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ToBool) {
 // Possible optimizations: put the type string into the oddballs.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
   SealHandleScope shs(isolate);
-
-  Object* obj = args[0];
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   if (obj->IsNumber()) return isolate->heap()->number_string();
   HeapObject* heap_obj = HeapObject::cast(obj);
 
@@ -6218,6 +6228,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewString) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(length, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
   if (length == 0) return isolate->heap()->empty_string();
@@ -6231,6 +6242,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewString) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TruncateString) {
   HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(SeqString, string, 0);
   CONVERT_SMI_ARG_CHECKED(new_length, 1);
   return *SeqString::Truncate(string, new_length);
@@ -6283,16 +6295,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONString) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_BasicJSONStringify) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   BasicJsonStringifier stringifier(isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, stringifier.Stringify(args.at<Object>(0)));
+      isolate, result, stringifier.Stringify(object));
   return *result;
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
   HandleScope handle_scope(isolate);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
   RUNTIME_ASSERT(radix == 0 || (2 <= radix && radix <= 36));
@@ -6319,6 +6333,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseInt) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringParseFloat) {
   HandleScope shs(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
   subject = String::Flatten(subject);
@@ -6563,11 +6578,9 @@ static bool FastAsciiConvert(char* dst,
 
 template <class Converter>
 MUST_USE_RESULT static MaybeObject* ConvertCase(
-    Arguments args,
+    Handle<String> s,
     Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
-  HandleScope handle_scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   s = String::Flatten(s);
   int length = s->length();
   // Assume that the string is not empty; we need this assumption later
@@ -6623,14 +6636,20 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToLowerCase) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(
-      args, isolate, isolate->runtime_state()->to_lower_mapping());
+      s, isolate, isolate->runtime_state()->to_lower_mapping());
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToUpperCase) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   return ConvertCase(
-      args, isolate, isolate->runtime_state()->to_upper_mapping());
+      s, isolate, isolate->runtime_state()->to_upper_mapping());
 }
 
 
@@ -6859,9 +6878,7 @@ bool Runtime::IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToString) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  Handle<Object> number = args.at<Object>(0);
-  RUNTIME_ASSERT(number->IsNumber());
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
   return *isolate->factory()->NumberToString(number);
 }
@@ -6870,9 +6887,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToString) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToStringSkipCache) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  Handle<Object> number = args.at<Object>(0);
-  RUNTIME_ASSERT(number->IsNumber());
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(number, 0);
 
   return *isolate->factory()->NumberToString(number, false);
 }
@@ -6923,8 +6938,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToJSInt32) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NumberToSmi) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-
-  Object* obj = args[0];
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   if (obj->IsSmi()) {
     return obj;
   }
@@ -7128,7 +7142,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
-  int array_length = args.smi_at(1);
+  CONVERT_SMI_ARG_CHECKED(array_length, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
   // This assumption is used by the slice encoding in one or two smis.
@@ -7193,7 +7207,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   if (!args[1]->IsSmi()) return isolate->ThrowInvalidStringLength();
-  int array_length = args.smi_at(1);
+  CONVERT_SMI_ARG_CHECKED(array_length, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   RUNTIME_ASSERT(array->HasFastObjectElements());
 
@@ -7897,9 +7911,9 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewArgumentsFast) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
-  const int argument_count = Smi::cast(args[2])->value();
+  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
 
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
@@ -8289,8 +8303,7 @@ static MaybeObject* Runtime_NewObjectHelper(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewObject) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  Handle<Object> constructor = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
   return Runtime_NewObjectHelper(isolate,
                                  constructor,
                                  Handle<AllocationSite>::null());
@@ -8300,9 +8313,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewObject) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewObjectWithAllocationSite) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-
-  Handle<Object> constructor = args.at<Object>(1);
-  Handle<Object> feedback = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, feedback, 0);
   Handle<AllocationSite> site;
   if (feedback->IsAllocationSite()) {
     // The feedback can be an AllocationSite or undefined.
@@ -8328,8 +8340,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_FinalizeInstanceSize) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CompileUnoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 #ifdef DEBUG
   if (FLAG_trace_lazy && !function->shared()->is_compiled()) {
     PrintF("[unoptimized: ");
@@ -8357,7 +8368,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CompileUnoptimized) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CompileOptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  Handle<JSFunction> function = args.at<JSFunction>(0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
 
   Handle<Code> unoptimized(function->shared()->code());
@@ -8430,9 +8441,9 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NotifyStubFailure) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NotifyDeoptimized) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsSmi());
+  CONVERT_SMI_ARG_CHECKED(type_arg, 0);
   Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
+      static_cast<Deoptimizer::BailoutType>(type_arg);
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   ASSERT(AllowHeapAllocation::IsAllowed());
 
@@ -8513,6 +8524,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearFunctionTypeFeedback) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
 #if defined(USE_SIMULATOR)
   return isolate->heap()->true_value();
 #else
@@ -8523,8 +8535,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConcurrentRecompilationSupported) {
   HandleScope scope(isolate);
-  return isolate->concurrent_recompilation_enabled()
-      ? isolate->heap()->true_value() : isolate->heap()->false_value();
+  ASSERT(args.length() == 0);
+  return isolate->heap()->ToBoolean(
+      isolate->concurrent_recompilation_enabled());
 }
 
 
@@ -8608,6 +8621,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_UnblockConcurrentRecompilation) {
+  ASSERT(args.length() == 0);
   RUNTIME_ASSERT(FLAG_block_concurrent_recompilation);
   RUNTIME_ASSERT(isolate->concurrent_recompilation_enabled());
   isolate->optimizing_compiler_thread()->Unblock();
@@ -8779,6 +8793,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetAllocationTimeout) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
@@ -8786,6 +8801,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckIsBootstrapping) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetRootNaN) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
   RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
   return isolate->heap()->nan_value();
 }
@@ -8827,7 +8843,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, fun, 0);
-  Handle<Object> receiver = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, arguments, 2);
   CONVERT_SMI_ARG_CHECKED(offset, 3);
   CONVERT_SMI_ARG_CHECKED(argc, 4);
@@ -8862,16 +8878,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetFunctionDelegate(isolate, args.at<Object>(0));
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  RUNTIME_ASSERT(!object->IsJSFunction());
+  return *Execution::GetFunctionDelegate(isolate, object);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetConstructorDelegate) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(!args[0]->IsJSFunction());
-  return *Execution::GetConstructorDelegate(isolate, args.at<Object>(0));
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  RUNTIME_ASSERT(!object->IsJSFunction());
+  return *Execution::GetConstructorDelegate(isolate, object);
 }
 
 
@@ -8986,7 +9004,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PushBlockContext) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsJSModule) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSModule());
 }
 
@@ -9288,7 +9306,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_StoreContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
 
-  Handle<Object> value(args[0], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   CONVERT_ARG_HANDLE_CHECKED(Context, context, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
   CONVERT_STRICT_MODE_ARG_CHECKED(strict_mode, 3);
@@ -9387,7 +9405,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_ReThrow) {
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PromoteScheduledException) {
   SealHandleScope shs(isolate);
-  ASSERT_EQ(0, args.length());
+  ASSERT(args.length() == 0);
   return isolate->PromoteScheduledException();
 }
 
@@ -9395,8 +9413,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_PromoteScheduledException) {
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_ThrowReferenceError) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  Handle<Object> name(args[0], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   Handle<Object> reference_error =
     isolate->factory()->NewReferenceError("not_defined",
                                           HandleVector(&name, 1));
@@ -9501,8 +9518,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TraceEnter) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TraceExit) {
   SealHandleScope shs(isolate);
-  PrintTransition(isolate, args[0]);
-  return args[0];  // return TOS
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  PrintTransition(isolate, obj);
+  return obj;  // return TOS
 }
 
 
@@ -9639,7 +9658,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateCacheVersion) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalReceiver) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* global = args[0];
+  CONVERT_ARG_CHECKED(Object, global, 0);
   if (!global->IsJSGlobalObject()) return isolate->heap()->null_value();
   return JSGlobalObject::cast(global)->global_receiver();
 }
@@ -9648,7 +9667,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GlobalReceiver) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAttachedGlobal) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  Object* global = args[0];
+  CONVERT_ARG_CHECKED(Object, global, 0);
   if (!global->IsJSGlobalObject()) return isolate->heap()->false_value();
   return isolate->heap()->ToBoolean(
       !JSGlobalObject::cast(global)->IsDetached());
@@ -9657,7 +9676,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAttachedGlobal) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   HandleScope scope(isolate);
-  ASSERT_EQ(1, args.length());
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
   source = String::Flatten(source);
@@ -9690,7 +9709,7 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileString) {
   HandleScope scope(isolate);
-  ASSERT_EQ(2, args.length());
+  ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
 
@@ -10667,8 +10686,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDebugEventListener) {
   RUNTIME_ASSERT(args[0]->IsJSFunction() ||
                  args[0]->IsUndefined() ||
                  args[0]->IsNull());
-  Handle<Object> callback = args.at<Object>(0);
-  Handle<Object> data = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
   isolate->debugger()->SetEventListener(callback, data);
 
   return isolate->heap()->undefined_value();
@@ -12398,7 +12417,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScopeVariableValue) {
   // Check arguments.
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
   CONVERT_ARG_HANDLE_CHECKED(String, variable_name, 4);
-  Handle<Object> new_value = args.at<Object>(5);
+  CONVERT_ARG_HANDLE_CHECKED(Object, new_value, 5);
 
   bool res;
   if (args[0]->IsNumber()) {
@@ -12579,7 +12598,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFunctionBreakPoint) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
-  Handle<Object> break_point_object_arg = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
 
   // Set break point.
   isolate->debug()->SetBreakPoint(function, break_point_object_arg,
@@ -12603,7 +12622,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
   RUNTIME_ASSERT(source_position >= 0);
   CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[2]);
-  Handle<Object> break_point_object_arg = args.at<Object>(3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 3);
 
   if (!IsPositionAlignmentCodeCorrect(statement_aligned_code)) {
     return isolate->ThrowIllegalOperation();
@@ -12631,7 +12650,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScriptBreakPoint) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearBreakPoint) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  Handle<Object> break_point_object_arg = args.at<Object>(0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 0);
 
   // Clear break point.
   isolate->debug()->ClearBreakPoint(break_point_object_arg);
@@ -12646,13 +12665,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClearBreakPoint) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ChangeBreakOnException) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
-  RUNTIME_ASSERT(args[0]->IsNumber());
+  CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 1);
 
   // If the number doesn't match an enum value, the ChangeBreakOnException
   // function will default to affecting caught exceptions.
-  ExceptionBreakType type =
-      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
+  ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
   // Update break point state.
   isolate->debug()->ChangeBreakOnException(type, enable);
   return isolate->heap()->undefined_value();
@@ -12664,10 +12682,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ChangeBreakOnException) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsBreakOnException) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsNumber());
+  CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
 
-  ExceptionBreakType type =
-      static_cast<ExceptionBreakType>(NumberToUint32(args[0]));
+  ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
   bool result = isolate->debug()->IsBreakOnException(type);
   return Smi::FromInt(result);
 }
@@ -12828,7 +12845,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 4);
-  Handle<Object> context_extension(args[5], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 5);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(isolate, disable_break);
@@ -12894,7 +12911,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   }
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
-  Handle<Object> context_extension(args[3], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 3);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(isolate, disable_break);
@@ -13037,7 +13054,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugReferencedBy) {
 
   // Check parameters.
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
-  Handle<Object> instance_filter = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, instance_filter, 1);
   RUNTIME_ASSERT(instance_filter->IsUndefined() ||
                  instance_filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
@@ -13337,7 +13354,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(JSValue, original_script_value, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
-  Handle<Object> old_script_name(args[2], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, old_script_name, 2);
 
   RUNTIME_ASSERT(original_script_value->value()->IsScript());
   Handle<Script> original_script(Script::cast(original_script_value->value()));
@@ -13385,8 +13402,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditFunctionSetScript) {
   HandleScope scope(isolate);
   CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
-  Handle<Object> function_object(args[0], isolate);
-  Handle<Object> script_object(args[1], isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, script_object, 1);
 
   if (function_object->IsJSValue()) {
     Handle<JSValue> function_wrapper = Handle<JSValue>::cast(function_object);
@@ -13579,6 +13596,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ExecuteInDebugContext) {
 // Sets a v8 flag.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(String, arg, 0);
   SmartArrayPointer<char> flags =
       arg->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -13591,6 +13609,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
   isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "%CollectGarbage");
   return isolate->heap()->undefined_value();
 }
@@ -13599,6 +13618,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
 // Gets the current heap usage.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
   int usage = static_cast<int>(isolate->heap()->SizeOfObjects());
   if (!Smi::IsValid(usage)) {
     return *isolate->factory()->NewNumberFromInt(usage);
@@ -14391,9 +14411,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScript) {
 // native code offset.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
   HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 3);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
-  Handle<Object> caller = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, caller, 1);
   CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[2]);
 
   // Optionally capture a more detailed stack trace for the message.
@@ -14407,7 +14427,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
 // be formatted.  Since we only need this once, clear it afterwards.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
   HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 1);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, error_object, 0);
   Handle<String> key = isolate->factory()->hidden_stack_trace_string();
   Handle<Object> result(error_object->GetHiddenProperty(*key), isolate);
@@ -14421,7 +14441,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
 // Returns V8 version as a string.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
   HandleScope scope(isolate);
-  ASSERT_EQ(args.length(), 0);
+  ASSERT(args.length() == 0);
 
   const char* version_string = v8::V8::GetVersion();
 
@@ -14506,7 +14526,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
   SealHandleScope shs(isolate);
   // This is only called from codegen, so checks might be more lax.
   CONVERT_ARG_CHECKED(JSFunctionResultCache, cache, 0);
-  Object* key = args[1];
+  CONVERT_ARG_CHECKED(Object, key, 1);
 
   {
     DisallowHeapAllocation no_alloc;
@@ -14602,6 +14622,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_GetFromCache) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetStartPosition) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
   return Smi::FromInt(message->start_position());
 }
@@ -14609,6 +14630,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetStartPosition) {
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MessageGetScript) {
   SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSMessageObject, message, 0);
   return message->script();
 }
@@ -14745,7 +14767,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsObserved) {
   ASSERT(args.length() == 1);
 
   if (!args[0]->IsJSReceiver()) return isolate->heap()->false_value();
-  JSReceiver* obj = JSReceiver::cast(args[0]);
+  CONVERT_ARG_CHECKED(JSReceiver, obj, 0);
   if (obj->IsJSGlobalProxy()) {
     Object* proto = obj->GetPrototype();
     if (proto->IsNull()) return isolate->heap()->false_value();
@@ -14827,7 +14849,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsAccessAllowedForObserver) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
   ASSERT(object->map()->is_access_check_needed());
-  Handle<Object> key = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
   SaveContext save(isolate);
   isolate->set_context(observer->context());
   if (!isolate->MayNamedAccess(
@@ -14990,6 +15012,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_InternalArrayConstructor) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MaxSmi) {
+  ASSERT(args.length() == 0);
   return Smi::FromInt(Smi::kMaxValue);
 }
 
