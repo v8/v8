@@ -756,6 +756,7 @@ TEST(JSArray) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(fun_obj);
 
   // Allocate the object.
+  Handle<Object> element;
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   // We just initialized the VM, no heap allocation failure yet.
@@ -770,7 +771,8 @@ TEST(JSArray) {
   // array[length] = name.
   JSReceiver::SetElement(array, 0, name, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(1), array->length());
-  CHECK_EQ(*i::Object::GetElement(isolate, array, 0).ToHandleChecked(), *name);
+  element = i::Object::GetElement(isolate, array, 0).ToHandleChecked();
+  CHECK_EQ(*element, *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
@@ -787,9 +789,10 @@ TEST(JSArray) {
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  CHECK_EQ(*i::Object::GetElement(isolate, array, int_length).ToHandleChecked(),
-           *name);
-  CHECK_EQ(*i::Object::GetElement(isolate, array, 0).ToHandleChecked(), *name);
+  element = Object::GetElement(isolate, array, int_length).ToHandleChecked();
+  CHECK_EQ(*element, *name);
+  element = Object::GetElement(isolate, array, 0).ToHandleChecked();
+  CHECK_EQ(*element, *name);
 }
 
 
@@ -817,18 +820,23 @@ TEST(JSObjectCopy) {
   JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY).Check();
 
   // Make the clone.
+  Handle<Object> value1, value2;
   Handle<JSObject> clone = JSObject::Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 0).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 0).ToHandleChecked());
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 1).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
+  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
-  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
-           *Object::GetProperty(clone, first).ToHandleChecked());
-  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
-           *Object::GetProperty(clone, second).ToHandleChecked());
+  value1 = Object::GetProperty(obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(clone, first).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetProperty(obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(clone, second).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
   // Flip the values.
   JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
@@ -837,15 +845,19 @@ TEST(JSObjectCopy) {
   JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY).Check();
   JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY).Check();
 
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 1).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 0).ToHandleChecked());
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 0).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
+  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
-  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
-           *Object::GetProperty(clone, first).ToHandleChecked());
-  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
-           *Object::GetProperty(clone, second).ToHandleChecked());
+  value1 = Object::GetProperty(obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(clone, first).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetProperty(obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(clone, second).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 }
 
 
