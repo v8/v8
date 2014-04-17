@@ -502,7 +502,7 @@ TEST(BootUpMemoryUse) {
           3000 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
     } else {
       CHECK_LE(delta,
-          3300 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
+          3350 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
     }
   }
 }
