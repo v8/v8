@@ -2409,6 +2409,22 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 }
 
 
+MaybeObject* Heap::AllocateFillerObject(int size,
+                                        bool double_align,
+                                        AllocationSpace space) {
+  HeapObject* allocation;
+  { MaybeObject* maybe_allocation = AllocateRaw(size, space, space);
+    if (!maybe_allocation->To(&allocation)) return maybe_allocation;
+  }
+#ifdef DEBUG
+  MemoryChunk* chunk = MemoryChunk::FromAddress(allocation->address());
+  ASSERT(chunk->owner()->identity() == space);
+#endif
+  CreateFillerObjectAt(allocation->address(), size);
+  return allocation;
+}
+
+
 MaybeObject* Heap::AllocatePolymorphicCodeCache() {
   return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
 }

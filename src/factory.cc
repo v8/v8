@@ -32,6 +32,16 @@ Handle<T> Factory::New(Handle<Map> map,
 }
 
 
+Handle<HeapObject> Factory::NewFillerObject(int size,
+                                            bool double_align,
+                                            AllocationSpace space) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFillerObject(size, double_align, space),
+      HeapObject);
+}
+
+
 Handle<Box> Factory::NewBox(Handle<Object> value) {
   Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
   result->set_value(*value);

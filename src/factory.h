@@ -269,6 +269,10 @@ class Factory V8_FINAL {
       int instance_size,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
 
+  Handle<HeapObject> NewFillerObject(int size,
+                                     bool double_align,
+                                     AllocationSpace space);
+
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);

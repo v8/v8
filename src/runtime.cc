@@ -9791,45 +9791,28 @@ RUNTIME_FUNCTION(ObjectPair, RuntimeHidden_ResolvePossiblyDirectEval) {
 }
 
 
-// Allocate a block of memory in the given space (filled with a filler).
-// Used as a fall-back for generated code when the space is full.
-static MaybeObject* Allocate(Isolate* isolate,
-                             int size,
-                             bool double_align,
-                             AllocationSpace space) {
-  Heap* heap = isolate->heap();
+RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_AllocateInNewSpace) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_SMI_ARG_CHECKED(size, 0);
   RUNTIME_ASSERT(IsAligned(size, kPointerSize));
   RUNTIME_ASSERT(size > 0);
   RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
-  HeapObject* allocation;
-  { MaybeObject* maybe_allocation = heap->AllocateRaw(size, space, space);
-    if (!maybe_allocation->To(&allocation)) return maybe_allocation;
-  }
-#ifdef DEBUG
-  MemoryChunk* chunk = MemoryChunk::FromAddress(allocation->address());
-  ASSERT(chunk->owner()->identity() == space);
-#endif
-  heap->CreateFillerObjectAt(allocation->address(), size);
-  return allocation;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_AllocateInNewSpace) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_SMI_ARG_CHECKED(size, 0);
-  return Allocate(isolate, size, false, NEW_SPACE);
+  return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_AllocateInTargetSpace) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
+  RUNTIME_ASSERT(IsAligned(size, kPointerSize));
+  RUNTIME_ASSERT(size > 0);
+  RUNTIME_ASSERT(size <= Page::kMaxRegularHeapObjectSize);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
-  return Allocate(isolate, size, double_align, space);
+  return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 
 
