@@ -117,30 +117,24 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Heap* heap = isolate->heap();
-  Object* code = heap->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   CHECK(code->IsCode());
 
-  HeapObject* obj = HeapObject::cast(code);
+  HeapObject* obj = HeapObject::cast(*code);
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kPointerSize) {
     Object* found = isolate->FindCodeObject(obj_addr + i);
-    CHECK_EQ(code, found);
+    CHECK_EQ(*code, found);
   }
 
-  Object* copy = heap->CreateCode(
-      desc,
-      Code::ComputeFlags(Code::STUB),
-      Handle<Code>())->ToObjectChecked();
-  CHECK(copy->IsCode());
-  HeapObject* obj_copy = HeapObject::cast(copy);
+  Handle<Code> copy = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  HeapObject* obj_copy = HeapObject::cast(*copy);
   Object* not_right = isolate->FindCodeObject(obj_copy->address() +
                                               obj_copy->Size() / 2);
-  CHECK(not_right != code);
+  CHECK(not_right != *code);
 }
 
 
@@ -2633,14 +2627,15 @@ TEST(Regress1465) {
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 256;
 
+  CompileRun("function F() {}");
   {
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     for (int i = 0; i < transitions_count; i++) {
       EmbeddedVector<char, 64> buffer;
-      OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+      OS::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
       CompileRun(buffer.start());
     }
-    CompileRun("var root = new Object;");
+    CompileRun("var root = new F;");
   }
 
   Handle<JSObject> root =
@@ -2669,7 +2664,7 @@ static void AddTransitions(int transitions_count) {
   AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   for (int i = 0; i < transitions_count; i++) {
     EmbeddedVector<char, 64> buffer;
-    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+    OS::SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
     CompileRun(buffer.start());
   }
 }
@@ -2702,8 +2697,9 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
+  CompileRun("function F() { }");
   AddTransitions(transitions_count);
-  CompileRun("var root = new Object;");
+  CompileRun("var root = new F;");
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
@@ -2711,8 +2707,8 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   CHECK_EQ(transitions_count, transitions_before);
 
   // Get rid of o
-  CompileRun("o = new Object;"
-             "root = new Object");
+  CompileRun("o = new F;"
+             "root = new F");
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
 
@@ -2730,8 +2726,9 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
+  CompileRun("function F() {}");
   AddTransitions(transitions_count);
-  CompileRun("var root = new Object;");
+  CompileRun("var root = new F;");
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
@@ -2755,8 +2752,9 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 10;
+  CompileRun("function F() {}");
   AddTransitions(transitions_count);
-  CompileRun("var root = new Object;");
+  CompileRun("var root = new F;");
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
@@ -2780,16 +2778,17 @@ TEST(TransitionArraySimpleToFull) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   static const int transitions_count = 1;
+  CompileRun("function F() {}");
   AddTransitions(transitions_count);
-  CompileRun("var root = new Object;");
+  CompileRun("var root = new F;");
   Handle<JSObject> root = GetByName("root");
 
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
   CHECK_EQ(transitions_count, transitions_before);
 
-  CompileRun("o = new Object;"
-             "root = new Object");
+  CompileRun("o = new F;"
+             "root = new F");
   root = GetByName("root");
   ASSERT(root->map()->transitions()->IsSimpleTransition());
   AddPropertyTo(2, root, "happy");

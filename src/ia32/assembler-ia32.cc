@@ -2717,16 +2717,17 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 
-MaybeObject* Assembler::AllocateConstantPool(Heap* heap) {
+Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
-  return NULL;
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return isolate->factory()->empty_constant_pool_array();
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
   // No out-of-line constant pool support.
-  UNREACHABLE();
+  ASSERT(!FLAG_enable_ool_constant_pool);
+  return;
 }
 
 

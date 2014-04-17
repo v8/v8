@@ -85,22 +85,6 @@ void PromotionQueue::ActivateGuardIfOnTheSamePage() {
 }
 
 
-MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
-                                          PretenureFlag pretenure) {
-  // Check for ASCII first since this is the common case.
-  const char* start = str.start();
-  int length = str.length();
-  int non_ascii_start = String::NonAsciiStart(start, length);
-  if (non_ascii_start >= length) {
-    // If the string is ASCII, we do not need to convert the characters
-    // since UTF8 is backwards compatible with ASCII.
-    return AllocateStringFromOneByte(str, pretenure);
-  }
-  // Non-ASCII and we need to decode.
-  return AllocateStringFromUtf8Slow(str, non_ascii_start, pretenure);
-}
-
-
 template<>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
   // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
@@ -266,14 +250,6 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
     profiler->AllocationEvent(object->address(), size_in_bytes);
   }
   return result;
-}
-
-
-MaybeObject* Heap::NumberFromInt32(
-    int32_t value, PretenureFlag pretenure) {
-  if (Smi::IsValid(value)) return Smi::FromInt(value);
-  // Bypass NumberFromDouble to avoid various redundant checks.
-  return AllocateHeapNumber(FastI2D(value), pretenure);
 }
 
 

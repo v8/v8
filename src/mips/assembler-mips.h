@@ -1017,7 +1017,7 @@ class Assembler : public AssemblerBase {
   void CheckTrampolinePool();
 
   // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
 
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);

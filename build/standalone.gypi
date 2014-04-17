@@ -55,8 +55,8 @@
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
                                        s/x86_64/x64/;\
                                        s/amd64/x64/;\
-                                       s/aarch64/arm64/;\
                                        s/arm.*/arm/;\
+                                       s/aarch64/arm64/;\
                                        s/mips.*/mipsel/")',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and

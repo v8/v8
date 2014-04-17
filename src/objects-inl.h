@@ -87,13 +87,6 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 
-#define FIXED_TYPED_ARRAY_CAST_ACCESSOR(type)   \
-  template<>                                    \
-  type* type::cast(Object* object) {            \
-    SLOW_ASSERT(object->Is##type());            \
-    return reinterpret_cast<type*>(object);     \
-  }
-
 #define INT_ACCESSORS(holder, name, offset)                             \
   int holder::name() { return READ_INT_FIELD(this, offset); }           \
   void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
@@ -1103,6 +1096,19 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
   Isolate* isolate = name->GetIsolate();
   if (name->AsArrayIndex(&index)) return GetElement(isolate, object, index);
   return GetProperty(object, name);
+}
+
+
+MaybeHandle<Object> Object::GetProperty(Isolate* isolate,
+                                        Handle<Object> object,
+                                        const char* name) {
+  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
+  ASSERT(!str.is_null());
+#ifdef DEBUG
+  uint32_t index;  // Assert that the name is not an array index.
+  ASSERT(!str->AsArrayIndex(&index));
+#endif  // DEBUG
+  return GetProperty(object, str);
 }
 
 

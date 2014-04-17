@@ -714,7 +714,7 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   void AddEntry(Assembler* assm, const RelocInfo& rinfo);
   void Relocate(int pc_delta);
   bool IsEmpty();
-  MaybeObject* Allocate(Heap* heap);
+  Handle<ConstantPoolArray> New(Isolate* isolate);
   void Populate(Assembler* assm, ConstantPoolArray* constant_pool);
 
   inline int count_of_64bit() const { return count_of_64bit_; }
@@ -1498,7 +1498,7 @@ class Assembler : public AssemblerBase {
   void CheckConstPool(bool force_emit, bool require_jump);
 
   // Allocate a constant pool of the correct size for the generated code.
-  MaybeObject* AllocateConstantPool(Heap* heap);
+  Handle<ConstantPoolArray> NewConstantPool(Isolate* isolate);
 
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);

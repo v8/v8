@@ -723,18 +723,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* CopyJSObject(JSObject* source,
                                             AllocationSite* site = NULL);
 
-  // Allocates a Harmony proxy or function proxy.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSProxy(Object* handler,
-                                               Object* prototype);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSFunctionProxy(Object* handler,
-                                                       Object* call_trap,
-                                                       Object* construct_trap,
-                                                       Object* prototype);
-
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -767,14 +755,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
                                                   int instance_size);
 
-  // Allocates an empty code cache.
-  MUST_USE_RESULT MaybeObject* AllocateCodeCache();
-
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
-
-  // Allocates an AliasedArgumentsEntry.
-  MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -805,16 +787,6 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
       Vector<const uint8_t> str,
-      PretenureFlag pretenure = NOT_TENURED);
-  // TODO(dcarney): remove this function.
-  MUST_USE_RESULT inline MaybeObject* AllocateStringFromOneByte(
-      Vector<const char> str,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return AllocateStringFromOneByte(Vector<const uint8_t>::cast(str),
-                                     pretenure);
-  }
-  MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
-      Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
@@ -907,9 +879,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateSymbol();
   MUST_USE_RESULT MaybeObject* AllocatePrivateSymbol();
 
-  // Allocate a tenured AllocationSite. It's payload is null
-  MUST_USE_RESULT MaybeObject* AllocateAllocationSite();
-
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -1000,21 +969,9 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateArgumentsObject(
       Object* callee, int length);
 
-  // Same as NewNumberFromDouble, but may return a preallocated/immutable
-  // number object (e.g., minus_zero_value_, nan_value_)
-  MUST_USE_RESULT MaybeObject* NumberFromDouble(
-      double value, PretenureFlag pretenure = NOT_TENURED);
-
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT MaybeObject* AllocateHeapNumber(
       double value, PretenureFlag pretenure = NOT_TENURED);
-
-  // Converts an int into either a Smi or a HeapNumber object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* NumberFromInt32(
-      int32_t value, PretenureFlag pretenure = NOT_TENURED);
 
   // Converts an int into either a Smi or a HeapNumber object.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1029,34 +986,6 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateForeign(
       Address address, PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates a new SharedFunctionInfo object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateSharedFunctionInfo(Object* name);
-
-  // Allocates a new JSMessageObject object.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note that this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateJSMessageObject(
-      String* type,
-      JSArray* arguments,
-      int start_position,
-      int end_position,
-      Object* script,
-      Object* stack_frames);
-
-  // Allocate a new external string object, which is backed by a string
-  // resource that resides outside the V8 heap.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
-  MUST_USE_RESULT MaybeObject* AllocateExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
@@ -1082,19 +1011,7 @@ class Heap {
   // Maintain marking consistency for IncrementalMarking.
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);
 
-  // Makes a new native code object
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed. On success, the pointer to the Code object is stored in the
-  // self_reference. This allows generated code to reference its own Code
-  // object by containing this pointer.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* CreateCode(
-      const CodeDesc& desc,
-      Code::Flags flags,
-      Handle<Object> self_reference,
-      bool immovable = false,
-      bool crankshafted = false,
-      int prologue_offset = Code::kPrologueOffsetNotSet);
+  MUST_USE_RESULT MaybeObject* AllocateCode(int object_size, bool immovable);
 
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 
@@ -1425,13 +1342,6 @@ class Heap {
 
   bool CreateApiObjects();
 
-  // Attempt to find the number in a small cache.  If we finds it, return
-  // the string representation of the number.  Otherwise return undefined.
-  Object* GetNumberStringCache(Object* number);
-
-  // Update the cache with a new number-string pair.
-  void SetNumberStringCache(Object* number, String* str);
-
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
   inline int64_t AdjustAmountOfExternalAllocatedMemory(
@@ -1527,11 +1437,6 @@ class Heap {
   static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
   // Generated code can treat direct references to this root as constant.
   bool RootCanBeTreatedAsConstant(RootListIndex root_index);
-
-  MUST_USE_RESULT MaybeObject* NumberToString(
-      Object* number, bool check_number_string_cache = true);
-  MUST_USE_RESULT MaybeObject* Uint32ToString(
-      uint32_t value, bool check_number_string_cache = true);
 
   Map* MapForFixedTypedArray(ExternalArrayType array_type);
   RootListIndex RootIndexForFixedTypedArray(
@@ -2094,11 +1999,6 @@ class Heap {
 
   void CreateFixedStubs();
 
-  MUST_USE_RESULT MaybeObject* CreateOddball(Map* map,
-                                             const char* to_string,
-                                             Object* to_number,
-                                             byte kind);
-
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
 
@@ -2177,9 +2077,6 @@ class Heap {
   // Allocates a small number to string cache.
   MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
   // Creates and installs the full-sized number string cache.
-  void AllocateFullSizeNumberStringCache();
-  // Get the length of the number to string cache based on the max semispace
-  // size.
   int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
@@ -2875,10 +2772,10 @@ class RegExpResultsCache {
                         ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
-  static void Enter(Heap* heap,
-                    String* key_string,
-                    Object* key_pattern,
-                    FixedArray* value_array,
+  static void Enter(Isolate* isolate,
+                    Handle<String> key_string,
+                    Handle<Object> key_pattern,
+                    Handle<FixedArray> value_array,
                     ResultsCacheType type);
   static void Clear(FixedArray* cache);
   static const int kRegExpResultsCacheSize = 0x100;

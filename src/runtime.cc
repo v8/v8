@@ -2870,7 +2870,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetScript) {
   Handle<Object> script = Handle<Object>(fun->shared()->script(), isolate);
   if (!script->IsScript()) return isolate->heap()->undefined_value();
 
-  return *GetScriptWrapper(Handle<Script>::cast(script));
+  return *Script::GetWrapper(Handle<Script>::cast(script));
 }
 
 
@@ -4730,10 +4730,10 @@ static MaybeObject* SearchRegExpMultiple(
       fixed_array->set(fixed_array->length() - 1,
                        Smi::FromInt(builder.length()));
       // Cache the result and turn the FixedArray into a COW array.
-      RegExpResultsCache::Enter(isolate->heap(),
-                                *subject,
-                                regexp->data(),
-                                *fixed_array,
+      RegExpResultsCache::Enter(isolate,
+                                subject,
+                                handle(regexp->data(), isolate),
+                                fixed_array,
                                 RegExpResultsCache::REGEXP_MULTIPLE_INDICES);
     }
     return *builder.ToJSArray(result_array);
@@ -5727,7 +5727,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNames) {
   isolate->counters()->for_in()->Increment();
   Handle<FixedArray> elements;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, elements, GetKeysInFixedArrayFor(object, INCLUDE_PROTOS));
+      isolate, elements,
+      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
   return *isolate->factory()->NewJSArrayWithElements(elements);
 }
 
@@ -5749,7 +5750,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPropertyNamesFast) {
   Handle<JSReceiver> object(raw_object);
   Handle<FixedArray> content;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, content, GetKeysInFixedArrayFor(object, INCLUDE_PROTOS));
+      isolate, content,
+      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
 
   // Test again, since cache may have been built by preceding call.
   if (object->IsSimpleEnum()) return object->map();
@@ -5931,8 +5933,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetNamedInterceptorPropertyNames) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
   if (obj->HasNamedInterceptor()) {
-    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+    Handle<JSArray> result;
+    if (JSObject::GetKeysForNamedInterceptor(obj, obj).ToHandle(&result)) {
+      return *result;
+    }
   }
   return isolate->heap()->undefined_value();
 }
@@ -5946,8 +5950,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetIndexedInterceptorElementNames) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
 
   if (obj->HasIndexedInterceptor()) {
-    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
-    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+    Handle<JSArray> result;
+    if (JSObject::GetKeysForIndexedInterceptor(obj, obj).ToHandle(&result)) {
+      return *result;
+    }
   }
   return isolate->heap()->undefined_value();
 }
@@ -5977,7 +5983,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
 
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, contents, GetKeysInFixedArrayFor(object, LOCAL_ONLY));
+      isolate, contents,
+      JSReceiver::GetKeys(object, JSReceiver::LOCAL_ONLY));
 
   // Some fast paths through GetKeysInFixedArrayFor reuse a cached
   // property array and since the result is mutable we have to create
@@ -6750,10 +6757,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 
   if (limit == 0xffffffffu) {
     if (result->HasFastObjectElements()) {
-      RegExpResultsCache::Enter(isolate->heap(),
-                                *subject,
-                                *pattern,
-                                *elements,
+      RegExpResultsCache::Enter(isolate,
+                                subject,
+                                pattern,
+                                elements,
                                 RegExpResultsCache::STRING_SPLIT_SUBSTRINGS);
     }
   }
@@ -6810,12 +6817,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToArray) {
   int position = 0;
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
     // Try using cached chars where possible.
-    Object* obj;
-    { MaybeObject* maybe_obj =
-          isolate->heap()->AllocateUninitializedFixedArray(length);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    elements = Handle<FixedArray>(FixedArray::cast(obj), isolate);
+    elements = isolate->factory()->NewUninitializedFixedArray(length);
+
     DisallowHeapAllocation no_gc;
     String::FlatContent content = s->GetFlatContent();
     if (content.IsAscii()) {
@@ -7988,35 +7991,26 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewArgumentsFast) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewStrictArgumentsFast) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-
-  JSFunction* callee = JSFunction::cast(args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
   Object** parameters = reinterpret_cast<Object**>(args[1]);
-  const int length = args.smi_at(2);
+  CONVERT_SMI_ARG_CHECKED(length, 2);
 
-  Object* result;
-  { MaybeObject* maybe_result =
-        isolate->heap()->AllocateArgumentsObject(callee, length);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  // Allocate the elements if needed.
+  Handle<JSObject> result =
+        isolate->factory()->NewArgumentsObject(callee, length);
+
   if (length > 0) {
-    // Allocate the fixed array.
-    FixedArray* array;
-    { MaybeObject* maybe_obj =
-          isolate->heap()->AllocateUninitializedFixedArray(length);
-      if (!maybe_obj->To(&array)) return maybe_obj;
-    }
-
+    Handle<FixedArray> array =
+        isolate->factory()->NewUninitializedFixedArray(length);
     DisallowHeapAllocation no_gc;
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
       array->set(i, *--parameters, mode);
     }
-    JSObject::cast(result)->set_elements(array);
+    result->set_elements(*array);
   }
-  return result;
+  return *result;
 }
 
 
@@ -9606,13 +9600,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   const char* zone =
       isolate->date_cache()->LocalTimezone(static_cast<int64_t>(x));
-  return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
+  return *isolate->factory()->NewStringFromUtf8(CStrVector(zone));
 }
 
 
@@ -11448,7 +11442,9 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeLocalContext(
       Handle<JSObject> ext(JSObject::cast(function_context->extension()));
       Handle<FixedArray> keys;
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, keys, GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS), JSObject);
+          isolate, keys,
+          JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS),
+          JSObject);
 
       for (int i = 0; i < keys->length(); i++) {
         // Names of variables introduced by eval are strings.
@@ -11603,7 +11599,8 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeClosure(
     Handle<JSObject> ext(JSObject::cast(context->extension()));
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys, GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS), JSObject);
+        isolate, keys,
+        JSReceiver::GetKeys(ext, JSReceiver::INCLUDE_PROTOS), JSObject);
 
     for (int i = 0; i < keys->length(); i++) {
       HandleScope scope(isolate);
@@ -12937,7 +12934,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
     //   instances->set(i, *GetScriptWrapper(script))
     // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
     // already have dereferenced the instances handle.
-    Handle<JSValue> wrapper = GetScriptWrapper(script);
+    Handle<JSObject> wrapper = Script::GetWrapper(script);
     instances->set(i, *wrapper);
   }
 
@@ -13348,7 +13345,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditReplaceScript) {
 
   if (old_script->IsScript()) {
     Handle<Script> script_handle = Handle<Script>::cast(old_script);
-    return *(GetScriptWrapper(script_handle));
+    return *Script::GetWrapper(script_handle);
   } else {
     return isolate->heap()->null_value();
   }
@@ -13613,6 +13610,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHeapUsage) {
 #ifdef V8_I18N_SUPPORT
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
@@ -13629,7 +13627,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY,
                       &icu_length, &error);
   if (U_FAILURE(error) || icu_length == 0) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
   }
 
   char result[ULOC_FULLNAME_CAPACITY];
@@ -13638,10 +13636,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
 
   if (U_FAILURE(error)) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(kInvalidTag));
+    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
   }
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+  return *factory->NewStringFromOneByte(OneByteVector(result));
 }
 
 
@@ -13693,7 +13691,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 0);
 
@@ -13705,10 +13704,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
   uloc_toLanguageTag(
       default_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
   if (U_SUCCESS(status)) {
-    return isolate->heap()->AllocateStringFromOneByte(CStrVector(result));
+    return *factory->NewStringFromOneByte(OneByteVector(result));
   }
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector("und"));
+  return *factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("und"));
 }
 
 
@@ -14364,7 +14363,7 @@ static Handle<Object> Runtime_GetScriptFromScriptName(
   if (script.is_null()) return factory->undefined_value();
 
   // Return the script found.
-  return GetScriptWrapper(script);
+  return Script::GetWrapper(script);
 }
 
 
@@ -14419,13 +14418,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAndClearOverflowedStackTrace) {
 
 // Returns V8 version as a string.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT_EQ(args.length(), 0);
 
   const char* version_string = v8::V8::GetVersion();
 
-  return isolate->heap()->AllocateStringFromOneByte(CStrVector(version_string),
-                                                  NOT_TENURED);
+  return *isolate->factory()->NewStringFromOneByte(
+      OneByteVector(version_string), NOT_TENURED);
 }
 
 

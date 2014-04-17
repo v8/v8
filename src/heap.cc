@@ -2408,29 +2408,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 }
 
 
-MaybeObject* Heap::AllocateCodeCache() {
-  CodeCache* code_cache;
-  { MaybeObject* maybe_code_cache = AllocateStruct(CODE_CACHE_TYPE);
-    if (!maybe_code_cache->To(&code_cache)) return maybe_code_cache;
-  }
-  code_cache->set_default_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code_cache->set_normal_type_cache(undefined_value(), SKIP_WRITE_BARRIER);
-  return code_cache;
-}
-
-
 MaybeObject* Heap::AllocatePolymorphicCodeCache() {
   return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
-}
-
-
-MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
-  AliasedArgumentsEntry* entry;
-  { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
-    if (!maybe_entry->To(&entry)) return maybe_entry;
-  }
-  entry->set_aliased_context_slot(aliased_context_slot);
-  return entry;
 }
 
 
@@ -2745,32 +2724,6 @@ MaybeObject* Heap::AllocatePropertyCell() {
 }
 
 
-MaybeObject* Heap::AllocateAllocationSite() {
-  AllocationSite* site;
-  MaybeObject* maybe_result = Allocate(allocation_site_map(),
-                                       OLD_POINTER_SPACE);
-  if (!maybe_result->To(&site)) return maybe_result;
-  site->Initialize();
-
-  // Link the site
-  site->set_weak_next(allocation_sites_list());
-  set_allocation_sites_list(site);
-  return site;
-}
-
-
-MaybeObject* Heap::CreateOddball(Map* map,
-                                 const char* to_string,
-                                 Object* to_number,
-                                 byte kind) {
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(map, OLD_POINTER_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  return Oddball::cast(result)->Initialize(this, to_string, to_number, kind);
-}
-
-
 bool Heap::CreateApiObjects() {
   Object* obj;
 
@@ -2843,115 +2796,82 @@ void Heap::CreateFixedStubs() {
 
 
 bool Heap::CreateInitialObjects() {
-  Object* obj;
+  HandleScope scope(isolate());
+  Factory* factory = isolate()->factory();
 
   // The -0 value must be set before NumberFromDouble works.
-  { MaybeObject* maybe_obj = AllocateHeapNumber(-0.0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_minus_zero_value(HeapNumber::cast(obj));
+  set_minus_zero_value(*factory->NewHeapNumber(-0.0, TENURED));
   ASSERT(std::signbit(minus_zero_value()->Number()) != 0);
 
-  { MaybeObject* maybe_obj = AllocateHeapNumber(OS::nan_value(), TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_nan_value(HeapNumber::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateHeapNumber(V8_INFINITY, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_infinity_value(HeapNumber::cast(obj));
+  set_nan_value(*factory->NewHeapNumber(OS::nan_value(), TENURED));
+  set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, TENURED));
 
   // The hole has not been created yet, but we want to put something
   // predictable in the gaps in the string table, so lets make that Smi zero.
   set_the_hole_value(reinterpret_cast<Oddball*>(Smi::FromInt(0)));
 
   // Allocate initial string table.
-  { MaybeObject* maybe_obj =
-        StringTable::Allocate(this, kInitialStringTableSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  // Don't use set_string_table() due to asserts.
-  roots_[kStringTableRootIndex] = obj;
+  set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
   // Finish initializing oddballs after creating the string table.
-  { MaybeObject* maybe_obj =
-        undefined_value()->Initialize(this,
-                                      "undefined",
-                                      nan_value(),
-                                      Oddball::kUndefined);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
+  Oddball::Initialize(isolate(),
+                      factory->undefined_value(),
+                      "undefined",
+                      factory->nan_value(),
+                      Oddball::kUndefined);
 
   // Initialize the null_value.
-  { MaybeObject* maybe_obj = null_value()->Initialize(
-      this, "null", Smi::FromInt(0), Oddball::kNull);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
+  Oddball::Initialize(isolate(),
+                      factory->null_value(),
+                      "null",
+                      handle(Smi::FromInt(0), isolate()),
+                      Oddball::kNull);
 
-  { MaybeObject* maybe_obj = CreateOddball(boolean_map(),
-                                           "true",
-                                           Smi::FromInt(1),
-                                           Oddball::kTrue);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_true_value(Oddball::cast(obj));
+  set_true_value(*factory->NewOddball(factory->boolean_map(),
+                                      "true",
+                                      handle(Smi::FromInt(1), isolate()),
+                                      Oddball::kTrue));
 
-  { MaybeObject* maybe_obj = CreateOddball(boolean_map(),
-                                           "false",
-                                           Smi::FromInt(0),
-                                           Oddball::kFalse);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_false_value(Oddball::cast(obj));
+  set_false_value(*factory->NewOddball(factory->boolean_map(),
+                                       "false",
+                                       handle(Smi::FromInt(0), isolate()),
+                                       Oddball::kFalse));
 
-  { MaybeObject* maybe_obj = CreateOddball(the_hole_map(),
-                                           "hole",
-                                           Smi::FromInt(-1),
-                                           Oddball::kTheHole);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_the_hole_value(Oddball::cast(obj));
+  set_the_hole_value(*factory->NewOddball(factory->the_hole_map(),
+                                          "hole",
+                                          handle(Smi::FromInt(-1), isolate()),
+                                          Oddball::kTheHole));
 
-  { MaybeObject* maybe_obj = CreateOddball(uninitialized_map(),
-                                           "uninitialized",
-                                           Smi::FromInt(-1),
-                                           Oddball::kUninitialized);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_uninitialized_value(Oddball::cast(obj));
+  set_uninitialized_value(
+      *factory->NewOddball(factory->uninitialized_map(),
+                           "uninitialized",
+                           handle(Smi::FromInt(-1), isolate()),
+                           Oddball::kUninitialized));
 
-  { MaybeObject* maybe_obj = CreateOddball(arguments_marker_map(),
-                                           "arguments_marker",
-                                           Smi::FromInt(-4),
-                                           Oddball::kArgumentMarker);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_arguments_marker(Oddball::cast(obj));
+  set_arguments_marker(*factory->NewOddball(factory->arguments_marker_map(),
+                                            "arguments_marker",
+                                            handle(Smi::FromInt(-4), isolate()),
+                                            Oddball::kArgumentMarker));
 
-  { MaybeObject* maybe_obj = CreateOddball(no_interceptor_result_sentinel_map(),
-                                           "no_interceptor_result_sentinel",
-                                           Smi::FromInt(-2),
-                                           Oddball::kOther);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_no_interceptor_result_sentinel(Oddball::cast(obj));
+  set_no_interceptor_result_sentinel(
+      *factory->NewOddball(factory->no_interceptor_result_sentinel_map(),
+                           "no_interceptor_result_sentinel",
+                           handle(Smi::FromInt(-2), isolate()),
+                           Oddball::kOther));
 
-  { MaybeObject* maybe_obj = CreateOddball(termination_exception_map(),
-                                           "termination_exception",
-                                           Smi::FromInt(-3),
-                                           Oddball::kOther);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_termination_exception(Oddball::cast(obj));
+  set_termination_exception(
+      *factory->NewOddball(factory->termination_exception_map(),
+                           "termination_exception",
+                           handle(Smi::FromInt(-3), isolate()),
+                           Oddball::kOther));
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
-    { MaybeObject* maybe_obj =
-          InternalizeUtf8String(constant_string_table[i].contents);
-      if (!maybe_obj->ToObject(&obj)) return false;
-    }
-    roots_[constant_string_table[i].index] = String::cast(obj);
+    Handle<String> str =
+        factory->InternalizeUtf8String(constant_string_table[i].contents);
+    roots_[constant_string_table[i].index] = *str;
   }
+
+  Object* obj;
 
   // Allocate the hidden string which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
@@ -2992,11 +2912,12 @@ bool Heap::CreateInitialObjects() {
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.
-  { MaybeObject* maybe_obj =
-        NameDictionary::Allocate(this, Runtime::kNumFunctions);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  {
+    Handle<NameDictionary> function_names =
+        NameDictionary::New(isolate(), Runtime::kNumFunctions);
+    Runtime::InitializeIntrinsicFunctionNames(isolate(), function_names);
+    set_intrinsic_function_names(*function_names);
   }
-  set_intrinsic_function_names(NameDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3195,60 +3116,58 @@ Object* RegExpResultsCache::Lookup(Heap* heap,
 }
 
 
-void RegExpResultsCache::Enter(Heap* heap,
-                               String* key_string,
-                               Object* key_pattern,
-                               FixedArray* value_array,
+void RegExpResultsCache::Enter(Isolate* isolate,
+                               Handle<String> key_string,
+                               Handle<Object> key_pattern,
+                               Handle<FixedArray> value_array,
                                ResultsCacheType type) {
-  FixedArray* cache;
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> cache;
   if (!key_string->IsInternalizedString()) return;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     ASSERT(key_pattern->IsString());
     if (!key_pattern->IsInternalizedString()) return;
-    cache = heap->string_split_cache();
+    cache = factory->string_split_cache();
   } else {
     ASSERT(type == REGEXP_MULTIPLE_INDICES);
     ASSERT(key_pattern->IsFixedArray());
-    cache = heap->regexp_multiple_cache();
+    cache = factory->regexp_multiple_cache();
   }
 
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
-    cache->set(index + kStringOffset, key_string);
-    cache->set(index + kPatternOffset, key_pattern);
-    cache->set(index + kArrayOffset, value_array);
+    cache->set(index + kStringOffset, *key_string);
+    cache->set(index + kPatternOffset, *key_pattern);
+    cache->set(index + kArrayOffset, *value_array);
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
-      cache->set(index2 + kStringOffset, key_string);
-      cache->set(index2 + kPatternOffset, key_pattern);
-      cache->set(index2 + kArrayOffset, value_array);
+      cache->set(index2 + kStringOffset, *key_string);
+      cache->set(index2 + kPatternOffset, *key_pattern);
+      cache->set(index2 + kArrayOffset, *value_array);
     } else {
       cache->set(index2 + kStringOffset, Smi::FromInt(0));
       cache->set(index2 + kPatternOffset, Smi::FromInt(0));
       cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-      cache->set(index + kStringOffset, key_string);
-      cache->set(index + kPatternOffset, key_pattern);
-      cache->set(index + kArrayOffset, value_array);
+      cache->set(index + kStringOffset, *key_string);
+      cache->set(index + kPatternOffset, *key_pattern);
+      cache->set(index + kArrayOffset, *value_array);
     }
   }
   // If the array is a reasonably short list of substrings, convert it into a
   // list of internalized strings.
   if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
     for (int i = 0; i < value_array->length(); i++) {
-      String* str = String::cast(value_array->get(i));
-      Object* internalized_str;
-      MaybeObject* maybe_string = heap->InternalizeString(str);
-      if (maybe_string->ToObject(&internalized_str)) {
-        value_array->set(i, internalized_str);
-      }
+      Handle<String> str(String::cast(value_array->get(i)), isolate);
+      Handle<String> internalized_str = factory->InternalizeString(str);
+      value_array->set(i, *internalized_str);
     }
   }
   // Convert backing store to a copy-on-write array.
-  value_array->set_map_no_write_barrier(heap->fixed_cow_array_map());
+  value_array->set_map_no_write_barrier(*factory->fixed_cow_array_map());
 }
 
 
@@ -3279,124 +3198,12 @@ int Heap::FullSizeNumberStringCacheLength() {
 }
 
 
-void Heap::AllocateFullSizeNumberStringCache() {
-  // The idea is to have a small number string cache in the snapshot to keep
-  // boot-time memory usage down.  If we expand the number string cache already
-  // while creating the snapshot then that didn't work out.
-  ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
-  MaybeObject* maybe_obj =
-      AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
-  Object* new_cache;
-  if (maybe_obj->ToObject(&new_cache)) {
-    // We don't bother to repopulate the cache with entries from the old cache.
-    // It will be repopulated soon enough with new strings.
-    set_number_string_cache(FixedArray::cast(new_cache));
-  }
-  // If allocation fails then we just return without doing anything.  It is only
-  // a cache, so best effort is OK here.
-}
-
-
 void Heap::FlushNumberStringCache() {
   // Flush the number to string cache.
   int len = number_string_cache()->length();
   for (int i = 0; i < len; i++) {
     number_string_cache()->set_undefined(i);
   }
-}
-
-
-static inline int double_get_hash(double d) {
-  DoubleRepresentation rep(d);
-  return static_cast<int>(rep.bits) ^ static_cast<int>(rep.bits >> 32);
-}
-
-
-static inline int smi_get_hash(Smi* smi) {
-  return smi->value();
-}
-
-
-Object* Heap::GetNumberStringCache(Object* number) {
-  int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number)) & mask;
-  } else {
-    hash = double_get_hash(number->Number()) & mask;
-  }
-  Object* key = number_string_cache()->get(hash * 2);
-  if (key == number) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
-  } else if (key->IsHeapNumber() &&
-             number->IsHeapNumber() &&
-             key->Number() == number->Number()) {
-    return String::cast(number_string_cache()->get(hash * 2 + 1));
-  }
-  return undefined_value();
-}
-
-
-void Heap::SetNumberStringCache(Object* number, String* string) {
-  int hash;
-  int mask = (number_string_cache()->length() >> 1) - 1;
-  if (number->IsSmi()) {
-    hash = smi_get_hash(Smi::cast(number)) & mask;
-  } else {
-    hash = double_get_hash(number->Number()) & mask;
-  }
-  if (number_string_cache()->get(hash * 2) != undefined_value() &&
-      number_string_cache()->length() != FullSizeNumberStringCacheLength()) {
-    // The first time we have a hash collision, we move to the full sized
-    // number string cache.
-    AllocateFullSizeNumberStringCache();
-    return;
-  }
-  number_string_cache()->set(hash * 2, number);
-  number_string_cache()->set(hash * 2 + 1, string);
-}
-
-
-MaybeObject* Heap::NumberToString(Object* number,
-                                  bool check_number_string_cache) {
-  isolate_->counters()->number_to_string_runtime()->Increment();
-  if (check_number_string_cache) {
-    Object* cached = GetNumberStringCache(number);
-    if (cached != undefined_value()) {
-      return cached;
-    }
-  }
-
-  char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
-  const char* str;
-  if (number->IsSmi()) {
-    int num = Smi::cast(number)->value();
-    str = IntToCString(num, buffer);
-  } else {
-    double num = HeapNumber::cast(number)->value();
-    str = DoubleToCString(num, buffer);
-  }
-
-  Object* js_string;
-
-  // We tenure the allocated string since it is referenced from the
-  // number-string cache which lives in the old space.
-  MaybeObject* maybe_js_string =
-      AllocateStringFromOneByte(CStrVector(str), TENURED);
-  if (maybe_js_string->ToObject(&js_string)) {
-    SetNumberStringCache(number, String::cast(js_string));
-  }
-  return maybe_js_string;
-}
-
-
-MaybeObject* Heap::Uint32ToString(uint32_t value,
-                                  bool check_number_string_cache) {
-  Object* number;
-  MaybeObject* maybe = NumberFromUint32(value);
-  if (!maybe->To<Object>(&number)) return maybe;
-  return NumberToString(number, check_number_string_cache);
 }
 
 
@@ -3537,24 +3344,6 @@ FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
 }
 
 
-MaybeObject* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
-  // We need to distinguish the minus zero value and this cannot be
-  // done after conversion to int. Doing this by comparing bit
-  // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) {
-    return AllocateHeapNumber(-0.0, pretenure);
-  }
-
-  int int_value = FastD2I(value);
-  if (value == int_value && Smi::IsValid(int_value)) {
-    return Smi::FromInt(int_value);
-  }
-
-  // Materialize the value in the heap.
-  return AllocateHeapNumber(value, pretenure);
-}
-
-
 MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
@@ -3563,119 +3352,6 @@ MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
   MaybeObject* maybe_result = Allocate(foreign_map(), space);
   if (!maybe_result->To(&result)) return maybe_result;
   result->set_foreign_address(address);
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
-  SharedFunctionInfo* share;
-  MaybeObject* maybe = Allocate(shared_function_info_map(), OLD_POINTER_SPACE);
-  if (!maybe->To<SharedFunctionInfo>(&share)) return maybe;
-
-  // Set pointer fields.
-  share->set_name(name);
-  Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
-  share->set_code(illegal);
-  share->set_optimized_code_map(Smi::FromInt(0));
-  share->set_scope_info(ScopeInfo::Empty(isolate_));
-  Code* construct_stub =
-      isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
-  share->set_construct_stub(construct_stub);
-  share->set_instance_class_name(Object_string());
-  share->set_function_data(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_script(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_debug_info(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
-  share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_ast_node_count(0);
-  share->set_counters(0);
-
-  // Set integer fields (smi or int, depending on the architecture).
-  share->set_length(0);
-  share->set_formal_parameter_count(0);
-  share->set_expected_nof_properties(0);
-  share->set_num_literals(0);
-  share->set_start_position_and_type(0);
-  share->set_end_position(0);
-  share->set_function_token_position(0);
-  // All compiler hints default to false or 0.
-  share->set_compiler_hints(0);
-  share->set_opt_count_and_bailout_reason(0);
-
-  return share;
-}
-
-
-MaybeObject* Heap::AllocateJSMessageObject(String* type,
-                                           JSArray* arguments,
-                                           int start_position,
-                                           int end_position,
-                                           Object* script,
-                                           Object* stack_frames) {
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(message_object_map(), NEW_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  JSMessageObject* message = JSMessageObject::cast(result);
-  message->set_properties(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
-  message->initialize_elements();
-  message->set_elements(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
-  message->set_type(type);
-  message->set_arguments(arguments);
-  message->set_start_position(start_position);
-  message->set_end_position(end_position);
-  message->set_script(script);
-  message->set_stack_frames(stack_frames);
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateExternalStringFromAscii(
-    const ExternalAsciiString::Resource* resource) {
-  size_t length = resource->length();
-  if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->ThrowInvalidStringLength();
-  }
-
-  Map* map = external_ascii_string_map();
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  ExternalAsciiString* external_string = ExternalAsciiString::cast(result);
-  external_string->set_length(static_cast<int>(length));
-  external_string->set_hash_field(String::kEmptyHashField);
-  external_string->set_resource(resource);
-
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateExternalStringFromTwoByte(
-    const ExternalTwoByteString::Resource* resource) {
-  size_t length = resource->length();
-  if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->ThrowInvalidStringLength();
-  }
-
-  // For small strings we check whether the resource contains only
-  // one byte characters.  If yes, we use a different string map.
-  static const size_t kOneByteCheckLengthLimit = 32;
-  bool is_one_byte = length <= kOneByteCheckLengthLimit &&
-      String::IsOneByte(resource->data(), static_cast<int>(length));
-  Map* map = is_one_byte ?
-      external_string_with_one_byte_data_map() : external_string_map();
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
-  external_string->set_length(static_cast<int>(length));
-  external_string->set_hash_field(String::kEmptyHashField);
-  external_string->set_resource(resource);
-
   return result;
 }
 
@@ -3837,107 +3513,37 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
 }
 
 
-MaybeObject* Heap::CreateCode(const CodeDesc& desc,
-                              Code::Flags flags,
-                              Handle<Object> self_reference,
-                              bool immovable,
-                              bool crankshafted,
-                              int prologue_offset) {
-  // Allocate ByteArray and ConstantPoolArray before the Code object, so that we
-  // do not risk leaving uninitialized Code object (and breaking the heap).
-  ByteArray* reloc_info;
-  MaybeObject* maybe_reloc_info = AllocateByteArray(desc.reloc_size, TENURED);
-  if (!maybe_reloc_info->To(&reloc_info)) return maybe_reloc_info;
-
-  ConstantPoolArray* constant_pool;
-  if (FLAG_enable_ool_constant_pool) {
-    MaybeObject* maybe_constant_pool = desc.origin->AllocateConstantPool(this);
-    if (!maybe_constant_pool->To(&constant_pool)) return maybe_constant_pool;
-  } else {
-    constant_pool = empty_constant_pool_array();
-  }
-
-  // Compute size.
-  int body_size = RoundUp(desc.instr_size, kObjectAlignment);
-  int obj_size = Code::SizeFor(body_size);
-  ASSERT(IsAligned(static_cast<intptr_t>(obj_size), kCodeAlignment));
+MaybeObject* Heap::AllocateCode(int object_size,
+                                bool immovable) {
+  ASSERT(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
   MaybeObject* maybe_result;
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
   HeapObject* result;
-  bool force_lo_space = obj_size > code_space()->AreaSize();
+  bool force_lo_space = object_size > code_space()->AreaSize();
   if (force_lo_space) {
-    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
   } else {
-    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
+    maybe_result = AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
   }
   if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
 
   if (immovable && !force_lo_space &&
-      // Objects on the first page of each space are never moved.
-      !code_space_->FirstPage()->Contains(result->address())) {
+     // Objects on the first page of each space are never moved.
+     !code_space_->FirstPage()->Contains(result->address())) {
     // Discard the first code allocation, which was on a page where it could be
     // moved.
-    CreateFillerObjectAt(result->address(), obj_size);
-    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    CreateFillerObjectAt(result->address(), object_size);
+    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
     if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
   }
 
-  // Initialize the object
   result->set_map_no_write_barrier(code_map());
   Code* code = Code::cast(result);
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
-  code->set_instruction_size(desc.instr_size);
-  code->set_relocation_info(reloc_info);
-  code->set_flags(flags);
-  code->set_raw_kind_specific_flags1(0);
-  code->set_raw_kind_specific_flags2(0);
-  code->set_is_crankshafted(crankshafted);
-  code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_raw_type_feedback_info(undefined_value());
-  code->set_next_code_link(undefined_value());
-  code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   code->set_ic_age(global_ic_age_);
-  code->set_prologue_offset(prologue_offset);
-  if (code->kind() == Code::OPTIMIZED_FUNCTION) {
-    ASSERT(!code->marked_for_deoptimization());
-  }
-  if (code->is_inline_cache_stub()) {
-    ASSERT(!code->is_weak_stub());
-    ASSERT(!code->is_invalidated_weak_stub());
-  }
-
-  if (FLAG_enable_ool_constant_pool) {
-    desc.origin->PopulateConstantPool(constant_pool);
-  }
-  code->set_constant_pool(constant_pool);
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (code->kind() == Code::FUNCTION) {
-    code->set_has_debug_break_slots(
-        isolate_->debugger()->IsDebuggerActive());
-  }
-#endif
-
-  // Allow self references to created code object by patching the handle to
-  // point to the newly allocated Code object.
-  if (!self_reference.is_null()) {
-    *(self_reference.location()) = code;
-  }
-  // Migrate generated code.
-  // The generated code can contain Object** values (typically from handles)
-  // that are dereferenced during the copy to point directly to the actual heap
-  // objects. These pointers can include references to the code object itself,
-  // through the self_reference parameter.
-  code->CopyFrom(desc);
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    code->Verify();
-  }
-#endif
   return code;
 }
 
@@ -4237,52 +3843,6 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
-  // Allocate map.
-  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
-  // maps. Will probably depend on the identity of the handler object, too.
-  Map* map;
-  MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
-  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
-  map->set_prototype(prototype);
-
-  // Allocate the proxy object.
-  JSProxy* result;
-  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-  if (!maybe_result->To<JSProxy>(&result)) return maybe_result;
-  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
-  result->set_handler(handler);
-  result->set_hash(undefined_value(), SKIP_WRITE_BARRIER);
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
-                                           Object* call_trap,
-                                           Object* construct_trap,
-                                           Object* prototype) {
-  // Allocate map.
-  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
-  // maps. Will probably depend on the identity of the handler object, too.
-  Map* map;
-  MaybeObject* maybe_map_obj =
-      AllocateMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
-  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
-  map->set_prototype(prototype);
-
-  // Allocate the proxy object.
-  JSFunctionProxy* result;
-  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-  if (!maybe_result->To<JSFunctionProxy>(&result)) return maybe_result;
-  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
-  result->set_handler(handler);
-  result->set_hash(undefined_value(), SKIP_WRITE_BARRIER);
-  result->set_call_trap(call_trap);
-  result->set_construct_trap(construct_trap);
   return result;
 }
 
@@ -5972,16 +5532,12 @@ bool Heap::CreateHeapObjects() {
 
   // Create initial objects
   if (!CreateInitialObjects()) return false;
+  CHECK_EQ(0, gc_count_);
 
   native_contexts_list_ = undefined_value();
   array_buffers_list_ = undefined_value();
   allocation_sites_list_ = undefined_value();
   weak_object_to_code_table_ = undefined_value();
-
-  HandleScope scope(isolate());
-  Runtime::InitializeIntrinsicFunctionNames(
-      isolate(), handle(intrinsic_function_names(), isolate()));
-
   return true;
 }
 

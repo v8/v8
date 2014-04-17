@@ -680,7 +680,8 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
 
   for (int i = 0; i < number_of_types; i++) {
     Handle<HeapType> current_type = types.at(i);
-    if (current_type->IsClass() && current_type->AsClass()->is_deprecated()) {
+    if (current_type->IsClass() &&
+        current_type->AsClass()->Map()->is_deprecated()) {
       // Filter out deprecated maps to ensure their instances get migrated.
       ++deprecated_types;
     } else if (type->NowIs(current_type)) {
@@ -691,8 +692,8 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
     } else if (handler_to_overwrite == -1 &&
                current_type->IsClass() &&
                type->IsClass() &&
-               IsTransitionOfMonomorphicTarget(*current_type->AsClass(),
-                                               *type->AsClass())) {
+               IsTransitionOfMonomorphicTarget(*current_type->AsClass()->Map(),
+                                               *type->AsClass()->Map())) {
       handler_to_overwrite = i;
     }
   }
@@ -734,10 +735,11 @@ Handle<Map> IC::TypeToMap(HeapType* type, Isolate* isolate) {
     return isolate->factory()->heap_number_map();
   if (type->Is(HeapType::Boolean())) return isolate->factory()->boolean_map();
   if (type->IsConstant()) {
-    return handle(Handle<JSGlobalObject>::cast(type->AsConstant())->map());
+    return handle(
+        Handle<JSGlobalObject>::cast(type->AsConstant()->Value())->map());
   }
   ASSERT(type->IsClass());
-  return type->AsClass();
+  return type->AsClass()->Map();
 }
 
 

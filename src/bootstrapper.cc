@@ -1682,125 +1682,108 @@ bool Genesis::InstallNatives() {
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
     Map::EnsureDescriptorSlack(script_map, 13);
 
-    Handle<Foreign> script_source(
-        factory()->NewForeign(&Accessors::ScriptSource));
-    Handle<Foreign> script_name(factory()->NewForeign(&Accessors::ScriptName));
-    Handle<String> id_string(factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("id")));
-    Handle<Foreign> script_id(factory()->NewForeign(&Accessors::ScriptId));
-    Handle<String> line_offset_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("line_offset")));
-    Handle<Foreign> script_line_offset(
-        factory()->NewForeign(&Accessors::ScriptLineOffset));
-    Handle<String> column_offset_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("column_offset")));
-    Handle<Foreign> script_column_offset(
-        factory()->NewForeign(&Accessors::ScriptColumnOffset));
-    Handle<String> type_string(factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("type")));
-    Handle<Foreign> script_type(factory()->NewForeign(&Accessors::ScriptType));
-    Handle<String> compilation_type_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("compilation_type")));
-    Handle<Foreign> script_compilation_type(
-        factory()->NewForeign(&Accessors::ScriptCompilationType));
-    Handle<String> line_ends_string(factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("line_ends")));
-    Handle<Foreign> script_line_ends(
-        factory()->NewForeign(&Accessors::ScriptLineEnds));
-    Handle<String> context_data_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("context_data")));
-    Handle<Foreign> script_context_data(
-        factory()->NewForeign(&Accessors::ScriptContextData));
-    Handle<String> eval_from_script_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("eval_from_script")));
-    Handle<Foreign> script_eval_from_script(
-        factory()->NewForeign(&Accessors::ScriptEvalFromScript));
-    Handle<String> eval_from_script_position_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("eval_from_script_position")));
-    Handle<Foreign> script_eval_from_script_position(
-        factory()->NewForeign(&Accessors::ScriptEvalFromScriptPosition));
-    Handle<String> eval_from_function_name_string(
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("eval_from_function_name")));
-    Handle<Foreign> script_eval_from_function_name(
-        factory()->NewForeign(&Accessors::ScriptEvalFromFunctionName));
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+    Handle<AccessorInfo> script_column =
+        Accessors::ScriptColumnOffsetInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_column->name())),
+                           script_column, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_id =
+        Accessors::ScriptIdInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_id->name())),
+                            script_id, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+
+    Handle<AccessorInfo> script_name =
+        Accessors::ScriptNameInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_name->name())),
+                            script_name, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_line =
+        Accessors::ScriptLineOffsetInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line->name())),
+                           script_line, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source =
+        Accessors::ScriptSourceInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source->name())),
+                            script_source, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_type =
+        Accessors::ScriptTypeInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_type->name())),
+                            script_type, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_compilation_type =
+        Accessors::ScriptCompilationTypeInfo(isolate(), attribs);
     {
       CallbacksDescriptor d(
-          factory()->source_string(), script_source, attribs);
+          Handle<Name>(Name::cast(script_compilation_type->name())),
+          script_compilation_type, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+    Handle<AccessorInfo> script_line_ends =
+        Accessors::ScriptLineEndsInfo(isolate(), attribs);
     {
-      CallbacksDescriptor d(factory()->name_string(), script_name, attribs);
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_line_ends->name())),
+                            script_line_ends, attribs);
       script_map->AppendDescriptor(&d);
     }
 
-    {
-      CallbacksDescriptor d(id_string, script_id, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    {
-      CallbacksDescriptor d(line_offset_string, script_line_offset, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
+    Handle<AccessorInfo> script_context_data =
+        Accessors::ScriptContextDataInfo(isolate(), attribs);
     {
       CallbacksDescriptor d(
-          column_offset_string, script_column_offset, attribs);
+          Handle<Name>(Name::cast(script_context_data->name())),
+          script_context_data, attribs);
       script_map->AppendDescriptor(&d);
     }
 
-    {
-      CallbacksDescriptor d(type_string, script_type, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
+    Handle<AccessorInfo> script_eval_from_script =
+        Accessors::ScriptEvalFromScriptInfo(isolate(), attribs);
     {
       CallbacksDescriptor d(
-          compilation_type_string, script_compilation_type, attribs);
+          Handle<Name>(Name::cast(script_eval_from_script->name())),
+          script_eval_from_script, attribs);
       script_map->AppendDescriptor(&d);
     }
 
-    {
-      CallbacksDescriptor d(line_ends_string, script_line_ends, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
+    Handle<AccessorInfo> script_eval_from_script_position =
+        Accessors::ScriptEvalFromScriptPositionInfo(isolate(), attribs);
     {
       CallbacksDescriptor d(
-          context_data_string, script_context_data, attribs);
+          Handle<Name>(Name::cast(script_eval_from_script_position->name())),
+          script_eval_from_script_position, attribs);
       script_map->AppendDescriptor(&d);
     }
 
+    Handle<AccessorInfo> script_eval_from_function_name =
+        Accessors::ScriptEvalFromFunctionNameInfo(isolate(), attribs);
     {
       CallbacksDescriptor d(
-          eval_from_script_string, script_eval_from_script, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    {
-      CallbacksDescriptor d(
-          eval_from_script_position_string,
-          script_eval_from_script_position,
-          attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    {
-      CallbacksDescriptor d(
-          eval_from_function_name_string,
-          script_eval_from_function_name,
-          attribs);
+          Handle<Name>(Name::cast(script_eval_from_function_name->name())),
+          script_eval_from_function_name, attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -2023,10 +2006,9 @@ static Handle<JSObject> ResolveBuiltinIdHolder(
 static void InstallBuiltinFunctionId(Handle<JSObject> holder,
                                      const char* function_name,
                                      BuiltinFunctionId id) {
-  Factory* factory = holder->GetIsolate()->factory();
-  Handle<String> name = factory->InternalizeUtf8String(function_name);
+  Isolate* isolate = holder->GetIsolate();
   Handle<Object> function_object =
-      Object::GetProperty(holder, name).ToHandleChecked();
+      Object::GetProperty(isolate, holder, function_name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   function->shared()->set_function_data(Smi::FromInt(id));
 }
@@ -2133,7 +2115,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         false);
   }
 
-  Handle<Object> Error = GetProperty(global, "Error").ToHandleChecked();
+  Handle<Object> Error = Object::GetProperty(
+      isolate, global, "Error").ToHandleChecked();
   if (Error->IsJSObject()) {
     Handle<String> name = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("stackTraceLimit"));
@@ -2314,10 +2297,8 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
   HandleScope scope(isolate());
   for (int i = 0; i < Builtins::NumberOfJavaScriptBuiltins(); i++) {
     Builtins::JavaScript id = static_cast<Builtins::JavaScript>(i);
-    Handle<String> name =
-        factory()->InternalizeUtf8String(Builtins::GetName(id));
-    Handle<Object> function_object =
-        Object::GetProperty(builtins, name).ToHandleChecked();
+    Handle<Object> function_object = Object::GetProperty(
+        isolate(), builtins, Builtins::GetName(id)).ToHandleChecked();
     Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
     builtins->set_javascript_builtin(id, *function);
     if (!Compiler::EnsureCompiled(function, CLEAR_EXCEPTION)) {

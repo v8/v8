@@ -78,7 +78,7 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   if (loc) {
     start = loc->start_pos();
     end = loc->end_pos();
-    script_handle = GetScriptWrapper(loc->script());
+    script_handle = Script::GetWrapper(loc->script());
   }
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()

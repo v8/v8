@@ -10937,19 +10937,15 @@ TEST(pool_size) {
 
   __ bind(&exit);
 
-  Heap* heap = isolate->heap();
+  HandleScope handle_scope(isolate);
   CodeDesc desc;
-  Object* code_object = NULL;
-  Code* code;
   masm.GetCode(&desc);
-  MaybeObject* maybe_code = heap->CreateCode(desc, 0, masm.CodeObject());
-  maybe_code->ToObject(&code_object);
-  code = Code::cast(code_object);
+  Handle<Code> code = isolate->factory()->NewCode(desc, 0, masm.CodeObject());
 
   unsigned pool_count = 0;
   int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
                   RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  for (RelocIterator it(code, pool_mask); !it.done(); it.next()) {
+  for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
       ASSERT(info->data() == constant_pool_size);

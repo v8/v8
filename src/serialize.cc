@@ -872,7 +872,8 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
 
 
 Deserializer::~Deserializer() {
-  ASSERT(source_->AtEOF());
+  // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
+  // ASSERT(source_->AtEOF());
   if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;

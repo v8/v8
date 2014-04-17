@@ -147,3 +147,21 @@
   baz(f3, {a: -1});
   assertUnoptimized(baz);
 })();
+
+(function() {
+  function Foo(x) { this.x = x; this.a = x; }
+  function Bar(x) { this.x = x; this.b = x; }
+  function readA(o) { return o.x.a; }
+  var f = new Foo({a:1});
+  var b = new Bar({a:2});
+  assertEquals(readA(f), 1);
+  assertEquals(readA(b), 2);
+  assertEquals(readA(f), 1);
+  assertEquals(readA(b), 2);
+  %OptimizeFunctionOnNextCall(readA);
+  assertEquals(readA(f), 1);
+  assertEquals(readA(b), 2);
+  assertOptimized(readA);
+  f.a.y = 0;
+  assertUnoptimized(readA);
+})();

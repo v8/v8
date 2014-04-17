@@ -4926,7 +4926,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
         if (cell->type()->IsConstant()) {
           PropertyCell::AddDependentCompilationInfo(cell, top_info());
-          Handle<Object> constant_object = cell->type()->AsConstant();
+          Handle<Object> constant_object = cell->type()->AsConstant()->Value();
           if (constant_object->IsConsString()) {
             constant_object =
                 String::Flatten(Handle<String>::cast(constant_object));
@@ -4999,7 +4999,7 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 static bool CanInlinePropertyAccess(Type* type) {
   if (type->Is(Type::NumberOrString())) return true;
   if (!type->IsClass()) return false;
-  Handle<Map> map = type->AsClass();
+  Handle<Map> map = type->AsClass()->Map();
   return map->IsJSObjectMap() &&
       !map->is_dictionary_map() &&
       !map->has_named_interceptor();
@@ -5370,7 +5370,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     access = HObjectAccess::ForHeapNumberValue();
   }
   return New<HLoadNamedField>(
-      checked_object, static_cast<HValue*>(NULL), access, info->field_map());
+      checked_object, checked_object, access, info->field_maps(), top_info());
 }
 
 
@@ -5414,10 +5414,15 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
                                     value, STORE_TO_INITIALIZED_ENTRY);
     }
   } else {
-    if (!info->field_map().is_null()) {
+    if (!info->field_maps()->is_empty()) {
       ASSERT(field_access.representation().IsHeapObject());
       BuildCheckHeapObject(value);
-      value = BuildCheckMap(value, info->field_map());
+      if (info->field_maps()->length() == 1) {
+        // TODO(bmeurer): Also apply stable maps optimization to the else case!
+        value = BuildCheckMap(value, info->field_maps()->first());
+      } else {
+        value = Add<HCheckMaps>(value, info->field_maps());
+      }
 
       // TODO(bmeurer): This is a dirty hack to avoid repeating the smi check
       // that was already performed by the HCheckHeapObject above in the
@@ -5489,11 +5494,24 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
   }
   if (info->access_.offset() != access_.offset()) return false;
   if (info->access_.IsInobject() != access_.IsInobject()) return false;
-  if (!field_map_.is_identical_to(info->field_map_)) {
-    if (!IsLoad()) return false;
-
-    // Throw away type information for merging polymorphic loads.
-    info->field_map_ = Handle<Map>::null();
+  if (IsLoad()) {
+    if (field_maps_.is_empty()) {
+      info->field_maps_.Clear();
+    } else if (!info->field_maps_.is_empty()) {
+      for (int i = 0; i < field_maps_.length(); ++i) {
+        info->field_maps_.AddMapIfMissing(field_maps_.at(i), info->zone());
+      }
+      info->field_maps_.Sort();
+    }
+  } else {
+    // We can only merge stores that agree on their field maps. The comparison
+    // below is safe, since we keep the field maps sorted.
+    if (field_maps_.length() != info->field_maps_.length()) return false;
+    for (int i = 0; i < field_maps_.length(); ++i) {
+      if (!field_maps_.at(i).is_identical_to(info->field_maps_.at(i))) {
+        return false;
+      }
+    }
   }
   info->GeneralizeRepresentation(r);
   return true;
@@ -5518,7 +5536,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
 
     // Load field map for heap objects.
-    LoadFieldMap(map);
+    LoadFieldMaps(map);
   } else if (lookup_.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
     if (!callback->IsAccessorPair()) return false;
@@ -5545,26 +5563,36 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 }
 
 
-void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMap(Handle<Map> map) {
-  // Clear any previous field map.
-  field_map_ = Handle<Map>::null();
-
+void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
+    Handle<Map> map) {
   // Figure out the field type from the accessor map.
-  HeapType* field_type = lookup_.GetFieldTypeFromMap(*map);
-  if (field_type->IsClass()) {
-    ASSERT(access_.representation().IsHeapObject());
-    Handle<Map> field_map = field_type->AsClass();
-    if (field_map->is_stable()) {
-      field_map_ = field_map;
-      Map::AddDependentCompilationInfo(
-          field_map_, DependentCode::kPrototypeCheckGroup, top_info());
+  Handle<HeapType> field_type(lookup_.GetFieldTypeFromMap(*map), isolate());
 
-      // Add dependency on the map that introduced the field.
-      Map::AddDependentCompilationInfo(
-          handle(lookup_.GetFieldOwnerFromMap(*map), isolate()),
-          DependentCode::kFieldTypeGroup, top_info());
-    }
+  // Collect the (stable) maps from the field type.
+  int num_field_maps = field_type->NumClasses();
+  if (num_field_maps == 0) {
+    field_maps_.Clear();
+    return;
   }
+  ASSERT(access_.representation().IsHeapObject());
+  field_maps_.Reserve(num_field_maps, zone());
+  HeapType::Iterator<Map> it = field_type->Classes();
+  while (!it.Done()) {
+    Handle<Map> field_map = it.Current();
+    if (!field_map->is_stable()) {
+      field_maps_.Clear();
+      return;
+    }
+    field_maps_.Add(field_map, zone());
+    it.Advance();
+  }
+  field_maps_.Sort();
+  ASSERT_EQ(num_field_maps, field_maps_.length());
+
+  // Add dependency on the map that introduced the field.
+  Map::AddDependentCompilationInfo(
+      handle(lookup_.GetFieldOwnerFromMap(*map), isolate()),
+      DependentCode::kFieldTypeGroup, top_info());
 }
 
 
@@ -5608,7 +5636,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     access_ = HObjectAccess::ForField(map, &lookup_, name_);
 
     // Load field map for heap objects.
-    LoadFieldMap(transition());
+    LoadFieldMaps(transition());
     return true;
   }
   return false;
@@ -5963,7 +5991,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     Handle<GlobalObject> global(current_info()->global_object());
     Handle<PropertyCell> cell(global->GetPropertyCell(&lookup));
     if (cell->type()->IsConstant()) {
-      Handle<Object> constant = cell->type()->AsConstant();
+      Handle<Object> constant = cell->type()->AsConstant()->Value();
       if (value->IsConstant()) {
         HConstant* c_value = HConstant::cast(value);
         if (!constant.is_identical_to(c_value->handle(isolate()))) {
@@ -9915,7 +9943,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HValue* operand_to_check =
           left->block()->block_id() < right->block()->block_id() ? left : right;
       if (combined_type->IsClass()) {
-        Handle<Map> map = combined_type->AsClass();
+        Handle<Map> map = combined_type->AsClass()->Map();
         AddCheckMap(operand_to_check, map);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);

@@ -1,3 +1,10 @@
+2014-04-17: Version 3.26.18
+
+        Removed Isolate::EnterDefaultIsolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-16: Version 3.26.17
 
         Clear invalid field maps in PropertyAccessInfo (Chromium issue 363956).

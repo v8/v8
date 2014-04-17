@@ -431,7 +431,7 @@ class TokensCompareOutput : public Comparator::Output {
 class LineEndsWrapper {
  public:
   explicit LineEndsWrapper(Handle<String> string)
-      : ends_array_(CalculateLineEnds(string, false)),
+      : ends_array_(String::CalculateLineEnds(string, false)),
         string_len_(string->length()) {
   }
   int length() {
@@ -852,7 +852,8 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
       Handle<Smi> start_pos(
           Smi::FromInt(message_location.start_pos()), isolate);
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
-      Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
+      Handle<JSObject> script_obj =
+          Script::GetWrapper(message_location.script());
       JSReceiver::SetProperty(
           rethrow_exception, start_pos_key, start_pos, NONE, SLOPPY).Assert();
       JSReceiver::SetProperty(

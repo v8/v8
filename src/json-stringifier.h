@@ -484,9 +484,9 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeGeneric(
     Handle<Object> key,
     bool deferred_comma,
     bool deferred_key) {
-  Handle<JSObject> builtins(isolate_->native_context()->builtins());
-  Handle<JSFunction> builtin = Handle<JSFunction>::cast(
-      GetProperty(builtins, "JSONSerializeAdapter").ToHandleChecked());
+  Handle<JSObject> builtins(isolate_->native_context()->builtins(), isolate_);
+  Handle<JSFunction> builtin = Handle<JSFunction>::cast(Object::GetProperty(
+      isolate_, builtins, "JSONSerializeAdapter").ToHandleChecked());
 
   Handle<Object> argv[] = { key, object };
   Handle<Object> result;
@@ -695,7 +695,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
     Handle<FixedArray> contents;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        GetKeysInFixedArrayFor(object, LOCAL_ONLY),
+        JSReceiver::GetKeys(object, JSReceiver::LOCAL_ONLY),
         EXCEPTION);
 
     for (int i = 0; i < contents->length(); i++) {

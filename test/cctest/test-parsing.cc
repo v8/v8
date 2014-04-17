@@ -1254,8 +1254,8 @@ i::Handle<i::String> FormatMessage(i::ScriptData* data) {
         NONE, i::SLOPPY).Check();
   }
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
-  i::Handle<i::Object> format_fun =
-      i::GetProperty(builtins, "FormatMessage").ToHandleChecked();
+  i::Handle<i::Object> format_fun = i::Object::GetProperty(
+      isolate, builtins, "FormatMessage").ToHandleChecked();
   i::Handle<i::Object> arg_handles[] = { format, args_array };
   i::Handle<i::Object> result = i::Execution::Call(
       isolate, format_fun, builtins, 2, arg_handles).ToHandleChecked();
@@ -1340,8 +1340,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::Handle<i::JSObject> exception_handle(
         i::JSObject::cast(isolate->pending_exception()));
     i::Handle<i::String> message_string =
-        i::Handle<i::String>::cast(
-            i::GetProperty(exception_handle, "message").ToHandleChecked());
+        i::Handle<i::String>::cast(i::Object::GetProperty(
+            isolate, exception_handle, "message").ToHandleChecked());
 
     if (result == kSuccess) {
       i::OS::Print(
