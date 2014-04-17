@@ -174,6 +174,12 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_MAP_TYPE:
       JSMap::cast(this)->JSMapPrint(out);
       break;
+    case JS_SET_ITERATOR_TYPE:
+      JSSetIterator::cast(this)->JSSetIteratorPrint(out);
+      break;
+    case JS_MAP_ITERATOR_TYPE:
+      JSMapIterator::cast(this)->JSMapIteratorPrint(out);
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapPrint(out);
       break;
@@ -722,7 +728,7 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
-  PrintF(out, " - hash = ");
+  PrintF(out, "\n - hash = ");
   hash()->Print(out);
   PrintF(out, "\n");
 }
@@ -733,9 +739,9 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
   PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
-  PrintF(out, " - call_trap = ");
+  PrintF(out, "\n - call_trap = ");
   call_trap()->Print(out);
-  PrintF(out, " - construct_trap = ");
+  PrintF(out, "\n - construct_trap = ");
   construct_trap()->Print(out);
   PrintF(out, "\n");
 }
@@ -756,6 +762,48 @@ void JSMap::JSMapPrint(FILE* out) {
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");
+}
+
+
+template<class Derived, class TableType>
+void OrderedHashTableIterator<Derived, TableType>::
+    OrderedHashTableIteratorPrint(FILE* out) {
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
+  PrintF(out, "\n - index = ");
+  index()->ShortPrint(out);
+  PrintF(out, "\n - count = ");
+  count()->ShortPrint(out);
+  PrintF(out, "\n - kind = ");
+  kind()->ShortPrint(out);
+  PrintF(out, "\n - next_iterator = ");
+  next_iterator()->ShortPrint(out);
+  PrintF(out, "\n - previous_iterator = ");
+  previous_iterator()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
+template void
+OrderedHashTableIterator<JSSetIterator,
+    OrderedHashSet>::OrderedHashTableIteratorPrint(FILE* out);
+
+
+template void
+OrderedHashTableIterator<JSMapIterator,
+    OrderedHashMap>::OrderedHashTableIteratorPrint(FILE* out);
+
+
+void JSSetIterator::JSSetIteratorPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSSetIterator");
+  OrderedHashTableIteratorPrint(out);
+}
+
+
+void JSMapIterator::JSMapIteratorPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSMapIterator");
+  OrderedHashTableIteratorPrint(out);
 }
 
 
