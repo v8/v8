@@ -392,13 +392,22 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
   } else if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_label);
     HeapType* field_type = descriptors->GetFieldType(descriptor);
-    if (field_type->IsClass()) {
-      __ CheckMap(value_reg, scratch1, field_type->AsClass()->Map(),
-                  miss_label, DO_SMI_CHECK);
-    } else {
-      ASSERT(HeapType::Any()->Is(field_type));
-      __ JumpIfSmi(value_reg, miss_label);
+    HeapType::Iterator<Map> it = field_type->Classes();
+    if (!it.Done()) {
+      __ Ldr(scratch1, FieldMemOperand(value_reg, HeapObject::kMapOffset));
+      Label do_store;
+      while (true) {
+        __ CompareMap(scratch1, it.Current());
+        it.Advance();
+        if (it.Done()) {
+          __ B(ne, miss_label);
+          break;
+        }
+        __ B(eq, &do_store);
+      }
+      __ Bind(&do_store);
     }
   } else if (representation.IsDouble()) {
     UseScratchRegisterScope temps(masm);
@@ -548,13 +557,22 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   if (representation.IsSmi()) {
     __ JumpIfNotSmi(value_reg, miss_label);
   } else if (representation.IsHeapObject()) {
+    __ JumpIfSmi(value_reg, miss_label);
     HeapType* field_type = lookup->GetFieldType();
-    if (field_type->IsClass()) {
-      __ CheckMap(value_reg, scratch1, field_type->AsClass()->Map(),
-                  miss_label, DO_SMI_CHECK);
-    } else {
-      ASSERT(HeapType::Any()->Is(field_type));
-      __ JumpIfSmi(value_reg, miss_label);
+    HeapType::Iterator<Map> it = field_type->Classes();
+    if (!it.Done()) {
+      __ Ldr(scratch1, FieldMemOperand(value_reg, HeapObject::kMapOffset));
+      Label do_store;
+      while (true) {
+        __ CompareMap(scratch1, it.Current());
+        it.Advance();
+        if (it.Done()) {
+          __ B(ne, miss_label);
+          break;
+        }
+        __ B(eq, &do_store);
+      }
+      __ Bind(&do_store);
     }
   } else if (representation.IsDouble()) {
     UseScratchRegisterScope temps(masm);

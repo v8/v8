@@ -63,15 +63,16 @@ namespace internal {
 
 Handle<HeapType> Object::OptimalType(Isolate* isolate,
                                      Representation representation) {
-  if (!FLAG_track_field_types) return HeapType::Any(isolate);
-  if (representation.IsNone()) return HeapType::None(isolate);
-  if (representation.IsHeapObject() && IsHeapObject()) {
-    // We can track only JavaScript objects with stable maps.
-    Handle<Map> map(HeapObject::cast(this)->map(), isolate);
-    if (map->is_stable() &&
-        map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
-        map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE) {
-      return HeapType::Class(map, isolate);
+  if (FLAG_track_field_types) {
+    if (representation.IsNone()) return HeapType::None(isolate);
+    if (representation.IsHeapObject() && IsHeapObject()) {
+      // We can track only JavaScript objects with stable maps.
+      Handle<Map> map(HeapObject::cast(this)->map(), isolate);
+      if (map->is_stable() &&
+          map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
+          map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE) {
+        return HeapType::Class(map, isolate);
+      }
     }
   }
   return HeapType::Any(isolate);
@@ -2526,11 +2527,21 @@ void Map::UpdateDescriptor(int descriptor_number, Descriptor* desc) {
 
 
 // static
-Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> old_field_type,
-                                          Handle<HeapType> new_field_type,
+Handle<HeapType> Map::GeneralizeFieldType(Handle<HeapType> type1,
+                                          Handle<HeapType> type2,
                                           Isolate* isolate) {
-  if (new_field_type->NowIs(old_field_type)) return old_field_type;
-  if (old_field_type->NowIs(new_field_type)) return new_field_type;
+  static const int kMaxClassesPerFieldType = 5;
+  if (type1->NowIs(type2)) return type2;
+  if (type2->NowIs(type1)) return type1;
+  if (type1->NowStable() && type2->NowStable()) {
+    Handle<HeapType> type = HeapType::Union(type1, type2, isolate);
+    if (type->NumClasses() <= kMaxClassesPerFieldType) {
+      ASSERT(type->NowStable());
+      ASSERT(type1->NowIs(type));
+      ASSERT(type2->NowIs(type));
+      return type;
+    }
+  }
   return HeapType::Any(isolate);
 }
 

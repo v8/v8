@@ -6252,8 +6252,8 @@ class Map: public HeapObject {
                               int target_inobject,
                               int target_unused);
   static Handle<Map> GeneralizeAllFieldRepresentations(Handle<Map> map);
-  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> old_field_type,
-                                              Handle<HeapType> new_field_type,
+  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> type1,
+                                              Handle<HeapType> type2,
                                               Isolate* isolate)
       V8_WARN_UNUSED_RESULT;
   static void GeneralizeFieldType(Handle<Map> map,
