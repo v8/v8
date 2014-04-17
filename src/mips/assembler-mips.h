@@ -427,6 +427,11 @@ class CpuFeatures : public AllStatic {
   // is enabled (snapshots must be portable).
   static void Probe();
 
+  // A special case for printing target and features, which we want to do
+  // before initializing the isolate
+  static void SetHintCreatingSnapshot();
+  static void ProbeWithoutIsolate();
+
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
@@ -455,6 +460,9 @@ class CpuFeatures : public AllStatic {
   }
 
  private:
+  static void Probe(bool serializer_enabled);
+  static bool hint_creating_snapshot_;
+
   static bool Check(CpuFeature f, unsigned set) {
     return (set & flag2set(f)) != 0;
   }
