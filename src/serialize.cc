@@ -649,10 +649,7 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
   DeleteArray(encodings_);
 }
 
-
-bool Serializer::serialization_enabled_ = false;
-bool Serializer::too_late_to_enable_now_ = false;
-
+AtomicWord Serializer::serialization_state_ = SERIALIZER_STATE_UNINITIALIZED;
 
 class CodeAddressMap: public CodeEventLogger {
  public:
@@ -765,22 +762,42 @@ class CodeAddressMap: public CodeEventLogger {
 CodeAddressMap* Serializer::code_address_map_ = NULL;
 
 
-void Serializer::Enable(Isolate* isolate) {
-  if (!serialization_enabled_) {
-    ASSERT(!too_late_to_enable_now_);
-  }
-  if (serialization_enabled_) return;
-  serialization_enabled_ = true;
+void Serializer::RequestEnable(Isolate* isolate) {
   isolate->InitializeLoggingAndCounters();
   code_address_map_ = new CodeAddressMap(isolate);
 }
 
 
-void Serializer::Disable() {
-  if (!serialization_enabled_) return;
-  serialization_enabled_ = false;
-  delete code_address_map_;
-  code_address_map_ = NULL;
+void Serializer::InitializeOncePerProcess() {
+  // InitializeOncePerProcess is called by V8::InitializeOncePerProcess, a
+  // method guaranteed to be called only once in a process lifetime.
+  // serialization_state_ is read by many threads, hence the use of
+  // Atomic primitives. Here, we don't need a barrier or mutex to
+  // write it because V8 initialization is done by one thread, and gates
+  // all reads of serialization_state_.
+  ASSERT(NoBarrier_Load(&serialization_state_) ==
+         SERIALIZER_STATE_UNINITIALIZED);
+  SerializationState state = code_address_map_
+      ? SERIALIZER_STATE_ENABLED
+      : SERIALIZER_STATE_DISABLED;
+  NoBarrier_Store(&serialization_state_, state);
+}
+
+
+void Serializer::TearDown() {
+  // TearDown is called by V8::TearDown() for the default isolate. It's safe
+  // to shut down the serializer by that point. Just to be safe, we restore
+  // serialization_state_ to uninitialized.
+  ASSERT(NoBarrier_Load(&serialization_state_) !=
+         SERIALIZER_STATE_UNINITIALIZED);
+  if (code_address_map_) {
+    ASSERT(NoBarrier_Load(&serialization_state_) ==
+           SERIALIZER_STATE_ENABLED);
+    delete code_address_map_;
+    code_address_map_ = NULL;
+  }
+
+  NoBarrier_Store(&serialization_state_, SERIALIZER_STATE_UNINITIALIZED);
 }
 
 

@@ -105,7 +105,8 @@ const char* DoubleRegister::AllocationIndexToString(int index) {
 void CpuFeatures::Probe() {
   unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
                                 CpuFeaturesImpliedByCompiler());
-  ASSERT(supported_ == 0 || supported_ == standard_features);
+  ASSERT(supported_ == 0 ||
+         (supported_ & standard_features) == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif

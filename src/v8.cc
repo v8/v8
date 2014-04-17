@@ -98,6 +98,7 @@ void V8::TearDown() {
   call_completed_callbacks_ = NULL;
 
   Sampler::TearDown();
+  Serializer::TearDown();
 
 #ifdef V8_USE_DEFAULT_PLATFORM
   DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
@@ -172,6 +173,7 @@ void V8::RunMicrotasks(Isolate* isolate) {
 
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
+  Serializer::InitializeOncePerProcess();
 
   if (FLAG_predictable && FLAG_random_seed == 0) {
     // Avoid random seeds in predictable mode.

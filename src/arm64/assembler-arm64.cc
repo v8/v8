@@ -273,11 +273,6 @@ void Operand::initialize_handle(Handle<Object> handle) {
 
 bool Operand::NeedsRelocation() const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
     return Serializer::enabled();
   }
 
@@ -1970,9 +1965,6 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
   // Don't generate simulator specific code if we are building a snapshot, which
   // might be run on real hardware.
   if (!Serializer::enabled()) {
-#ifdef DEBUG
-    Serializer::TooLateToEnableNow();
-#endif
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
     BlockPoolsScope scope(this);
@@ -2525,11 +2517,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!RelocInfo::IsNone(rmode)) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-      if (!Serializer::enabled()) {
-        Serializer::TooLateToEnableNow();
-      }
-#endif
       if (!Serializer::enabled() && !emit_debug_code()) {
         return;
       }

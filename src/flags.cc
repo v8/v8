@@ -545,7 +545,7 @@ void FlagList::ResetAllFlags() {
 void FlagList::PrintHelp() {
 #if V8_TARGET_ARCH_ARM
   CpuFeatures::PrintTarget();
-  CpuFeatures::Probe();
+  CpuFeatures::ProbeWithoutIsolate();
   CpuFeatures::PrintFeatures();
 #endif  // V8_TARGET_ARCH_ARM
 
