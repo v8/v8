@@ -7696,6 +7696,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
 
       Drop(expr->arguments()->length());
       HValue* result;
@@ -7758,6 +7760,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.
@@ -7770,31 +7774,29 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       Handle<JSObject> prototype(JSObject::cast(receiver_map->prototype()));
       BuildCheckPrototypeMaps(prototype, Handle<JSObject>());
 
-      HValue* op_vals[] = {
-        context(),
-        // Receiver.
-        environment()->ExpressionStackAt(expr->arguments()->length())
-      };
-
       const int argc = expr->arguments()->length();
-      // Includes receiver.
-      PushArgumentsFromEnvironment(argc + 1);
+      if (argc != 1) return false;
 
-      CallInterfaceDescriptor* descriptor =
-          isolate()->call_descriptor(Isolate::CallHandler);
+      HValue* value_to_push = Pop();
+      HValue* array = Pop();
 
-      ArrayPushStub stub(receiver_map->elements_kind(), argc);
-      Handle<Code> code = stub.GetCode(isolate());
-      HConstant* code_value = Add<HConstant>(code);
+      HValue* length = Add<HLoadNamedField>(array, static_cast<HValue*>(NULL),
+          HObjectAccess::ForArrayLength(elements_kind));
 
-      ASSERT((sizeof(op_vals) / kPointerSize) ==
-             descriptor->environment_length());
+      {
+        NoObservableSideEffectsScope scope(this);
 
-      HInstruction* call = New<HCallWithDescriptor>(
-          code_value, argc + 1, descriptor,
-          Vector<HValue*>(op_vals, descriptor->environment_length()));
+        bool is_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+        BuildUncheckedMonomorphicElementAccess(array, length,
+                                               value_to_push, is_array,
+                                               elements_kind, STORE,
+                                               NEVER_RETURN_HOLE,
+                                               STORE_AND_GROW_NO_TRANSITION);
+      }
+
+      HInstruction* new_size = NewUncasted<HAdd>(length, Add<HConstant>(argc));
       Drop(1);  // Drop function.
-      ast_context()->ReturnInstruction(call, expr->id());
+      ast_context()->ReturnInstruction(new_size, expr->id());
       return true;
     }
     default:

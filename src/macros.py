@@ -87,6 +87,10 @@ const kMaxYear  = 1000000;
 const kMinMonth = -10000000;
 const kMaxMonth = 10000000;
 
+# Strict mode flags for passing to %SetProperty
+const kSloppyMode = 0;
+const kStrictMode = 1;
+
 # Native cache ids.
 const STRING_TO_REGEXP_CACHE_ID = 0;
 

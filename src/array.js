@@ -468,7 +468,13 @@ function ArrayPush() {
     return ObservedArrayPush.apply(this, arguments);
 
   for (var i = 0; i < m; i++) {
-    this[i+n] = %_Arguments(i);
+    // Use SetProperty rather than a direct keyed store to ensure that the store
+    // site doesn't become poisened with an elements transition KeyedStoreIC.
+    //
+    // TODO(danno): Using %SetProperty is a temporary workaround. The spec says
+    // that ToObject needs to be called for primitive values (and
+    // Runtime_SetProperty seem to ignore them).
+    %SetProperty(this, i+n, %_Arguments(i), 0, kStrictMode);
   }
 
   var new_length = n + m;
