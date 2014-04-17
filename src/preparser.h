@@ -2047,7 +2047,7 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
     Consume(Token::FUNCTION);
     int function_token_position = position();
     bool is_generator = allow_generators() && Check(Token::MUL);
-    IdentifierT name;
+    IdentifierT name = this->EmptyIdentifier();
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
     FunctionLiteral::FunctionType function_type =
