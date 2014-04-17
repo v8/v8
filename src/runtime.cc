@@ -6227,16 +6227,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringToNumber) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_NewString) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   CONVERT_SMI_ARG_CHECKED(length, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
   if (length == 0) return isolate->heap()->empty_string();
+  Handle<String> result;
   if (is_one_byte) {
-    return isolate->heap()->AllocateRawOneByteString(length);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawOneByteString(length));
   } else {
-    return isolate->heap()->AllocateRawTwoByteString(length);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result, isolate->factory()->NewRawTwoByteString(length));
   }
+  return *result;
 }
 
 
@@ -6606,7 +6610,7 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
         length,
         &has_changed_character);
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (is_ascii)  return has_changed_character ? *result : *s;
+    if (is_ascii) return has_changed_character ? *result : *s;
   }
 
   Handle<SeqString> result;  // Same length as input.
@@ -8031,11 +8035,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewClosureFromStubFailure) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
   Handle<Context> context(isolate->context());
   PretenureFlag pretenure_flag = NOT_TENURED;
-  Handle<JSFunction> result =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                            context,
-                                                            pretenure_flag);
-  return *result;
+  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      shared,  context, pretenure_flag);
 }
 
 
@@ -8049,11 +8050,8 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewClosure) {
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   PretenureFlag pretenure_flag = pretenure ? TENURED : NOT_TENURED;
-  Handle<JSFunction> result =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
-                                                            context,
-                                                            pretenure_flag);
-  return *result;
+  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      shared, context, pretenure_flag);
 }
 
 
@@ -8320,9 +8318,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewObjectWithAllocationSite) {
     // The feedback can be an AllocationSite or undefined.
     site = Handle<AllocationSite>::cast(feedback);
   }
-  return Runtime_NewObjectHelper(isolate,
-                                 constructor,
-                                 site);
+  return Runtime_NewObjectHelper(isolate, constructor, site);
 }
 
 
@@ -8534,8 +8530,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RunningInSimulator) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConcurrentRecompilationSupported) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 0);
+  SealHandleScope shs(isolate);
   return isolate->heap()->ToBoolean(
       isolate->concurrent_recompilation_enabled());
 }
@@ -8915,9 +8910,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_NewFunctionContext) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   int length = function->shared()->scope_info()->ContextLength();
-  Handle<Context> context =
-      isolate->factory()->NewFunctionContext(length, function);
-  return *context;
+  return *isolate->factory()->NewFunctionContext(length, function);
 }
 
 
@@ -10930,17 +10923,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugIndexedInterceptorElementValue) {
 }
 
 
+static bool CheckExecutionState(Isolate* isolate, int break_id) {
+  return (isolate->debug()->break_id() != 0 &&
+          break_id == isolate->debug()->break_id());
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckExecutionState) {
   SealHandleScope shs(isolate);
-  ASSERT(args.length() >= 1);
+  ASSERT(args.length() == 1);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
-  // Check that the break id is valid.
-  if (isolate->debug()->break_id() == 0 ||
-      break_id != isolate->debug()->break_id()) {
-    return isolate->Throw(
-        isolate->heap()->illegal_execution_state_string());
-  }
-
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
   return isolate->heap()->true_value();
 }
 
@@ -10948,13 +10941,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CheckExecutionState) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameCount) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  // Check arguments.
-  Object* result;
-  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
   // Count all frames which are relevant to debugging stack trace.
   int n = 0;
@@ -11091,13 +11079,9 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
   Heap* heap = isolate->heap();
 
@@ -12121,13 +12105,9 @@ class ScopeIterator {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeCount) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
 
   // Get the frame where the debugging is performed.
@@ -12153,13 +12133,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeCount) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetStepInPositions) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
 
   // Get the frame where the debugging is performed.
@@ -12264,13 +12240,9 @@ MUST_USE_RESULT static MaybeHandle<JSObject> MaterializeScopeDetails(
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
@@ -12308,13 +12280,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetAllScopesDetails) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3 || args.length() == 4);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
@@ -12421,11 +12389,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetScopeVariableValue) {
 
   bool res;
   if (args[0]->IsNumber()) {
-    Object* check;
-    { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-        RUNTIME_ARGUMENTS(isolate, args));
-      if (!maybe_check->ToObject(&check)) return maybe_check;
-    }
+    CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+    RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
+
     CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
     CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
@@ -12467,13 +12433,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrintScopes) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetThreadCount) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-
-  // Check arguments.
-  Object* result;
-  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
   // Count all archived V8 threads.
   int n = 0;
@@ -12503,13 +12464,9 @@ static const int kThreadDetailsSize = 2;
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetThreadDetails) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
 
   // Allocate array for result.
@@ -12698,12 +12655,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsBreakOnException) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_PrepareStep) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
+
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
@@ -12836,11 +12790,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
   ASSERT(args.length() == 6);
-  Object* check_result;
-  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_result->ToObject(&check_result)) return maybe_result;
-  }
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
+
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
@@ -12904,11 +12856,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluateGlobal) {
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
   ASSERT(args.length() == 4);
-  Object* check_result;
-  { MaybeObject* maybe_result = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_result->ToObject(&check_result)) return maybe_result;
-  }
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
+
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(disable_break, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 3);
@@ -13493,13 +13443,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LiveEditRestartFrame) {
   HandleScope scope(isolate);
   CHECK(isolate->debugger()->live_edit_enabled());
   ASSERT(args.length() == 2);
+  CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
+  RUNTIME_ASSERT(CheckExecutionState(isolate, break_id));
 
-  // Check arguments.
-  Object* check;
-  { MaybeObject* maybe_check = Runtime_CheckExecutionState(
-      RUNTIME_ARGUMENTS(isolate, args));
-    if (!maybe_check->ToObject(&check)) return maybe_check;
-  }
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
   Heap* heap = isolate->heap();
 
@@ -13832,7 +13778,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObject) {
 
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
 
-  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  if (!input->IsJSObject()) return isolate->heap()->false_value();
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
@@ -13849,7 +13795,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInitializedIntlObjectOfType) {
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
 
-  if (!input->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  if (!input->IsJSObject()) return isolate->heap()->false_value();
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
   Handle<String> marker = isolate->factory()->intl_initialized_marker_string();

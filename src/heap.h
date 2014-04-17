@@ -348,7 +348,6 @@ namespace internal {
     "KeyedStoreElementMonomorphic")                                      \
   V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
   V(illegal_access_string, "illegal access")                             \
-  V(illegal_execution_state_string, "illegal execution state")           \
   V(get_string, "get")                                                   \
   V(set_string, "set")                                                   \
   V(map_field_string, "%map")                                            \
