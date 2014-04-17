@@ -1340,7 +1340,8 @@ static void ArgumentsAdaptorStackCheck(MacroAssembler* masm,
   __ subp(rcx, rdx);
   // Make rdx the space we need for the array when it is unrolled onto the
   // stack.
-  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
+  __ movp(rdx, rbx);
+  __ shlp(rdx, Immediate(kPointerSizeLog2));
   // Check if the arguments will overflow the stack.
   __ cmpp(rcx, rdx);
   __ j(less_equal, stack_overflow);  // Signed comparison.
