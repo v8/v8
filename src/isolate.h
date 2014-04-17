@@ -117,7 +117,7 @@ class Simulator;
 // of handles to the actual constants.
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
-#define RETURN_IF_SCHEDULED_EXCEPTION(isolate)            \
+#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate)    \
   do {                                                    \
     Isolate* __isolate__ = (isolate);                     \
     if (__isolate__->has_scheduled_exception()) {         \
@@ -125,15 +125,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                     \
   } while (false)
 
-#define RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, T)  \
-  do {                                                    \
-    Isolate* __isolate__ = (isolate);                     \
-    if (__isolate__->has_scheduled_exception()) {         \
-      __isolate__->PromoteScheduledException();           \
-      return Handle<T>::null();                           \
-    }                                                     \
-  } while (false)
-
+// TODO(yangguo): Remove after we completely changed to MaybeHandles.
 #define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value)  \
   do {                                                      \
     if ((call).is_null()) {                                 \
@@ -142,12 +134,14 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                       \
   } while (false)
 
+// TODO(yangguo): Remove after we completely changed to MaybeHandles.
 #define CHECK_NOT_EMPTY_HANDLE(isolate, call)     \
   do {                                            \
     ASSERT(!(isolate)->has_pending_exception());  \
     CHECK(!(call).is_null());                     \
   } while (false)
 
+// TODO(yangguo): Remove after we completely changed to MaybeHandles.
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)  \
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())
 

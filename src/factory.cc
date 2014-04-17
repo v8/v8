@@ -2228,7 +2228,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   // Install accumulated static accessors
   for (int i = 0; i < valid_descriptors; i++) {
     Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-    JSObject::SetAccessor(result, accessor);
+    JSObject::SetAccessor(result, accessor).Assert();
   }
 
   ASSERT(result->shared()->IsApiFunction());

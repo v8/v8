@@ -917,9 +917,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayBufferIsView) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, object, 0);
-  return object->IsJSArrayBufferView()
-    ? isolate->heap()->true_value()
-    : isolate->heap()->false_value();
+  return isolate->heap()->ToBoolean(object->IsJSArrayBufferView());
 }
 
 
@@ -1137,13 +1135,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TypedArrayInitializeFromArrayLike) {
           buffer->backing_store(),
           backing_store + source_byte_offset,
           byte_length);
-      return *isolate->factory()->true_value();
-    } else {
-      return *isolate->factory()->false_value();
+      return isolate->heap()->true_value();
     }
   }
 
-  return *isolate->factory()->false_value();
+  return isolate->heap()->false_value();
 }
 
 
@@ -1722,7 +1718,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
                                  v8::ACCESS_GET)) {
       isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(obj),
                                        v8::ACCESS_GET);
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
     obj = Object::GetPrototype(isolate, obj);
@@ -1752,7 +1748,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
       !isolate->MayNamedAccess(
           obj, isolate->factory()->proto_string(), v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(obj, v8::ACCESS_SET);
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->undefined_value();
   }
   if (obj->map()->is_observed()) {
@@ -1995,8 +1991,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PreventExtensions) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  Handle<Object> result = JSObject::PreventExtensions(obj);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::PreventExtensions(obj));
   return *result;
 }
 
@@ -2220,7 +2217,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareGlobals) {
         attr = lookup.GetAttributes();
       }
       // Define or redefine own property.
-      RETURN_IF_EMPTY_HANDLE(isolate,
+      RETURN_FAILURE_ON_EXCEPTION(isolate,
           JSObject::SetLocalPropertyIgnoreAttributes(
               global, name, value, static_cast<PropertyAttributes>(attr)));
     } else {
@@ -2326,7 +2323,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareContextSlot) {
     }
     if (object->IsJSGlobalObject()) {
       // Define own property on the global object.
-      RETURN_IF_EMPTY_HANDLE(isolate,
+      RETURN_FAILURE_ON_EXCEPTION(isolate,
          JSObject::SetLocalPropertyIgnoreAttributes(object, name, value, mode));
     } else {
       RETURN_FAILURE_ON_EXCEPTION(isolate,
@@ -2426,7 +2423,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_InitializeConstGlobal) {
   if (!lookup.IsFound()) {
     HandleScope handle_scope(isolate);
     Handle<GlobalObject> global(isolate->context()->global_object());
-    RETURN_IF_EMPTY_HANDLE(
+    RETURN_FAILURE_ON_EXCEPTION(
         isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
                                                    attributes));
@@ -2671,16 +2668,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   Handle<Object> zero(Smi::FromInt(0), isolate);
   Factory* factory = isolate->factory();
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->source_string(), source, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->global_string(), global, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->ignore_case_string(), ignoreCase, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->multiline_string(), multiline, final));
-  CHECK_NOT_EMPTY_HANDLE(isolate, JSObject::SetLocalPropertyIgnoreAttributes(
-      regexp, factory->last_index_string(), zero, writable));
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      regexp, factory->source_string(), source, final).Check();
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      regexp, factory->global_string(), global, final).Check();
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      regexp, factory->ignore_case_string(), ignoreCase, final).Check();
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      regexp, factory->multiline_string(), multiline, final).Check();
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      regexp, factory->last_index_string(), zero, writable).Check();
   return *regexp;
 }
 
@@ -4857,11 +4854,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsValidSmi) {
   ASSERT(args.length() == 1);
 
   CONVERT_NUMBER_CHECKED(int32_t, number, Int32, args[0]);
-  if (Smi::IsValid(number)) {
-    return isolate->heap()->true_value();
-  } else {
-    return isolate->heap()->false_value();
-  }
+  return isolate->heap()->ToBoolean(Smi::IsValid(number));
 }
 
 
@@ -5070,8 +5063,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
     Handle<String> str = args.at<String>(0);
     int index = args.smi_at(1);
     if (index >= 0 && index < str->length()) {
-      Handle<Object> result = GetCharAt(str, index);
-      return *result;
+      return *GetCharAt(str, index);
     }
   }
 
@@ -5113,7 +5105,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
 
   bool fast = obj->HasFastProperties();
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
@@ -5221,8 +5213,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     Handle<Object> error =
         isolate->factory()->NewTypeError("non_object_property_store",
                                          HandleVector(args, 2));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   if (object->IsJSProxy()) {
@@ -5541,10 +5532,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
   }
   CONVERT_ARG_CHECKED(Object, callback, 0);
   // We do not step into the callback if it's a builtin or not even a function.
-  if (!callback->IsJSFunction() || JSFunction::cast(callback)->IsBuiltin()) {
-    return isolate->heap()->false_value();
-  }
-  return isolate->heap()->true_value();
+  return isolate->heap()->ToBoolean(
+      callback->IsJSFunction() && !JSFunction::cast(callback)->IsBuiltin());
 #else
   return isolate->heap()->false_value();
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -5628,7 +5617,7 @@ static MaybeObject* HasLocalPropertyImplementation(Isolate* isolate,
                                           Handle<JSObject>::cast(proto),
                                           key);
   }
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->false_value();
 }
 
@@ -5652,7 +5641,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasLocalProperty) {
       ASSERT(!isolate->has_scheduled_exception());
       return isolate->heap()->true_value();
     } else {
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     }
     Map* map = js_obj->map();
     if (!key_is_array_index &&
@@ -5682,7 +5671,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
   bool result = JSReceiver::HasProperty(receiver, key);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (isolate->has_pending_exception()) return Failure::Exception();
   return isolate->heap()->ToBoolean(result);
 }
@@ -5695,8 +5684,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasElement) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
 
   bool result = JSReceiver::HasElement(receiver, index);
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  if (isolate->has_pending_exception()) return Failure::Exception();
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->ToBoolean(result);
 }
 
@@ -5710,7 +5698,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsPropertyEnumerable) {
 
   PropertyAttributes att = JSReceiver::GetLocalPropertyAttribute(object, key);
   if (att == ABSENT || (att & DONT_ENUM) != 0) {
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
   }
   ASSERT(!isolate->has_scheduled_exception());
@@ -5796,7 +5784,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
         !isolate->MayNamedAccess(
             obj, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(obj, v8::ACCESS_KEYS);
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
@@ -5815,7 +5803,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
         !isolate->MayNamedAccess(
             jsproto, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(jsproto, v8::ACCESS_KEYS);
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
@@ -5971,7 +5959,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LocalKeys) {
         !isolate->MayNamedAccess(
             object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
       isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
-      RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
 
@@ -8290,7 +8278,6 @@ static MaybeObject* Runtime_NewObjectHelper(Isolate* isolate,
   } else {
     result = isolate->factory()->NewJSObjectWithMemento(function, site);
   }
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
 
   isolate->counters()->constructed_objects()->Increment();
   isolate->counters()->constructed_objects_runtime()->Increment();
@@ -9064,8 +9051,9 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareModules) {
               IsImmutableVariableMode(mode) ? FROZEN : SEALED;
           Handle<AccessorInfo> info =
               Accessors::MakeModuleExport(name, index, attr);
-          Handle<Object> result = JSObject::SetAccessor(module, info);
-          ASSERT(!(result.is_null() || result->IsUndefined()));
+          Handle<Object> result =
+              JSObject::SetAccessor(module, info).ToHandleChecked();
+          ASSERT(!result->IsUndefined());
           USE(result);
           break;
         }
@@ -9084,7 +9072,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_DeclareModules) {
       }
     }
 
-    JSObject::PreventExtensions(module);
+    JSObject::PreventExtensions(module).Assert();
   }
 
   ASSERT(!isolate->has_pending_exception());
@@ -10641,9 +10629,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
   CONVERT_SMI_ARG_CHECKED(flag, 2);
   AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
   if (!receiver->IsJSObject()) return isolate->heap()->undefined_value();
-  Handle<Object> result =
-      JSObject::GetAccessor(Handle<JSObject>::cast(receiver), name, component);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::GetAccessor(Handle<JSObject>::cast(receiver), name, component));
   return *result;
 }
 
@@ -12376,7 +12365,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
   Handle<JSObject> details;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, details, MaterializeScopeDetails(isolate, &it));
-  RETURN_IF_EMPTY_HANDLE(isolate, details);
   return *details;
 }
 
@@ -13692,7 +13680,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
       continue;
     }
 
-    RETURN_IF_EMPTY_HANDLE(isolate,
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             locales,
             isolate->factory()->NewStringFromAscii(CStrVector(result)),
@@ -13796,13 +13784,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
 
     Handle<JSObject> result =
         isolate->factory()->NewJSObject(isolate->object_function());
-    RETURN_IF_EMPTY_HANDLE(isolate,
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             result,
             maximized,
             isolate->factory()->NewStringFromAscii(CStrVector(base_max_locale)),
             NONE));
-    RETURN_IF_EMPTY_HANDLE(isolate,
+    RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             result,
             base,
@@ -13924,7 +13912,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(date_format));
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
           isolate->factory()->NewStringFromAscii(CStrVector("dateFormat")),
@@ -14019,7 +14007,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
           isolate->factory()->NewStringFromAscii(CStrVector("numberFormat")),
@@ -14123,7 +14111,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
           isolate->factory()->NewStringFromAscii(CStrVector("collator")),
@@ -14223,7 +14211,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
   // Make sure that the pointer to adopted text is NULL.
   local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
 
-  RETURN_IF_EMPTY_HANDLE(isolate,
+  RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
           isolate->factory()->NewStringFromAscii(CStrVector("breakIterator")),

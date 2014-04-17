@@ -539,7 +539,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
   // No accessible property found.
   *attributes = ABSENT;
   isolate->ReportFailedAccessCheck(object, v8::ACCESS_GET);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return isolate->factory()->undefined_value();
 }
 
@@ -884,7 +884,7 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
     if (js_object->IsAccessCheckNeeded()) {
       if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_GET)) {
         isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_GET);
-        RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();
       }
     }
@@ -5254,8 +5254,8 @@ Handle<Object> JSObject::DeletePropertyPostInterceptor(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
-                                                       Handle<Name> name) {
+MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
+    Handle<JSObject> object, Handle<Name> name) {
   Isolate* isolate = object->GetIsolate();
 
   // TODO(rossberg): Support symbols in the API.
@@ -5271,7 +5271,7 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
         isolate, interceptor->data(), *object, *object);
     v8::Handle<v8::Boolean> result =
         args.Call(deleter, v8::Utils::ToLocal(Handle<String>::cast(name)));
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       ASSERT(result->IsBoolean());
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -5282,7 +5282,6 @@ Handle<Object> JSObject::DeletePropertyWithInterceptor(Handle<JSObject> object,
   }
   Handle<Object> result =
       DeletePropertyPostInterceptor(object, name, NORMAL_DELETION);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
   return result;
 }
 
@@ -5306,7 +5305,7 @@ MaybeHandle<Object> JSObject::DeleteElementWithInterceptor(
   PropertyCallbackArguments args(
       isolate, interceptor->data(), *object, *object);
   v8::Handle<v8::Boolean> result = args.Call(deleter, index);
-  RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
   if (!result.IsEmpty()) {
     ASSERT(result->IsBoolean());
     Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
@@ -5330,7 +5329,7 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayIndexedAccess(object, index, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->false_value();
   }
 
@@ -5399,7 +5398,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(object, name, v8::ACCESS_DELETE)) {
     isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
 
@@ -5446,7 +5445,10 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
     if (mode == FORCE_DELETION) {
       result = DeletePropertyPostInterceptor(object, name, mode);
     } else {
-      result = DeletePropertyWithInterceptor(object, name);
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, result,
+          DeletePropertyWithInterceptor(object, name),
+          Object);
     }
   } else {
     // Normalize object if needed.
@@ -5621,7 +5623,7 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
-Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
+MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
 
   if (!object->map()->is_extensible()) return object;
@@ -5630,7 +5632,7 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
       !isolate->MayNamedAccess(
           object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
     isolate->ReportFailedAccessCheck(object, v8::ACCESS_KEYS);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->false_value();
   }
 
@@ -5648,8 +5650,7 @@ Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
         isolate->factory()->NewTypeError(
             "cant_prevent_ext_external_array_elements",
             HandleVector(&object, 1));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // If there are fast elements we normalize.
@@ -6932,8 +6933,8 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
-                                     Handle<AccessorInfo> info) {
+MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
+                                          Handle<AccessorInfo> info) {
   Isolate* isolate = object->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<Name> name(Name::cast(info->name()));
@@ -6942,7 +6943,7 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
     isolate->ReportFailedAccessCheck(object, v8::ACCESS_SET);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
   }
 
@@ -7015,9 +7016,9 @@ Handle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
-                                     Handle<Name> name,
-                                     AccessorComponent component) {
+MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
+                                          Handle<Name> name,
+                                          AccessorComponent component) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -7028,7 +7029,7 @@ Handle<Object> JSObject::GetAccessor(Handle<JSObject> object,
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(object, name, v8::ACCESS_HAS)) {
     isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return isolate->factory()->undefined_value();
   }
 
@@ -13570,7 +13571,7 @@ MaybeHandle<Object> JSObject::GetElementWithInterceptor(
     PropertyCallbackArguments
         args(isolate, interceptor->data(), *receiver, *object);
     v8::Handle<v8::Value> result = args.Call(getter, index);
-    RETURN_HANDLE_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) {
       Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
       result_internal->VerifyApiCallResultType();

@@ -576,7 +576,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
     throw_type_error_function->shared()->set_code(*code);
     throw_type_error_function->shared()->DontAdaptArguments();
 
-    JSObject::PreventExtensions(throw_type_error_function);
+    JSObject::PreventExtensions(throw_type_error_function).Assert();
   }
   return throw_type_error_function;
 }
