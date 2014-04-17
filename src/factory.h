@@ -633,19 +633,19 @@ class Factory V8_FINAL {
                 Handle<AllocationSite> allocation_site);
 
   // Initializes a function with a shared part and prototype.
-  // Note: this code was factored out of NewFunctionHelper such that
-  // other parts of the VM could use it. Specifically, a function that creates
-  // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
+  // Note: this code was factored out of NewFunction such that other parts of
+  // the VM could use it. Specifically, a function that creates instances of
+  // type JS_FUNCTION_TYPE benefit from the use of this function.
   inline void InitializeFunction(Handle<JSFunction> function,
-                                 Handle<SharedFunctionInfo> shared,
-                                 Handle<Object> prototype);
+                                 Handle<SharedFunctionInfo> info,
+                                 Handle<Context> context,
+                                 MaybeHandle<Object> maybe_prototype);
 
   // Creates a function initialized with a shared part.
-  inline Handle<JSFunction> NewFunctionHelper(
-      Handle<Map> function_map,
-      Handle<SharedFunctionInfo> shared,
-      Handle<Object> prototype,
-      PretenureFlag pretenure = TENURED);
+  inline Handle<JSFunction> NewFunction(Handle<SharedFunctionInfo> info,
+                                        Handle<Context> context,
+                                        MaybeHandle<Object> maybe_prototype,
+                                        PretenureFlag pretenure = TENURED);
 
   // Create a new map cache.
   Handle<MapCache> NewMapCache(int at_least_space_for);
