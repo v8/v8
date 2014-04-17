@@ -773,74 +773,55 @@ Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
 // Accessors::FunctionPrototype
 //
 
-
-Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(function->GetIsolate(),
-                     Accessors::FunctionGetPrototype(function->GetIsolate(),
-                                                     *function,
-                                                     NULL),
-                     Object);
-}
-
-
-Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
-                                               Handle<Object> prototype) {
-  ASSERT(function->should_have_prototype());
-  CALL_HEAP_FUNCTION(function->GetIsolate(),
-                     Accessors::FunctionSetPrototype(function->GetIsolate(),
-                                                     *function,
-                                                     *prototype,
-                                                     NULL),
-                     Object);
-}
-
-
-MaybeObject* Accessors::FunctionGetPrototype(Isolate* isolate,
-                                             Object* object,
-                                             void*) {
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object);
-  if (function_raw == NULL) return isolate->heap()->undefined_value();
-  while (!function_raw->should_have_prototype()) {
-    function_raw = FindInstanceOf<JSFunction>(isolate,
-                                              function_raw->GetPrototype());
-    // There has to be one because we hit the getter.
-    ASSERT(function_raw != NULL);
+static Handle<Object> GetFunctionPrototype(Isolate* isolate,
+                                           Handle<Object> receiver) {
+  Handle<JSFunction> function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
+    if (function_raw == NULL) return isolate->factory()->undefined_value();
+    while (!function_raw->should_have_prototype()) {
+      function_raw = FindInstanceOf<JSFunction>(isolate,
+                                                function_raw->GetPrototype());
+      // There has to be one because we hit the getter.
+      ASSERT(function_raw != NULL);
+    }
+    function = Handle<JSFunction>(function_raw, isolate);
   }
 
-  if (!function_raw->has_prototype()) {
-    HandleScope scope(isolate);
-    Handle<JSFunction> function(function_raw);
+  if (!function->has_prototype()) {
     Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
-    function_raw = *function;
   }
-  return function_raw->prototype();
+  return Handle<Object>(function->prototype(), isolate);
 }
 
 
-MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
-                                             JSObject* object_raw,
-                                             Object* value_raw,
-                                             void*) {
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, object_raw);
-  if (function_raw == NULL) return isolate->heap()->undefined_value();
+Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
+  return GetFunctionPrototype(function->GetIsolate(), function);
+}
 
-  HandleScope scope(isolate);
-  Handle<JSFunction> function(function_raw, isolate);
-  Handle<JSObject> object(object_raw, isolate);
-  Handle<Object> value(value_raw, isolate);
+
+
+MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
+                                         Handle<JSObject> receiver,
+                                         Handle<Object> value) {
+    Handle<JSFunction> function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
+    if (function_raw == NULL) return isolate->factory()->undefined_value();
+    function = Handle<JSFunction>(function_raw, isolate);
+  }
+
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        JSObject::SetLocalPropertyIgnoreAttributes(
-            object, isolate->factory()->prototype_string(), value, NONE));
-    return *result;
+    return JSObject::SetLocalPropertyIgnoreAttributes(
+        receiver, isolate->factory()->prototype_string(), value, NONE);
   }
 
   Handle<Object> old_value;
-  bool is_observed = *function == *object && function->map()->is_observed();
+  bool is_observed = *function == *receiver && function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
@@ -856,7 +837,39 @@ MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
         function, "update", isolate->factory()->prototype_string(), old_value);
   }
 
-  return *function;
+  return function;
+}
+
+
+Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
+                                               Handle<Object> prototype) {
+  ASSERT(function->should_have_prototype());
+  Isolate* isolate = function->GetIsolate();
+  Handle<Object> result;
+  SetFunctionPrototype(isolate, function, prototype).ToHandle(&result);
+  return result;
+}
+
+
+MaybeObject* Accessors::FunctionGetPrototype(Isolate* isolate,
+                                             Object* object,
+                                             void*) {
+  HandleScope scope(isolate);
+  return *GetFunctionPrototype(isolate, Handle<Object>(object, isolate));
+}
+
+
+MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
+                                             JSObject* object,
+                                             Object* value,
+                                             void*) {
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      SetFunctionPrototype(isolate,
+                           Handle<JSObject>(object, isolate),
+                           Handle<Object>(value, isolate)));
+  return *result;
 }
 
 
