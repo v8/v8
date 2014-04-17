@@ -56,8 +56,8 @@ static void SetGlobalProperty(const char* name, Object* value) {
 
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
-  Handle<String> source_code(
-      isolate->factory()->NewStringFromUtf8(CStrVector(source)));
+  Handle<String> source_code = isolate->factory()->NewStringFromUtf8(
+      CStrVector(source)).ToHandleChecked();
   Handle<SharedFunctionInfo> shared_function =
       Compiler::CompileScript(source_code,
                               Handle<String>(),

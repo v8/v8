@@ -3949,26 +3949,6 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
 }
 
 
-MaybeObject* Heap::AllocateStringFromOneByte(Vector<const uint8_t> string,
-                                             PretenureFlag pretenure) {
-  int length = string.length();
-  if (length == 1) {
-    return Heap::LookupSingleCharacterStringFromCode(string[0]);
-  }
-  Object* result;
-  { MaybeObject* maybe_result =
-        AllocateRawOneByteString(string.length(), pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-
-  // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(result)->GetChars(),
-            string.start(),
-            length);
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
                                               int non_ascii_start,
                                               PretenureFlag pretenure) {

@@ -315,8 +315,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       char arr[100];
       Vector<char> buffer(arr, ARRAY_SIZE(arr));
       const char* str = DoubleToCString(num, buffer);
-      Handle<String> name =
-          isolate->factory()->NewStringFromAscii(CStrVector(str));
+      Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
       maybe_result = JSObject::SetLocalPropertyIgnoreAttributes(
           boilerplate, name, value, NONE,
           Object::OPTIMAL_REPRESENTATION, mode);
@@ -2025,8 +2024,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpCompile) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, re, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
-  Handle<Object> result = RegExpImpl::Compile(re, pattern, flags);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, RegExpImpl::Compile(re, pattern, flags));
   return *result;
 }
 
@@ -4801,8 +4801,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToRadixString) {
     return isolate->heap()->infinity_string();
   }
   char* str = DoubleToRadixCString(value, radix);
-  Handle<String> result =
-      isolate->factory()->NewStringFromOneByte(OneByteVector(str));
+  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -4817,8 +4816,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToFixed) {
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 0);
   char* str = DoubleToFixedCString(value, f);
-  Handle<String> result =
-      isolate->factory()->NewStringFromOneByte(OneByteVector(str));
+  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -4833,8 +4831,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToExponential) {
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
   char* str = DoubleToExponentialCString(value, f);
-  Handle<String> result =
-      isolate->factory()->NewStringFromOneByte(OneByteVector(str));
+  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -4849,8 +4846,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NumberToPrecision) {
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
   char* str = DoubleToPrecisionCString(value, f);
-  Handle<String> result =
-      isolate->factory()->NewStringFromOneByte(OneByteVector(str));
+  Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
   return *result;
 }
@@ -9429,8 +9425,7 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_ThrowMessage) {
   const char* message = GetBailoutReason(
       static_cast<BailoutReason>(message_id));
   Handle<String> message_handle =
-      isolate->factory()->NewStringFromAscii(CStrVector(message));
-  RETURN_IF_EMPTY_HANDLE(isolate, message_handle);
+      isolate->factory()->NewStringFromAsciiChecked(message);
   return isolate->Throw(*message_handle);
 }
 
@@ -9612,7 +9607,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   const char* zone =
       isolate->date_cache()->LocalTimezone(static_cast<int64_t>(x));
-  return *isolate->factory()->NewStringFromUtf8(CStrVector(zone));
+  Handle<String> result = isolate->factory()->NewStringFromUtf8(
+      CStrVector(zone)).ToHandleChecked();
+  return *result;
 }
 
 
@@ -13578,7 +13575,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_forLanguageTag(*locale_id, icu_result, ULOC_FULLNAME_CAPACITY,
                       &icu_length, &error);
   if (U_FAILURE(error) || icu_length == 0) {
-    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
+    return *factory->NewStringFromAsciiChecked(kInvalidTag);
   }
 
   char result[ULOC_FULLNAME_CAPACITY];
@@ -13587,15 +13584,16 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CanonicalizeLanguageTag) {
   uloc_toLanguageTag(icu_result, result, ULOC_FULLNAME_CAPACITY, TRUE, &error);
 
   if (U_FAILURE(error)) {
-    return *factory->NewStringFromOneByte(OneByteVector(kInvalidTag));
+    return *factory->NewStringFromAsciiChecked(kInvalidTag);
   }
 
-  return *factory->NewStringFromOneByte(OneByteVector(result));
+  return *factory->NewStringFromAsciiChecked(result);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
   HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
@@ -13616,7 +13614,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
   UErrorCode error = U_ZERO_ERROR;
   char result[ULOC_FULLNAME_CAPACITY];
   Handle<JSObject> locales =
-      isolate->factory()->NewJSObject(isolate->object_function());
+      factory->NewJSObject(isolate->object_function());
 
   for (int32_t i = 0; i < count; ++i) {
     const char* icu_name = available_locales[i].getName();
@@ -13632,8 +13630,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_AvailableLocalesOf) {
     RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             locales,
-            isolate->factory()->NewStringFromAscii(CStrVector(result)),
-            isolate->factory()->NewNumber(i),
+            factory->NewStringFromAsciiChecked(result),
+            factory->NewNumber(i),
             NONE));
   }
 
@@ -13655,32 +13653,31 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultICULocale) {
   uloc_toLanguageTag(
       default_locale.getName(), result, ULOC_FULLNAME_CAPACITY, FALSE, &status);
   if (U_SUCCESS(status)) {
-    return *factory->NewStringFromOneByte(OneByteVector(result));
+    return *factory->NewStringFromAsciiChecked(result);
   }
 
-  return *factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("und"));
+  return *factory->NewStringFromStaticAscii("und");
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
   HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
 
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, input, 0);
 
   uint32_t length = static_cast<uint32_t>(input->length()->Number());
-  Handle<FixedArray> output = isolate->factory()->NewFixedArray(length);
-  Handle<Name> maximized =
-      isolate->factory()->NewStringFromAscii(CStrVector("maximized"));
-  Handle<Name> base =
-      isolate->factory()->NewStringFromAscii(CStrVector("base"));
+  Handle<FixedArray> output = factory->NewFixedArray(length);
+  Handle<Name> maximized = factory->NewStringFromStaticAscii("maximized");
+  Handle<Name> base = factory->NewStringFromStaticAscii("base");
   for (unsigned int i = 0; i < length; ++i) {
     Handle<Object> locale_id;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, locale_id, Object::GetElement(isolate, input, i));
     if (!locale_id->IsString()) {
-      return isolate->Throw(isolate->heap()->illegal_argument_string());
+      return isolate->Throw(*factory->illegal_argument_string());
     }
 
     v8::String::Utf8Value utf8_locale_id(
@@ -13695,7 +13692,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
     uloc_forLanguageTag(*utf8_locale_id, icu_locale, ULOC_FULLNAME_CAPACITY,
                         &icu_locale_length, &error);
     if (U_FAILURE(error) || icu_locale_length == 0) {
-      return isolate->Throw(isolate->heap()->illegal_argument_string());
+      return isolate->Throw(*factory->illegal_argument_string());
     }
 
     // Maximize the locale.
@@ -13728,27 +13725,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLanguageTagVariants) {
         icu_base_locale, base_locale, ULOC_FULLNAME_CAPACITY, FALSE, &error);
 
     if (U_FAILURE(error)) {
-      return isolate->Throw(isolate->heap()->illegal_argument_string());
+      return isolate->Throw(*factory->illegal_argument_string());
     }
 
-    Handle<JSObject> result =
-        isolate->factory()->NewJSObject(isolate->object_function());
+    Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
     RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             result,
             maximized,
-            isolate->factory()->NewStringFromAscii(CStrVector(base_max_locale)),
+            factory->NewStringFromAsciiChecked(base_max_locale),
             NONE));
     RETURN_FAILURE_ON_EXCEPTION(isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
             result,
             base,
-            isolate->factory()->NewStringFromAscii(CStrVector(base_locale)),
+            factory->NewStringFromAsciiChecked(base_locale),
             NONE));
     output->set(i, *result);
   }
 
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(output);
+  Handle<JSArray> result = factory->NewJSArrayWithElements(output);
   result->set_length(Smi::FromInt(length));
   return *result;
 }
@@ -13864,8 +13860,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateDateTimeFormat) {
   RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
-          isolate->factory()->NewStringFromAscii(CStrVector("dateFormat")),
-          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          isolate->factory()->NewStringFromStaticAscii("dateFormat"),
+          isolate->factory()->NewStringFromStaticAscii("valid"),
           NONE));
 
   // Make object handle weak so we can delete the data format once GC kicks in.
@@ -13896,10 +13892,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalDateFormat) {
   icu::UnicodeString result;
   date_format->format(value->Number(), result);
 
-  return *isolate->factory()->NewStringFromTwoByte(
-      Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length()));
+  Handle<String> result_str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_str,
+      isolate->factory()->NewStringFromTwoByte(
+          Vector<const uint16_t>(
+              reinterpret_cast<const uint16_t*>(result.getBuffer()),
+              result.length())));
+  return *result_str;
 }
 
 
@@ -13959,8 +13959,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateNumberFormat) {
   RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
-          isolate->factory()->NewStringFromAscii(CStrVector("numberFormat")),
-          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          isolate->factory()->NewStringFromStaticAscii("numberFormat"),
+          isolate->factory()->NewStringFromStaticAscii("valid"),
           NONE));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -13990,10 +13990,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InternalNumberFormat) {
   icu::UnicodeString result;
   number_format->format(value->Number(), result);
 
-  return *isolate->factory()->NewStringFromTwoByte(
-      Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length()));
+  Handle<String> result_str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_str,
+      isolate->factory()->NewStringFromTwoByte(
+          Vector<const uint16_t>(
+              reinterpret_cast<const uint16_t*>(result.getBuffer()),
+              result.length())));
+  return *result_str;
 }
 
 
@@ -14063,8 +14067,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateCollator) {
   RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
-          isolate->factory()->NewStringFromAscii(CStrVector("collator")),
-          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          isolate->factory()->NewStringFromStaticAscii("collator"),
+          isolate->factory()->NewStringFromStaticAscii("valid"),
           NONE));
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -14125,10 +14129,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringNormalize) {
     return isolate->heap()->undefined_value();
   }
 
-  return *isolate->factory()->NewStringFromTwoByte(
-      Vector<const uint16_t>(
-          reinterpret_cast<const uint16_t*>(result.getBuffer()),
-          result.length()));
+  Handle<String> result_str;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_str,
+      isolate->factory()->NewStringFromTwoByte(
+          Vector<const uint16_t>(
+              reinterpret_cast<const uint16_t*>(result.getBuffer()),
+              result.length())));
+  return *result_str;
 }
 
 
@@ -14163,8 +14171,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateBreakIterator) {
   RETURN_FAILURE_ON_EXCEPTION(isolate,
       JSObject::SetLocalPropertyIgnoreAttributes(
           local_object,
-          isolate->factory()->NewStringFromAscii(CStrVector("breakIterator")),
-          isolate->factory()->NewStringFromAscii(CStrVector("valid")),
+          isolate->factory()->NewStringFromStaticAscii("breakIterator"),
+          isolate->factory()->NewStringFromStaticAscii("valid"),
           NONE));
 
   // Make object handle weak so we can delete the break iterator once GC kicks
@@ -14266,17 +14274,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_BreakIteratorBreakType) {
   int32_t status = rule_based_iterator->getRuleStatus();
   // Keep return values in sync with JavaScript BreakType enum.
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("none"));
+    return *isolate->factory()->NewStringFromStaticAscii("none");
   } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("number"));
+    return *isolate->factory()->NewStringFromStaticAscii("number");
   } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("letter"));
+    return *isolate->factory()->NewStringFromStaticAscii("letter");
   } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("kana"));
+    return *isolate->factory()->NewStringFromStaticAscii("kana");
   } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("ideo"));
+    return *isolate->factory()->NewStringFromStaticAscii("ideo");
   } else {
-    return *isolate->factory()->NewStringFromAscii(CStrVector("unknown"));
+    return *isolate->factory()->NewStringFromStaticAscii("unknown");
   }
 }
 #endif  // V8_I18N_SUPPORT
@@ -14374,8 +14382,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetV8Version) {
 
   const char* version_string = v8::V8::GetVersion();
 
-  return *isolate->factory()->NewStringFromOneByte(
-      OneByteVector(version_string), NOT_TENURED);
+  return *isolate->factory()->NewStringFromAsciiChecked(version_string);
 }
 
 
@@ -14587,11 +14594,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ListNatives) {
     Handle<String> name;                                                     \
     /* Inline runtime functions have an underscore in front of the name. */  \
     if (inline_runtime_functions) {                                          \
-      name = factory->NewStringFromAscii(                                    \
-          Vector<const char>("_" #Name, StrLength("_" #Name)));              \
+      name = factory->NewStringFromStaticAscii("_" #Name);                   \
     } else {                                                                 \
-      name = factory->NewStringFromAscii(                                    \
-          Vector<const char>(#Name, StrLength(#Name)));                      \
+      name = factory->NewStringFromStaticAscii(#Name);                       \
     }                                                                        \
     Handle<FixedArray> pair_elements = factory->NewFixedArray(2);            \
     pair_elements->set(0, *name);                                            \

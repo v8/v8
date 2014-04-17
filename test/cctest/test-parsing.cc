@@ -533,8 +533,7 @@ TEST(Regress928) {
       "var bar = function () { /* second */ }";
 
   v8::HandleScope handles(CcTest::isolate());
-  i::Handle<i::String> source(
-      factory->NewStringFromAscii(i::CStrVector(program)));
+  i::Handle<i::String> source = factory->NewStringFromAsciiChecked(program);
   i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
   i::CompleteParserRecorder log;
   i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
@@ -630,8 +629,8 @@ void TestCharacterStream(const char* ascii_source,
     uc16_buffer[i] = static_cast<i::uc16>(ascii_source[i]);
   }
   i::Vector<const char> ascii_vector(ascii_source, static_cast<int>(length));
-  i::Handle<i::String> ascii_string(
-      factory->NewStringFromAscii(ascii_vector));
+  i::Handle<i::String> ascii_string =
+      factory->NewStringFromAscii(ascii_vector).ToHandleChecked();
   TestExternalResource resource(uc16_buffer.get(), length);
   i::Handle<i::String> uc16_string(
       factory->NewExternalStringFromTwoByte(&resource).ToHandleChecked());
@@ -1209,8 +1208,8 @@ TEST(ScopePositions) {
                              source_data[i].outer_suffix);
 
     // Parse program source.
-    i::Handle<i::String> source(
-        factory->NewStringFromUtf8(i::CStrVector(program.start())));
+    i::Handle<i::String> source = factory->NewStringFromUtf8(
+        i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
@@ -1403,7 +1402,7 @@ void TestParserSync(const char* source,
                     size_t flag_list_length,
                     ParserSyncTestResult result = kSuccessOrError) {
   i::Handle<i::String> str =
-      CcTest::i_isolate()->factory()->NewStringFromAscii(i::CStrVector(source));
+      CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
   for (int bits = 0; bits < (1 << flag_list_length); bits++) {
     i::EnumSet<ParserFlag> flags;
     for (size_t flag_index = 0; flag_index < flag_list_length; flag_index++) {
@@ -2100,8 +2099,8 @@ TEST(DontRegressPreParserDataSizes) {
   for (int i = 0; test_cases[i].program; i++) {
     const char* program = test_cases[i].program;
     i::Factory* factory = CcTest::i_isolate()->factory();
-    i::Handle<i::String> source(
-        factory->NewStringFromUtf8(i::CStrVector(program)));
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
     i::ScriptData* data = NULL;

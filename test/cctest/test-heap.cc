@@ -204,7 +204,7 @@ TEST(HeapObjects) {
   CHECK(factory->nan_value()->IsNumber());
   CHECK(std::isnan(factory->nan_value()->Number()));
 
-  Handle<String> s = factory->NewStringFromAscii(CStrVector("fisk hest "));
+  Handle<String> s = factory->NewStringFromStaticAscii("fisk hest ");
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
@@ -319,7 +319,8 @@ TEST(GarbageCollection) {
 
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
-  Handle<String> s = isolate->factory()->NewStringFromUtf8(CStrVector(string));
+  Handle<String> s = isolate->factory()->NewStringFromUtf8(
+      CStrVector(string)).ToHandleChecked();
   CHECK_EQ(StrLength(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
@@ -346,7 +347,7 @@ TEST(LocalHandles) {
 
   v8::HandleScope scope(CcTest::isolate());
   const char* name = "Kasper the spunky";
-  Handle<String> string = factory->NewStringFromAscii(CStrVector(name));
+  Handle<String> string = factory->NewStringFromAsciiChecked(name);
   CHECK_EQ(StrLength(name), string->length());
 }
 
@@ -366,7 +367,7 @@ TEST(GlobalHandles) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -421,7 +422,7 @@ TEST(WeakGlobalHandlesScavenge) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -463,7 +464,7 @@ TEST(WeakGlobalHandlesMark) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -509,7 +510,7 @@ TEST(DeleteWeakGlobalHandle) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     h = global_handles->Create(*i);
   }
 
@@ -703,7 +704,7 @@ TEST(ObjectProperties) {
 
   // check string and internalized string match
   const char* string1 = "fisk";
-  Handle<String> s1 = factory->NewStringFromAscii(CStrVector(string1));
+  Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
@@ -712,7 +713,7 @@ TEST(ObjectProperties) {
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
   JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY).Check();
-  Handle<String> s2 = factory->NewStringFromAscii(CStrVector(string2));
+  Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(JSReceiver::HasLocalProperty(obj, s2));
 }
 
@@ -886,12 +887,12 @@ TEST(StringAllocation) {
     Handle<String> ascii_sym =
         factory->InternalizeOneByteString(OneByteVector(ascii, length));
     CHECK_EQ(length, ascii_sym->length());
-    Handle<String> non_ascii_str =
-        factory->NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));
+    Handle<String> non_ascii_str = factory->NewStringFromUtf8(
+        Vector<const char>(non_ascii, 3 * length)).ToHandleChecked();
     non_ascii_str->Hash();
     CHECK_EQ(length, non_ascii_str->length());
-    Handle<String> ascii_str =
-        factory->NewStringFromUtf8(Vector<const char>(ascii, length));
+    Handle<String> ascii_str = factory->NewStringFromUtf8(
+        Vector<const char>(ascii, length)).ToHandleChecked();
     ascii_str->Hash();
     CHECK_EQ(length, ascii_str->length());
     DeleteArray(non_ascii);
@@ -935,17 +936,16 @@ TEST(Iteration) {
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector("abcdefghij"));
+      factory->NewStringFromStaticAscii("abcdefghij");
   objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
+      factory->NewStringFromStaticAscii("abcdefghij", TENURED);
 
   // Allocate a large string (for large object space).
   int large_size = Page::kMaxRegularHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
-  objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector(str), TENURED);
+  objs[next_objs_index++] = factory->NewStringFromAsciiChecked(str, TENURED);
   delete[] str;
 
   // Add a Map object to look for.
@@ -2957,7 +2957,7 @@ TEST(Regress2237) {
     // Generate a parent that lives in new-space.
     v8::HandleScope inner_scope(CcTest::isolate());
     const char* c = "This text is long enough to trigger sliced strings.";
-    Handle<String> s = factory->NewStringFromAscii(CStrVector(c));
+    Handle<String> s = factory->NewStringFromAsciiChecked(c);
     CHECK(s->IsSeqOneByteString());
     CHECK(CcTest::heap()->InNewSpace(*s));
 

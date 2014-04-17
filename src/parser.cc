@@ -683,8 +683,8 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
   Factory* factory = parser_->isolate()->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
-    Handle<String> arg_string = factory->NewStringFromUtf8(CStrVector(args[i]));
-    ASSERT(!arg_string.is_null());
+    Handle<String> arg_string =
+        factory->NewStringFromUtf8(CStrVector(args[i])).ToHandleChecked();
     elements->set(i, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
@@ -3842,8 +3842,8 @@ bool RegExpParser::simple() {
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
   failed_ = true;
-  *error_ = isolate()->factory()->NewStringFromAscii(message, NOT_TENURED);
-  ASSERT(!error_->is_null());
+  *error_ = isolate()->factory()->NewStringFromAscii(
+      message, NOT_TENURED).ToHandleChecked();
   // Zip to the end to make sure the no more input is read.
   current_ = kEndMarker;
   next_pos_ = in()->length();

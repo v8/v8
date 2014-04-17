@@ -489,8 +489,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
       factory->NewFunctionWithoutPrototype(empty_string, code);
 
   // --- E m p t y ---
-  Handle<String> source =
-      factory->NewStringFromOneByte(STATIC_ASCII_VECTOR("() {}"));
+  Handle<String> source = factory->NewStringFromStaticAscii("() {}");
   Handle<Script> script = factory->NewScript(source);
   script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   empty_function->shared()->set_script(*script);
@@ -1398,10 +1397,12 @@ bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
 bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = ExperimentalNatives::GetScriptName(index);
   Factory* factory = isolate->factory();
-  Handle<String> source_code =
+  Handle<String> source_code;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, source_code,
       factory->NewStringFromAscii(
-          ExperimentalNatives::GetRawScriptSource(index));
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, source_code, false);
+          ExperimentalNatives::GetRawScriptSource(index)),
+      false);
   return CompileNative(isolate, name, source_code);
 }
 
@@ -1450,8 +1451,8 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   // function and insert it into the cache.
   if (cache == NULL || !cache->Lookup(name, &function_info)) {
     ASSERT(source->IsOneByteRepresentation());
-    Handle<String> script_name = factory->NewStringFromUtf8(name);
-    ASSERT(!script_name.is_null());
+    Handle<String> script_name =
+        factory->NewStringFromUtf8(name).ToHandleChecked();
     function_info = Compiler::CompileScript(
         source,
         script_name,

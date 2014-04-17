@@ -753,8 +753,8 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   Handle<String> source_code =
       isolate->bootstrapper()->NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
-  Handle<String> script_name = factory->NewStringFromAscii(name);
-  ASSERT(!script_name.is_null());
+  Handle<String> script_name =
+      factory->NewStringFromAscii(name).ToHandleChecked();
   Handle<Context> context = isolate->native_context();
 
   // Compile the script.

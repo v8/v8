@@ -281,16 +281,29 @@ template Handle<String> Factory::InternalizeStringWithKey<
     SubStringKey<uint16_t> > (SubStringKey<uint16_t>* key);
 
 
-Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
-                                             PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
+MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
+                                                  PretenureFlag pretenure) {
+  int length = string.length();
+  if (length == 1) {
+    return LookupSingleCharacterStringFromCode(string[0]);
+  }
+  Handle<SeqOneByteString> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromOneByte(string, pretenure),
+      result,
+      NewRawOneByteString(string.length(), pretenure),
       String);
+
+  DisallowHeapAllocation no_gc;
+  // Copy the characters into the new object.
+  CopyChars(SeqOneByteString::cast(*result)->GetChars(),
+            string.start(),
+            length);
+  return result;
 }
 
-Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
-                                          PretenureFlag pretenure) {
+MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
+                                               PretenureFlag pretenure) {
   // Check for ASCII first since this is the common case.
   const char* start = string.start();
   int length = string.length();
@@ -310,8 +323,8 @@ Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 }
 
 
-Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
-                                             PretenureFlag pretenure) {
+MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+                                                  PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateStringFromTwoByte(string, pretenure),
@@ -1193,8 +1206,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
   } else {
     buffer[kBufferSize - 1] = '\0';
   }
-  Handle<String> error_string = NewStringFromUtf8(CStrVector(buffer), TENURED);
-  return error_string;
+  return NewStringFromUtf8(CStrVector(buffer), TENURED).ToHandleChecked();
 }
 
 
@@ -1941,7 +1953,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
-  Handle<String> js_string = NewStringFromOneByte(OneByteVector(str), TENURED);
+  Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
   SetNumberStringCache(number, js_string);
   return js_string;
 }

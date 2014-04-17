@@ -47,7 +47,8 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
     Handle<FixedArray> new_array = factory->NewFixedArray(length + 2, TENURED);
     cache_->CopyTo(0, *new_array, 0, cache_->length());
     cache_ = *new_array;
-    Handle<String> str = factory->NewStringFromAscii(name, TENURED);
+    Handle<String> str =
+        factory->NewStringFromAscii(name, TENURED).ToHandleChecked();
     ASSERT(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);

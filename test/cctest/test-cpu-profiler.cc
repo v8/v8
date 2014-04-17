@@ -148,8 +148,7 @@ TEST(CodeEvents) {
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
-  i::Handle<i::String> aaa_name = factory->NewStringFromAscii(
-      i::Vector<const char>(aaa_str, i::StrLength(aaa_str)));
+  i::Handle<i::String> aaa_name = factory->NewStringFromAsciiChecked(aaa_str);
   profiler.CodeCreateEvent(i::Logger::FUNCTION_TAG, aaa_code, *aaa_name);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);

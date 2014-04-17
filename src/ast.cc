@@ -1179,7 +1179,7 @@ Handle<String> Literal::ToString() {
   } else {
     str = DoubleToCString(value_->Number(), buffer);
   }
-  return isolate_->factory()->NewStringFromAscii(CStrVector(str));
+  return isolate_->factory()->NewStringFromAsciiChecked(str);
 }
 
 

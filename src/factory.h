@@ -118,11 +118,28 @@ class Factory V8_FINAL {
   //     two byte.
   //
   // ASCII strings are pretenured when used as keys in the SourceCodeCache.
-  Handle<String> NewStringFromOneByte(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
       Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
+
+  template<size_t N>
+  inline Handle<String> NewStringFromStaticAscii(
+      const char (&str)[N],
+      PretenureFlag pretenure = NOT_TENURED) {
+    ASSERT(N == StrLength(str) + 1);
+    return NewStringFromOneByte(
+        STATIC_ASCII_VECTOR(str), pretenure).ToHandleChecked();
+  }
+
+  inline Handle<String> NewStringFromAsciiChecked(
+      const char* str,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return NewStringFromOneByte(
+        OneByteVector(str), pretenure).ToHandleChecked();
+  }
+
   // TODO(dcarney): remove this function.
-  inline Handle<String> NewStringFromAscii(
+  MUST_USE_RESULT inline MaybeHandle<String> NewStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED) {
     return NewStringFromOneByte(Vector<const uint8_t>::cast(str), pretenure);
@@ -130,11 +147,11 @@ class Factory V8_FINAL {
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
-  Handle<String> NewStringFromUtf8(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromUtf8(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<String> NewStringFromTwoByte(
+  MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 

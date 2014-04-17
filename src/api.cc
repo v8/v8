@@ -5325,9 +5325,10 @@ inline int StringLength(const uint16_t* string) {
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const char> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const char> string) {
   if (type ==String::kInternalizedString) {
     return factory->InternalizeUtf8String(string);
   }
@@ -5335,9 +5336,10 @@ inline i::Handle<i::String> NewString(i::Factory* factory,
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const uint8_t> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const uint8_t> string) {
   if (type == String::kInternalizedString) {
     return factory->InternalizeOneByteString(string);
   }
@@ -5345,9 +5347,10 @@ inline i::Handle<i::String> NewString(i::Factory* factory,
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const uint16_t> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const uint16_t> string) {
   if (type == String::kInternalizedString) {
     return factory->InternalizeTwoByteString(string);
   }
@@ -5370,10 +5373,11 @@ inline Local<String> NewString(Isolate* v8_isolate,
   }
   ENTER_V8(isolate);
   if (length == -1) length = StringLength(data);
-  i::Handle<i::String> result = NewString(
-      isolate->factory(), type, i::Vector<const Char>(data, length));
   // We do not expect this to fail. Change this if it does.
-  CHECK(!result.is_null());
+  i::Handle<i::String> result = NewString(
+      isolate->factory(),
+      type,
+      i::Vector<const Char>(data, length)).ToHandleChecked();
   if (type == String::kUndetectableString) {
     result->MarkAsUndetectable();
   }
