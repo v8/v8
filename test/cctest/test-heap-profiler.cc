@@ -441,10 +441,8 @@ TEST(HeapSnapshotConsString) {
   CHECK_EQ(1, global->InternalFieldCount());
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> first =
-      factory->NewStringFromAscii(i::CStrVector("0123456789"));
-  i::Handle<i::String> second =
-      factory->NewStringFromAscii(i::CStrVector("0123456789"));
+  i::Handle<i::String> first = factory->NewStringFromStaticAscii("0123456789");
+  i::Handle<i::String> second = factory->NewStringFromStaticAscii("0123456789");
   i::Handle<i::String> cons_string =
       factory->NewConsString(first, second).ToHandleChecked();
 
@@ -2488,8 +2486,7 @@ TEST(BoxObject) {
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> string =
-      factory->NewStringFromAscii(i::CStrVector("string"));
+  i::Handle<i::String> string = factory->NewStringFromStaticAscii("string");
   i::Handle<i::Object> box = factory->NewBox(string);
   global->Set(0, v8::ToApiHandle<v8::Object>(box));
 

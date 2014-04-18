@@ -529,7 +529,7 @@ BUILTIN(ArrayPop) {
   }
   Handle<Object> element;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element, maybe_element);
-  RETURN_IF_EMPTY_HANDLE(
+  RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       accessor->SetLength(array, handle(Smi::FromInt(new_length), isolate)));
   return *element;
@@ -1231,7 +1231,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
       result->VerifyApiCallResultType();
     }
 
-    RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     if (!is_construct || result->IsJSObject()) return result;
   }
 
@@ -1301,7 +1301,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
     }
   }
   // Check for exceptions and return result.
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return result;
 }
 

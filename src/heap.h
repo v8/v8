@@ -348,7 +348,6 @@ namespace internal {
     "KeyedStoreElementMonomorphic")                                      \
   V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
   V(illegal_access_string, "illegal access")                             \
-  V(illegal_execution_state_string, "illegal execution state")           \
   V(get_string, "get")                                                   \
   V(set_string, "set")                                                   \
   V(map_field_string, "%map")                                            \
@@ -755,6 +754,12 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
                                                   int instance_size);
 
+  // Allocate a block of memory in the given space (filled with a filler).
+  // Used as a fall-back for generated code when the space is full.
+  MUST_USE_RESULT MaybeObject* AllocateFillerObject(int size,
+                                                    bool double_align,
+                                                    AllocationSpace space);
+
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
@@ -785,9 +790,6 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
-      Vector<const uint8_t> str,
-      PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
       int non_ascii_start,
@@ -990,15 +992,6 @@ class Heap {
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(String* string);
-
-  // Allocates an uninitialized object.  The memory is non-executable if the
-  // hardware and OS allow.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes,
-                                                  AllocationSpace space,
-                                                  AllocationSpace retry_space);
 
   // Initialize a filler object to keep the ability to iterate over the heap
   // when shortening objects.
@@ -1381,9 +1374,30 @@ class Heap {
   static const intptr_t kMinimumOldGenerationAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
+  static const int kLumpOfMemory = (i::kPointerSize / 4) * i::MB;
+
+  // The new space size has to be a power of 2.
+  static const int kMaxNewSpaceSizeLowMemoryDevice = 2 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeMediumMemoryDevice = 8 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeHighMemoryDevice = 16 * kLumpOfMemory;
+  static const int kMaxNewSpaceSizeHugeMemoryDevice = 16 * kLumpOfMemory;
+
+  // The old space size has to be a multiple of Page::kPageSize.
+  static const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kLumpOfMemory;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+
+  // The executable size has to be a multiple of Page::kPageSize.
+  static const int kMaxExecutableSizeLowMemoryDevice = 128 * kLumpOfMemory;
+  static const int kMaxExecutableSizeMediumMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHighMemoryDevice = 512 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+
   intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size) {
-    intptr_t limit = FLAG_stress_compaction ?
-        old_gen_size + old_gen_size / 10 : old_gen_size * 4;
+    intptr_t limit = FLAG_stress_compaction
+        ? old_gen_size + old_gen_size / 10
+        : old_gen_size * old_space_growing_factor_;
     limit = Max(limit, kMinimumOldGenerationAllocationLimit);
     limit += new_space_.Capacity();
     intptr_t halfway_to_the_max = (old_gen_size + max_old_generation_size_) / 2;
@@ -1744,6 +1758,11 @@ class Heap {
   intptr_t max_executable_size_;
   intptr_t maximum_committed_;
 
+  // The old space growing factor is used in the old space heap growing
+  // strategy. The new old space size is the current old space size times
+  // old_space_growing_factor_.
+  int old_space_growing_factor_;
+
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
   int survived_since_last_expansion_;
@@ -1969,6 +1988,14 @@ class Heap {
     if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
   }
+
+  // Allocates an uninitialized object.  The memory is non-executable if the
+  // hardware and OS allow.  This is the single choke-point for allocations
+  // performed by the runtime and should not be bypassed (to extend this to
+  // inlined allocations, use the Heap::DisableInlineAllocation() support).
+  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes,
+                                                  AllocationSpace space,
+                                                  AllocationSpace retry_space);
 
   // Allocate an uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(

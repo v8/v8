@@ -2364,9 +2364,10 @@ class JSObject: public JSReceiver {
 
   // Retrieves an AccessorPair property from the given object. Might return
   // undefined if the property doesn't exist or is of a different kind.
-  static Handle<Object> GetAccessor(Handle<JSObject> object,
-                                    Handle<Name> name,
-                                    AccessorComponent component);
+  MUST_USE_RESULT static MaybeHandle<Object> GetAccessor(
+      Handle<JSObject> object,
+      Handle<Name> name,
+      AccessorComponent component);
 
   // Defines an AccessorPair property on the given object.
   // TODO(mstarzinger): Rename to SetAccessor() and return empty handle on
@@ -2379,8 +2380,9 @@ class JSObject: public JSReceiver {
                              v8::AccessControl access_control = v8::DEFAULT);
 
   // Defines an AccessorInfo property on the given object.
-  static Handle<Object> SetAccessor(Handle<JSObject> object,
-                                    Handle<AccessorInfo> info);
+  MUST_USE_RESULT static MaybeHandle<Object> SetAccessor(
+      Handle<JSObject> object,
+      Handle<AccessorInfo> info);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       Handle<JSObject> object,
@@ -2658,7 +2660,8 @@ class JSObject: public JSReceiver {
   bool ReferencesObject(Object* obj);
 
   // Disalow further properties to be added to the object.
-  static Handle<Object> PreventExtensions(Handle<JSObject> object);
+  MUST_USE_RESULT static MaybeHandle<Object> PreventExtensions(
+      Handle<JSObject> object);
 
   // ES5 Object.freeze
   MUST_USE_RESULT static MaybeHandle<Object> Freeze(Handle<JSObject> object);
@@ -2938,8 +2941,9 @@ class JSObject: public JSReceiver {
   static Handle<Object> DeletePropertyPostInterceptor(Handle<JSObject> object,
                                                       Handle<Name> name,
                                                       DeleteMode mode);
-  static Handle<Object> DeletePropertyWithInterceptor(Handle<JSObject> object,
-                                                      Handle<Name> name);
+  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
+      Handle<JSObject> object,
+      Handle<Name> name);
 
   // Deletes the named property in a normalized object.
   static Handle<Object> DeleteNormalizedProperty(Handle<JSObject> object,
@@ -6252,8 +6256,8 @@ class Map: public HeapObject {
                               int target_inobject,
                               int target_unused);
   static Handle<Map> GeneralizeAllFieldRepresentations(Handle<Map> map);
-  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> old_field_type,
-                                              Handle<HeapType> new_field_type,
+  static Handle<HeapType> GeneralizeFieldType(Handle<HeapType> type1,
+                                              Handle<HeapType> type2,
                                               Isolate* isolate)
       V8_WARN_UNUSED_RESULT;
   static void GeneralizeFieldType(Handle<Map> map,
@@ -8403,9 +8407,6 @@ class PolymorphicCodeCache: public Struct {
                      Code::Flags flags,
                      Handle<Code> code);
 
-  MUST_USE_RESULT MaybeObject* Update(MapHandleList* maps,
-                                      Code::Flags flags,
-                                      Code* code);
 
   // Returns an undefined value if the entry is not found.
   Handle<Object> Lookup(MapHandleList* maps, Code::Flags flags);
@@ -8431,9 +8432,11 @@ class PolymorphicCodeCacheHashTable
  public:
   Object* Lookup(MapHandleList* maps, int code_kind);
 
-  MUST_USE_RESULT MaybeObject* Put(MapHandleList* maps,
-                                   int code_kind,
-                                   Code* code);
+  static Handle<PolymorphicCodeCacheHashTable> Put(
+      Handle<PolymorphicCodeCacheHashTable> hash_table,
+      MapHandleList* maps,
+      int code_kind,
+      Handle<Code> code);
 
   static inline PolymorphicCodeCacheHashTable* cast(Object* obj);
 

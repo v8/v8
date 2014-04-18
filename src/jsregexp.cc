@@ -95,10 +95,12 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
 }
 
 
-static inline void ThrowRegExpException(Handle<JSRegExp> re,
-                                        Handle<String> pattern,
-                                        Handle<String> error_text,
-                                        const char* message) {
+MUST_USE_RESULT
+static inline MaybeHandle<Object> ThrowRegExpException(
+    Handle<JSRegExp> re,
+    Handle<String> pattern,
+    Handle<String> error_text,
+    const char* message) {
   Isolate* isolate = re->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(2);
@@ -106,7 +108,7 @@ static inline void ThrowRegExpException(Handle<JSRegExp> re,
   elements->set(1, *error_text);
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
   Handle<Object> regexp_err = factory->NewSyntaxError(message, array);
-  isolate->Throw(*regexp_err);
+  return isolate->Throw<Object>(regexp_err);
 }
 
 
@@ -167,9 +169,9 @@ static bool HasFewDifferentCharacters(Handle<String> pattern) {
 // Generic RegExp methods. Dispatches to implementation specific methods.
 
 
-Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
-                                   Handle<String> pattern,
-                                   Handle<String> flag_str) {
+MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
+                                        Handle<String> pattern,
+                                        Handle<String> flag_str) {
   Isolate* isolate = re->GetIsolate();
   Zone zone(isolate);
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
@@ -192,11 +194,10 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
                                  &parse_result, &zone)) {
     // Throw an exception if we fail to parse the pattern.
-    ThrowRegExpException(re,
-                         pattern,
-                         parse_result.error,
-                         "malformed_regexp");
-    return Handle<Object>::null();
+    return ThrowRegExpException(re,
+                                pattern,
+                                parse_result.error,
+                                "malformed_regexp");
   }
 
   bool has_been_compiled = false;
@@ -212,8 +213,11 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
-    Handle<String> atom_string =
-        isolate->factory()->NewStringFromTwoByte(atom_pattern);
+    Handle<String> atom_string;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, atom_string,
+        isolate->factory()->NewStringFromTwoByte(atom_pattern),
+        Object);
     if (!HasFewDifferentCharacters(atom_string)) {
       AtomCompile(re, pattern, flags, atom_string);
       has_been_compiled = true;
@@ -448,10 +452,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  &zone)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
-    ThrowRegExpException(re,
-                         pattern,
-                         compile_data.error,
-                         "malformed_regexp");
+    USE(ThrowRegExpException(re,
+                             pattern,
+                             compile_data.error,
+                             "malformed_regexp"));
     return false;
   }
   RegExpEngine::CompilationResult result =
@@ -465,9 +469,8 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                             &zone);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
-    Handle<String> error_message =
-        isolate->factory()->NewStringFromUtf8(CStrVector(result.error_message));
-    ASSERT(!error_message.is_null());
+    Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
+        CStrVector(result.error_message)).ToHandleChecked();
     CreateRegExpErrorObjectAndThrow(re, is_ascii, error_message, isolate);
     return false;
   }

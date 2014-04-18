@@ -866,11 +866,12 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 }
 
 
-Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
-                                                 Handle<Context> context,
-                                                 StrictMode strict_mode,
-                                                 ParseRestriction restriction,
-                                                 int scope_position) {
+MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
+    Handle<String> source,
+    Handle<Context> context,
+    StrictMode strict_mode,
+    ParseRestriction restriction,
+    int scope_position) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
@@ -898,7 +899,7 @@ Handle<JSFunction> Compiler::GetFunctionFromEval(Handle<String> source,
     shared_info = CompileToplevel(&info);
 
     if (shared_info.is_null()) {
-      return Handle<JSFunction>::null();
+      return MaybeHandle<JSFunction>();
     } else {
       // Explicitly disable optimization for eval code. We're not yet prepared
       // to handle eval-code in the optimizing compiler.

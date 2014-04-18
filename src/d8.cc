@@ -982,7 +982,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
       factory->NewFixedArray(js_args.argc);
   for (int j = 0; j < js_args.argc; j++) {
     i::Handle<i::String> arg =
-        factory->NewStringFromUtf8(i::CStrVector(js_args[j]));
+        factory->NewStringFromUtf8(i::CStrVector(js_args[j])).ToHandleChecked();
     arguments_array->set(j, *arg);
   }
   i::Handle<i::JSArray> arguments_jsarray =

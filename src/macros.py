@@ -87,6 +87,10 @@ const kMaxYear  = 1000000;
 const kMinMonth = -10000000;
 const kMaxMonth = 10000000;
 
+# Strict mode flags for passing to %SetProperty
+const kSloppyMode = 0;
+const kStrictMode = 1;
+
 # Native cache ids.
 const STRING_TO_REGEXP_CACHE_ID = 0;
 
@@ -97,7 +101,7 @@ const STRING_TO_REGEXP_CACHE_ID = 0;
 #       values of 'bar'.
 macro IS_NULL(arg)              = (arg === null);
 macro IS_NULL_OR_UNDEFINED(arg) = (arg == null);
-macro IS_UNDEFINED(arg)         = (typeof(arg) === 'undefined');
+macro IS_UNDEFINED(arg)         = (arg === (void 0));
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');

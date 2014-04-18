@@ -164,8 +164,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x10000);
         }
-        building_blocks[i] =
-            factory->NewStringFromTwoByte(Vector<const uc16>(buf, len));
+        building_blocks[i] = factory->NewStringFromTwoByte(
+            Vector<const uc16>(buf, len)).ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -176,8 +176,8 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
         for (int j = 0; j < len; j++) {
           buf[j] = rng->next(0x80);
         }
-        building_blocks[i] =
-            factory->NewStringFromAscii(Vector<const char>(buf, len));
+        building_blocks[i] = factory->NewStringFromAscii(
+            Vector<const char>(buf, len)).ToHandleChecked();
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -463,7 +463,7 @@ static Handle<String> ConstructLeft(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = factory->NewStringFromStaticAscii("");
   data->stats_.leaves_++;
   for (int i = 0; i < depth; i++) {
     Handle<String> block = data->block(i);
@@ -482,7 +482,7 @@ static Handle<String> ConstructRight(
     ConsStringGenerationData* data,
     int depth) {
   Factory* factory = CcTest::i_isolate()->factory();
-  Handle<String> answer = factory->NewStringFromAscii(CStrVector(""));
+  Handle<String> answer = factory->NewStringFromStaticAscii("");
   data->stats_.leaves_++;
   for (int i = depth - 1; i >= 0; i--) {
     Handle<String> block = data->block(i);
@@ -870,9 +870,9 @@ TEST(DeepAscii) {
   for (int i = 0; i < DEEP_ASCII_DEPTH; i++) {
     foo[i] = "foo "[i % 4];
   }
-  Handle<String> string =
-      factory->NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
-  Handle<String> foo_string = factory->NewStringFromAscii(CStrVector("foo"));
+  Handle<String> string = factory->NewStringFromOneByte(
+      OneByteVector(foo, DEEP_ASCII_DEPTH)).ToHandleChecked();
+  Handle<String> foo_string = factory->NewStringFromStaticAscii("foo");
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
     string = factory->NewConsString(string, foo_string).ToHandleChecked();
   }
@@ -1100,7 +1100,7 @@ TEST(SliceFromCons) {
   Factory* factory = CcTest::i_isolate()->factory();
   v8::HandleScope scope(CcTest::isolate());
   Handle<String> string =
-      factory->NewStringFromAscii(CStrVector("parentparentparent"));
+      factory->NewStringFromStaticAscii("parentparentparent");
   Handle<String> parent =
       factory->NewConsString(string, string).ToHandleChecked();
   CHECK(parent->IsConsString());
@@ -1212,7 +1212,7 @@ TEST(AsciiArrayJoin) {
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
-  constraints.set_max_young_space_size(256 * K);
+  constraints.set_max_new_space_size(256 * K);
   constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 

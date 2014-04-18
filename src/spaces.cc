@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "full-codegen.h"
 #include "macro-assembler.h"
 #include "mark-compact.h"
 #include "msan.h"
@@ -1083,7 +1084,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size = 480 * KB;
+        size = 480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100;
       }
       break;
     default:

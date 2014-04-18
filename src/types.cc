@@ -359,6 +359,17 @@ bool TypeImpl<Config>::NowIs(TypeImpl* that) {
 }
 
 
+// Check if this contains only (currently) stable classes.
+template<class Config>
+bool TypeImpl<Config>::NowStable() {
+  DisallowHeapAllocation no_allocation;
+  for (Iterator<i::Map> it = this->Classes(); !it.Done(); it.Advance()) {
+    if (!it.Current()->is_stable()) return false;
+  }
+  return true;
+}
+
+
 // Check this overlaps that.
 template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {

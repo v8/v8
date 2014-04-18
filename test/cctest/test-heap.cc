@@ -204,7 +204,7 @@ TEST(HeapObjects) {
   CHECK(factory->nan_value()->IsNumber());
   CHECK(std::isnan(factory->nan_value()->Number()));
 
-  Handle<String> s = factory->NewStringFromAscii(CStrVector("fisk hest "));
+  Handle<String> s = factory->NewStringFromStaticAscii("fisk hest ");
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
@@ -319,7 +319,8 @@ TEST(GarbageCollection) {
 
 static void VerifyStringAllocation(Isolate* isolate, const char* string) {
   HandleScope scope(isolate);
-  Handle<String> s = isolate->factory()->NewStringFromUtf8(CStrVector(string));
+  Handle<String> s = isolate->factory()->NewStringFromUtf8(
+      CStrVector(string)).ToHandleChecked();
   CHECK_EQ(StrLength(string), s->length());
   for (int index = 0; index < s->length(); index++) {
     CHECK_EQ(static_cast<uint16_t>(string[index]), s->Get(index));
@@ -346,7 +347,7 @@ TEST(LocalHandles) {
 
   v8::HandleScope scope(CcTest::isolate());
   const char* name = "Kasper the spunky";
-  Handle<String> string = factory->NewStringFromAscii(CStrVector(name));
+  Handle<String> string = factory->NewStringFromAsciiChecked(name);
   CHECK_EQ(StrLength(name), string->length());
 }
 
@@ -366,7 +367,7 @@ TEST(GlobalHandles) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -421,7 +422,7 @@ TEST(WeakGlobalHandlesScavenge) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -463,7 +464,7 @@ TEST(WeakGlobalHandlesMark) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -509,7 +510,7 @@ TEST(DeleteWeakGlobalHandle) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromAscii(CStrVector("fisk"));
+    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
     h = global_handles->Create(*i);
   }
 
@@ -703,7 +704,7 @@ TEST(ObjectProperties) {
 
   // check string and internalized string match
   const char* string1 = "fisk";
-  Handle<String> s1 = factory->NewStringFromAscii(CStrVector(string1));
+  Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
@@ -712,7 +713,7 @@ TEST(ObjectProperties) {
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
   JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY).Check();
-  Handle<String> s2 = factory->NewStringFromAscii(CStrVector(string2));
+  Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(JSReceiver::HasLocalProperty(obj, s2));
 }
 
@@ -756,6 +757,7 @@ TEST(JSArray) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(fun_obj);
 
   // Allocate the object.
+  Handle<Object> element;
   Handle<JSObject> object = factory->NewJSObject(function);
   Handle<JSArray> array = Handle<JSArray>::cast(object);
   // We just initialized the VM, no heap allocation failure yet.
@@ -770,7 +772,8 @@ TEST(JSArray) {
   // array[length] = name.
   JSReceiver::SetElement(array, 0, name, NONE, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(1), array->length());
-  CHECK_EQ(*i::Object::GetElement(isolate, array, 0).ToHandleChecked(), *name);
+  element = i::Object::GetElement(isolate, array, 0).ToHandleChecked();
+  CHECK_EQ(*element, *name);
 
   // Set array length with larger than smi value.
   Handle<Object> length =
@@ -787,9 +790,10 @@ TEST(JSArray) {
   uint32_t new_int_length = 0;
   CHECK(array->length()->ToArrayIndex(&new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
-  CHECK_EQ(*i::Object::GetElement(isolate, array, int_length).ToHandleChecked(),
-           *name);
-  CHECK_EQ(*i::Object::GetElement(isolate, array, 0).ToHandleChecked(), *name);
+  element = Object::GetElement(isolate, array, int_length).ToHandleChecked();
+  CHECK_EQ(*element, *name);
+  element = Object::GetElement(isolate, array, 0).ToHandleChecked();
+  CHECK_EQ(*element, *name);
 }
 
 
@@ -817,18 +821,23 @@ TEST(JSObjectCopy) {
   JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY).Check();
 
   // Make the clone.
+  Handle<Object> value1, value2;
   Handle<JSObject> clone = JSObject::Copy(obj);
   CHECK(!clone.is_identical_to(obj));
 
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 0).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 0).ToHandleChecked());
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 1).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
+  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
-  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
-           *Object::GetProperty(clone, first).ToHandleChecked());
-  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
-           *Object::GetProperty(clone, second).ToHandleChecked());
+  value1 = Object::GetProperty(obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(clone, first).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetProperty(obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(clone, second).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
   // Flip the values.
   JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
@@ -837,15 +846,19 @@ TEST(JSObjectCopy) {
   JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY).Check();
   JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY).Check();
 
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 1).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 0).ToHandleChecked());
-  CHECK_EQ(*i::Object::GetElement(isolate, obj, 0).ToHandleChecked(),
-           *i::Object::GetElement(isolate, clone, 1).ToHandleChecked());
+  value1 = Object::GetElement(isolate, obj, 1).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 0).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();
+  value2 = Object::GetElement(isolate, clone, 1).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 
-  CHECK_EQ(*Object::GetProperty(obj, second).ToHandleChecked(),
-           *Object::GetProperty(clone, first).ToHandleChecked());
-  CHECK_EQ(*Object::GetProperty(obj, first).ToHandleChecked(),
-           *Object::GetProperty(clone, second).ToHandleChecked());
+  value1 = Object::GetProperty(obj, second).ToHandleChecked();
+  value2 = Object::GetProperty(clone, first).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
+  value1 = Object::GetProperty(obj, first).ToHandleChecked();
+  value2 = Object::GetProperty(clone, second).ToHandleChecked();
+  CHECK_EQ(*value1, *value2);
 }
 
 
@@ -874,12 +887,12 @@ TEST(StringAllocation) {
     Handle<String> ascii_sym =
         factory->InternalizeOneByteString(OneByteVector(ascii, length));
     CHECK_EQ(length, ascii_sym->length());
-    Handle<String> non_ascii_str =
-        factory->NewStringFromUtf8(Vector<const char>(non_ascii, 3 * length));
+    Handle<String> non_ascii_str = factory->NewStringFromUtf8(
+        Vector<const char>(non_ascii, 3 * length)).ToHandleChecked();
     non_ascii_str->Hash();
     CHECK_EQ(length, non_ascii_str->length());
-    Handle<String> ascii_str =
-        factory->NewStringFromUtf8(Vector<const char>(ascii, length));
+    Handle<String> ascii_str = factory->NewStringFromUtf8(
+        Vector<const char>(ascii, length)).ToHandleChecked();
     ascii_str->Hash();
     CHECK_EQ(length, ascii_str->length());
     DeleteArray(non_ascii);
@@ -923,17 +936,16 @@ TEST(Iteration) {
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector("abcdefghij"));
+      factory->NewStringFromStaticAscii("abcdefghij");
   objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector("abcdefghij"), TENURED);
+      factory->NewStringFromStaticAscii("abcdefghij", TENURED);
 
   // Allocate a large string (for large object space).
   int large_size = Page::kMaxRegularHeapObjectSize + 1;
   char* str = new char[large_size];
   for (int i = 0; i < large_size - 1; ++i) str[i] = 'a';
   str[large_size - 1] = '\0';
-  objs[next_objs_index++] =
-      factory->NewStringFromAscii(CStrVector(str), TENURED);
+  objs[next_objs_index++] = factory->NewStringFromAsciiChecked(str, TENURED);
   delete[] str;
 
   // Add a Map object to look for.
@@ -2945,7 +2957,7 @@ TEST(Regress2237) {
     // Generate a parent that lives in new-space.
     v8::HandleScope inner_scope(CcTest::isolate());
     const char* c = "This text is long enough to trigger sliced strings.";
-    Handle<String> s = factory->NewStringFromAscii(CStrVector(c));
+    Handle<String> s = factory->NewStringFromAsciiChecked(c);
     CHECK(s->IsSeqOneByteString());
     CHECK(CcTest::heap()->InNewSpace(*s));
 
@@ -3530,8 +3542,8 @@ TEST(Regress169928) {
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
-  MaybeObject* maybe_object = CcTest::heap()->AllocateRaw(
-      AllocationMemento::kSize + kPointerSize, NEW_SPACE, OLD_POINTER_SPACE);
+  MaybeObject* maybe_object = CcTest::heap()->new_space()->AllocateRaw(
+      AllocationMemento::kSize + kPointerSize);
   Object* obj = NULL;
   CHECK(maybe_object->ToObject(&obj));
   Address addr_obj = reinterpret_cast<Address>(

@@ -321,6 +321,8 @@ class TypeImpl : public Config::Base {
   inline bool NowContains(i::Object* val);
   bool NowContains(i::Handle<i::Object> val) { return this->NowContains(*val); }
 
+  bool NowStable();
+
   bool IsClass() { return Config::is_class(this); }
   bool IsConstant() { return Config::is_constant(this); }
   bool IsArray() { return Config::is_struct(this, StructuralType::kArrayTag); }

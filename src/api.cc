@@ -442,7 +442,7 @@ Extension::Extension(const char* name,
 
 
 ResourceConstraints::ResourceConstraints()
-    : max_young_space_size_(0),
+    : max_new_space_size_(0),
       max_old_space_size_(0),
       max_executable_size_(0),
       stack_limit_(NULL),
@@ -452,7 +452,6 @@ ResourceConstraints::ResourceConstraints()
 void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
                                             uint64_t virtual_memory_limit,
                                             uint32_t number_of_processors) {
-  const int lump_of_memory = (i::kPointerSize / 4) * i::MB;
 #if V8_OS_ANDROID
   // Android has higher physical memory requirements before raising the maximum
   // heap size limits since it has no swap space.
@@ -465,24 +464,22 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
   const uint64_t high_limit = 1ul  * i::GB;
 #endif
 
-  // The young_space_size should be a power of 2 and old_generation_size should
-  // be a multiple of Page::kPageSize.
   if (physical_memory <= low_limit) {
-    set_max_young_space_size(2 * lump_of_memory);
-    set_max_old_space_size(128 * lump_of_memory);
-    set_max_executable_size(96 * lump_of_memory);
+    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeLowMemoryDevice);
+    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeLowMemoryDevice);
+    set_max_executable_size(i::Heap::kMaxExecutableSizeLowMemoryDevice);
   } else if (physical_memory <= medium_limit) {
-    set_max_young_space_size(8 * lump_of_memory);
-    set_max_old_space_size(256 * lump_of_memory);
-    set_max_executable_size(192 * lump_of_memory);
+    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeMediumMemoryDevice);
+    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeMediumMemoryDevice);
+    set_max_executable_size(i::Heap::kMaxExecutableSizeMediumMemoryDevice);
   } else if (physical_memory <= high_limit) {
-    set_max_young_space_size(16 * lump_of_memory);
-    set_max_old_space_size(512 * lump_of_memory);
-    set_max_executable_size(256 * lump_of_memory);
+    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHighMemoryDevice);
+    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHighMemoryDevice);
+    set_max_executable_size(i::Heap::kMaxExecutableSizeHighMemoryDevice);
   } else {
-    set_max_young_space_size(16 * lump_of_memory);
-    set_max_old_space_size(700 * lump_of_memory);
-    set_max_executable_size(256 * lump_of_memory);
+    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHugeMemoryDevice);
+    set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHugeMemoryDevice);
+    set_max_executable_size(i::Heap::kMaxExecutableSizeHugeMemoryDevice);
   }
 
   set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
@@ -499,15 +496,15 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  int young_space_size = constraints->max_young_space_size();
+  int new_space_size = constraints->max_new_space_size();
   int old_gen_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   int code_range_size = constraints->code_range_size();
-  if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0 ||
+  if (new_space_size != 0 || old_gen_size != 0 || max_executable_size != 0 ||
       code_range_size != 0) {
     // After initialization it's too late to change Heap constraints.
     ASSERT(!isolate->IsInitialized());
-    bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
+    bool result = isolate->heap()->ConfigureHeap(new_space_size / 2,
                                                  old_gen_size,
                                                  max_executable_size,
                                                  code_range_size);
@@ -3398,9 +3395,12 @@ static inline bool ObjectSetAccessor(Object* obj,
       name, getter, setter, data, settings, attributes, signature);
   if (info.is_null()) return false;
   bool fast = Utils::OpenHandle(obj)->HasFastProperties();
-  i::Handle<i::Object> result =
-      i::JSObject::SetAccessor(Utils::OpenHandle(obj), info);
-  if (result.is_null() || result->IsUndefined()) return false;
+  i::Handle<i::Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      i::JSObject::SetAccessor(Utils::OpenHandle(obj), info),
+      false);
+  if (result->IsUndefined()) return false;
   if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
   return true;
 }
@@ -5325,9 +5325,10 @@ inline int StringLength(const uint16_t* string) {
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const char> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const char> string) {
   if (type ==String::kInternalizedString) {
     return factory->InternalizeUtf8String(string);
   }
@@ -5335,9 +5336,10 @@ inline i::Handle<i::String> NewString(i::Factory* factory,
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const uint8_t> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const uint8_t> string) {
   if (type == String::kInternalizedString) {
     return factory->InternalizeOneByteString(string);
   }
@@ -5345,9 +5347,10 @@ inline i::Handle<i::String> NewString(i::Factory* factory,
 }
 
 
-inline i::Handle<i::String> NewString(i::Factory* factory,
-                                      String::NewStringType type,
-                                      i::Vector<const uint16_t> string) {
+MUST_USE_RESULT
+inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
+                                           String::NewStringType type,
+                                           i::Vector<const uint16_t> string) {
   if (type == String::kInternalizedString) {
     return factory->InternalizeTwoByteString(string);
   }
@@ -5370,10 +5373,11 @@ inline Local<String> NewString(Isolate* v8_isolate,
   }
   ENTER_V8(isolate);
   if (length == -1) length = StringLength(data);
-  i::Handle<i::String> result = NewString(
-      isolate->factory(), type, i::Vector<const Char>(data, length));
   // We do not expect this to fail. Change this if it does.
-  CHECK(!result.is_null());
+  i::Handle<i::String> result = NewString(
+      isolate->factory(),
+      type,
+      i::Vector<const Char>(data, length)).ToHandleChecked();
   if (type == String::kUndetectableString) {
     result->MarkAsUndetectable();
   }

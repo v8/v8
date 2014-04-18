@@ -365,11 +365,11 @@ Object* Context::DeoptimizedCodeListHead() {
 
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
-  Handle<Object> result(error_message_for_code_gen_from_strings(),
-                        GetIsolate());
+  Isolate* isolate = GetIsolate();
+  Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
   if (!result->IsUndefined()) return result;
-  return GetIsolate()->factory()->NewStringFromOneByte(STATIC_ASCII_VECTOR(
-      "Code generation from strings disallowed for this context"));
+  return isolate->factory()->NewStringFromStaticAscii(
+      "Code generation from strings disallowed for this context");
 }
 
 

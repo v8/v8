@@ -57,7 +57,7 @@ bool ExtractStringSetting(Isolate* isolate,
                           Handle<JSObject> options,
                           const char* key,
                           icu::UnicodeString* setting) {
-  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
   if (object->IsString()) {
     v8::String::Utf8Value utf8_string(
@@ -73,7 +73,7 @@ bool ExtractIntegerSetting(Isolate* isolate,
                            Handle<JSObject> options,
                            const char* key,
                            int32_t* value) {
-  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
   if (object->IsNumber()) {
     object->ToInt32(value);
@@ -87,7 +87,7 @@ bool ExtractBooleanSetting(Isolate* isolate,
                            Handle<JSObject> options,
                            const char* key,
                            bool* value) {
-  Handle<String> str = isolate->factory()->NewStringFromAscii(CStrVector(key));
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked(key);
   Handle<Object> object = Object::GetProperty(options, str).ToHandleChecked();
   if (object->IsBoolean()) {
     *value = object->BooleanValue();
@@ -149,16 +149,17 @@ void SetResolvedDateSettings(Isolate* isolate,
                              const icu::Locale& icu_locale,
                              icu::SimpleDateFormat* date_format,
                              Handle<JSObject> resolved) {
+  Factory* factory = isolate->factory();
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString pattern;
   date_format->toPattern(pattern);
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("pattern")),
-      isolate->factory()->NewStringFromTwoByte(
+      factory->NewStringFromStaticAscii("pattern"),
+      factory->NewStringFromTwoByte(
         Vector<const uint16_t>(
             reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
-            pattern.length())),
+            pattern.length())).ToHandleChecked(),
       NONE,
       SLOPPY).Assert();
 
@@ -167,8 +168,8 @@ void SetResolvedDateSettings(Isolate* isolate,
   const char* calendar_name = calendar->getType();
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("calendar")),
-      isolate->factory()->NewStringFromAscii(CStrVector(calendar_name)),
+      factory->NewStringFromStaticAscii("calendar"),
+      factory->NewStringFromAsciiChecked(calendar_name),
       NONE,
       SLOPPY).Assert();
 
@@ -182,19 +183,19 @@ void SetResolvedDateSettings(Isolate* isolate,
     if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("timeZone")),
-          isolate->factory()->NewStringFromAscii(CStrVector("UTC")),
+          factory->NewStringFromStaticAscii("timeZone"),
+          factory->NewStringFromStaticAscii("UTC"),
           NONE,
           SLOPPY).Assert();
     } else {
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("timeZone")),
-          isolate->factory()->NewStringFromTwoByte(
+          factory->NewStringFromStaticAscii("timeZone"),
+          factory->NewStringFromTwoByte(
             Vector<const uint16_t>(
                 reinterpret_cast<const uint16_t*>(
                     canonical_time_zone.getBuffer()),
-                canonical_time_zone.length())),
+                canonical_time_zone.length())).ToHandleChecked(),
           NONE,
           SLOPPY).Assert();
     }
@@ -210,15 +211,15 @@ void SetResolvedDateSettings(Isolate* isolate,
     const char* ns = numbering_system->getName();
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
-        isolate->factory()->NewStringFromAscii(CStrVector(ns)),
+        factory->NewStringFromStaticAscii("numberingSystem"),
+        factory->NewStringFromAsciiChecked(ns),
         NONE,
         SLOPPY).Assert();
   } else {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
-        isolate->factory()->undefined_value(),
+        factory->NewStringFromStaticAscii("numberingSystem"),
+        factory->undefined_value(),
         NONE,
         SLOPPY).Assert();
   }
@@ -232,16 +233,16 @@ void SetResolvedDateSettings(Isolate* isolate,
   if (U_SUCCESS(status)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromAsciiChecked(result),
         NONE,
         SLOPPY).Assert();
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromStaticAscii("und"),
         NONE,
         SLOPPY).Assert();
   }
@@ -376,15 +377,16 @@ void SetResolvedNumberSettings(Isolate* isolate,
                                const icu::Locale& icu_locale,
                                icu::DecimalFormat* number_format,
                                Handle<JSObject> resolved) {
+  Factory* factory = isolate->factory();
   icu::UnicodeString pattern;
   number_format->toPattern(pattern);
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("pattern")),
-      isolate->factory()->NewStringFromTwoByte(
+      factory->NewStringFromStaticAscii("pattern"),
+      factory->NewStringFromTwoByte(
         Vector<const uint16_t>(
             reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
-            pattern.length())),
+            pattern.length())).ToHandleChecked(),
       NONE,
       SLOPPY).Assert();
 
@@ -393,11 +395,11 @@ void SetResolvedNumberSettings(Isolate* isolate,
   if (!currency.isEmpty()) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("currency")),
-        isolate->factory()->NewStringFromTwoByte(
+        factory->NewStringFromStaticAscii("currency"),
+        factory->NewStringFromTwoByte(
           Vector<const uint16_t>(
               reinterpret_cast<const uint16_t*>(currency.getBuffer()),
-              currency.length())),
+              currency.length())).ToHandleChecked(),
         NONE,
         SLOPPY).Assert();
   }
@@ -412,15 +414,15 @@ void SetResolvedNumberSettings(Isolate* isolate,
     const char* ns = numbering_system->getName();
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
-        isolate->factory()->NewStringFromAscii(CStrVector(ns)),
+        factory->NewStringFromStaticAscii("numberingSystem"),
+        factory->NewStringFromAsciiChecked(ns),
         NONE,
         SLOPPY).Assert();
   } else {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("numberingSystem")),
-        isolate->factory()->undefined_value(),
+        factory->NewStringFromStaticAscii("numberingSystem"),
+        factory->undefined_value(),
         NONE,
         SLOPPY).Assert();
   }
@@ -428,60 +430,49 @@ void SetResolvedNumberSettings(Isolate* isolate,
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("useGrouping")),
-      isolate->factory()->ToBoolean(number_format->isGroupingUsed()),
+      factory->NewStringFromStaticAscii("useGrouping"),
+      factory->ToBoolean(number_format->isGroupingUsed()),
       NONE,
       SLOPPY).Assert();
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(
-          CStrVector("minimumIntegerDigits")),
-      isolate->factory()->NewNumberFromInt(
-          number_format->getMinimumIntegerDigits()),
+      factory->NewStringFromStaticAscii("minimumIntegerDigits"),
+      factory->NewNumberFromInt(number_format->getMinimumIntegerDigits()),
       NONE,
       SLOPPY).Assert();
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(
-          CStrVector("minimumFractionDigits")),
-      isolate->factory()->NewNumberFromInt(
-          number_format->getMinimumFractionDigits()),
+      factory->NewStringFromStaticAscii("minimumFractionDigits"),
+      factory->NewNumberFromInt(number_format->getMinimumFractionDigits()),
       NONE,
       SLOPPY).Assert();
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(
-          CStrVector("maximumFractionDigits")),
-      isolate->factory()->NewNumberFromInt(
-          number_format->getMaximumFractionDigits()),
+      factory->NewStringFromStaticAscii("maximumFractionDigits"),
+      factory->NewNumberFromInt(number_format->getMaximumFractionDigits()),
       NONE,
       SLOPPY).Assert();
 
-  Handle<String> key = isolate->factory()->NewStringFromAscii(
-      CStrVector("minimumSignificantDigits"));
+  Handle<String> key =
+      factory->NewStringFromStaticAscii("minimumSignificantDigits");
   if (JSReceiver::HasLocalProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(
-            CStrVector("minimumSignificantDigits")),
-        isolate->factory()->NewNumberFromInt(
-            number_format->getMinimumSignificantDigits()),
+        factory->NewStringFromStaticAscii("minimumSignificantDigits"),
+        factory->NewNumberFromInt(number_format->getMinimumSignificantDigits()),
         NONE,
         SLOPPY).Assert();
   }
 
-  key = isolate->factory()->NewStringFromAscii(
-      CStrVector("maximumSignificantDigits"));
+  key = factory->NewStringFromStaticAscii("maximumSignificantDigits");
   if (JSReceiver::HasLocalProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(
-            CStrVector("maximumSignificantDigits")),
-        isolate->factory()->NewNumberFromInt(
-            number_format->getMaximumSignificantDigits()),
+        factory->NewStringFromStaticAscii("maximumSignificantDigits"),
+        factory->NewNumberFromInt(number_format->getMaximumSignificantDigits()),
         NONE,
         SLOPPY).Assert();
   }
@@ -494,16 +485,16 @@ void SetResolvedNumberSettings(Isolate* isolate,
   if (U_SUCCESS(status)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromAsciiChecked(result),
         NONE,
         SLOPPY).Assert();
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromStaticAscii("und"),
         NONE,
         SLOPPY).Assert();
   }
@@ -578,12 +569,13 @@ void SetResolvedCollatorSettings(Isolate* isolate,
                                  const icu::Locale& icu_locale,
                                  icu::Collator* collator,
                                  Handle<JSObject> resolved) {
+  Factory* factory = isolate->factory();
   UErrorCode status = U_ZERO_ERROR;
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("numeric")),
-      isolate->factory()->ToBoolean(
+      factory->NewStringFromStaticAscii("numeric"),
+      factory->ToBoolean(
           collator->getAttribute(UCOL_NUMERIC_COLLATION, status) == UCOL_ON),
       NONE,
       SLOPPY).Assert();
@@ -592,24 +584,24 @@ void SetResolvedCollatorSettings(Isolate* isolate,
     case UCOL_LOWER_FIRST:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
-          isolate->factory()->NewStringFromAscii(CStrVector("lower")),
+          factory->NewStringFromStaticAscii("caseFirst"),
+          factory->NewStringFromStaticAscii("lower"),
           NONE,
           SLOPPY).Assert();
       break;
     case UCOL_UPPER_FIRST:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
-          isolate->factory()->NewStringFromAscii(CStrVector("upper")),
+          factory->NewStringFromStaticAscii("caseFirst"),
+          factory->NewStringFromStaticAscii("upper"),
           NONE,
           SLOPPY).Assert();
       break;
     default:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("caseFirst")),
-          isolate->factory()->NewStringFromAscii(CStrVector("false")),
+          factory->NewStringFromStaticAscii("caseFirst"),
+          factory->NewStringFromStaticAscii("false"),
           NONE,
           SLOPPY).Assert();
   }
@@ -618,8 +610,8 @@ void SetResolvedCollatorSettings(Isolate* isolate,
     case UCOL_PRIMARY: {
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
-          isolate->factory()->NewStringFromAscii(CStrVector("primary")),
+          factory->NewStringFromStaticAscii("strength"),
+          factory->NewStringFromStaticAscii("primary"),
           NONE,
           SLOPPY).Assert();
 
@@ -627,15 +619,15 @@ void SetResolvedCollatorSettings(Isolate* isolate,
       if (UCOL_ON == collator->getAttribute(UCOL_CASE_LEVEL, status)) {
         JSObject::SetProperty(
             resolved,
-            isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-            isolate->factory()->NewStringFromAscii(CStrVector("case")),
+            factory->NewStringFromStaticAscii("sensitivity"),
+            factory->NewStringFromStaticAscii("case"),
             NONE,
             SLOPPY).Assert();
       } else {
         JSObject::SetProperty(
             resolved,
-            isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-            isolate->factory()->NewStringFromAscii(CStrVector("base")),
+            factory->NewStringFromStaticAscii("sensitivity"),
+            factory->NewStringFromStaticAscii("base"),
             NONE,
             SLOPPY).Assert();
       }
@@ -644,28 +636,28 @@ void SetResolvedCollatorSettings(Isolate* isolate,
     case UCOL_SECONDARY:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
-          isolate->factory()->NewStringFromAscii(CStrVector("secondary")),
+          factory->NewStringFromStaticAscii("strength"),
+          factory->NewStringFromStaticAscii("secondary"),
           NONE,
           SLOPPY).Assert();
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-          isolate->factory()->NewStringFromAscii(CStrVector("accent")),
+          factory->NewStringFromStaticAscii("sensitivity"),
+          factory->NewStringFromStaticAscii("accent"),
           NONE,
           SLOPPY).Assert();
       break;
     case UCOL_TERTIARY:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
-          isolate->factory()->NewStringFromAscii(CStrVector("tertiary")),
+          factory->NewStringFromStaticAscii("strength"),
+          factory->NewStringFromStaticAscii("tertiary"),
           NONE,
           SLOPPY).Assert();
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          factory->NewStringFromStaticAscii("sensitivity"),
+          factory->NewStringFromStaticAscii("variant"),
           NONE,
           SLOPPY).Assert();
       break;
@@ -674,36 +666,36 @@ void SetResolvedCollatorSettings(Isolate* isolate,
       // put them into variant.
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
-          isolate->factory()->NewStringFromAscii(CStrVector("quaternary")),
+          factory->NewStringFromStaticAscii("strength"),
+          factory->NewStringFromStaticAscii("quaternary"),
           NONE,
           SLOPPY).Assert();
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          factory->NewStringFromStaticAscii("sensitivity"),
+          factory->NewStringFromStaticAscii("variant"),
           NONE,
           SLOPPY).Assert();
       break;
     default:
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("strength")),
-          isolate->factory()->NewStringFromAscii(CStrVector("identical")),
+          factory->NewStringFromStaticAscii("strength"),
+          factory->NewStringFromStaticAscii("identical"),
           NONE,
           SLOPPY).Assert();
       JSObject::SetProperty(
           resolved,
-          isolate->factory()->NewStringFromAscii(CStrVector("sensitivity")),
-          isolate->factory()->NewStringFromAscii(CStrVector("variant")),
+          factory->NewStringFromStaticAscii("sensitivity"),
+          factory->NewStringFromStaticAscii("variant"),
           NONE,
           SLOPPY).Assert();
   }
 
   JSObject::SetProperty(
       resolved,
-      isolate->factory()->NewStringFromAscii(CStrVector("ignorePunctuation")),
-      isolate->factory()->ToBoolean(collator->getAttribute(
+      factory->NewStringFromStaticAscii("ignorePunctuation"),
+      factory->ToBoolean(collator->getAttribute(
           UCOL_ALTERNATE_HANDLING, status) == UCOL_SHIFTED),
       NONE,
       SLOPPY).Assert();
@@ -716,16 +708,16 @@ void SetResolvedCollatorSettings(Isolate* isolate,
   if (U_SUCCESS(status)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromAsciiChecked(result),
         NONE,
         SLOPPY).Assert();
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromStaticAscii("und"),
         NONE,
         SLOPPY).Assert();
   }
@@ -769,6 +761,7 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
                                       const icu::Locale& icu_locale,
                                       icu::BreakIterator* break_iterator,
                                       Handle<JSObject> resolved) {
+  Factory* factory = isolate->factory();
   UErrorCode status = U_ZERO_ERROR;
 
   // Set the locale
@@ -779,16 +772,16 @@ void SetResolvedBreakIteratorSettings(Isolate* isolate,
   if (U_SUCCESS(status)) {
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector(result)),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromAsciiChecked(result),
         NONE,
         SLOPPY).Assert();
   } else {
     // This would never happen, since we got the locale from ICU.
     JSObject::SetProperty(
         resolved,
-        isolate->factory()->NewStringFromAscii(CStrVector("locale")),
-        isolate->factory()->NewStringFromAscii(CStrVector("und")),
+        factory->NewStringFromStaticAscii("locale"),
+        factory->NewStringFromStaticAscii("und"),
         NONE,
         SLOPPY).Assert();
   }
@@ -852,7 +845,7 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
   Handle<String> key =
-      isolate->factory()->NewStringFromAscii(CStrVector("dateFormat"));
+      isolate->factory()->NewStringFromStaticAscii("dateFormat");
   if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::SimpleDateFormat*>(
         obj->GetInternalField(0));
@@ -926,7 +919,7 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
   Handle<String> key =
-      isolate->factory()->NewStringFromAscii(CStrVector("numberFormat"));
+      isolate->factory()->NewStringFromStaticAscii("numberFormat");
   if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
   }
@@ -981,8 +974,7 @@ icu::Collator* Collator::InitializeCollator(
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  Handle<String> key =
-      isolate->factory()->NewStringFromAscii(CStrVector("collator"));
+  Handle<String> key = isolate->factory()->NewStringFromStaticAscii("collator");
   if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
   }
@@ -1041,7 +1033,7 @@ icu::BreakIterator* BreakIterator::InitializeBreakIterator(
 icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
                                                        Handle<JSObject> obj) {
   Handle<String> key =
-      isolate->factory()->NewStringFromAscii(CStrVector("breakIterator"));
+      isolate->factory()->NewStringFromStaticAscii("breakIterator");
   if (JSReceiver::HasLocalProperty(obj, key)) {
     return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
   }

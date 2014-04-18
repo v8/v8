@@ -32,6 +32,16 @@ Handle<T> Factory::New(Handle<Map> map,
 }
 
 
+Handle<HeapObject> Factory::NewFillerObject(int size,
+                                            bool double_align,
+                                            AllocationSpace space) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFillerObject(size, double_align, space),
+      HeapObject);
+}
+
+
 Handle<Box> Factory::NewBox(Handle<Object> value) {
   Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
   result->set_value(*value);
@@ -271,16 +281,29 @@ template Handle<String> Factory::InternalizeStringWithKey<
     SubStringKey<uint16_t> > (SubStringKey<uint16_t>* key);
 
 
-Handle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
-                                             PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
+MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
+                                                  PretenureFlag pretenure) {
+  int length = string.length();
+  if (length == 1) {
+    return LookupSingleCharacterStringFromCode(string[0]);
+  }
+  Handle<SeqOneByteString> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromOneByte(string, pretenure),
+      result,
+      NewRawOneByteString(string.length(), pretenure),
       String);
+
+  DisallowHeapAllocation no_gc;
+  // Copy the characters into the new object.
+  CopyChars(SeqOneByteString::cast(*result)->GetChars(),
+            string.start(),
+            length);
+  return result;
 }
 
-Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
-                                          PretenureFlag pretenure) {
+MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
+                                               PretenureFlag pretenure) {
   // Check for ASCII first since this is the common case.
   const char* start = string.start();
   int length = string.length();
@@ -300,8 +323,8 @@ Handle<String> Factory::NewStringFromUtf8(Vector<const char> string,
 }
 
 
-Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
-                                             PretenureFlag pretenure) {
+MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
+                                                  PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateStringFromTwoByte(string, pretenure),
@@ -975,35 +998,21 @@ Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
 }
 
 
-static Handle<Map> MapForNewFunction(Isolate *isolate,
-                                     Handle<SharedFunctionInfo> function_info) {
-  Context *context = isolate->context()->native_context();
-  int map_index = Context::FunctionMapIndex(function_info->strict_mode(),
-                                            function_info->is_generator());
-  return Handle<Map>(Map::cast(context->get(map_index)));
-}
-
-
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> function_info,
+    Handle<SharedFunctionInfo> info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  Handle<JSFunction> result = NewFunctionHelper(
-      MapForNewFunction(isolate(), function_info),
-      function_info,
-      the_hole_value(),
-      pretenure);
+  Handle<JSFunction> result = NewFunction(
+      info, context, the_hole_value(), pretenure);
 
-  if (function_info->ic_age() != isolate()->heap()->global_ic_age()) {
-    function_info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
+    info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }
 
-  result->set_context(*context);
-
-  int index = function_info->SearchOptimizedCodeMap(context->native_context(),
-                                                    BailoutId::None());
-  if (!function_info->bound() && index < 0) {
-    int number_of_literals = function_info->num_literals();
+  int index = info->SearchOptimizedCodeMap(context->native_context(),
+                                           BailoutId::None());
+  if (!info->bound() && index < 0) {
+    int number_of_literals = info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     if (number_of_literals > 0) {
       // Store the native context in the literals array prefix. This
@@ -1017,10 +1026,9 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (index > 0) {
     // Caching of optimized code enabled and optimized code found.
-    FixedArray* literals =
-        function_info->GetLiteralsFromOptimizedCodeMap(index);
+    FixedArray* literals = info->GetLiteralsFromOptimizedCodeMap(index);
     if (literals != NULL) result->set_literals(literals);
-    Code* code = function_info->GetCodeFromOptimizedCodeMap(index);
+    Code* code = info->GetCodeFromOptimizedCodeMap(index);
     ASSERT(!code->marked_for_deoptimization());
     result->ReplaceCode(code);
     return result;
@@ -1029,9 +1037,9 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   if (isolate()->use_crankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
-      !function_info->is_toplevel() &&
-      function_info->allows_lazy_compilation() &&
-      !function_info->optimization_disabled() &&
+      !info->is_toplevel() &&
+      info->allows_lazy_compilation() &&
+      !info->optimization_disabled() &&
       !isolate()->DebuggerHasBreakPoints()) {
     result->MarkForOptimization();
   }
@@ -1198,8 +1206,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
   } else {
     buffer[kBufferSize - 1] = '\0';
   }
-  Handle<String> error_string = NewStringFromUtf8(CStrVector(buffer), TENURED);
-  return error_string;
+  return NewStringFromUtf8(CStrVector(buffer), TENURED).ToHandleChecked();
 }
 
 
@@ -1315,17 +1322,6 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   }
 
   JSFunction::SetPrototype(function, prototype);
-  return function;
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
-                                                        Handle<Code> code) {
-  Handle<JSFunction> function = NewFunctionWithoutPrototype(name, SLOPPY);
-  function->shared()->set_code(*code);
-  function->set_code(*code);
-  ASSERT(!function->has_initial_map());
-  ASSERT(!function->has_prototype());
   return function;
 }
 
@@ -1752,8 +1748,9 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
   if (type == JS_FUNCTION_TYPE) {
     map->set_function_with_prototype(true);
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(object);
-    InitializeFunction(js_function, shared.ToHandleChecked(), the_hole_value());
-    js_function->set_context(isolate()->context()->native_context());
+    Handle<Context> context(isolate()->context()->native_context());
+    InitializeFunction(js_function, shared.ToHandleChecked(),
+                       context, null_value());
   }
 
   // Put in filler if the new object is smaller than the old.
@@ -1956,7 +1953,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
-  Handle<String> js_string = NewStringFromOneByte(OneByteVector(str), TENURED);
+  Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
   SetNumberStringCache(number, js_string);
   return js_string;
 }
@@ -1983,53 +1980,68 @@ Handle<UnseededNumberDictionary> Factory::DictionaryAtNumberPut(
 
 
 void Factory::InitializeFunction(Handle<JSFunction> function,
-                                 Handle<SharedFunctionInfo> shared,
-                                 Handle<Object> prototype) {
-  ASSERT(!prototype->IsMap());
+                                 Handle<SharedFunctionInfo> info,
+                                 Handle<Context> context,
+                                 MaybeHandle<Object> maybe_prototype) {
   function->initialize_properties();
   function->initialize_elements();
-  function->set_shared(*shared);
-  function->set_code(shared->code());
+  function->set_shared(*info);
+  function->set_code(info->code());
+  function->set_context(*context);
+  Handle<Object> prototype;
+  if (maybe_prototype.ToHandle(&prototype)) {
+    ASSERT(!prototype->IsMap());
+  } else {
+    prototype = the_hole_value();
+  }
   function->set_prototype_or_initial_map(*prototype);
-  function->set_context(*undefined_value());
   function->set_literals_or_bindings(*empty_fixed_array());
   function->set_next_function_link(*undefined_value());
 }
 
 
-Handle<JSFunction> Factory::NewFunctionHelper(Handle<Map> function_map,
-                                              Handle<SharedFunctionInfo> shared,
-                                              Handle<Object> prototype,
-                                              PretenureFlag pretenure) {
-  AllocationSpace space =
-      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-  Handle<JSFunction> fun = New<JSFunction>(function_map, space);
-  InitializeFunction(fun, shared, prototype);
-  return fun;
+static Handle<Map> MapForNewFunction(Isolate* isolate,
+                                     Handle<SharedFunctionInfo> function_info,
+                                     MaybeHandle<Object> maybe_prototype) {
+  if (maybe_prototype.is_null()) {
+    return function_info->strict_mode() == SLOPPY
+        ? isolate->sloppy_function_without_prototype_map()
+        : isolate->strict_function_without_prototype_map();
+  }
+
+  Context* context = isolate->context()->native_context();
+  int map_index = Context::FunctionMapIndex(function_info->strict_mode(),
+                                            function_info->is_generator());
+  return Handle<Map>(Map::cast(context->get(map_index)));
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<SharedFunctionInfo> info,
+                                        Handle<Context> context,
+                                        MaybeHandle<Object> maybe_prototype,
+                                        PretenureFlag pretenure) {
+  Handle<Map> map = MapForNewFunction(isolate(), info, maybe_prototype);
+  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
+  Handle<JSFunction> result = New<JSFunction>(map, space);
+  InitializeFunction(result, info, context, maybe_prototype);
+  return result;
 }
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Object> prototype) {
-  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<JSFunction> fun = NewFunctionHelper(
-      isolate()->sloppy_function_map(), function_share, prototype);
-  fun->set_context(isolate()->context()->native_context());
-  return fun;
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  Handle<Context> context(isolate()->context()->native_context());
+  return NewFunction(info, context, prototype);
 }
 
 
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
-    Handle<String> name,
-    StrictMode strict_mode) {
-  Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = strict_mode == SLOPPY
-      ? isolate()->sloppy_function_without_prototype_map()
-      : isolate()->strict_function_without_prototype_map();
-  Handle<JSFunction> fun =
-      NewFunctionHelper(map, function_share, the_hole_value());
-  fun->set_context(isolate()->context()->native_context());
-  return fun;
+Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
+                                                        Handle<Code> code) {
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  info->set_code(*code);
+  Handle<Context> context(isolate()->context()->native_context());
+  return NewFunction(info, context, MaybeHandle<Object>());
 }
 
 
@@ -2111,12 +2123,8 @@ Handle<JSFunction> Factory::CreateApiFunction(
       break;
   }
 
-  Handle<JSFunction> result =
-      NewFunction(Factory::empty_string(),
-                  type,
-                  instance_size,
-                  code,
-                  true);
+  Handle<JSFunction> result = NewFunction(
+      Factory::empty_string(), type, instance_size, code, true);
 
   // Set length.
   result->shared()->set_length(obj->length());
@@ -2228,7 +2236,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   // Install accumulated static accessors
   for (int i = 0; i < valid_descriptors; i++) {
     Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-    JSObject::SetAccessor(result, accessor);
+    JSObject::SetAccessor(result, accessor).Assert();
   }
 
   ASSERT(result->shared()->IsApiFunction());

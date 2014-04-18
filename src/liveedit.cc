@@ -1888,8 +1888,8 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
       DropActivationsInActiveThread(shared_info_array, result, do_drop);
   if (error_message != NULL) {
     // Add error message as an array extra element.
-    Handle<String> str = isolate->factory()->NewStringFromAscii(
-        CStrVector(error_message));
+    Handle<String> str =
+        isolate->factory()->NewStringFromAsciiChecked(error_message);
     SetElementSloppy(result, len, str);
   }
   return result;
