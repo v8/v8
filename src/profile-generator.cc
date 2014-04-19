@@ -355,8 +355,7 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 CpuProfile::CpuProfile(const char* title, bool record_samples)
     : title_(title),
       record_samples_(record_samples),
-      start_time_(Time::NowFromSystemTime()) {
-  timer_.Start();
+      start_time_(TimeTicks::HighResolutionNow()) {
 }
 
 
@@ -367,7 +366,7 @@ void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
 
 
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
-  end_time_ = start_time_ + timer_.Elapsed();
+  end_time_ = TimeTicks::HighResolutionNow();
 }
 
 

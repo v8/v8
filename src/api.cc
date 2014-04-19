@@ -7084,13 +7084,13 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->start_time() - i::Time::UnixEpoch()).InMicroseconds();
+  return (profile->start_time() - i::TimeTicks()).InMicroseconds();
 }
 
 
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->end_time() - i::Time::UnixEpoch()).InMicroseconds();
+  return (profile->end_time() - i::TimeTicks()).InMicroseconds();
 }
 
 
