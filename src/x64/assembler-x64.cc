@@ -2953,11 +2953,6 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     // Don't record external references unless the heap will be serialized.
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif
     if (!Serializer::enabled() && !emit_debug_code()) {
       return;
     }

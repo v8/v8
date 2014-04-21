@@ -1,3 +1,10 @@
+2014-04-21: Version 3.26.20
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-18: Version 3.26.19
 
         ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).

@@ -1297,6 +1297,16 @@ void Genesis::InitializeExperimentalGlobal() {
                       isolate()->initial_object_prototype(),
                       Builtins::kIllegal, true, true);
     }
+    {   // -- S e t I t e r a t o r
+      Handle<Map> map = isolate()->factory()->NewMap(
+          JS_SET_ITERATOR_TYPE, JSSetIterator::kSize);
+      native_context()->set_set_iterator_map(*map);
+    }
+    {   // -- M a p I t e r a t o r
+      Handle<Map> map = isolate()->factory()->NewMap(
+          JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize);
+      native_context()->set_map_iterator_map(*map);
+    }
   }
 
   if (FLAG_harmony_weak_collections) {
@@ -1351,37 +1361,38 @@ void Genesis::InitializeExperimentalGlobal() {
         *generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
+  }
 
-    // Create a map for generator result objects.
-    ASSERT(object_function->initial_map()->inobject_properties() == 0);
+  if (FLAG_harmony_collections || FLAG_harmony_generators) {
+    // Collection forEach uses an iterator result object.
+    // Generators return iteraror result objects.
+
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
-    Handle<Map> generator_result_map = Map::Create(
+    Handle<JSFunction> object_function(native_context()->object_function());
+    ASSERT(object_function->initial_map()->inobject_properties() == 0);
+    Handle<Map> iterator_result_map = Map::Create(
         object_function, JSGeneratorObject::kResultPropertyCount);
-    ASSERT(generator_result_map->inobject_properties() ==
+    ASSERT(iterator_result_map->inobject_properties() ==
         JSGeneratorObject::kResultPropertyCount);
     Map::EnsureDescriptorSlack(
-        generator_result_map, JSGeneratorObject::kResultPropertyCount);
+        iterator_result_map, JSGeneratorObject::kResultPropertyCount);
 
-    Handle<String> value_string = factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("value"));
-    FieldDescriptor value_descr(value_string,
+    FieldDescriptor value_descr(isolate()->factory()->value_string(),
                                 JSGeneratorObject::kResultValuePropertyIndex,
                                 NONE,
                                 Representation::Tagged());
-    generator_result_map->AppendDescriptor(&value_descr);
+    iterator_result_map->AppendDescriptor(&value_descr);
 
-    Handle<String> done_string = factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("done"));
-    FieldDescriptor done_descr(done_string,
+    FieldDescriptor done_descr(isolate()->factory()->done_string(),
                                JSGeneratorObject::kResultDonePropertyIndex,
                                NONE,
                                Representation::Tagged());
-    generator_result_map->AppendDescriptor(&done_descr);
+    iterator_result_map->AppendDescriptor(&done_descr);
 
-    generator_result_map->set_unused_property_fields(0);
+    iterator_result_map->set_unused_property_fields(0);
     ASSERT_EQ(JSGeneratorObject::kResultSize,
-              generator_result_map->instance_size());
-    native_context()->set_generator_result_map(*generator_result_map);
+              iterator_result_map->instance_size());
+    native_context()->set_iterator_result_map(*iterator_result_map);
   }
 }
 

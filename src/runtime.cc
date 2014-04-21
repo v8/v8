@@ -1554,12 +1554,54 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetDelete) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetClear) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
+  table = OrderedHashSet::Clear(table);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SetGetSize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   return Smi::FromInt(table->NumberOfElements());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCreateIterator) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
+  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(kind == JSSetIterator::kKindValues
+      || kind == JSSetIterator::kKindEntries);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
+  Handle<JSSetIterator> iterator = JSSetIterator::Create(table, kind);
+  return *iterator;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIteratorNext) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
+  Handle<JSObject> result = JSSetIterator::Next(holder);
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_SetIteratorClose) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
+  holder->Close();
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -1609,6 +1651,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapDelete) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapClear) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
+  table = OrderedHashMap::Clear(table);
+  holder->set_table(*table);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_MapSet) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
@@ -1628,6 +1681,38 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MapGetSize) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   return Smi::FromInt(table->NumberOfElements());
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapCreateIterator) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
+  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(kind == JSMapIterator::kKindKeys
+      || kind == JSMapIterator::kKindValues
+      || kind == JSMapIterator::kKindEntries);
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
+  Handle<JSMapIterator> iterator = JSMapIterator::Create(table, kind);
+  return *iterator;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapIteratorNext) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
+  Handle<JSObject> result = JSMapIterator::Next(holder);
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_MapIteratorClose) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
+  holder->Close();
+  return isolate->heap()->undefined_value();
 }
 
 

@@ -48,6 +48,7 @@ namespace internal {
 #ifdef DEBUG
 bool CpuFeatures::initialized_ = false;
 #endif
+bool CpuFeatures::hint_creating_snapshot_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
@@ -100,10 +101,27 @@ const char* DwVfpRegister::AllocationIndexToString(int index) {
 }
 
 
+void CpuFeatures::SetHintCreatingSnapshot() {
+  hint_creating_snapshot_ = true;
+}
+
+
+void CpuFeatures::ProbeWithoutIsolate() {
+  Probe(hint_creating_snapshot_);
+}
+
+
 void CpuFeatures::Probe() {
+  // The Serializer can only be queried after isolate initialization.
+  Probe(Serializer::enabled());
+}
+
+
+void CpuFeatures::Probe(bool serializer_enabled) {
   uint64_t standard_features = static_cast<unsigned>(
       OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();
-  ASSERT(supported_ == 0 || supported_ == standard_features);
+  ASSERT(supported_ == 0 ||
+         (supported_ & standard_features) == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -113,7 +131,7 @@ void CpuFeatures::Probe() {
   // snapshot.
   supported_ |= standard_features;
 
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     // No probing for features if we might serialize (generate snapshot).
     printf("   ");
     PrintFeatures();
@@ -1079,11 +1097,6 @@ static bool fits_shifter(uint32_t imm32,
 // encoded.
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-    if (!Serializer::enabled()) {
-      Serializer::TooLateToEnableNow();
-    }
-#endif  // def DEBUG
     if (assembler != NULL && assembler->predictable_code_size()) return true;
     return Serializer::enabled();
   } else if (RelocInfo::IsNone(rmode_)) {
@@ -3267,11 +3280,6 @@ void Assembler::RecordRelocInfo(const RelocInfo& rinfo) {
   if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
     if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
-#ifdef DEBUG
-      if (!Serializer::enabled()) {
-        Serializer::TooLateToEnableNow();
-      }
-#endif
       if (!Serializer::enabled() && !emit_debug_code()) {
         return;
       }

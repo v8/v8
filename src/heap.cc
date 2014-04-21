@@ -3390,7 +3390,7 @@ MaybeObject* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   }
 
   SeqTwoByteString* result;
-  { MaybeObject* maybe_result = AllocateRawTwoByteString(1);
+  { MaybeObject* maybe_result = AllocateRawTwoByteString(1, NOT_TENURED);
     if (!maybe_result->To<SeqTwoByteString>(&result)) return maybe_result;
   }
   result->SeqTwoByteStringSet(0, code);

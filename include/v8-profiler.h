@@ -118,14 +118,15 @@ class V8_EXPORT CpuProfile {
   const CpuProfileNode* GetSample(int index) const;
 
   /**
-    * Returns time when the profile recording started (in microseconds
-    * since the Epoch).
+    * Returns time when the profile recording was started (in microseconds)
+    * since some unspecified starting point.
     */
   int64_t GetStartTime() const;
 
   /**
-    * Returns time when the profile recording was stopped (in microseconds
-    * since the Epoch).
+    * Returns time when the profile recording was stopped (in microseconds)
+    * since some unspecified starting point. The point is however equal to the
+    * starting point used by GetStartTime.
     */
   int64_t GetEndTime() const;
 

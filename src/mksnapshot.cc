@@ -41,6 +41,10 @@
 #include "serialize.h"
 #include "list.h"
 
+#if V8_TARGET_ARCH_ARM
+#include "arm/assembler-arm-inl.h"
+#endif
+
 using namespace v8;
 
 
@@ -272,6 +276,12 @@ int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
+#if V8_TARGET_ARCH_ARM
+  // Printing flags on ARM requires knowing if we intend to enable
+  // the serializer or not.
+  v8::internal::CpuFeatures::SetHintCreatingSnapshot();
+#endif
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
@@ -293,7 +303,7 @@ int main(int argc, char** argv) {
   Isolate* isolate = v8::Isolate::New();
   isolate->Enter();
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Serializer::Enable(internal_isolate);
+  i::Serializer::RequestEnable(internal_isolate);
   Persistent<Context> context;
   {
     HandleScope handle_scope(isolate);

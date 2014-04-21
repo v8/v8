@@ -470,13 +470,16 @@ class Serializer : public SerializerDeserializer {
   }
 
   Isolate* isolate() const { return isolate_; }
-  static void Enable(Isolate* isolate);
-  static void Disable();
+  static void RequestEnable(Isolate* isolate);
+  static void InitializeOncePerProcess();
+  static void TearDown();
 
-  // Call this when you have made use of the fact that there is no serialization
-  // going on.
-  static void TooLateToEnableNow() { too_late_to_enable_now_ = true; }
-  static bool enabled() { return serialization_enabled_; }
+  static bool enabled() {
+    SerializationState state = static_cast<SerializationState>(
+        NoBarrier_Load(&serialization_state_));
+    ASSERT(state != SERIALIZER_STATE_UNINITIALIZED);
+    return state == SERIALIZER_STATE_ENABLED;
+  }
   SerializationAddressMapper* address_mapper() { return &address_mapper_; }
   void PutRoot(int index,
                HeapObject* object,
@@ -574,9 +577,15 @@ class Serializer : public SerializerDeserializer {
   int fullness_[LAST_SPACE + 1];
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
-  static bool serialization_enabled_;
-  // Did we already make use of the fact that serialization was not enabled?
-  static bool too_late_to_enable_now_;
+
+  enum SerializationState {
+    SERIALIZER_STATE_UNINITIALIZED = 0,
+    SERIALIZER_STATE_DISABLED = 1,
+    SERIALIZER_STATE_ENABLED = 2
+  };
+
+  static AtomicWord serialization_state_;
+
   SerializationAddressMapper address_mapper_;
   intptr_t root_index_wave_front_;
   void Pad();

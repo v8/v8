@@ -54,10 +54,10 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-static const int kInvalidRootRegisterDelta = -1;
+static const int64_t kInvalidRootRegisterDelta = -1;
 
 
-intptr_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
+int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
   if (predictable_code_size() &&
       (other.address() < reinterpret_cast<Address>(isolate()) ||
        other.address() >= reinterpret_cast<Address>(isolate() + 1))) {
@@ -65,7 +65,18 @@ intptr_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
   }
   Address roots_register_value = kRootRegisterBias +
       reinterpret_cast<Address>(isolate()->heap()->roots_array_start());
-  intptr_t delta = other.address() - roots_register_value;
+
+  int64_t delta = kInvalidRootRegisterDelta;  // Bogus initialization.
+  if (kPointerSize == kInt64Size) {
+    delta = other.address() - roots_register_value;
+  } else {
+    // For x32, zero extend the address to 64-bit and calculate the delta.
+    uint64_t o = static_cast<uint32_t>(
+        reinterpret_cast<intptr_t>(other.address()));
+    uint64_t r = static_cast<uint32_t>(
+        reinterpret_cast<intptr_t>(roots_register_value));
+    delta = o - r;
+  }
   return delta;
 }
 
@@ -73,9 +84,8 @@ intptr_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
 Operand MacroAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(target);
+    int64_t delta = RootRegisterDelta(target);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
   }
@@ -86,9 +96,8 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       movp(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -105,9 +114,8 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(destination);
+    int64_t delta = RootRegisterDelta(destination);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       movp(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
       return;
     }
@@ -125,9 +133,8 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source);
+    int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
@@ -142,9 +149,8 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
-    intptr_t delta = RootRegisterDelta(source);
+    int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      Serializer::TooLateToEnableNow();
       // Operand is leap(scratch, Operand(kRootRegister, delta));
       // Opcodes : REX.W 8D ModRM Disp8/Disp32  - 4 or 7.
       int size = 4;
@@ -1335,8 +1341,15 @@ Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
     return CheckSmi(first);
   }
   STATIC_ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
-  leal(kScratchRegister, Operand(first, second, times_1, 0));
-  testb(kScratchRegister, Immediate(0x03));
+  if (SmiValuesAre32Bits()) {
+    leal(kScratchRegister, Operand(first, second, times_1, 0));
+    testb(kScratchRegister, Immediate(0x03));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(kScratchRegister, first);
+    orl(kScratchRegister, second);
+    testb(kScratchRegister, Immediate(kSmiTagMask));
+  }
   return zero;
 }
 
@@ -1382,16 +1395,28 @@ Condition MacroAssembler::CheckIsMinSmi(Register src) {
 
 
 Condition MacroAssembler::CheckInteger32ValidSmiValue(Register src) {
-  // A 32-bit integer value can always be converted to a smi.
-  return always;
+  if (SmiValuesAre32Bits()) {
+    // A 32-bit integer value can always be converted to a smi.
+    return always;
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    cmpl(src, Immediate(0xc0000000));
+    return positive;
+  }
 }
 
 
 Condition MacroAssembler::CheckUInteger32ValidSmiValue(Register src) {
-  // An unsigned 32-bit integer value is valid as long as the high bit
-  // is not set.
-  testl(src, src);
-  return positive;
+  if (SmiValuesAre32Bits()) {
+    // An unsigned 32-bit integer value is valid as long as the high bit
+    // is not set.
+    testl(src, src);
+    return positive;
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    testl(src, Immediate(0xc0000000));
+    return zero;
+  }
 }
 
 
@@ -1534,7 +1559,13 @@ void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
 
 void MacroAssembler::SmiAddConstant(const Operand& dst, Smi* constant) {
   if (constant->value() != 0) {
-    addl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(constant->value()));
+    if (SmiValuesAre32Bits()) {
+      addl(Operand(dst, kSmiShift / kBitsPerByte),
+           Immediate(constant->value()));
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      addp(dst, Immediate(constant));
+    }
   }
 }
 
@@ -1992,8 +2023,14 @@ void MacroAssembler::SmiMod(Register dst,
 void MacroAssembler::SmiNot(Register dst, Register src) {
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src.is(kScratchRegister));
-  // Set tag and padding bits before negating, so that they are zero afterwards.
-  movl(kScratchRegister, Immediate(~0));
+  if (SmiValuesAre32Bits()) {
+    // Set tag and padding bits before negating, so that they are zero
+    // afterwards.
+    movl(kScratchRegister, Immediate(~0));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    movl(kScratchRegister, Immediate(1));
+  }
   if (dst.is(src)) {
     xorp(dst, kScratchRegister);
   } else {
@@ -2267,8 +2304,14 @@ SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
 
 
 void MacroAssembler::AddSmiField(Register dst, const Operand& src) {
-  ASSERT_EQ(0, kSmiShift % kBitsPerByte);
-  addl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  if (SmiValuesAre32Bits()) {
+    ASSERT_EQ(0, kSmiShift % kBitsPerByte);
+    addl(dst, Operand(src, kSmiShift / kBitsPerByte));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    SmiToInteger32(kScratchRegister, src);
+    addl(dst, kScratchRegister);
+  }
 }
 
 
@@ -2310,7 +2353,12 @@ void MacroAssembler::PopRegisterAsTwoSmis(Register dst, Register scratch) {
 
 
 void MacroAssembler::Test(const Operand& src, Smi* source) {
-  testl(Operand(src, kIntSize), Immediate(source->value()));
+  if (SmiValuesAre32Bits()) {
+    testl(Operand(src, kIntSize), Immediate(source->value()));
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    testl(src, Immediate(source));
+  }
 }
 
 
