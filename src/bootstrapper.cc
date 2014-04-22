@@ -207,8 +207,11 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives();
 
-  Handle<JSFunction> InstallTypedArray(const char* name,
-      ElementsKind elementsKind);
+  void InstallTypedArray(
+      const char* name,
+      ElementsKind elements_kind,
+      Handle<JSFunction>* fun,
+      Handle<Map>* external_map);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -1039,9 +1042,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   { // -- T y p e d A r r a y s
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)                    \
     {                                                                         \
-      Handle<JSFunction> fun = InstallTypedArray(#Type "Array",               \
-          TYPE##_ELEMENTS);                                                   \
+      Handle<JSFunction> fun;                                                 \
+      Handle<Map> external_map;                                               \
+      InstallTypedArray(#Type "Array",                                        \
+          TYPE##_ELEMENTS,                                                    \
+          &fun,                                                               \
+          &external_map);                                                     \
       native_context()->set_##type##_array_fun(*fun);                         \
+      native_context()->set_##type##_array_external_map(*external_map);       \
     }
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -1252,18 +1260,26 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
-Handle<JSFunction> Genesis::InstallTypedArray(
-    const char* name, ElementsKind elementsKind) {
+void Genesis::InstallTypedArray(
+    const char* name,
+    ElementsKind elements_kind,
+    Handle<JSFunction>* fun,
+    Handle<Map>* external_map) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
   Handle<JSFunction> result = InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSize, isolate()->initial_object_prototype(),
       Builtins::kIllegal, false, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields, elementsKind);
+      JS_TYPED_ARRAY_TYPE,
+      JSTypedArray::kSizeWithInternalFields,
+      elements_kind);
   result->set_initial_map(*initial_map);
   initial_map->set_constructor(*result);
-  return result;
+  *fun = result;
+
+  ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
+  *external_map = Map::AsElementsKind(initial_map, external_kind);
 }
 
 

@@ -134,6 +134,16 @@ enum BindingFlags {
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun) \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun) \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun) \
+  V(INT8_ARRAY_EXTERNAL_MAP_INDEX, Map, int8_array_external_map) \
+  V(UINT8_ARRAY_EXTERNAL_MAP_INDEX, Map, uint8_array_external_map) \
+  V(INT16_ARRAY_EXTERNAL_MAP_INDEX, Map, int16_array_external_map) \
+  V(UINT16_ARRAY_EXTERNAL_MAP_INDEX, Map, uint16_array_external_map) \
+  V(INT32_ARRAY_EXTERNAL_MAP_INDEX, Map, int32_array_external_map) \
+  V(UINT32_ARRAY_EXTERNAL_MAP_INDEX, Map, uint32_array_external_map) \
+  V(FLOAT32_ARRAY_EXTERNAL_MAP_INDEX, Map, float32_array_external_map) \
+  V(FLOAT64_ARRAY_EXTERNAL_MAP_INDEX, Map, float64_array_external_map) \
+  V(UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX, Map, \
+      uint8_clamped_array_external_map) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map) \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map) \
@@ -311,6 +321,15 @@ class Context: public FixedArray {
     FLOAT32_ARRAY_FUN_INDEX,
     FLOAT64_ARRAY_FUN_INDEX,
     UINT8_CLAMPED_ARRAY_FUN_INDEX,
+    INT8_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT8_ARRAY_EXTERNAL_MAP_INDEX,
+    INT16_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT16_ARRAY_EXTERNAL_MAP_INDEX,
+    INT32_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT32_ARRAY_EXTERNAL_MAP_INDEX,
+    FLOAT32_ARRAY_EXTERNAL_MAP_INDEX,
+    FLOAT64_ARRAY_EXTERNAL_MAP_INDEX,
+    UINT8_CLAMPED_ARRAY_EXTERNAL_MAP_INDEX,
     DATA_VIEW_FUN_INDEX,
     MESSAGE_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
