@@ -3303,6 +3303,21 @@ void HCompareHoleAndBranch::InferRepresentation(
 }
 
 
+bool HCompareNumericAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (left() == right() &&
+      left()->representation().IsSmiOrInteger32()) {
+    *block = (token() == Token::EQ ||
+              token() == Token::EQ_STRICT ||
+              token() == Token::LTE ||
+              token() == Token::GTE)
+        ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  *block = NULL;
+  return false;
+}
+
+
 bool HCompareMinusZeroAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   if (FLAG_fold_constants && value()->IsConstant()) {
     HConstant* constant = HConstant::cast(value());
