@@ -271,6 +271,8 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
+  // TODO(svenpanne) We can't do this here currently, although we should!
+  // v8::V8::Initialize();
   i::Isolate::SetCrashIfDefaultIsolateInitialized();
 
   // By default, log code create information in the snapshot.
@@ -410,6 +412,7 @@ int main(int argc, char** argv) {
       ser.CurrentAllocationAddress(i::CELL_SPACE),
       ser.CurrentAllocationAddress(i::PROPERTY_CELL_SPACE));
   isolate->Exit();
+  i::Serializer::TearDown();
   isolate->Dispose();
   V8::Dispose();
   return 0;

@@ -1551,9 +1551,7 @@ void Isolate::TearDown() {
     serialize_partial_snapshot_cache_ = NULL;
   }
 
-  if (!IsDefaultIsolate()) {
-    delete this;
-  }
+  delete this;
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);

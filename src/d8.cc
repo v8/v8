@@ -1678,6 +1678,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
+  v8::V8::Initialize();
 #ifndef V8_SHARED
   i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
   i::FLAG_redirect_code_traces_to = "code.asm";
@@ -1692,7 +1693,7 @@ int Shell::Main(int argc, char* argv[]) {
     v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   }
   int result = 0;
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = Isolate::New();
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
@@ -1703,6 +1704,7 @@ int Shell::Main(int argc, char* argv[]) {
   DumbLineEditor dumb_line_editor(isolate);
   {
     Initialize(isolate);
+    Isolate::Scope isolate_scope(isolate);
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
     vTune::InitializeVtuneForV8();
 #endif
@@ -1765,6 +1767,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  isolate->Dispose();
   V8::Dispose();
 
   OnExit();

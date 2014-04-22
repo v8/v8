@@ -785,9 +785,6 @@ void Serializer::InitializeOncePerProcess() {
 
 
 void Serializer::TearDown() {
-  // TearDown is called by V8::TearDown() for the default isolate. It's safe
-  // to shut down the serializer by that point. Just to be safe, we restore
-  // serialization_state_ to uninitialized.
   ASSERT(NoBarrier_Load(&serialization_state_) !=
          SERIALIZER_STATE_UNINITIALIZED);
   if (code_address_map_) {

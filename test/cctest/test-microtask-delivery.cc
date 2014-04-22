@@ -37,6 +37,7 @@ class HarmonyIsolate {
  public:
   HarmonyIsolate() {
     i::FLAG_harmony_promises = true;
+    i::FlagList::EnforceFlagImplications();
     isolate_ = Isolate::New();
     isolate_->Enter();
   }

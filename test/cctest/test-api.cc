@@ -22313,6 +22313,7 @@ TEST(EventLogging) {
 
 TEST(Promises) {
   i::FLAG_harmony_promises = true;
+  i::FlagList::EnforceFlagImplications();
 
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();

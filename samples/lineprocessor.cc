@@ -328,6 +328,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::V8::Initialize();
   int result = RunMain(argc, argv);
   v8::V8::Dispose();
   return result;

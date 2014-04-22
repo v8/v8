@@ -182,6 +182,7 @@ TimeDelta ProcessFile(
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::V8::Initialize();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
   bool print_tokens = false;

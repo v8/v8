@@ -107,6 +107,7 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::V8::Initialize();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
   std::vector<std::string> fnames;
