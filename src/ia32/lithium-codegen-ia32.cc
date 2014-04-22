@@ -4497,34 +4497,27 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
-  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
+  Condition cc = instr->hydrogen()->allow_equality() ? above : above_equal;
+  if (instr->index()->IsConstantOperand()) {
+    __ cmp(ToOperand(instr->length()),
+           ToImmediate(LConstantOperand::cast(instr->index()),
+                       instr->hydrogen()->length()->representation()));
+    cc = ReverseCondition(cc);
+  } else if (instr->length()->IsConstantOperand()) {
+    __ cmp(ToOperand(instr->index()),
+           ToImmediate(LConstantOperand::cast(instr->length()),
+                       instr->hydrogen()->index()->representation()));
+  } else {
+    __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
+  }
+  if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
     Label done;
     __ j(NegateCondition(cc), &done, Label::kNear);
     __ int3();
     __ bind(&done);
   } else {
-    DeoptimizeIf(cc, check->environment());
-  }
-}
-
-
-void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  if (instr->hydrogen()->skip_check() && !FLAG_debug_code) return;
-
-  if (instr->index()->IsConstantOperand()) {
-    Immediate immediate =
-        ToImmediate(LConstantOperand::cast(instr->index()),
-                    instr->hydrogen()->length()->representation());
-    __ cmp(ToOperand(instr->length()), immediate);
-    Condition condition =
-        instr->hydrogen()->allow_equality() ? below : below_equal;
-    ApplyCheckIf(condition, instr);
-  } else {
-    __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
-    Condition condition =
-        instr->hydrogen()->allow_equality() ? above : above_equal;
-    ApplyCheckIf(condition, instr);
+    DeoptimizeIf(cc, instr->environment());
   }
 }
 

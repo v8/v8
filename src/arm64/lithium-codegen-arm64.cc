@@ -1775,36 +1775,25 @@ void LCodeGen::DoBitS(LBitS* instr) {
 }
 
 
-void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
-  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
+  Condition cc = instr->hydrogen()->allow_equality() ? hi : hs;
+  ASSERT(instr->hydrogen()->index()->representation().IsInteger32());
+  ASSERT(instr->hydrogen()->length()->representation().IsInteger32());
+  if (instr->index()->IsConstantOperand()) {
+    Operand index = ToOperand32I(instr->index());
+    Register length = ToRegister32(instr->length());
+    __ Cmp(length, index);
+    cc = ReverseConditionForCmp(cc);
+  } else {
+    Register index = ToRegister32(instr->index());
+    Operand length = ToOperand32I(instr->length());
+    __ Cmp(index, length);
+  }
+  if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
     __ Assert(InvertCondition(cc), kEliminatedBoundsCheckFailed);
   } else {
-    DeoptimizeIf(cc, check->environment());
+    DeoptimizeIf(cc, instr->environment());
   }
-}
-
-
-void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
-  if (instr->hydrogen()->skip_check()) return;
-
-  ASSERT(instr->hydrogen()->length()->representation().IsInteger32());
-  Register length = ToRegister32(instr->length());
-
-  if (instr->index()->IsConstantOperand()) {
-    int constant_index =
-        ToInteger32(LConstantOperand::cast(instr->index()));
-
-    if (instr->hydrogen()->length()->representation().IsSmi()) {
-      __ Cmp(length, Smi::FromInt(constant_index));
-    } else {
-      __ Cmp(length, constant_index);
-    }
-  } else {
-  ASSERT(instr->hydrogen()->index()->representation().IsInteger32());
-    __ Cmp(length, ToRegister32(instr->index()));
-  }
-  Condition condition = instr->hydrogen()->allow_equality() ? lo : ls;
-  ApplyCheckIf(condition, instr);
 }
 
 
