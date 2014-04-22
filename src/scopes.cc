@@ -1266,7 +1266,7 @@ void Scope::AllocateParameterLocals() {
   for (int i = params_.length() - 1; i >= 0; --i) {
     Variable* var = params_[i];
     ASSERT(var->scope() == this);
-    if (uses_sloppy_arguments) {
+    if (uses_sloppy_arguments || has_forced_context_allocation()) {
       // Force context allocation of the parameter.
       var->ForceContextAllocation();
     }
