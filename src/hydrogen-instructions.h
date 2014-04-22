@@ -1543,6 +1543,8 @@ class HBranch V8_FINAL : public HUnaryControlInstruction {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
   ToBooleanStub::Types expected_input_types() const {
     return expected_input_types_;
   }
