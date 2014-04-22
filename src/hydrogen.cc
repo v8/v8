@@ -5574,15 +5574,15 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
 void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
     Handle<Map> map) {
+  // Clear any previously collected field maps.
+  field_maps_.Clear();
+
   // Figure out the field type from the accessor map.
   Handle<HeapType> field_type(lookup_.GetFieldTypeFromMap(*map), isolate());
 
   // Collect the (stable) maps from the field type.
   int num_field_maps = field_type->NumClasses();
-  if (num_field_maps == 0) {
-    field_maps_.Clear();
-    return;
-  }
+  if (num_field_maps == 0) return;
   ASSERT(access_.representation().IsHeapObject());
   field_maps_.Reserve(num_field_maps, zone());
   HeapType::Iterator<Map> it = field_type->Classes();
