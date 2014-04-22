@@ -2586,7 +2586,11 @@ bool Heap::CreateInitialMaps() {
       { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
         if (!maybe_obj->ToObject(&obj)) return false;
       }
-      roots_[entry.index] = Map::cast(obj);
+      // Mark cons string maps as unstable, because their objects can change
+      // maps during GC.
+      Map* map = Map::cast(obj);
+      if (StringShape(entry.type).IsCons()) map->mark_unstable();
+      roots_[entry.index] = map;
     }
 
     ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
