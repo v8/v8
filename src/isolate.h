@@ -125,20 +125,6 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                     \
   } while (false)
 
-// TODO(yangguo): Remove after we completely changed to MaybeHandles.
-#define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value)  \
-  do {                                                      \
-    if ((call).is_null()) {                                 \
-      ASSERT((isolate)->has_pending_exception());           \
-      return (value);                                       \
-    }                                                       \
-  } while (false)
-
-// TODO(yangguo): Remove after we completely changed to MaybeHandles.
-#define RETURN_IF_EMPTY_HANDLE(isolate, call)  \
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, isolate->heap()->exception())
-
-
 // Macros for MaybeHandle.
 
 #define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T)  \

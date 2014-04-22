@@ -529,7 +529,7 @@ BUILTIN(ArrayPop) {
   }
   Handle<Object> element;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element, maybe_element);
-  RETURN_IF_EMPTY_HANDLE(
+  RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       accessor->SetLength(array, handle(Smi::FromInt(new_length), isolate)));
   return *element;

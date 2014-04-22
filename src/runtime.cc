@@ -8428,8 +8428,9 @@ RUNTIME_FUNCTION(RuntimeHidden_CompileUnoptimized) {
   // Compile the target function.
   ASSERT(function->shared()->allows_lazy_compilation());
 
-  Handle<Code> code = Compiler::GetUnoptimizedCode(function);
-  RETURN_IF_EMPTY_HANDLE(isolate, code);
+  Handle<Code> code;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
+                                     Compiler::GetUnoptimizedCode(function));
   function->ReplaceCode(*code);
 
   // All done. Return the compiled code.
@@ -8470,8 +8471,13 @@ RUNTIME_FUNCTION(RuntimeHidden_CompileOptimized) {
   } else {
     Compiler::ConcurrencyMode mode = concurrent ? Compiler::CONCURRENT
                                                 : Compiler::NOT_CONCURRENT;
-    Handle<Code> code = Compiler::GetOptimizedCode(function, unoptimized, mode);
-    function->ReplaceCode(code.is_null() ? *unoptimized : *code);
+    Handle<Code> code;
+    if (Compiler::GetOptimizedCode(
+            function, unoptimized, mode).ToHandle(&code)) {
+      function->ReplaceCode(*code);
+    } else {
+      function->ReplaceCode(*unoptimized);
+    }
   }
 
   ASSERT(function->code()->kind() == Code::FUNCTION ||
@@ -8792,15 +8798,16 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
     result = Compiler::GetConcurrentlyOptimizedCode(job);
-  } else if (result.is_null() &&
-             IsSuitableForOnStackReplacement(isolate, function, caller_code)) {
+  } else if (IsSuitableForOnStackReplacement(isolate, function, caller_code)) {
     if (FLAG_trace_osr) {
       PrintF("[OSR - Compiling: ");
       function->PrintName();
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
-    result = Compiler::GetOptimizedCode(function, caller_code, mode, ast_id);
-    if (result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
+    MaybeHandle<Code> maybe_result = Compiler::GetOptimizedCode(
+        function, caller_code, mode, ast_id);
+    if (maybe_result.ToHandle(&result) &&
+        result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {
       // Optimization is queued.  Return to check later.
       return NULL;
     }
