@@ -644,7 +644,6 @@ void PrintMap(map<string, string>* m) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  v8::V8::Initialize();
   map<string, string> options;
   string file;
   ParseOptions(argc, argv, options, &file);
