@@ -263,10 +263,6 @@ class LCodeGen: public LCodeGenBase {
                     LEnvironment* environment,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void ApplyCheckIf(Condition condition,
-                    LBoundsCheck* check,
-                    Register src1 = zero_reg,
-                    const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
