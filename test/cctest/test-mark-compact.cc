@@ -499,7 +499,7 @@ TEST(BootUpMemoryUse) {
     printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
     if (v8::internal::Snapshot::IsEnabled()) {
       CHECK_LE(delta,
-          3000 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
+          3200 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
     } else {
       CHECK_LE(delta,
           3350 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
