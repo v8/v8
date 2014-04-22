@@ -2651,9 +2651,10 @@ class JSObject: public JSReceiver {
                                        = UPDATE_WRITE_BARRIER);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
-  static Handle<Object> SetPrototype(Handle<JSObject> object,
-                                     Handle<Object> value,
-                                     bool skip_hidden_prototypes = false);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPrototype(
+      Handle<JSObject> object,
+      Handle<Object> value,
+      bool skip_hidden_prototypes = false);
 
   // Initializes the body after properties slot, properties slot is
   // initialized by set_properties.  Fill the pre-allocated fields with
@@ -2686,11 +2687,13 @@ class JSObject: public JSReceiver {
   static Handle<JSObject> Copy(Handle<JSObject> object,
                                Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
-  static Handle<JSObject> DeepCopy(Handle<JSObject> object,
-                                   AllocationSiteUsageContext* site_context,
-                                   DeepCopyHints hints = kNoHints);
-  static Handle<JSObject> DeepWalk(Handle<JSObject> object,
-                                   AllocationSiteCreationContext* site_context);
+  MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
+      Handle<JSObject> object,
+      AllocationSiteUsageContext* site_context,
+      DeepCopyHints hints = kNoHints);
+  MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
+      Handle<JSObject> object,
+      AllocationSiteCreationContext* site_context);
 
   static Handle<Object> GetDataProperty(Handle<JSObject> object,
                                         Handle<Name> key);

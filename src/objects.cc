@@ -5863,13 +5863,14 @@ class JSObjectWalkVisitor {
       copying_(copying),
       hints_(hints) {}
 
-  Handle<JSObject> StructureWalk(Handle<JSObject> object);
+  MUST_USE_RESULT MaybeHandle<JSObject> StructureWalk(Handle<JSObject> object);
 
  protected:
-  inline Handle<JSObject> VisitElementOrProperty(Handle<JSObject> object,
-                                                 Handle<JSObject> value) {
+  MUST_USE_RESULT inline MaybeHandle<JSObject> VisitElementOrProperty(
+      Handle<JSObject> object,
+      Handle<JSObject> value) {
     Handle<AllocationSite> current_site = site_context()->EnterNewScope();
-    Handle<JSObject> copy_of_value = StructureWalk(value);
+    MaybeHandle<JSObject> copy_of_value = StructureWalk(value);
     site_context()->ExitScope(current_site, value);
     return copy_of_value;
   }
@@ -5887,7 +5888,7 @@ class JSObjectWalkVisitor {
 
 
 template <class ContextObject>
-Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
+MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     Handle<JSObject> object) {
   Isolate* isolate = this->isolate();
   bool copying = this->copying();
@@ -5898,7 +5899,7 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 
     if (check.HasOverflowed()) {
       isolate->StackOverflow();
-      return Handle<JSObject>::null();
+      return MaybeHandle<JSObject>();
     }
   }
 
@@ -5939,8 +5940,10 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         int index = descriptors->GetFieldIndex(i);
         Handle<Object> value(object->RawFastPropertyAt(index), isolate);
         if (value->IsJSObject()) {
-          value = VisitElementOrProperty(copy, Handle<JSObject>::cast(value));
-          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, value, Handle<JSObject>());
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, value,
+              VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
+              JSObject);
         } else {
           Representation representation = details.representation();
           value = Object::NewStorageFor(isolate, value, representation);
@@ -5965,9 +5968,11 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         Handle<Object> value =
             Object::GetProperty(copy, key_string).ToHandleChecked();
         if (value->IsJSObject()) {
-          Handle<JSObject> result = VisitElementOrProperty(
-              copy, Handle<JSObject>::cast(value));
-          RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+          Handle<JSObject> result;
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, result,
+              VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
+              JSObject);
           if (copying) {
             // Creating object copy for literals. No strict mode needed.
             JSObject::SetProperty(
@@ -5999,9 +6004,11 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                    value->IsTheHole() ||
                    (IsFastObjectElementsKind(copy->GetElementsKind())));
             if (value->IsJSObject()) {
-              Handle<JSObject> result = VisitElementOrProperty(
-                  copy, Handle<JSObject>::cast(value));
-              RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+              Handle<JSObject> result;
+              ASSIGN_RETURN_ON_EXCEPTION(
+                  isolate, result,
+                  VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
+                  JSObject);
               if (copying) {
                 elements->set(i, *result);
               }
@@ -6019,9 +6026,11 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (element_dictionary->IsKey(k)) {
             Handle<Object> value(element_dictionary->ValueAt(i), isolate);
             if (value->IsJSObject()) {
-              Handle<JSObject> result = VisitElementOrProperty(
-                  copy, Handle<JSObject>::cast(value));
-              RETURN_IF_EMPTY_HANDLE_VALUE(isolate, result, Handle<JSObject>());
+              Handle<JSObject> result;
+              ASSIGN_RETURN_ON_EXCEPTION(
+                  isolate, result,
+                  VisitElementOrProperty(copy, Handle<JSObject>::cast(value)),
+                  JSObject);
               if (copying) {
                 element_dictionary->ValueAtPut(i, *result);
               }
@@ -6053,23 +6062,26 @@ Handle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 }
 
 
-Handle<JSObject> JSObject::DeepWalk(
+MaybeHandle<JSObject> JSObject::DeepWalk(
     Handle<JSObject> object,
     AllocationSiteCreationContext* site_context) {
   JSObjectWalkVisitor<AllocationSiteCreationContext> v(site_context, false,
                                                        kNoHints);
-  Handle<JSObject> result = v.StructureWalk(object);
-  ASSERT(result.is_null() || result.is_identical_to(object));
+  MaybeHandle<JSObject> result = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  ASSERT(!result.ToHandle(&for_assert) || for_assert.is_identical_to(object));
   return result;
 }
 
 
-Handle<JSObject> JSObject::DeepCopy(Handle<JSObject> object,
-                                    AllocationSiteUsageContext* site_context,
-                                    DeepCopyHints hints) {
+MaybeHandle<JSObject> JSObject::DeepCopy(
+    Handle<JSObject> object,
+    AllocationSiteUsageContext* site_context,
+    DeepCopyHints hints) {
   JSObjectWalkVisitor<AllocationSiteUsageContext> v(site_context, true, hints);
-  Handle<JSObject> copy = v.StructureWalk(object);
-  ASSERT(!copy.is_identical_to(object));
+  MaybeHandle<JSObject> copy = v.StructureWalk(object);
+  Handle<JSObject> for_assert;
+  ASSERT(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
   return copy;
 }
 
@@ -12399,9 +12411,9 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
 }
 
 
-Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
-                                      Handle<Object> value,
-                                      bool skip_hidden_prototypes) {
+MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
+                                           Handle<Object> value,
+                                           bool skip_hidden_prototypes) {
 #ifdef DEBUG
   int size = object->Size();
 #endif
@@ -12424,8 +12436,7 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
     Handle<Object> args[] = { object };
     Handle<Object> error = isolate->factory()->NewTypeError(
         "non_extensible_proto", HandleVector(args, ARRAY_SIZE(args)));
-    isolate->Throw(*error);
-    return Handle<Object>();
+    return isolate->Throw<Object>(error);
   }
 
   // Before we can set the prototype we need to be sure
@@ -12439,8 +12450,7 @@ Handle<Object> JSObject::SetPrototype(Handle<JSObject> object,
       // Cycle detected.
       Handle<Object> error = isolate->factory()->NewError(
           "cyclic_proto", HandleVector<Object>(NULL, 0));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      return isolate->Throw<Object>(error);
     }
   }
 

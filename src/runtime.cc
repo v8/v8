@@ -512,8 +512,9 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateObjectLiteral) {
 
     AllocationSiteCreationContext creation_context(isolate);
     site = creation_context.EnterNewScope();
-    RETURN_IF_EMPTY_HANDLE(isolate,
-                           JSObject::DeepWalk(boilerplate, &creation_context));
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate,
+        JSObject::DeepWalk(boilerplate, &creation_context));
     creation_context.ExitScope(site, boilerplate);
 
     // Update the functions literal and return the boilerplate.
@@ -526,9 +527,11 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_CreateObjectLiteral) {
 
   AllocationSiteUsageContext usage_context(isolate, site, true);
   usage_context.EnterNewScope();
-  Handle<Object> copy = JSObject::DeepCopy(boilerplate, &usage_context);
+  MaybeHandle<Object> maybe_copy = JSObject::DeepCopy(
+      boilerplate, &usage_context);
   usage_context.ExitScope(site, boilerplate);
-  RETURN_IF_EMPTY_HANDLE(isolate, copy);
+  Handle<Object> copy;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, copy, maybe_copy);
   return *copy;
 }
 
@@ -586,8 +589,8 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
   JSObject::DeepCopyHints hints = (flags & ArrayLiteral::kShallowElements) == 0
       ? JSObject::kNoHints
       : JSObject::kObjectIsShallowArray;
-  Handle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
-                                             hints);
+  MaybeHandle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
+                                                  hints);
   usage_context.ExitScope(site, boilerplate);
   return copy;
 }
@@ -1844,9 +1847,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
   }
   if (obj->map()->is_observed()) {
     Handle<Object> old_value = GetPrototypeSkipHiddenPrototypes(isolate, obj);
-
-    Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-    RETURN_IF_EMPTY_HANDLE(isolate, result);
+    Handle<Object> result;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        JSObject::SetPrototype(obj, prototype, true));
 
     Handle<Object> new_value = GetPrototypeSkipHiddenPrototypes(isolate, obj);
     if (!new_value->SameValue(*old_value)) {
@@ -1856,8 +1860,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetPrototype) {
     }
     return *result;
   }
-  Handle<Object> result = JSObject::SetPrototype(obj, prototype, true);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      JSObject::SetPrototype(obj, prototype, true));
   return *result;
 }
 
@@ -2685,11 +2691,10 @@ RUNTIME_FUNCTION(MaybeObject*, RuntimeHidden_RegExpExec) {
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
   isolate->counters()->regexp_entry_runtime()->Increment();
-  Handle<Object> result = RegExpImpl::Exec(regexp,
-                                           subject,
-                                           index,
-                                           last_match_info);
-  RETURN_IF_EMPTY_HANDLE(isolate, result);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      RegExpImpl::Exec(regexp, subject, index, last_match_info));
   return *result;
 }
 
@@ -14930,7 +14935,6 @@ static MaybeObject* ArrayConstructorCommon(Isolate* isolate,
     Handle<Map> initial_map(constructor->initial_map(), isolate);
     if (to_kind != initial_map->elements_kind()) {
       initial_map = Map::AsElementsKind(initial_map, to_kind);
-      RETURN_IF_EMPTY_HANDLE(isolate, initial_map);
     }
 
     // If we don't care to track arrays of to_kind ElementsKind, then
