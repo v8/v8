@@ -337,14 +337,6 @@ bool TypeImpl<Config>::IsCurrently(TypeImpl* that) {
 // Check this overlaps that.
 template<class Config>
 bool TypeImpl<Config>::Maybe(TypeImpl* that) {
-  // Fast path for bitsets.
-  if (this->IsBitset()) {
-    return IsInhabited(this->AsBitset() & that->LubBitset());
-  }
-  if (that->IsBitset()) {
-    return IsInhabited(this->LubBitset() & that->AsBitset());
-  }
-
   // (T1 \/ ... \/ Tn) overlaps T <=> (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
     UnionedHandle unioned = this->AsUnion();
@@ -366,6 +358,12 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   }
 
   ASSERT(!this->IsUnion() && !that->IsUnion());
+  if (this->IsBitset()) {
+    return IsInhabited(this->AsBitset() & that->LubBitset());
+  }
+  if (that->IsBitset()) {
+    return IsInhabited(this->LubBitset() & that->AsBitset());
+  }
   if (this->IsClass()) {
     return that->IsClass() && *this->AsClass() == *that->AsClass();
   }
@@ -442,12 +440,12 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
     size += (type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 1);
   }
   int bitset = type1->GlbBitset() | type2->GlbBitset();
-  if (IsInhabited(bitset)) ++size;
+  if (bitset != kNone) ++size;
   ASSERT(size >= 1);
   UnionedHandle unioned = Config::union_create(size, region);
 
   size = 0;
-  if (IsInhabited(bitset)) {
+  if (bitset != kNone) {
     Config::union_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendUnion(unioned, type1, size);
@@ -509,21 +507,20 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   }
 
   // Slow case: may need to produce a Unioned object.
-  int size = INT_MAX;
+  int size = 0;
   if (!type1->IsBitset()) {
-    size = (type1->IsUnion() ? Config::union_length(type1->AsUnion()) : 1);
+    size += (type1->IsUnion() ? Config::union_length(type1->AsUnion()) : 1);
   }
   if (!type2->IsBitset()) {
-    size = Min(size,
-               type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 1);
+    size += (type2->IsUnion() ? Config::union_length(type2->AsUnion()) : 1);
   }
   int bitset = type1->GlbBitset() & type2->GlbBitset();
-  if (IsInhabited(bitset)) ++size;
+  if (bitset != kNone) ++size;
   ASSERT(size >= 1);
   UnionedHandle unioned = Config::union_create(size, region);
 
   size = 0;
-  if (IsInhabited(bitset)) {
+  if (bitset != kNone) {
     Config::union_set(unioned, size++, Config::from_bitset(bitset, region));
   }
   size = ExtendIntersection(unioned, type1, type2, size);
@@ -655,11 +652,11 @@ void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
     }
   } else if (this->IsConstant()) {
     PrintF(out, "Constant(%p : ", static_cast<void*>(*this->AsConstant()));
-    Config::from_bitset(this->LubBitset())->TypePrint(out);
+    Config::from_bitset(this->LubBitset())->TypePrint(out, dim);
     PrintF(out, ")");
   } else if (this->IsClass()) {
     PrintF(out, "Class(%p < ", static_cast<void*>(*this->AsClass()));
-    Config::from_bitset(this->LubBitset())->TypePrint(out);
+    Config::from_bitset(this->LubBitset())->TypePrint(out, dim);
     PrintF(out, ")");
   } else if (this->IsUnion()) {
     PrintF(out, "(");

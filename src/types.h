@@ -181,7 +181,7 @@ namespace internal {
   V(Object,              kDetectableObject | kUndetectable)             \
   V(Receiver,            kObject | kProxy)                              \
   V(NonNumber,           kOddball | kName | kReceiver | kInternal)      \
-  V(Any,                 kNumber | kNonNumber)
+  V(Any,                 -1)
 
 #define BITSET_TYPE_LIST(V) \
   MASK_BITSET_TYPE_LIST(V) \
