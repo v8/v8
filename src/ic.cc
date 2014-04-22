@@ -1161,7 +1161,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
         stub = sloppy_arguments_stub();
       } else if (receiver->HasIndexedInterceptor()) {
         stub = indexed_interceptor_stub();
-      } else if (!key->ToSmi()->IsFailure() &&
+      } else if (!Object::ToSmi(isolate(), key).is_null() &&
                  (!target().is_identical_to(sloppy_arguments_stub()))) {
         stub = LoadElementStub(receiver);
       }
@@ -1655,10 +1655,9 @@ bool IsOutOfBoundsAccess(Handle<JSObject> receiver,
 KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
                                                 Handle<Object> key,
                                                 Handle<Object> value) {
-  ASSERT(!key->ToSmi()->IsFailure());
-  Smi* smi_key = NULL;
-  key->ToSmi()->To(&smi_key);
-  int index = smi_key->value();
+  Handle<Object> smi_key = Object::ToSmi(isolate(), key);
+  ASSERT(!smi_key.is_null() && smi_key->IsSmi());
+  int index = Handle<Smi>::cast(smi_key)->value();
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
   // dictionary mode.
@@ -1780,7 +1779,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        bool key_is_smi_like = key->IsSmi() || !key->ToSmi()->IsFailure();
+        bool key_is_smi_like = !Object::ToSmi(isolate(), key).is_null();
         if (receiver->elements()->map() ==
             isolate()->heap()->sloppy_arguments_elements_map()) {
           if (strict_mode() == SLOPPY) {

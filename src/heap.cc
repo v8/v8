@@ -2578,6 +2578,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
 
     for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
@@ -2881,6 +2882,12 @@ bool Heap::CreateInitialObjects() {
                            "termination_exception",
                            handle(Smi::FromInt(-3), isolate()),
                            Oddball::kOther));
+
+  set_exception(
+      *factory->NewOddball(factory->exception_map(),
+                           "exception",
+                           handle(Smi::FromInt(-5), isolate()),
+                           Oddball::kException));
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
     Handle<String> str =

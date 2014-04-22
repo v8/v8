@@ -596,8 +596,6 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static void ValidateImpl(Handle<JSObject> holder) {
     Handle<FixedArrayBase> fixed_array_base(holder->elements());
-    // When objects are first allocated, its elements are Failures.
-    if (fixed_array_base->IsFailure()) return;
     if (!fixed_array_base->IsHeapObject()) return;
     // Arrays that have been shifted in place can't be verified.
     if (fixed_array_base->IsFiller()) return;

@@ -588,17 +588,17 @@ class Isolate {
   // Interface to pending exception.
   Object* pending_exception() {
     ASSERT(has_pending_exception());
-    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
+    ASSERT(!thread_local_top_.pending_exception_->IsException());
     return thread_local_top_.pending_exception_;
   }
 
-  void set_pending_exception(Object* exception) {
-    ASSERT(!exception->IsFailure());
-    thread_local_top_.pending_exception_ = exception;
+  void set_pending_exception(Object* exception_obj) {
+    ASSERT(!exception_obj->IsException());
+    thread_local_top_.pending_exception_ = exception_obj;
   }
 
   void clear_pending_exception() {
-    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
+    ASSERT(!thread_local_top_.pending_exception_->IsException());
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
 
@@ -607,7 +607,7 @@ class Isolate {
   }
 
   bool has_pending_exception() {
-    ASSERT(!thread_local_top_.pending_exception_->IsFailure());
+    ASSERT(!thread_local_top_.pending_exception_->IsException());
     return !thread_local_top_.pending_exception_->IsTheHole();
   }
 
@@ -649,15 +649,15 @@ class Isolate {
 
   Object* scheduled_exception() {
     ASSERT(has_scheduled_exception());
-    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
+    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
     return thread_local_top_.scheduled_exception_;
   }
   bool has_scheduled_exception() {
-    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
+    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
     return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
   }
   void clear_scheduled_exception() {
-    ASSERT(!thread_local_top_.scheduled_exception_->IsFailure());
+    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
     thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
   }
 

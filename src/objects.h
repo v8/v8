@@ -1450,7 +1450,8 @@ class Object : public MaybeObject {
   // Oddball testing.
   INLINE(bool IsUndefined());
   INLINE(bool IsNull());
-  INLINE(bool IsTheHole());  // Shadows MaybeObject's implementation.
+  INLINE(bool IsTheHole());
+  INLINE(bool IsException());
   INLINE(bool IsUninitialized());
   INLINE(bool IsTrue());
   INLINE(bool IsFalse());
@@ -1531,7 +1532,6 @@ class Object : public MaybeObject {
   // Failure is returned otherwise.
   static MUST_USE_RESULT inline Handle<Object> ToSmi(Isolate* isolate,
                                                      Handle<Object> object);
-  MUST_USE_RESULT inline MaybeObject* ToSmi();
 
   void Lookup(Name* name, LookupResult* result);
 
@@ -9814,6 +9814,7 @@ class Oddball: public HeapObject {
   static const byte kUndefined = 5;
   static const byte kUninitialized = 6;
   static const byte kOther = 7;
+  static const byte kException = 8;
 
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,
