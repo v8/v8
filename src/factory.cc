@@ -532,6 +532,8 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 #endif
   ASSERT(begin > 0 || end < str->length());
 
+  str = String::Flatten(str);
+
   int length = end - begin;
   if (length <= 0) return empty_string();
   if (length == 1) {
@@ -566,28 +568,10 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 
   int offset = begin;
 
-  while (str->IsConsString()) {
-    Handle<ConsString> cons = Handle<ConsString>::cast(str);
-    int split = cons->first()->length();
-    if (split <= offset) {
-      // Slice is fully contained in the second part.
-      str = Handle<String>(cons->second(), isolate());
-      offset -= split;  // Adjust for offset.
-      continue;
-    } else if (offset + length <= split) {
-      // Slice is fully contained in the first part.
-      str = Handle<String>(cons->first(), isolate());
-      continue;
-    }
-    break;
-  }
-
   if (str->IsSlicedString()) {
     Handle<SlicedString> slice = Handle<SlicedString>::cast(str);
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
-  } else {
-    str = String::Flatten(str);
   }
 
   ASSERT(str->IsSeqString() || str->IsExternalString());
