@@ -2770,7 +2770,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
-  UniqueSet<Map> map_set() const { return map_set_; }
+  const UniqueSet<Map>* map_set() const { return &map_set_; }
 
   void set_map_set(UniqueSet<Map>* maps, Zone *zone) {
     map_set_.Clear();
@@ -6172,7 +6172,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
       return access_.representation();
   }
 
-  UniqueSet<Map> map_set() const { return map_set_; }
+  const UniqueSet<Map>* map_set() const { return &map_set_; }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
   virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {

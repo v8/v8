@@ -189,7 +189,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   // Compare this set against another set. O(|this|).
-  bool Equals(UniqueSet<T>* that) const {
+  bool Equals(const UniqueSet<T>* that) const {
     if (that->size_ != this->size_) return false;
     for (int i = 0; i < this->size_; i++) {
       if (this->array_[i] != that->array_[i]) return false;
@@ -200,7 +200,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   // Check whether this set contains the given element. O(|this|)
   // TODO(titzer): use binary search for large sets to make this O(log|this|)
   template <typename U>
-  bool Contains(Unique<U> elem) const {
+  bool Contains(const Unique<U> elem) const {
     for (int i = 0; i < size_; i++) {
       if (this->array_[i] == elem) return true;
     }
@@ -208,7 +208,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   // Check if this set is a subset of the given set. O(|this| + |that|).
-  bool IsSubset(UniqueSet<T>* that) const {
+  bool IsSubset(const UniqueSet<T>* that) const {
     if (that->size_ < this->size_) return false;
     int j = 0;
     for (int i = 0; i < this->size_; i++) {
