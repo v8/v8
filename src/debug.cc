@@ -1061,7 +1061,7 @@ Object* Debug::Break(Arguments args) {
 }
 
 
-RUNTIME_FUNCTION(Object*, Debug_Break) {
+RUNTIME_FUNCTION(Debug_Break) {
   return isolate->debug()->Break(args);
 }
 

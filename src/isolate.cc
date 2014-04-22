@@ -807,7 +807,7 @@ const char* const Isolate::kStackOverflowMessage =
   "Uncaught RangeError: Maximum call stack size exceeded";
 
 
-Failure* Isolate::StackOverflow() {
+Object* Isolate::StackOverflow() {
   HandleScope scope(this);
   // At this point we cannot create an Error object using its javascript
   // constructor.  Instead, we copy the pre-constructed boilerplate and
@@ -821,7 +821,7 @@ Failure* Isolate::StackOverflow() {
   // Get stack trace limit.
   Handle<Object> error = Object::GetProperty(
       this, js_builtins_object(), "$Error").ToHandleChecked();
-  if (!error->IsJSObject()) return Failure::Exception();
+  if (!error->IsJSObject()) return heap()->exception();
 
   Handle<String> stackTraceLimit =
       factory()->InternalizeUtf8String("stackTraceLimit");
@@ -829,7 +829,7 @@ Failure* Isolate::StackOverflow() {
   Handle<Object> stack_trace_limit =
       JSObject::GetDataProperty(Handle<JSObject>::cast(error),
                                 stackTraceLimit);
-  if (!stack_trace_limit->IsNumber()) return Failure::Exception();
+  if (!stack_trace_limit->IsNumber()) return heap()->exception();
   double dlimit = stack_trace_limit->Number();
   int limit = std::isnan(dlimit) ? 0 : static_cast<int>(dlimit);
 
@@ -838,13 +838,13 @@ Failure* Isolate::StackOverflow() {
   JSObject::SetHiddenProperty(exception,
                               factory()->hidden_stack_trace_string(),
                               stack_trace);
-  return Failure::Exception();
+  return heap()->exception();
 }
 
 
-Failure* Isolate::TerminateExecution() {
+Object* Isolate::TerminateExecution() {
   DoThrow(heap_.termination_exception(), NULL);
-  return Failure::Exception();
+  return heap()->exception();
 }
 
 
@@ -865,13 +865,13 @@ void Isolate::CancelTerminateExecution() {
 }
 
 
-Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
+Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location);
-  return Failure::Exception();
+  return heap()->exception();
 }
 
 
-Failure* Isolate::ReThrow(Object* exception) {
+Object* Isolate::ReThrow(Object* exception) {
   bool can_be_caught_externally = false;
   bool catchable_by_javascript = is_catchable_by_javascript(exception);
   ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
@@ -881,17 +881,17 @@ Failure* Isolate::ReThrow(Object* exception) {
 
   // Set the exception being re-thrown.
   set_pending_exception(exception);
-  return Failure::Exception();
+  return heap()->exception();
 }
 
 
-Failure* Isolate::ThrowIllegalOperation() {
+Object* Isolate::ThrowIllegalOperation() {
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
   return Throw(heap_.illegal_access_string());
 }
 
 
-Failure* Isolate::ThrowInvalidStringLength() {
+Object* Isolate::ThrowInvalidStringLength() {
   return Throw(*factory()->NewRangeError(
       "invalid_string_length", HandleVector<Object>(NULL, 0)));
 }
@@ -926,7 +926,7 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
 }
 
 
-Failure* Isolate::PromoteScheduledException() {
+Object* Isolate::PromoteScheduledException() {
   Object* thrown = scheduled_exception();
   clear_scheduled_exception();
   // Re-throw the exception to avoid getting repeated error reporting.
@@ -1216,7 +1216,7 @@ void Isolate::ReportPendingMessages() {
 
   HandleScope scope(this);
   if (thread_local_top_.pending_exception_ ==
-             heap()->termination_exception()) {
+          heap()->termination_exception()) {
     // Do nothing: if needed, the exception has been already propagated to
     // v8::TryCatch.
   } else {

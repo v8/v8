@@ -136,7 +136,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 // TODO(yangguo): Remove after we completely changed to MaybeHandles.
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)  \
-  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())
+  RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, isolate->heap()->exception())
 
 
 // Macros for MaybeHandle.
@@ -159,7 +159,8 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   } while (false)
 
 #define ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call)  \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, Failure::Exception())
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(                             \
+      isolate, dst, call, isolate->heap()->exception())
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call, T)  \
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, MaybeHandle<T>())
@@ -173,7 +174,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   } while (false)
 
 #define RETURN_FAILURE_ON_EXCEPTION(isolate, call)  \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, Failure::Exception())
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, isolate->heap()->exception())
 
 #define RETURN_ON_EXCEPTION(isolate, call, T)  \
   RETURN_ON_EXCEPTION_VALUE(isolate, call, MaybeHandle<T>())
@@ -768,7 +769,7 @@ class Isolate {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Failure* Throw(Object* exception, MessageLocation* location = NULL);
+  Object* Throw(Object* exception, MessageLocation* location = NULL);
 
   template <typename T>
   MUST_USE_RESULT MaybeHandle<T> Throw(Handle<Object> exception,
@@ -780,7 +781,7 @@ class Isolate {
   // Re-throw an exception.  This involves no error reporting since
   // error reporting was handled when the exception was thrown
   // originally.
-  Failure* ReThrow(Object* exception);
+  Object* ReThrow(Object* exception);
   void ScheduleThrow(Object* exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
@@ -788,11 +789,11 @@ class Isolate {
   void ReportPendingMessages();
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
-  Failure* ThrowIllegalOperation();
-  Failure* ThrowInvalidStringLength();
+  Object* ThrowIllegalOperation();
+  Object* ThrowInvalidStringLength();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Failure* PromoteScheduledException();
+  Object* PromoteScheduledException();
   void DoThrow(Object* exception, MessageLocation* location);
   // Checks if exception should be reported and finds out if it's
   // caught externally.
@@ -804,8 +805,8 @@ class Isolate {
   void ComputeLocation(MessageLocation* target);
 
   // Out of resource exception helpers.
-  Failure* StackOverflow();
-  Failure* TerminateExecution();
+  Object* StackOverflow();
+  Object* TerminateExecution();
   void CancelTerminateExecution();
 
   // Administration

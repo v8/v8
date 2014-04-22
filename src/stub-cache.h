@@ -288,15 +288,15 @@ class StubCache {
 
 
 // Support functions for IC stubs for callbacks.
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty);
+DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
 
 
 // Support functions for IC stubs for interceptors.
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall);
+DECLARE_RUNTIME_FUNCTION(StoreInterceptorProperty);
+DECLARE_RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor);
 
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
@@ -309,7 +309,7 @@ class StubCompiler BASE_EMBEDDED {
   explicit StubCompiler(Isolate* isolate,
                         ExtraICState extra_ic_state = kNoExtraICState)
       : isolate_(isolate), extra_ic_state_(extra_ic_state),
-        masm_(isolate, NULL, 256), failure_(NULL) { }
+        masm_(isolate, NULL, 256) { }
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
   Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
@@ -417,7 +417,6 @@ class StubCompiler BASE_EMBEDDED {
   ExtraICState extra_state() { return extra_ic_state_; }
 
   MacroAssembler* masm() { return &masm_; }
-  void set_failure(Failure* failure) { failure_ = failure; }
 
   static void LookupPostInterceptor(Handle<JSObject> holder,
                                     Handle<Name> name,

@@ -637,7 +637,7 @@ class Debug {
 };
 
 
-DECLARE_RUNTIME_FUNCTION(Object*, Debug_Break);
+DECLARE_RUNTIME_FUNCTION(Debug_Break);
 
 
 // Message delivered to the message handler callback. This is either a debugger
