@@ -442,7 +442,12 @@ class Factory V8_FINAL {
   void BecomeJSFunction(Handle<JSReceiver> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Object> prototype);
+                                 Handle<Code> code,
+                                 MaybeHandle<Object> maybe_prototype =
+                                     MaybeHandle<Object>());
+
+  Handle<JSFunction> NewFunctionWithPrototype(Handle<String> name,
+                                              Handle<Object> prototype);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info,
@@ -461,9 +466,6 @@ class Factory V8_FINAL {
                                               Handle<JSObject> prototype,
                                               Handle<Code> code,
                                               bool force_initial_map);
-
-  Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
-                                                 Handle<Code> code);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);

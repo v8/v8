@@ -159,7 +159,7 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunction(
+    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
         func_name, factory->undefined_value());
     Handle<Map> initial_map = factory->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);

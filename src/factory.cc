@@ -1273,12 +1273,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Code> code,
                                         bool force_initial_map) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, the_hole_value());
-
-  // Set up the code pointer in both the shared function info and in
-  // the function itself.
-  function->shared()->set_code(*code);
-  function->set_code(*code);
+  Handle<JSFunction> function = NewFunction(name, code, the_hole_value());
 
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||
@@ -1304,12 +1299,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
                                                      Handle<Code> code,
                                                      bool force_initial_map) {
   // Allocate the function.
-  Handle<JSFunction> function = NewFunction(name, prototype);
-
-  // Set up the code pointer in both the shared function info and in
-  // the function itself.
-  function->shared()->set_code(*code);
-  function->set_code(*code);
+  Handle<JSFunction> function = NewFunction(name, code, prototype);
 
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||
@@ -2041,19 +2031,20 @@ Handle<JSFunction> Factory::NewFunction(Handle<SharedFunctionInfo> info,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Object> prototype) {
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
-  Handle<Context> context(isolate()->context()->native_context());
-  return NewFunction(info, context, prototype);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
-                                                        Handle<Code> code) {
+                                        Handle<Code> code,
+                                        MaybeHandle<Object> maybe_prototype) {
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
   info->set_code(*code);
   Handle<Context> context(isolate()->context()->native_context());
-  return NewFunction(info, context, MaybeHandle<Object>());
+  return NewFunction(info, context, maybe_prototype);
+}
+
+
+Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
+                                                     Handle<Object> prototype) {
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  Handle<Context> context(isolate()->context()->native_context());
+  return NewFunction(info, context, prototype);
 }
 
 
