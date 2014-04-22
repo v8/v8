@@ -3333,51 +3333,28 @@ MemOperand LCodeGen::PrepareKeyedExternalArrayOperand(
     ElementsKind elements_kind,
     int additional_index) {
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
-  int additional_offset = IsFixedTypedArrayElementsKind(elements_kind)
-      ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
-      : 0;
+  int additional_offset = additional_index << element_size_shift;
+  if (IsFixedTypedArrayElementsKind(elements_kind)) {
+    additional_offset += FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  }
 
   if (key_is_constant) {
-    int base_offset = ((constant_key + additional_index) << element_size_shift);
-    return MemOperand(base, base_offset + additional_offset);
+    int key_offset = constant_key << element_size_shift;
+    return MemOperand(base, key_offset + additional_offset);
   }
 
-  if (additional_index == 0) {
-    if (key_is_smi) {
-      // Key is smi: untag, and scale by element size.
-      __ Add(scratch, base, Operand::UntagSmiAndScale(key, element_size_shift));
-      return MemOperand(scratch, additional_offset);
-    } else {
-      // Key is not smi, and element size is not byte: scale by element size.
-      if (additional_offset == 0) {
-        return MemOperand(base, key, SXTW, element_size_shift);
-      } else {
-        __ Add(scratch, base, Operand(key, SXTW, element_size_shift));
-        return MemOperand(scratch, additional_offset);
-      }
-    }
-  } else {
-    // TODO(all): Try to combine these cases a bit more intelligently.
-    if (additional_offset == 0) {
-      if (key_is_smi) {
-        __ SmiUntag(scratch, key);
-        __ Add(scratch.W(), scratch.W(), additional_index);
-      } else {
-        __ Add(scratch.W(), key.W(), additional_index);
-      }
-      return MemOperand(base, scratch, LSL, element_size_shift);
-    } else {
-      if (key_is_smi) {
-        __ Add(scratch, base,
-               Operand::UntagSmiAndScale(key, element_size_shift));
-      } else {
-        __ Add(scratch, base, Operand(key, SXTW, element_size_shift));
-      }
-      return MemOperand(
-          scratch,
-          (additional_index << element_size_shift) + additional_offset);
-    }
+  if (key_is_smi) {
+    __ Add(scratch, base, Operand::UntagSmiAndScale(key, element_size_shift));
+    return MemOperand(scratch, additional_offset);
   }
+
+  if (additional_offset == 0) {
+    return MemOperand(base, key, SXTW, element_size_shift);
+  }
+
+  ASSERT(!AreAliased(scratch, key));
+  __ Add(scratch, base, additional_offset);
+  return MemOperand(scratch, key, SXTW, element_size_shift);
 }
 
 
@@ -4673,13 +4650,13 @@ MemOperand LCodeGen::BuildSeqStringOperand(Register string,
     return FieldMemOperand(string, SeqString::kHeaderSize + offset);
   }
 
+  __ Add(temp, string, SeqString::kHeaderSize - kHeapObjectTag);
   if (encoding == String::ONE_BYTE_ENCODING) {
-    __ Add(temp, string, Operand(ToRegister32(index), SXTW));
+    return MemOperand(temp, ToRegister32(index), SXTW);
   } else {
     STATIC_ASSERT(kUC16Size == 2);
-    __ Add(temp, string, Operand(ToRegister32(index), SXTW, 1));
+    return MemOperand(temp, ToRegister32(index), SXTW, 1);
   }
-  return FieldMemOperand(temp, SeqString::kHeaderSize);
 }
 
 
@@ -5410,8 +5387,8 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   __ Cmp(char_code, String::kMaxOneByteCharCode);
   __ B(hi, deferred->entry());
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
-  __ Add(result, result, Operand(char_code, SXTW, kPointerSizeLog2));
-  __ Ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
+  __ Add(result, result, FixedArray::kHeaderSize - kHeapObjectTag);
+  __ Ldr(result, MemOperand(result, char_code, SXTW, kPointerSizeLog2));
   __ CompareRoot(result, Heap::kUndefinedValueRootIndex);
   __ B(eq, deferred->entry());
   __ Bind(deferred->exit());
