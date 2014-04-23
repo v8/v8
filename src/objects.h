@@ -7240,6 +7240,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_ast_node_count(int count);
 
   inline int profiler_ticks();
+  inline void set_profiler_ticks(int ticks);
 
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
@@ -7413,14 +7414,10 @@ class SharedFunctionInfo: public HeapObject {
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
   static const int kInitialMapOffset =
       kInferredNameOffset + kPointerSize;
-  // ast_node_count is a Smi field. It could be grouped with another Smi field
-  // into a PSEUDO_SMI_ACCESSORS pair (on x64), if one becomes available.
-  static const int kAstNodeCountOffset =
-      kInitialMapOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kAstNodeCountOffset + kPointerSize;
+      kInitialMapOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -7438,9 +7435,13 @@ class SharedFunctionInfo: public HeapObject {
       kCompilerHintsOffset + kPointerSize;
   static const int kCountersOffset =
       kOptCountAndBailoutReasonOffset + kPointerSize;
+  static const int kAstNodeCountOffset =
+      kCountersOffset + kPointerSize;
+  static const int kProfilerTicksOffset =
+      kAstNodeCountOffset + kPointerSize;
 
   // Total size.
-  static const int kSize = kCountersOffset + kPointerSize;
+  static const int kSize = kProfilerTicksOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -7452,7 +7453,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kAstNodeCountOffset + kPointerSize;
+      kInitialMapOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -7473,12 +7474,16 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kOptCountAndBailoutReasonOffset =
       kCompilerHintsOffset + kIntSize;
-
   static const int kCountersOffset =
       kOptCountAndBailoutReasonOffset + kIntSize;
 
+  static const int kAstNodeCountOffset =
+      kCountersOffset + kIntSize;
+  static const int kProfilerTicksOffset =
+      kAstNodeCountOffset + kIntSize;
+
   // Total size.
-  static const int kSize = kCountersOffset + kIntSize;
+  static const int kSize = kProfilerTicksOffset + kIntSize;
 
 #endif
 

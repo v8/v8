@@ -1851,6 +1851,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   share->set_initial_map(*undefined_value(), SKIP_WRITE_BARRIER);
+  share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
   share->set_counters(0);
 
