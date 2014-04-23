@@ -7596,6 +7596,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
 
       Drop(expr->arguments()->length());
       HValue* result;
@@ -7658,6 +7660,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
 
       HValue* op_vals[] = {
         context(),
