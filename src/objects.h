@@ -929,7 +929,6 @@ class MaybeObject BASE_EMBEDDED {
  public:
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
-  inline bool IsException();
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
@@ -1665,9 +1664,8 @@ class Smi: public Object {
 };
 
 
-// Failure is used for reporting out of memory situations and
-// propagating exceptions through the runtime system.  Failure objects
-// are transient and cannot occur as part of the object graph.
+// Failure is mainly used for reporting a situation requiring a GC.
+// Failure objects are transient and cannot occur as part of the object graph.
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
@@ -1679,9 +1677,6 @@ class Smi: public Object {
 // The low two bits, 0-1, are the failure tag, 11.  The next two bits,
 // 2-3, are a failure type tag 'tt' with possible values:
 //   00 RETRY_AFTER_GC
-//   01 EXCEPTION
-//   10 INTERNAL_ERROR
-//   11 OUT_OF_MEMORY_EXCEPTION
 //
 // The next three bits, 4-6, are an allocation space tag 'sss'.  The
 // allocation space tag is 000 for all failure types except
@@ -1694,13 +1689,8 @@ const int kFailureTypeTagMask = (1 << kFailureTypeTagSize) - 1;
 
 class Failure: public MaybeObject {
  public:
-  // RuntimeStubs assumes EXCEPTION = 1 in the compiler-generated code.
   enum Type {
-    RETRY_AFTER_GC = 0,
-    EXCEPTION = 1,       // Returning this marker tells the real exception
-                         // is in Isolate::pending_exception.
-    INTERNAL_ERROR = 2,
-    OUT_OF_MEMORY_EXCEPTION = 3
+    RETRY_AFTER_GC = 0
   };
 
   inline Type type() const;
@@ -1710,8 +1700,6 @@ class Failure: public MaybeObject {
 
   static inline Failure* RetryAfterGC(AllocationSpace space);
   static inline Failure* RetryAfterGC();  // NEW_SPACE
-  static inline Failure* Exception();
-  static inline Failure* InternalError();
   // Casting.
   static inline Failure* cast(MaybeObject* object);
 

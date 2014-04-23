@@ -661,11 +661,6 @@ bool MaybeObject::IsRetryAfterGC() {
 }
 
 
-bool MaybeObject::IsException() {
-  return this == Failure::Exception();
-}
-
-
 Failure* Failure::cast(MaybeObject* obj) {
   ASSERT(HAS_FAILURE_TAG(obj));
   return reinterpret_cast<Failure*>(obj);
@@ -1294,16 +1289,6 @@ AllocationSpace Failure::allocation_space() const {
   ASSERT_EQ(RETRY_AFTER_GC, type());
   return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
                                       & kSpaceTagMask);
-}
-
-
-Failure* Failure::InternalError() {
-  return Construct(INTERNAL_ERROR);
-}
-
-
-Failure* Failure::Exception() {
-  return Construct(EXCEPTION);
 }
 
 

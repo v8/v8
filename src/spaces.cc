@@ -1005,11 +1005,11 @@ size_t PagedSpace::CommittedPhysicalMemory() {
 }
 
 
-MaybeObject* PagedSpace::FindObject(Address addr) {
+Object* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on precisely swept spaces.
   ASSERT(!heap()->mark_compact_collector()->in_use());
 
-  if (!Contains(addr)) return Failure::Exception();
+  if (!Contains(addr)) return Smi::FromInt(0);  // Signaling not found.
 
   Page* p = Page::FromAddress(addr);
   HeapObjectIterator it(p, NULL);
@@ -1020,7 +1020,7 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
   }
 
   UNREACHABLE();
-  return Failure::Exception();
+  return Smi::FromInt(0);
 }
 
 
@@ -3015,12 +3015,12 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
 
 
 // GC support
-MaybeObject* LargeObjectSpace::FindObject(Address a) {
+Object* LargeObjectSpace::FindObject(Address a) {
   LargePage* page = FindPage(a);
   if (page != NULL) {
     return page->GetObject();
   }
-  return Failure::Exception();
+  return Smi::FromInt(0);  // Signaling not found.
 }
 
 
@@ -3101,7 +3101,7 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
 
   bool owned = (chunk->owner() == this);
 
-  SLOW_ASSERT(!owned || !FindObject(address)->IsFailure());
+  SLOW_ASSERT(!owned || FindObject(address)->IsHeapObject());
 
   return owned;
 }

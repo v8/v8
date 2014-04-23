@@ -115,40 +115,40 @@ class Accessors : public AllStatic {
 
  private:
   // Accessor functions only used through the descriptor.
-  static MaybeObject* FunctionSetPrototype(Isolate* isolate,
-                                           JSObject* object,
-                                           Object*,
-                                           void*);
-  static MaybeObject* FunctionGetPrototype(Isolate* isolate,
-                                           Object* object,
-                                           void*);
-  static MaybeObject* FunctionGetLength(Isolate* isolate,
-                                        Object* object,
-                                        void*);
-  static MaybeObject* FunctionGetName(Isolate* isolate, Object* object, void*);
-  static MaybeObject* FunctionGetArguments(Isolate* isolate,
-                                           Object* object,
-                                           void*);
-  static MaybeObject* FunctionGetCaller(Isolate* isolate,
-                                        Object* object,
-                                        void*);
-  static MaybeObject* ArraySetLength(Isolate* isolate,
-                                     JSObject* object,
-                                     Object*,
-                                     void*);
-  static MaybeObject* ArrayGetLength(Isolate* isolate, Object* object, void*);
+  static Object* FunctionSetPrototype(Isolate* isolate,
+                                      JSObject* object,
+                                      Object*,
+                                      void*);
+  static Object* FunctionGetPrototype(Isolate* isolate,
+                                      Object* object,
+                                      void*);
+  static Object* FunctionGetLength(Isolate* isolate,
+                                   Object* object,
+                                   void*);
+  static Object* FunctionGetName(Isolate* isolate, Object* object, void*);
+  static Object* FunctionGetArguments(Isolate* isolate,
+                                      Object* object,
+                                      void*);
+  static Object* FunctionGetCaller(Isolate* isolate,
+                                   Object* object,
+                                   void*);
+  static Object* ArraySetLength(Isolate* isolate,
+                                JSObject* object,
+                                Object*,
+                                void*);
+  static Object* ArrayGetLength(Isolate* isolate, Object* object, void*);
 
   // Helper functions.
   static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);
-  static MaybeObject* IllegalSetter(Isolate* isolate,
-                                    JSObject*,
-                                    Object*,
-                                    void*);
+  static Object* IllegalSetter(Isolate* isolate,
+                               JSObject*,
+                               Object*,
+                               void*);
   static Object* IllegalGetAccessor(Isolate* isolate, Object* object, void*);
-  static MaybeObject* ReadOnlySetAccessor(Isolate* isolate,
-                                          JSObject*,
-                                          Object* value,
-                                          void*);
+  static Object* ReadOnlySetAccessor(Isolate* isolate,
+                                     JSObject*,
+                                     Object* value,
+                                     void*);
 };
 
 } }  // namespace v8::internal

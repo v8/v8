@@ -240,7 +240,6 @@ TEST(Tagging) {
            Failure::RetryAfterGC(NEW_SPACE)->allocation_space());
   CHECK_EQ(OLD_POINTER_SPACE,
            Failure::RetryAfterGC(OLD_POINTER_SPACE)->allocation_space());
-  CHECK(Failure::Exception()->IsFailure());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
 }
