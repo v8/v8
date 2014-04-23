@@ -4663,6 +4663,10 @@ class ScopeInfo : public FixedArray {
   // Return the initialization flag of the given context local.
   InitializationFlag ContextLocalInitFlag(int var);
 
+  // Return true if this local was introduced by the compiler, and should not be
+  // exposed to the user in a debugger.
+  bool LocalIsSynthetic(int var);
+
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
   // present; otherwise returns a value < 0. The name must be an internalized

@@ -278,6 +278,17 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
 }
 
 
+bool ScopeInfo::LocalIsSynthetic(int var) {
+  ASSERT(0 <= var && var < LocalCount());
+  // There's currently no flag stored on the ScopeInfo to indicate that a
+  // variable is a compiler-introduced temporary. However, to avoid conflict
+  // with user declarations, the current temporaries like .generator_object and
+  // .result start with a dot, so we can use that as a flag. It's a hack!
+  Handle<String> name(LocalName(var));
+  return name->length() > 0 && name->Get(0) == '.';
+}
+
+
 int ScopeInfo::StackSlotIndex(String* name) {
   ASSERT(name->IsInternalizedString());
   if (length() > 0) {
@@ -368,16 +379,17 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
   int local_count = scope_info->ContextLocalCount();
   if (local_count == 0) return true;
   // Fill all context locals to the context extension.
+  int first_context_var = scope_info->StackLocalCount();
   int start = scope_info->ContextLocalNameEntriesIndex();
-  int end = start + local_count;
-  for (int i = start; i < end; ++i) {
-    int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
+  for (int i = 0; i < local_count; ++i) {
+    if (scope_info->LocalIsSynthetic(first_context_var + i)) continue;
+    int context_index = Context::MIN_CONTEXT_SLOTS + i;
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
         Runtime::SetObjectProperty(
             isolate,
             scope_object,
-            Handle<String>(String::cast(scope_info->get(i))),
+            Handle<String>(String::cast(scope_info->get(i + start))),
             Handle<Object>(context->get(context_index), isolate),
             ::NONE,
             SLOPPY),
