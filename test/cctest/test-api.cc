@@ -9396,7 +9396,6 @@ TEST(AccessControlES5) {
   CHECK_EQ(42, g_echo_value_1);
 
   v8::Handle<Value> value;
-  // We follow Safari in ignoring assignments to host object accessors.
   CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");
   value = CompileRun("other.accessible_prop == 42");
   CHECK(value->IsTrue());

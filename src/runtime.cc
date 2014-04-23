@@ -5229,17 +5229,12 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
   // Special case for callback properties.
   if (lookup.IsPropertyCallbacks()) {
     Handle<Object> callback(lookup.GetCallbackObject(), isolate);
-    // To be compatible with Safari we do not change the value on API objects
-    // in Object.defineProperty(). Firefox disagrees here, and actually changes
-    // the value.
-    if (callback->IsAccessorInfo()) {
-      return isolate->heap()->undefined_value();
-    }
-    // Avoid redefining foreign callback as data property, just use the stored
+    // Avoid redefining callback as data property, just use the stored
     // setter to update the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
     // change, this should be fixed once we cleanup the underlying code.
-    if (callback->IsForeign() && lookup.GetAttributes() == attr) {
+    if ((callback->IsForeign() || callback->IsAccessorInfo()) &&
+        lookup.GetAttributes() == attr) {
       Handle<Object> result_object;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, result_object,
