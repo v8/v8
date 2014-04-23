@@ -5193,6 +5193,7 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineAccessorProperty) {
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
   bool fast = obj->HasFastProperties();
+  // DefineAccessor checks access rights.
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (fast) JSObject::TransformToFastProperties(obj, 0);
@@ -5215,6 +5216,12 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
   CONVERT_SMI_ARG_CHECKED(unchecked, 3);
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
+
+  // Check access rights if needed.
+  if (js_object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(js_object, name, v8::ACCESS_SET)) {
+    return isolate->heap()->undefined_value();
+  }
 
   LookupResult lookup(isolate);
   js_object->LocalLookupRealNamedProperty(*name, &lookup);
