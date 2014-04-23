@@ -595,17 +595,13 @@ static const char* not_so_random_string_table[] = {
 
 
 static void CheckInternalizedStrings(const char** strings) {
+  Factory* factory = CcTest::i_isolate()->factory();
   for (const char* string = *strings; *strings != 0; string = *strings++) {
-    Object* a;
-    MaybeObject* maybe_a = CcTest::heap()->InternalizeUtf8String(string);
-    // InternalizeUtf8String may return a failure if a GC is needed.
-    if (!maybe_a->ToObject(&a)) continue;
+    Handle<String> a = factory->InternalizeUtf8String(string);
     CHECK(a->IsInternalizedString());
-    Object* b;
-    MaybeObject* maybe_b = CcTest::heap()->InternalizeUtf8String(string);
-    if (!maybe_b->ToObject(&b)) continue;
-    CHECK_EQ(b, a);
-    CHECK(String::cast(b)->IsUtf8EqualTo(CStrVector(string)));
+    Handle<String> b = factory->InternalizeUtf8String(string);
+    CHECK_EQ(*b, *a);
+    CHECK(String::cast(*b)->IsUtf8EqualTo(CStrVector(string)));
   }
 }
 
@@ -613,6 +609,7 @@ static void CheckInternalizedStrings(const char** strings) {
 TEST(StringTable) {
   CcTest::InitializeVM();
 
+  v8::HandleScope sc(CcTest::isolate());
   CheckInternalizedStrings(not_so_random_string_table);
   CheckInternalizedStrings(not_so_random_string_table);
 }

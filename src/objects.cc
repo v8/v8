@@ -14536,37 +14536,37 @@ template class SubStringKey<uint16_t>;
 // InternalizedStringKey carries a string/internalized-string object as key.
 class InternalizedStringKey : public HashTableKey {
  public:
-  explicit InternalizedStringKey(String* string)
+  explicit InternalizedStringKey(Handle<String> string)
       : string_(string) { }
 
-  bool IsMatch(Object* string) {
-    return String::cast(string)->Equals(string_);
+  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+    return String::cast(string)->Equals(*string_);
   }
 
-  uint32_t Hash() { return string_->Hash(); }
+  virtual uint32_t Hash() V8_OVERRIDE { return string_->Hash(); }
 
-  uint32_t HashForObject(Object* other) {
+  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  MaybeObject* AsObject(Heap* heap) {
+  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE {
     // Internalize the string if possible.
-    Map* map = heap->InternalizedStringMapForString(string_);
+    Map* map = heap->InternalizedStringMapForString(*string_);
     if (map != NULL) {
       string_->set_map_no_write_barrier(map);
       ASSERT(string_->IsInternalizedString());
-      return string_;
+      return *string_;
     }
     // Otherwise allocate a new internalized string.
     return heap->AllocateInternalizedStringImpl(
-        string_, string_->length(), string_->hash_field());
+        *string_, string_->length(), string_->hash_field());
   }
 
   static uint32_t StringHash(Object* obj) {
     return String::cast(obj)->Hash();
   }
 
-  String* string_;
+  Handle<String> string_;
 };
 
 
@@ -15492,12 +15492,6 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
 }
 
 
-MaybeObject* StringTable::LookupString(String* string, Object** s) {
-  InternalizedStringKey key(string);
-  return LookupKey(&key, s);
-}
-
-
 // This class is used for looking up two character strings in the string table.
 // If we don't have a hit we don't want to waste much time so we unroll the
 // string hash calculation loop here for speed.  Doesn't work if the two
@@ -15564,7 +15558,10 @@ class TwoCharHashTableKey : public HashTableKey {
 
 bool StringTable::LookupStringIfExists(String* string, String** result) {
   SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  InternalizedStringKey key(string);
+  DisallowHeapAllocation no_alloc;
+  // TODO(ishell): Handlify all the callers and remove this scope.
+  HandleScope scope(GetIsolate());
+  InternalizedStringKey key(handle(string));
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;
@@ -15592,39 +15589,38 @@ bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
 }
 
 
-MaybeObject* StringTable::LookupKey(HashTableKey* key, Object** s) {
-  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  int entry = FindEntry(key);
+Handle<String> StringTable::LookupString(Isolate* isolate,
+                                         Handle<String> string) {
+  InternalizedStringKey key(string);
+  return LookupKey(isolate, &key);
+}
+
+
+// TODO(ishell): Maybehandlify callers.
+Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  int entry = table->FindEntry(key);
 
   // String already in table.
   if (entry != kNotFound) {
-    *s = KeyAt(entry);
-    return this;
+    return handle(String::cast(table->KeyAt(entry)), isolate);
   }
 
   // Adding new string. Grow table if needed.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  table = StringTable::EnsureCapacity(table, 1, key);
 
   // Create string object.
-  Object* string;
-  { MaybeObject* maybe_string = key->AsObject(GetHeap());
-    if (!maybe_string->ToObject(&string)) return maybe_string;
-  }
-
-  // If the string table grew as part of EnsureCapacity, obj is not
-  // the current string table and therefore we cannot use
-  // StringTable::cast here.
-  StringTable* table = reinterpret_cast<StringTable*>(obj);
+  Handle<Object> string = key->AsHandle(isolate);
+  // TODO(ishell): Maybehandlify this.
+  if (string.is_null()) return Handle<String>();
 
   // Add the new string and return it along with the string table.
   entry = table->FindInsertionEntry(key->Hash());
-  table->set(EntryToIndex(entry), string);
+  table->set(EntryToIndex(entry), *string);
   table->ElementAdded();
-  *s = string;
-  return table;
+
+  isolate->factory()->set_string_table(table);
+  return Handle<String>::cast(string);
 }
 
 

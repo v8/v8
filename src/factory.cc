@@ -242,9 +242,8 @@ Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
 
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeString(Handle<String> string) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeString(*string),
-                     String);
+  if (string->IsInternalizedString()) return string;
+  return StringTable::LookupString(isolate(), string);
 }
 
 
@@ -269,9 +268,7 @@ Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
 
 template<class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->InternalizeStringWithKey(key),
-                     String);
+  return StringTable::LookupKey(isolate(), key);
 }
 
 
@@ -350,11 +347,27 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
 }
 
 
-Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t index) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->LookupSingleCharacterStringFromCode(index),
-      String);
+Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t code) {
+  if (code <= String::kMaxOneByteCharCodeU) {
+    {
+      DisallowHeapAllocation no_allocation;
+      Object* value = single_character_string_cache()->get(code);
+      if (value != *undefined_value()) {
+        return handle(String::cast(value), isolate());
+      }
+    }
+    uint8_t buffer[1];
+    buffer[0] = static_cast<uint8_t>(code);
+    Handle<String> result =
+        InternalizeOneByteString(Vector<const uint8_t>(buffer, 1));
+    single_character_string_cache()->set(code, *result);
+    return result;
+  }
+  ASSERT(code <= String::kMaxUtf16CodeUnitU);
+
+  Handle<SeqTwoByteString> result = NewRawTwoByteString(1).ToHandleChecked();
+  result->SeqTwoByteStringSet(0, static_cast<uint16_t>(code));
+  return result;
 }
 
 

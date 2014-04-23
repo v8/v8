@@ -3881,6 +3881,8 @@ class HashTableKey {
   // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
   MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
+  // TODO(ishell): This should eventually replace AsObject().
+  inline Handle<Object> AsHandle(Isolate* isolate);
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -3918,12 +3920,10 @@ class StringTable: public HashTable<StringTable,
                                     StringTableShape,
                                     HashTableKey*> {
  public:
-  // Find string in the string table.  If it is not there yet, it is
-  // added.  The return value is the string table which might have
-  // been enlarged.  If the return value is not a failure, the string
-  // pointer *s is set to the string found.
-  MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
-  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
+  // Find string in the string table. If it is not there yet, it is
+  // added. The return value is the string found.
+  static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  static Handle<String> LookupKey(Isolate* isolate, HashTableKey* key);
 
   // Looks up a string that is equal to the given string and returns
   // true if it is found, assigning the string to the given output
@@ -9217,6 +9217,7 @@ class String: public Name {
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
+  static const uint32_t kMaxUtf16CodeUnitU = kMaxUtf16CodeUnit;
 
   // Value of hash field containing computed hash equal to zero.
   static const int kEmptyStringHash = kIsNotArrayIndexMask;

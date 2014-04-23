@@ -2146,7 +2146,10 @@ void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
   MarkBit string_table_mark = Marking::MarkBitFrom(string_table);
-  SetMark(string_table, string_table_mark);
+  if (!string_table_mark.Get()) {
+    // String table could have already been marked by visiting the handles list.
+    SetMark(string_table, string_table_mark);
+  }
   // Explicitly mark the prefix.
   string_table->IteratePrefix(visitor);
   ProcessMarkingDeque();
