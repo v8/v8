@@ -5816,7 +5816,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
   if (transition_index != TransitionArray::kNotFound) {
     new_map = handle(old_map->GetTransition(transition_index), isolate);
     ASSERT(new_map->is_observed());
-  } else if (old_map->CanHaveMoreTransitions()) {
+  } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
     new_map = Map::CopyForObserved(old_map);
   } else {
     new_map = Map::Copy(old_map);
