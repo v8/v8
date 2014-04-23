@@ -142,7 +142,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(Result SerializeJSArray(Handle<JSArray> object));
   INLINE(Result SerializeJSObject(Handle<JSObject> object));
 
-  Result SerializeJSArraySlow(Handle<JSArray> object, int length);
+  Result SerializeJSArraySlow(Handle<JSArray> object, uint32_t length);
 
   void SerializeString(Handle<String> object);
 
@@ -569,13 +569,14 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  int length = Smi::cast(object->length())->value();
+  uint32_t length = 0;
+  CHECK(object->length()->ToArrayIndex(&length));
   Append('[');
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS: {
       Handle<FixedArray> elements(
           FixedArray::cast(object->elements()), isolate_);
-      for (int i = 0; i < length; i++) {
+      for (uint32_t i = 0; i < length; i++) {
         if (i > 0) Append(',');
         SerializeSmi(Smi::cast(elements->get(i)));
       }
@@ -584,7 +585,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
     case FAST_DOUBLE_ELEMENTS: {
       Handle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(object->elements()), isolate_);
-      for (int i = 0; i < length; i++) {
+      for (uint32_t i = 0; i < length; i++) {
         if (i > 0) Append(',');
         SerializeDouble(elements->get_scalar(i));
       }
@@ -593,7 +594,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
     case FAST_ELEMENTS: {
       Handle<FixedArray> elements(
           FixedArray::cast(object->elements()), isolate_);
-      for (int i = 0; i < length; i++) {
+      for (uint32_t i = 0; i < length; i++) {
         if (i > 0) Append(',');
         Result result =
             SerializeElement(isolate_,
@@ -625,8 +626,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
 
 
 BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArraySlow(
-    Handle<JSArray> object, int length) {
-  for (int i = 0; i < length; i++) {
+    Handle<JSArray> object, uint32_t length) {
+  for (uint32_t i = 0; i < length; i++) {
     if (i > 0) Append(',');
     Handle<Object> element;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
