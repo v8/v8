@@ -7830,7 +7830,10 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                                                elements_kind, STORE,
                                                NEVER_RETURN_HOLE,
                                                STORE_AND_GROW_NO_TRANSITION);
+
+        if (!ast_context()->IsEffect()) Push(new_size);
         Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+        if (!ast_context()->IsEffect()) Drop(1);
       }
 
       ast_context()->ReturnValue(new_size);
