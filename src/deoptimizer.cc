@@ -2632,13 +2632,11 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   // function into account so we have to avoid double counting them.
   unsigned result = fixed_size + fp_to_sp_delta_ -
       StandardFrameConstants::kFixedFrameSizeFromFp;
-#ifdef DEBUG
   if (compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size = ComputeOutgoingArgumentSize();
-    ASSERT(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);
+    CHECK(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);
   }
-#endif
   return result;
 }
 

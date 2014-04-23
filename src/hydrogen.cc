@@ -7811,6 +7811,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
       HValue* value_to_push = Pop();
       HValue* array = Pop();
+      Drop(1);  // Drop function.
 
       HInstruction* new_size = NULL;
       HValue* length = NULL;
@@ -7832,7 +7833,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       }
 
-      Drop(1);  // Drop function.
       ast_context()->ReturnValue(new_size);
       return true;
     }
