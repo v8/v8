@@ -63,8 +63,8 @@ namespace internal {
 
 Handle<HeapType> Object::OptimalType(Isolate* isolate,
                                      Representation representation) {
+  if (representation.IsNone()) return HeapType::None(isolate);
   if (FLAG_track_field_types) {
-    if (representation.IsNone()) return HeapType::None(isolate);
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(this)->map(), isolate);
