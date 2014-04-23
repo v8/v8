@@ -30,8 +30,7 @@
 
 #include <queue>
 
-// TODO(jochen): We should have our own version of globals.h.
-#include "../globals.h"
+#include "../base/macros.h"
 #include "../platform.h"
 
 namespace v8 {
