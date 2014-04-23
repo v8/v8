@@ -1610,34 +1610,34 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void CEntryStub::GenerateCore(MacroAssembler* masm,
-                              Label* throw_normal_exception,
-                              Label* throw_termination_exception,
-                              bool do_gc,
-                              bool always_allocate) {
-  // v0: result parameter for PerformGC, if any
-  // s0: number of arguments including receiver (C callee-saved)
-  // s1: pointer to the first argument          (C callee-saved)
-  // s2: pointer to builtin function            (C callee-saved)
+void CEntryStub::Generate(MacroAssembler* masm) {
+  // Called from JavaScript; parameters are on stack as if calling JS function
+  // s0: number of arguments including receiver
+  // s1: size of arguments excluding receiver
+  // s2: pointer to builtin function
+  // fp: frame pointer    (restored after C call)
+  // sp: stack pointer    (restored as callee's sp after C call)
+  // cp: current context  (C callee-saved)
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  // NOTE: s0-s2 hold the arguments of this function instead of a0-a2.
+  // The reason for this is that these arguments would need to be saved anyway
+  // so it's faster to set them up directly.
+  // See MacroAssembler::PrepareCEntryArgs and PrepareCEntryFunction.
+
+  // Compute the argv pointer in a callee-saved register.
+  __ Addu(s1, sp, s1);
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(save_doubles_);
+
+  // s0: number of arguments  including receiver (C callee-saved)
+  // s1: pointer to first argument (C callee-saved)
+  // s2: pointer to builtin function (C callee-saved)
 
   Isolate* isolate = masm->isolate();
-
-  if (do_gc) {
-    // Move result passed in v0 into a0 to call PerformGC.
-    __ mov(a0, v0);
-    __ PrepareCallCFunction(2, 0, a1);
-    __ li(a1, Operand(ExternalReference::isolate_address(masm->isolate())));
-    __ CallCFunction(ExternalReference::perform_gc_function(isolate), 2, 0);
-  }
-
-  ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth(isolate);
-  if (always_allocate) {
-    __ li(a0, Operand(scope_depth));
-    __ lw(a1, MemOperand(a0));
-    __ Addu(a1, a1, Operand(1));
-    __ sw(a1, MemOperand(a0));
-  }
 
   // Prepare arguments for C routine.
   // a0 = argc
@@ -1684,130 +1684,67 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
               masm->InstructionsGeneratedSince(&find_ra));
   }
 
-  if (always_allocate) {
-    // It's okay to clobber a2 and a3 here. v0 & v1 contain result.
-    __ li(a2, Operand(scope_depth));
-    __ lw(a3, MemOperand(a2));
-    __ Subu(a3, a3, Operand(1));
-    __ sw(a3, MemOperand(a2));
+
+  // Runtime functions should not return 'the hole'.  Allowing it to escape may
+  // lead to crashes in the IC code later.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+    __ Branch(&okay, ne, v0, Operand(t0));
+    __ stop("The hole escaped");
+    __ bind(&okay);
   }
 
-  // Check for failure result.
-  Label failure_returned;
-  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
-  __ addiu(a2, v0, 1);
-  __ andi(t0, a2, kFailureTagMask);
-  __ Branch(USE_DELAY_SLOT, &failure_returned, eq, t0, Operand(zero_reg));
-  // Restore stack (remove arg slots) in branch delay slot.
-  __ addiu(sp, sp, kCArgsSlotsSize);
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ LoadRoot(t0, Heap::kExceptionRootIndex);
+  __ Branch(&exception_returned, eq, t0, Operand(v0));
 
+  ExternalReference pending_exception_address(
+      Isolate::kPendingExceptionAddress, isolate);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned the exception sentinel.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ li(a2, Operand(pending_exception_address));
+    __ lw(a2, MemOperand(a2));
+    __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ Branch(&okay, eq, t0, Operand(a2));
+    __ stop("Unexpected pending exception");
+    __ bind(&okay);
+  }
 
   // Exit C frame and return.
   // v0:v1: result
   // sp: stack pointer
   // fp: frame pointer
+  // s0: still holds argc (callee-saved).
   __ LeaveExitFrame(save_doubles_, s0, true, EMIT_RETURN);
 
-  // Check if we should retry or throw exception.
-  Label retry;
-  __ bind(&failure_returned);
-  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ andi(t0, v0, ((1 << kFailureTypeTagSize) - 1) << kFailureTagSize);
-  __ Branch(&retry, eq, t0, Operand(zero_reg));
+  // Handling of exception.
+  __ bind(&exception_returned);
 
   // Retrieve the pending exception.
-  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      isolate)));
-  __ lw(v0, MemOperand(t0));
+  __ li(a2, Operand(pending_exception_address));
+  __ lw(v0, MemOperand(a2));
 
   // Clear the pending exception.
   __ li(a3, Operand(isolate->factory()->the_hole_value()));
-  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                      isolate)));
-  __ sw(a3, MemOperand(t0));
+  __ sw(a3, MemOperand(a2));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
+  Label throw_termination_exception;
   __ LoadRoot(t0, Heap::kTerminationExceptionRootIndex);
-  __ Branch(throw_termination_exception, eq, v0, Operand(t0));
+  __ Branch(&throw_termination_exception, eq, v0, Operand(t0));
 
   // Handle normal exception.
-  __ jmp(throw_normal_exception);
-
-  __ bind(&retry);
-  // Last failure (v0) will be moved to (a0) for parameter when retrying.
-}
-
-
-void CEntryStub::Generate(MacroAssembler* masm) {
-  // Called from JavaScript; parameters are on stack as if calling JS function
-  // s0: number of arguments including receiver
-  // s1: size of arguments excluding receiver
-  // s2: pointer to builtin function
-  // fp: frame pointer    (restored after C call)
-  // sp: stack pointer    (restored as callee's sp after C call)
-  // cp: current context  (C callee-saved)
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // NOTE: Invocations of builtins may return failure objects
-  // instead of a proper result. The builtin entry handles
-  // this by performing a garbage collection and retrying the
-  // builtin once.
-
-  // NOTE: s0-s2 hold the arguments of this function instead of a0-a2.
-  // The reason for this is that these arguments would need to be saved anyway
-  // so it's faster to set them up directly.
-  // See MacroAssembler::PrepareCEntryArgs and PrepareCEntryFunction.
-
-  // Compute the argv pointer in a callee-saved register.
-  __ Addu(s1, sp, s1);
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles_);
-
-  // s0: number of arguments (C callee-saved)
-  // s1: pointer to first argument (C callee-saved)
-  // s2: pointer to builtin function (C callee-saved)
-
-  Label throw_normal_exception;
-  Label throw_termination_exception;
-
-  // Call into the runtime system.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               false,
-               false);
-
-  // Do space-specific GC and retry runtime call.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               false);
-
-  // Do full GC and retry runtime call one final time.
-  Failure* failure = Failure::InternalError();
-  __ li(v0, Operand(reinterpret_cast<int32_t>(failure)));
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               true);
-
-  { FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(0, v0);
-    __ CallCFunction(
-        ExternalReference::out_of_memory_function(masm->isolate()), 0);
-  }
+  __ Throw(v0);
 
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(v0);
-
-  __ bind(&throw_normal_exception);
-  __ Throw(v0);
 }
 
 

@@ -63,8 +63,8 @@ namespace internal {
 
 Handle<HeapType> Object::OptimalType(Isolate* isolate,
                                      Representation representation) {
+  if (representation.IsNone()) return HeapType::None(isolate);
   if (FLAG_track_field_types) {
-    if (representation.IsNone()) return HeapType::None(isolate);
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(this)->map(), isolate);
@@ -5816,7 +5816,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
   if (transition_index != TransitionArray::kNotFound) {
     new_map = handle(old_map->GetTransition(transition_index), isolate);
     ASSERT(new_map->is_observed());
-  } else if (old_map->CanHaveMoreTransitions()) {
+  } else if (object->HasFastProperties() && old_map->CanHaveMoreTransitions()) {
     new_map = Map::CopyForObserved(old_map);
   } else {
     new_map = Map::Copy(old_map);

@@ -11200,33 +11200,44 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   ASSERT(*scope_info != ScopeInfo::Empty(isolate));
 
   // Get the locals names and values into a temporary array.
-  //
-  // TODO(1240907): Hide compiler-introduced stack variables
-  // (e.g. .result)?  For users of the debugger, they will probably be
-  // confusing.
+  int local_count = scope_info->LocalCount();
+  for (int slot = 0; slot < scope_info->LocalCount(); ++slot) {
+    // Hide compiler-introduced temporary variables, whether on the stack or on
+    // the context.
+    if (scope_info->LocalIsSynthetic(slot))
+      local_count--;
+  }
+
   Handle<FixedArray> locals =
-      isolate->factory()->NewFixedArray(scope_info->LocalCount() * 2);
+      isolate->factory()->NewFixedArray(local_count * 2);
 
   // Fill in the values of the locals.
+  int local = 0;
   int i = 0;
   for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
-    locals->set(i * 2, scope_info->LocalName(i));
-    locals->set(i * 2 + 1, frame_inspector.GetExpression(i));
+    if (scope_info->LocalIsSynthetic(i))
+      continue;
+    locals->set(local * 2, scope_info->LocalName(i));
+    locals->set(local * 2 + 1, frame_inspector.GetExpression(i));
+    local++;
   }
-  if (i < scope_info->LocalCount()) {
+  if (local < local_count) {
     // Get the context containing declarations.
     Handle<Context> context(
         Context::cast(it.frame()->context())->declaration_context());
     for (; i < scope_info->LocalCount(); ++i) {
+      if (scope_info->LocalIsSynthetic(i))
+        continue;
       Handle<String> name(scope_info->LocalName(i));
       VariableMode mode;
       InitializationFlag init_flag;
-      locals->set(i * 2, *name);
+      locals->set(local * 2, *name);
       int context_slot_index =
           scope_info->ContextSlotIndex(*name, &mode, &init_flag);
       Object* value = context->get(context_slot_index);
-      locals->set(i * 2 + 1, value);
+      locals->set(local * 2 + 1, value);
+      local++;
     }
   }
 
@@ -11287,7 +11298,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Calculate the size of the result.
   int details_size = kFrameDetailsFirstDynamicIndex +
-                     2 * (argument_count + scope_info->LocalCount()) +
+                     2 * (argument_count + local_count) +
                      (at_return ? 1 : 0);
   Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
 
@@ -11302,7 +11313,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   // Add the locals count
   details->set(kFrameDetailsLocalCountIndex,
-               Smi::FromInt(scope_info->LocalCount()));
+               Smi::FromInt(local_count));
 
   // Add the source position.
   if (position != RelocInfo::kNoPosition) {
@@ -11353,7 +11364,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add locals name and value from the temporary copy from the function frame.
-  for (int i = 0; i < scope_info->LocalCount() * 2; i++) {
+  for (int i = 0; i < local_count * 2; i++) {
     details->set(details_index++, locals->get(i));
   }
 
@@ -11434,6 +11445,7 @@ static MaybeHandle<JSObject> MaterializeStackLocalsWithFrameInspector(
 
   // Second fill all stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (scope_info->LocalIsSynthetic(i)) continue;
     Handle<String> name(scope_info->StackLocalName(i));
     Handle<Object> value(frame_inspector->GetExpression(i), isolate);
     if (value->IsTheHole()) continue;
@@ -11478,6 +11490,7 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
 
   // Stack locals.
   for (int i = 0; i < scope_info->StackLocalCount(); ++i) {
+    if (scope_info->LocalIsSynthetic(i)) continue;
     if (frame->GetExpression(i)->IsTheHole()) continue;
     HandleScope scope(isolate);
     Handle<Object> value = Object::GetPropertyOrElement(

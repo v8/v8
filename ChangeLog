@@ -1,3 +1,10 @@
+2014-04-23: Version 3.26.22
+
+        Disable field type tracking by default (Chromium issue 365172).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-23: Version 3.26.21
 
         Context-allocate all parameters in generators (issue 3280).

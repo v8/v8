@@ -6962,13 +6962,36 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
 }
 
 
+class FunctionSorter {
+ public:
+  FunctionSorter(int index = 0, int ticks = 0, int size = 0)
+      : index_(index), ticks_(ticks), size_(size) { }
+
+  int index() const { return index_; }
+  int ticks() const { return ticks_; }
+  int size() const { return size_; }
+
+ private:
+  int index_;
+  int ticks_;
+  int size_;
+};
+
+
+inline bool operator<(const FunctionSorter& lhs, const FunctionSorter& rhs) {
+  int diff = lhs.ticks() - rhs.ticks();
+  if (diff != 0) return diff > 0;
+  return lhs.size() < rhs.size();
+}
+
+
 void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
     Call* expr,
     HValue* receiver,
     SmallMapList* types,
     Handle<String> name) {
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
-  int order[kMaxCallPolymorphism];
+  FunctionSorter order[kMaxCallPolymorphism];
 
   bool handle_smi = false;
   bool handled_string = false;
@@ -6990,9 +7013,12 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
         handle_smi = true;
       }
       expr->set_target(target);
-      order[ordered_functions++] = i;
+      order[ordered_functions++] = FunctionSorter(
+          i, target->shared()->profiler_ticks(), InliningAstSize(target));
     }
   }
+
+  std::sort(order, order + ordered_functions);
 
   HBasicBlock* number_block = NULL;
   HBasicBlock* join = NULL;
@@ -7000,7 +7026,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   int count = 0;
 
   for (int fn = 0; fn < ordered_functions; ++fn) {
-    int i = order[fn];
+    int i = order[fn].index();
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;

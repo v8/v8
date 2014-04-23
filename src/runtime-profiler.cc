@@ -185,6 +185,16 @@ void RuntimeProfiler::OptimizeNow() {
     SharedFunctionInfo* shared = function->shared();
     Code* shared_code = shared->code();
 
+    List<JSFunction*> functions(4);
+    frame->GetFunctions(&functions);
+    for (int i = functions.length(); --i >= 0; ) {
+      SharedFunctionInfo* shared_function_info = functions[i]->shared();
+      int ticks = shared_function_info->profiler_ticks();
+      if (ticks < Smi::kMaxValue) {
+        shared_function_info->set_profiler_ticks(ticks + 1);
+      }
+    }
+
     if (shared_code->kind() != Code::FUNCTION) continue;
     if (function->IsInOptimizationQueue()) continue;
 
