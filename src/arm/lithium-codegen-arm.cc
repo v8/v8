@@ -4188,35 +4188,26 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::ApplyCheckIf(Condition condition, LBoundsCheck* check) {
-  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
+  Condition cc = instr->hydrogen()->allow_equality() ? hi : hs;
+  if (instr->index()->IsConstantOperand()) {
+    Operand index = ToOperand(instr->index());
+    Register length = ToRegister(instr->length());
+    __ cmp(length, index);
+    cc = ReverseCondition(cc);
+  } else {
+    Register index = ToRegister(instr->index());
+    Operand length = ToOperand(instr->length());
+    __ cmp(index, length);
+  }
+  if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
     Label done;
-    __ b(NegateCondition(condition), &done);
+    __ b(NegateCondition(cc), &done);
     __ stop("eliminated bounds check failed");
     __ bind(&done);
   } else {
-    DeoptimizeIf(condition, check->environment());
+    DeoptimizeIf(cc, instr->environment());
   }
-}
-
-
-void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  if (instr->hydrogen()->skip_check()) return;
-
-  if (instr->index()->IsConstantOperand()) {
-    int constant_index =
-        ToInteger32(LConstantOperand::cast(instr->index()));
-    if (instr->hydrogen()->length()->representation().IsSmi()) {
-      __ mov(ip, Operand(Smi::FromInt(constant_index)));
-    } else {
-      __ mov(ip, Operand(constant_index));
-    }
-    __ cmp(ip, ToRegister(instr->length()));
-  } else {
-    __ cmp(ToRegister(instr->index()), ToRegister(instr->length()));
-  }
-  Condition condition = instr->hydrogen()->allow_equality() ? hi : hs;
-  ApplyCheckIf(condition, instr);
 }
 
 
@@ -5190,15 +5181,15 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ bind(deferred->check_maps());
   }
 
-  UniqueSet<Map> map_set = instr->hydrogen()->map_set();
+  const UniqueSet<Map>* map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set.size() - 1; i++) {
-    Handle<Map> map = map_set.at(i).handle();
+  for (int i = 0; i < map_set->size() - 1; i++) {
+    Handle<Map> map = map_set->at(i).handle();
     __ CompareMap(map_reg, map, &success);
     __ b(eq, &success);
   }
 
-  Handle<Map> map = map_set.at(map_set.size() - 1).handle();
+  Handle<Map> map = map_set->at(map_set->size() - 1).handle();
   __ CompareMap(map_reg, map, &success);
   if (instr->hydrogen()->has_migration_target()) {
     __ b(ne, deferred->entry());

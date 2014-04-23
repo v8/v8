@@ -1676,6 +1676,8 @@ LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
   Representation r = instr->representation();
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(r));
@@ -1830,9 +1832,16 @@ LInstruction* LChunkBuilder::DoSeqStringSetChar(HSeqStringSetChar* instr) {
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  LOperand* value = UseRegisterOrConstantAtStart(instr->index());
-  LOperand* length = UseRegister(instr->length());
-  return AssignEnvironment(new(zone()) LBoundsCheck(value, length));
+  if (!FLAG_debug_code && instr->skip_check()) return NULL;
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  LOperand* length = !index->IsConstantOperand()
+      ? UseRegisterOrConstantAtStart(instr->length())
+      : UseRegisterAtStart(instr->length());
+  LInstruction* result = new(zone()) LBoundsCheck(index, length);
+  if (!FLAG_debug_code || !instr->skip_check()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 

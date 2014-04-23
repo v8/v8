@@ -1314,11 +1314,8 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(
 
   HValue* max_gap = Add<HConstant>(static_cast<int32_t>(JSObject::kMaxGap));
   HValue* max_capacity = AddUncasted<HAdd>(current_capacity, max_gap);
-  IfBuilder key_checker(this);
-  key_checker.If<HCompareNumericAndBranch>(key, max_capacity, Token::LT);
-  key_checker.Then();
-  key_checker.ElseDeopt("Key out of capacity range");
-  key_checker.End();
+
+  Add<HBoundsCheck>(key, max_capacity);
 
   HValue* new_capacity = BuildNewElementsCapacity(key);
   HValue* new_elements = BuildGrowElementsCapacity(object, elements,
@@ -5574,15 +5571,15 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
 void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
     Handle<Map> map) {
+  // Clear any previously collected field maps.
+  field_maps_.Clear();
+
   // Figure out the field type from the accessor map.
   Handle<HeapType> field_type(lookup_.GetFieldTypeFromMap(*map), isolate());
 
   // Collect the (stable) maps from the field type.
   int num_field_maps = field_type->NumClasses();
-  if (num_field_maps == 0) {
-    field_maps_.Clear();
-    return;
-  }
+  if (num_field_maps == 0) return;
   ASSERT(access_.representation().IsHeapObject());
   field_maps_.Reserve(num_field_maps, zone());
   HeapType::Iterator<Map> it = field_type->Classes();
@@ -7789,11 +7786,16 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       HValue* value_to_push = Pop();
       HValue* array = Pop();
 
-      HValue* length = Add<HLoadNamedField>(array, static_cast<HValue*>(NULL),
-          HObjectAccess::ForArrayLength(elements_kind));
+      HInstruction* new_size = NULL;
+      HValue* length = NULL;
 
       {
         NoObservableSideEffectsScope scope(this);
+
+        length = Add<HLoadNamedField>(array, static_cast<HValue*>(NULL),
+          HObjectAccess::ForArrayLength(elements_kind));
+
+        new_size = AddUncasted<HAdd>(length, graph()->GetConstant1());
 
         bool is_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
         BuildUncheckedMonomorphicElementAccess(array, length,
@@ -7801,11 +7803,11 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                                                elements_kind, STORE,
                                                NEVER_RETURN_HOLE,
                                                STORE_AND_GROW_NO_TRANSITION);
+        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
       }
 
-      HInstruction* new_size = NewUncasted<HAdd>(length, Add<HConstant>(argc));
       Drop(1);  // Drop function.
-      ast_context()->ReturnInstruction(new_size, expr->id());
+      ast_context()->ReturnValue(new_size);
       return true;
     }
     default:

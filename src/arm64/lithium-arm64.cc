@@ -949,9 +949,16 @@ LInstruction* LChunkBuilder::DoBlockEntry(HBlockEntry* instr) {
 
 
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
-  LOperand* value = UseRegisterOrConstantAtStart(instr->index());
-  LOperand* length = UseRegister(instr->length());
-  return AssignEnvironment(new(zone()) LBoundsCheck(value, length));
+  if (!FLAG_debug_code && instr->skip_check()) return NULL;
+  LOperand* index = UseRegisterOrConstantAtStart(instr->index());
+  LOperand* length = !index->IsConstantOperand()
+      ? UseRegisterOrConstantAtStart(instr->length())
+      : UseRegisterAtStart(instr->length());
+  LInstruction* result = new(zone()) LBoundsCheck(index, length);
+  if (!FLAG_debug_code || !instr->skip_check()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1244,8 +1251,9 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     HCompareNumericAndBranch* instr) {
+  LInstruction* goto_instr = CheckElideControlInstruction(instr);
+  if (goto_instr != NULL) return goto_instr;
   Representation r = instr->representation();
-
   if (r.IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(r));
     ASSERT(instr->right()->representation().Equals(r));
@@ -1658,9 +1666,10 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   ASSERT(instr->key()->representation().IsSmiOrInteger32());
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* elements = UseRegister(instr->elements());
-  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
 
   if (!instr->is_typed_elements()) {
+    LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+
     if (instr->representation().IsDouble()) {
       LOperand* temp = (!instr->key()->IsConstant() ||
                         instr->RequiresHoleCheck())
@@ -1688,6 +1697,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
            (instr->representation().IsDouble() &&
             IsDoubleOrFloatElementsKind(instr->elements_kind())));
 
+    LOperand* key = UseRegisterOrConstant(instr->key());
     LOperand* temp = instr->key()->IsConstant() ? NULL : TempRegister();
     LInstruction* result = DefineAsRegister(
         new(zone()) LLoadKeyedExternal(elements, key, temp));
@@ -2180,7 +2190,6 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* temp = NULL;
   LOperand* elements = NULL;
   LOperand* val = NULL;
-  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
 
   if (!instr->is_typed_elements() &&
       instr->value()->representation().IsTagged() &&
@@ -2204,16 +2213,19 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
             instr->elements()->representation().IsTagged()) ||
            (instr->is_external() &&
             instr->elements()->representation().IsExternal()));
+    LOperand* key = UseRegisterOrConstant(instr->key());
     return new(zone()) LStoreKeyedExternal(elements, key, val, temp);
 
   } else if (instr->value()->representation().IsDouble()) {
     ASSERT(instr->elements()->representation().IsTagged());
+    LOperand* key = UseRegisterOrConstantAtStart(instr->key());
     return new(zone()) LStoreKeyedFixedDouble(elements, key, val, temp);
 
   } else {
     ASSERT(instr->elements()->representation().IsTagged());
     ASSERT(instr->value()->representation().IsSmiOrTagged() ||
            instr->value()->representation().IsInteger32());
+    LOperand* key = UseRegisterOrConstantAtStart(instr->key());
     return new(zone()) LStoreKeyedFixed(elements, key, val, temp);
   }
 }

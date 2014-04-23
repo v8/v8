@@ -320,15 +320,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "StubCache::secondary_->map");
 
   // Runtime entries
-  Add(ExternalReference::perform_gc_function(isolate).address(),
-      RUNTIME_ENTRY,
-      1,
-      "Runtime::PerformGC");
-  // Runtime entries
-  Add(ExternalReference::out_of_memory_function(isolate).address(),
-      RUNTIME_ENTRY,
-      2,
-      "Runtime::OutOfMemory");
   Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
       RUNTIME_ENTRY,
       4,
@@ -383,10 +374,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       11,
       "Heap::NewSpaceMask()");
-  Add(ExternalReference::heap_always_allocate_scope_depth(isolate).address(),
-      UNCLASSIFIED,
-      12,
-      "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       UNCLASSIFIED,
       14,

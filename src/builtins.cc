@@ -127,28 +127,28 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 #ifdef DEBUG
 
 #define BUILTIN(name)                                            \
-  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(       \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
       name##ArgumentsType args, Isolate* isolate);               \
-  MUST_USE_RESULT static MaybeObject* Builtin_##name(            \
+  MUST_USE_RESULT static Object* Builtin_##name(                 \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
     args.Verify();                                               \
     return Builtin_Impl_##name(args, isolate);                   \
   }                                                              \
-  MUST_USE_RESULT static MaybeObject* Builtin_Impl_##name(       \
+  MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
       name##ArgumentsType args, Isolate* isolate)
 
 #else  // For release mode.
 
 #define BUILTIN(name)                                            \
-  static MaybeObject* Builtin_impl##name(                        \
+  static Object* Builtin_impl##name(                             \
       name##ArgumentsType args, Isolate* isolate);               \
-  static MaybeObject* Builtin_##name(                            \
+  static Object* Builtin_##name(                                 \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
     return Builtin_impl##name(args, isolate);                    \
   }                                                              \
-  static MaybeObject* Builtin_impl##name(                        \
+  static Object* Builtin_impl##name(                             \
       name##ArgumentsType args, Isolate* isolate)
 #endif
 
@@ -366,7 +366,7 @@ static inline bool IsJSArrayFastElementMovingAllowed(Heap* heap,
 }
 
 
-MUST_USE_RESULT static MaybeObject* CallJsBuiltin(
+MUST_USE_RESULT static Object* CallJsBuiltin(
     Isolate* isolate,
     const char* name,
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
@@ -1166,7 +1166,7 @@ static inline Object* TypeCheck(Heap* heap,
 
 
 template <bool is_construct>
-MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
+MUST_USE_RESULT static Object* HandleApiCallHelper(
     BuiltinArguments<NEEDS_CALLED_FUNCTION> args, Isolate* isolate) {
   ASSERT(is_construct == CalledAsConstructor(isolate));
   Heap* heap = isolate->heap();
@@ -1252,7 +1252,7 @@ BUILTIN(HandleApiCallConstruct) {
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
+MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     Isolate* isolate,
     bool is_construct_call,
     BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {

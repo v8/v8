@@ -159,7 +159,7 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunction(
+    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
         func_name, factory->undefined_value());
     Handle<Map> initial_map = factory->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
@@ -499,7 +499,7 @@ TEST(BootUpMemoryUse) {
     printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
     if (v8::internal::Snapshot::IsEnabled()) {
       CHECK_LE(delta,
-          3000 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
+          3200 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
     } else {
       CHECK_LE(delta,
           3350 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);

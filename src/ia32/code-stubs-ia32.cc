@@ -2584,12 +2584,19 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void CEntryStub::GenerateCore(MacroAssembler* masm,
-                              Label* throw_normal_exception,
-                              Label* throw_termination_exception,
-                              bool do_gc,
-                              bool always_allocate_scope) {
-  // eax: result parameter for PerformGC, if any
+void CEntryStub::Generate(MacroAssembler* masm) {
+  // eax: number of arguments including receiver
+  // ebx: pointer to C function  (C callee-saved)
+  // ebp: frame pointer  (restored after C call)
+  // esp: stack pointer  (restored after C call)
+  // esi: current context (C callee-saved)
+  // edi: JS function of the caller (C callee-saved)
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(save_doubles_ == kSaveFPRegs);
+
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
@@ -2598,67 +2605,44 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Result returned in eax, or eax+edx if result_size_ is 2.
 
+  Isolate* isolate = masm->isolate();
+
   // Check stack alignment.
   if (FLAG_debug_code) {
     __ CheckStackAlignment();
-  }
-
-  if (do_gc) {
-    // Pass failure code returned from last attempt as first argument to
-    // PerformGC. No need to use PrepareCallCFunction/CallCFunction here as the
-    // stack alignment is known to be correct. This function takes one argument
-    // which is passed on the stack, and we know that the stack has been
-    // prepared to pass at least one argument.
-    __ mov(Operand(esp, 1 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(masm->isolate())));
-    __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
-    __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
-  }
-
-  ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth(masm->isolate());
-  if (always_allocate_scope) {
-    __ inc(Operand::StaticVariable(scope_depth));
   }
 
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
   __ mov(Operand(esp, 2 * kPointerSize),
-         Immediate(ExternalReference::isolate_address(masm->isolate())));
+         Immediate(ExternalReference::isolate_address(isolate)));
   __ call(ebx);
   // Result is in eax or edx:eax - do not destroy these registers!
-
-  if (always_allocate_scope) {
-    __ dec(Operand::StaticVariable(scope_depth));
-  }
 
   // Runtime functions should not return 'the hole'.  Allowing it to escape may
   // lead to crashes in the IC code later.
   if (FLAG_debug_code) {
     Label okay;
-    __ cmp(eax, masm->isolate()->factory()->the_hole_value());
+    __ cmp(eax, isolate->factory()->the_hole_value());
     __ j(not_equal, &okay, Label::kNear);
     __ int3();
     __ bind(&okay);
   }
 
-  // Check for failure result.
-  Label failure_returned;
-  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
-  __ lea(ecx, Operand(eax, 1));
-  // Lower 2 bits of ecx are 0 iff eax has failure tag.
-  __ test(ecx, Immediate(kFailureTagMask));
-  __ j(zero, &failure_returned);
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ cmp(eax, isolate->factory()->exception());
+  __ j(equal, &exception_returned);
 
   ExternalReference pending_exception_address(
-      Isolate::kPendingExceptionAddress, masm->isolate());
+      Isolate::kPendingExceptionAddress, isolate);
 
   // Check that there is no pending exception, otherwise we
-  // should have returned some failure value.
+  // should have returned the exception sentinel.
   if (FLAG_debug_code) {
     __ push(edx);
-    __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
+    __ mov(edx, Immediate(isolate->factory()->the_hole_value()));
     Label okay;
     __ cmp(edx, Operand::StaticVariable(pending_exception_address));
     // Cannot use check here as it attempts to generate call into runtime.
@@ -2672,96 +2656,27 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ LeaveExitFrame(save_doubles_ == kSaveFPRegs);
   __ ret(0);
 
-  // Handling of failure.
-  __ bind(&failure_returned);
-
-  Label retry;
-  // If the returned exception is RETRY_AFTER_GC continue at retry label
-  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ test(eax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry, Label::kNear);
+  // Handling of exception.
+  __ bind(&exception_returned);
 
   // Retrieve the pending exception.
   __ mov(eax, Operand::StaticVariable(pending_exception_address));
 
   // Clear the pending exception.
-  __ mov(edx, Immediate(masm->isolate()->factory()->the_hole_value()));
+  __ mov(edx, Immediate(isolate->factory()->the_hole_value()));
   __ mov(Operand::StaticVariable(pending_exception_address), edx);
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ cmp(eax, masm->isolate()->factory()->termination_exception());
-  __ j(equal, throw_termination_exception);
+  Label throw_termination_exception;
+  __ cmp(eax, isolate->factory()->termination_exception());
+  __ j(equal, &throw_termination_exception);
 
   // Handle normal exception.
-  __ jmp(throw_normal_exception);
-
-  // Retry.
-  __ bind(&retry);
-}
-
-
-void CEntryStub::Generate(MacroAssembler* masm) {
-  // eax: number of arguments including receiver
-  // ebx: pointer to C function  (C callee-saved)
-  // ebp: frame pointer  (restored after C call)
-  // esp: stack pointer  (restored after C call)
-  // esi: current context (C callee-saved)
-  // edi: JS function of the caller (C callee-saved)
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // NOTE: Invocations of builtins may return failure objects instead
-  // of a proper result. The builtin entry handles this by performing
-  // a garbage collection and retrying the builtin (twice).
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(save_doubles_ == kSaveFPRegs);
-
-  // eax: result parameter for PerformGC, if any (setup below)
-  // ebx: pointer to builtin function  (C callee-saved)
-  // ebp: frame pointer  (restored after C call)
-  // esp: stack pointer  (restored after C call)
-  // edi: number of arguments including receiver (C callee-saved)
-  // esi: argv pointer (C callee-saved)
-
-  Label throw_normal_exception;
-  Label throw_termination_exception;
-
-  // Call into the runtime system.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               false,
-               false);
-
-  // Do space-specific GC and retry runtime call.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               false);
-
-  // Do full GC and retry runtime call one final time.
-  Failure* failure = Failure::InternalError();
-  __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               true);
-
-  { FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(0, eax);
-    __ CallCFunction(
-        ExternalReference::out_of_memory_function(masm->isolate()), 0);
-  }
+  __ Throw(eax);
 
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(eax);
-
-  __ bind(&throw_normal_exception);
-  __ Throw(eax);
 }
 
 
@@ -2809,7 +2724,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       masm->isolate());
   __ mov(Operand::StaticVariable(pending_exception), eax);
-  __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
+  __ mov(eax, Immediate(masm->isolate()->factory()->exception()));
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.  There's only one

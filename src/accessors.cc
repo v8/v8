@@ -901,7 +901,7 @@ MaybeObject* Accessors::FunctionGetLength(Isolate* isolate,
   if (Compiler::EnsureCompiled(function_handle, KEEP_EXCEPTION)) {
     return Smi::FromInt(function_handle->shared()->length());
   }
-  return Failure::Exception();
+  return isolate->heap()->exception();
 }
 
 

@@ -305,7 +305,7 @@ class HCheckTable : public ZoneObject {
     if (entry != NULL) {
       // entry found;
       MapSet a = entry->maps_;
-      MapSet i = instr->map_set().Copy(phase_->zone());
+      MapSet i = instr->map_set()->Copy(phase_->zone());
       if (a->IsSubset(i)) {
         // The first check is more strict; the second is redundant.
         if (entry->check_ != NULL) {
@@ -364,7 +364,7 @@ class HCheckTable : public ZoneObject {
       }
     } else {
       // No entry; insert a new one.
-      Insert(object, instr, instr->map_set().Copy(phase_->zone()));
+      Insert(object, instr, instr->map_set()->Copy(phase_->zone()));
     }
   }
 
@@ -384,8 +384,8 @@ class HCheckTable : public ZoneObject {
     // Reduce a load of the map field when it is known to be a constant.
     if (!IsMapAccess(instr->access())) {
       // Check if we introduce field maps here.
-      if (instr->map_set().size() != 0) {
-        Insert(instr, instr, instr->map_set().Copy(phase_->zone()));
+      if (instr->map_set()->size() != 0) {
+        Insert(instr, instr, instr->map_set()->Copy(phase_->zone()));
       }
       return;
     }

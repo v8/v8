@@ -4140,65 +4140,64 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 }
 
 
-void LCodeGen::ApplyCheckIf(Condition cc, LBoundsCheck* check) {
-  if (FLAG_debug_code && check->hydrogen()->skip_check()) {
+void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
+  Representation representation = instr->hydrogen()->length()->representation();
+  ASSERT(representation.Equals(instr->hydrogen()->index()->representation()));
+  ASSERT(representation.IsSmiOrInteger32());
+
+  Condition cc = instr->hydrogen()->allow_equality() ? below : below_equal;
+  if (instr->length()->IsConstantOperand()) {
+    int32_t length = ToInteger32(LConstantOperand::cast(instr->length()));
+    Register index = ToRegister(instr->index());
+    if (representation.IsSmi()) {
+      __ Cmp(index, Smi::FromInt(length));
+    } else {
+      __ cmpl(index, Immediate(length));
+    }
+    cc = ReverseCondition(cc);
+  } else if (instr->index()->IsConstantOperand()) {
+    int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
+    if (instr->length()->IsRegister()) {
+      Register length = ToRegister(instr->length());
+      if (representation.IsSmi()) {
+        __ Cmp(length, Smi::FromInt(index));
+      } else {
+        __ cmpl(length, Immediate(index));
+      }
+    } else {
+      Operand length = ToOperand(instr->length());
+      if (representation.IsSmi()) {
+        __ Cmp(length, Smi::FromInt(index));
+      } else {
+        __ cmpl(length, Immediate(index));
+      }
+    }
+  } else {
+    Register index = ToRegister(instr->index());
+    if (instr->length()->IsRegister()) {
+      Register length = ToRegister(instr->length());
+      if (representation.IsSmi()) {
+        __ cmpp(length, index);
+      } else {
+        __ cmpl(length, index);
+      }
+    } else {
+      Operand length = ToOperand(instr->length());
+      if (representation.IsSmi()) {
+        __ cmpp(length, index);
+      } else {
+        __ cmpl(length, index);
+      }
+    }
+  }
+  if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
     Label done;
     __ j(NegateCondition(cc), &done, Label::kNear);
     __ int3();
     __ bind(&done);
   } else {
-    DeoptimizeIf(cc, check->environment());
+    DeoptimizeIf(cc, instr->environment());
   }
-}
-
-
-void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  HBoundsCheck* hinstr = instr->hydrogen();
-  if (hinstr->skip_check()) return;
-
-  Representation representation = hinstr->length()->representation();
-  ASSERT(representation.Equals(hinstr->index()->representation()));
-  ASSERT(representation.IsSmiOrInteger32());
-
-  if (instr->length()->IsRegister()) {
-    Register reg = ToRegister(instr->length());
-
-    if (instr->index()->IsConstantOperand()) {
-      int32_t constant_index =
-          ToInteger32(LConstantOperand::cast(instr->index()));
-      if (representation.IsSmi()) {
-        __ Cmp(reg, Smi::FromInt(constant_index));
-      } else {
-        __ cmpl(reg, Immediate(constant_index));
-      }
-    } else {
-      Register reg2 = ToRegister(instr->index());
-      if (representation.IsSmi()) {
-        __ cmpp(reg, reg2);
-      } else {
-        __ cmpl(reg, reg2);
-      }
-    }
-  } else {
-    Operand length = ToOperand(instr->length());
-    if (instr->index()->IsConstantOperand()) {
-      int32_t constant_index =
-          ToInteger32(LConstantOperand::cast(instr->index()));
-      if (representation.IsSmi()) {
-        __ Cmp(length, Smi::FromInt(constant_index));
-      } else {
-        __ cmpl(length, Immediate(constant_index));
-      }
-    } else {
-      if (representation.IsSmi()) {
-        __ cmpp(length, ToRegister(instr->index()));
-      } else {
-        __ cmpl(length, ToRegister(instr->index()));
-      }
-    }
-  }
-  Condition condition = hinstr->allow_equality() ? below : below_equal;
-  ApplyCheckIf(condition, instr);
 }
 
 
@@ -5052,15 +5051,15 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     __ bind(deferred->check_maps());
   }
 
-  UniqueSet<Map> map_set = instr->hydrogen()->map_set();
+  const UniqueSet<Map>* map_set = instr->hydrogen()->map_set();
   Label success;
-  for (int i = 0; i < map_set.size() - 1; i++) {
-    Handle<Map> map = map_set.at(i).handle();
+  for (int i = 0; i < map_set->size() - 1; i++) {
+    Handle<Map> map = map_set->at(i).handle();
     __ CompareMap(reg, map);
     __ j(equal, &success, Label::kNear);
   }
 
-  Handle<Map> map = map_set.at(map_set.size() - 1).handle();
+  Handle<Map> map = map_set->at(map_set->size() - 1).handle();
   __ CompareMap(reg, map);
   if (instr->hydrogen()->has_migration_target()) {
     __ j(not_equal, deferred->entry());

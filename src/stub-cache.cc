@@ -478,7 +478,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 // StubCompiler implementation.
 
 
-RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
+RUNTIME_FUNCTION(StoreCallbackProperty) {
   JSObject* receiver = JSObject::cast(args[0]);
   JSObject* holder = JSObject::cast(args[1]);
   ExecutableAccessorInfo* callback = ExecutableAccessorInfo::cast(args[2]);
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
  * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
  * provide any value for the given name.
  */
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   ASSERT(args.length() == StubCache::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args.at<Name>(StubCache::kInterceptorArgsNameIndex);
@@ -551,7 +551,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
 }
 
 
-static MaybeObject* ThrowReferenceError(Isolate* isolate, Name* name) {
+static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
   // If the load is non-contextual, just return the undefined result.
   // Note that both keyed and non-keyed loads may end up here.
   HandleScope scope(isolate);
@@ -623,7 +623,7 @@ MUST_USE_RESULT static MaybeHandle<Object> LoadWithInterceptor(
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad) {
   PropertyAttributes attr = NONE;
   HandleScope scope(isolate);
   Handle<Object> result;
@@ -636,7 +636,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForLoad) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
+RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall) {
   PropertyAttributes attr;
   HandleScope scope(isolate);
   Handle<Object> result;
@@ -649,7 +649,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorForCall) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
+RUNTIME_FUNCTION(StoreInterceptorProperty) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -667,7 +667,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreInterceptorProperty) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, KeyedLoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);

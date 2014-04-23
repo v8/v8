@@ -264,7 +264,6 @@ class LCodeGen: public LCodeGenBase {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition condition, LEnvironment* environment);
-  void ApplyCheckIf(Condition condition, LBoundsCheck* check);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,

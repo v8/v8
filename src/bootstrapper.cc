@@ -207,8 +207,11 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives();
 
-  Handle<JSFunction> InstallTypedArray(const char* name,
-      ElementsKind elementsKind);
+  void InstallTypedArray(
+      const char* name,
+      ElementsKind elements_kind,
+      Handle<JSFunction>* fun,
+      Handle<Map>* external_map);
   bool InstallExperimentalNatives();
   void InstallBuiltinFunctionIds();
   void InstallJSFunctionResultCaches();
@@ -355,14 +358,14 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   Factory* factory = isolate->factory();
   Handle<String> internalized_name = factory->InternalizeUtf8String(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
-  Handle<JSFunction> function = prototype.is_null() ?
-    factory->NewFunctionWithoutPrototype(internalized_name, call_code) :
-    factory->NewFunctionWithPrototype(internalized_name,
-                                      type,
-                                      instance_size,
-                                      prototype,
-                                      call_code,
-                                      install_initial_map);
+  Handle<JSFunction> function = prototype.is_null()
+      ? factory->NewFunction(internalized_name, call_code)
+      : factory->NewFunctionWithPrototype(internalized_name,
+                                          type,
+                                          instance_size,
+                                          prototype,
+                                          call_code,
+                                          install_initial_map);
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -458,8 +461,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> object_name = factory->Object_string();
 
   {  // --- O b j e c t ---
-    Handle<JSFunction> object_fun =
-        factory->NewFunction(object_name, factory->null_value());
+    Handle<JSFunction> object_fun = factory->NewFunctionWithPrototype(
+        object_name, factory->null_value());
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     object_fun->set_initial_map(*object_function_map);
@@ -485,8 +488,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> empty_string =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
   Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
-  Handle<JSFunction> empty_function =
-      factory->NewFunctionWithoutPrototype(empty_string, code);
+  Handle<JSFunction> empty_function = factory->NewFunction(empty_string, code);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticAscii("() {}");
@@ -564,8 +566,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
         STATIC_ASCII_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
-    throw_type_error_function =
-        factory()->NewFunctionWithoutPrototype(name, code);
+    throw_type_error_function = factory()->NewFunction(name, code);
     throw_type_error_function->set_map(native_context()->sloppy_function_map());
     throw_type_error_function->shared()->DontAdaptArguments();
 
@@ -1016,8 +1017,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
-    Handle<JSFunction> cons = factory->NewFunction(name,
-                                                   factory->the_hole_value());
+    Handle<JSFunction> cons = factory->NewFunctionWithPrototype(
+        name, factory->the_hole_value());
     JSFunction::SetInstancePrototype(cons,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->SetInstanceClassName(*name);
@@ -1041,9 +1042,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   { // -- T y p e d A r r a y s
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)                    \
     {                                                                         \
-      Handle<JSFunction> fun = InstallTypedArray(#Type "Array",               \
-          TYPE##_ELEMENTS);                                                   \
+      Handle<JSFunction> fun;                                                 \
+      Handle<Map> external_map;                                               \
+      InstallTypedArray(#Type "Array",                                        \
+          TYPE##_ELEMENTS,                                                    \
+          &fun,                                                               \
+          &external_map);                                                     \
       native_context()->set_##type##_array_fun(*fun);                         \
+      native_context()->set_##type##_array_external_map(*external_map);       \
     }
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -1063,11 +1069,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("Arguments"));
-    Handle<Code> code = Handle<Code>(
-        isolate->builtins()->builtin(Builtins::kIllegal));
-    Handle<JSObject> prototype =
-        Handle<JSObject>(
-            JSObject::cast(native_context()->object_function()->prototype()));
+    Handle<Code> code(isolate->builtins()->builtin(Builtins::kIllegal));
+    Handle<JSObject> prototype(
+        JSObject::cast(native_context()->object_function()->prototype()));
 
     Handle<JSFunction> function =
         factory->NewFunctionWithPrototype(arguments_string,
@@ -1256,18 +1260,26 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
-Handle<JSFunction> Genesis::InstallTypedArray(
-    const char* name, ElementsKind elementsKind) {
+void Genesis::InstallTypedArray(
+    const char* name,
+    ElementsKind elements_kind,
+    Handle<JSFunction>* fun,
+    Handle<Map>* external_map) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
   Handle<JSFunction> result = InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSize, isolate()->initial_object_prototype(),
       Builtins::kIllegal, false, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields, elementsKind);
+      JS_TYPED_ARRAY_TYPE,
+      JSTypedArray::kSizeWithInternalFields,
+      elements_kind);
   result->set_initial_map(*initial_map);
   initial_map->set_constructor(*result);
-  return result;
+  *fun = result;
+
+  ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
+  *external_map = Map::AsElementsKind(initial_map, external_kind);
 }
 
 
@@ -1662,9 +1674,8 @@ bool Genesis::InstallNatives() {
       set_builtins(*builtins);
 
   // Create a bridge function that has context in the native context.
-  Handle<JSFunction> bridge =
-      factory()->NewFunction(factory()->empty_string(),
-                             factory()->undefined_value());
+  Handle<JSFunction> bridge = factory()->NewFunctionWithPrototype(
+      factory()->empty_string(), factory()->undefined_value());
   ASSERT(bridge->context() == *isolate()->native_context());
 
   // Allocate the builtins context.

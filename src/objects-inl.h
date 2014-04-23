@@ -1002,6 +1002,11 @@ bool Object::IsTheHole() {
 }
 
 
+bool Object::IsException() {
+  return IsOddball() && Oddball::cast(this)->kind() == Oddball::kException;
+}
+
+
 bool Object::IsUninitialized() {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUninitialized;
 }
@@ -1045,20 +1050,6 @@ Handle<Object> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
     }
   }
   return Handle<Object>();
-}
-
-
-// TODO(ishell): Use handlified version instead.
-MaybeObject* Object::ToSmi() {
-  if (IsSmi()) return this;
-  if (IsHeapNumber()) {
-    double value = HeapNumber::cast(this)->value();
-    int int_value = FastD2I(value);
-    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
-      return Smi::FromInt(int_value);
-    }
-  }
-  return Failure::Exception();
 }
 
 

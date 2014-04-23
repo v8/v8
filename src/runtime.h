@@ -900,10 +900,6 @@ class Runtime : public AllStatic {
       ElementsKind* fixed_elements_kind,
       size_t *element_size);
 
-  // Helper functions used stubs.
-  static void PerformGC(Object* result, Isolate* isolate);
-  static void OutOfMemory();
-
   // Used in runtime.cc and hydrogen's VisitArrayLiteral.
   MUST_USE_RESULT static MaybeHandle<Object> CreateArrayLiteralBoilerplate(
       Isolate* isolate,

@@ -1543,6 +1543,8 @@ class HBranch V8_FINAL : public HUnaryControlInstruction {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
   ToBooleanStub::Types expected_input_types() const {
     return expected_input_types_;
   }
@@ -2770,7 +2772,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   HValue* typecheck() { return OperandAt(1); }
 
   Unique<Map> first_map() const { return map_set_.at(0); }
-  UniqueSet<Map> map_set() const { return map_set_; }
+  const UniqueSet<Map>* map_set() const { return &map_set_; }
 
   void set_map_set(UniqueSet<Map>* maps, Zone *zone) {
     map_set_.Clear();
@@ -4218,6 +4220,9 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
   virtual Representation observed_input_representation(int index) V8_OVERRIDE {
     return observed_input_representation_[index];
   }
+
+  virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   void SetOperandPositions(Zone* zone,
@@ -6172,7 +6177,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
       return access_.representation();
   }
 
-  UniqueSet<Map> map_set() const { return map_set_; }
+  const UniqueSet<Map>* map_set() const { return &map_set_; }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
   virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {

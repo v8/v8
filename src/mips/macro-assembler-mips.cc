@@ -2091,7 +2091,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
       case Uless_equal:
         if (rt.imm32_ == 0) {
           offset = shifted_branch_offset(L, false);
-          b(offset);
+          beq(rs, zero_reg, offset);
         } else {
           ASSERT(!scratch.is(rs));
           r2 = scratch;

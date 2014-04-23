@@ -609,29 +609,34 @@ Isolate* Heap::isolate() {
 // Warning: Do not use the identifiers __object__, __maybe_object__ or
 // __scope__ in a call to this macro.
 
+#define RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)    \
+  if (__maybe_object__->ToObject(&__object__)) {                               \
+    if (__object__ == (ISOLATE)->heap()->exception()) { RETURN_EMPTY; }        \
+    RETURN_VALUE;                                                              \
+  }
+
 #define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)     \
   do {                                                                         \
     MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
     Object* __object__ = NULL;                                                 \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
+    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
     (ISOLATE)->heap()->CollectGarbage(Failure::cast(__maybe_object__)->        \
                                     allocation_space(),                        \
                                     "allocation failure");                     \
     __maybe_object__ = FUNCTION_CALL;                                          \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                     \
+    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
     {                                                                          \
       AlwaysAllocateScope __scope__(ISOLATE);                                  \
       __maybe_object__ = FUNCTION_CALL;                                        \
     }                                                                          \
-    if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;                 \
-    if (__maybe_object__->IsRetryAfterGC()) {                                  \
+    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
       /* TODO(1181417): Fix this. */                                           \
-      v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);\
-    }                                                                          \
+    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
     RETURN_EMPTY;                                                              \
   } while (false)
 

@@ -2499,6 +2499,9 @@ bool Heap::CreateInitialMaps() {
   Oddball::cast(obj)->set_kind(Oddball::kUndefined);
   ASSERT(!InNewSpace(undefined_value()));
 
+  // Set preliminary exception sentinel value before actually initializing it.
+  set_exception(null_value());
+
   // Allocate the empty descriptor array.
   { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -2578,6 +2581,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, uninitialized);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, arguments_marker);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, no_interceptor_result_sentinel);
+    ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
 
     for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
@@ -2585,7 +2589,11 @@ bool Heap::CreateInitialMaps() {
       { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
         if (!maybe_obj->ToObject(&obj)) return false;
       }
-      roots_[entry.index] = Map::cast(obj);
+      // Mark cons string maps as unstable, because their objects can change
+      // maps during GC.
+      Map* map = Map::cast(obj);
+      if (StringShape(entry.type).IsCons()) map->mark_unstable();
+      roots_[entry.index] = map;
     }
 
     ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
@@ -2881,6 +2889,12 @@ bool Heap::CreateInitialObjects() {
                            "termination_exception",
                            handle(Smi::FromInt(-3), isolate()),
                            Oddball::kOther));
+
+  set_exception(
+      *factory->NewOddball(factory->exception_map(),
+                           "exception",
+                           handle(Smi::FromInt(-5), isolate()),
+                           Oddball::kException));
 
   for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
     Handle<String> str =
@@ -3965,7 +3979,9 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   {
     int chars = non_ascii_start + utf16_length;
     MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->ToObject(&result) || result->IsException()) {
+      return maybe_result;
+    }
   }
   // Convert and copy the characters into the new object.
   SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
@@ -3992,11 +4008,15 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
 
   if (String::IsOneByte(start, length)) {
     MaybeObject* maybe_result = AllocateRawOneByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->ToObject(&result) || result->IsException()) {
+      return maybe_result;
+    }
     CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);
   } else {  // It's not a one byte string.
     MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!maybe_result->ToObject(&result) || result->IsException()) {
+      return maybe_result;
+    }
     CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
   }
   return result;

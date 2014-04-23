@@ -227,7 +227,6 @@ class LCodeGen: public LCodeGenBase {
                     LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
-  void ApplyCheckIf(Condition cc, LBoundsCheck* check);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();

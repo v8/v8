@@ -62,7 +62,7 @@ Handle<AllocationSite> AllocationSiteCreationContext::EnterNewScope() {
 void AllocationSiteCreationContext::ExitScope(
     Handle<AllocationSite> scope_site,
     Handle<JSObject> object) {
-  if (!object.is_null() && !object->IsFailure()) {
+  if (!object.is_null()) {
     bool top_level = !scope_site.is_null() &&
         top().is_identical_to(scope_site);
 

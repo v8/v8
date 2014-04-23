@@ -969,15 +969,15 @@ class ToBooleanIC: public IC {
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
 
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedLoadIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, KeyedStoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, UnaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, StoreIC_MissFromStubFailure);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, ElementsTransitionAndStoreIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, BinaryOpIC_MissWithAllocationSite);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, CompareNilIC_Miss);
-DECLARE_RUNTIME_FUNCTION(MaybeObject*, ToBooleanIC_Miss);
+DECLARE_RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(KeyedStoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(UnaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(StoreIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss);
+DECLARE_RUNTIME_FUNCTION(BinaryOpIC_Miss);
+DECLARE_RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite);
+DECLARE_RUNTIME_FUNCTION(CompareNilIC_Miss);
+DECLARE_RUNTIME_FUNCTION(ToBooleanIC_Miss);
 
 
 } }  // namespace v8::internal

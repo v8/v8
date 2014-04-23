@@ -125,8 +125,7 @@ class Execution V8_FINAL : public AllStatic {
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
-  MUST_USE_RESULT static MaybeObject* HandleStackGuardInterrupt(
-      Isolate* isolate);
+  static Object* HandleStackGuardInterrupt(Isolate* isolate);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.

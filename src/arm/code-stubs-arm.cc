@@ -1502,38 +1502,36 @@ void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void CEntryStub::GenerateCore(MacroAssembler* masm,
-                              Label* throw_normal_exception,
-                              Label* throw_termination_exception,
-                              bool do_gc,
-                              bool always_allocate) {
-  // r0: result parameter for PerformGC, if any
-  // r4: number of arguments including receiver  (C callee-saved)
+void CEntryStub::Generate(MacroAssembler* masm) {
+  // Called from JavaScript; parameters are on stack as if calling JS function.
+  // r0: number of arguments including receiver
+  // r1: pointer to builtin function
+  // fp: frame pointer  (restored after C call)
+  // sp: stack pointer  (restored as callee's sp after C call)
+  // cp: current context  (C callee-saved)
+
+  ProfileEntryHookStub::MaybeCallEntryHook(masm);
+
+  __ mov(r5, Operand(r1));
+
+  // Compute the argv pointer in a callee-saved register.
+  __ add(r1, sp, Operand(r0, LSL, kPointerSizeLog2));
+  __ sub(r1, r1, Operand(kPointerSize));
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterExitFrame(save_doubles_);
+
+  // Store a copy of argc in callee-saved registers for later.
+  __ mov(r4, Operand(r0));
+
+  // r0, r4: number of arguments including receiver  (C callee-saved)
+  // r1: pointer to the first argument (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
-  // r6: pointer to the first argument (C callee-saved)
+
+  // Result returned in r0 or r0+r1 by default.
+
   Isolate* isolate = masm->isolate();
-
-  if (do_gc) {
-    // Passing r0.
-    __ PrepareCallCFunction(2, 0, r1);
-    __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
-    __ CallCFunction(ExternalReference::perform_gc_function(isolate),
-        2, 0);
-  }
-
-  ExternalReference scope_depth =
-      ExternalReference::heap_always_allocate_scope_depth(isolate);
-  if (always_allocate) {
-    __ mov(r0, Operand(scope_depth));
-    __ ldr(r1, MemOperand(r0));
-    __ add(r1, r1, Operand(1));
-    __ str(r1, MemOperand(r0));
-  }
-
-  // Call C built-in.
-  // r0 = argc, r1 = argv
-  __ mov(r0, Operand(r4));
-  __ mov(r1, Operand(r6));
 
 #if V8_HOST_ARCH_ARM
   int frame_alignment = MacroAssembler::ActivationFrameAlignment();
@@ -1551,6 +1549,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 #endif
 
+  // Call C built-in.
+  // r0 = argc, r1 = argv
   __ mov(r2, Operand(ExternalReference::isolate_address(isolate)));
 
   // To let the GC traverse the return address of the exit frames, we need to
@@ -1570,132 +1570,67 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   __ VFPEnsureFPSCRState(r2);
 
-  if (always_allocate) {
-    // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
-    // though (contain the result).
-    __ mov(r2, Operand(scope_depth));
-    __ ldr(r3, MemOperand(r2));
-    __ sub(r3, r3, Operand(1));
-    __ str(r3, MemOperand(r2));
+  // Runtime functions should not return 'the hole'.  Allowing it to escape may
+  // lead to crashes in the IC code later.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ CompareRoot(r0, Heap::kTheHoleValueRootIndex);
+    __ b(ne, &okay);
+    __ stop("The hole escaped");
+    __ bind(&okay);
   }
 
-  // check for failure result
-  Label failure_returned;
-  STATIC_ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
-  // Lower 2 bits of r2 are 0 iff r0 has failure tag.
-  __ add(r2, r0, Operand(1));
-  __ tst(r2, Operand(kFailureTagMask));
-  __ b(eq, &failure_returned);
+  // Check result for exception sentinel.
+  Label exception_returned;
+  __ CompareRoot(r0, Heap::kExceptionRootIndex);
+  __ b(eq, &exception_returned);
+
+  ExternalReference pending_exception_address(
+      Isolate::kPendingExceptionAddress, isolate);
+
+  // Check that there is no pending exception, otherwise we
+  // should have returned the exception sentinel.
+  if (FLAG_debug_code) {
+    Label okay;
+    __ mov(r2, Operand(pending_exception_address));
+    __ ldr(r2, MemOperand(r2));
+    __ CompareRoot(r2, Heap::kTheHoleValueRootIndex);
+    // Cannot use check here as it attempts to generate call into runtime.
+    __ b(eq, &okay);
+    __ stop("Unexpected pending exception");
+    __ bind(&okay);
+  }
 
   // Exit C frame and return.
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
-  //  Callee-saved register r4 still holds argc.
+  // Callee-saved register r4 still holds argc.
   __ LeaveExitFrame(save_doubles_, r4, true);
   __ mov(pc, lr);
 
-  // check if we should retry or throw exception
-  Label retry;
-  __ bind(&failure_returned);
-  STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ b(eq, &retry);
+  // Handling of exception.
+  __ bind(&exception_returned);
 
   // Retrieve the pending exception.
-  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate)));
-  __ ldr(r0, MemOperand(ip));
+  __ mov(r2, Operand(pending_exception_address));
+  __ ldr(r0, MemOperand(r2));
 
   // Clear the pending exception.
   __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-  __ mov(ip, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                       isolate)));
-  __ str(r3, MemOperand(ip));
+  __ str(r3, MemOperand(r2));
 
   // Special handling of termination exceptions which are uncatchable
   // by javascript code.
-  __ LoadRoot(r3, Heap::kTerminationExceptionRootIndex);
-  __ cmp(r0, r3);
-  __ b(eq, throw_termination_exception);
+  Label throw_termination_exception;
+  __ CompareRoot(r0, Heap::kTerminationExceptionRootIndex);
+  __ b(eq, &throw_termination_exception);
 
   // Handle normal exception.
-  __ jmp(throw_normal_exception);
-
-  __ bind(&retry);  // pass last failure (r0) as parameter (r0) when retrying
-}
-
-
-void CEntryStub::Generate(MacroAssembler* masm) {
-  // Called from JavaScript; parameters are on stack as if calling JS function
-  // r0: number of arguments including receiver
-  // r1: pointer to builtin function
-  // fp: frame pointer  (restored after C call)
-  // sp: stack pointer  (restored as callee's sp after C call)
-  // cp: current context  (C callee-saved)
-
-  ProfileEntryHookStub::MaybeCallEntryHook(masm);
-
-  // Result returned in r0 or r0+r1 by default.
-
-  // NOTE: Invocations of builtins may return failure objects
-  // instead of a proper result. The builtin entry handles
-  // this by performing a garbage collection and retrying the
-  // builtin once.
-
-  // Compute the argv pointer in a callee-saved register.
-  __ add(r6, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ sub(r6, r6, Operand(kPointerSize));
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles_);
-
-  // Set up argc and the builtin function in callee-saved registers.
-  __ mov(r4, Operand(r0));
-  __ mov(r5, Operand(r1));
-
-  // r4: number of arguments (C callee-saved)
-  // r5: pointer to builtin function (C callee-saved)
-  // r6: pointer to first argument (C callee-saved)
-
-  Label throw_normal_exception;
-  Label throw_termination_exception;
-
-  // Call into the runtime system.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               false,
-               false);
-
-  // Do space-specific GC and retry runtime call.
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               false);
-
-  // Do full GC and retry runtime call one final time.
-  Failure* failure = Failure::InternalError();
-  __ mov(r0, Operand(reinterpret_cast<int32_t>(failure)));
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_termination_exception,
-               true,
-               true);
-
-  { FrameScope scope(masm, StackFrame::MANUAL);
-    __ PrepareCallCFunction(0, r0);
-    __ CallCFunction(
-        ExternalReference::out_of_memory_function(masm->isolate()), 0, 0);
-  }
+  __ Throw(r0);
 
   __ bind(&throw_termination_exception);
   __ ThrowUncatchable(r0);
-
-  __ bind(&throw_normal_exception);
-  __ Throw(r0);
 }
 
 
@@ -1791,7 +1726,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
                                          isolate)));
   }
   __ str(r0, MemOperand(ip));
-  __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
+  __ LoadRoot(r0, Heap::kExceptionRootIndex);
   __ b(&exit);
 
   // Invoke: Link this frame into the handler chain.  There's only one

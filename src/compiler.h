@@ -615,11 +615,14 @@ class OptimizedCompileJob: public ZoneObject {
 
 class Compiler : public AllStatic {
  public:
-  static Handle<Code> GetUnoptimizedCode(Handle<JSFunction> function);
-  static Handle<Code> GetUnoptimizedCode(Handle<SharedFunctionInfo> shared);
+  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
+      Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
+      Handle<SharedFunctionInfo> shared);
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-  static Handle<Code> GetCodeForDebugging(Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetCodeForDebugging(
+      Handle<JSFunction> function);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static void CompileForLiveEdit(Handle<Script> script);
@@ -655,7 +658,7 @@ class Compiler : public AllStatic {
   // Generate and return optimized code or start a concurrent optimization job.
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
-  static Handle<Code> GetOptimizedCode(
+  MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
       Handle<JSFunction> function,
       Handle<Code> current_code,
       ConcurrencyMode mode,

@@ -1899,7 +1899,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate)));
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
-  __ li(v0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
+  __ LoadRoot(v0, Heap::kExceptionRootIndex);
   __ b(&exit);  // b exposes branch delay slot.
   __ nop();   // Branch delay slot nop.
 

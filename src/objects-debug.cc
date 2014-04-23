@@ -618,7 +618,7 @@ void Oddball::OddballVerify() {
     CHECK(number->IsSmi());
     int value = Smi::cast(number)->value();
     // Hidden oddballs have negative smis.
-    const int kLeastHiddenOddballNumber = -4;
+    const int kLeastHiddenOddballNumber = -5;
     CHECK_LE(value, 1);
     CHECK(value >= kLeastHiddenOddballNumber);
   }
@@ -639,6 +639,8 @@ void Oddball::OddballVerify() {
     CHECK(this == heap->arguments_marker());
   } else if (map() == heap->termination_exception_map()) {
     CHECK(this == heap->termination_exception());
+  } else if (map() == heap->exception_map()) {
+    CHECK(this == heap->exception());
   } else {
     UNREACHABLE();
   }

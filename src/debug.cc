@@ -1061,7 +1061,7 @@ Object* Debug::Break(Arguments args) {
 }
 
 
-RUNTIME_FUNCTION(Object*, Debug_Break) {
+RUNTIME_FUNCTION(Debug_Break) {
   return isolate->debug()->Break(args);
 }
 
@@ -2106,7 +2106,8 @@ void Debug::PrepareForBreakPoints() {
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
-        Handle<Code> code = Compiler::GetCodeForDebugging(function);
+        Handle<Code> code = Compiler::GetCodeForDebugging(
+            function).ToHandleChecked();
         function->ReplaceCode(*code);
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
@@ -2222,10 +2223,10 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       // will compile all inner functions that cannot be compiled without a
       // context, because Compiler::BuildFunctionInfo checks whether the
       // debugger is active.
-      Handle<Code> result = target_function.is_null()
+      MaybeHandle<Code> maybe_result = target_function.is_null()
           ? Compiler::GetUnoptimizedCode(target)
           : Compiler::GetUnoptimizedCode(target_function);
-      if (result.is_null()) return isolate_->heap()->undefined_value();
+      if (maybe_result.is_null()) return isolate_->heap()->undefined_value();
     }
   }  // End while loop.
 

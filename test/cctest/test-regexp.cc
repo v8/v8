@@ -1406,8 +1406,8 @@ TEST(MacroAssembler) {
   int captures[5];
 
   const uc16 str1[] = {'f', 'o', 'o', 'b', 'a', 'r'};
-  Handle<String> f1_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str1, 6));
+  Handle<String> f1_16 = factory->NewStringFromTwoByte(
+      Vector<const uc16>(str1, 6)).ToHandleChecked();
 
   CHECK(IrregexpInterpreter::Match(isolate, array, f1_16, captures, 0));
   CHECK_EQ(0, captures[0]);
@@ -1417,8 +1417,8 @@ TEST(MacroAssembler) {
   CHECK_EQ(84, captures[4]);
 
   const uc16 str2[] = {'b', 'a', 'r', 'f', 'o', 'o'};
-  Handle<String> f2_16 =
-      factory->NewStringFromTwoByte(Vector<const uc16>(str2, 6));
+  Handle<String> f2_16 = factory->NewStringFromTwoByte(
+      Vector<const uc16>(str2, 6)).ToHandleChecked();
 
   CHECK(!IrregexpInterpreter::Match(isolate, array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
