@@ -8520,6 +8520,10 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
     if (details.type() == CONSTANT) {
       if (other_details.type() != CONSTANT) return false;
       if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
+    } else if (details.type() == FIELD && other_details.type() == FIELD) {
+      if (!other->GetFieldType(descriptor)->NowIs(GetFieldType(descriptor))) {
+        return false;
+      }
     }
   }
 
