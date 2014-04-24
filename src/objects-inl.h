@@ -6672,6 +6672,13 @@ MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
 }
 
 
+Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate, Name* key) {
+  ASSERT(key->IsUniqueName());
+  // TODO(ishell): Convert Name* to Handle<Name> to avoid re-wrapping here.
+  return handle(key, isolate);
+}
+
+
 bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
   return key->SameValue(other);
 }

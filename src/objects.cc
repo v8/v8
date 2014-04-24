@@ -14902,13 +14902,13 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Name*>::
     New(Isolate* isolate, int n, PretenureFlag pretenure);
 
-template MaybeObject*
+template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    AtPut(uint32_t, Object*);
+    AtPut(Handle<SeededNumberDictionary>, uint32_t, Handle<Object>);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    AtPut(uint32_t, Object*);
+    AtPut(Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>);
 
 template Object*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15943,29 +15943,25 @@ Object* Dictionary<Derived, Shape, Key>::DeleteProperty(
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::AtPut(Key key, Object* value) {
-  int entry = this->FindEntry(key);
+Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
+    Handle<Derived> dictionary, Key key, Handle<Object> value) {
+  int entry = dictionary->FindEntry(key);
 
   // If the entry is present set the value;
   if (entry != Dictionary::kNotFound) {
-    ValueAtPut(entry, value);
-    return this;
+    dictionary->ValueAtPut(entry, *value);
+    return dictionary;
   }
 
   // Check whether the dictionary should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  dictionary = EnsureCapacity(dictionary, 1, key);
 
-  Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
+  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
+  // TODO(ishell): Figure out if it is necessary to call AsHandle() here.
+  USE(k);
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
 }
 
 
@@ -15988,6 +15984,19 @@ MaybeObject* Dictionary<Derived, Shape, Key>::Add(
 
 
 // Add a key, value pair to the dictionary.
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> Dictionary<Derived, Shape, Key>::AddEntry(
+    Handle<Derived> dictionary,
+    Key key,
+    Handle<Object> value,
+    PropertyDetails details,
+    uint32_t hash) {
+  CALL_HEAP_FUNCTION(
+      dictionary->GetIsolate(),
+      dictionary->AddEntry(key, *value, details, hash),
+      Derived);
+}
+
 template<typename Derived, typename Shape, typename Key>
 MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
     Key key,
@@ -16069,10 +16078,7 @@ Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
     uint32_t key,
     Handle<Object> value) {
   dictionary->UpdateMaxNumberKey(key);
-  CALL_HEAP_FUNCTION(
-      dictionary->GetIsolate(),
-      dictionary->AtPut(key, *value),
-      SeededNumberDictionary);
+  return AtPut(dictionary, key, value);
 }
 
 
@@ -16080,10 +16086,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
     Handle<UnseededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(
-      dictionary->GetIsolate(),
-      dictionary->AtPut(key, *value),
-      UnseededNumberDictionary);
+  return AtPut(dictionary, key, value);
 }
 
 
