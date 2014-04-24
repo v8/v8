@@ -71,6 +71,8 @@
 
   # BUG(2999).
   'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
+  # BUG(3287).
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.
