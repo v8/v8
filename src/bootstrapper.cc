@@ -392,10 +392,6 @@ void Genesis::SetFunctionInstanceDescriptor(
   Handle<Foreign> name(factory()->NewForeign(&Accessors::FunctionName));
   Handle<Foreign> args(factory()->NewForeign(&Accessors::FunctionArguments));
   Handle<Foreign> caller(factory()->NewForeign(&Accessors::FunctionCaller));
-  Handle<Foreign> prototype;
-  if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    prototype = factory()->NewForeign(&Accessors::FunctionPrototype);
-  }
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -416,11 +412,13 @@ void Genesis::SetFunctionInstanceDescriptor(
     map->AppendDescriptor(&d);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    // Add prototype.
     if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
       attribs = static_cast<PropertyAttributes>(attribs & ~READ_ONLY);
     }
-    CallbacksDescriptor d(factory()->prototype_string(), prototype, attribs);
+    Handle<AccessorInfo> prototype =
+        Accessors::FunctionPrototypeInfo(isolate(), attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                          prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -523,10 +521,6 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   Handle<Foreign> name(factory()->NewForeign(&Accessors::FunctionName));
   Handle<AccessorPair> arguments(factory()->NewAccessorPair());
   Handle<AccessorPair> caller(factory()->NewAccessorPair());
-  Handle<Foreign> prototype;
-  if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    prototype = factory()->NewForeign(&Accessors::FunctionPrototype);
-  }
   PropertyAttributes rw_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   PropertyAttributes ro_attribs =
@@ -553,7 +547,10 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     // Add prototype.
     PropertyAttributes attribs =
         prototypeMode == ADD_WRITEABLE_PROTOTYPE ? rw_attribs : ro_attribs;
-    CallbacksDescriptor d(factory()->prototype_string(), prototype, attribs);
+    Handle<AccessorInfo> prototype =
+        Accessors::FunctionPrototypeInfo(isolate(), attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
+                          prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }

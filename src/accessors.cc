@@ -797,16 +797,10 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 }
 
 
-Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
-  return GetFunctionPrototype(function->GetIsolate(), function);
-}
-
-
-
-MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
-                                         Handle<JSObject> receiver,
-                                         Handle<Object> value) {
-    Handle<JSFunction> function;
+static Handle<Object> SetFunctionPrototype(Isolate* isolate,
+                                           Handle<JSObject> receiver,
+                                           Handle<Object> value) {
+  Handle<JSFunction> function;
   {
     DisallowHeapAllocation no_allocation;
     JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
@@ -816,8 +810,10 @@ MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
 
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return JSObject::SetLocalPropertyIgnoreAttributes(
-        receiver, isolate->factory()->prototype_string(), value, NONE);
+    MaybeHandle<Object> maybe_result =
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            receiver, isolate->factory()->prototype_string(), value, NONE);
+    return maybe_result.ToHandleChecked();
   }
 
   Handle<Object> old_value;
@@ -841,43 +837,51 @@ MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
 }
 
 
+Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
+  return GetFunctionPrototype(function->GetIsolate(), function);
+}
+
+
 Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
                                                Handle<Object> prototype) {
   ASSERT(function->should_have_prototype());
   Isolate* isolate = function->GetIsolate();
-  Handle<Object> result;
-  SetFunctionPrototype(isolate, function, prototype).ToHandle(&result);
-  return result;
+  return SetFunctionPrototype(isolate, function, prototype);
 }
 
 
-Object* Accessors::FunctionGetPrototype(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
+void Accessors::FunctionPrototypeGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  return *GetFunctionPrototype(isolate, Handle<Object>(object, isolate));
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> result = GetFunctionPrototype(isolate, object);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-Object* Accessors::FunctionSetPrototype(Isolate* isolate,
-                                        JSObject* object,
-                                        Object* value,
-                                        void*) {
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      SetFunctionPrototype(isolate,
-                           Handle<JSObject>(object, isolate),
-                           Handle<Object>(value, isolate)));
-  return *result;
+void Accessors::FunctionPrototypeSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<Object> value = Utils::OpenHandle(*val);
+
+  SetFunctionPrototype(isolate, object, value);
 }
 
 
-const AccessorDescriptor Accessors::FunctionPrototype = {
-  FunctionGetPrototype,
-  FunctionSetPrototype,
-  0
-};
+Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->prototype_string(),
+                      &FunctionPrototypeGetter,
+                      &FunctionPrototypeSetter,
+                      attributes);
+}
 
 
 //
