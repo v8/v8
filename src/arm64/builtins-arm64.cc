@@ -1415,7 +1415,6 @@ static void ArgumentAdaptorStackCheck(MacroAssembler* masm,
   // Make x10 the space we have left. The stack might already be overflowed
   // here which will cause x10 to become negative.
   __ Sub(x10, jssp, x10);
-  __ Mov(x11, jssp);
   // Check if the arguments will overflow the stack.
   __ Cmp(x10, Operand(x2, LSL, kPointerSizeLog2));
   __ B(le, stack_overflow);
@@ -1583,7 +1582,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     FrameScope frame(masm, StackFrame::MANUAL);
     EnterArgumentsAdaptorFrame(masm);
     __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
-    __ Brk(0);
+    __ Unreachable();
   }
 }
 
