@@ -1096,7 +1096,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state(masm_->isolate());
   __ li(t9, Operand(stack_guard_check));
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(masm_, t9);
 
   // DirectCEntryStub allocated space for the C argument slots so we have to
