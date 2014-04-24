@@ -420,7 +420,7 @@ void StubCompiler::GenerateFastApiCall(MacroAssembler* masm,
       api_function_address, function_address, RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiFunctionStub stub(is_store, call_data_undefined, argc);
+  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
   __ TailCallStub(&stub);
 }
 
@@ -940,12 +940,14 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
                                          Representation representation) {
   if (!reg.is(receiver())) __ movp(receiver(), reg);
   if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(field.is_inobject(holder),
+    LoadFieldStub stub(isolate(),
+                       field.is_inobject(holder),
                        field.translate(holder),
                        representation);
     GenerateTailCall(masm(), stub.GetCode(isolate()));
   } else {
-    KeyedLoadFieldStub stub(field.is_inobject(holder),
+    KeyedLoadFieldStub stub(isolate(),
+                            field.is_inobject(holder),
                             field.translate(holder),
                             representation);
     GenerateTailCall(masm(), stub.GetCode(isolate()));
@@ -993,7 +995,7 @@ void LoadStubCompiler::GenerateLoadCallback(
   Address getter_address = v8::ToCData<Address>(callback->getter());
   __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
 
-  CallApiGetterStub stub;
+  CallApiGetterStub stub(isolate());
   __ TailCallStub(&stub);
 }
 

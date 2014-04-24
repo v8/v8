@@ -219,7 +219,8 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.
   for (int op = Token::BIT_OR; op <= Token::MOD; ++op) {
     for (int mode = NO_OVERWRITE; mode <= OVERWRITE_RIGHT; ++mode) {
-      BinaryOpICStub stub(static_cast<Token::Value>(op),
+      BinaryOpICStub stub(isolate,
+                          static_cast<Token::Value>(op),
                           static_cast<OverwriteMode>(mode));
       stub.GetCode(isolate);
     }
@@ -238,7 +239,7 @@ void BinaryOpICStub::PrintState(StringStream* stream) {
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
                                          const BinaryOpIC::State& state) {
-  BinaryOpICStub stub(state);
+  BinaryOpICStub stub(isolate, state);
   stub.GetCode(isolate);
 }
 
@@ -259,7 +260,7 @@ void BinaryOpICWithAllocationSiteStub::PrintState(StringStream* stream) {
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
     Isolate* isolate, const BinaryOpIC::State& state) {
   if (state.CouldCreateAllocationMementos()) {
-    BinaryOpICWithAllocationSiteStub stub(state);
+    BinaryOpICWithAllocationSiteStub stub(isolate, state);
     stub.GetCode(isolate);
   }
 }
@@ -540,7 +541,7 @@ void KeyedLoadDictionaryElementPlatformStub::Generate(
 
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
-  CreateAllocationSiteStub stub;
+  CreateAllocationSiteStub stub(isolate);
   stub.GetCode(isolate);
 }
 
@@ -696,8 +697,8 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  StubFailureTrampolineStub stub1(NOT_JS_FUNCTION_STUB_MODE);
-  StubFailureTrampolineStub stub2(JS_FUNCTION_STUB_MODE);
+  StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
+  StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
   stub1.GetCode(isolate);
   stub2.GetCode(isolate);
 }
@@ -723,36 +724,38 @@ static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
 
 
 void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  ArrayNoArgumentConstructorStub stub1(GetInitialFastElementsKind());
+  ArrayNoArgumentConstructorStub stub1(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub1);
-  ArraySingleArgumentConstructorStub stub2(GetInitialFastElementsKind());
+  ArraySingleArgumentConstructorStub stub2(isolate,
+                                           GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub2);
-  ArrayNArgumentsConstructorStub stub3(GetInitialFastElementsKind());
+  ArrayNArgumentsConstructorStub stub3(isolate, GetInitialFastElementsKind());
   InstallDescriptor(isolate, &stub3);
 }
 
 
 void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
-  NumberToStringStub stub;
+  NumberToStringStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(STRICT, false);
+  FastNewClosureStub stub(isolate, STRICT, false);
   InstallDescriptor(isolate, &stub);
 }
 
 
 void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
-  FastNewContextStub stub(FastNewContextStub::kMaximumSlots);
+  FastNewContextStub stub(isolate, FastNewContextStub::kMaximumSlots);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
-  FastCloneShallowArrayStub stub(FastCloneShallowArrayStub::CLONE_ELEMENTS,
+  FastCloneShallowArrayStub stub(isolate,
+                                 FastCloneShallowArrayStub::CLONE_ELEMENTS,
                                  DONT_TRACK_ALLOCATION_SITE, 0);
   InstallDescriptor(isolate, &stub);
 }
@@ -760,40 +763,41 @@ void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
 
 // static
 void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpICStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpICStub stub(isolate, Token::ADD, NO_OVERWRITE);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpWithAllocationSiteStub stub(Token::ADD, NO_OVERWRITE);
+  BinaryOpWithAllocationSiteStub stub(isolate, Token::ADD, NO_OVERWRITE);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void StringAddStub::InstallDescriptors(Isolate* isolate) {
-  StringAddStub stub(STRING_ADD_CHECK_NONE, NOT_TENURED);
+  StringAddStub stub(isolate, STRING_ADD_CHECK_NONE, NOT_TENURED);
   InstallDescriptor(isolate, &stub);
 }
 
 
 // static
 void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
-  RegExpConstructResultStub stub;
+  RegExpConstructResultStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : argument_count_(ANY) {
+    : PlatformCodeStub(isolate), argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
-                                           int argument_count) {
+                                           int argument_count)
+    : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
     argument_count_ = NONE;
   } else if (argument_count == 1) {
@@ -808,16 +812,16 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 
 
 void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  InternalArrayNoArgumentConstructorStub stub1(FAST_ELEMENTS);
+  InternalArrayNoArgumentConstructorStub stub1(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub1);
-  InternalArraySingleArgumentConstructorStub stub2(FAST_ELEMENTS);
+  InternalArraySingleArgumentConstructorStub stub2(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub2);
-  InternalArrayNArgumentsConstructorStub stub3(FAST_ELEMENTS);
+  InternalArrayNArgumentsConstructorStub stub3(isolate, FAST_ELEMENTS);
   InstallDescriptor(isolate, &stub3);
 }
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(
-    Isolate* isolate) {
+    Isolate* isolate) : PlatformCodeStub(isolate) {
   InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 

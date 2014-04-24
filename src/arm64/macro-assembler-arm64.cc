@@ -1651,7 +1651,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference(f, isolate()));
 
-  CEntryStub stub(1, save_doubles);
+  CEntryStub stub(isolate(), 1, save_doubles);
   CallStub(&stub);
 }
 
@@ -1729,7 +1729,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(this, x3);
 
   if (FLAG_log_timer_events) {
@@ -1813,14 +1813,14 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   Mov(x0, num_arguments);
   Mov(x1, ext);
 
-  CEntryStub stub(1);
+  CEntryStub stub(isolate(), 1);
   CallStub(&stub);
 }
 
 
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   Mov(x1, builtin);
-  CEntryStub stub(1);
+  CEntryStub stub(isolate(), 1);
   Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
 }
 
@@ -2919,7 +2919,8 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   Push(lr);
   Push(double_input);  // Put input on stack.
 
-  DoubleToIStub stub(jssp,
+  DoubleToIStub stub(isolate(),
+                     jssp,
                      result,
                      0,
                      true,   // is_truncating
@@ -2947,7 +2948,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr);
-  DoubleToIStub stub(object,
+  DoubleToIStub stub(isolate(),
+                     object,
                      result,
                      HeapNumber::kValueOffset - kHeapObjectTag,
                      true,   // is_truncating
@@ -3188,7 +3190,7 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 void MacroAssembler::DebugBreak() {
   Mov(x0, 0);
   Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
-  CEntryStub ces(1);
+  CEntryStub ces(isolate(), 1);
   ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
 }
@@ -4203,7 +4205,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Bind(&store_buffer_overflow);
   Push(lr);
   StoreBufferOverflowStub store_buffer_overflow_stub =
-      StoreBufferOverflowStub(fp_mode);
+      StoreBufferOverflowStub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow_stub);
   Pop(lr);
 
@@ -4396,7 +4398,8 @@ void MacroAssembler::RecordWrite(Register object,
   if (lr_status == kLRHasNotBeenSaved) {
     Push(lr);
   }
-  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop(lr);

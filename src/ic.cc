@@ -588,7 +588,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
       if (state() == UNINITIALIZED) {
         stub = pre_monomorphic_stub();
       } else if (state() == PREMONOMORPHIC) {
-        FunctionPrototypeStub function_prototype_stub(kind());
+        FunctionPrototypeStub function_prototype_stub(isolate(), kind());
         stub = function_prototype_stub.GetCode(isolate());
       } else if (state() != MEGAMORPHIC) {
         ASSERT(state() != GENERIC);
@@ -851,10 +851,10 @@ Handle<Code> LoadIC::SimpleFieldLoad(int offset,
                                      bool inobject,
                                      Representation representation) {
   if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(inobject, offset, representation);
+    LoadFieldStub stub(isolate(), inobject, offset, representation);
     return stub.GetCode(isolate());
   } else {
-    KeyedLoadFieldStub stub(inobject, offset, representation);
+    KeyedLoadFieldStub stub(isolate(), inobject, offset, representation);
     return stub.GetCode(isolate());
   }
 }
@@ -940,10 +940,10 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
   if (object->IsStringWrapper() &&
       String::Equals(isolate()->factory()->length_string(), name)) {
     if (kind() == Code::LOAD_IC) {
-      StringLengthStub string_length_stub;
+      StringLengthStub string_length_stub(isolate());
       return string_length_stub.GetCode(isolate());
     } else {
-      KeyedStringLengthStub string_length_stub;
+      KeyedStringLengthStub string_length_stub(isolate());
       return string_length_stub.GetCode(isolate());
     }
   }
@@ -1424,7 +1424,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
           Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
           Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
           StoreGlobalStub stub(
-              union_type->IsConstant(), receiver->IsJSGlobalProxy());
+              isolate(), union_type->IsConstant(), receiver->IsJSGlobalProxy());
           Handle<Code> code = stub.GetCodeCopyFromTemplate(
               isolate(), global, cell);
           // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
@@ -2512,14 +2512,14 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     }
 
     // Install the stub with an allocation site.
-    BinaryOpICWithAllocationSiteStub stub(state);
+    BinaryOpICWithAllocationSiteStub stub(isolate(), state);
     target = stub.GetCodeCopyFromTemplate(isolate(), allocation_site);
 
     // Sanity check the trampoline stub.
     ASSERT_EQ(*allocation_site, target->FindFirstAllocationSite());
   } else {
     // Install the generic stub.
-    BinaryOpICStub stub(state);
+    BinaryOpICStub stub(isolate(), state);
     target = stub.GetCode(isolate());
 
     // Sanity check the generic stub.
@@ -2591,7 +2591,7 @@ RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite) {
 
 
 Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
-  ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
   CHECK(stub.FindCodeInCache(&code, isolate));
   return code;
@@ -2599,7 +2599,7 @@ Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
 
 
 Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
-  ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   return stub.GetCode(isolate);
 }
 
@@ -2772,7 +2772,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   State new_right = NewInputState(previous_right, y);
   State state = TargetState(previous_state, previous_left, previous_right,
                             HasInlinedSmiCode(address()), x, y);
-  ICCompareStub stub(op_, new_left, new_right, state);
+  ICCompareStub stub(isolate(), op_, new_left, new_right, state);
   if (state == KNOWN_OBJECT) {
     stub.set_known_map(
         Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
@@ -2818,7 +2818,9 @@ void CompareNilIC::Clear(Address address,
   if (IsCleared(target)) return;
   ExtraICState state = target->extra_ic_state();
 
-  CompareNilICStub stub(state, HydrogenCodeStub::UNINITIALIZED);
+  CompareNilICStub stub(target->GetIsolate(),
+                        state,
+                        HydrogenCodeStub::UNINITIALIZED);
   stub.ClearState();
 
   Code* code = NULL;
@@ -2841,7 +2843,7 @@ Handle<Object> CompareNilIC::DoCompareNilSlow(Isolate* isolate,
 Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
   ExtraICState extra_ic_state = target()->extra_ic_state();
 
-  CompareNilICStub stub(extra_ic_state);
+  CompareNilICStub stub(isolate(), extra_ic_state);
 
   // Extract the current supported types from the patched IC and calculate what
   // types must be supported as a result of the miss.
@@ -2923,7 +2925,7 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
 
 
 Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
-  ToBooleanStub stub(target()->extra_ic_state());
+  ToBooleanStub stub(isolate(), target()->extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode(isolate());
   set_target(*code);

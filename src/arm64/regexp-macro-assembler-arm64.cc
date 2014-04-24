@@ -1454,7 +1454,7 @@ void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
   ExternalReference check_stack_guard_state =
       ExternalReference::re_check_stack_guard_state(isolate());
   __ Mov(scratch, check_stack_guard_state);
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(masm_, scratch);
 
   // The input string may have been moved in memory, we need to reload it.

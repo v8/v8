@@ -2779,13 +2779,13 @@ bool Heap::CreateApiObjects() {
 
 
 void Heap::CreateJSEntryStub() {
-  JSEntryStub stub;
+  JSEntryStub stub(isolate());
   set_js_entry_code(*stub.GetCode(isolate()));
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
-  JSConstructEntryStub stub;
+  JSConstructEntryStub stub(isolate());
   set_js_construct_entry_code(*stub.GetCode(isolate()));
 }
 
