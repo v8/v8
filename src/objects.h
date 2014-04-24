@@ -4193,7 +4193,10 @@ class SeededNumberDictionary
   }
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> AtNumberPut(
+      Handle<SeededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
       Handle<SeededNumberDictionary> dictionary,
       uint32_t key,
@@ -4245,7 +4248,10 @@ class UnseededNumberDictionary
   }
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AtNumberPut(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
       Handle<UnseededNumberDictionary> dictionary,
       uint32_t key,

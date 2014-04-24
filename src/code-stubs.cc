@@ -135,7 +135,6 @@ void CodeStub::VerifyPlatformFeatures(Isolate* isolate) {
 
 
 Handle<Code> CodeStub::GetCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   Code* code;
   if (UseSpecialCache()
@@ -170,7 +169,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
     } else {
       // Update the dictionary and the root in Heap.
       Handle<UnseededNumberDictionary> dict =
-          factory->DictionaryAtNumberPut(
+          UnseededNumberDictionary::AtNumberPut(
               Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);

@@ -1963,26 +1963,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 }
 
 
-Handle<SeededNumberDictionary> Factory::DictionaryAtNumberPut(
-    Handle<SeededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     dictionary->AtNumberPut(key, *value),
-                     SeededNumberDictionary);
-}
-
-
-Handle<UnseededNumberDictionary> Factory::DictionaryAtNumberPut(
-    Handle<UnseededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     dictionary->AtNumberPut(key, *value),
-                     UnseededNumberDictionary);
-}
-
-
 void Factory::InitializeFunction(Handle<JSFunction> function,
                                  Handle<SharedFunctionInfo> info,
                                  Handle<Context> context,

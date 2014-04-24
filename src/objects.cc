@@ -16064,15 +16064,26 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
 }
 
 
-MaybeObject* SeededNumberDictionary::AtNumberPut(uint32_t key, Object* value) {
-  UpdateMaxNumberKey(key);
-  return AtPut(key, value);
+Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
+    Handle<SeededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  dictionary->UpdateMaxNumberKey(key);
+  CALL_HEAP_FUNCTION(
+      dictionary->GetIsolate(),
+      dictionary->AtPut(key, *value),
+      SeededNumberDictionary);
 }
 
 
-MaybeObject* UnseededNumberDictionary::AtNumberPut(uint32_t key,
-                                                   Object* value) {
-  return AtPut(key, value);
+Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(
+      dictionary->GetIsolate(),
+      dictionary->AtPut(key, *value),
+      UnseededNumberDictionary);
 }
 
 
