@@ -891,7 +891,7 @@ void LoadStubCompiler::NonexistentHandlerFrontend(Handle<HeapType> type,
       name = factory()->InternalizeString(Handle<String>::cast(name));
     }
     ASSERT(last.is_null() ||
-           last->property_dictionary()->FindEntry(*name) ==
+           last->property_dictionary()->FindEntry(name) ==
                NameDictionary::kNotFound);
     GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
                                      scratch2(), scratch3());

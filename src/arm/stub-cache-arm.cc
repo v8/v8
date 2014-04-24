@@ -893,7 +893,7 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
         name = factory()->InternalizeString(Handle<String>::cast(name));
       }
       ASSERT(current.is_null() ||
-             current->property_dictionary()->FindEntry(*name) ==
+             current->property_dictionary()->FindEntry(name) ==
              NameDictionary::kNotFound);
 
       GenerateDictionaryNegativeLookup(masm(), miss, reg, name,

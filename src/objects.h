@@ -4119,14 +4119,14 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 };
 
 
-class NameDictionaryShape : public BaseShape<Name*> {
+class NameDictionaryShape : public BaseShape<Handle<Name> > {
  public:
-  static inline bool IsMatch(Name* key, Object* other);
-  static inline uint32_t Hash(Name* key);
-  static inline uint32_t HashForObject(Name* key, Object* object);
+  static inline bool IsMatch(Handle<Name> key, Object* other);
+  static inline uint32_t Hash(Handle<Name> key);
+  static inline uint32_t HashForObject(Handle<Name> key, Object* object);
   MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Name* key);
-  static inline Handle<Object> AsHandle(Isolate* isolate, Name* key);
+                                                      Handle<Name> key);
+  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
@@ -4135,7 +4135,7 @@ class NameDictionaryShape : public BaseShape<Name*> {
 
 class NameDictionary: public Dictionary<NameDictionary,
                                         NameDictionaryShape,
-                                        Name*> {
+                                        Handle<Name> > {
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4149,6 +4149,9 @@ class NameDictionary: public Dictionary<NameDictionary,
 
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
+  int FindEntry(Handle<Name> key);
+
+  // TODO(ishell): Remove this when all the callers are handlified.
   int FindEntry(Name* key);
 
   // TODO(mstarzinger): Temporary wrapper until handlified.
