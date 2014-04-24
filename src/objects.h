@@ -4199,9 +4199,6 @@ class SeededNumberDictionary
       uint32_t key,
       Handle<Object> value,
       PropertyDetails details);
-  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key,
-                                              Object* value,
-                                              PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
@@ -4249,7 +4246,6 @@ class UnseededNumberDictionary
 
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
-  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key, Object* value);
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
       Handle<UnseededNumberDictionary> dictionary,
       uint32_t key,

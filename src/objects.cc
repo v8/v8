@@ -16020,6 +16020,7 @@ MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
 
 
 void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
+  DisallowHeapAllocation no_allocation;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
   if (requires_slow_elements()) return;
@@ -16037,29 +16038,17 @@ void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   }
 }
 
+
 Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
     Handle<SeededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value,
     PropertyDetails details) {
+  dictionary->UpdateMaxNumberKey(key);
+  SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
   CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->AddNumberEntry(key, *value, details),
+                     dictionary->Add(key, *value, details),
                      SeededNumberDictionary);
-}
-
-MaybeObject* SeededNumberDictionary::AddNumberEntry(uint32_t key,
-                                                    Object* value,
-                                                    PropertyDetails details) {
-  UpdateMaxNumberKey(key);
-  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
-  return Add(key, value, details);
-}
-
-
-MaybeObject* UnseededNumberDictionary::AddNumberEntry(uint32_t key,
-                                                      Object* value) {
-  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
-  return Add(key, value, PropertyDetails(NONE, NORMAL, 0));
 }
 
 
@@ -16067,8 +16056,10 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
     Handle<UnseededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value) {
+  SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
   CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->AddNumberEntry(key, *value),
+                     dictionary->Add(
+                         key, *value, PropertyDetails(NONE, NORMAL, 0)),
                      UnseededNumberDictionary);
 }
 
