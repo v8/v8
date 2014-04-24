@@ -1778,23 +1778,23 @@ void LCodeGen::DoBitS(LBitS* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
-  Condition cc = instr->hydrogen()->allow_equality() ? hi : hs;
+  Condition cond = instr->hydrogen()->allow_equality() ? hi : hs;
   ASSERT(instr->hydrogen()->index()->representation().IsInteger32());
   ASSERT(instr->hydrogen()->length()->representation().IsInteger32());
   if (instr->index()->IsConstantOperand()) {
     Operand index = ToOperand32I(instr->index());
     Register length = ToRegister32(instr->length());
     __ Cmp(length, index);
-    cc = ReverseConditionForCmp(cc);
+    cond = ReverseConditionForCmp(cond);
   } else {
     Register index = ToRegister32(instr->index());
     Operand length = ToOperand32I(instr->length());
     __ Cmp(index, length);
   }
   if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
-    __ Assert(InvertCondition(cc), kEliminatedBoundsCheckFailed);
+    __ Assert(InvertCondition(cond), kEliminatedBoundsCheckFailed);
   } else {
-    DeoptimizeIf(cc, instr->environment());
+    DeoptimizeIf(cond, instr->environment());
   }
 }
 

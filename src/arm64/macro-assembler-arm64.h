@@ -1068,7 +1068,7 @@ class MacroAssembler : public Assembler {
   void Throw(BailoutReason reason);
 
   // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cc, BailoutReason reason);
+  void ThrowIf(Condition cond, BailoutReason reason);
 
   // Throw a message string as an exception if the value is a smi.
   void ThrowIfSmi(const Register& value, BailoutReason reason);

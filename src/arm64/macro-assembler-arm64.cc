@@ -1537,9 +1537,9 @@ void MacroAssembler::Throw(BailoutReason reason) {
 }
 
 
-void MacroAssembler::ThrowIf(Condition cc, BailoutReason reason) {
+void MacroAssembler::ThrowIf(Condition cond, BailoutReason reason) {
   Label ok;
-  B(InvertCondition(cc), &ok);
+  B(InvertCondition(cond), &ok);
   Throw(reason);
   Bind(&ok);
 }
@@ -3311,8 +3311,7 @@ void MacroAssembler::Allocate(int object_size,
 
   // Calculate new top and bail out if new space is exhausted.
   Adds(scratch3, result, object_size);
-  B(vs, gc_required);
-  Cmp(scratch3, allocation_limit);
+  Ccmp(scratch3, allocation_limit, CFlag, cc);
   B(hi, gc_required);
   Str(scratch3, MemOperand(top_address));
 
@@ -3393,8 +3392,7 @@ void MacroAssembler::Allocate(Register object_size,
     Check(eq, kUnalignedAllocationInNewSpace);
   }
 
-  B(vs, gc_required);
-  Cmp(scratch3, allocation_limit);
+  Ccmp(scratch3, allocation_limit, CFlag, cc);
   B(hi, gc_required);
   Str(scratch3, MemOperand(top_address));
 
