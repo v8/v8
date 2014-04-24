@@ -114,7 +114,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
     isolate->clear_pending_message();
   }
 
-  return Handle<Object>(value->ToObjectUnchecked(), isolate);
+  return Handle<Object>(value, isolate);
 }
 
 

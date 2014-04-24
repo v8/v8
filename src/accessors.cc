@@ -73,10 +73,10 @@ static C* FindInstanceOf(Isolate* isolate, Object* obj) {
 
 
 // Entry point that never should be called.
-MaybeObject* Accessors::IllegalSetter(Isolate* isolate,
-                                      JSObject*,
-                                      Object*,
-                                      void*) {
+Object* Accessors::IllegalSetter(Isolate* isolate,
+                                 JSObject*,
+                                 Object*,
+                                 void*) {
   UNREACHABLE();
   return NULL;
 }
@@ -90,10 +90,10 @@ Object* Accessors::IllegalGetAccessor(Isolate* isolate,
 }
 
 
-MaybeObject* Accessors::ReadOnlySetAccessor(Isolate* isolate,
-                                            JSObject*,
-                                            Object* value,
-                                            void*) {
+Object* Accessors::ReadOnlySetAccessor(Isolate* isolate,
+                                       JSObject*,
+                                       Object* value,
+                                       void*) {
   // According to ECMA-262, section 8.6.2.2, page 28, setting
   // read-only properties must be silently ignored.
   return value;
@@ -174,9 +174,9 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
 //
 
 
-MaybeObject* Accessors::ArrayGetLength(Isolate* isolate,
-                                       Object* object,
-                                       void*) {
+Object* Accessors::ArrayGetLength(Isolate* isolate,
+                                  Object* object,
+                                  void*) {
   // Traverse the prototype chain until we reach an array.
   JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
   return holder == NULL ? Smi::FromInt(0) : holder->length();
@@ -199,10 +199,10 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
 }
 
 
-MaybeObject* Accessors::ArraySetLength(Isolate* isolate,
-                                       JSObject* object_raw,
-                                       Object* value_raw,
-                                       void*) {
+Object* Accessors::ArraySetLength(Isolate* isolate,
+                                  JSObject* object_raw,
+                                  Object* value_raw,
+                                  void*) {
   HandleScope scope(isolate);
   Handle<JSObject> object(object_raw, isolate);
   Handle<Object> value(value_raw, isolate);
@@ -851,18 +851,18 @@ Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
 }
 
 
-MaybeObject* Accessors::FunctionGetPrototype(Isolate* isolate,
-                                             Object* object,
-                                             void*) {
+Object* Accessors::FunctionGetPrototype(Isolate* isolate,
+                                        Object* object,
+                                        void*) {
   HandleScope scope(isolate);
   return *GetFunctionPrototype(isolate, Handle<Object>(object, isolate));
 }
 
 
-MaybeObject* Accessors::FunctionSetPrototype(Isolate* isolate,
-                                             JSObject* object,
-                                             Object* value,
-                                             void*) {
+Object* Accessors::FunctionSetPrototype(Isolate* isolate,
+                                        JSObject* object,
+                                        Object* value,
+                                        void*) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -885,9 +885,9 @@ const AccessorDescriptor Accessors::FunctionPrototype = {
 //
 
 
-MaybeObject* Accessors::FunctionGetLength(Isolate* isolate,
-                                          Object* object,
-                                          void*) {
+Object* Accessors::FunctionGetLength(Isolate* isolate,
+                                     Object* object,
+                                     void*) {
   JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
   if (function == NULL) return Smi::FromInt(0);
   // Check if already compiled.
@@ -917,9 +917,9 @@ const AccessorDescriptor Accessors::FunctionLength = {
 //
 
 
-MaybeObject* Accessors::FunctionGetName(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
+Object* Accessors::FunctionGetName(Isolate* isolate,
+                                   Object* object,
+                                   void*) {
   JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
   return holder == NULL
       ? isolate->heap()->undefined_value()
@@ -948,7 +948,7 @@ Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
 }
 
 
-static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
+static Object* ConstructArgumentsObjectForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
@@ -976,9 +976,9 @@ static MaybeObject* ConstructArgumentsObjectForInlinedFunction(
 }
 
 
-MaybeObject* Accessors::FunctionGetArguments(Isolate* isolate,
-                                             Object* object,
-                                             void*) {
+Object* Accessors::FunctionGetArguments(Isolate* isolate,
+                                        Object* object,
+                                        void*) {
   HandleScope scope(isolate);
   JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
   if (holder == NULL) return isolate->heap()->undefined_value();
@@ -1100,9 +1100,9 @@ class FrameFunctionIterator {
 };
 
 
-MaybeObject* Accessors::FunctionGetCaller(Isolate* isolate,
-                                          Object* object,
-                                          void*) {
+Object* Accessors::FunctionGetCaller(Isolate* isolate,
+                                     Object* object,
+                                     void*) {
   HandleScope scope(isolate);
   DisallowHeapAllocation no_allocation;
   JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);

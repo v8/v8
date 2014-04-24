@@ -9396,7 +9396,6 @@ TEST(AccessControlES5) {
   CHECK_EQ(42, g_echo_value_1);
 
   v8::Handle<Value> value;
-  // We follow Safari in ignoring assignments to host object accessors.
   CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");
   value = CompileRun("other.accessible_prop == 42");
   CHECK(value->IsTrue());
@@ -17994,7 +17993,8 @@ TEST(VisitExternalStrings) {
   CcTest::heap()->CollectAllAvailableGarbage();  // Tenure string.
   // Turn into a symbol.
   i::Handle<i::String> string3_i = v8::Utils::OpenHandle(*string3);
-  CHECK(!CcTest::heap()->InternalizeString(*string3_i)->IsFailure());
+  CHECK(!CcTest::i_isolate()->factory()->InternalizeString(
+      string3_i).is_null());
   CHECK(string3_i->IsInternalizedString());
 
   // We need to add usages for string* to avoid warnings in GCC 4.7

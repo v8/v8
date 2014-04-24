@@ -470,13 +470,18 @@ uc32 FlatStringReader::Get(int index) {
 }
 
 
+Handle<Object> HashTableKey::AsHandle(Isolate* isolate) {
+  CALL_HEAP_FUNCTION(isolate, AsObject(isolate->heap()), Object);
+}
+
+
 template <typename Char>
 class SequentialStringKey : public HashTableKey {
  public:
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual uint32_t Hash() {
+  virtual uint32_t Hash() V8_OVERRIDE {
     hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
                                                            string_.length(),
                                                            seed_);
@@ -487,7 +492,7 @@ class SequentialStringKey : public HashTableKey {
   }
 
 
-  virtual uint32_t HashForObject(Object* other) {
+  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
     return String::cast(other)->Hash();
   }
 
@@ -502,11 +507,11 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) {
+  virtual bool IsMatch(Object* string) V8_OVERRIDE {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap);
+  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
 };
 
 
@@ -521,7 +526,7 @@ class SubStringKey : public HashTableKey {
     ASSERT(string_->IsSeqString() || string->IsExternalString());
   }
 
-  virtual uint32_t Hash() {
+  virtual uint32_t Hash() V8_OVERRIDE {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
     const Char* chars = GetChars() + from_;
@@ -532,12 +537,12 @@ class SubStringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) {
+  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string);
-  virtual MaybeObject* AsObject(Heap* heap);
+  virtual bool IsMatch(Object* string) V8_OVERRIDE;
+  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
 
  private:
   const Char* GetChars();
@@ -562,11 +567,11 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) {
+  virtual bool IsMatch(Object* string) V8_OVERRIDE {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap);
+  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
 };
 
 
@@ -576,11 +581,11 @@ class Utf8StringKey : public HashTableKey {
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual bool IsMatch(Object* string) {
+  virtual bool IsMatch(Object* string) V8_OVERRIDE {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  virtual uint32_t Hash() {
+  virtual uint32_t Hash() V8_OVERRIDE {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -588,11 +593,11 @@ class Utf8StringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) {
+  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) {
+  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE {
     if (hash_field_ == 0) Hash();
     return heap->AllocateInternalizedStringFromUtf8(string_,
                                                     chars_,
@@ -658,11 +663,6 @@ bool MaybeObject::IsFailure() {
 bool MaybeObject::IsRetryAfterGC() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->type() == Failure::RETRY_AFTER_GC;
-}
-
-
-bool MaybeObject::IsException() {
-  return this == Failure::Exception();
 }
 
 
@@ -1294,16 +1294,6 @@ AllocationSpace Failure::allocation_space() const {
   ASSERT_EQ(RETRY_AFTER_GC, type());
   return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
                                       & kSpaceTagMask);
-}
-
-
-Failure* Failure::InternalError() {
-  return Construct(INTERNAL_ERROR);
-}
-
-
-Failure* Failure::Exception() {
-  return Construct(EXCEPTION);
 }
 
 

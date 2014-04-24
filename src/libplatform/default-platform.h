@@ -31,8 +31,7 @@
 #include <vector>
 
 #include "../../include/v8-platform.h"
-// TODO(jochen): We should have our own version of globals.h.
-#include "../globals.h"
+#include "../base/macros.h"
 #include "../platform/mutex.h"
 #include "task-queue.h"
 

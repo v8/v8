@@ -929,7 +929,6 @@ class MaybeObject BASE_EMBEDDED {
  public:
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
-  inline bool IsException();
   inline bool ToObject(Object** obj) {
     if (IsFailure()) return false;
     *obj = reinterpret_cast<Object*>(this);
@@ -1665,9 +1664,8 @@ class Smi: public Object {
 };
 
 
-// Failure is used for reporting out of memory situations and
-// propagating exceptions through the runtime system.  Failure objects
-// are transient and cannot occur as part of the object graph.
+// Failure is mainly used for reporting a situation requiring a GC.
+// Failure objects are transient and cannot occur as part of the object graph.
 //
 // Failures are a single word, encoded as follows:
 // +-------------------------+---+--+--+
@@ -1679,9 +1677,6 @@ class Smi: public Object {
 // The low two bits, 0-1, are the failure tag, 11.  The next two bits,
 // 2-3, are a failure type tag 'tt' with possible values:
 //   00 RETRY_AFTER_GC
-//   01 EXCEPTION
-//   10 INTERNAL_ERROR
-//   11 OUT_OF_MEMORY_EXCEPTION
 //
 // The next three bits, 4-6, are an allocation space tag 'sss'.  The
 // allocation space tag is 000 for all failure types except
@@ -1694,13 +1689,8 @@ const int kFailureTypeTagMask = (1 << kFailureTypeTagSize) - 1;
 
 class Failure: public MaybeObject {
  public:
-  // RuntimeStubs assumes EXCEPTION = 1 in the compiler-generated code.
   enum Type {
-    RETRY_AFTER_GC = 0,
-    EXCEPTION = 1,       // Returning this marker tells the real exception
-                         // is in Isolate::pending_exception.
-    INTERNAL_ERROR = 2,
-    OUT_OF_MEMORY_EXCEPTION = 3
+    RETRY_AFTER_GC = 0
   };
 
   inline Type type() const;
@@ -1710,8 +1700,6 @@ class Failure: public MaybeObject {
 
   static inline Failure* RetryAfterGC(AllocationSpace space);
   static inline Failure* RetryAfterGC();  // NEW_SPACE
-  static inline Failure* Exception();
-  static inline Failure* InternalError();
   // Casting.
   static inline Failure* cast(MaybeObject* object);
 
@@ -3893,6 +3881,8 @@ class HashTableKey {
   // Returns the key object for storing into the hash table.
   // If allocations fails a failure object is returned.
   MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
+  // TODO(ishell): This should eventually replace AsObject().
+  inline Handle<Object> AsHandle(Isolate* isolate);
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -3930,12 +3920,10 @@ class StringTable: public HashTable<StringTable,
                                     StringTableShape,
                                     HashTableKey*> {
  public:
-  // Find string in the string table.  If it is not there yet, it is
-  // added.  The return value is the string table which might have
-  // been enlarged.  If the return value is not a failure, the string
-  // pointer *s is set to the string found.
-  MUST_USE_RESULT MaybeObject* LookupString(String* key, Object** s);
-  MUST_USE_RESULT MaybeObject* LookupKey(HashTableKey* key, Object** s);
+  // Find string in the string table. If it is not there yet, it is
+  // added. The return value is the string found.
+  static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  static Handle<String> LookupKey(Isolate* isolate, HashTableKey* key);
 
   // Looks up a string that is equal to the given string and returns
   // true if it is found, assigning the string to the given output
@@ -9229,6 +9217,7 @@ class String: public Name {
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
   static const uint32_t kMaxOneByteCharCodeU = unibrow::Latin1::kMaxChar;
   static const int kMaxUtf16CodeUnit = 0xffff;
+  static const uint32_t kMaxUtf16CodeUnitU = kMaxUtf16CodeUnit;
 
   // Value of hash field containing computed hash equal to zero.
   static const int kEmptyStringHash = kIsNotArrayIndexMask;

@@ -237,6 +237,9 @@
     {
       'target_name': 'v8_base.<(v8_target_arch)',
       'type': 'static_library',
+      'dependencies': [
+        'v8_libbase.<(v8_target_arch)',
+      ],
       'variables': {
         'optimize': 'max',
       },
@@ -1026,6 +1029,33 @@
             }, {
               'defines': ['ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC'],
             }],
+          ],
+        }],
+      ],
+    },
+    {
+      'target_name': 'v8_libbase.<(v8_target_arch)',
+      # TODO(jochen): Should be a static library once it has sources in it.
+      'type': 'none',
+      'variables': {
+        'optimize': 'max',
+      },
+      'include_dirs+': [
+        '../../src',
+      ],
+      'sources': [
+        '../../src/base/macros.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'BUILDING_V8_SHARED',
+            'V8_SHARED',
           ],
         }],
       ],

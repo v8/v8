@@ -415,24 +415,20 @@ function ObservedArrayPop(n) {
 function ArrayPop() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.pop");
 
-  var n = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var n = TO_UINT32(array.length);
   if (n == 0) {
-    this.length = n;
+    array.length = n;
     return;
   }
 
-  if (ObjectIsSealed(this)) {
-    throw MakeTypeError("array_functions_change_sealed",
-                        ["Array.prototype.pop"]);
-  }
-
-  if (%IsObserved(this))
-    return ObservedArrayPop.call(this, n);
+  if (%IsObserved(array))
+    return ObservedArrayPop.call(array, n);
 
   n--;
-  var value = this[n];
-  Delete(this, ToName(n), true);
-  this.length = n;
+  var value = array[n];
+  Delete(array, ToName(n), true);
+  array.length = n;
   return value;
 }
 
@@ -461,24 +457,21 @@ function ObservedArrayPush() {
 function ArrayPush() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.push");
 
-  var n = TO_UINT32(this.length);
-  var m = %_ArgumentsLength();
-
   if (%IsObserved(this))
     return ObservedArrayPush.apply(this, arguments);
+
+  var array = TO_OBJECT_INLINE(this);
+  var n = TO_UINT32(array.length);
+  var m = %_ArgumentsLength();
 
   for (var i = 0; i < m; i++) {
     // Use SetProperty rather than a direct keyed store to ensure that the store
     // site doesn't become poisened with an elements transition KeyedStoreIC.
-    //
-    // TODO(danno): Using %SetProperty is a temporary workaround. The spec says
-    // that ToObject needs to be called for primitive values (and
-    // Runtime_SetProperty seem to ignore them).
-    %SetProperty(this, i+n, %_Arguments(i), 0, kStrictMode);
+    %SetProperty(array, i+n, %_Arguments(i), 0, kStrictMode);
   }
 
   var new_length = n + m;
-  this.length = new_length;
+  array.length = new_length;
   return new_length;
 }
 
@@ -596,30 +589,31 @@ function ObservedArrayShift(len) {
 function ArrayShift() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.shift");
 
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
 
   if (len === 0) {
-    this.length = 0;
+    array.length = 0;
     return;
   }
 
-  if (ObjectIsSealed(this)) {
+  if (ObjectIsSealed(array)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.shift"]);
   }
 
-  if (%IsObserved(this))
-    return ObservedArrayShift.call(this, len);
+  if (%IsObserved(array))
+    return ObservedArrayShift.call(array, len);
 
-  var first = this[0];
+  var first = array[0];
 
-  if (IS_ARRAY(this)) {
-    SmartMove(this, 0, 1, len, 0);
+  if (IS_ARRAY(array)) {
+    SmartMove(array, 0, 1, len, 0);
   } else {
-    SimpleMove(this, 0, 1, len, 0);
+    SimpleMove(array, 0, 1, len, 0);
   }
 
-  this.length = len - 1;
+  array.length = len - 1;
 
   return first;
 }
@@ -647,25 +641,26 @@ function ObservedArrayUnshift() {
 function ArrayUnshift(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.unshift");
 
-  var len = TO_UINT32(this.length);
-  var num_arguments = %_ArgumentsLength();
-  var is_sealed = ObjectIsSealed(this);
-
   if (%IsObserved(this))
     return ObservedArrayUnshift.apply(this, arguments);
 
-  if (IS_ARRAY(this) && !is_sealed) {
-    SmartMove(this, 0, 0, len, num_arguments);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
+  var num_arguments = %_ArgumentsLength();
+  var is_sealed = ObjectIsSealed(array);
+
+  if (IS_ARRAY(array) && !is_sealed) {
+    SmartMove(array, 0, 0, len, num_arguments);
   } else {
-    SimpleMove(this, 0, 0, len, num_arguments);
+    SimpleMove(array, 0, 0, len, num_arguments);
   }
 
   for (var i = 0; i < num_arguments; i++) {
-    this[i] = %_Arguments(i);
+    array[i] = %_Arguments(i);
   }
 
   var new_length = len + num_arguments;
-  this.length = new_length;
+  array.length = new_length;
   return new_length;
 }
 

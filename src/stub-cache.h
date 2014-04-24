@@ -432,7 +432,6 @@ class StubCompiler BASE_EMBEDDED {
   Isolate* isolate_;
   const ExtraICState extra_ic_state_;
   MacroAssembler masm_;
-  Failure* failure_;
 };
 
 

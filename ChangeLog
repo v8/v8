@@ -1,3 +1,8 @@
+2014-04-24: Version 3.26.23
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-23: Version 3.26.22
 
         Disable field type tracking by default (Chromium issue 365172).

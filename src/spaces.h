@@ -1722,10 +1722,10 @@ class PagedSpace : public Space {
   bool Contains(HeapObject* o) { return Contains(o->address()); }
 
   // Given an address occupied by a live object, return that object if it is
-  // in this space, or Failure::Exception() if it is not. The implementation
-  // iterates over objects in the page containing the address, the cost is
-  // linear in the number of objects in the page. It may be slow.
-  MUST_USE_RESULT MaybeObject* FindObject(Address addr);
+  // in this space, or a Smi if it is not.  The implementation iterates over
+  // objects in the page containing the address, the cost is linear in the
+  // number of objects in the page.  It may be slow.
+  Object* FindObject(Address addr);
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
@@ -2841,10 +2841,9 @@ class LargeObjectSpace : public Space {
     return page_count_;
   }
 
-  // Finds an object for a given address, returns Failure::Exception()
-  // if it is not found. The function iterates through all objects in this
-  // space, may be slow.
-  MaybeObject* FindObject(Address a);
+  // Finds an object for a given address, returns a Smi if it is not found.
+  // The function iterates through all objects in this space, may be slow.
+  Object* FindObject(Address a);
 
   // Finds a large object page containing the given address, returns NULL
   // if such a page doesn't exist.
@@ -2872,7 +2871,7 @@ class LargeObjectSpace : public Space {
 #endif
   // Checks whether an address is in the object area in this space.  It
   // iterates all objects in the space. May be slow.
-  bool SlowContains(Address addr) { return !FindObject(addr)->IsFailure(); }
+  bool SlowContains(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
  private:
   intptr_t max_capacity_;
