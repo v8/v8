@@ -4197,3 +4197,30 @@ TEST(Regress357137) {
       "f()()");
   CHECK_EQ(42.0, result->ToNumber()->Value());
 }
+
+
+TEST(ArrayShiftLazySweeping) {
+  i::FLAG_expose_gc = true;
+  i::FLAG_parallel_sweeping = false;
+  i::FLAG_concurrent_sweeping = false;
+  i::FLAG_lazy_sweeping = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+
+  v8::Local<v8::Value> result = CompileRun(
+      "var array = new Array(40000);"
+      "var tmp = new Array(100000);"
+      "gc();"
+      "array.shift();"
+      "array;");
+
+  Handle<JSObject> o =
+      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(result));
+  CHECK(heap->InOldPointerSpace(o->elements()));
+  CHECK(heap->InOldPointerSpace(*o));
+  Page* page = Page::FromAddress(o->elements()->address());
+  CHECK(page->WasSwept() ||
+        Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
+}
