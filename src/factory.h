@@ -607,6 +607,16 @@ class Factory V8_FINAL {
       Handle<Object> script,
       Handle<Object> stack_frames);
 
+  Handle<SeededNumberDictionary> DictionaryAtNumberPut(
+      Handle<SeededNumberDictionary>,
+      uint32_t key,
+      Handle<Object> value);
+
+  Handle<UnseededNumberDictionary> DictionaryAtNumberPut(
+      Handle<UnseededNumberDictionary>,
+      uint32_t key,
+      Handle<Object> value);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 #endif

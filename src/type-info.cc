@@ -495,7 +495,7 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   // Dictionary has been allocated with sufficient size for all elements.
   DisallowHeapAllocation no_need_to_resize_dictionary;
   HandleScope scope(isolate());
-  UnseededNumberDictionary::AtNumberPut(
+  isolate()->factory()->DictionaryAtNumberPut(
       dictionary_, IdToKey(ast_id), handle(target, isolate()));
 }
 
