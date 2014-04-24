@@ -1500,7 +1500,8 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
     Handle<Name> name(descs->GetKey(i));
     Handle<Object> value(descs->GetCallbacksObject(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(value);
-    NameDictionary::Add(dictionary, name, cell, d);
+    // |dictionary| already contains enough space for all properties.
+    USE(NameDictionary::Add(dictionary, name, cell, d));
   }
 
   // Allocate the global object and initialize it with the backing store.
