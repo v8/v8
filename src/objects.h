@@ -4070,8 +4070,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
-
   static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
 
 #ifdef OBJECT_PRINT
@@ -4115,7 +4113,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       uint32_t hash);
 
   // Generate new enumeration indices to avoid enumeration index overflow.
-  MUST_USE_RESULT MaybeObject* GenerateNewEnumerationIndices();
+  static void GenerateNewEnumerationIndices(Handle<Derived> dictionary);
   static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 };
@@ -4138,6 +4136,9 @@ class NameDictionaryShape : public BaseShape<Handle<Name> > {
 class NameDictionary: public Dictionary<NameDictionary,
                                         NameDictionaryShape,
                                         Handle<Name> > {
+  typedef Dictionary<
+      NameDictionary, NameDictionaryShape, Handle<Name> > DerivedDictionary;
+
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4146,7 +4147,7 @@ class NameDictionary: public Dictionary<NameDictionary,
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
-  static void DoGenerateNewEnumerationIndices(
+  inline static void DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
 
   // Find entry for key, otherwise return kNotFound. Optimized version of

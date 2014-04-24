@@ -14818,9 +14818,10 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
     Key key,
     PretenureFlag pretenure) {
   Isolate* isolate = table->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     table->EnsureCapacity(n, key, pretenure),
-                     Derived);
+  CALL_HEAP_FUNCTION(
+      isolate,
+      static_cast<HashTable*>(*table)->EnsureCapacity(n, key, pretenure),
+      Derived);
 }
 
 
@@ -14992,9 +14993,9 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
     Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
 
-template MaybeObject*
+template void
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    GenerateNewEnumerationIndices();
+    GenerateNewEnumerationIndices(Handle<NameDictionary>);
 
 template int
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15014,17 +15015,17 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
         Handle<Object>,
         PropertyDetails);
 
-template MaybeObject*
+template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    EnsureCapacity(int, uint32_t);
+    EnsureCapacity(Handle<SeededNumberDictionary>, int, uint32_t);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    EnsureCapacity(int, uint32_t);
+    EnsureCapacity(Handle<UnseededNumberDictionary>, int, uint32_t);
 
-template MaybeObject*
+template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    EnsureCapacity(int, Handle<Name>);
+    EnsureCapacity(Handle<NameDictionary>, int, Handle<Name>);
 
 template MaybeObject*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15829,46 +15830,33 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::New(
 }
 
 
-
-void NameDictionary::DoGenerateNewEnumerationIndices(
-    Handle<NameDictionary> dictionary) {
-  CALL_HEAP_FUNCTION_VOID(dictionary->GetIsolate(),
-                          dictionary->GenerateNewEnumerationIndices());
-}
-
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
-  Heap* heap = Dictionary::GetHeap();
-  int length = DerivedHashTable::NumberOfElements();
+void Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
+    Handle<Derived> dictionary) {
+  Factory* factory = dictionary->GetIsolate()->factory();
+  int length = dictionary->NumberOfElements();
 
   // Allocate and initialize iteration order array.
-  Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(length);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  FixedArray* iteration_order = FixedArray::cast(obj);
+  Handle<FixedArray> iteration_order = factory->NewFixedArray(length);
   for (int i = 0; i < length; i++) {
     iteration_order->set(i, Smi::FromInt(i));
   }
 
   // Allocate array with enumeration order.
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(length);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  FixedArray* enumeration_order = FixedArray::cast(obj);
+  Handle<FixedArray> enumeration_order = factory->NewFixedArray(length);
 
   // Fill the enumeration order array with property details.
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = dictionary->Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
-      int index = DetailsAt(i).dictionary_index();
+    if (dictionary->IsKey(dictionary->KeyAt(i))) {
+      int index = dictionary->DetailsAt(i).dictionary_index();
       enumeration_order->set(pos++, Smi::FromInt(index));
     }
   }
 
   // Sort the arrays wrt. enumeration order.
-  iteration_order->SortPairs(enumeration_order, enumeration_order->length());
+  iteration_order->SortPairs(*enumeration_order, enumeration_order->length());
 
   // Overwrite the enumeration_order with the enumeration indices.
   for (int i = 0; i < length; i++) {
@@ -15878,46 +15866,33 @@ MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
   }
 
   // Update the dictionary with new indices.
-  capacity = DerivedHashTable::Capacity();
+  capacity = dictionary->Capacity();
   pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
+    if (dictionary->IsKey(dictionary->KeyAt(i))) {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
-      PropertyDetails details = DetailsAt(i);
+      PropertyDetails details = dictionary->DetailsAt(i);
       PropertyDetails new_details = PropertyDetails(
           details.attributes(), details.type(), enum_index);
-      DetailsAtPut(i, new_details);
+      dictionary->DetailsAtPut(i, new_details);
     }
   }
 
   // Set the next enumeration index.
-  SetNextEnumerationIndex(PropertyDetails::kInitialIndex+length);
-  return this;
+  dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex+length);
 }
-
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
-  // Check whether there are enough enumeration indices to add n elements.
-  if (Shape::kIsEnumerable &&
-      !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
-    // If not, we generate new indices for the properties.
-    Object* result;
-    { MaybeObject* maybe_result = GenerateNewEnumerationIndices();
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return DerivedHashTable::EnsureCapacity(n, key);
-}
-
 
 
 template<typename Derived, typename Shape, typename Key>
 Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
-    Handle<Derived> obj, int n, Key key) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->EnsureCapacity(n, key),
-                     Derived);
+    Handle<Derived> dictionary, int n, Key key) {
+  // Check whether there are enough enumeration indices to add n elements.
+  if (Shape::kIsEnumerable &&
+      !PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
+    // If not, we generate new indices for the properties.
+    GenerateNewEnumerationIndices(dictionary);
+  }
+  return DerivedHashTable::EnsureCapacity(dictionary, n, key);
 }
 
 

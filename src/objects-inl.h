@@ -6679,6 +6679,12 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 }
 
 
+void NameDictionary::DoGenerateNewEnumerationIndices(
+    Handle<NameDictionary> dictionary) {
+  DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
+}
+
+
 bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
   return key->SameValue(other);
 }
