@@ -464,7 +464,7 @@ class Serializer : public SerializerDeserializer {
   void VisitPointers(Object** start, Object** end);
   // You can call this after serialization to find out how much space was used
   // in each space.
-  int CurrentAllocationAddress(int space) {
+  int CurrentAllocationAddress(int space) const {
     ASSERT(space < kNumberOfSpaces);
     return fullness_[space];
   }
