@@ -88,23 +88,27 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
 }
 
 
-Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
+Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
                                                       PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
-      FixedDoubleArray);
+      FixedArrayBase);
 }
 
 
-Handle<FixedDoubleArray> Factory::NewFixedDoubleArrayWithHoles(
+Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     int size,
     PretenureFlag pretenure) {
   ASSERT(0 <= size);
-  Handle<FixedDoubleArray> array = NewFixedDoubleArray(size, pretenure);
-  for (int i = 0; i < size; ++i) {
-    array->set_the_hole(i);
+  Handle<FixedArrayBase> array = NewFixedDoubleArray(size, pretenure);
+  if (size > 0) {
+    Handle<FixedDoubleArray> double_array =
+        Handle<FixedDoubleArray>::cast(array);
+    for (int i = 0; i < size; ++i) {
+      double_array->set_the_hole(i);
+    }
   }
   return array;
 }

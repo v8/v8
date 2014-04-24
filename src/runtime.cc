@@ -10484,12 +10484,13 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
   // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= estimate_result_length;
 
-  Handle<FixedArray> storage;
-  if (fast_case) {
-    if (kind == FAST_DOUBLE_ELEMENTS) {
+  if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
+    Handle<FixedArrayBase> storage =
+        isolate->factory()->NewFixedDoubleArray(estimate_result_length);
+    int j = 0;
+    if (estimate_result_length > 0) {
       Handle<FixedDoubleArray> double_storage =
-          isolate->factory()->NewFixedDoubleArray(estimate_result_length);
-      int j = 0;
+          Handle<FixedDoubleArray>::cast(storage);
       bool failure = false;
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj(elements->get(i), isolate);
@@ -10545,15 +10546,19 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
         }
         if (failure) break;
       }
-      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
-      Smi* length = Smi::FromInt(j);
-      Handle<Map> map;
-      map = JSObject::GetElementsTransitionMap(array, kind);
-      array->set_map(*map);
-      array->set_length(length);
-      array->set_elements(*double_storage);
-      return *array;
     }
+    Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+    Smi* length = Smi::FromInt(j);
+    Handle<Map> map;
+    map = JSObject::GetElementsTransitionMap(array, kind);
+    array->set_map(*map);
+    array->set_length(length);
+    array->set_elements(*storage);
+    return *array;
+  }
+
+  Handle<FixedArray> storage;
+  if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage = isolate->factory()->NewFixedArrayWithHoles(
