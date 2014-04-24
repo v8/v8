@@ -1621,12 +1621,12 @@ void MacroAssembler::AssertString(Register object) {
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET);
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1821,7 +1821,7 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
   Mov(x1, builtin);
   CEntryStub stub(isolate(), 1);
-  Jump(stub.GetCode(isolate()), RelocInfo::CODE_TARGET);
+  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -3192,7 +3192,7 @@ void MacroAssembler::DebugBreak() {
   Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(isolate(), 1);
   ASSERT(AllowThisStubCall(&ces));
-  Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 #endif
 

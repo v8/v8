@@ -1781,8 +1781,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   Code* trampoline = NULL;
   StubFunctionMode function_mode = descriptor->function_mode_;
   StubFailureTrampolineStub(isolate_,
-                            function_mode).FindCodeInCache(&trampoline,
-                                                           isolate_);
+                            function_mode).FindCodeInCache(&trampoline);
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));

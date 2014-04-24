@@ -589,7 +589,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
         stub = pre_monomorphic_stub();
       } else if (state() == PREMONOMORPHIC) {
         FunctionPrototypeStub function_prototype_stub(isolate(), kind());
-        stub = function_prototype_stub.GetCode(isolate());
+        stub = function_prototype_stub.GetCode();
       } else if (state() != MEGAMORPHIC) {
         ASSERT(state() != GENERIC);
         stub = megamorphic_stub();
@@ -852,10 +852,10 @@ Handle<Code> LoadIC::SimpleFieldLoad(int offset,
                                      Representation representation) {
   if (kind() == Code::LOAD_IC) {
     LoadFieldStub stub(isolate(), inobject, offset, representation);
-    return stub.GetCode(isolate());
+    return stub.GetCode();
   } else {
     KeyedLoadFieldStub stub(isolate(), inobject, offset, representation);
-    return stub.GetCode(isolate());
+    return stub.GetCode();
   }
 }
 
@@ -941,10 +941,10 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
       String::Equals(isolate()->factory()->length_string(), name)) {
     if (kind() == Code::LOAD_IC) {
       StringLengthStub string_length_stub(isolate());
-      return string_length_stub.GetCode(isolate());
+      return string_length_stub.GetCode();
     } else {
       KeyedStringLengthStub string_length_stub(isolate());
-      return string_length_stub.GetCode(isolate());
+      return string_length_stub.GetCode();
     }
   }
 
@@ -1425,8 +1425,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
           Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
           StoreGlobalStub stub(
               isolate(), union_type->IsConstant(), receiver->IsJSGlobalProxy());
-          Handle<Code> code = stub.GetCodeCopyFromTemplate(
-              isolate(), global, cell);
+          Handle<Code> code = stub.GetCodeCopyFromTemplate(global, cell);
           // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
           HeapObject::UpdateMapCodeCache(receiver, name, code);
           return code;
@@ -2513,14 +2512,14 @@ MaybeHandle<Object> BinaryOpIC::Transition(
 
     // Install the stub with an allocation site.
     BinaryOpICWithAllocationSiteStub stub(isolate(), state);
-    target = stub.GetCodeCopyFromTemplate(isolate(), allocation_site);
+    target = stub.GetCodeCopyFromTemplate(allocation_site);
 
     // Sanity check the trampoline stub.
     ASSERT_EQ(*allocation_site, target->FindFirstAllocationSite());
   } else {
     // Install the generic stub.
     BinaryOpICStub stub(isolate(), state);
-    target = stub.GetCode(isolate());
+    target = stub.GetCode();
 
     // Sanity check the generic stub.
     ASSERT_EQ(NULL, target->FindFirstAllocationSite());
@@ -2593,14 +2592,14 @@ RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite) {
 Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
   ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, isolate));
+  CHECK(stub.FindCodeInCache(&code));
   return code;
 }
 
 
 Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
   ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
-  return stub.GetCode(isolate);
+  return stub.GetCode();
 }
 
 
@@ -2777,7 +2776,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
     stub.set_known_map(
         Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
   }
-  Handle<Code> new_target = stub.GetCode(isolate());
+  Handle<Code> new_target = stub.GetCode();
   set_target(*new_target);
 
   if (FLAG_trace_ic) {
@@ -2791,7 +2790,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
            GetStateName(new_right),
            GetStateName(state),
            Token::Name(op_),
-           static_cast<void*>(*stub.GetCode(isolate())));
+           static_cast<void*>(*stub.GetCode()));
   }
 
   // Activate inlined smi code.
@@ -2824,7 +2823,7 @@ void CompareNilIC::Clear(Address address,
   stub.ClearState();
 
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, target->GetIsolate()));
+  CHECK(stub.FindCodeInCache(&code));
 
   SetTargetAtAddress(address, code, constant_pool);
 }
@@ -2861,7 +2860,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
                                 : HeapObject::cast(*object)->map());
     code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, stub);
   } else {
-    code = stub.GetCode(isolate());
+    code = stub.GetCode();
   }
   set_target(*code);
   return DoCompareNilSlow(isolate(), nil, object);
@@ -2927,7 +2926,7 @@ Builtins::JavaScript BinaryOpIC::TokenToJSBuiltin(Token::Value op) {
 Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
   ToBooleanStub stub(isolate(), target()->extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
-  Handle<Code> code = stub.GetCode(isolate());
+  Handle<Code> code = stub.GetCode();
   set_target(*code);
   return handle(Smi::FromInt(to_boolean_value ? 1 : 0), isolate());
 }

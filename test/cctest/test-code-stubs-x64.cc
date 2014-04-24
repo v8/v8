@@ -55,7 +55,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   int offset =
     source_reg.is(rsp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
-  byte* start = stub.GetCode(isolate)->instruction_start();
+  byte* start = stub.GetCode()->instruction_start();
 
   __ pushq(rbx);
   __ pushq(rcx);

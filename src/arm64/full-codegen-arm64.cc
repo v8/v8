@@ -2043,7 +2043,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   BinaryOpICStub stub(isolate(), op, mode);
   {
     Assembler::BlockPoolsScope scope(masm_);
-    CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
+    CallIC(stub.GetCode(), expr->BinaryOperationFeedbackId());
     patch_site.EmitPatchInfo();
   }
   __ B(&done);
@@ -2129,7 +2129,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   JumpPatchSite patch_site(masm_);    // Unbound, signals no inlined smi code.
   {
     Assembler::BlockPoolsScope scope(masm_);
-    CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
+    CallIC(stub.GetCode(), expr->BinaryOperationFeedbackId());
     patch_site.EmitPatchInfo();
   }
   context()->Plug(x0);
@@ -2660,7 +2660,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Mov(x3, Smi::FromInt(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CALL_TARGET);
-  __ Call(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL);
+  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(x0);
 }
@@ -4130,7 +4130,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   {
     Assembler::BlockPoolsScope scope(masm_);
     BinaryOpICStub stub(isolate(), Token::ADD, NO_OVERWRITE);
-    CallIC(stub.GetCode(isolate()), expr->CountBinOpFeedbackId());
+    CallIC(stub.GetCode(), expr->CountBinOpFeedbackId());
     patch_site.EmitPatchInfo();
   }
   __ Bind(&done);

@@ -51,8 +51,8 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       has_miss_handler_(false) { }
 
 
-bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
-  UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
+bool CodeStub::FindCodeInCache(Code** code_out) {
+  UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
@@ -72,12 +72,12 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 }
 
 
-void CodeStub::RecordCodeGeneration(Handle<Code> code, Isolate* isolate) {
+void CodeStub::RecordCodeGeneration(Handle<Code> code) {
   IC::RegisterWeakMapDependency(code);
   SmartArrayPointer<const char> name = GetName();
-  PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, *code, name.get()));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, name.get()));
   GDBJIT(AddCode(GDBJITInterface::STUB, name.get(), *code));
-  Counters* counters = isolate->counters();
+  Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
 
@@ -87,25 +87,24 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
-Handle<Code> CodeStub::GetCodeCopy(Isolate* isolate,
-                                   const Code::FindAndReplacePattern& pattern) {
-  Handle<Code> ic = GetCode(isolate);
-  ic = isolate->factory()->CopyCode(ic);
+Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
+  Handle<Code> ic = GetCode();
+  ic = isolate()->factory()->CopyCode(ic);
   ic->FindAndReplace(pattern);
-  RecordCodeGeneration(ic, isolate);
+  RecordCodeGeneration(ic);
   return ic;
 }
 
 
-Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+Handle<Code> PlatformCodeStub::GenerateCode() {
+  Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate, NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256);
 
   {
     // Update the static counter each time a new code stub is generated.
-    isolate->counters()->code_stubs()->Increment();
+    isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
@@ -129,36 +128,36 @@ Handle<Code> PlatformCodeStub::GenerateCode(Isolate* isolate) {
 }
 
 
-void CodeStub::VerifyPlatformFeatures(Isolate* isolate) {
+void CodeStub::VerifyPlatformFeatures() {
   ASSERT(CpuFeatures::VerifyCrossCompiling());
 }
 
 
-Handle<Code> CodeStub::GetCode(Isolate* isolate) {
-  Heap* heap = isolate->heap();
+Handle<Code> CodeStub::GetCode() {
+  Heap* heap = isolate()->heap();
   Code* code;
   if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code, isolate)
-      : FindCodeInCache(&code, isolate)) {
+      ? FindCodeInSpecialCache(&code)
+      : FindCodeInCache(&code)) {
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
 
 #ifdef DEBUG
-  VerifyPlatformFeatures(isolate);
+  VerifyPlatformFeatures();
 #endif
 
   {
-    HandleScope scope(isolate);
+    HandleScope scope(isolate());
 
-    Handle<Code> new_object = GenerateCode(isolate);
+    Handle<Code> new_object = GenerateCode();
     new_object->set_major_key(MajorKey());
     FinishCode(new_object);
-    RecordCodeGeneration(new_object, isolate);
+    RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
-      CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
+      CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
       new_object->Disassemble(GetName().get(), trace_scope.file());
       PrintF(trace_scope.file(), "\n");
     }
@@ -182,7 +181,7 @@ Handle<Code> CodeStub::GetCode(Isolate* isolate) {
   ASSERT(!NeedsImmovableCode() ||
          heap->lo_space()->Contains(code) ||
          heap->code_space()->FirstPage()->Contains(code->address()));
-  return Handle<Code>(code, isolate);
+  return Handle<Code>(code, isolate());
 }
 
 
@@ -221,7 +220,7 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
       BinaryOpICStub stub(isolate,
                           static_cast<Token::Value>(op),
                           static_cast<OverwriteMode>(mode));
-      stub.GetCode(isolate);
+      stub.GetCode();
     }
   }
 
@@ -239,7 +238,7 @@ void BinaryOpICStub::PrintState(StringStream* stream) {
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
                                          const BinaryOpIC::State& state) {
   BinaryOpICStub stub(isolate, state);
-  stub.GetCode(isolate);
+  stub.GetCode();
 }
 
 
@@ -260,7 +259,7 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
     Isolate* isolate, const BinaryOpIC::State& state) {
   if (state.CouldCreateAllocationMementos()) {
     BinaryOpICWithAllocationSiteStub stub(isolate, state);
-    stub.GetCode(isolate);
+    stub.GetCode();
   }
 }
 
@@ -313,8 +312,8 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
-  Factory* factory = isolate->factory();
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+  Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
@@ -325,7 +324,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
             *factory->strict_compare_ic_string() :
             *factory->compare_ic_string(),
         flags),
-      isolate);
+      isolate());
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
@@ -541,7 +540,7 @@ void KeyedLoadDictionaryElementPlatformStub::Generate(
 
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
-  stub.GetCode(isolate);
+  stub.GetCode();
 }
 
 
@@ -698,8 +697,8 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
   StubFailureTrampolineStub stub1(isolate, NOT_JS_FUNCTION_STUB_MODE);
   StubFailureTrampolineStub stub2(isolate, JS_FUNCTION_STUB_MODE);
-  stub1.GetCode(isolate);
-  stub2.GetCode(isolate);
+  stub1.GetCode();
+  stub2.GetCode();
 }
 
 
@@ -717,7 +716,7 @@ static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (!descriptor->initialized()) {
-    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+    stub->InitializeInterfaceDescriptor(descriptor);
   }
 }
 

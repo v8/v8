@@ -2335,7 +2335,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
   __ bind(&stub_call);
   __ movp(rax, rcx);
   BinaryOpICStub stub(isolate(), op, mode);
-  CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
+  CallIC(stub.GetCode(), expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
   __ jmp(&done, Label::kNear);
 
@@ -2384,7 +2384,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   __ Pop(rdx);
   BinaryOpICStub stub(isolate(), op, mode);
   JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
-  CallIC(stub.GetCode(isolate()), expr->BinaryOperationFeedbackId());
+  CallIC(stub.GetCode(), expr->BinaryOperationFeedbackId());
   patch_site.EmitPatchInfo();
   context()->Plug(rax);
 }
@@ -2882,7 +2882,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Move(rdx, Smi::FromInt(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CALL_TARGET);
-  __ Call(stub.GetCode(isolate()), RelocInfo::CONSTRUCT_CALL);
+  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(rax);
 }
@@ -4428,7 +4428,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   __ movp(rdx, rax);
   __ Move(rax, Smi::FromInt(1));
   BinaryOpICStub stub(isolate(), expr->binary_op(), NO_OVERWRITE);
-  CallIC(stub.GetCode(isolate()), expr->CountBinOpFeedbackId());
+  CallIC(stub.GetCode(), expr->CountBinOpFeedbackId());
   patch_site.EmitPatchInfo();
   __ bind(&done);
 

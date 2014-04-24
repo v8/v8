@@ -335,7 +335,7 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
 
   Code::FindAndReplacePattern pattern;
   pattern.Add(isolate_->factory()->meta_map(), receiver_map);
-  Handle<Code> ic = stub.GetCodeCopy(isolate_, pattern);
+  Handle<Code> ic = stub.GetCodeCopy(pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);
@@ -1190,12 +1190,12 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
     Handle<Code> stub = KeyedLoadFastElementStub(
         isolate(),
         receiver_map->instance_type() == JS_ARRAY_TYPE,
-        elements_kind).GetCode(isolate());
+        elements_kind).GetCode();
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   } else {
     Handle<Code> stub = FLAG_compiled_keyed_dictionary_loads
-        ? KeyedLoadDictionaryElementStub(isolate()).GetCode(isolate())
-        : KeyedLoadDictionaryElementPlatformStub(isolate()).GetCode(isolate());
+        ? KeyedLoadDictionaryElementStub(isolate()).GetCode()
+        : KeyedLoadDictionaryElementPlatformStub(isolate()).GetCode();
     __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
   }
 
@@ -1218,12 +1218,12 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
         isolate(),
         is_jsarray,
         elements_kind,
-        store_mode()).GetCode(isolate());
+        store_mode()).GetCode();
   } else {
     stub = KeyedStoreElementStub(isolate(),
                                  is_jsarray,
                                  elements_kind,
-                                 store_mode()).GetCode(isolate());
+                                 store_mode()).GetCode();
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
@@ -1319,13 +1319,13 @@ void KeyedLoadStubCompiler::CompileElementHandlers(MapHandleList* receiver_maps,
         cached_stub =
             KeyedLoadFastElementStub(isolate(),
                                      is_js_array,
-                                     elements_kind).GetCode(isolate());
+                                     elements_kind).GetCode();
       } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
         cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub =
-            KeyedLoadDictionaryElementStub(isolate()).GetCode(isolate());
+            KeyedLoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 
@@ -1358,7 +1358,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
           elements_kind,
           transitioned_map->elements_kind(),
           is_js_array,
-          store_mode()).GetCode(isolate());
+          store_mode()).GetCode();
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
@@ -1369,13 +1369,13 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElementPolymorphic(
             isolate(),
             is_js_array,
             elements_kind,
-            store_mode()).GetCode(isolate());
+            store_mode()).GetCode();
       } else {
         cached_stub = KeyedStoreElementStub(
             isolate(),
             is_js_array,
             elements_kind,
-            store_mode()).GetCode(isolate());
+            store_mode()).GetCode();
       }
     }
     ASSERT(!cached_stub.is_null());

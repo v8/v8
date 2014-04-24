@@ -873,7 +873,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(native_context(), initial_map);
     ArrayConstructorStub array_constructor_stub(isolate);
-    Handle<Code> code = array_constructor_stub.GetCode(isolate);
+    Handle<Code> code = array_constructor_stub.GetCode();
     array_function->shared()->set_construct_stub(*code);
   }
 
@@ -1598,7 +1598,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Accessors::FunctionSetPrototype(array_function, prototype);
 
   InternalArrayConstructorStub internal_array_constructor_stub(isolate());
-  Handle<Code> code = internal_array_constructor_stub.GetCode(isolate());
+  Handle<Code> code = internal_array_constructor_stub.GetCode();
   array_function->shared()->set_construct_stub(*code);
   array_function->shared()->DontAdaptArguments();
 
