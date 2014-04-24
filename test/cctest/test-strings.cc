@@ -1418,7 +1418,5 @@ TEST(InvalidExternalString) {
 INVALID_STRING_TEST(NewStringFromAscii, char)
 INVALID_STRING_TEST(NewStringFromUtf8, char)
 INVALID_STRING_TEST(NewStringFromOneByte, uint8_t)
-INVALID_STRING_TEST(InternalizeOneByteString, uint8_t)
-INVALID_STRING_TEST(InternalizeUtf8String, char)
 
 #undef INVALID_STRING_TEST

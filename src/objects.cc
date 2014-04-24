@@ -10416,7 +10416,7 @@ void Oddball::Initialize(Isolate* isolate,
                          Handle<Object> to_number,
                          byte kind) {
   Handle<String> internalized_to_string =
-      isolate->factory()->InternalizeUtf8String(CStrVector(to_string));
+      isolate->factory()->InternalizeUtf8String(to_string);
   oddball->set_to_string(*internalized_to_string);
   oddball->set_to_number(*to_number);
   oddball->set_kind(kind);
@@ -15600,7 +15600,6 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 }
 
 
-// TODO(ishell): Maybehandlify callers.
 Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(key);
@@ -15615,8 +15614,9 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 
   // Create string object.
   Handle<Object> string = key->AsHandle(isolate);
-  // TODO(ishell): Maybehandlify this.
-  if (string.is_null()) return Handle<String>();
+  // There must be no attempts to internalize strings that could throw
+  // InvalidStringLength error.
+  CHECK(!string.is_null());
 
   // Add the new string and return it along with the string table.
   entry = table->FindInsertionEntry(key->Hash());
