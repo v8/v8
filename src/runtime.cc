@@ -9979,7 +9979,7 @@ class ArrayConcatVisitor {
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(*storage_));
     Handle<SeededNumberDictionary> result =
-        isolate_->factory()->DictionaryAtNumberPut(dict, index, elm);
+        SeededNumberDictionary::AtNumberPut(dict, index, elm);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -10029,7 +10029,7 @@ class ArrayConcatVisitor {
       Handle<Object> element(current_storage->get(i), isolate_);
       if (!element->IsTheHole()) {
         Handle<SeededNumberDictionary> new_storage =
-          isolate_->factory()->DictionaryAtNumberPut(slow_storage, i, element);
+            SeededNumberDictionary::AtNumberPut(slow_storage, i, element);
         if (!new_storage.is_identical_to(slow_storage)) {
           slow_storage = loop_scope.CloseAndEscape(new_storage);
         }
