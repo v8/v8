@@ -1028,13 +1028,13 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
                        field.is_inobject(holder),
                        field.translate(holder),
                        representation);
-    GenerateTailCall(masm(), stub.GetCode(isolate()));
+    GenerateTailCall(masm(), stub.GetCode());
   } else {
     KeyedLoadFieldStub stub(isolate(),
                             field.is_inobject(holder),
                             field.translate(holder),
                             representation);
-    GenerateTailCall(masm(), stub.GetCode(isolate()));
+    GenerateTailCall(masm(), stub.GetCode());
   }
 }
 

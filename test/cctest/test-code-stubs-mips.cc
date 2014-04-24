@@ -57,7 +57,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
                      inline_fastpath);
 
-  byte* start = stub.GetCode(isolate)->instruction_start();
+  byte* start = stub.GetCode()->instruction_start();
   Label done;
 
   // Save callee save registers.

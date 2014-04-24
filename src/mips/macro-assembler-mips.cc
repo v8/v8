@@ -2695,7 +2695,7 @@ void MacroAssembler::DebugBreak() {
   PrepareCEntryFunction(ExternalReference(Runtime::kDebugBreak, isolate()));
   CEntryStub ces(isolate(), 1);
   ASSERT(AllowThisStubCall(&ces));
-  Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -3894,7 +3894,7 @@ void MacroAssembler::CallStub(CodeStub* stub,
                               const Operand& r2,
                               BranchDelaySlot bd) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id,
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id,
        cond, r1, r2, bd);
 }
 
@@ -3904,7 +3904,7 @@ void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Register r1,
                                   const Operand& r2,
                                   BranchDelaySlot bd) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
 
@@ -4259,7 +4259,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              BranchDelaySlot bd) {
   PrepareCEntryFunction(builtin);
   CEntryStub stub(isolate(), 1);
-  Jump(stub.GetCode(isolate()),
+  Jump(stub.GetCode(),
        RelocInfo::CODE_TARGET,
        al,
        zero_reg,
