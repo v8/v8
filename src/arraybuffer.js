@@ -40,7 +40,7 @@ function ArrayBufferConstructor(length) { // length = 1
   }
 }
 
-function ArrayBufferGetByteLength() {
+function ArrayBufferGetByteLen() {
   if (!IS_ARRAYBUFFER(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['ArrayBuffer.prototype.byteLength', this]);
@@ -99,7 +99,7 @@ function SetUpArrayBuffer() {
   // Set up the constructor property on the ArrayBuffer prototype object.
   %SetProperty($ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
 
-  InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLength);
+  InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
   InstallFunctions($ArrayBuffer, DONT_ENUM, $Array(
       "isView", ArrayBufferIsView
