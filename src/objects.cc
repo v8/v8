@@ -16063,6 +16063,16 @@ MaybeObject* UnseededNumberDictionary::AddNumberEntry(uint32_t key,
 }
 
 
+Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->AddNumberEntry(key, *value),
+                     UnseededNumberDictionary);
+}
+
+
 MaybeObject* SeededNumberDictionary::AtNumberPut(uint32_t key, Object* value) {
   UpdateMaxNumberKey(key);
   return AtPut(key, value);
@@ -16077,53 +16087,34 @@ MaybeObject* UnseededNumberDictionary::AtNumberPut(uint32_t key,
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
     Handle<SeededNumberDictionary> dictionary,
-    uint32_t index,
+    uint32_t key,
     Handle<Object> value,
     PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Set(index, *value, details),
-                     SeededNumberDictionary);
+  int entry = dictionary->FindEntry(key);
+  if (entry == kNotFound) {
+    return AddNumberEntry(dictionary, key, value, details);
+  }
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            dictionary->DetailsAt(entry).dictionary_index());
+  Handle<Object> object_key =
+      SeededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
+  dictionary->SetEntry(entry, *object_key, *value, details);
+  return dictionary;
 }
 
 
 Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
     Handle<UnseededNumberDictionary> dictionary,
-    uint32_t index,
+    uint32_t key,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Set(index, *value),
-                     UnseededNumberDictionary);
-}
-
-
-MaybeObject* SeededNumberDictionary::Set(uint32_t key,
-                                         Object* value,
-                                         PropertyDetails details) {
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return AddNumberEntry(key, value, details);
-  // Preserve enumeration index.
-  details = PropertyDetails(details.attributes(),
-                            details.type(),
-                            DetailsAt(entry).dictionary_index());
-  MaybeObject* maybe_object_key =
-      SeededNumberDictionaryShape::AsObject(GetHeap(), key);
-  Object* object_key;
-  if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
-  SetEntry(entry, object_key, value, details);
-  return this;
-}
-
-
-MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
-                                           Object* value) {
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return AddNumberEntry(key, value);
-  MaybeObject* maybe_object_key =
-      UnseededNumberDictionaryShape::AsObject(GetHeap(), key);
-  Object* object_key;
-  if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
-  SetEntry(entry, object_key, value);
-  return this;
+  int entry = dictionary->FindEntry(key);
+  if (entry == kNotFound) return AddNumberEntry(dictionary, key, value);
+  Handle<Object> object_key =
+      UnseededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
+  dictionary->SetEntry(entry, *object_key, *value);
+  return dictionary;
 }
 
 

@@ -6643,6 +6643,10 @@ MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
   return heap->NumberFromUint32(key);
 }
 
+Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
+  return isolate->factory()->NewNumberFromUint(key);
+}
+
 
 bool NameDictionaryShape::IsMatch(Name* key, Object* other) {
   // We know that all entries in a hash table had their hash keys created.

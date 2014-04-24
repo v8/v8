@@ -4152,8 +4152,10 @@ class NameDictionary: public Dictionary<NameDictionary,
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
+  // TODO(ishell): This should be eventually replaced with AsHandle().
   MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       uint32_t key);
+  static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
@@ -4205,7 +4207,7 @@ class SeededNumberDictionary
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
       Handle<SeededNumberDictionary> dictionary,
-      uint32_t index,
+      uint32_t key,
       Handle<Object> value,
       PropertyDetails details);
 
@@ -4248,15 +4250,17 @@ class UnseededNumberDictionary
   // Type specific at put (default NONE attributes is used when adding).
   MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
   MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
       Handle<UnseededNumberDictionary> dictionary,
-      uint32_t index,
+      uint32_t key,
       Handle<Object> value);
-
-  MUST_USE_RESULT MaybeObject* Set(uint32_t key, Object* value);
 };
 
 
