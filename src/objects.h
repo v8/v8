@@ -4064,7 +4064,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a new dictionary.
-  static Handle<Derived> New(
+  MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate,
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
@@ -4089,9 +4089,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                        Object* value,
                        PropertyDetails details);
 
-  MUST_USE_RESULT MaybeObject* Add(Key key,
-                                   Object* value,
-                                   PropertyDetails details);
+  MUST_USE_RESULT static Handle<Derived> Add(
+      Handle<Derived> dictionary,
+      Key key,
+      Handle<Object> value,
+      PropertyDetails details);
 
  protected:
   // Generic at put operation.
@@ -4153,12 +4155,6 @@ class NameDictionary: public Dictionary<NameDictionary,
 
   // TODO(ishell): Remove this when all the callers are handlified.
   int FindEntry(Name* key);
-
-  // TODO(mstarzinger): Temporary wrapper until handlified.
-  static Handle<NameDictionary> AddNameEntry(Handle<NameDictionary> dict,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyDetails details);
 };
 
 

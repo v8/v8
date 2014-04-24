@@ -667,7 +667,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
       store_value = object->GetIsolate()->factory()->NewPropertyCell(value);
     }
 
-    property_dictionary = NameDictionary::AddNameEntry(
+    property_dictionary = NameDictionary::Add(
         property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
     return;
@@ -1942,7 +1942,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Handle<NameDictionary> result =
-      NameDictionary::AddNameEntry(dict, name, value, details);
+      NameDictionary::Add(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
 }
 
@@ -4641,7 +4641,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case FIELD: {
@@ -4650,7 +4650,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
             object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
@@ -4658,7 +4658,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -14988,9 +14988,9 @@ template int
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject*
+template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
-    Handle<Name>, Object*, PropertyDetails);
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
 
 template MaybeObject*
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
@@ -15000,13 +15000,19 @@ template int
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::Add(
-    uint32_t, Object*, PropertyDetails);
+template Handle<SeededNumberDictionary>
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    Add(Handle<SeededNumberDictionary>,
+        uint32_t,
+        Handle<Object>,
+        PropertyDetails);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    Add(uint32_t, Object*, PropertyDetails);
+    Add(Handle<UnseededNumberDictionary>,
+        uint32_t,
+        Handle<Object>,
+        PropertyDetails);
 
 template MaybeObject*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15043,16 +15049,6 @@ int Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
 template
 int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     FindEntry(uint32_t);
-
-
-Handle<NameDictionary> NameDictionary::AddNameEntry(Handle<NameDictionary> dict,
-                                                    Handle<Name> name,
-                                                    Handle<Object> value,
-                                                    PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(),
-                     dict->Add(name, *value, details),
-                     NameDictionary);
-}
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -15495,7 +15491,7 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
         isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Handle<NameDictionary> dictionary = NameDictionary::AddNameEntry(
+    Handle<NameDictionary> dictionary = NameDictionary::Add(
         handle(global->property_dictionary()), name, cell, details);
     global->set_properties(*dictionary);
     return cell;
@@ -15977,20 +15973,17 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::Add(
+Handle<Derived> Dictionary<Derived, Shape, Key>::Add(
+    Handle<Derived> dictionary,
     Key key,
-    Object* value,
+    Handle<Object> value,
     PropertyDetails details) {
   // Valdate key is absent.
-  SLOW_ASSERT((this->FindEntry(key) == Dictionary::kNotFound));
+  SLOW_ASSERT((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  dictionary = EnsureCapacity(dictionary, 1, key);
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
 }
 
 
@@ -16066,9 +16059,7 @@ Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
     PropertyDetails details) {
   dictionary->UpdateMaxNumberKey(key);
   SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Add(key, *value, details),
-                     SeededNumberDictionary);
+  return Add(dictionary, key, value, details);
 }
 
 
@@ -16077,10 +16068,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
     uint32_t key,
     Handle<Object> value) {
   SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Add(
-                         key, *value, PropertyDetails(NONE, NORMAL, 0)),
-                     UnseededNumberDictionary);
+  return Add(dictionary, key, value, PropertyDetails(NONE, NORMAL, 0));
 }
 
 

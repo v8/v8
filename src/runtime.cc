@@ -15125,7 +15125,7 @@ void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
   for (int i = 0; i < kNumFunctions; ++i) {
     const char* name = kIntrinsicFunctions[i].name;
     if (name == NULL) continue;
-    Handle<NameDictionary> new_dict = NameDictionary::AddNameEntry(
+    Handle<NameDictionary> new_dict = NameDictionary::Add(
         dict,
         isolate->factory()->InternalizeUtf8String(name),
         Handle<Smi>(Smi::FromInt(i), isolate),
