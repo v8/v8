@@ -969,16 +969,7 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
-Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(function->GetIsolate(),
-                     Accessors::FunctionGetArguments(function->GetIsolate(),
-                                                     *function,
-                                                     NULL),
-                     Object);
-}
-
-
-static Object* ConstructArgumentsObjectForInlinedFunction(
+static Handle<Object> ArgumentsForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
@@ -1002,7 +993,80 @@ static Object* ConstructArgumentsObjectForInlinedFunction(
   arguments->set_elements(*array);
 
   // Return the freshly allocated arguments object.
-  return *arguments;
+  return arguments;
+}
+
+
+static int FindFunctionInFrame(JavaScriptFrame* frame,
+                               Handle<JSFunction> function) {
+  DisallowHeapAllocation no_allocation;
+  List<JSFunction*> functions(2);
+  frame->GetFunctions(&functions);
+  for (int i = functions.length() - 1; i >= 0; i--) {
+    if (functions[i] == *function) return i;
+  }
+  return -1;
+}
+
+
+Handle<Object> GetFunctionArguments(Isolate* isolate,
+                                    Handle<JSFunction> function) {
+  if (function->shared()->native()) return isolate->factory()->null_value();
+
+  // Find the top invocation of the function by traversing frames.
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    int function_index = FindFunctionInFrame(frame, function);
+    if (function_index < 0) continue;
+
+    if (function_index > 0) {
+      // The function in question was inlined.  Inlined functions have the
+      // correct number of arguments and no allocated arguments object, so
+      // we can construct a fresh one by interpreting the function's
+      // deoptimization input data.
+      return ArgumentsForInlinedFunction(frame, function, function_index);
+    }
+
+    if (!frame->is_optimized()) {
+      // If there is an arguments variable in the stack, we return that.
+      Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+      int index = scope_info->StackSlotIndex(
+          isolate->heap()->arguments_string());
+      if (index >= 0) {
+        Handle<Object> arguments(frame->GetExpression(index), isolate);
+        if (!arguments->IsArgumentsMarker()) return arguments;
+      }
+    }
+
+    // If there is no arguments variable in the stack or we have an
+    // optimized frame, we find the frame that holds the actual arguments
+    // passed to the function.
+    it.AdvanceToArgumentsFrame();
+    frame = it.frame();
+
+    // Get the number of arguments and construct an arguments object
+    // mirror for the right frame.
+    const int length = frame->ComputeParametersCount();
+    Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
+        function, length);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+
+    // Copy the parameters to the arguments object.
+    ASSERT(array->length() == length);
+    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    arguments->set_elements(*array);
+
+    // Return the freshly allocated arguments object.
+    return arguments;
+  }
+
+  // No frame corresponding to the given function found. Return null.
+  return isolate->factory()->null_value();
+}
+
+
+Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
+  return GetFunctionArguments(function->GetIsolate(), function);
 }
 
 
@@ -1010,65 +1074,14 @@ Object* Accessors::FunctionGetArguments(Isolate* isolate,
                                         Object* object,
                                         void*) {
   HandleScope scope(isolate);
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  Handle<JSFunction> function(holder, isolate);
-
-  if (function->shared()->native()) return isolate->heap()->null_value();
-  // Find the top invocation of the function by traversing frames.
-  List<JSFunction*> functions(2);
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    frame->GetFunctions(&functions);
-    for (int i = functions.length() - 1; i >= 0; i--) {
-      // Skip all frames that aren't invocations of the given function.
-      if (functions[i] != *function) continue;
-
-      if (i > 0) {
-        // The function in question was inlined.  Inlined functions have the
-        // correct number of arguments and no allocated arguments object, so
-        // we can construct a fresh one by interpreting the function's
-        // deoptimization input data.
-        return ConstructArgumentsObjectForInlinedFunction(frame, function, i);
-      }
-
-      if (!frame->is_optimized()) {
-        // If there is an arguments variable in the stack, we return that.
-        Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-        int index = scope_info->StackSlotIndex(
-            isolate->heap()->arguments_string());
-        if (index >= 0) {
-          Handle<Object> arguments(frame->GetExpression(index), isolate);
-          if (!arguments->IsArgumentsMarker()) return *arguments;
-        }
-      }
-
-      // If there is no arguments variable in the stack or we have an
-      // optimized frame, we find the frame that holds the actual arguments
-      // passed to the function.
-      it.AdvanceToArgumentsFrame();
-      frame = it.frame();
-
-      // Get the number of arguments and construct an arguments object
-      // mirror for the right frame.
-      const int length = frame->ComputeParametersCount();
-      Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
-          function, length);
-      Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
-
-      // Copy the parameters to the arguments object.
-      ASSERT(array->length() == length);
-      for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
-      arguments->set_elements(*array);
-
-      // Return the freshly allocated arguments object.
-      return *arguments;
-    }
-    functions.Rewind(0);
+  Handle<JSFunction> function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
+    if (holder == NULL) return isolate->heap()->undefined_value();
+    function = Handle<JSFunction>(holder, isolate);
   }
-
-  // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  return *GetFunctionArguments(isolate, function);
 }
 
 
