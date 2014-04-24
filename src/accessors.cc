@@ -889,31 +889,57 @@ Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
 //
 
 
-Object* Accessors::FunctionGetLength(Isolate* isolate,
-                                     Object* object,
-                                     void*) {
-  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
-  if (function == NULL) return Smi::FromInt(0);
-  // Check if already compiled.
-  if (function->shared()->is_compiled()) {
-    return Smi::FromInt(function->shared()->length());
-  }
-  // If the function isn't compiled yet, the length is not computed correctly
-  // yet. Compile it now and return the right length.
+void Accessors::FunctionLengthGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSFunction> function_handle(function);
-  if (Compiler::EnsureCompiled(function_handle, KEEP_EXCEPTION)) {
-    return Smi::FromInt(function_handle->shared()->length());
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
   }
-  return isolate->heap()->exception();
+
+  int length = 0;
+  Handle<JSFunction> function;
+  if (maybe_function.ToHandle(&function)) {
+    if (function->shared()->is_compiled()) {
+      length = function->shared()->length();
+    } else {
+      // If the function isn't compiled yet, the length is not computed
+      // correctly yet. Compile it now and return the right length.
+      if (Compiler::EnsureCompiled(function, KEEP_EXCEPTION)) {
+        length = function->shared()->length();
+      }
+      if (isolate->has_pending_exception()) {
+        isolate->OptionalRescheduleException(false);
+      }
+    }
+  }
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionLength = {
-  FunctionGetLength,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionLengthSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &FunctionLengthGetter,
+                      &FunctionLengthSetter,
+                      attributes);
+}
 
 
 //

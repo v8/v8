@@ -388,15 +388,17 @@ void Genesis::SetFunctionInstanceDescriptor(
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Map::EnsureDescriptorSlack(map, size);
 
-  Handle<Foreign> length(factory()->NewForeign(&Accessors::FunctionLength));
   Handle<Foreign> name(factory()->NewForeign(&Accessors::FunctionName));
   Handle<Foreign> args(factory()->NewForeign(&Accessors::FunctionArguments));
   Handle<Foreign> caller(factory()->NewForeign(&Accessors::FunctionCaller));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+  Handle<AccessorInfo> length =
+      Accessors::FunctionLengthInfo(isolate(), attribs);
   {  // Add length.
-    CallbacksDescriptor d(factory()->length_string(), length, attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
+                          length, attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add name.
@@ -517,7 +519,6 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Map::EnsureDescriptorSlack(map, size);
 
-  Handle<Foreign> length(factory()->NewForeign(&Accessors::FunctionLength));
   Handle<Foreign> name(factory()->NewForeign(&Accessors::FunctionName));
   Handle<AccessorPair> arguments(factory()->NewAccessorPair());
   Handle<AccessorPair> caller(factory()->NewAccessorPair());
@@ -526,8 +527,11 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
   PropertyAttributes ro_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+  Handle<AccessorInfo> length =
+      Accessors::FunctionLengthInfo(isolate(), ro_attribs);
   {  // Add length.
-    CallbacksDescriptor d(factory()->length_string(), length, ro_attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
+                          length, ro_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add name.
