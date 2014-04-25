@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "string-search.h"
-#include "utils.h"
+#include "v8utils.h"
 #include "v8conversions.h"
 
 namespace v8 {

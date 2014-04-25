@@ -31,7 +31,7 @@
 #include "atomicops.h"
 #include "flags.h"
 #include "platform.h"
-#include "utils.h"
+#include "v8utils.h"
 
 #include "spaces.h"
 

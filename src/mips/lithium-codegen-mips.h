@@ -34,7 +34,7 @@
 #include "lithium-codegen.h"
 #include "safepoint-table.h"
 #include "scopes.h"
-#include "utils.h"
+#include "v8utils.h"
 
 namespace v8 {
 namespace internal {
