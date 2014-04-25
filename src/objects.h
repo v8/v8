@@ -4017,10 +4017,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   void CopyValuesTo(FixedArray* elements);
 
   // Delete a property from the dictionary.
-  Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
-  // TODO(ishell): Temporary wrapper until handlified.
   static Handle<Object> DeleteProperty(
-      Handle<Dictionary> dictionary,
+      Handle<Derived> dictionary,
       int entry,
       JSObject::DeleteMode mode);
 

@@ -725,7 +725,8 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
       PropertyCell::SetValueInferType(cell, value);
       dictionary->DetailsAtPut(entry, details.AsDeleted());
     } else {
-      Handle<Object> deleted(dictionary->DeleteProperty(entry, mode), isolate);
+      Handle<Object> deleted(
+          NameDictionary::DeleteProperty(dictionary, entry, mode));
       if (*deleted == isolate->heap()->true_value()) {
         Handle<NameDictionary> new_properties =
             NameDictionary::Shrink(dictionary, name);
@@ -14937,28 +14938,13 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
                    SeededNumberDictionaryShape,
                    uint32_t>::SortMode);
 
-template Object*
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::DeleteProperty(
-    int, JSObject::DeleteMode);
-
 template Handle<Object>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::DeleteProperty(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> > >,
-    int,
-    JSObject::DeleteMode);
-
-template Object*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    DeleteProperty(int, JSObject::DeleteMode);
+    Handle<NameDictionary>, int, JSObject::DeleteMode);
 
 template Handle<Object>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    DeleteProperty(
-        Handle<Dictionary<SeededNumberDictionary,
-                          SeededNumberDictionaryShape,
-                          uint32_t> >,
-        int,
-        JSObject::DeleteMode);
+    DeleteProperty(Handle<SeededNumberDictionary>, int, JSObject::DeleteMode);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape, Handle<Name> >::
@@ -15871,31 +15857,21 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
 }
 
 
-// TODO(ishell): Temporary wrapper until handlified.
 template<typename Derived, typename Shape, typename Key>
 Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
-    Handle<Dictionary<Derived, Shape, Key> > dictionary,
+    Handle<Derived> dictionary,
     int entry,
     JSObject::DeleteMode mode) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->DeleteProperty(entry, mode),
-                     Object);
-}
-
-
-template<typename Derived, typename Shape, typename Key>
-Object* Dictionary<Derived, Shape, Key>::DeleteProperty(
-    int entry,
-    JSReceiver::DeleteMode mode) {
-  Heap* heap = Dictionary::GetHeap();
-  PropertyDetails details = DetailsAt(entry);
+  Factory* factory = dictionary->GetIsolate()->factory();
+  PropertyDetails details = dictionary->DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
   if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
-    return heap->false_value();
+    return factory->false_value();
   }
-  SetEntry(entry, heap->the_hole_value(), heap->the_hole_value());
-  DerivedHashTable::ElementRemoved();
-  return heap->true_value();
+  dictionary->SetEntry(
+      entry, *factory->the_hole_value(), *factory->the_hole_value());
+  dictionary->ElementRemoved();
+  return factory->true_value();
 }
 
 
