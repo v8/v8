@@ -4152,7 +4152,6 @@ void MarkCompactCollector::SweepInParallel(PagedSpace* space) {
 
 void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   space->set_was_swept_conservatively(sweeper == CONSERVATIVE ||
-                                      sweeper == LAZY_CONSERVATIVE ||
                                       sweeper == PARALLEL_CONSERVATIVE ||
                                       sweeper == CONCURRENT_CONSERVATIVE);
   space->ClearStats();
@@ -4160,7 +4159,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   PageIterator it(space);
 
   int pages_swept = 0;
-  bool lazy_sweeping_active = false;
   bool unused_page_present = false;
   bool parallel_sweeping_active = false;
 
@@ -4204,25 +4202,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         }
         SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
         pages_swept++;
-        break;
-      }
-      case LAZY_CONSERVATIVE: {
-        if (lazy_sweeping_active) {
-          if (FLAG_gc_verbose) {
-            PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
-                   reinterpret_cast<intptr_t>(p));
-          }
-          space->IncreaseUnsweptFreeBytes(p);
-        } else {
-          if (FLAG_gc_verbose) {
-            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
-                   reinterpret_cast<intptr_t>(p));
-          }
-          SweepConservatively<SWEEP_SEQUENTIALLY>(space, NULL, p);
-          pages_swept++;
-          space->SetPagesToSweep(p->next_page());
-          lazy_sweeping_active = true;
-        }
         break;
       }
       case CONCURRENT_CONSERVATIVE:
@@ -4285,8 +4264,7 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
-  SweeperType how_to_sweep =
-      FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
+  SweeperType how_to_sweep = CONSERVATIVE;
   if (AreSweeperThreadsActivated()) {
     if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
     if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;

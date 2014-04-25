@@ -4600,16 +4600,7 @@ bool Heap::IdleNotification(int hint) {
   // An incremental GC progresses as follows:
   // 1. many incremental marking steps,
   // 2. one old space mark-sweep-compact,
-  // 3. many lazy sweep steps.
   // Use mark-sweep-compact events to count incremental GCs in a round.
-
-  if (incremental_marking()->IsStopped()) {
-    if (!mark_compact_collector()->AreSweeperThreadsActivated() &&
-        !IsSweepingComplete() &&
-        !AdvanceSweepers(static_cast<int>(step_size))) {
-      return false;
-    }
-  }
 
   if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
     if (EnoughGarbageSinceLastIdleRound()) {
@@ -5331,14 +5322,6 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
       + cell_space_->SizeOfObjects()
       + property_cell_space_->SizeOfObjects()
       + lo_space_->SizeOfObjects();
-}
-
-
-bool Heap::AdvanceSweepers(int step_size) {
-  ASSERT(!mark_compact_collector()->AreSweeperThreadsActivated());
-  bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
-  sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
-  return sweeping_complete;
 }
 
 
