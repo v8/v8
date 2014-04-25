@@ -2916,20 +2916,13 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_string_ = String::cast(obj);
 
-  // Allocate the code_stubs dictionary. The initial size is set to avoid
+  // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 128);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_code_stubs(UnseededNumberDictionary::cast(obj));
+  set_code_stubs(*UnseededNumberDictionary::New(isolate(), 128));
 
-
-  // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
+  // Create the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 64);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_non_monomorphic_cache(UnseededNumberDictionary::cast(obj));
+  set_non_monomorphic_cache(*UnseededNumberDictionary::New(isolate(), 64));
 
   { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3037,11 +3030,12 @@ bool Heap::CreateInitialObjects() {
   Symbol::cast(obj)->set_is_private(true);
   set_megamorphic_symbol(Symbol::cast(obj));
 
-  { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  {
+    Handle<SeededNumberDictionary> dict =
+        SeededNumberDictionary::New(isolate(), 0, TENURED);
+    dict->set_requires_slow_elements();
+    set_empty_slow_element_dictionary(*dict);
   }
-  SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
-  set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;

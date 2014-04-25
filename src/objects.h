@@ -4057,12 +4057,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
   }
 
-  // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static MaybeObject* Allocate(
-      Heap* heap,
-      int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate,

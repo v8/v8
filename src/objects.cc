@@ -4630,7 +4630,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
     property_count += 2;  // Make space for two more properties.
   }
   Handle<NameDictionary> dictionary =
-      isolate->factory()->NewNameDictionary(property_count);
+      NameDictionary::New(isolate, property_count);
 
   Handle<DescriptorArray> descs(map->instance_descriptors());
   for (int i = 0; i < real_size; i++) {
@@ -4853,9 +4853,10 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
 void JSObject::ResetElements(Handle<JSObject> object) {
   if (object->map()->is_observed()) {
     // Maintain invariant that observed elements are always in dictionary mode.
-    Factory* factory = object->GetIsolate()->factory();
+    Isolate* isolate = object->GetIsolate();
+    Factory* factory = isolate->factory();
     Handle<SeededNumberDictionary> dictionary =
-        factory->NewSeededNumberDictionary(0);
+        SeededNumberDictionary::New(isolate, 0);
     if (object->map() == *factory->sloppy_arguments_elements_map()) {
       FixedArray::cast(object->elements())->set(1, *dictionary);
     } else {
@@ -4910,7 +4911,6 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
   ASSERT(!object->HasExternalArrayElements() &&
          !object->HasFixedTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
-  Factory* factory = isolate->factory();
 
   // Find the backing store.
   Handle<FixedArrayBase> array(FixedArrayBase::cast(object->elements()));
@@ -4933,7 +4933,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
   int used_elements = 0;
   object->GetElementsCapacityAndUsage(&old_capacity, &used_elements);
   Handle<SeededNumberDictionary> dictionary =
-      factory->NewSeededNumberDictionary(used_elements);
+      SeededNumberDictionary::New(isolate, used_elements);
 
   dictionary = CopyFastElementsToDictionary(array, length, dictionary);
 
@@ -5746,8 +5746,7 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
       int capacity = 0;
       int used = 0;
       object->GetElementsCapacityAndUsage(&capacity, &used);
-      new_element_dictionary =
-          isolate->factory()->NewSeededNumberDictionary(used);
+      new_element_dictionary = SeededNumberDictionary::New(isolate, used);
 
       // Move elements to a dictionary; avoid calling NormalizeElements to avoid
       // unnecessary transitions.
@@ -14897,21 +14896,17 @@ template class Dictionary<UnseededNumberDictionary,
                           UnseededNumberDictionaryShape,
                           uint32_t>;
 
-template MaybeObject*
+template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
+    New(Isolate*, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
-
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    Allocate(Heap* heap, int n, PretenureFlag pretenure);
+    New(Isolate*, int at_least_space_for, PretenureFlag pretenure);
 
 template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    New(Isolate* isolate, int n, PretenureFlag pretenure);
+    New(Isolate*, int n, PretenureFlag pretenure);
 
 template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15061,7 +15056,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
   // elements.
   Handle<SeededNumberDictionary> dict(object->element_dictionary(), isolate);
   Handle<SeededNumberDictionary> new_dict =
-      isolate->factory()->NewSeededNumberDictionary(dict->NumberOfElements());
+      SeededNumberDictionary::New(isolate, dict->NumberOfElements());
 
   uint32_t pos = 0;
   uint32_t undefs = 0;
@@ -15794,31 +15789,11 @@ Handle<MapCache> MapCache::Put(
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::Allocate(
-    Heap* heap,
-    int at_least_space_for,
-    PretenureFlag pretenure) {
-  Object* obj;
-  { MaybeObject* maybe_obj =
-      DerivedHashTable::Allocate(
-          heap,
-          at_least_space_for,
-          USE_DEFAULT_MINIMUM_CAPACITY,
-          pretenure);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  // Initialize the next enumeration index.
-  Dictionary::cast(obj)->
-      SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
-  return obj;
-}
-
-
-template<typename Derived, typename Shape, typename Key>
 Handle<Derived> Dictionary<Derived, Shape, Key>::New(
     Isolate* isolate,
     int at_least_space_for,
     PretenureFlag pretenure) {
+  ASSERT(0 <= at_least_space_for);
   Handle<Derived> dict = DerivedHashTable::New(isolate,
                                                at_least_space_for,
                                                USE_DEFAULT_MINIMUM_CAPACITY,

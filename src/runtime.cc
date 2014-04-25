@@ -10049,8 +10049,7 @@ class ArrayConcatVisitor {
     ASSERT(fast_elements_);
     Handle<FixedArray> current_storage(*storage_);
     Handle<SeededNumberDictionary> slow_storage(
-        isolate_->factory()->NewSeededNumberDictionary(
-            current_storage->length()));
+        SeededNumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     for (uint32_t i = 0; i < current_length; i++) {
       HandleScope loop_scope(isolate_);
@@ -10596,7 +10595,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-        isolate->factory()->NewSeededNumberDictionary(at_least_space_for));
+        SeededNumberDictionary::New(isolate, at_least_space_for));
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);

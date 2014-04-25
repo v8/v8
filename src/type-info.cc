@@ -445,8 +445,7 @@ void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   AllowHeapAllocation allocation_allowed;
   Code* old_code = *code;
-  dictionary_ =
-      isolate()->factory()->NewUnseededNumberDictionary(infos->length());
+  dictionary_ = UnseededNumberDictionary::New(isolate(), infos->length());
   RelocateRelocInfos(infos, old_code, *code);
 }
 

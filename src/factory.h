@@ -50,14 +50,6 @@ class Factory V8_FINAL {
       int number_of_heap_ptr_entries,
       int number_of_int32_entries);
 
-  Handle<SeededNumberDictionary> NewSeededNumberDictionary(
-      int at_least_space_for);
-
-  Handle<UnseededNumberDictionary> NewUnseededNumberDictionary(
-      int at_least_space_for);
-
-  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
-
   Handle<ObjectHashTable> NewObjectHashTable(
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);

@@ -131,35 +131,6 @@ Handle<ConstantPoolArray> Factory::NewConstantPoolArray(
 }
 
 
-Handle<NameDictionary> Factory::NewNameDictionary(int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     NameDictionary::Allocate(isolate()->heap(),
-                                              at_least_space_for),
-                     NameDictionary);
-}
-
-
-Handle<SeededNumberDictionary> Factory::NewSeededNumberDictionary(
-    int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     SeededNumberDictionary::Allocate(isolate()->heap(),
-                                                      at_least_space_for),
-                     SeededNumberDictionary);
-}
-
-
-Handle<UnseededNumberDictionary> Factory::NewUnseededNumberDictionary(
-    int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     UnseededNumberDictionary::Allocate(isolate()->heap(),
-                                                        at_least_space_for),
-                     UnseededNumberDictionary);
-}
-
-
 Handle<OrderedHashSet> Factory::NewOrderedHashSet() {
   return OrderedHashSet::Allocate(isolate(), 4);
 }
@@ -1488,7 +1459,8 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
 
   // Allocate a dictionary object for backing storage.
   int at_least_space_for = map->NumberOfOwnDescriptors() * 2 + initial_size;
-  Handle<NameDictionary> dictionary = NewNameDictionary(at_least_space_for);
+  Handle<NameDictionary> dictionary =
+      NameDictionary::New(isolate(), at_least_space_for);
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
