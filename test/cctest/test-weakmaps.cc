@@ -43,14 +43,12 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 
 static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   Handle<Map> map = factory->NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
   Handle<JSObject> weakmap_obj = factory->NewJSObjectFromMap(map);
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*weakmap_obj));
   // Do not use handles for the hash table, it would make entries strong.
-  Object* table_obj = ObjectHashTable::Allocate(heap, 1)->ToObjectChecked();
-  ObjectHashTable* table = ObjectHashTable::cast(table_obj);
-  weakmap->set_table(table);
+  Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 1);
+  weakmap->set_table(*table);
   weakmap->set_next(Smi::FromInt(0));
   return weakmap;
 }

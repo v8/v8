@@ -141,30 +141,6 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 }
 
 
-Handle<ObjectHashTable> Factory::NewObjectHashTable(
-    int at_least_space_for,
-    MinimumCapacity capacity_option) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     ObjectHashTable::Allocate(isolate()->heap(),
-                                               at_least_space_for,
-                                               capacity_option),
-                     ObjectHashTable);
-}
-
-
-Handle<WeakHashTable> Factory::NewWeakHashTable(int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      WeakHashTable::Allocate(isolate()->heap(),
-                              at_least_space_for,
-                              USE_DEFAULT_MINIMUM_CAPACITY,
-                              TENURED),
-      WeakHashTable);
-}
-
-
 Handle<DeoptimizationInputData> Factory::NewDeoptimizationInputData(
     int deopt_entry_count,
     PretenureFlag pretenure) {
@@ -2198,14 +2174,6 @@ Handle<JSFunction> Factory::CreateApiFunction(
 }
 
 
-Handle<MapCache> Factory::NewMapCache(int at_least_space_for) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     MapCache::Allocate(isolate()->heap(),
-                                        at_least_space_for),
-                     MapCache);
-}
-
-
 Handle<MapCache> Factory::AddToMapCache(Handle<Context> context,
                                         Handle<FixedArray> keys,
                                         Handle<Map> map) {
@@ -2220,7 +2188,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                Handle<FixedArray> keys) {
   if (context->map_cache()->IsUndefined()) {
     // Allocate the new map cache for the native context.
-    Handle<MapCache> new_cache = NewMapCache(24);
+    Handle<MapCache> new_cache = MapCache::New(isolate(), 24);
     context->set_map_cache(*new_cache);
   }
   // Check to see whether there is a matching element in the cache.

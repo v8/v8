@@ -50,14 +50,8 @@ class Factory V8_FINAL {
       int number_of_heap_ptr_entries,
       int number_of_int32_entries);
 
-  Handle<ObjectHashTable> NewObjectHashTable(
-      int at_least_space_for,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
-
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
-
-  Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
