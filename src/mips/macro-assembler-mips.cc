@@ -302,7 +302,8 @@ void MacroAssembler::RecordWrite(Register object,
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
   }
-  RecordWriteStub stub(object, value, address, remembered_set_action, fp_mode);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
@@ -352,7 +353,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   }
   push(ra);
   StoreBufferOverflowStub store_buffer_overflow =
-      StoreBufferOverflowStub(fp_mode);
+      StoreBufferOverflowStub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow);
   pop(ra);
   bind(&done);
@@ -1456,7 +1457,7 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   Subu(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   sdc1(double_input, MemOperand(sp, 0));
 
-  DoubleToIStub stub(sp, result, 0, true, true);
+  DoubleToIStub stub(isolate(), sp, result, 0, true, true);
   CallStub(&stub);
 
   Addu(sp, sp, Operand(kDoubleSize));
@@ -1477,7 +1478,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result, Register object) {
 
   // If we fell through then inline version didn't succeed - call stub instead.
   push(ra);
-  DoubleToIStub stub(object,
+  DoubleToIStub stub(isolate(),
+                     object,
                      result,
                      HeapNumber::kValueOffset - kHeapObjectTag,
                      true,
@@ -2691,9 +2693,9 @@ void MacroAssembler::Push(Handle<Object> handle) {
 void MacroAssembler::DebugBreak() {
   PrepareCEntryArgs(0);
   PrepareCEntryFunction(ExternalReference(Runtime::kDebugBreak, isolate()));
-  CEntryStub ces(1);
+  CEntryStub ces(isolate(), 1);
   ASSERT(AllowThisStubCall(&ces));
-  Call(ces.GetCode(isolate()), RelocInfo::DEBUG_BREAK);
+  Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
@@ -3892,7 +3894,7 @@ void MacroAssembler::CallStub(CodeStub* stub,
                               const Operand& r2,
                               BranchDelaySlot bd) {
   ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, ast_id,
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id,
        cond, r1, r2, bd);
 }
 
@@ -3902,7 +3904,7 @@ void MacroAssembler::TailCallStub(CodeStub* stub,
                                   Register r1,
                                   const Operand& r2,
                                   BranchDelaySlot bd) {
-  Jump(stub->GetCode(isolate()), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
+  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond, r1, r2, bd);
 }
 
 
@@ -3966,7 +3968,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   // Native call returns to the DirectCEntry stub which redirects to the
   // return address pushed on stack (could have moved after GC).
   // DirectCEntry stub itself is generated early and never moves.
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(this, t9);
 
   if (FLAG_log_timer_events) {
@@ -4216,7 +4218,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ExternalReference(f, isolate()));
-  CEntryStub stub(1, save_doubles);
+  CEntryStub stub(isolate(), 1, save_doubles);
   CallStub(&stub);
 }
 
@@ -4227,7 +4229,7 @@ void MacroAssembler::CallExternalReference(const ExternalReference& ext,
   PrepareCEntryArgs(num_arguments);
   PrepareCEntryFunction(ext);
 
-  CEntryStub stub(1);
+  CEntryStub stub(isolate(), 1);
   CallStub(&stub, TypeFeedbackId::None(), al, zero_reg, Operand(zero_reg), bd);
 }
 
@@ -4256,8 +4258,8 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
 void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
                                              BranchDelaySlot bd) {
   PrepareCEntryFunction(builtin);
-  CEntryStub stub(1);
-  Jump(stub.GetCode(isolate()),
+  CEntryStub stub(isolate(), 1);
+  Jump(stub.GetCode(),
        RelocInfo::CODE_TARGET,
        al,
        zero_reg,

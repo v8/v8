@@ -2779,14 +2779,14 @@ bool Heap::CreateApiObjects() {
 
 
 void Heap::CreateJSEntryStub() {
-  JSEntryStub stub;
-  set_js_entry_code(*stub.GetCode(isolate()));
+  JSEntryStub stub(isolate());
+  set_js_entry_code(*stub.GetCode());
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
-  JSConstructEntryStub stub;
-  set_js_construct_entry_code(*stub.GetCode(isolate()));
+  JSConstructEntryStub stub(isolate());
+  set_js_construct_entry_code(*stub.GetCode());
 }
 
 
@@ -3426,11 +3426,18 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
 
   if (lo_space()->Contains(object)) return false;
 
-  // We cannot move the object start if the given old space page is
-  // concurrently swept.
+  Page* page = Page::FromAddress(address);
+  // We can move the object start if:
+  // (1) the object is not in old pointer or old data space,
+  // (2) the page of the object was already swept,
+  // (3) the page was already concurrently swept. This case is an optimization
+  // for concurrent sweeping. The WasSwept predicate for concurrently swept
+  // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
-      Page::FromAddress(address)->parallel_sweeping() <=
-          MemoryChunk::PARALLEL_SWEEPING_FINALIZE;
+         page->WasSwept() ||
+         (mark_compact_collector()->AreSweeperThreadsActivated() &&
+              page->parallel_sweeping() <=
+                  MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
 }
 
 

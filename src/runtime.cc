@@ -871,6 +871,10 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferInitialize) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, holder, 0);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(byteLength, 1);
+  if (!holder->byte_length()->IsUndefined()) {
+    // ArrayBuffer is already initialized; probably a fuzz test.
+    return *holder;
+  }
   size_t allocated_length = 0;
   if (!TryNumberToSize(isolate, *byteLength, &allocated_length)) {
     return isolate->Throw(
@@ -1055,7 +1059,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, holder, 0);
   CONVERT_SMI_ARG_CHECKED(arrayId, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, length_obj, 3);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 3);
 
   ASSERT(holder->GetInternalFieldCount() ==
       v8::ArrayBufferView::kInternalFieldCount);
@@ -1079,7 +1083,8 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
       JSTypedArray::cast(*source)->type() == array_type) {
     length_obj = Handle<Object>(JSTypedArray::cast(*source)->length(), isolate);
   }
-  size_t length = NumberToSize(isolate, *length_obj);
+  size_t length = 0;
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *length_obj, &length));
 
   if ((length > static_cast<unsigned>(Smi::kMaxValue)) ||
       (length > (kMaxInt / element_size))) {
@@ -1191,16 +1196,16 @@ enum TypedArraySetResultCodes {
 RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source_obj, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, offset_obj, 2);
-
-  if (!target_obj->IsJSTypedArray())
+  if (!args[0]->IsJSTypedArray())
     return isolate->Throw(*isolate->factory()->NewTypeError(
         "not_typed_array", HandleVector<Object>(NULL, 0)));
 
-  if (!source_obj->IsJSTypedArray())
+  if (!args[1]->IsJSTypedArray())
     return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source_obj, 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 2);
 
   Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
   Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
@@ -1260,23 +1265,31 @@ RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, byte_offset, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, byte_length, 3);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_offset, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(byte_length, 3);
 
   ASSERT(holder->GetInternalFieldCount() ==
       v8::ArrayBufferView::kInternalFieldCount);
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
     holder->SetInternalField(i, Smi::FromInt(0));
   }
+  size_t buffer_length = 0;
+  size_t offset = 0;
+  size_t length = 0;
+  RUNTIME_ASSERT(
+      TryNumberToSize(isolate, buffer->byte_length(), &buffer_length));
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset, &offset));
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length, &length));
+
+  // TODO(jkummerow): When we have a "safe numerics" helper class, use it here.
+  // Entire range [offset, offset + length] must be in bounds.
+  RUNTIME_ASSERT(offset <= buffer_length);
+  RUNTIME_ASSERT(offset + length <= buffer_length);
+  // No overflow.
+  RUNTIME_ASSERT(offset + length >= offset);
 
   holder->set_buffer(*buffer);
-  ASSERT(byte_offset->IsNumber());
-  ASSERT(
-      NumberToSize(isolate, buffer->byte_length()) >=
-        NumberToSize(isolate, *byte_offset)
-        + NumberToSize(isolate, *byte_length));
   holder->set_byte_offset(*byte_offset);
-  ASSERT(byte_length->IsNumber());
   holder->set_byte_length(*byte_length);
 
   holder->set_weak_next(buffer->weak_first_view());
@@ -1582,8 +1595,8 @@ RUNTIME_FUNCTION(Runtime_SetCreateIterator) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   CONVERT_SMI_ARG_CHECKED(kind, 1)
-  ASSERT(kind == JSSetIterator::kKindValues
-      || kind == JSSetIterator::kKindEntries);
+  RUNTIME_ASSERT(kind == JSSetIterator::kKindValues ||
+                 kind == JSSetIterator::kKindEntries);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   return *JSSetIterator::Create(table, kind);
 }
@@ -3061,7 +3074,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetReadOnlyPrototype) {
   } else {  // Dictionary properties.
     // Directly manipulate the property details.
     DisallowHeapAllocation no_gc;
-    int entry = function->property_dictionary()->FindEntry(*name);
+    int entry = function->property_dictionary()->FindEntry(name);
     ASSERT(entry != NameDictionary::kNotFound);
     PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
     PropertyDetails new_details(
@@ -3097,11 +3110,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   ASSERT(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, code, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, source, 1);
 
-  if (code->IsNull()) return *target;
-  RUNTIME_ASSERT(code->IsJSFunction());
-  Handle<JSFunction> source = Handle<JSFunction>::cast(code);
   Handle<SharedFunctionInfo> target_shared(target->shared());
   Handle<SharedFunctionInfo> source_shared(source->shared());
 
@@ -4296,7 +4306,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
 
-  ASSERT(regexp->GetFlags().is_global());
+  RUNTIME_ASSERT(regexp->GetFlags().is_global());
 
   subject = String::Flatten(subject);
 
@@ -7231,6 +7241,12 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   CONVERT_SMI_ARG_CHECKED(array_length, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, special, 2);
 
+  size_t actual_array_length = 0;
+  RUNTIME_ASSERT(
+      TryNumberToSize(isolate, array->length(), &actual_array_length));
+  RUNTIME_ASSERT(array_length >= 0);
+  RUNTIME_ASSERT(static_cast<size_t>(array_length) <= actual_array_length);
+
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
@@ -7599,7 +7615,8 @@ RUNTIME_FUNCTION(Runtime_NumberCompare) {
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  if (std::isnan(x) || std::isnan(y)) return args[2];
+  CONVERT_ARG_HANDLE_CHECKED(Object, uncomparable_result, 2)
+  if (std::isnan(x) || std::isnan(y)) return *uncomparable_result;
   if (x == y) return Smi::FromInt(EQUAL);
   if (isless(x, y)) return Smi::FromInt(LESS);
   return Smi::FromInt(GREATER);
@@ -7887,15 +7904,15 @@ RUNTIME_FUNCTION(RuntimeHidden_MathPow) {
 RUNTIME_FUNCTION(Runtime_RoundNumber) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(input, 0);
   isolate->counters()->math_round()->Increment();
 
-  if (!args[0]->IsHeapNumber()) {
-    // Must be smi. Return the argument unchanged for all the other types
-    // to make fuzz-natives test happy.
-    return args[0];
+  if (!input->IsHeapNumber()) {
+    ASSERT(input->IsSmi());
+    return *input;
   }
 
-  HeapNumber* number = reinterpret_cast<HeapNumber*>(args[0]);
+  Handle<HeapNumber> number = Handle<HeapNumber>::cast(input);
 
   double value = number->value();
   int exponent = number->get_exponent();
@@ -7917,7 +7934,7 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
   // If the magnitude is big enough, there's no place for fraction part. If we
   // try to add 0.5 to this number, 1.0 will be added instead.
   if (exponent >= 52) {
-    return number;
+    return *number;
   }
 
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
@@ -9666,22 +9683,22 @@ RUNTIME_FUNCTION(Runtime_DateParseString) {
 
   JSObject::EnsureCanContainHeapObjectElements(output);
   RUNTIME_ASSERT(output->HasFastObjectElements());
+  Handle<FixedArray> output_array(FixedArray::cast(output->elements()));
+  RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
 
   str = String::Flatten(str);
   DisallowHeapAllocation no_gc;
 
-  FixedArray* output_array = FixedArray::cast(output->elements());
-  RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
   bool result;
   String::FlatContent str_content = str->GetFlatContent();
   if (str_content.IsAscii()) {
     result = DateParser::Parse(str_content.ToOneByteVector(),
-                               output_array,
+                               *output_array,
                                isolate->unicode_cache());
   } else {
     ASSERT(str_content.IsTwoByte());
     result = DateParser::Parse(str_content.ToUC16Vector(),
-                               output_array,
+                               *output_array,
                                isolate->unicode_cache());
   }
 
@@ -9979,7 +9996,7 @@ class ArrayConcatVisitor {
     Handle<SeededNumberDictionary> dict(
         SeededNumberDictionary::cast(*storage_));
     Handle<SeededNumberDictionary> result =
-        isolate_->factory()->DictionaryAtNumberPut(dict, index, elm);
+        SeededNumberDictionary::AtNumberPut(dict, index, elm);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -10029,7 +10046,7 @@ class ArrayConcatVisitor {
       Handle<Object> element(current_storage->get(i), isolate_);
       if (!element->IsTheHole()) {
         Handle<SeededNumberDictionary> new_storage =
-          isolate_->factory()->DictionaryAtNumberPut(slow_storage, i, element);
+            SeededNumberDictionary::AtNumberPut(slow_storage, i, element);
         if (!new_storage.is_identical_to(slow_storage)) {
           slow_storage = loop_scope.CloseAndEscape(new_storage);
         }
@@ -10484,12 +10501,13 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
   // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= estimate_result_length;
 
-  Handle<FixedArray> storage;
-  if (fast_case) {
-    if (kind == FAST_DOUBLE_ELEMENTS) {
+  if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
+    Handle<FixedArrayBase> storage =
+        isolate->factory()->NewFixedDoubleArray(estimate_result_length);
+    int j = 0;
+    if (estimate_result_length > 0) {
       Handle<FixedDoubleArray> double_storage =
-          isolate->factory()->NewFixedDoubleArray(estimate_result_length);
-      int j = 0;
+          Handle<FixedDoubleArray>::cast(storage);
       bool failure = false;
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj(elements->get(i), isolate);
@@ -10545,15 +10563,19 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
         }
         if (failure) break;
       }
-      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
-      Smi* length = Smi::FromInt(j);
-      Handle<Map> map;
-      map = JSObject::GetElementsTransitionMap(array, kind);
-      array->set_map(*map);
-      array->set_length(length);
-      array->set_elements(*double_storage);
-      return *array;
     }
+    Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+    Smi* length = Smi::FromInt(j);
+    Handle<Map> map;
+    map = JSObject::GetElementsTransitionMap(array, kind);
+    array->set_map(*map);
+    array->set_length(length);
+    array->set_elements(*storage);
+    return *array;
+  }
+
+  Handle<FixedArray> storage;
+  if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage = isolate->factory()->NewFixedArrayWithHoles(
@@ -13468,6 +13490,9 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSValue, parent_wrapper, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, orig_wrapper, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, subst_wrapper, 2);
+  RUNTIME_ASSERT(parent_wrapper->value()->IsSharedFunctionInfo());
+  RUNTIME_ASSERT(orig_wrapper->value()->IsSharedFunctionInfo());
+  RUNTIME_ASSERT(subst_wrapper->value()->IsSharedFunctionInfo());
 
   LiveEdit::ReplaceRefToNestedFunction(
       parent_wrapper, orig_wrapper, subst_wrapper);
@@ -14542,6 +14567,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
   if (idx < 0) {
     idx = -idx + object->map()->inobject_properties() - 1;
   }
+  Handle<Object> raw_value(object->RawFastPropertyAt(idx), isolate);
+  RUNTIME_ASSERT(raw_value->IsNumber() || raw_value->IsUninitialized());
   return *JSObject::FastPropertyAt(object, Representation::Double(), idx);
 }
 
@@ -14887,7 +14914,7 @@ RUNTIME_FUNCTION(Runtime_IsAccessAllowedForObserver) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
-  ASSERT(object->map()->is_access_check_needed());
+  RUNTIME_ASSERT(object->map()->is_access_check_needed());
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
   SaveContext save(isolate);
   isolate->set_context(observer->context());
@@ -15098,7 +15125,7 @@ void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
   for (int i = 0; i < kNumFunctions; ++i) {
     const char* name = kIntrinsicFunctions[i].name;
     if (name == NULL) continue;
-    Handle<NameDictionary> new_dict = NameDictionary::AddNameEntry(
+    Handle<NameDictionary> new_dict = NameDictionary::Add(
         dict,
         isolate->factory()->InternalizeUtf8String(name),
         Handle<Smi>(Smi::FromInt(i), isolate),
@@ -15111,7 +15138,7 @@ void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
 
 const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
   Heap* heap = name->GetHeap();
-  int entry = heap->intrinsic_function_names()->FindEntry(*name);
+  int entry = heap->intrinsic_function_names()->FindEntry(name);
   if (entry != kNotFound) {
     Object* smi_index = heap->intrinsic_function_names()->ValueAt(entry);
     int function_index = Smi::cast(smi_index)->value();

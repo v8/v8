@@ -1,3 +1,23 @@
+2014-04-25: Version 3.26.24
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 2)
+        (Chromium issue 359977).
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 1)
+        (Chromium issue 359977).
+
+        CodeStubs contain their corresponding Isolate* now. (part 2) (Chromium
+        issue 359977).
+
+        Make DescriptorArray::IsMoreGeneralThan() and DescriptorArray::Merge()
+        compatible again (Chromium issue 365172).
+
+        CodeStubs contain their corresponding Isolate* now. (part 1) (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-24: Version 3.26.23
 
         Performance and stability improvements on all platforms.

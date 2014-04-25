@@ -33,12 +33,14 @@ class Factory V8_FINAL {
   Handle<FixedArray> NewUninitializedFixedArray(int size);
 
   // Allocate a new uninitialized fixed double array.
-  Handle<FixedDoubleArray> NewFixedDoubleArray(
+  // The function returns a pre-allocated empty fixed array for capacity = 0,
+  // so the return type must be the general fixed array class.
+  Handle<FixedArrayBase> NewFixedDoubleArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a new fixed double array with hole values.
-  Handle<FixedDoubleArray> NewFixedDoubleArrayWithHoles(
+  Handle<FixedArrayBase> NewFixedDoubleArrayWithHoles(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
@@ -604,16 +606,6 @@ class Factory V8_FINAL {
       int end_position,
       Handle<Object> script,
       Handle<Object> stack_frames);
-
-  Handle<SeededNumberDictionary> DictionaryAtNumberPut(
-      Handle<SeededNumberDictionary>,
-      uint32_t key,
-      Handle<Object> value);
-
-  Handle<UnseededNumberDictionary> DictionaryAtNumberPut(
-      Handle<UnseededNumberDictionary>,
-      uint32_t key,
-      Handle<Object> value);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);

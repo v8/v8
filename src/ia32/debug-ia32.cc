@@ -141,7 +141,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ Move(eax, Immediate(0));  // No arguments.
     __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
-    CEntryStub ceb(1);
+    CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
 
     // Automatically find register that could be used after register restore.

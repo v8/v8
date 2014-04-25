@@ -37,14 +37,14 @@ namespace internal {
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
 #define ACCESSOR_DESCRIPTOR_LIST(V) \
-  V(FunctionPrototype)              \
-  V(FunctionLength)                 \
   V(FunctionName)                   \
   V(FunctionArguments)              \
   V(FunctionCaller)                 \
   V(ArrayLength)
 
 #define ACCESSOR_INFO_LIST(V)       \
+  V(FunctionLength)                 \
+  V(FunctionPrototype)              \
   V(ScriptColumnOffset)             \
   V(ScriptCompilationType)          \
   V(ScriptContextData)              \

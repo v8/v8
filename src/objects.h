@@ -4064,14 +4064,12 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a new dictionary.
-  static Handle<Derived> New(
+  MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate,
       int at_least_space_for,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Ensure enough space for n additional elements.
-  MUST_USE_RESULT MaybeObject* EnsureCapacity(int n, Key key);
-
   static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
 
 #ifdef OBJECT_PRINT
@@ -4089,34 +4087,46 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                        Object* value,
                        PropertyDetails details);
 
-  MUST_USE_RESULT MaybeObject* Add(Key key,
-                                   Object* value,
-                                   PropertyDetails details);
+  MUST_USE_RESULT static Handle<Derived> Add(
+      Handle<Derived> dictionary,
+      Key key,
+      Handle<Object> value,
+      PropertyDetails details);
 
  protected:
   // Generic at put operation.
-  MUST_USE_RESULT MaybeObject* AtPut(Key key, Object* value);
+  MUST_USE_RESULT static Handle<Derived> AtPut(
+      Handle<Derived> dictionary,
+      Key key,
+      Handle<Object> value);
 
   // Add entry to dictionary.
   MUST_USE_RESULT MaybeObject* AddEntry(Key key,
                                         Object* value,
                                         PropertyDetails details,
                                         uint32_t hash);
+  MUST_USE_RESULT static Handle<Derived> AddEntry(
+      Handle<Derived> dictionary,
+      Key key,
+      Handle<Object> value,
+      PropertyDetails details,
+      uint32_t hash);
 
   // Generate new enumeration indices to avoid enumeration index overflow.
-  MUST_USE_RESULT MaybeObject* GenerateNewEnumerationIndices();
+  static void GenerateNewEnumerationIndices(Handle<Derived> dictionary);
   static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 };
 
 
-class NameDictionaryShape : public BaseShape<Name*> {
+class NameDictionaryShape : public BaseShape<Handle<Name> > {
  public:
-  static inline bool IsMatch(Name* key, Object* other);
-  static inline uint32_t Hash(Name* key);
-  static inline uint32_t HashForObject(Name* key, Object* object);
+  static inline bool IsMatch(Handle<Name> key, Object* other);
+  static inline uint32_t Hash(Handle<Name> key);
+  static inline uint32_t HashForObject(Handle<Name> key, Object* object);
   MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Name* key);
+                                                      Handle<Name> key);
+  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = true;
@@ -4125,7 +4135,10 @@ class NameDictionaryShape : public BaseShape<Name*> {
 
 class NameDictionary: public Dictionary<NameDictionary,
                                         NameDictionaryShape,
-                                        Name*> {
+                                        Handle<Name> > {
+  typedef Dictionary<
+      NameDictionary, NameDictionaryShape, Handle<Name> > DerivedDictionary;
+
  public:
   static inline NameDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
@@ -4134,26 +4147,25 @@ class NameDictionary: public Dictionary<NameDictionary,
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
-  static void DoGenerateNewEnumerationIndices(
+  inline static void DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
 
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
-  int FindEntry(Name* key);
+  int FindEntry(Handle<Name> key);
 
-  // TODO(mstarzinger): Temporary wrapper until handlified.
-  static Handle<NameDictionary> AddNameEntry(Handle<NameDictionary> dict,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyDetails details);
+  // TODO(ishell): Remove this when all the callers are handlified.
+  int FindEntry(Name* key);
 };
 
 
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
+  // TODO(ishell): This should be eventually replaced with AsHandle().
   MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
                                                       uint32_t key);
+  static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
@@ -4191,27 +4203,23 @@ class SeededNumberDictionary
   }
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> AtNumberPut(
+      Handle<SeededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
   MUST_USE_RESULT static Handle<SeededNumberDictionary> AddNumberEntry(
       Handle<SeededNumberDictionary> dictionary,
       uint32_t key,
       Handle<Object> value,
       PropertyDetails details);
-  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key,
-                                              Object* value,
-                                              PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
       Handle<SeededNumberDictionary> dictionary,
-      uint32_t index,
+      uint32_t key,
       Handle<Object> value,
       PropertyDetails details);
-
-  MUST_USE_RESULT MaybeObject* Set(uint32_t key,
-                                   Object* value,
-                                   PropertyDetails details);
 
   void UpdateMaxNumberKey(uint32_t key);
 
@@ -4246,17 +4254,21 @@ class UnseededNumberDictionary
   }
 
   // Type specific at put (default NONE attributes is used when adding).
-  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
-  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key, Object* value);
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AtNumberPut(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> AddNumberEntry(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t key,
+      Handle<Object> value);
 
   // Set an existing entry or add a new one if needed.
   // Return the updated dictionary.
   MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
       Handle<UnseededNumberDictionary> dictionary,
-      uint32_t index,
+      uint32_t key,
       Handle<Object> value);
-
-  MUST_USE_RESULT MaybeObject* Set(uint32_t key, Object* value);
 };
 
 

@@ -39,7 +39,6 @@ namespace internal {
 
 
 void FastNewClosureStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: function info
   static Register registers[] = { x2 };
@@ -51,7 +50,6 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 
 
 void FastNewContextStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: function
   static Register registers[] = { x1 };
@@ -62,7 +60,6 @@ void FastNewContextStub::InitializeInterfaceDescriptor(
 
 
 void ToNumberStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value
   static Register registers[] = { x0 };
@@ -73,7 +70,6 @@ void ToNumberStub::InitializeInterfaceDescriptor(
 
 
 void NumberToStringStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value
   static Register registers[] = { x0 };
@@ -85,7 +81,6 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
 
 
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x3: array literals array
   // x2: array literal index
@@ -100,7 +95,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
 
 
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x3: object literals array
   // x2: object literal index
@@ -115,7 +109,6 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 
 
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: feedback vector
   // x3: call feedback slot
@@ -127,7 +120,6 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 
 
 void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: receiver
   // x0: key
@@ -140,7 +132,6 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 
 
 void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: receiver
   // x0: key
@@ -153,7 +144,6 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 
 
 void RegExpConstructResultStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: length
   // x1: index (of last match)
@@ -167,7 +157,6 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 
 
 void LoadFieldStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: receiver
   static Register registers[] = { x0 };
@@ -178,7 +167,6 @@ void LoadFieldStub::InitializeInterfaceDescriptor(
 
 
 void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: receiver
   static Register registers[] = { x1 };
@@ -189,7 +177,6 @@ void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
 
 
 void StringLengthStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { x0, x2 };
   descriptor->register_param_count_ = 2;
@@ -199,7 +186,6 @@ void StringLengthStub::InitializeInterfaceDescriptor(
 
 
 void KeyedStringLengthStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { x1, x0 };
   descriptor->register_param_count_ = 2;
@@ -209,7 +195,6 @@ void KeyedStringLengthStub::InitializeInterfaceDescriptor(
 
 
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: receiver
   // x1: key
@@ -223,7 +208,6 @@ void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
 
 
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value (js_array)
   // x1: to_map
@@ -237,7 +221,6 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 
 
 void CompareNilICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value to compare
   static Register registers[] = { x0 };
@@ -246,12 +229,11 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(CompareNilIC_Miss);
   descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate));
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
 }
 
 
 static void InitializeArrayConstructorDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
   // x1: function
@@ -281,28 +263,24 @@ static void InitializeArrayConstructorDescriptor(
 
 
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor, 0);
+  InitializeArrayConstructorDescriptor(descriptor, 0);
 }
 
 
 void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor, 1);
+  InitializeArrayConstructorDescriptor(descriptor, 1);
 }
 
 
 void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(isolate, descriptor, -1);
+  InitializeArrayConstructorDescriptor(descriptor, -1);
 }
 
 
 static void InitializeInternalArrayConstructorDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
   // x1: constructor function
@@ -331,28 +309,24 @@ static void InitializeInternalArrayConstructorDescriptor(
 
 
 void InternalArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 0);
+  InitializeInternalArrayConstructorDescriptor(descriptor, 0);
 }
 
 
 void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, 1);
+  InitializeInternalArrayConstructorDescriptor(descriptor, 1);
 }
 
 
 void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(isolate, descriptor, -1);
+  InitializeInternalArrayConstructorDescriptor(descriptor, -1);
 }
 
 
 void ToBooleanStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value
   static Register registers[] = { x0 };
@@ -360,12 +334,11 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = FUNCTION_ADDR(ToBooleanIC_Miss);
   descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate));
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
 }
 
 
 void StoreGlobalStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: receiver
   // x2: key (unused)
@@ -379,7 +352,6 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 
 
 void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x0: value
   // x3: target map
@@ -394,7 +366,6 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 
 
 void BinaryOpICStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand
   // x0: right operand
@@ -403,12 +374,11 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
   descriptor->register_params_ = registers;
   descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
   descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate));
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
 }
 
 
 void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: allocation site
   // x1: left operand
@@ -422,7 +392,6 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
 
 
 void StringAddStub::InitializeInterfaceDescriptor(
-    Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand
   // x0: right operand
@@ -534,10 +503,9 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
-  Isolate* isolate = masm->isolate();
-  isolate->counters()->code_stubs()->Increment();
+  isolate()->counters()->code_stubs()->Increment();
 
-  CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor(isolate);
+  CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor();
   int param_count = descriptor->register_param_count_;
   {
     // Call the runtime system in a fresh internal frame.
@@ -1049,8 +1017,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   __ JumpIfBothInstanceTypesAreNotSequentialAscii(lhs_type, rhs_type, x14,
                                                   x15, &slow);
 
-  Isolate* isolate = masm->isolate();
-  __ IncrementCounter(isolate->counters()->string_compare_native(), 1, x10,
+  __ IncrementCounter(isolate()->counters()->string_compare_native(), 1, x10,
                       x11);
   if (cond == eq) {
     StringCompareStub::GenerateFlatAsciiStringEquals(masm, lhs, rhs,
@@ -1112,10 +1079,9 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   }
 
   AllowExternalCallThatCantCauseGC scope(masm);
-  __ Mov(x0, ExternalReference::isolate_address(masm->isolate()));
+  __ Mov(x0, ExternalReference::isolate_address(isolate()));
   __ CallCFunction(
-      ExternalReference::store_buffer_overflow_function(masm->isolate()),
-                                                        1, 0);
+      ExternalReference::store_buffer_overflow_function(isolate()), 1, 0);
 
   if (save_doubles_ == kSaveFPRegs) {
     __ PopCPURegList(saved_fp_regs);
@@ -1127,10 +1093,10 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
-  StoreBufferOverflowStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate);
-  StoreBufferOverflowStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate);
+  StoreBufferOverflowStub stub1(isolate, kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
+  stub2.GetCode();
 }
 
 
@@ -1314,7 +1280,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
       AllowExternalCallThatCantCauseGC scope(masm);
       __ Mov(saved_lr, lr);
       __ CallCFunction(
-          ExternalReference::power_double_double_function(masm->isolate()),
+          ExternalReference::power_double_double_function(isolate()),
           0, 2);
       __ Mov(lr, saved_lr);
       __ B(&done);
@@ -1397,7 +1363,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           result_double);
     ASSERT(result_tagged.is(x0));
     __ IncrementCounter(
-        masm->isolate()->counters()->math_pow(), 1, scratch0, scratch1);
+        isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
   } else {
     AllowExternalCallThatCantCauseGC scope(masm);
@@ -1405,12 +1371,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ Fmov(base_double, base_double_copy);
     __ Scvtf(exponent_double, exponent_integer);
     __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()),
+        ExternalReference::power_double_double_function(isolate()),
         0, 2);
     __ Mov(lr, saved_lr);
     __ Bind(&done);
     __ IncrementCounter(
-        masm->isolate()->counters()->math_pow(), 1, scratch0, scratch1);
+        isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
   }
 }
@@ -1434,18 +1400,18 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 
 void StoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreRegistersStateStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate);
-  StoreRegistersStateStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate);
+  StoreRegistersStateStub stub1(isolate, kDontSaveFPRegs);
+  stub1.GetCode();
+  StoreRegistersStateStub stub2(isolate, kSaveFPRegs);
+  stub2.GetCode();
 }
 
 
 void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  RestoreRegistersStateStub stub1(kDontSaveFPRegs);
-  stub1.GetCode(isolate);
-  RestoreRegistersStateStub stub2(kSaveFPRegs);
-  stub2.GetCode(isolate);
+  RestoreRegistersStateStub stub1(isolate, kDontSaveFPRegs);
+  stub1.GetCode();
+  RestoreRegistersStateStub stub2(isolate, kSaveFPRegs);
+  stub2.GetCode();
 }
 
 
@@ -1470,10 +1436,10 @@ bool CEntryStub::NeedsImmovableCode() {
 
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
-  CEntryStub stub(1, kDontSaveFPRegs);
-  stub.GetCode(isolate);
-  CEntryStub stub_fp(1, kSaveFPRegs);
-  stub_fp.GetCode(isolate);
+  CEntryStub stub(isolate, 1, kDontSaveFPRegs);
+  stub.GetCode();
+  CEntryStub stub_fp(isolate, 1, kSaveFPRegs);
+  stub_fp.GetCode();
 }
 
 
@@ -1582,12 +1548,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   ASSERT(csp.Is(__ StackPointer()));
 
-  Isolate* isolate = masm->isolate();
-
   // Prepare AAPCS64 arguments to pass to the builtin.
   __ Mov(x0, argc);
   __ Mov(x1, argv);
-  __ Mov(x2, ExternalReference::isolate_address(isolate));
+  __ Mov(x2, ExternalReference::isolate_address(isolate()));
 
   Label return_location;
   __ Adr(x12, &return_location);
@@ -1647,14 +1611,14 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Retrieve the pending exception.
   ExternalReference pending_exception_address(
-      Isolate::kPendingExceptionAddress, isolate);
+      Isolate::kPendingExceptionAddress, isolate());
   const Register& exception = result;
   const Register& exception_address = x11;
   __ Mov(exception_address, Operand(pending_exception_address));
   __ Ldr(exception, MemOperand(exception_address));
 
   // Clear the pending exception.
-  __ Mov(x10, Operand(isolate->factory()->the_hole_value()));
+  __ Mov(x10, Operand(isolate()->factory()->the_hole_value()));
   __ Str(x10, MemOperand(exception_address));
 
   //  x0    exception   The exception descriptor.
@@ -1665,7 +1629,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Special handling of termination exceptions, which are uncatchable by
   // JavaScript code.
   Label throw_termination_exception;
-  __ Cmp(exception, Operand(isolate->factory()->termination_exception()));
+  __ Cmp(exception, Operand(isolate()->factory()->termination_exception()));
   __ B(eq, &throw_termination_exception);
 
   // We didn't execute a return case, so the stack frame hasn't been updated
@@ -1725,14 +1689,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Fmov(fp_zero, 0.0);
 
   // Build an entry frame (see layout below).
-  Isolate* isolate = masm->isolate();
-
-  // Build an entry frame.
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   int64_t bad_frame_pointer = -1L;  // Bad frame pointer to fail if it is used.
   __ Mov(x13, bad_frame_pointer);
   __ Mov(x12, Smi::FromInt(marker));
-  __ Mov(x11, ExternalReference(Isolate::kCEntryFPAddress, isolate));
+  __ Mov(x11, ExternalReference(Isolate::kCEntryFPAddress, isolate()));
   __ Ldr(x10, MemOperand(x11));
 
   __ Push(x13, xzr, x12, x10);
@@ -1742,7 +1703,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Push the JS entry frame marker. Also set js_entry_sp if this is the
   // outermost JS call.
   Label non_outermost_js, done;
-  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate);
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress, isolate());
   __ Mov(x10, ExternalReference(js_entry_sp));
   __ Ldr(x11, MemOperand(x10));
   __ Cbnz(x11, &non_outermost_js);
@@ -1782,7 +1743,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     // fp will be invalid because the PushTryHandler below sets it to 0 to
     // signal the existence of the JSEntry frame.
     __ Mov(x10, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-           isolate)));
+                                          isolate())));
   }
   __ Str(code_entry, MemOperand(x10));
   __ LoadRoot(x0, Heap::kExceptionRootIndex);
@@ -1798,9 +1759,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // saved values before returning a failure to C.
 
   // Clear any pending exceptions.
-  __ Mov(x10, Operand(isolate->factory()->the_hole_value()));
+  __ Mov(x10, Operand(isolate()->factory()->the_hole_value()));
   __ Mov(x11, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                        isolate)));
+                                        isolate())));
   __ Str(x10, MemOperand(x11));
 
   // Invoke the function by calling through the JS entry trampoline builtin.
@@ -1815,7 +1776,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // x4: argv.
   ExternalReference entry(is_construct ? Builtins::kJSConstructEntryTrampoline
                                        : Builtins::kJSEntryTrampoline,
-                          isolate);
+                          isolate());
   __ Mov(x10, entry);
 
   // Call the JSEntryTrampoline.
@@ -1848,7 +1809,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptors from the stack.
   __ Pop(x10);
-  __ Mov(x11, ExternalReference(Isolate::kCEntryFPAddress, isolate));
+  __ Mov(x11, ExternalReference(Isolate::kCEntryFPAddress, isolate()));
   __ Str(x10, MemOperand(x11));
 
   // Reset the stack to the callee saved registers.
@@ -1875,7 +1836,7 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
     // -----------------------------------
     Register key = x0;
     receiver = x1;
-    __ Cmp(key, Operand(masm->isolate()->factory()->prototype_string()));
+    __ Cmp(key, Operand(isolate()->factory()->prototype_string()));
     __ B(ne, &miss);
   } else {
     ASSERT(kind() == Code::LOAD_IC);
@@ -2033,7 +1994,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Mov(result, res_false);
 
   // Null is not instance of anything.
-  __ Cmp(object_type, Operand(masm->isolate()->factory()->null_value()));
+  __ Cmp(object_type, Operand(isolate()->factory()->null_value()));
   __ B(ne, &object_not_null);
   __ Ret();
 
@@ -2634,11 +2595,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   const int kJSRegExpOffset = 7 * kPointerSize;
 
   // Ensure that a RegExp stack is allocated.
-  Isolate* isolate = masm->isolate();
   ExternalReference address_of_regexp_stack_memory_address =
-      ExternalReference::address_of_regexp_stack_memory_address(isolate);
+      ExternalReference::address_of_regexp_stack_memory_address(isolate());
   ExternalReference address_of_regexp_stack_memory_size =
-      ExternalReference::address_of_regexp_stack_memory_size(isolate);
+      ExternalReference::address_of_regexp_stack_memory_size(isolate());
   __ Mov(x10, address_of_regexp_stack_memory_size);
   __ Ldr(x10, MemOperand(x10));
   __ Cbz(x10, &runtime);
@@ -2800,7 +2760,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(code_object, &runtime);
 
   // All checks done. Now push arguments for native regexp code.
-  __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1,
+  __ IncrementCounter(isolate()->counters()->regexp_entry_native(), 1,
                       x10,
                       x11);
 
@@ -2816,7 +2776,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // csp[0]: Space for the return address placed by DirectCEntryStub.
   // csp[8]: Argument 9, the current isolate address.
 
-  __ Mov(x10, ExternalReference::isolate_address(isolate));
+  __ Mov(x10, ExternalReference::isolate_address(isolate()));
   __ Poke(x10, kPointerSize);
 
   Register length = w11;
@@ -2865,7 +2825,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Add(x3, x2, Operand(w10, UXTW));
 
   // Argument 5 (x4): static offsets vector buffer.
-  __ Mov(x4, ExternalReference::address_of_static_offsets_vector(isolate));
+  __ Mov(x4, ExternalReference::address_of_static_offsets_vector(isolate()));
 
   // Argument 6 (x5): Set the number of capture registers to zero to force
   // global regexps to behave as non-global. This stub is not used for global
@@ -2884,7 +2844,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Locate the code entry and call it.
   __ Add(code_object, code_object, Code::kHeaderSize - kHeapObjectTag);
-  DirectCEntryStub stub;
+  DirectCEntryStub stub(isolate());
   stub.GenerateCall(masm, code_object);
 
   __ LeaveExitFrame(false, x10, true);
@@ -2970,7 +2930,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Get the static offsets vector filled by the native regexp code
   // and fill the last match info.
   ExternalReference address_of_static_offsets_vector =
-      ExternalReference::address_of_static_offsets_vector(isolate);
+      ExternalReference::address_of_static_offsets_vector(isolate());
   __ Mov(offsets_vector_index, address_of_static_offsets_vector);
 
   Label next_capture, done;
@@ -3009,10 +2969,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // A stack overflow (on the backtrack stack) may have occured
   // in the RegExp code but no exception has been created yet.
   // If there is no pending exception, handle that in the runtime system.
-  __ Mov(x10, Operand(isolate->factory()->the_hole_value()));
+  __ Mov(x10, Operand(isolate()->factory()->the_hole_value()));
   __ Mov(x11,
          Operand(ExternalReference(Isolate::kPendingExceptionAddress,
-                                   isolate)));
+                                   isolate())));
   __ Ldr(exception_value, MemOperand(x11));
   __ Cmp(x10, exception_value);
   __ B(eq, &runtime);
@@ -3031,7 +2991,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ThrowUncatchable(exception_value, x10, x11, x12, x13);
 
   __ Bind(&failure);
-  __ Mov(x0, Operand(masm->isolate()->factory()->null_value()));
+  __ Mov(x0, Operand(isolate()->factory()->null_value()));
   __ PopCPURegList(used_callee_saved_registers);
   // Drop the 4 arguments of the stub from the stack.
   __ Drop(4);
@@ -3161,7 +3121,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
     // slot.
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      CreateAllocationSiteStub create_stub;
+      CreateAllocationSiteStub create_stub(masm->isolate());
 
       // Arguments register must be smi-tagged to call out.
       __ SmiTag(argc);
@@ -3265,8 +3225,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
       // If there is a call target cache, mark it megamorphic in the
       // non-function case. MegamorphicSentinel is an immortal immovable object
       // (megamorphic symbol) so no write barrier is needed.
-      ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
-                masm->isolate()->heap()->megamorphic_symbol());
+      ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(isolate()),
+                isolate()->heap()->megamorphic_symbol());
       __ Add(x12, cache_cell, Operand::UntagSmiAndScale(slot,
                                                         kPointerSizeLog2));
       __ LoadRoot(x11, Heap::kMegamorphicSymbolRootIndex);
@@ -3281,7 +3241,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ GetBuiltinFunction(x1, Builtins::CALL_FUNCTION_PROXY);
     {
       Handle<Code> adaptor =
-          masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+          isolate()->builtins()->ArgumentsAdaptorTrampoline();
       __ Jump(adaptor, RelocInfo::CODE_TARGET);
     }
 
@@ -3292,7 +3252,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ Mov(x0, argc_);  // Set up the number of arguments.
     __ Mov(x2, 0);
     __ GetBuiltinFunction(function, Builtins::CALL_NON_FUNCTION);
-    __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+    __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
             RelocInfo::CODE_TARGET);
   }
 
@@ -3375,7 +3335,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Bind(&do_call);
   // Set expected number of arguments to zero (not changing x0).
   __ Mov(x2, 0);
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+  __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
 }
 
@@ -3565,9 +3525,9 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&unordered);
-  ICCompareStub stub(op_, CompareIC::GENERIC, CompareIC::GENERIC,
+  ICCompareStub stub(isolate(), op_, CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
-  __ Jump(stub.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ Bind(&maybe_undefined1);
   if (Token::IsOrderedRelationalCompareOp(op_)) {
@@ -3807,7 +3767,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   Register stub_entry = x11;
   {
     ExternalReference miss =
-      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+      ExternalReference(IC_Utility(IC::kCompareIC_Miss), isolate());
 
     FrameScope scope(masm, StackFrame::INTERNAL);
     Register op = x10;
@@ -4121,7 +4081,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ CopyBytes(result_char0, substring_char0, result_length, x3, kCopyLong);
 
   __ Bind(&return_x0);
-  Counters* counters = masm->isolate()->counters();
+  Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1, x3, x4);
   __ Drop(3);
   __ Ret();
@@ -4268,7 +4228,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
 void StringCompareStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
-  Counters* counters = masm->isolate()->counters();
+  Counters* counters = isolate()->counters();
 
   // Stack frame on entry.
   //  sp[0]: right string
@@ -4314,12 +4274,11 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
   //  -- x0    : right
   //  -- lr    : return address
   // -----------------------------------
-  Isolate* isolate = masm->isolate();
 
   // Load x2 with the allocation site.  We stick an undefined dummy value here
   // and replace it with the real allocation site later when we instantiate this
   // stub in BinaryOpICWithAllocationSiteStub::GetCodeCopyFromTemplate().
-  __ LoadObject(x2, handle(isolate->heap()->undefined_value()));
+  __ LoadObject(x2, handle(isolate()->heap()->undefined_value()));
 
   // Make sure that we actually patched the allocation site.
   if (FLAG_debug_code) {
@@ -4331,7 +4290,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
   // Tail call into the stub that handles binary operations with allocation
   // sites.
-  BinaryOpWithAllocationSiteStub stub(state_);
+  BinaryOpWithAllocationSiteStub stub(isolate(), state_);
   __ TailCallStub(&stub);
 }
 
@@ -4392,12 +4351,12 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   __ Mov(address, regs_.address());
   __ Mov(x0, regs_.object());
   __ Mov(x1, address);
-  __ Mov(x2, ExternalReference::isolate_address(masm->isolate()));
+  __ Mov(x2, ExternalReference::isolate_address(isolate()));
 
   AllowExternalCallThatCantCauseGC scope(masm);
   ExternalReference function =
       ExternalReference::incremental_marking_record_write_function(
-          masm->isolate());
+          isolate());
   __ CallCFunction(function, 3, 0);
 
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
@@ -4590,8 +4549,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
-  __ Call(ces.GetCode(masm->isolate()), RelocInfo::CODE_TARGET);
+  CEntryStub ces(isolate(), 1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ Ldr(x1, MemOperand(fp, parameter_count_offset));
@@ -4613,7 +4572,7 @@ static const unsigned int kProfileEntryHookCallSize =
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
-    ProfileEntryHookStub stub;
+    ProfileEntryHookStub stub(masm->isolate());
     Assembler::BlockConstPoolScope no_const_pools(masm);
     Label entry_hook_call_start;
     __ Bind(&entry_hook_call_start);
@@ -4642,7 +4601,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
 #if V8_HOST_ARCH_ARM64
   uintptr_t entry_hook =
-      reinterpret_cast<uintptr_t>(masm->isolate()->function_entry_hook());
+      reinterpret_cast<uintptr_t>(isolate()->function_entry_hook());
   __ Mov(x10, entry_hook);
 #else
   // Under the simulator we need to indirect the entry hook through a trampoline
@@ -4650,9 +4609,9 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   ApiFunction dispatcher(FUNCTION_ADDR(EntryHookTrampoline));
   __ Mov(x10, Operand(ExternalReference(&dispatcher,
                                         ExternalReference::BUILTIN_CALL,
-                                        masm->isolate())));
+                                        isolate())));
   // It additionally takes an isolate as a third parameter
-  __ Mov(x2, ExternalReference::isolate_address(masm->isolate()));
+  __ Mov(x2, ExternalReference::isolate_address(isolate()));
 #endif
 
   // The caller's return address is above the saved temporaries.
@@ -4697,7 +4656,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   ASSERT(csp.Is(__ StackPointer()));
 
   intptr_t code =
-      reinterpret_cast<intptr_t>(GetCode(masm->isolate()).location());
+      reinterpret_cast<intptr_t>(GetCode().location());
   __ Mov(lr, Operand(code, RelocInfo::CODE_TARGET));
   __ Mov(x10, target);
   // Branch to the stub.
@@ -4776,7 +4735,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
   }
 
   Label not_found;
-  NameDictionaryLookupStub stub(POSITIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate(), POSITIVE_LOOKUP);
   __ CallStub(&stub);
   __ Cbz(x0, &not_found);
   __ Mov(scratch2, x2);  // Move entry index into scratch2.
@@ -4847,7 +4806,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   __ Ldr(x0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   __ Mov(x1, Operand(name));
-  NameDictionaryLookupStub stub(NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
   __ CallStub(&stub);
   // Move stub return value to scratch0. Note that scratch0 is not included in
   // spill_list and won't be clobbered by PopCPURegList.
@@ -4950,7 +4909,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
   ASM_LOCATION("CreateArrayDispatch");
   if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(GetInitialFastElementsKind(), mode);
+    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
      __ TailCallStub(&stub);
 
   } else if (mode == DONT_OVERRIDE) {
@@ -4963,7 +4922,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
       // TODO(jbramley): Is this the best way to handle this? Can we make the
       // tail calls conditional, rather than hopping over each one?
       __ CompareAndBranch(kind, candidate_kind, ne, &next);
-      T stub(candidate_kind);
+      T stub(masm->isolate(), candidate_kind);
       __ TailCallStub(&stub);
       __ Bind(&next);
     }
@@ -5013,12 +4972,14 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-    ArraySingleArgumentConstructorStub stub_holey(holey_initial,
+    ArraySingleArgumentConstructorStub stub_holey(masm->isolate(),
+                                                  holey_initial,
                                                   DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
 
     __ Bind(&normal_sequence);
-    ArraySingleArgumentConstructorStub stub(initial,
+    ArraySingleArgumentConstructorStub stub(masm->isolate(),
+                                            initial,
                                             DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -5050,7 +5011,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       Label next;
       ElementsKind candidate_kind = GetFastElementsKindFromSequenceIndex(i);
       __ CompareAndBranch(kind, candidate_kind, ne, &next);
-      ArraySingleArgumentConstructorStub stub(candidate_kind);
+      ArraySingleArgumentConstructorStub stub(masm->isolate(), candidate_kind);
       __ TailCallStub(&stub);
       __ Bind(&next);
     }
@@ -5069,11 +5030,11 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
       TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
-    T stub(kind);
-    stub.GetCode(isolate);
+    T stub(isolate, kind);
+    stub.GetCode();
     if (AllocationSite::GetMode(kind) != DONT_TRACK_ALLOCATION_SITE) {
-      T stub1(kind, DISABLE_ALLOCATION_SITES);
-      stub1.GetCode(isolate);
+      T stub1(isolate, kind, DISABLE_ALLOCATION_SITES);
+      stub1.GetCode();
     }
   }
 }
@@ -5094,12 +5055,12 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
-    InternalArrayNoArgumentConstructorStub stubh1(kinds[i]);
-    stubh1.GetCode(isolate);
-    InternalArraySingleArgumentConstructorStub stubh2(kinds[i]);
-    stubh2.GetCode(isolate);
-    InternalArrayNArgumentsConstructorStub stubh3(kinds[i]);
-    stubh3.GetCode(isolate);
+    InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
+    stubh1.GetCode();
+    InternalArraySingleArgumentConstructorStub stubh2(isolate, kinds[i]);
+    stubh2.GetCode();
+    InternalArrayNArgumentsConstructorStub stubh3(isolate, kinds[i]);
+    stubh3.GetCode();
   }
 }
 
@@ -5202,22 +5163,22 @@ void InternalArrayConstructorStub::GenerateCase(
     __ Cbz(x10, &packed_case);
 
     InternalArraySingleArgumentConstructorStub
-        stub1_holey(GetHoleyElementsKind(kind));
+        stub1_holey(isolate(), GetHoleyElementsKind(kind));
     __ TailCallStub(&stub1_holey);
 
     __ Bind(&packed_case);
   }
-  InternalArraySingleArgumentConstructorStub stub1(kind);
+  InternalArraySingleArgumentConstructorStub stub1(isolate(), kind);
   __ TailCallStub(&stub1);
 
   __ Bind(&zero_case);
   // No arguments.
-  InternalArrayNoArgumentConstructorStub stub0(kind);
+  InternalArrayNoArgumentConstructorStub stub0(isolate(), kind);
   __ TailCallStub(&stub0);
 
   __ Bind(&n_case);
   // N arguments.
-  InternalArrayNArgumentsConstructorStub stubN(kind);
+  InternalArrayNArgumentsConstructorStub stubN(isolate(), kind);
   __ TailCallStub(&stubN);
 }
 
@@ -5229,8 +5190,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   //  -- sp[0] : return address
   //  -- sp[4] : last argument
   // -----------------------------------
-  Handle<Object> undefined_sentinel(
-      masm->isolate()->heap()->undefined_value(), masm->isolate());
 
   Register constructor = x1;
 
@@ -5309,8 +5268,6 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kHolderIndex == 0);
   STATIC_ASSERT(FCA::kArgsLength == 7);
 
-  Isolate* isolate = masm->isolate();
-
   // FunctionCallbackArguments: context, callee and call data.
   __ Push(context, callee, call_data);
 
@@ -5321,7 +5278,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
   }
   Register isolate_reg = x5;
-  __ Mov(isolate_reg, ExternalReference::isolate_address(isolate));
+  __ Mov(isolate_reg, ExternalReference::isolate_address(isolate()));
 
   // FunctionCallbackArguments:
   //    return value, return value default, isolate, holder.
@@ -5359,7 +5316,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      masm->isolate());
+      isolate());
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
@@ -5417,7 +5374,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
       ExternalReference::PROFILING_GETTER_CALL;
   ApiFunction thunk_fun(thunk_address);
   ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      masm->isolate());
+      isolate());
 
   const int spill_offset = 1 + kApiStackSpace;
   __ CallApiFunctionAndReturn(api_function_address,

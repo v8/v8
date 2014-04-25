@@ -88,23 +88,27 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
 }
 
 
-Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
+Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
                                                       PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
-      FixedDoubleArray);
+      FixedArrayBase);
 }
 
 
-Handle<FixedDoubleArray> Factory::NewFixedDoubleArrayWithHoles(
+Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     int size,
     PretenureFlag pretenure) {
   ASSERT(0 <= size);
-  Handle<FixedDoubleArray> array = NewFixedDoubleArray(size, pretenure);
-  for (int i = 0; i < size; ++i) {
-    array->set_the_hole(i);
+  Handle<FixedArrayBase> array = NewFixedDoubleArray(size, pretenure);
+  if (size > 0) {
+    Handle<FixedDoubleArray> double_array =
+        Handle<FixedDoubleArray>::cast(array);
+    for (int i = 0; i < size; ++i) {
+      double_array->set_the_hole(i);
+    }
   }
   return array;
 }
@@ -1496,7 +1500,8 @@ Handle<GlobalObject> Factory::NewGlobalObject(Handle<JSFunction> constructor) {
     Handle<Name> name(descs->GetKey(i));
     Handle<Object> value(descs->GetCallbacksObject(i), isolate());
     Handle<PropertyCell> cell = NewPropertyCell(value);
-    NameDictionary::AddNameEntry(dictionary, name, cell, d);
+    // |dictionary| already contains enough space for all properties.
+    USE(NameDictionary::Add(dictionary, name, cell, d));
   }
 
   // Allocate the global object and initialize it with the backing store.
@@ -1956,26 +1961,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
   SetNumberStringCache(number, js_string);
   return js_string;
-}
-
-
-Handle<SeededNumberDictionary> Factory::DictionaryAtNumberPut(
-    Handle<SeededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     dictionary->AtNumberPut(key, *value),
-                     SeededNumberDictionary);
-}
-
-
-Handle<UnseededNumberDictionary> Factory::DictionaryAtNumberPut(
-    Handle<UnseededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     dictionary->AtNumberPut(key, *value),
-                     UnseededNumberDictionary);
 }
 
 

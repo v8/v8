@@ -6643,8 +6643,12 @@ MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
   return heap->NumberFromUint32(key);
 }
 
+Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
+  return isolate->factory()->NewNumberFromUint(key);
+}
 
-bool NameDictionaryShape::IsMatch(Name* key, Object* other) {
+
+bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
   // We know that all entries in a hash table had their hash keys created.
   // Use that knowledge to have fast failure.
   if (key->Hash() != Name::cast(other)->Hash()) return false;
@@ -6652,19 +6656,32 @@ bool NameDictionaryShape::IsMatch(Name* key, Object* other) {
 }
 
 
-uint32_t NameDictionaryShape::Hash(Name* key) {
+uint32_t NameDictionaryShape::Hash(Handle<Name> key) {
   return key->Hash();
 }
 
 
-uint32_t NameDictionaryShape::HashForObject(Name* key, Object* other) {
+uint32_t NameDictionaryShape::HashForObject(Handle<Name> key, Object* other) {
   return Name::cast(other)->Hash();
 }
 
 
-MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Name* key) {
+MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Handle<Name> key) {
+  ASSERT(key->IsUniqueName());
+  return *key;
+}
+
+
+Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
+                                             Handle<Name> key) {
   ASSERT(key->IsUniqueName());
   return key;
+}
+
+
+void NameDictionary::DoGenerateNewEnumerationIndices(
+    Handle<NameDictionary> dictionary) {
+  DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
 }
 
 

@@ -5330,7 +5330,7 @@ MUST_USE_RESULT
 inline i::MaybeHandle<i::String> NewString(i::Factory* factory,
                                            String::NewStringType type,
                                            i::Vector<const char> string) {
-  if (type ==String::kInternalizedString) {
+  if (type == String::kInternalizedString) {
     return factory->InternalizeUtf8String(string);
   }
   return factory->NewStringFromUtf8(string);

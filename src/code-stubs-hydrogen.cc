@@ -60,7 +60,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         arguments_length_(NULL),
         info_(stub, isolate),
         context_(NULL) {
-    descriptor_ = stub->GetInterfaceDescriptor(isolate);
+    descriptor_ = stub->GetInterfaceDescriptor();
     parameters_.Reset(new HParameter*[descriptor_->register_param_count_]);
   }
   virtual bool BuildGraph();
@@ -238,15 +238,15 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 };
 
 
-Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
-  Factory* factory = isolate->factory();
+Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
+  Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate, NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256);
 
   {
     // Update the static counter each time a new code stub is generated.
-    isolate->counters()->code_stubs()->Increment();
+    isolate()->counters()->code_stubs()->Increment();
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
@@ -271,13 +271,14 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(Isolate* isolate) {
 
 
 template <class Stub>
-static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
+static Handle<Code> DoGenerateCode(Stub* stub) {
+  Isolate* isolate = stub->isolate();
   CodeStub::Major  major_key =
       static_cast<HydrogenCodeStub*>(stub)->MajorKey();
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (descriptor->register_param_count_ < 0) {
-    stub->InitializeInterfaceDescriptor(isolate, descriptor);
+    stub->InitializeInterfaceDescriptor(descriptor);
   }
 
   // If we are uninitialized we can use a light-weight stub to enter
@@ -285,7 +286,7 @@ static Handle<Code> DoGenerateCode(Isolate* isolate, Stub* stub) {
   // stub-failure deopt mechanism.
   if (stub->IsUninitialized() && descriptor->has_miss_handler()) {
     ASSERT(!descriptor->stack_parameter_count_.is_valid());
-    return stub->GenerateLightweightMissCode(isolate);
+    return stub->GenerateLightweightMissCode();
   }
   ElapsedTimer timer;
   if (FLAG_profile_hydrogen_code_stub_compilation) {
@@ -329,8 +330,8 @@ HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> ToNumberStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ToNumberStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -342,8 +343,8 @@ HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> NumberToStringStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> NumberToStringStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -416,8 +417,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> FastCloneShallowArrayStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -483,8 +484,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> FastCloneShallowObjectStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -553,8 +554,8 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> CreateAllocationSiteStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> CreateAllocationSiteStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -568,8 +569,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedLoadFastElementStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -602,8 +603,8 @@ HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> LoadFieldStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> LoadFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -616,8 +617,8 @@ HValue* CodeStubGraphBuilder<StringLengthStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> StringLengthStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> StringLengthStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -632,8 +633,8 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedStoreFastElementStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -651,8 +652,8 @@ HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> TransitionElementsKindStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> TransitionElementsKindStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
@@ -768,8 +769,8 @@ HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -782,9 +783,8 @@ HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
 }
 
 
-Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode(
-    Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -796,8 +796,8 @@ HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -809,9 +809,8 @@ HValue* CodeStubGraphBuilder<InternalArrayNoArgumentConstructorStub>::
 }
 
 
-Handle<Code> InternalArrayNoArgumentConstructorStub::GenerateCode(
-    Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> InternalArrayNoArgumentConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -823,9 +822,8 @@ HValue* CodeStubGraphBuilder<InternalArraySingleArgumentConstructorStub>::
 }
 
 
-Handle<Code> InternalArraySingleArgumentConstructorStub::GenerateCode(
-    Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> InternalArraySingleArgumentConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -837,9 +835,8 @@ HValue* CodeStubGraphBuilder<InternalArrayNArgumentsConstructorStub>::
 }
 
 
-Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode(
-    Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -864,8 +861,8 @@ HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> CompareNilICStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> CompareNilICStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -977,8 +974,8 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> BinaryOpICStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> BinaryOpICStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1002,8 +999,8 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1028,8 +1025,8 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> StringAddStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> StringAddStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1047,8 +1044,8 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> ToBooleanStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ToBooleanStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1100,8 +1097,8 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
 }
 
 
-Handle<Code> StoreGlobalStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> StoreGlobalStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1134,8 +1131,8 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> ElementsTransitionAndStoreStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1344,8 +1341,8 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> FastNewClosureStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> FastNewClosureStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1399,8 +1396,8 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> FastNewContextStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> FastNewContextStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1415,8 +1412,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 
@@ -1431,8 +1428,8 @@ HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> RegExpConstructResultStub::GenerateCode(Isolate* isolate) {
-  return DoGenerateCode(isolate, this);
+Handle<Code> RegExpConstructResultStub::GenerateCode() {
+  return DoGenerateCode(this);
 }
 
 

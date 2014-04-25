@@ -262,8 +262,8 @@ const int ImmPCRel_mask = ImmPCRelLo_mask | ImmPCRelHi_mask;
 enum Condition {
   eq = 0,
   ne = 1,
-  hs = 2,
-  lo = 3,
+  hs = 2, cs = hs,
+  lo = 3, cc = lo,
   mi = 4,
   pl = 5,
   vs = 6,

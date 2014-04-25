@@ -233,7 +233,7 @@ DEFINE_bool(track_computed_fields, true, "track computed boilerplate fields")
 DEFINE_implication(track_double_fields, track_fields)
 DEFINE_implication(track_heap_object_fields, track_fields)
 DEFINE_implication(track_computed_fields, track_fields)
-DEFINE_bool(track_field_types, false, "track field types")
+DEFINE_bool(track_field_types, true, "track field types")
 DEFINE_implication(track_field_types, track_fields)
 DEFINE_implication(track_field_types, track_heap_object_fields)
 DEFINE_bool(smi_binop, true, "support smi representation in binary operations")
@@ -653,7 +653,13 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 
 // mksnapshot.cc
 DEFINE_string(extra_code, NULL, "A filename with extra code to be included in"
-                  " the snapshot (mksnapshot only)")
+                                " the snapshot (mksnapshot only)")
+DEFINE_string(raw_file, NULL, "A file to write the raw snapshot bytes to. "
+                              "(mksnapshot only)")
+DEFINE_string(raw_context_file, NULL, "A file to write the raw context "
+                                      "snapshot bytes to. (mksnapshot only)")
+DEFINE_bool(omit, false, "Omit raw snapshot bytes in generated code. "
+                         "(mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,

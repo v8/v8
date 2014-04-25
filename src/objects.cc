@@ -660,14 +660,14 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
         Handle<String>::cast(name));
   }
 
-  int entry = property_dictionary->FindEntry(*name);
+  int entry = property_dictionary->FindEntry(name);
   if (entry == NameDictionary::kNotFound) {
     Handle<Object> store_value = value;
     if (object->IsGlobalObject()) {
       store_value = object->GetIsolate()->factory()->NewPropertyCell(value);
     }
 
-    property_dictionary = NameDictionary::AddNameEntry(
+    property_dictionary = NameDictionary::Add(
         property_dictionary, name, store_value, details);
     object->set_properties(*property_dictionary);
     return;
@@ -705,7 +705,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
   ASSERT(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
   Handle<NameDictionary> dictionary(object->property_dictionary());
-  int entry = dictionary->FindEntry(*name);
+  int entry = dictionary->FindEntry(name);
   if (entry != NameDictionary::kNotFound) {
     // If we have a global object set the cell to the hole.
     if (object->IsGlobalObject()) {
@@ -728,7 +728,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
       Handle<Object> deleted(dictionary->DeleteProperty(entry, mode), isolate);
       if (*deleted == isolate->heap()->true_value()) {
         Handle<NameDictionary> new_properties =
-            NameDictionary::Shrink(dictionary, *name);
+            NameDictionary::Shrink(dictionary, name);
         object->set_properties(*new_properties);
       }
       return deleted;
@@ -1924,7 +1924,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
   Handle<NameDictionary> dict(object->property_dictionary());
   if (object->IsGlobalObject()) {
     // In case name is an orphaned property reuse the cell.
-    int entry = dict->FindEntry(*name);
+    int entry = dict->FindEntry(name);
     if (entry != NameDictionary::kNotFound) {
       Handle<PropertyCell> cell(PropertyCell::cast(dict->ValueAt(entry)));
       PropertyCell::SetValueInferType(cell, value);
@@ -1942,7 +1942,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
   }
   PropertyDetails details = PropertyDetails(attributes, NORMAL, 0);
   Handle<NameDictionary> result =
-      NameDictionary::AddNameEntry(dict, name, value, details);
+      NameDictionary::Add(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
 }
 
@@ -2054,7 +2054,7 @@ static void ReplaceSlowProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes) {
   NameDictionary* dictionary = object->property_dictionary();
-  int old_index = dictionary->FindEntry(*name);
+  int old_index = dictionary->FindEntry(name);
   int new_enumeration_index = 0;  // 0 means "Use the next available index."
   if (old_index != -1) {
     // All calls to ReplaceSlowProperty have had all transitions removed.
@@ -4641,7 +4641,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetConstant(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case FIELD: {
@@ -4650,7 +4650,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
             object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case CALLBACKS: {
@@ -4658,7 +4658,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
         PropertyDetails d = PropertyDetails(
             details.attributes(), CALLBACKS, i + 1);
-        dictionary = NameDictionary::AddNameEntry(dictionary, key, value, d);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
       case INTERCEPTOR:
@@ -8520,6 +8520,10 @@ bool DescriptorArray::IsMoreGeneralThan(int verbatim,
     if (details.type() == CONSTANT) {
       if (other_details.type() != CONSTANT) return false;
       if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
+    } else if (details.type() == FIELD && other_details.type() == FIELD) {
+      if (!other->GetFieldType(descriptor)->NowIs(GetFieldType(descriptor))) {
+        return false;
+      }
     }
   }
 
@@ -10412,7 +10416,7 @@ void Oddball::Initialize(Isolate* isolate,
                          Handle<Object> to_number,
                          byte kind) {
   Handle<String> internalized_to_string =
-      isolate->factory()->InternalizeUtf8String(CStrVector(to_string));
+      isolate->factory()->InternalizeUtf8String(to_string);
   oddball->set_to_string(*internalized_to_string);
   oddball->set_to_number(*to_number);
   oddball->set_kind(kind);
@@ -14623,8 +14627,17 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
 }
 
 
-// Find entry for key otherwise return kNotFound.
+// TODO(ishell): Remove this when all the callers are handlified.
 int NameDictionary::FindEntry(Name* key) {
+  DisallowHeapAllocation no_allocation;
+  Isolate* isolate = key->GetIsolate();
+  HandleScope scope(isolate);
+  return FindEntry(handle(key, isolate));
+}
+
+
+// Find entry for key otherwise return kNotFound.
+int NameDictionary::FindEntry(Handle<Name> key) {
   if (!key->IsUniqueName()) {
     return DerivedHashTable::FindEntry(key);
   }
@@ -14647,16 +14660,16 @@ int NameDictionary::FindEntry(Name* key) {
     int index = EntryToIndex(entry);
     Object* element = get(index);
     if (element->IsUndefined()) break;  // Empty entry.
-    if (key == element) return entry;
+    if (*key == element) return entry;
     if (!element->IsUniqueName() &&
         !element->IsTheHole() &&
-        Name::cast(element)->Equals(key)) {
+        Name::cast(element)->Equals(*key)) {
       // Replace a key that is a non-internalized string by the equivalent
       // internalized string for faster further lookups.
-      set(index, key);
+      set(index, *key);
       return entry;
     }
-    ASSERT(element->IsTheHole() || !Name::cast(element)->Equals(key));
+    ASSERT(element->IsTheHole() || !Name::cast(element)->Equals(*key));
     entry = NextProbe(entry, count++, capacity);
   }
   return kNotFound;
@@ -14805,9 +14818,10 @@ Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
     Key key,
     PretenureFlag pretenure) {
   Isolate* isolate = table->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     table->EnsureCapacity(n, key, pretenure),
-                     Derived);
+  CALL_HEAP_FUNCTION(
+      isolate,
+      static_cast<HashTable*>(*table)->EnsureCapacity(n, key, pretenure),
+      Derived);
 }
 
 
@@ -14873,7 +14887,7 @@ template class HashTable<ObjectHashTable, ObjectHashTableShape, Object*>;
 
 template class HashTable<WeakHashTable, WeakHashTableShape<2>, Object*>;
 
-template class Dictionary<NameDictionary, NameDictionaryShape, Name*>;
+template class Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >;
 
 template class Dictionary<SeededNumberDictionary,
                           SeededNumberDictionaryShape,
@@ -14891,20 +14905,21 @@ template MaybeObject*
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     Allocate(Heap* heap, int at_least_space_for, PretenureFlag pretenure);
 
-template MaybeObject* Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+template MaybeObject*
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     Allocate(Heap* heap, int n, PretenureFlag pretenure);
 
 template Handle<NameDictionary>
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     New(Isolate* isolate, int n, PretenureFlag pretenure);
 
-template MaybeObject*
+template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    AtPut(uint32_t, Object*);
+    AtPut(Handle<SeededNumberDictionary>, uint32_t, Handle<Object>);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    AtPut(uint32_t, Object*);
+    AtPut(Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>);
 
 template Object*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -14915,8 +14930,8 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
 template Object*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::SlowReverseLookup(
-    Object*);
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
+    SlowReverseLookup(Object* value);
 
 template void
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -14928,12 +14943,12 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
                    uint32_t>::SortMode);
 
 template Object*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::DeleteProperty(
     int, JSObject::DeleteMode);
 
 template Handle<Object>
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::DeleteProperty(
-    Handle<Dictionary<NameDictionary, NameDictionaryShape, Name*> >,
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::DeleteProperty(
+    Handle<Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> > >,
     int,
     JSObject::DeleteMode);
 
@@ -14951,59 +14966,66 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
         JSObject::DeleteMode);
 
 template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape, Name*>::
+HashTable<NameDictionary, NameDictionaryShape, Handle<Name> >::
     New(Isolate*, int, MinimumCapacity, PretenureFlag);
 
 template Handle<NameDictionary>
-HashTable<NameDictionary, NameDictionaryShape, Name*>::
-    Shrink(Handle<NameDictionary>, Name* n);
+HashTable<NameDictionary, NameDictionaryShape, Handle<Name> >::
+    Shrink(Handle<NameDictionary>, Handle<Name>);
 
 template Handle<SeededNumberDictionary>
 HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     Shrink(Handle<SeededNumberDictionary>, uint32_t);
 
-template void Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+template void Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     CopyKeysTo(
         FixedArray*,
         int,
         PropertyAttributes,
-        Dictionary<NameDictionary, NameDictionaryShape, Name*>::SortMode);
+        Dictionary<
+            NameDictionary, NameDictionaryShape, Handle<Name> >::SortMode);
 
 template int
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::Add(
-    Name*, Object*, PropertyDetails);
+template Handle<NameDictionary>
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
+    Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    GenerateNewEnumerationIndices();
+template void
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
+    GenerateNewEnumerationIndices(Handle<NameDictionary>);
 
 template int
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::Add(
-    uint32_t, Object*, PropertyDetails);
-
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    Add(uint32_t, Object*, PropertyDetails);
-
-template MaybeObject*
+template Handle<SeededNumberDictionary>
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    EnsureCapacity(int, uint32_t);
+    Add(Handle<SeededNumberDictionary>,
+        uint32_t,
+        Handle<Object>,
+        PropertyDetails);
 
-template MaybeObject*
+template Handle<UnseededNumberDictionary>
 Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    EnsureCapacity(int, uint32_t);
+    Add(Handle<UnseededNumberDictionary>,
+        uint32_t,
+        Handle<Object>,
+        PropertyDetails);
 
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::
-    EnsureCapacity(int, Name*);
+template Handle<SeededNumberDictionary>
+Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
+    EnsureCapacity(Handle<SeededNumberDictionary>, int, uint32_t);
+
+template Handle<UnseededNumberDictionary>
+Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
+    EnsureCapacity(Handle<UnseededNumberDictionary>, int, uint32_t);
+
+template Handle<NameDictionary>
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
+    EnsureCapacity(Handle<NameDictionary>, int, Handle<Name>);
 
 template MaybeObject*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -15014,30 +15036,20 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
 template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Name*>::AddEntry(
-    Name*, Object*, PropertyDetails, uint32_t);
+Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::AddEntry(
+    Handle<Name>, Object*, PropertyDetails, uint32_t);
 
 template
 int Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     NumberOfEnumElements();
 
 template
-int Dictionary<NameDictionary, NameDictionaryShape, Name*>::
+int Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     NumberOfEnumElements();
 
 template
 int HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     FindEntry(uint32_t);
-
-
-Handle<NameDictionary> NameDictionary::AddNameEntry(Handle<NameDictionary> dict,
-                                                    Handle<Name> name,
-                                                    Handle<Object> value,
-                                                    PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dict->GetIsolate(),
-                     dict->Add(*name, *value, details),
-                     NameDictionary);
-}
 
 
 Handle<Object> JSObject::PrepareSlowElementsForSort(
@@ -15473,14 +15485,14 @@ Handle<PropertyCell> JSGlobalObject::EnsurePropertyCell(
     Handle<JSGlobalObject> global,
     Handle<Name> name) {
   ASSERT(!global->HasFastProperties());
-  int entry = global->property_dictionary()->FindEntry(*name);
+  int entry = global->property_dictionary()->FindEntry(name);
   if (entry == NameDictionary::kNotFound) {
     Isolate* isolate = global->GetIsolate();
     Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(
         isolate->factory()->the_hole_value());
     PropertyDetails details(NONE, NORMAL, 0);
     details = details.AsDeleted();
-    Handle<NameDictionary> dictionary = NameDictionary::AddNameEntry(
+    Handle<NameDictionary> dictionary = NameDictionary::Add(
         handle(global->property_dictionary()), name, cell, details);
     global->set_properties(*dictionary);
     return cell;
@@ -15596,7 +15608,6 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
 }
 
 
-// TODO(ishell): Maybehandlify callers.
 Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(key);
@@ -15611,8 +15622,9 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, HashTableKey* key) {
 
   // Create string object.
   Handle<Object> string = key->AsHandle(isolate);
-  // TODO(ishell): Maybehandlify this.
-  if (string.is_null()) return Handle<String>();
+  // There must be no attempts to internalize strings that could throw
+  // InvalidStringLength error.
+  CHECK(!string.is_null());
 
   // Add the new string and return it along with the string table.
   entry = table->FindInsertionEntry(key->Hash());
@@ -15818,46 +15830,33 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::New(
 }
 
 
-
-void NameDictionary::DoGenerateNewEnumerationIndices(
-    Handle<NameDictionary> dictionary) {
-  CALL_HEAP_FUNCTION_VOID(dictionary->GetIsolate(),
-                          dictionary->GenerateNewEnumerationIndices());
-}
-
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
-  Heap* heap = Dictionary::GetHeap();
-  int length = DerivedHashTable::NumberOfElements();
+void Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
+    Handle<Derived> dictionary) {
+  Factory* factory = dictionary->GetIsolate()->factory();
+  int length = dictionary->NumberOfElements();
 
   // Allocate and initialize iteration order array.
-  Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(length);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  FixedArray* iteration_order = FixedArray::cast(obj);
+  Handle<FixedArray> iteration_order = factory->NewFixedArray(length);
   for (int i = 0; i < length; i++) {
     iteration_order->set(i, Smi::FromInt(i));
   }
 
   // Allocate array with enumeration order.
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(length);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  FixedArray* enumeration_order = FixedArray::cast(obj);
+  Handle<FixedArray> enumeration_order = factory->NewFixedArray(length);
 
   // Fill the enumeration order array with property details.
-  int capacity = DerivedHashTable::Capacity();
+  int capacity = dictionary->Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
-      int index = DetailsAt(i).dictionary_index();
+    if (dictionary->IsKey(dictionary->KeyAt(i))) {
+      int index = dictionary->DetailsAt(i).dictionary_index();
       enumeration_order->set(pos++, Smi::FromInt(index));
     }
   }
 
   // Sort the arrays wrt. enumeration order.
-  iteration_order->SortPairs(enumeration_order, enumeration_order->length());
+  iteration_order->SortPairs(*enumeration_order, enumeration_order->length());
 
   // Overwrite the enumeration_order with the enumeration indices.
   for (int i = 0; i < length; i++) {
@@ -15867,46 +15866,33 @@ MaybeObject* Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices() {
   }
 
   // Update the dictionary with new indices.
-  capacity = DerivedHashTable::Capacity();
+  capacity = dictionary->Capacity();
   pos = 0;
   for (int i = 0; i < capacity; i++) {
-    if (Dictionary::IsKey(Dictionary::KeyAt(i))) {
+    if (dictionary->IsKey(dictionary->KeyAt(i))) {
       int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
-      PropertyDetails details = DetailsAt(i);
+      PropertyDetails details = dictionary->DetailsAt(i);
       PropertyDetails new_details = PropertyDetails(
           details.attributes(), details.type(), enum_index);
-      DetailsAtPut(i, new_details);
+      dictionary->DetailsAtPut(i, new_details);
     }
   }
 
   // Set the next enumeration index.
-  SetNextEnumerationIndex(PropertyDetails::kInitialIndex+length);
-  return this;
+  dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex+length);
 }
-
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::EnsureCapacity(int n, Key key) {
-  // Check whether there are enough enumeration indices to add n elements.
-  if (Shape::kIsEnumerable &&
-      !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
-    // If not, we generate new indices for the properties.
-    Object* result;
-    { MaybeObject* maybe_result = GenerateNewEnumerationIndices();
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-  }
-  return DerivedHashTable::EnsureCapacity(n, key);
-}
-
 
 
 template<typename Derived, typename Shape, typename Key>
 Handle<Derived> Dictionary<Derived, Shape, Key>::EnsureCapacity(
-    Handle<Derived> obj, int n, Key key) {
-  Isolate* isolate = obj->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->EnsureCapacity(n, key),
-                     Derived);
+    Handle<Derived> dictionary, int n, Key key) {
+  // Check whether there are enough enumeration indices to add n elements.
+  if (Shape::kIsEnumerable &&
+      !PropertyDetails::IsValidIndex(dictionary->NextEnumerationIndex() + n)) {
+    // If not, we generate new indices for the properties.
+    GenerateNewEnumerationIndices(dictionary);
+  }
+  return DerivedHashTable::EnsureCapacity(dictionary, n, key);
 }
 
 
@@ -15939,51 +15925,57 @@ Object* Dictionary<Derived, Shape, Key>::DeleteProperty(
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::AtPut(Key key, Object* value) {
-  int entry = this->FindEntry(key);
+Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
+    Handle<Derived> dictionary, Key key, Handle<Object> value) {
+  int entry = dictionary->FindEntry(key);
 
   // If the entry is present set the value;
   if (entry != Dictionary::kNotFound) {
-    ValueAtPut(entry, value);
-    return this;
+    dictionary->ValueAtPut(entry, *value);
+    return dictionary;
   }
 
   // Check whether the dictionary should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  dictionary = EnsureCapacity(dictionary, 1, key);
 
-  Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
+  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
+  // TODO(ishell): Figure out if it is necessary to call AsHandle() here.
+  USE(k);
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
 }
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::Add(
+Handle<Derived> Dictionary<Derived, Shape, Key>::Add(
+    Handle<Derived> dictionary,
     Key key,
-    Object* value,
+    Handle<Object> value,
     PropertyDetails details) {
   // Valdate key is absent.
-  SLOW_ASSERT((this->FindEntry(key) == Dictionary::kNotFound));
+  SLOW_ASSERT((dictionary->FindEntry(key) == Dictionary::kNotFound));
   // Check whether the dictionary should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
+  dictionary = EnsureCapacity(dictionary, 1, key);
 
-  return Dictionary::cast(obj)->AddEntry(
-      key, value, details, Dictionary::Hash(key));
+  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
 }
 
 
 // Add a key, value pair to the dictionary.
+template<typename Derived, typename Shape, typename Key>
+Handle<Derived> Dictionary<Derived, Shape, Key>::AddEntry(
+    Handle<Derived> dictionary,
+    Key key,
+    Handle<Object> value,
+    PropertyDetails details,
+    uint32_t hash) {
+  CALL_HEAP_FUNCTION(
+      dictionary->GetIsolate(),
+      dictionary->AddEntry(key, *value, details, hash),
+      Derived);
+}
+
 template<typename Derived, typename Shape, typename Key>
 MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
     Key key,
@@ -16016,6 +16008,7 @@ MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
 
 
 void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
+  DisallowHeapAllocation no_allocation;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
   if (requires_slow_elements()) return;
@@ -16033,93 +16026,74 @@ void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   }
 }
 
+
 Handle<SeededNumberDictionary> SeededNumberDictionary::AddNumberEntry(
     Handle<SeededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value,
     PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->AddNumberEntry(key, *value, details),
-                     SeededNumberDictionary);
-}
-
-MaybeObject* SeededNumberDictionary::AddNumberEntry(uint32_t key,
-                                                    Object* value,
-                                                    PropertyDetails details) {
-  UpdateMaxNumberKey(key);
-  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
-  return Add(key, value, details);
+  dictionary->UpdateMaxNumberKey(key);
+  SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
+  return Add(dictionary, key, value, details);
 }
 
 
-MaybeObject* UnseededNumberDictionary::AddNumberEntry(uint32_t key,
-                                                      Object* value) {
-  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
-  return Add(key, value, PropertyDetails(NONE, NORMAL, 0));
+Handle<UnseededNumberDictionary> UnseededNumberDictionary::AddNumberEntry(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  SLOW_ASSERT(dictionary->FindEntry(key) == kNotFound);
+  return Add(dictionary, key, value, PropertyDetails(NONE, NORMAL, 0));
 }
 
 
-MaybeObject* SeededNumberDictionary::AtNumberPut(uint32_t key, Object* value) {
-  UpdateMaxNumberKey(key);
-  return AtPut(key, value);
+Handle<SeededNumberDictionary> SeededNumberDictionary::AtNumberPut(
+    Handle<SeededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  dictionary->UpdateMaxNumberKey(key);
+  return AtPut(dictionary, key, value);
 }
 
 
-MaybeObject* UnseededNumberDictionary::AtNumberPut(uint32_t key,
-                                                   Object* value) {
-  return AtPut(key, value);
+Handle<UnseededNumberDictionary> UnseededNumberDictionary::AtNumberPut(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  return AtPut(dictionary, key, value);
 }
 
 
 Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
     Handle<SeededNumberDictionary> dictionary,
-    uint32_t index,
+    uint32_t key,
     Handle<Object> value,
     PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Set(index, *value, details),
-                     SeededNumberDictionary);
+  int entry = dictionary->FindEntry(key);
+  if (entry == kNotFound) {
+    return AddNumberEntry(dictionary, key, value, details);
+  }
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            dictionary->DetailsAt(entry).dictionary_index());
+  Handle<Object> object_key =
+      SeededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
+  dictionary->SetEntry(entry, *object_key, *value, details);
+  return dictionary;
 }
 
 
 Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
     Handle<UnseededNumberDictionary> dictionary,
-    uint32_t index,
+    uint32_t key,
     Handle<Object> value) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Set(index, *value),
-                     UnseededNumberDictionary);
-}
-
-
-MaybeObject* SeededNumberDictionary::Set(uint32_t key,
-                                         Object* value,
-                                         PropertyDetails details) {
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return AddNumberEntry(key, value, details);
-  // Preserve enumeration index.
-  details = PropertyDetails(details.attributes(),
-                            details.type(),
-                            DetailsAt(entry).dictionary_index());
-  MaybeObject* maybe_object_key =
-      SeededNumberDictionaryShape::AsObject(GetHeap(), key);
-  Object* object_key;
-  if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
-  SetEntry(entry, object_key, value, details);
-  return this;
-}
-
-
-MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
-                                           Object* value) {
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return AddNumberEntry(key, value);
-  MaybeObject* maybe_object_key =
-      UnseededNumberDictionaryShape::AsObject(GetHeap(), key);
-  Object* object_key;
-  if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
-  SetEntry(entry, object_key, value);
-  return this;
+  int entry = dictionary->FindEntry(key);
+  if (entry == kNotFound) return AddNumberEntry(dictionary, key, value);
+  Handle<Object> object_key =
+      UnseededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
+  dictionary->SetEntry(entry, *object_key, *value);
+  return dictionary;
 }
 
 

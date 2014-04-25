@@ -228,7 +228,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     CompareIC::StubInfoToType(
         stub_minor_key, left_type, right_type, combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(code->extra_ic_state());
+    CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
     *left_type = *right_type = stub.GetInputType(zone(), map);
   }
@@ -286,7 +286,7 @@ void TypeFeedbackOracle::PropertyReceiverTypes(
     TypeFeedbackId id, Handle<String> name,
     SmallMapList* receiver_types, bool* is_prototype) {
   receiver_types->Clear();
-  FunctionPrototypeStub proto_stub(Code::LOAD_IC);
+  FunctionPrototypeStub proto_stub(isolate(), Code::LOAD_IC);
   *is_prototype = LoadIsStub(id, &proto_stub);
   if (!*is_prototype) {
     Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
@@ -495,8 +495,8 @@ void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
   // Dictionary has been allocated with sufficient size for all elements.
   DisallowHeapAllocation no_need_to_resize_dictionary;
   HandleScope scope(isolate());
-  isolate()->factory()->DictionaryAtNumberPut(
-      dictionary_, IdToKey(ast_id), handle(target, isolate()));
+  USE(UnseededNumberDictionary::AtNumberPut(
+      dictionary_, IdToKey(ast_id), handle(target, isolate())));
 }
 
 

@@ -40,8 +40,8 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
-  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) {}
+  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
+      : PlatformCodeStub(isolate), save_doubles_(save_fp) {}
 
   void Generate(MacroAssembler* masm);
 
@@ -93,7 +93,7 @@ class StringHelper : public AllStatic {
 
 class SubStringStub: public PlatformCodeStub {
  public:
-  SubStringStub() {}
+  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
   Major MajorKey() { return SubString; }
@@ -104,8 +104,8 @@ class SubStringStub: public PlatformCodeStub {
 
 class StoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit StoreRegistersStateStub(SaveFPRegsMode with_fp)
-      : save_doubles_(with_fp) {}
+  explicit StoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
+      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
@@ -118,8 +118,8 @@ class StoreRegistersStateStub: public PlatformCodeStub {
 
 class RestoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit RestoreRegistersStateStub(SaveFPRegsMode with_fp)
-      : save_doubles_(with_fp) {}
+  explicit RestoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
+      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
@@ -132,7 +132,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
 
 class StringCompareStub: public PlatformCodeStub {
  public:
-  StringCompareStub() { }
+  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
 
   // Compare two flat ASCII strings and returns result in v0.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
@@ -173,11 +173,13 @@ class StringCompareStub: public PlatformCodeStub {
 // so you don't have to set up the frame.
 class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
  public:
-  WriteInt32ToHeapNumberStub(Register the_int,
+  WriteInt32ToHeapNumberStub(Isolate* isolate,
+                             Register the_int,
                              Register the_heap_number,
                              Register scratch,
                              Register scratch2)
-      : the_int_(the_int),
+      : PlatformCodeStub(isolate),
+        the_int_(the_int),
         the_heap_number_(the_heap_number),
         scratch_(scratch),
         sign_(scratch2) {
@@ -216,12 +218,14 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
 
 class RecordWriteStub: public PlatformCodeStub {
  public:
-  RecordWriteStub(Register object,
+  RecordWriteStub(Isolate* isolate,
+                  Register object,
                   Register value,
                   Register address,
                   RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
-      : object_(object),
+      : PlatformCodeStub(isolate),
+        object_(object),
         value_(value),
         address_(address),
         remembered_set_action_(remembered_set_action),
@@ -406,7 +410,7 @@ class RecordWriteStub: public PlatformCodeStub {
 // moved by GC
 class DirectCEntryStub: public PlatformCodeStub {
  public:
-  DirectCEntryStub() {}
+  explicit DirectCEntryStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
   void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, Register target);
 
@@ -422,7 +426,8 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  explicit NameDictionaryLookupStub(LookupMode mode) : mode_(mode) { }
+  NameDictionaryLookupStub(Isolate* isolate, LookupMode mode)
+      : PlatformCodeStub(isolate), mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
 

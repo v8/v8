@@ -1403,14 +1403,14 @@ Address StubFailureTrampolineFrame::GetCallerStackPointer() const {
 
 Code* StubFailureTrampolineFrame::unchecked_code() const {
   Code* trampoline;
-  StubFailureTrampolineStub(NOT_JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline, isolate());
+  StubFailureTrampolineStub(isolate(), NOT_JS_FUNCTION_STUB_MODE).
+      FindCodeInCache(&trampoline);
   if (trampoline->contains(pc())) {
     return trampoline;
   }
 
-  StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).
-      FindCodeInCache(&trampoline, isolate());
+  StubFailureTrampolineStub(isolate(), JS_FUNCTION_STUB_MODE).
+      FindCodeInCache(&trampoline);
   if (trampoline->contains(pc())) {
     return trampoline;
   }

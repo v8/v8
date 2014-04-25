@@ -256,6 +256,7 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case EXECUTABLE_ACCESSOR_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
+    case FOREIGN_TYPE:
       return kInternal & kTaggedPtr;
     default:
       UNREACHABLE();

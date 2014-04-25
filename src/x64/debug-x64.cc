@@ -134,7 +134,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     __ Set(rax, 0);  // No arguments (argc == 0).
     __ Move(rbx, ExternalReference::debug_break(masm->isolate()));
 
-    CEntryStub ceb(1);
+    CEntryStub ceb(masm->isolate(), 1);
     __ CallStub(&ceb);
 
     // Restore the register values from the expression stack.

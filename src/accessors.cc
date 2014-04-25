@@ -797,16 +797,10 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 }
 
 
-Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
-  return GetFunctionPrototype(function->GetIsolate(), function);
-}
-
-
-
-MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
-                                         Handle<JSObject> receiver,
-                                         Handle<Object> value) {
-    Handle<JSFunction> function;
+static Handle<Object> SetFunctionPrototype(Isolate* isolate,
+                                           Handle<JSObject> receiver,
+                                           Handle<Object> value) {
+  Handle<JSFunction> function;
   {
     DisallowHeapAllocation no_allocation;
     JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
@@ -816,8 +810,10 @@ MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
 
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
-    return JSObject::SetLocalPropertyIgnoreAttributes(
-        receiver, isolate->factory()->prototype_string(), value, NONE);
+    MaybeHandle<Object> maybe_result =
+        JSObject::SetLocalPropertyIgnoreAttributes(
+            receiver, isolate->factory()->prototype_string(), value, NONE);
+    return maybe_result.ToHandleChecked();
   }
 
   Handle<Object> old_value;
@@ -841,43 +837,51 @@ MaybeHandle<Object> SetFunctionPrototype(Isolate* isolate,
 }
 
 
+Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
+  return GetFunctionPrototype(function->GetIsolate(), function);
+}
+
+
 Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
                                                Handle<Object> prototype) {
   ASSERT(function->should_have_prototype());
   Isolate* isolate = function->GetIsolate();
-  Handle<Object> result;
-  SetFunctionPrototype(isolate, function, prototype).ToHandle(&result);
-  return result;
+  return SetFunctionPrototype(isolate, function, prototype);
 }
 
 
-Object* Accessors::FunctionGetPrototype(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
+void Accessors::FunctionPrototypeGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  return *GetFunctionPrototype(isolate, Handle<Object>(object, isolate));
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  Handle<Object> result = GetFunctionPrototype(isolate, object);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-Object* Accessors::FunctionSetPrototype(Isolate* isolate,
-                                        JSObject* object,
-                                        Object* value,
-                                        void*) {
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      SetFunctionPrototype(isolate,
-                           Handle<JSObject>(object, isolate),
-                           Handle<Object>(value, isolate)));
-  return *result;
+void Accessors::FunctionPrototypeSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<Object> value = Utils::OpenHandle(*val);
+
+  SetFunctionPrototype(isolate, object, value);
 }
 
 
-const AccessorDescriptor Accessors::FunctionPrototype = {
-  FunctionGetPrototype,
-  FunctionSetPrototype,
-  0
-};
+Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->prototype_string(),
+                      &FunctionPrototypeGetter,
+                      &FunctionPrototypeSetter,
+                      attributes);
+}
 
 
 //
@@ -885,31 +889,57 @@ const AccessorDescriptor Accessors::FunctionPrototype = {
 //
 
 
-Object* Accessors::FunctionGetLength(Isolate* isolate,
-                                     Object* object,
-                                     void*) {
-  JSFunction* function = FindInstanceOf<JSFunction>(isolate, object);
-  if (function == NULL) return Smi::FromInt(0);
-  // Check if already compiled.
-  if (function->shared()->is_compiled()) {
-    return Smi::FromInt(function->shared()->length());
-  }
-  // If the function isn't compiled yet, the length is not computed correctly
-  // yet. Compile it now and return the right length.
+void Accessors::FunctionLengthGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSFunction> function_handle(function);
-  if (Compiler::EnsureCompiled(function_handle, KEEP_EXCEPTION)) {
-    return Smi::FromInt(function_handle->shared()->length());
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
   }
-  return isolate->heap()->exception();
+
+  int length = 0;
+  Handle<JSFunction> function;
+  if (maybe_function.ToHandle(&function)) {
+    if (function->shared()->is_compiled()) {
+      length = function->shared()->length();
+    } else {
+      // If the function isn't compiled yet, the length is not computed
+      // correctly yet. Compile it now and return the right length.
+      if (Compiler::EnsureCompiled(function, KEEP_EXCEPTION)) {
+        length = function->shared()->length();
+      }
+      if (isolate->has_pending_exception()) {
+        isolate->OptionalRescheduleException(false);
+      }
+    }
+  }
+  Handle<Object> result(Smi::FromInt(length), isolate);
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionLength = {
-  FunctionGetLength,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionLengthSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &FunctionLengthGetter,
+                      &FunctionLengthSetter,
+                      attributes);
+}
 
 
 //
@@ -939,16 +969,7 @@ const AccessorDescriptor Accessors::FunctionName = {
 //
 
 
-Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
-  CALL_HEAP_FUNCTION(function->GetIsolate(),
-                     Accessors::FunctionGetArguments(function->GetIsolate(),
-                                                     *function,
-                                                     NULL),
-                     Object);
-}
-
-
-static Object* ConstructArgumentsObjectForInlinedFunction(
+static Handle<Object> ArgumentsForInlinedFunction(
     JavaScriptFrame* frame,
     Handle<JSFunction> inlined_function,
     int inlined_frame_index) {
@@ -972,7 +993,80 @@ static Object* ConstructArgumentsObjectForInlinedFunction(
   arguments->set_elements(*array);
 
   // Return the freshly allocated arguments object.
-  return *arguments;
+  return arguments;
+}
+
+
+static int FindFunctionInFrame(JavaScriptFrame* frame,
+                               Handle<JSFunction> function) {
+  DisallowHeapAllocation no_allocation;
+  List<JSFunction*> functions(2);
+  frame->GetFunctions(&functions);
+  for (int i = functions.length() - 1; i >= 0; i--) {
+    if (functions[i] == *function) return i;
+  }
+  return -1;
+}
+
+
+Handle<Object> GetFunctionArguments(Isolate* isolate,
+                                    Handle<JSFunction> function) {
+  if (function->shared()->native()) return isolate->factory()->null_value();
+
+  // Find the top invocation of the function by traversing frames.
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    int function_index = FindFunctionInFrame(frame, function);
+    if (function_index < 0) continue;
+
+    if (function_index > 0) {
+      // The function in question was inlined.  Inlined functions have the
+      // correct number of arguments and no allocated arguments object, so
+      // we can construct a fresh one by interpreting the function's
+      // deoptimization input data.
+      return ArgumentsForInlinedFunction(frame, function, function_index);
+    }
+
+    if (!frame->is_optimized()) {
+      // If there is an arguments variable in the stack, we return that.
+      Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+      int index = scope_info->StackSlotIndex(
+          isolate->heap()->arguments_string());
+      if (index >= 0) {
+        Handle<Object> arguments(frame->GetExpression(index), isolate);
+        if (!arguments->IsArgumentsMarker()) return arguments;
+      }
+    }
+
+    // If there is no arguments variable in the stack or we have an
+    // optimized frame, we find the frame that holds the actual arguments
+    // passed to the function.
+    it.AdvanceToArgumentsFrame();
+    frame = it.frame();
+
+    // Get the number of arguments and construct an arguments object
+    // mirror for the right frame.
+    const int length = frame->ComputeParametersCount();
+    Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
+        function, length);
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+
+    // Copy the parameters to the arguments object.
+    ASSERT(array->length() == length);
+    for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    arguments->set_elements(*array);
+
+    // Return the freshly allocated arguments object.
+    return arguments;
+  }
+
+  // No frame corresponding to the given function found. Return null.
+  return isolate->factory()->null_value();
+}
+
+
+Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
+  return GetFunctionArguments(function->GetIsolate(), function);
 }
 
 
@@ -980,65 +1074,14 @@ Object* Accessors::FunctionGetArguments(Isolate* isolate,
                                         Object* object,
                                         void*) {
   HandleScope scope(isolate);
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  Handle<JSFunction> function(holder, isolate);
-
-  if (function->shared()->native()) return isolate->heap()->null_value();
-  // Find the top invocation of the function by traversing frames.
-  List<JSFunction*> functions(2);
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    frame->GetFunctions(&functions);
-    for (int i = functions.length() - 1; i >= 0; i--) {
-      // Skip all frames that aren't invocations of the given function.
-      if (functions[i] != *function) continue;
-
-      if (i > 0) {
-        // The function in question was inlined.  Inlined functions have the
-        // correct number of arguments and no allocated arguments object, so
-        // we can construct a fresh one by interpreting the function's
-        // deoptimization input data.
-        return ConstructArgumentsObjectForInlinedFunction(frame, function, i);
-      }
-
-      if (!frame->is_optimized()) {
-        // If there is an arguments variable in the stack, we return that.
-        Handle<ScopeInfo> scope_info(function->shared()->scope_info());
-        int index = scope_info->StackSlotIndex(
-            isolate->heap()->arguments_string());
-        if (index >= 0) {
-          Handle<Object> arguments(frame->GetExpression(index), isolate);
-          if (!arguments->IsArgumentsMarker()) return *arguments;
-        }
-      }
-
-      // If there is no arguments variable in the stack or we have an
-      // optimized frame, we find the frame that holds the actual arguments
-      // passed to the function.
-      it.AdvanceToArgumentsFrame();
-      frame = it.frame();
-
-      // Get the number of arguments and construct an arguments object
-      // mirror for the right frame.
-      const int length = frame->ComputeParametersCount();
-      Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
-          function, length);
-      Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
-
-      // Copy the parameters to the arguments object.
-      ASSERT(array->length() == length);
-      for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
-      arguments->set_elements(*array);
-
-      // Return the freshly allocated arguments object.
-      return *arguments;
-    }
-    functions.Rewind(0);
+  Handle<JSFunction> function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
+    if (holder == NULL) return isolate->heap()->undefined_value();
+    function = Handle<JSFunction>(holder, isolate);
   }
-
-  // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  return *GetFunctionArguments(isolate, function);
 }
 
 

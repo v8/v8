@@ -470,7 +470,10 @@ BUILTIN(ArrayPush) {
     if (new_length > elms_len) {
       // New backing storage is needed.
       int capacity = new_length + (new_length >> 1) + 16;
-      new_elms = isolate->factory()->NewFixedDoubleArray(capacity);
+      // Create new backing store; since capacity > 0, we can
+      // safely cast to FixedDoubleArray.
+      new_elms = Handle<FixedDoubleArray>::cast(
+          isolate->factory()->NewFixedDoubleArray(capacity));
 
       ElementsAccessor* accessor = array->GetElementsAccessor();
       accessor->CopyElements(

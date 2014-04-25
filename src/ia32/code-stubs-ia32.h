@@ -42,8 +42,8 @@ void ArrayNativeCode(MacroAssembler* masm,
 
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
-  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) {
+  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
+      : PlatformCodeStub(isolate), save_doubles_(save_fp) {
     ASSERT(CpuFeatures::IsSafeForSnapshot(SSE2) || save_fp == kDontSaveFPRegs);
   }
 
@@ -92,7 +92,7 @@ class StringHelper : public AllStatic {
 
 class SubStringStub: public PlatformCodeStub {
  public:
-  SubStringStub() {}
+  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
   Major MajorKey() { return SubString; }
@@ -104,7 +104,7 @@ class SubStringStub: public PlatformCodeStub {
 
 class StringCompareStub: public PlatformCodeStub {
  public:
-  StringCompareStub() { }
+  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) { }
 
   // Compares two flat ASCII strings and returns result in eax.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
@@ -142,11 +142,13 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  NameDictionaryLookupStub(Register dictionary,
+  NameDictionaryLookupStub(Isolate* isolate,
+                           Register dictionary,
                            Register result,
                            Register index,
                            LookupMode mode)
-      : dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
+      : PlatformCodeStub(isolate),
+        dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -202,12 +204,14 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
 class RecordWriteStub: public PlatformCodeStub {
  public:
-  RecordWriteStub(Register object,
+  RecordWriteStub(Isolate* isolate,
+                  Register object,
                   Register value,
                   Register address,
                   RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
-      : object_(object),
+      : PlatformCodeStub(isolate),
+        object_(object),
         value_(value),
         address_(address),
         remembered_set_action_(remembered_set_action),

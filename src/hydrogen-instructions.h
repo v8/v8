@@ -2085,14 +2085,15 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
  public:
   static HEnterInlined* New(Zone* zone,
                             HValue* context,
+                            BailoutId return_id,
                             Handle<JSFunction> closure,
                             int arguments_count,
                             FunctionLiteral* function,
                             InliningKind inlining_kind,
                             Variable* arguments_var,
                             HArgumentsObject* arguments_object) {
-    return new(zone) HEnterInlined(closure, arguments_count, function,
-                                   inlining_kind, arguments_var,
+    return new(zone) HEnterInlined(return_id, closure, arguments_count,
+                                   function, inlining_kind, arguments_var,
                                    arguments_object, zone);
   }
 
@@ -2107,6 +2108,7 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   void set_arguments_pushed() { arguments_pushed_ = true; }
   FunctionLiteral* function() const { return function_; }
   InliningKind inlining_kind() const { return inlining_kind_; }
+  BailoutId ReturnId() const { return return_id_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
@@ -2118,14 +2120,16 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
  private:
-  HEnterInlined(Handle<JSFunction> closure,
+  HEnterInlined(BailoutId return_id,
+                Handle<JSFunction> closure,
                 int arguments_count,
                 FunctionLiteral* function,
                 InliningKind inlining_kind,
                 Variable* arguments_var,
                 HArgumentsObject* arguments_object,
                 Zone* zone)
-      : closure_(closure),
+      : return_id_(return_id),
+        closure_(closure),
         arguments_count_(arguments_count),
         arguments_pushed_(false),
         function_(function),
@@ -2135,6 +2139,7 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
         return_targets_(2, zone) {
   }
 
+  BailoutId return_id_;
   Handle<JSFunction> closure_;
   int arguments_count_;
   bool arguments_pushed_;
