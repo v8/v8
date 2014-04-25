@@ -161,6 +161,23 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
 }
 
 
+// Replace a field load with a given value, forcing Smi representation if
+// necessary.
+HValue* HEscapeAnalysisPhase::NewLoadReplacement(
+    HLoadNamedField* load, HValue* load_value) {
+  HValue* replacement = load_value;
+  Representation representation = load->representation();
+  if (representation.IsSmi()) {
+    Zone* zone = graph()->zone();
+    HInstruction* new_instr =
+        HForceRepresentation::New(zone, NULL, load_value, representation);
+    new_instr->InsertAfter(load);
+    replacement = new_instr;
+  }
+  return replacement;
+}
+
+
 // Performs a forward data-flow analysis of all loads and stores on the
 // given captured allocation. This uses a reverse post-order iteration
 // over affected basic blocks. All non-escaping instructions are handled
@@ -196,10 +213,11 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           int index = load->access().offset() / kPointerSize;
           if (load->object() != allocate) continue;
           ASSERT(load->access().IsInobject());
-          HValue* replacement = state->OperandAt(index);
+          HValue* replacement =
+            NewLoadReplacement(load, state->OperandAt(index));
           load->DeleteAndReplaceWith(replacement);
           if (FLAG_trace_escape_analysis) {
-            PrintF("Replacing load #%d with #%d (%s)\n", instr->id(),
+            PrintF("Replacing load #%d with #%d (%s)\n", load->id(),
                    replacement->id(), replacement->Mnemonic());
           }
           break;

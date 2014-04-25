@@ -62,6 +62,8 @@ class HEscapeAnalysisPhase : public HPhase {
 
   HValue* NewMapCheckAndInsert(HCapturedObject* state, HCheckMaps* mapcheck);
 
+  HValue* NewLoadReplacement(HLoadNamedField* load, HValue* load_value);
+
   HCapturedObject* StateAt(HBasicBlock* block) {
     return block_states_.at(block->block_id());
   }
