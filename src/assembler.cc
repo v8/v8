@@ -220,6 +220,7 @@ PlatformFeatureScope::PlatformFeatureScope(Isolate* isolate, CpuFeature f)
   ASSERT(Serializer::enabled());
   uint64_t mask = static_cast<uint64_t>(1) << f;
   CpuFeatures::cross_compile_ |= mask;
+  USE(isolate_);
 }
 
 

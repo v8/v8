@@ -2506,6 +2506,7 @@ class NoTrackDoubleFieldsForSerializerScope {
       // immutable by the serializer.
       FLAG_track_double_fields = false;
     }
+    USE(isolate_);
   }
   ~NoTrackDoubleFieldsForSerializerScope() {
     if (Serializer::enabled()) {
