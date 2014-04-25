@@ -326,13 +326,20 @@ class Deoptimizer : public Malloced {
   void DoComputeCompiledStubFrame(TranslationIterator* iterator,
                                   int frame_index);
 
+  // Translate object, store the result into an auxiliary array
+  // (deferred_objects_tagged_values_).
   void DoTranslateObject(TranslationIterator* iterator,
                          int object_index,
                          int field_index);
 
+  // Translate value, store the result into the given frame slot.
   void DoTranslateCommand(TranslationIterator* iterator,
                           int frame_index,
                           unsigned output_offset);
+
+  // Translate object, do not store the result anywhere (but do update
+  // the deferred materialization array).
+  void DoTranslateObjectAndSkip(TranslationIterator* iterator);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
