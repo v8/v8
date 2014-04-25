@@ -4524,7 +4524,9 @@ class WeakHashTable: public HashTable<WeakHashTable,
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+  MUST_USE_RESULT static Handle<WeakHashTable> Put(Handle<WeakHashTable> table,
+                                                   Handle<Object> key,
+                                                   Handle<Object> value);
 
   // This function is called when heap verification is turned on.
   void Zap(Object* value) {
@@ -4538,7 +4540,7 @@ class WeakHashTable: public HashTable<WeakHashTable,
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, Object* key, Object* value);
+  void AddEntry(int entry, Handle<Object> key, Handle<Object> value);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {

@@ -16246,29 +16246,31 @@ Object* WeakHashTable::Lookup(Object* key) {
 }
 
 
-MaybeObject* WeakHashTable::Put(Object* key, Object* value) {
-  ASSERT(IsKey(key));
-  int entry = FindEntry(key);
+Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
+                                         Handle<Object> key,
+                                         Handle<Object> value) {
+  ASSERT(table->IsKey(*key));
+  int entry = table->FindEntry(*key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    set(EntryToValueIndex(entry), value);
-    return this;
+    table->set(EntryToValueIndex(entry), *value);
+    return table;
   }
 
   // Check whether the hash table should be extended.
-  Object* obj;
-  { MaybeObject* maybe_obj = EnsureCapacity(1, key, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  WeakHashTable* table = WeakHashTable::cast(obj);
-  table->AddEntry(table->FindInsertionEntry(Hash(key)), key, value);
+  table = EnsureCapacity(table, 1, *key, TENURED);
+
+  table->AddEntry(table->FindInsertionEntry(table->Hash(*key)), key, value);
   return table;
 }
 
 
-void WeakHashTable::AddEntry(int entry, Object* key, Object* value) {
-  set(EntryToIndex(entry), key);
-  set(EntryToValueIndex(entry), value);
+void WeakHashTable::AddEntry(int entry,
+                             Handle<Object> key,
+                             Handle<Object> value) {
+  DisallowHeapAllocation no_allocation;
+  set(EntryToIndex(entry), *key);
+  set(EntryToValueIndex(entry), *value);
   ElementAdded();
 }
 

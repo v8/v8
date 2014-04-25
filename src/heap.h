@@ -1703,7 +1703,8 @@ class Heap {
     Heap* heap_;
   };
 
-  MaybeObject* AddWeakObjectToCodeDependency(Object* obj, DependentCode* dep);
+  void AddWeakObjectToCodeDependency(Handle<Object> obj,
+                                     Handle<DependentCode> dep);
 
   DependentCode* LookupWeakObjectToCodeDependency(Object* obj);
 

@@ -5672,20 +5672,20 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
 }
 
 
-MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
-                                                 DependentCode* dep) {
-  ASSERT(!InNewSpace(obj));
-  ASSERT(!InNewSpace(dep));
-  MaybeObject* maybe_obj =
-      WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
-  WeakHashTable* table;
-  if (!maybe_obj->To(&table)) return maybe_obj;
-  if (ShouldZapGarbage() && weak_object_to_code_table_ != table) {
+// TODO(ishell): Find a better place for this.
+void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
+                                         Handle<DependentCode> dep) {
+  ASSERT(!InNewSpace(*obj));
+  ASSERT(!InNewSpace(*dep));
+  Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
+                              isolate());
+  table = WeakHashTable::Put(table, obj, dep);
+
+  if (ShouldZapGarbage() && weak_object_to_code_table_ != *table) {
     WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
   }
-  set_weak_object_to_code_table(table);
-  ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
-  return weak_object_to_code_table_;
+  set_weak_object_to_code_table(*table);
+  ASSERT_EQ(*dep, table->Lookup(*obj));
 }
 
 
