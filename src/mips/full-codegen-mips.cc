@@ -1845,7 +1845,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
   } else if (expr->depth() > 1 || Serializer::enabled() ||
-             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+             length > FastCloneShallowArrayStub::kMaximumInlinedCloneLength) {
     __ li(a0, Operand(Smi::FromInt(flags)));
     __ Push(a3, a2, a1, a0);
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);
