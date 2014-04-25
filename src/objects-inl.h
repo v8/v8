@@ -475,6 +475,27 @@ Handle<Object> HashTableKey::AsHandle(Isolate* isolate) {
 }
 
 
+Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+
+Handle<Object> MapCacheShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+
+Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
+                                               HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+
+Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
+                                                 HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
 template <typename Char>
 class SequentialStringKey : public HashTableKey {
  public:
@@ -6626,9 +6647,11 @@ uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
 }
 
+
 uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
   return ComputeIntegerHash(key, seed);
 }
+
 
 uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
                                                           uint32_t seed,
@@ -6637,9 +6660,6 @@ uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }
 
-MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
-  return heap->NumberFromUint32(key);
-}
 
 Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
   return isolate->factory()->NewNumberFromUint(key);
@@ -6661,12 +6681,6 @@ uint32_t NameDictionaryShape::Hash(Handle<Name> key) {
 
 uint32_t NameDictionaryShape::HashForObject(Handle<Name> key, Object* other) {
   return Name::cast(other)->Hash();
-}
-
-
-MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Handle<Name> key) {
-  ASSERT(key->IsUniqueName());
-  return *key;
 }
 
 
@@ -6696,11 +6710,6 @@ uint32_t ObjectHashTableShape::Hash(Handle<Object> key) {
 uint32_t ObjectHashTableShape::HashForObject(Handle<Object> key,
                                              Object* other) {
   return Smi::cast(other->GetHash())->value();
-}
-
-
-MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Handle<Object> key) {
-  return *key;
 }
 
 

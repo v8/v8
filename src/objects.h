@@ -3866,16 +3866,16 @@ class StringTableShape : public BaseShape<HashTableKey*> {
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
+
   static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
+
   static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
@@ -3919,6 +3919,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
+
   static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
@@ -3927,10 +3928,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -4087,8 +4085,6 @@ class NameDictionaryShape : public BaseShape<Handle<Name> > {
   static inline bool IsMatch(Handle<Name> key, Object* other);
   static inline uint32_t Hash(Handle<Name> key);
   static inline uint32_t HashForObject(Handle<Name> key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Handle<Name> key);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -4125,9 +4121,6 @@ class NameDictionary: public Dictionary<NameDictionary,
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  // TODO(ishell): This should be eventually replaced with AsHandle().
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      uint32_t key);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
@@ -4240,8 +4233,6 @@ class ObjectHashTableShape : public BaseShape<Handle<Object> > {
   static inline bool IsMatch(Handle<Object> key, Object* other);
   static inline uint32_t Hash(Handle<Object> key);
   static inline uint32_t HashForObject(Handle<Object> key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Handle<Object> key);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -8280,10 +8271,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
-                                               HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -8383,10 +8371,7 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
-                                               HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
