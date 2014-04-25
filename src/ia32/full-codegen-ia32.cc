@@ -436,12 +436,10 @@ void FullCodeGenerator::EmitReturnSequence() {
 
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, ecx);
-#ifdef ENABLE_DEBUGGER_SUPPORT
     // Check that the size of the code used for returning is large enough
     // for the debugger's requirements.
     ASSERT(Assembler::kJSReturnSequenceLength <=
            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
-#endif
     info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }

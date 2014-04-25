@@ -1883,7 +1883,6 @@ TEST(SfiAndJsFunctionWeakRefs) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 TEST(NoDebugObjectInSnapshot) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1908,7 +1907,6 @@ TEST(NoDebugObjectInSnapshot) {
   }
   CHECK_EQ(1, globals_count);
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 TEST(AllStrongGcRootsHaveNames) {

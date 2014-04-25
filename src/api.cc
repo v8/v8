@@ -6809,8 +6809,6 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
@@ -6973,9 +6971,6 @@ void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debugger()->set_live_edit_enabled(enable);
 }
-
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 Handle<String> CpuProfileNode::GetFunctionName() const {

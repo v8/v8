@@ -370,13 +370,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     Label rt_call, allocated;
     if (FLAG_inline_new) {
       Label undo_allocation;
-#if ENABLE_DEBUGGER_SUPPORT
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ Mov(x2, Operand(debug_step_in_fp));
       __ Ldr(x2, MemOperand(x2));
       __ Cbnz(x2, &rt_call);
-#endif
       // Load the initial map and verify that it is in fact a map.
       Register init_map = x2;
       __ Ldr(init_map,

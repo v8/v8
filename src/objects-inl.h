@@ -5166,7 +5166,6 @@ void Script::set_compilation_state(CompilationState state) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)
 ACCESSORS(DebugInfo, code, Code, kPatchedCodeIndex)
@@ -5176,7 +5175,6 @@ ACCESSORS_TO_SMI(BreakPointInfo, code_position, kCodePositionIndex)
 ACCESSORS_TO_SMI(BreakPointInfo, source_position, kSourcePositionIndex)
 ACCESSORS_TO_SMI(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
-#endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,

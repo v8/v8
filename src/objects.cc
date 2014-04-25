@@ -468,7 +468,6 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
     Handle<Object> receiver,
     Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a getter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
@@ -476,7 +475,6 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
     debug->HandleStepIn(
         Handle<JSFunction>::cast(getter), Handle<Object>::null(), 0, false);
   }
-#endif
 
   return Execution::Call(isolate, getter, receiver, 0, NULL, true);
 }
@@ -2941,7 +2939,6 @@ MaybeHandle<Object> JSReceiver::SetPropertyWithDefinedSetter(
     Handle<Object> value) {
   Isolate* isolate = object->GetIsolate();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into a setter if step into is active.
   // TODO(rossberg): should this apply to getters that are function proxies?
@@ -2949,7 +2946,6 @@ MaybeHandle<Object> JSReceiver::SetPropertyWithDefinedSetter(
     debug->HandleStepIn(
         Handle<JSFunction>::cast(setter), Handle<Object>::null(), 0, false);
   }
-#endif
 
   Handle<Object> argv[] = { value };
   RETURN_ON_EXCEPTION(
@@ -16821,7 +16817,6 @@ Handle<DeclaredAccessorDescriptor> DeclaredAccessorDescriptor::Create(
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.
@@ -17075,7 +17070,6 @@ int BreakPointInfo::GetBreakPointCount() {
   // Multiple break points.
   return FixedArray::cast(break_point_objects())->length();
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 Object* JSDate::GetField(Object* object, Smi* index) {

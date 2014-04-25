@@ -221,12 +221,10 @@ class MacroAssembler: public Assembler {
       Register scratch2,
       SaveFPRegsMode save_fp);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
 
   void DebugBreak();
-#endif
 
   // Generates function and stub prologue code.
   void Prologue(PrologueFrameMode frame_mode);

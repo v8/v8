@@ -779,9 +779,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
     case RelocInfo::DEBUG_BREAK:
-#ifndef ENABLE_DEBUGGER_SUPPORT
-      UNREACHABLE();
-#endif
       return "debug break";
     case RelocInfo::CODE_TARGET:
       return "code target";
@@ -808,9 +805,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
     case RelocInfo::VENEER_POOL:
       return "veneer pool";
     case RelocInfo::DEBUG_BREAK_SLOT:
-#ifndef ENABLE_DEBUGGER_SUPPORT
-      UNREACHABLE();
-#endif
       return "debug break slot";
     case RelocInfo::CODE_AGE_SEQUENCE:
       return "code_age_sequence";
@@ -869,10 +863,6 @@ void RelocInfo::Verify() {
       Object::VerifyPointer(target_cell());
       break;
     case DEBUG_BREAK:
-#ifndef ENABLE_DEBUGGER_SUPPORT
-      UNREACHABLE();
-      break;
-#endif
     case CONSTRUCT_CALL:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
@@ -1014,11 +1004,9 @@ ExternalReference::ExternalReference(const IC_Utility& ic_utility,
                                      Isolate* isolate)
   : address_(Redirect(isolate, ic_utility.address())) {}
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference::ExternalReference(const Debug_Address& debug_address,
                                      Isolate* isolate)
   : address_(debug_address.address(isolate)) {}
-#endif
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -1526,7 +1514,6 @@ ExternalReference ExternalReference::mod_two_doubles_operation(
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 ExternalReference ExternalReference::debug_break(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(Debug_Break)));
 }
@@ -1536,7 +1523,6 @@ ExternalReference ExternalReference::debug_step_in_fp_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->step_in_fp_addr());
 }
-#endif
 
 
 void PositionsRecorder::RecordPosition(int pos) {

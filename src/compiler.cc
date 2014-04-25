@@ -298,13 +298,9 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 // the full compiler need not be be used if a debugger is attached, but only if
 // break points has actually been set.
 static bool IsDebuggerActive(Isolate* isolate) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   return isolate->use_crankshaft() ?
     isolate->debug()->has_break_points() :
     isolate->debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
 }
 
 
@@ -746,7 +742,6 @@ MaybeHandle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void Compiler::CompileForLiveEdit(Handle<Script> script) {
   // TODO(635): support extensions.
   CompilationInfoWithZone info(script);
@@ -766,7 +761,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
   }
   tracker.RecordRootFunctionInfo(info.code());
 }
-#endif
 
 
 static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
@@ -786,9 +780,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   FixedArray* array = isolate->native_context()->embedder_data();
   script->set_context_data(array->get(0));
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->OnBeforeCompile(script);
-#endif
 
   ASSERT(info->is_eval() || info->is_global());
 
@@ -864,9 +856,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->OnAfterCompile(script, Debugger::NO_AFTER_COMPILE_FLAGS);
-#endif
 
   return result;
 }
@@ -898,9 +888,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     info.SetParseRestriction(restriction);
     info.SetContext(context);
 
-#if ENABLE_DEBUGGER_SUPPORT
     Debug::RecordEvalCaller(script);
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
     shared_info = CompileToplevel(&info);
 

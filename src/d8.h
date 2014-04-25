@@ -35,7 +35,7 @@
 #include "v8.h"
 #else
 #include "../include/v8.h"
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
 
 namespace v8 {
 
@@ -113,7 +113,7 @@ class CounterMap {
   static bool Match(void* key1, void* key2);
   i::HashMap hash_map_;
 };
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
 
 
 class LineEditor {
@@ -143,7 +143,7 @@ class SourceGroup {
       next_semaphore_(0),
       done_semaphore_(0),
       thread_(NULL),
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
       argv_(NULL),
       begin_offset_(0),
       end_offset_(0) {}
@@ -183,7 +183,7 @@ class SourceGroup {
   i::Semaphore next_semaphore_;
   i::Semaphore done_semaphore_;
   i::Thread* thread_;
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
   Handle<String> ReadFile(Isolate* isolate, const char* name);
@@ -221,7 +221,7 @@ class ShellOptions {
 #ifndef V8_SHARED
      num_parallel_files(0),
      parallel_files(NULL),
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
      script_executed(false),
      last_run(true),
      send_idle_notification(false),
@@ -239,14 +239,14 @@ class ShellOptions {
   ~ShellOptions() {
 #ifndef V8_SHARED
     delete[] parallel_files;
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
     delete[] isolate_sources;
   }
 
 #ifndef V8_SHARED
   int num_parallel_files;
   char** parallel_files;
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
   bool script_executed;
   bool last_run;
   bool send_idle_notification;
@@ -295,16 +295,14 @@ class Shell : public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   static Local<Object> DebugMessageDetails(Isolate* isolate,
                                            Handle<String> message);
   static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
                                                 Handle<String> command);
   static void DispatchDebugMessages();
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
 
   static void RealmCurrent(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -400,7 +398,7 @@ class Shell : public i::AllStatic {
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);
-#endif  // V8_SHARED
+#endif  // !V8_SHARED
   static void Initialize(Isolate* isolate);
   static void InitializeDebugger(Isolate* isolate);
   static void RunShell(Isolate* isolate);

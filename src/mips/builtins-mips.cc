@@ -391,13 +391,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // the preconditions is not met, the code bails out to the runtime call.
     if (FLAG_inline_new) {
       Label undo_allocation;
-#ifdef ENABLE_DEBUGGER_SUPPORT
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(isolate);
       __ li(a2, Operand(debug_step_in_fp));
       __ lw(a2, MemOperand(a2));
       __ Branch(&rt_call, ne, a2, Operand(zero_reg));
-#endif
 
       // Load the initial map and verify that it is in fact a map.
       // a1: constructor function

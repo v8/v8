@@ -41,7 +41,6 @@
 #include "string-stream.h"
 #include "v8threads.h"
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 
 namespace v8 {
@@ -1065,7 +1064,5 @@ class MessageDispatchHelperThread: public Thread {
 
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_DEBUG_H_

@@ -1448,7 +1448,6 @@ static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateLoadICDebugBreak(masm);
 }
@@ -1514,7 +1513,6 @@ static void Generate_PlainReturn_LiveEdit(MacroAssembler* masm) {
 static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
   Debug::GenerateFrameDropperLiveEdit(masm);
 }
-#endif
 
 
 Builtins::Builtins() : initialized_(false) {

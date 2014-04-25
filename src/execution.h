@@ -118,10 +118,9 @@ class Execution V8_FINAL : public AllStatic {
                                           Handle<JSFunction> fun,
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
-#ifdef ENABLE_DEBUGGER_SUPPORT
+
   static Object* DebugBreakHelper(Isolate* isolate);
   static void ProcessDebugMessages(Isolate* isolate, bool debug_command_only);
-#endif
 
   // If the stack guard is triggered, but it is not an actual
   // stack overflow, then handle the interruption accordingly.
@@ -179,12 +178,10 @@ class StackGuard V8_FINAL {
   bool IsTerminateExecution();
   void TerminateExecution();
   void CancelTerminateExecution();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   bool IsDebugBreak();
   void DebugBreak();
   bool IsDebugCommand();
   void DebugCommand();
-#endif
   bool IsGCRequest();
   void RequestGC();
   bool IsInstallCodeRequest();

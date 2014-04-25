@@ -163,13 +163,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     if (FLAG_inline_new) {
       Label undo_allocation;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
       ExternalReference debug_step_in_fp =
           ExternalReference::debug_step_in_fp_address(masm->isolate());
       __ Move(kScratchRegister, debug_step_in_fp);
       __ cmpp(Operand(kScratchRegister, 0), Immediate(0));
       __ j(not_equal, &rt_call);
-#endif
 
       // Verified that the constructor is a JSFunction.
       // Load the initial map and verify that it is in fact a map.

@@ -553,7 +553,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST_ALL(V)                                                     \
+#define STRUCT_LIST(V)                                                         \
   V(BOX, Box, box)                                                             \
   V(DECLARED_ACCESSOR_DESCRIPTOR,                                              \
     DeclaredAccessorDescriptor,                                                \
@@ -574,19 +574,9 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                  \
-  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry)
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define STRUCT_LIST_DEBUGGER(V)                                                \
+  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry)   \
   V(DEBUG_INFO, DebugInfo, debug_info)                                         \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)
-#else
-#define STRUCT_LIST_DEBUGGER(V)
-#endif
-
-#define STRUCT_LIST(V)                                                         \
-  STRUCT_LIST_ALL(V)                                                           \
-  STRUCT_LIST_DEBUGGER(V)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -761,10 +751,6 @@ enum InstanceType {
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
-  // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
-  // is defined. However as include/v8.h contain some of the instance type
-  // constants always having them avoids them getting different numbers
-  // depending on whether ENABLE_DEBUGGER_SUPPORT is defined or not.
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
 
@@ -11047,7 +11033,6 @@ class TypeSwitchInfo: public Struct {
 };
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
@@ -11151,7 +11136,6 @@ class BreakPointInfo: public Struct {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 #undef DECL_BOOLEAN_ACCESSORS

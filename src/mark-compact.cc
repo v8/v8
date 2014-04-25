@@ -4337,12 +4337,10 @@ void MarkCompactCollector::ParallelSweepSpacesComplete() {
 
 
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (isolate()->debug()->IsLoaded() ||
       isolate()->debug()->has_break_points()) {
     enable = false;
   }
-#endif
 
   if (enable) {
     if (code_flusher_ != NULL) return;

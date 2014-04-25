@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 #include <stdlib.h>
 
 #include "v8.h"
@@ -7661,6 +7659,3 @@ TEST(PrecompiledFunction) {
   v8::Debug::SetDebugEventListener2(NULL);
   CheckDebuggerUnloaded();
 }
-
-
-#endif  // ENABLE_DEBUGGER_SUPPORT

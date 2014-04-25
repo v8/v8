@@ -167,7 +167,6 @@ IC::IC(FrameDepth depth, Isolate* isolate)
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
@@ -198,7 +197,6 @@ Code* IC::GetOriginalCode() const {
   ASSERT(original_code->IsCode());
   return original_code;
 }
-#endif
 
 
 static bool HasInterceptorGetter(JSObject* object) {

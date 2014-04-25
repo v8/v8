@@ -711,12 +711,10 @@ void Heap::GarbageCollectionEpilogue() {
 #undef UPDATE_FRAGMENTATION_FOR_SPACE
 #undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
-#if defined(DEBUG)
+#ifdef DEBUG
   ReportStatisticsAfterGC();
 #endif  // DEBUG
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
-#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
@@ -5108,12 +5106,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   Relocatable::Iterate(isolate_, v);
   v->Synchronize(VisitorSynchronization::kRelocatable);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->Iterate(v);
   if (isolate_->deoptimizer_data() != NULL) {
     isolate_->deoptimizer_data()->Iterate(v);
   }
-#endif
   v->Synchronize(VisitorSynchronization::kDebug);
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);

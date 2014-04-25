@@ -56,9 +56,7 @@ static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
 
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
     : allocator_(allocator),
-#ifdef ENABLE_DEBUGGER_SUPPORT
       deoptimized_frame_info_(NULL),
-#endif
       current_(NULL) {
   for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
     deopt_entry_code_entries_[i] = -1;
@@ -75,13 +73,11 @@ DeoptimizerData::~DeoptimizerData() {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void DeoptimizerData::Iterate(ObjectVisitor* v) {
   if (deoptimized_frame_info_ != NULL) {
     deoptimized_frame_info_->Iterate(v);
   }
 }
-#endif
 
 
 Code* Deoptimizer::FindDeoptimizingCode(Address addr) {
@@ -160,7 +156,6 @@ int Deoptimizer::ConvertJSFrameIndexToFrameIndex(int jsframe_index) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
     JavaScriptFrame* frame,
     int jsframe_index,
@@ -255,7 +250,7 @@ void Deoptimizer::DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
   delete info;
   isolate->deoptimizer_data()->deoptimized_frame_info_ = NULL;
 }
-#endif
+
 
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                                 int count,
@@ -2017,7 +2012,6 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
     Address parameters_top,
     uint32_t parameters_size,
@@ -2070,7 +2064,6 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
     }
   }
 }
-#endif
 
 
 static const char* TraceValueType(bool is_smi) {
@@ -3503,7 +3496,6 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   return new_array;
 }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
                                            int frame_index,
@@ -3547,7 +3539,5 @@ void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

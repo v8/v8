@@ -121,10 +121,8 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::address_of_real_stack_limit(isolate);
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
            encoder.Encode(real_stack_limit_address.address()));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 16),
            encoder.Encode(ExternalReference::debug_break(isolate).address()));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(make_code(UNCLASSIFIED, 10),
            encoder.Encode(
                ExternalReference::new_space_start(isolate).address()));
@@ -157,10 +155,8 @@ TEST(ExternalReferenceDecoder) {
            decoder.Decode(make_code(UNCLASSIFIED, 4)));
   CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::debug_break(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 16)));
-#endif  // ENABLE_DEBUGGER_SUPPORT
   CHECK_EQ(ExternalReference::new_space_start(isolate).address(),
            decoder.Decode(make_code(UNCLASSIFIED, 10)));
 }

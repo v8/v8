@@ -444,7 +444,6 @@ void FullCodeGenerator::EmitReturnSequence() {
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, rcx);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated at least 7 bytes: "movp rsp, rbp; pop rbp; ret k"
     // (3 + 1 + 3) for x64 and at least 6 (2 + 1 + 3) bytes for x32.
@@ -457,7 +456,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     // for the debugger's requirements.
     ASSERT(Assembler::kJSReturnSequenceLength <=
            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
-#endif
+
     info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }

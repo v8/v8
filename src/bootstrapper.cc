@@ -1435,9 +1435,7 @@ bool Genesis::CompileNative(Isolate* isolate,
                             Vector<const char> name,
                             Handle<String> source) {
   HandleScope scope(isolate);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->set_compiling_natives(true);
-#endif
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
   // before entering JS code to catch overflow early.
@@ -1453,9 +1451,7 @@ bool Genesis::CompileNative(Isolate* isolate,
                                     true);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) isolate->clear_pending_exception();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate->debugger()->set_compiling_natives(false);
-#endif
   return result;
 }
 
@@ -2147,7 +2143,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         false);
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     Debug* debug = isolate->debug();
@@ -2170,7 +2165,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
             global, debug_string, global_proxy, DONT_ENUM),
         false);
   }
-#endif
   return true;
 }
 

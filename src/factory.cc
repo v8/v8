@@ -1364,11 +1364,9 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   desc.origin->PopulateConstantPool(*constant_pool);
   code->set_constant_pool(*constant_pool);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (code->kind() == Code::FUNCTION) {
     code->set_has_debug_break_slots(isolate()->debugger()->IsDebuggerActive());
   }
-#endif
 
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
@@ -2003,7 +2001,6 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.
   Handle<Code> code(shared->code());
@@ -2033,7 +2030,6 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 
   return debug_info;
 }
-#endif
 
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,

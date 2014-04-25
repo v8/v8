@@ -1335,7 +1335,6 @@ void MacroAssembler::IsObjectNameType(Register object,
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   mov(r0, Operand::Zero());
   mov(r1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
@@ -1343,7 +1342,6 @@ void MacroAssembler::DebugBreak() {
   ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
-#endif
 
 
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,

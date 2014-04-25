@@ -5625,7 +5625,6 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
 // Check whether debugger and is about to step into the callback that is passed
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ASSERT(args.length() == 1);
   if (!isolate->IsDebuggerActive() || !isolate->debug()->StepInActive()) {
     return isolate->heap()->false_value();
@@ -5634,16 +5633,12 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   // We do not step into the callback if it's a builtin or not even a function.
   return isolate->heap()->ToBoolean(
       callback->IsJSFunction() && !JSFunction::cast(callback)->IsBuiltin());
-#else
-  return isolate->heap()->false_value();
-#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
 // Set one shot breakpoints for the callback function that is passed to a
 // built-in function such as Array.forEach to enable stepping into the callback.
 RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ASSERT(args.length() == 1);
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
@@ -5654,20 +5649,17 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
   debug->FloodWithOneShot(callback);
-#endif  // ENABLE_DEBUGGER_SUPPORT
   return isolate->heap()->undefined_value();
 }
 
 
 // Notify the debugger if an expcetion in a promise is not caught (yet).
 RUNTIME_FUNCTION(Runtime_DebugPendingExceptionInPromise) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ASSERT(args.length() == 2);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(Object, exception, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 1);
   isolate->debugger()->OnException(exception, true, promise);
-#endif  // ENABLE_DEBUGGER_SUPPORT
   return isolate->heap()->undefined_value();
 }
 
@@ -8356,13 +8348,11 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
     return isolate->Throw(*type_error);
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate->debug();
   // Handle stepping into constructors if step into is active.
   if (debug->StepInActive()) {
     debug->HandleStepIn(function, Handle<Object>::null(), 0, true);
   }
-#endif
 
   if (function->has_initial_map()) {
     if (function->initial_map()->instance_type() == JS_FUNCTION_TYPE) {
@@ -10754,7 +10744,6 @@ RUNTIME_FUNCTION(Runtime_LookupAccessor) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
@@ -13691,8 +13680,6 @@ RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
   }
   return Smi::FromInt(usage);
 }
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 #ifdef V8_I18N_SUPPORT

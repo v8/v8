@@ -260,11 +260,9 @@ TEST(DisasmX64) {
   __ jmp(&L1);
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
   USE(after_break_target);
-#endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 

@@ -53,9 +53,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-
 Debug::Debug(Isolate* isolate)
     : has_break_points_(false),
       script_cache_(NULL),
@@ -3751,7 +3748,5 @@ void MessageDispatchHelperThread::Run() {
     }
   }
 }
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

@@ -170,14 +170,12 @@ class IC {
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Get the shared function info of the caller.
   SharedFunctionInfo* GetSharedFunctionInfo() const;
   // Get the code object of the caller.
   Code* GetCode() const;
   // Get the original (non-breakpointed) code object of the caller.
   Code* GetOriginalCode() const;
-#endif
 
   // Set the call-site target.
   void set_target(Code* code) {

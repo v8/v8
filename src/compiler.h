@@ -624,9 +624,7 @@ class Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Code> GetCodeForDebugging(
       Handle<JSFunction> function);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   static void CompileForLiveEdit(Handle<Script> script);
-#endif
 
   // Compile a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(

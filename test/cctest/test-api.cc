@@ -17224,12 +17224,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
                     stackTrace->GetFrame(0));
     checkStackFrame(origin, "baz", 8, 3, false, true,
                     stackTrace->GetFrame(1));
-#ifdef ENABLE_DEBUGGER_SUPPORT
     bool is_eval = true;
-#else  // ENABLE_DEBUGGER_SUPPORT
-    bool is_eval = false;
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
     // This is the source string inside the eval which has the call to baz.
     checkStackFrame(NULL, "", 1, 5, is_eval, false,
                     stackTrace->GetFrame(2));

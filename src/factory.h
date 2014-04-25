@@ -599,9 +599,7 @@ class Factory V8_FINAL {
       Handle<Object> script,
       Handle<Object> stack_frames);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
-#endif
 
   // Return a map using the map cache in the native context.
   // The key the an ordered set of property names.

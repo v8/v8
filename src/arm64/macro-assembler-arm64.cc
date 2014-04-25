@@ -3186,7 +3186,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void MacroAssembler::DebugBreak() {
   Mov(x0, 0);
   Mov(x1, ExternalReference(Runtime::kDebugBreak, isolate()));
@@ -3194,7 +3193,6 @@ void MacroAssembler::DebugBreak() {
   ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
-#endif
 
 
 void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
