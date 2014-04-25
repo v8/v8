@@ -37,8 +37,8 @@
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "unique.h"
+#include "utils.h"
 #include "v8conversions.h"
-#include "v8utils.h"
 #include "zone.h"
 
 namespace v8 {

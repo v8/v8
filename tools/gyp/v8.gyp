@@ -601,8 +601,6 @@
         '../../src/v8memory.h',
         '../../src/v8threads.cc',
         '../../src/v8threads.h',
-        '../../src/v8utils.cc',
-        '../../src/v8utils.h',
         '../../src/variables.cc',
         '../../src/variables.h',
         '../../src/vector.h',
