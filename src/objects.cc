@@ -14855,9 +14855,11 @@ template class HashTable<CompilationCacheTable,
 
 template class HashTable<MapCache, MapCacheShape, HashTableKey*>;
 
-template class HashTable<ObjectHashTable, ObjectHashTableShape, Object*>;
+template class HashTable<ObjectHashTable,
+                         ObjectHashTableShape,
+                         Handle<Object> >;
 
-template class HashTable<WeakHashTable, WeakHashTableShape<2>, Object*>;
+template class HashTable<WeakHashTable, WeakHashTableShape<2>, Handle<Object> >;
 
 template class Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >;
 
@@ -16137,6 +16139,21 @@ Object* ObjectHashTable::Lookup(Object* key) {
 }
 
 
+// TODO(ishell): Try to remove this when FindEntry(Object* key) is removed
+int ObjectHashTable::FindEntry(Handle<Object> key) {
+  return DerivedHashTable::FindEntry(key);
+}
+
+
+// TODO(ishell): Remove this when all the callers are handlified.
+int ObjectHashTable::FindEntry(Object* key) {
+  DisallowHeapAllocation no_allocation;
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  return FindEntry(handle(key, isolate));
+}
+
+
 Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> key,
                                              Handle<Object> value) {
@@ -16147,7 +16164,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   // Make sure the key object has an identity hash code.
   Handle<Object> hash = Object::GetOrCreateHash(key, isolate);
 
-  int entry = table->FindEntry(*key);
+  int entry = table->FindEntry(key);
 
   // Check whether to perform removal operation.
   if (value->IsTheHole()) {
@@ -16163,7 +16180,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   }
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, *key);
+  table = EnsureCapacity(table, 1, key);
   table->AddEntry(table->FindInsertionEntry(Handle<Smi>::cast(hash)->value()),
                   *key,
                   *value);
@@ -16193,11 +16210,26 @@ Object* WeakHashTable::Lookup(Object* key) {
 }
 
 
+// TODO(ishell): Try to remove this when FindEntry(Object* key) is removed
+int WeakHashTable::FindEntry(Handle<Object> key) {
+  return DerivedHashTable::FindEntry(key);
+}
+
+
+// TODO(ishell): Remove this when all the callers are handlified.
+int WeakHashTable::FindEntry(Object* key) {
+  DisallowHeapAllocation no_allocation;
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
+  return FindEntry(handle(key, isolate));
+}
+
+
 Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
                                          Handle<Object> key,
                                          Handle<Object> value) {
   ASSERT(table->IsKey(*key));
-  int entry = table->FindEntry(*key);
+  int entry = table->FindEntry(key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
     table->set(EntryToValueIndex(entry), *value);
@@ -16205,9 +16237,9 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
   }
 
   // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, *key, TENURED);
+  table = EnsureCapacity(table, 1, key, TENURED);
 
-  table->AddEntry(table->FindInsertionEntry(table->Hash(*key)), key, value);
+  table->AddEntry(table->FindInsertionEntry(table->Hash(key)), key, value);
   return table;
 }
 

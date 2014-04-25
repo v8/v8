@@ -6683,47 +6683,54 @@ void NameDictionary::DoGenerateNewEnumerationIndices(
 }
 
 
-bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
   return key->SameValue(other);
 }
 
 
-uint32_t ObjectHashTableShape::Hash(Object* key) {
+uint32_t ObjectHashTableShape::Hash(Handle<Object> key) {
   return Smi::cast(key->GetHash())->value();
 }
 
 
-uint32_t ObjectHashTableShape::HashForObject(Object* key, Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Handle<Object> key,
+                                             Object* other) {
   return Smi::cast(other->GetHash())->value();
 }
 
 
-MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
+MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Handle<Object> key) {
+  return *key;
+}
+
+
+Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
+                                              Handle<Object> key) {
   return key;
 }
 
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(
     Handle<ObjectHashTable> table, Handle<Object> key) {
-  return DerivedHashTable::Shrink(table, *key);
+  return DerivedHashTable::Shrink(table, key);
 }
 
 
 template <int entrysize>
-bool WeakHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
   return key->SameValue(other);
 }
 
 
 template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::Hash(Object* key) {
-  intptr_t hash = reinterpret_cast<intptr_t>(key);
+uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
+  intptr_t hash = reinterpret_cast<intptr_t>(*key);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
 
 template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
+uint32_t WeakHashTableShape<entrysize>::HashForObject(Handle<Object> key,
                                                       Object* other) {
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);
@@ -6731,8 +6738,8 @@ uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
 
 
 template <int entrysize>
-MaybeObject* WeakHashTableShape<entrysize>::AsObject(Heap* heap,
-                                                    Object* key) {
+Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
+                                                       Handle<Object> key) {
   return key;
 }
 

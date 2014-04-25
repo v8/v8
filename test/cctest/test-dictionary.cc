@@ -140,7 +140,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -153,7 +153,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }

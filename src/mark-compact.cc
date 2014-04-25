@@ -3670,7 +3670,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     WeakHashTable* table =
         WeakHashTable::cast(heap_->weak_object_to_code_table());
     table->Iterate(&updating_visitor);
-    table->Rehash(heap_->undefined_value());
+    table->Rehash(heap_->isolate()->factory()->undefined_value());
   }
 
   // Update pointers from external string table.
