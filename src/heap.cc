@@ -5656,6 +5656,7 @@ void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
                                          Handle<DependentCode> dep) {
   ASSERT(!InNewSpace(*obj));
   ASSERT(!InNewSpace(*dep));
+  HandleScope scope(isolate());
   Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
                               isolate());
   table = WeakHashTable::Put(table, obj, dep);
