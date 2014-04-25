@@ -33,7 +33,7 @@
 #include "list.h"
 #include "log.h"
 #include "platform/mutex.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
