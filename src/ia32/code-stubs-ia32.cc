@@ -2517,7 +2517,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
   if (Serializer::enabled()) {
-    PlatformFeatureScope sse2(SSE2);
+    PlatformFeatureScope sse2(isolate, SSE2);
     BinaryOpICStub::GenerateAheadOfTime(isolate);
     BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
   } else {

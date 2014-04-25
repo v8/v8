@@ -213,8 +213,8 @@ CpuFeatureScope::~CpuFeatureScope() {
 // -----------------------------------------------------------------------------
 // Implementation of PlatformFeatureScope
 
-PlatformFeatureScope::PlatformFeatureScope(CpuFeature f)
-    : old_cross_compile_(CpuFeatures::cross_compile_) {
+PlatformFeatureScope::PlatformFeatureScope(Isolate* isolate, CpuFeature f)
+    : isolate_(isolate), old_cross_compile_(CpuFeatures::cross_compile_) {
   // CpuFeatures is a global singleton, therefore this is only safe in
   // single threaded code.
   ASSERT(Serializer::enabled());

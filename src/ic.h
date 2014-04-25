@@ -743,11 +743,11 @@ class BinaryOpIC: public IC {
  public:
   class State V8_FINAL BASE_EMBEDDED {
    public:
-    explicit State(ExtraICState extra_ic_state);
+    State(Isolate* isolate, ExtraICState extra_ic_state);
 
-    State(Token::Value op, OverwriteMode mode)
+    State(Isolate* isolate, Token::Value op, OverwriteMode mode)
         : op_(op), mode_(mode), left_kind_(NONE), right_kind_(NONE),
-          result_kind_(NONE) {
+          result_kind_(NONE), isolate_(isolate) {
       ASSERT_LE(FIRST_TOKEN, op);
       ASSERT_LE(op, LAST_TOKEN);
     }
@@ -824,6 +824,8 @@ class BinaryOpIC: public IC {
                 Handle<Object> right,
                 Handle<Object> result);
 
+    Isolate* isolate() const { return isolate_; }
+
    private:
     enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
 
@@ -854,6 +856,7 @@ class BinaryOpIC: public IC {
     Kind right_kind_;
     Kind result_kind_;
     Maybe<int> fixed_right_arg_;
+    Isolate* isolate_;
   };
 
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }

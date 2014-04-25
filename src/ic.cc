@@ -2058,7 +2058,8 @@ RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
 }
 
 
-BinaryOpIC::State::State(ExtraICState extra_ic_state) {
+BinaryOpIC::State::State(Isolate* isolate, ExtraICState extra_ic_state)
+    : isolate_(isolate) {
   // We don't deserialize the SSE2 Field, since this is only used to be able
   // to include SSE2 as well as non-SSE2 versions in the snapshot. For code
   // generation we always want it to reflect the current state.
@@ -2109,7 +2110,7 @@ void BinaryOpIC::State::GenerateAheadOfTime(
   // Generated list of commonly used stubs
 #define GENERATE(op, left_kind, right_kind, result_kind, mode)  \
   do {                                                          \
-    State state(op, mode);                                      \
+    State state(isolate, op, mode);                             \
     state.left_kind_ = left_kind;                               \
     state.fixed_right_arg_.has_value = false;                   \
     state.right_kind_ = right_kind;                             \
@@ -2304,7 +2305,7 @@ void BinaryOpIC::State::GenerateAheadOfTime(
 #undef GENERATE
 #define GENERATE(op, left_kind, fixed_right_arg_value, result_kind, mode) \
   do {                                                                    \
-    State state(op, mode);                                                \
+    State state(isolate, op, mode);                                       \
     state.left_kind_ = left_kind;                                         \
     state.fixed_right_arg_.has_value = true;                              \
     state.fixed_right_arg_.value = fixed_right_arg_value;                 \
@@ -2482,7 +2483,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     Handle<AllocationSite> allocation_site,
     Handle<Object> left,
     Handle<Object> right) {
-  State state(target()->extra_ic_state());
+  State state(isolate(), target()->extra_ic_state());
 
   // Compute the actual result using the builtin for the binary operation.
   Object* builtin = isolate()->js_builtins_object()->javascript_builtin(
@@ -2499,7 +2500,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   // update the state of this very IC, so we must update the stored state.
   UpdateTarget();
   // Compute the new state.
-  State old_state(target()->extra_ic_state());
+  State old_state(isolate(), target()->extra_ic_state());
   state.Update(left, right, result);
 
   // Check if we have a string operation here.

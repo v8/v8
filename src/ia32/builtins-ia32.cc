@@ -703,7 +703,7 @@ void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
 
 void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
   if (Serializer::enabled()) {
-    PlatformFeatureScope sse2(SSE2);
+    PlatformFeatureScope sse2(masm->isolate(), SSE2);
     Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
   } else {
     Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);

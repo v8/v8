@@ -158,10 +158,11 @@ class CpuFeatureScope BASE_EMBEDDED {
 // different CPU.
 class PlatformFeatureScope BASE_EMBEDDED {
  public:
-  explicit PlatformFeatureScope(CpuFeature f);
+  PlatformFeatureScope(Isolate* isolate, CpuFeature f);
   ~PlatformFeatureScope();
 
  private:
+  Isolate* isolate_;
   uint64_t old_cross_compile_;
 };
 

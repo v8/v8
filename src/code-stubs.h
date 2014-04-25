@@ -1123,7 +1123,7 @@ class KeyedLoadFieldStub: public LoadFieldStub {
 class BinaryOpICStub : public HydrogenCodeStub {
  public:
   BinaryOpICStub(Isolate* isolate, Token::Value op, OverwriteMode mode)
-      : HydrogenCodeStub(isolate, UNINITIALIZED), state_(op, mode) {}
+      : HydrogenCodeStub(isolate, UNINITIALIZED), state_(isolate, op, mode) {}
 
   BinaryOpICStub(Isolate* isolate, const BinaryOpIC::State& state)
       : HydrogenCodeStub(isolate), state_(state) {}
