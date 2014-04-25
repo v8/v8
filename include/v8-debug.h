@@ -43,7 +43,8 @@ enum DebugEvent {
   BeforeCompile = 4,
   AfterCompile  = 5,
   ScriptCollected = 6,
-  BreakForCommand = 7
+  UncaughtExceptionInPromise = 7,
+  BreakForCommand = 8
 };
 
 

@@ -316,7 +316,7 @@ void Execution::RunMicrotasks(Isolate* isolate) {
       isolate->run_microtasks(),
       isolate->factory()->undefined_value(),
       0,
-      NULL).Assert();
+      NULL).Check();
 }
 
 
@@ -327,7 +327,7 @@ void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
       isolate->enqueue_external_microtask(),
       isolate->factory()->undefined_value(),
       1,
-      args).Assert();
+      args).Check();
 }
 
 

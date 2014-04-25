@@ -5625,7 +5625,6 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
 // Check whether debugger and is about to step into the callback that is passed
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
-  SealHandleScope shs(isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ASSERT(args.length() == 1);
   if (!isolate->IsDebuggerActive() || !isolate->debug()->StepInActive()) {
@@ -5644,7 +5643,6 @@ RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
 // Set one shot breakpoints for the callback function that is passed to a
 // built-in function such as Array.forEach to enable stepping into the callback.
 RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
-  SealHandleScope shs(isolate);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ASSERT(args.length() == 1);
   Debug* debug = isolate->debug();
@@ -5656,6 +5654,19 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
   debug->FloodWithOneShot(callback);
+#endif  // ENABLE_DEBUGGER_SUPPORT
+  return isolate->heap()->undefined_value();
+}
+
+
+// Notify the debugger if an expcetion in a promise is not caught (yet).
+RUNTIME_FUNCTION(Runtime_DebugPendingExceptionInPromise) {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  ASSERT(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(Object, exception, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 1);
+  isolate->debugger()->OnException(exception, true, promise);
 #endif  // ENABLE_DEBUGGER_SUPPORT
   return isolate->heap()->undefined_value();
 }

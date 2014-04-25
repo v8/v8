@@ -793,13 +793,17 @@ class Debugger {
   MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
       Handle<Object> break_points_hit);
   MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception, bool uncaught);
+      Handle<Object> exception,
+      bool uncaught,
+      Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, bool before);
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
+  void OnException(Handle<Object> exception,
+                   bool uncaught,
+                   Handle<Object> promise = Handle<Object>::null());
   void OnBeforeCompile(Handle<Script> script);
 
   enum AfterCompileFlags {
