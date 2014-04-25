@@ -14677,7 +14677,9 @@ int NameDictionary::FindEntry(Handle<Name> key) {
 
 
 template<typename Derived, typename Shape, typename Key>
-void HashTable<Derived, Shape, Key>::Rehash(Derived* new_table, Key key) {
+void HashTable<Derived, Shape, Key>::Rehash(
+    Handle<Derived> new_table,
+    Key key) {
   ASSERT(NumberOfElements() < new_table->Capacity());
 
   DisallowHeapAllocation no_gc;
@@ -14779,49 +14781,35 @@ void HashTable<Derived, Shape, Key>::Rehash(Key key) {
 
 
 template<typename Derived, typename Shape, typename Key>
-MaybeObject* HashTable<Derived, Shape, Key>::EnsureCapacity(
-    int n,
-    Key key,
-    PretenureFlag pretenure) {
-  int capacity = Capacity();
-  int nof = NumberOfElements() + n;
-  int nod = NumberOfDeletedElements();
-  // Return if:
-  //   50% is still free after adding n elements and
-  //   at most 50% of the free elements are deleted elements.
-  if (nod <= (capacity - nof) >> 1) {
-    int needed_free = nof >> 1;
-    if (nof + needed_free <= capacity) return this;
-  }
-
-  const int kMinCapacityForPretenure = 256;
-  bool should_pretenure = pretenure == TENURED ||
-      ((capacity > kMinCapacityForPretenure) && !GetHeap()->InNewSpace(this));
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        Allocate(GetHeap(),
-                 nof * 2,
-                 USE_DEFAULT_MINIMUM_CAPACITY,
-                 should_pretenure ? TENURED : NOT_TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
-  Rehash(Derived::cast(obj), key);
-  return Derived::cast(obj);
-}
-
-
-template<typename Derived, typename Shape, typename Key>
 Handle<Derived> HashTable<Derived, Shape, Key>::EnsureCapacity(
     Handle<Derived> table,
     int n,
     Key key,
     PretenureFlag pretenure) {
   Isolate* isolate = table->GetIsolate();
-  CALL_HEAP_FUNCTION(
+  int capacity = table->Capacity();
+  int nof = table->NumberOfElements() + n;
+  int nod = table->NumberOfDeletedElements();
+  // Return if:
+  //   50% is still free after adding n elements and
+  //   at most 50% of the free elements are deleted elements.
+  if (nod <= (capacity - nof) >> 1) {
+    int needed_free = nof >> 1;
+    if (nof + needed_free <= capacity) return table;
+  }
+
+  const int kMinCapacityForPretenure = 256;
+  bool should_pretenure = pretenure == TENURED ||
+      ((capacity > kMinCapacityForPretenure) &&
+          !isolate->heap()->InNewSpace(*table));
+  Handle<Derived> new_table = HashTable::New(
       isolate,
-      static_cast<HashTable*>(*table)->EnsureCapacity(n, key, pretenure),
-      Derived);
+      nof * 2,
+      USE_DEFAULT_MINIMUM_CAPACITY,
+      should_pretenure ? TENURED : NOT_TENURED);
+
+  table->Rehash(new_table, key);
+  return new_table;
 }
 
 
@@ -14846,13 +14834,13 @@ Handle<Derived> HashTable<Derived, Shape, Key>::Shrink(Handle<Derived> table,
   bool pretenure =
       (at_least_room_for > kMinCapacityForPretenure) &&
       !isolate->heap()->InNewSpace(*table);
-  Handle<Derived> new_table = New(
+  Handle<Derived> new_table = HashTable::New(
       isolate,
       at_least_room_for,
       USE_DEFAULT_MINIMUM_CAPACITY,
       pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(*new_table, key);
+  table->Rehash(new_table, key);
   return new_table;
 }
 
