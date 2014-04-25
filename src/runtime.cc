@@ -5072,8 +5072,11 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
 
 // KeyedGetProperty is called from KeyedLoadIC::GenerateGeneric.
 RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key_obj, 1);
 
   // Fast cases for getting named properties of the receiver JSObject
   // itself.
@@ -5086,17 +5089,18 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   //
   // Additionally, we need to make sure that we do not cache results
   // for objects that require access checks.
-  if (args[0]->IsJSObject()) {
-    if (!args[0]->IsJSGlobalProxy() &&
-        !args[0]->IsAccessCheckNeeded() &&
-        args[1]->IsName()) {
-      JSObject* receiver = JSObject::cast(args[0]);
-      Name* key = Name::cast(args[1]);
+  if (receiver_obj->IsJSObject()) {
+    if (!receiver_obj->IsJSGlobalProxy() &&
+        !receiver_obj->IsAccessCheckNeeded() &&
+        key_obj->IsName()) {
+      DisallowHeapAllocation no_allocation;
+      Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
+      Handle<Name> key = Handle<Name>::cast(key_obj);
       if (receiver->HasFastProperties()) {
         // Attempt to use lookup cache.
         Map* receiver_map = receiver->map();
         KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-        int offset = keyed_lookup_cache->Lookup(receiver_map, key);
+        int offset = keyed_lookup_cache->Lookup(receiver_map, *key);
         if (offset != -1) {
           // Doubles are not cached, so raw read the value.
           Object* value = receiver->RawFastPropertyAt(offset);
@@ -5107,17 +5111,17 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
         LookupResult result(isolate);
-        receiver->LocalLookup(key, &result);
+        receiver->LocalLookup(*key, &result);
         if (result.IsField()) {
           int offset = result.GetFieldIndex().field_index();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
           if (!result.representation().IsDouble()) {
-            keyed_lookup_cache->Update(receiver_map, key, offset);
+            keyed_lookup_cache->Update(receiver_map, *key, offset);
           }
-          HandleScope scope(isolate);
+          AllowHeapAllocation allow_allocation;
           return *JSObject::FastPropertyAt(
-              handle(receiver, isolate), result.representation(), offset);
+              receiver, result.representation(), offset);
         }
       } else {
         // Attempt dictionary lookup.
@@ -5132,17 +5136,18 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
           // If value is the hole do the general lookup.
         }
       }
-    } else if (FLAG_smi_only_arrays && args.at<Object>(1)->IsSmi()) {
+    } else if (FLAG_smi_only_arrays && key_obj->IsSmi()) {
       // JSObject without a name key. If the key is a Smi, check for a
       // definite out-of-bounds access to elements, which is a strong indicator
       // that subsequent accesses will also call the runtime. Proactively
       // transition elements to FAST_*_ELEMENTS to avoid excessive boxing of
       // doubles for those future calls in the case that the elements would
       // become FAST_DOUBLE_ELEMENTS.
-      Handle<JSObject> js_object(args.at<JSObject>(0));
+      Handle<JSObject> js_object = Handle<JSObject>::cast(receiver_obj);
       ElementsKind elements_kind = js_object->GetElementsKind();
       if (IsFastDoubleElementsKind(elements_kind)) {
-        if (args.at<Smi>(1)->value() >= js_object->elements()->length()) {
+        Handle<Smi> key = Handle<Smi>::cast(key_obj);
+        if (key->value() >= js_object->elements()->length()) {
           if (IsFastHoleyElementsKind(elements_kind)) {
             elements_kind = FAST_HOLEY_ELEMENTS;
           } else {
@@ -5156,10 +5161,9 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
                !IsFastElementsKind(elements_kind));
       }
     }
-  } else if (args[0]->IsString() && args[1]->IsSmi()) {
+  } else if (receiver_obj->IsString() && key_obj->IsSmi()) {
     // Fast case for string indexing using [] with a smi index.
-    HandleScope scope(isolate);
-    Handle<String> str = args.at<String>(0);
+    Handle<String> str = Handle<String>::cast(receiver_obj);
     int index = args.smi_at(1);
     if (index >= 0 && index < str->length()) {
       return *GetCharAt(str, index);
@@ -5167,12 +5171,10 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
   }
 
   // Fall back to GetObjectProperty.
-  HandleScope scope(isolate);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::GetObjectProperty(
-          isolate, args.at<Object>(0), args.at<Object>(1)));
+      Runtime::GetObjectProperty(isolate, receiver_obj, key_obj));
   return *result;
 }
 
