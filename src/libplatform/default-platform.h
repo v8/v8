@@ -58,7 +58,7 @@ class DefaultPlatform : public Platform {
                                       Task *task) V8_OVERRIDE;
 
  private:
-  static const int kMaxThreadPoolSize;
+  static const int kMaxThreadPoolSize = 4;
 
   Mutex lock_;
   bool initialized_;

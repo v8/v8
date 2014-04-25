@@ -605,7 +605,6 @@
         '../../src/v8utils.h',
         '../../src/variables.cc',
         '../../src/variables.h',
-        '../../src/vector.h',
         '../../src/version.cc',
         '../../src/version.h',
         '../../src/vm-state-inl.h',

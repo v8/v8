@@ -27,7 +27,6 @@
 
 #include "default-platform.h"
 
-#include <algorithm>
 #include <queue>
 
 // TODO(jochen): We should have our own version of checks.h.
@@ -38,9 +37,6 @@
 
 namespace v8 {
 namespace internal {
-
-
-const int DefaultPlatform::kMaxThreadPoolSize = 4;
 
 
 DefaultPlatform::DefaultPlatform()
@@ -64,8 +60,7 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   ASSERT(thread_pool_size >= 0);
   if (thread_pool_size < 1)
     thread_pool_size = CPU::NumberOfProcessorsOnline();
-  thread_pool_size_ =
-      std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
+  thread_pool_size_ = Max(Min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
 
 

@@ -48,7 +48,7 @@
 
 #include "platform/mutex.h"
 #include "platform/semaphore.h"
-#include "vector.h"
+#include "utils.h"
 #include "v8globals.h"
 
 #ifdef __sun
