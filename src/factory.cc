@@ -89,7 +89,7 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
 
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
-                                                      PretenureFlag pretenure) {
+                                                    PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -311,17 +311,14 @@ MUST_USE_RESULT Handle<String> Factory::NewTwoByteInternalizedString(
 }
 
 
-template<typename T>
 Handle<String> Factory::NewInternalizedStringImpl(
-    T t, int chars, uint32_t hash_field) {
+    Handle<String> string, int chars, uint32_t hash_field) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateInternalizedStringImpl(t, chars, hash_field),
+      isolate()->heap()->AllocateInternalizedStringImpl(
+          *string, chars, hash_field),
       String);
 }
-
-template
-Handle<String> Factory::NewInternalizedStringImpl(String*, int, uint32_t);
 
 
 MaybeHandle<Map> Factory::InternalizedStringMapForString(

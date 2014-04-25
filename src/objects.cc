@@ -14527,7 +14527,7 @@ class InternalizedStringKey : public HashTableKey {
     }
     // Otherwise allocate a new internalized string.
     return isolate->factory()->NewInternalizedStringImpl(
-        *string_, string_->length(), string_->hash_field());
+        string_, string_->length(), string_->hash_field());
   }
 
   static uint32_t StringHash(Object* obj) {

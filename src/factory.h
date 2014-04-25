@@ -160,9 +160,8 @@ class Factory V8_FINAL {
         Vector<const uc16> str,
         uint32_t hash_field);
 
-  template<typename T>
   MUST_USE_RESULT Handle<String> NewInternalizedStringImpl(
-      T t, int chars, uint32_t hash_field);
+      Handle<String> string, int chars, uint32_t hash_field);
 
   // Compute the matching internalized string map for a string if possible.
   // Empty handle is returned if string is in new space or not flattened.
