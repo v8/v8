@@ -2243,4 +2243,37 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
 }
 
 
+void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    if (callback == call_completed_callbacks_.at(i)) return;
+  }
+  call_completed_callbacks_.Add(callback);
+}
+
+
+void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    if (callback == call_completed_callbacks_.at(i)) {
+      call_completed_callbacks_.Remove(i);
+    }
+  }
+}
+
+
+void Isolate::FireCallCompletedCallback() {
+  bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
+  bool run_microtasks = autorun_microtasks() && microtask_pending();
+  if (!has_call_completed_callbacks && !run_microtasks) return;
+
+  if (!handle_scope_implementer()->CallDepthIsZero()) return;
+  // Fire callbacks.  Increase call depth to prevent recursive callbacks.
+  handle_scope_implementer()->IncrementCallDepth();
+  if (run_microtasks) Execution::RunMicrotasks(this);
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    call_completed_callbacks_.at(i)();
+  }
+  handle_scope_implementer()->DecrementCallDepth();
+}
+
+
 } }  // namespace v8::internal

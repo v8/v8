@@ -20643,9 +20643,9 @@ TEST(CallCompletedCallback) {
   env->Global()->Set(v8_str("recursion"),
                      recursive_runtime->GetFunction());
   // Adding the same callback a second time has no effect.
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback2);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback2);
   i::OS::Print("--- Script (1) ---\n");
   Local<Script> script = v8::Script::Compile(
       v8::String::NewFromUtf8(env->GetIsolate(), "recursion(0)"));
@@ -20654,7 +20654,7 @@ TEST(CallCompletedCallback) {
 
   i::OS::Print("\n--- Script (2) ---\n");
   callback_fired = 0;
-  v8::V8::RemoveCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->RemoveCallCompletedCallback(CallCompletedCallback1);
   script->Run();
   CHECK_EQ(2, callback_fired);
 
@@ -20683,7 +20683,7 @@ void CallCompletedCallbackException() {
 TEST(CallCompletedCallbackOneException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::V8::AddCallCompletedCallback(CallCompletedCallbackNoException);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallbackNoException);
   CompileRun("throw 'exception';");
 }
 
@@ -20691,7 +20691,7 @@ TEST(CallCompletedCallbackOneException) {
 TEST(CallCompletedCallbackTwoExceptions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::V8::AddCallCompletedCallback(CallCompletedCallbackException);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallbackException);
   CompileRun("throw 'first exception';");
 }
 

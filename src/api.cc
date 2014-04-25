@@ -106,7 +106,7 @@ namespace v8 {
 
 #define EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, value)                    \
   EXCEPTION_BAILOUT_CHECK_GENERIC(                                             \
-      isolate, value, i::V8::FireCallCompletedCallback(isolate);)
+      isolate, value, isolate->FireCallCompletedCallback();)
 
 
 #define EXCEPTION_BAILOUT_CHECK(isolate, value)                                \
@@ -6491,12 +6491,6 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 }
 
 
-void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
-  if (callback == NULL) return;
-  i::V8::AddCallCompletedCallback(callback);
-}
-
-
 void V8::RunMicrotasks(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::HandleScope scope(i_isolate);
@@ -6513,11 +6507,6 @@ void V8::EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask) {
 
 void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
   reinterpret_cast<i::Isolate*>(isolate)->set_autorun_microtasks(autorun);
-}
-
-
-void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  i::V8::RemoveCallCompletedCallback(callback);
 }
 
 
@@ -6669,14 +6658,14 @@ void Isolate::SetEventLogger(LogEventCallback that) {
 
 void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
-  // TODO(jochen): Make this per isolate.
-  i::V8::AddCallCompletedCallback(callback);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->AddCallCompletedCallback(callback);
 }
 
 
 void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  // TODO(jochen): Make this per isolate.
-  i::V8::RemoveCallCompletedCallback(callback);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->RemoveCallCompletedCallback(callback);
 }
 
 

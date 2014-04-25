@@ -53,7 +53,6 @@ namespace internal {
 
 V8_DECLARE_ONCE(init_once);
 
-List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
 
@@ -94,9 +93,6 @@ void V8::TearDown() {
   RegisteredExtension::UnregisterAll();
   Isolate::GlobalTearDown();
 
-  delete call_completed_callbacks_;
-  call_completed_callbacks_ = NULL;
-
   Sampler::TearDown();
   Serializer::TearDown();
 
@@ -111,48 +107,6 @@ void V8::TearDown() {
 void V8::SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver resolver) {
   StackFrame::SetReturnAddressLocationResolver(resolver);
-}
-
-
-void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
-  if (call_completed_callbacks_ == NULL) {  // Lazy init.
-    call_completed_callbacks_ = new List<CallCompletedCallback>();
-  }
-  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
-    if (callback == call_completed_callbacks_->at(i)) return;
-  }
-  call_completed_callbacks_->Add(callback);
-}
-
-
-void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  if (call_completed_callbacks_ == NULL) return;
-  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
-    if (callback == call_completed_callbacks_->at(i)) {
-      call_completed_callbacks_->Remove(i);
-    }
-  }
-}
-
-
-void V8::FireCallCompletedCallback(Isolate* isolate) {
-  bool has_call_completed_callbacks = call_completed_callbacks_ != NULL;
-  bool run_microtasks = isolate->autorun_microtasks() &&
-                        isolate->microtask_pending();
-  if (!has_call_completed_callbacks && !run_microtasks) return;
-
-  HandleScopeImplementer* handle_scope_implementer =
-      isolate->handle_scope_implementer();
-  if (!handle_scope_implementer->CallDepthIsZero()) return;
-  // Fire callbacks.  Increase call depth to prevent recursive callbacks.
-  handle_scope_implementer->IncrementCallDepth();
-  if (run_microtasks) Execution::RunMicrotasks(isolate);
-  if (has_call_completed_callbacks) {
-    for (int i = 0; i < call_completed_callbacks_->length(); i++) {
-      call_completed_callbacks_->at(i)();
-    }
-  }
-  handle_scope_implementer->DecrementCallDepth();
 }
 
 

@@ -1096,6 +1096,10 @@ class Isolate {
   // Get (and lazily initialize) the registry for per-isolate symbols.
   Handle<JSObject> GetSymbolRegistry();
 
+  void AddCallCompletedCallback(CallCompletedCallback callback);
+  void RemoveCallCompletedCallback(CallCompletedCallback callback);
+  void FireCallCompletedCallback();
+
  private:
   Isolate();
 
@@ -1313,6 +1317,9 @@ class Isolate {
   unsigned int stress_deopt_count_;
 
   int next_optimization_id_;
+
+  // List of callbacks when a Call completes.
+  List<CallCompletedCallback> call_completed_callbacks_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
