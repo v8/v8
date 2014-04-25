@@ -6586,16 +6586,16 @@ bool AccessorPair::prohibits_overwriting() {
 
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Object* key,
-                                               Object* value) {
+                                               Handle<Object> key,
+                                               Handle<Object> value) {
   SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
 }
 
 
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Object* key,
-                                               Object* value,
+                                               Handle<Object> key,
+                                               Handle<Object> value,
                                                PropertyDetails details) {
   ASSERT(!key->IsName() ||
          details.IsDeleted() ||
@@ -6603,8 +6603,8 @@ void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
-  FixedArray::set(index, key, mode);
-  FixedArray::set(index+1, value, mode);
+  FixedArray::set(index, *key, mode);
+  FixedArray::set(index+1, *value, mode);
   FixedArray::set(index+2, details.AsSmi());
 }
 
@@ -6705,7 +6705,7 @@ MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(
     Handle<ObjectHashTable> table, Handle<Object> key) {
-  return HashTable_::Shrink(table, *key);
+  return DerivedHashTable::Shrink(table, *key);
 }
 
 

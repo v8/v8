@@ -3822,7 +3822,7 @@ class HashTable: public FixedArray {
   }
 
   // Attempt to shrink hash table after removal of key.
-  static Handle<Derived> Shrink(Handle<Derived> table, Key key);
+  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table, Key key);
 
   // Ensure enough space for n additional elements.
   MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
@@ -3998,7 +3998,9 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       JSObject::DeleteMode mode);
 
   // Attempt to shrink the dictionary after deletion of key.
-  static inline Handle<Derived> Shrink(Handle<Derived> dictionary, Key key) {
+  MUST_USE_RESULT static inline Handle<Derived> Shrink(
+      Handle<Derived> dictionary,
+      Key key) {
     return DerivedHashTable::Shrink(dictionary, key);
   }
 
@@ -4047,11 +4049,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Sets the entry to (key, value) pair.
   inline void SetEntry(int entry,
-                       Object* key,
-                       Object* value);
+                       Handle<Object> key,
+                       Handle<Object> value);
   inline void SetEntry(int entry,
-                       Object* key,
-                       Object* value,
+                       Handle<Object> key,
+                       Handle<Object> value,
                        PropertyDetails details);
 
   MUST_USE_RESULT static Handle<Derived> Add(
@@ -4068,11 +4070,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       Handle<Object> value);
 
   // Add entry to dictionary.
-  MUST_USE_RESULT MaybeObject* AddEntry(Key key,
-                                        Object* value,
-                                        PropertyDetails details,
-                                        uint32_t hash);
-  MUST_USE_RESULT static Handle<Derived> AddEntry(
+  static void AddEntry(
       Handle<Derived> dictionary,
       Key key,
       Handle<Object> value,
@@ -4256,7 +4254,8 @@ class ObjectHashTableShape : public BaseShape<Object*> {
 class ObjectHashTable: public HashTable<ObjectHashTable,
                                         ObjectHashTableShape,
                                         Object*> {
-  typedef HashTable<ObjectHashTable, ObjectHashTableShape, Object*> HashTable_;
+  typedef HashTable<
+      ObjectHashTable, ObjectHashTableShape, Object*> DerivedHashTable;
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4264,8 +4263,9 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   }
 
   // Attempt to shrink hash table after removal of key.
-  static inline Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
-                                               Handle<Object> key);
+  MUST_USE_RESULT static inline Handle<ObjectHashTable> Shrink(
+      Handle<ObjectHashTable> table,
+      Handle<Object> key);
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.

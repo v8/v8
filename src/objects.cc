@@ -692,7 +692,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
     // Please note we have to update the property details.
     property_dictionary->DetailsAtPut(entry, details);
   } else {
-    property_dictionary->SetEntry(entry, *name, *value, details);
+    property_dictionary->SetEntry(entry, name, value, details);
   }
 }
 
@@ -1932,7 +1932,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
       int index = dict->NextEnumerationIndex();
       PropertyDetails details = PropertyDetails(attributes, NORMAL, index);
       dict->SetNextEnumerationIndex(index + 1);
-      dict->SetEntry(entry, *name, *cell, details);
+      dict->SetEntry(entry, name, cell, details);
       return;
     }
     Handle<PropertyCell> cell = isolate->factory()->NewPropertyCell(value);
@@ -14980,18 +14980,6 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     EnsureCapacity(Handle<NameDictionary>, int, Handle<Name>);
 
-template MaybeObject*
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
-
-template MaybeObject*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
-
-template MaybeObject*
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::AddEntry(
-    Handle<Name>, Object*, PropertyDetails, uint32_t);
-
 template
 int Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     NumberOfEnumElements();
@@ -15840,8 +15828,9 @@ Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
   if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
     return factory->false_value();
   }
+
   dictionary->SetEntry(
-      entry, *factory->the_hole_value(), *factory->the_hole_value());
+      entry, factory->the_hole_value(), factory->the_hole_value());
   dictionary->ElementRemoved();
   return factory->true_value();
 }
@@ -15866,7 +15855,8 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
   USE(k);
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
-  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  return dictionary;
 }
 
 
@@ -15881,52 +15871,37 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::Add(
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1, key);
 
-  return AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  AddEntry(dictionary, key, value, details, dictionary->Hash(key));
+  return dictionary;
 }
 
 
 // Add a key, value pair to the dictionary.
 template<typename Derived, typename Shape, typename Key>
-Handle<Derived> Dictionary<Derived, Shape, Key>::AddEntry(
+void Dictionary<Derived, Shape, Key>::AddEntry(
     Handle<Derived> dictionary,
     Key key,
     Handle<Object> value,
     PropertyDetails details,
     uint32_t hash) {
-  CALL_HEAP_FUNCTION(
-      dictionary->GetIsolate(),
-      dictionary->AddEntry(key, *value, details, hash),
-      Derived);
-}
-
-template<typename Derived, typename Shape, typename Key>
-MaybeObject* Dictionary<Derived, Shape, Key>::AddEntry(
-    Key key,
-    Object* value,
-    PropertyDetails details,
-    uint32_t hash) {
   // Compute the key object.
-  Object* k;
-  { MaybeObject* maybe_k = Shape::AsObject(this->GetHeap(), key);
-    if (!maybe_k->ToObject(&k)) return maybe_k;
-  }
+  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
 
-  uint32_t entry = Dictionary::FindInsertionEntry(hash);
+  uint32_t entry = dictionary->FindInsertionEntry(hash);
   // Insert element at empty or deleted entry
   if (!details.IsDeleted() &&
       details.dictionary_index() == 0 &&
       Shape::kIsEnumerable) {
     // Assign an enumeration index to the property and update
     // SetNextEnumerationIndex.
-    int index = NextEnumerationIndex();
+    int index = dictionary->NextEnumerationIndex();
     details = PropertyDetails(details.attributes(), details.type(), index);
-    SetNextEnumerationIndex(index + 1);
+    dictionary->SetNextEnumerationIndex(index + 1);
   }
-  SetEntry(entry, k, value, details);
-  ASSERT((Dictionary::KeyAt(entry)->IsNumber() ||
-          Dictionary::KeyAt(entry)->IsName()));
-  DerivedHashTable::ElementAdded();
-  return this;
+  dictionary->SetEntry(entry, k, value, details);
+  ASSERT((dictionary->KeyAt(entry)->IsNumber() ||
+          dictionary->KeyAt(entry)->IsName()));
+  dictionary->ElementAdded();
 }
 
 
@@ -16002,7 +15977,7 @@ Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
                             dictionary->DetailsAt(entry).dictionary_index());
   Handle<Object> object_key =
       SeededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
-  dictionary->SetEntry(entry, *object_key, *value, details);
+  dictionary->SetEntry(entry, object_key, value, details);
   return dictionary;
 }
 
@@ -16015,7 +15990,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
   if (entry == kNotFound) return AddNumberEntry(dictionary, key, value);
   Handle<Object> object_key =
       UnseededNumberDictionaryShape::AsHandle(dictionary->GetIsolate(), key);
-  dictionary->SetEntry(entry, *object_key, *value);
+  dictionary->SetEntry(entry, object_key, value);
   return dictionary;
 }
 
