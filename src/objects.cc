@@ -7957,8 +7957,7 @@ class CodeCacheHashTableKey : public HashTableKey {
   CodeCacheHashTableKey(Handle<Name> name, Handle<Code> code)
       : name_(name), flags_(code->flags()), code_(code) { }
 
-
-  bool IsMatch(Object* other) {
+  bool IsMatch(Object* other) V8_OVERRIDE {
     if (!other->IsFixedArray()) return false;
     FixedArray* pair = FixedArray::cast(other);
     Name* name = Name::cast(pair->get(0));
@@ -7973,32 +7972,21 @@ class CodeCacheHashTableKey : public HashTableKey {
     return name->Hash() ^ flags;
   }
 
-  uint32_t Hash() { return NameFlagsHashHelper(*name_, flags_); }
+  uint32_t Hash() V8_OVERRIDE { return NameFlagsHashHelper(*name_, flags_); }
 
-  uint32_t HashForObject(Object* obj) {
+  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
     FixedArray* pair = FixedArray::cast(obj);
     Name* name = Name::cast(pair->get(0));
     Code* code = Code::cast(pair->get(1));
     return NameFlagsHashHelper(name, code->flags());
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     Handle<Code> code = code_.ToHandleChecked();
-    Object* obj;
-    { MaybeObject* maybe_obj = heap->AllocateFixedArray(2);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    FixedArray* pair = FixedArray::cast(obj);
+    Handle<FixedArray> pair = isolate->factory()->NewFixedArray(2);
     pair->set(0, *name_);
     pair->set(1, *code);
     return pair;
-  }
-
-  Handle<FixedArray> AsHandle() {
-    Isolate* isolate = name_->GetIsolate();
-    CALL_HEAP_FUNCTION(isolate,
-                       AsObject(isolate->heap()),
-                       FixedArray);
   }
 
  private:
@@ -8025,7 +8013,7 @@ Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
   Handle<CodeCacheHashTable> new_cache = EnsureCapacity(cache, 1, &key);
 
   int entry = new_cache->FindInsertionEntry(key.Hash());
-  Handle<Object> k = key.AsHandle();
+  Handle<Object> k = key.AsHandle(cache->GetIsolate());
 
   new_cache->set(EntryToIndex(entry), *k);
   new_cache->set(EntryToIndex(entry) + 1, *code);
@@ -8093,13 +8081,11 @@ Handle<Object> PolymorphicCodeCache::Lookup(MapHandleList* maps,
 class PolymorphicCodeCacheHashTableKey : public HashTableKey {
  public:
   // Callers must ensure that |maps| outlives the newly constructed object.
-  PolymorphicCodeCacheHashTableKey(
-      Isolate* isolate, MapHandleList* maps, int code_flags)
-      : isolate_(isolate),
-        maps_(maps),
+  PolymorphicCodeCacheHashTableKey(MapHandleList* maps, int code_flags)
+      : maps_(maps),
         code_flags_(code_flags) {}
 
-  bool IsMatch(Object* other) {
+  bool IsMatch(Object* other) V8_OVERRIDE {
     MapHandleList other_maps(kDefaultListAllocationSize);
     int other_flags;
     FromObject(other, &other_flags, &other_maps);
@@ -8134,38 +8120,28 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return hash;
   }
 
-  uint32_t Hash() {
+  uint32_t Hash() V8_OVERRIDE {
     return MapsHashHelper(maps_, code_flags_);
   }
 
-  uint32_t HashForObject(Object* obj) {
+  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
     MapHandleList other_maps(kDefaultListAllocationSize);
     int other_flags;
     FromObject(obj, &other_flags, &other_maps);
     return MapsHashHelper(&other_maps, other_flags);
   }
 
-  MUST_USE_RESULT MaybeObject* AsObject(Heap* heap) {
-    Object* obj;
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     // The maps in |maps_| must be copied to a newly allocated FixedArray,
     // both because the referenced MapList is short-lived, and because C++
     // objects can't be stored in the heap anyway.
-    { MaybeObject* maybe_obj =
-          heap->AllocateUninitializedFixedArray(maps_->length() + 1);
-      if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    }
-    FixedArray* list = FixedArray::cast(obj);
+    Handle<FixedArray> list =
+        isolate->factory()->NewUninitializedFixedArray(maps_->length() + 1);
     list->set(0, Smi::FromInt(code_flags_));
     for (int i = 0; i < maps_->length(); ++i) {
       list->set(i + 1, *maps_->at(i));
     }
     return list;
-  }
-
-  Handle<FixedArray> AsHandle() {
-    CALL_HEAP_FUNCTION(isolate_,
-                       AsObject(isolate_->heap()),
-                       FixedArray);
   }
 
  private:
@@ -8181,7 +8157,6 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return maps;
   }
 
-  Isolate* isolate_;
   MapHandleList* maps_;  // weak.
   int code_flags_;
   static const int kDefaultListAllocationSize = kMaxKeyedPolymorphism + 1;
@@ -8191,7 +8166,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
 Object* PolymorphicCodeCacheHashTable::Lookup(MapHandleList* maps,
                                               int code_kind) {
   DisallowHeapAllocation no_alloc;
-  PolymorphicCodeCacheHashTableKey key(GetIsolate(), maps, code_kind);
+  PolymorphicCodeCacheHashTableKey key(maps, code_kind);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return GetHeap()->undefined_value();
   return get(EntryToIndex(entry) + 1);
@@ -8203,13 +8178,12 @@ Handle<PolymorphicCodeCacheHashTable> PolymorphicCodeCacheHashTable::Put(
       MapHandleList* maps,
       int code_kind,
       Handle<Code> code) {
-  PolymorphicCodeCacheHashTableKey key(
-      hash_table->GetIsolate(), maps, code_kind);
+  PolymorphicCodeCacheHashTableKey key(maps, code_kind);
   Handle<PolymorphicCodeCacheHashTable> cache =
       EnsureCapacity(hash_table, 1, &key);
   int entry = cache->FindInsertionEntry(key.Hash());
 
-  Handle<FixedArray> obj = key.AsHandle();
+  Handle<Object> obj = key.AsHandle(hash_table->GetIsolate());
   cache->set(EntryToIndex(entry), *obj);
   cache->set(EntryToIndex(entry) + 1, *code);
   cache->ElementAdded();
@@ -14351,7 +14325,7 @@ class StringSharedKey : public HashTableKey {
         strict_mode_(strict_mode),
         scope_position_(scope_position) { }
 
-  bool IsMatch(Object* other) {
+  bool IsMatch(Object* other) V8_OVERRIDE {
     DisallowHeapAllocation no_allocation;
     if (!other->IsFixedArray()) return false;
     FixedArray* other_array = FixedArray::cast(other);
@@ -14386,12 +14360,12 @@ class StringSharedKey : public HashTableKey {
     return hash;
   }
 
-  uint32_t Hash() {
+  uint32_t Hash() V8_OVERRIDE {
     return StringSharedHashHelper(*source_, *shared_, strict_mode_,
                                   scope_position_);
   }
 
-  uint32_t HashForObject(Object* obj) {
+  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
     DisallowHeapAllocation no_allocation;
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
@@ -14405,14 +14379,8 @@ class StringSharedKey : public HashTableKey {
   }
 
 
-  Object* AsObject(Heap* heap) {
-    UNREACHABLE();
-    return NULL;
-  }
-
-
-  Handle<Object> AsObject(Factory* factory) {
-    Handle<FixedArray> array = factory->NewFixedArray(4);
+  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+    Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
     array->set(0, *shared_);
     array->set(1, *source_);
     array->set(2, Smi::FromInt(strict_mode_));
@@ -14439,22 +14407,22 @@ class RegExpKey : public HashTableKey {
   // stored value is stored where the key should be.  IsMatch then
   // compares the search key to the found object, rather than comparing
   // a key to a key.
-  bool IsMatch(Object* obj) {
+  bool IsMatch(Object* obj) V8_OVERRIDE {
     FixedArray* val = FixedArray::cast(obj);
     return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t Hash() { return RegExpHash(*string_, flags_); }
+  uint32_t Hash() V8_OVERRIDE { return RegExpHash(*string_, flags_); }
 
-  Object* AsObject(Heap* heap) {
+  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
-    return NULL;
+    return MaybeHandle<Object>().ToHandleChecked();
   }
 
-  uint32_t HashForObject(Object* obj) {
+  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
     FixedArray* val = FixedArray::cast(obj);
     return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
                       Smi::cast(val->get(JSRegExp::kFlagsIndex)));
@@ -14469,15 +14437,15 @@ class RegExpKey : public HashTableKey {
 };
 
 
-MaybeObject* OneByteStringKey::AsObject(Heap* heap) {
+Handle<Object> OneByteStringKey::AsHandle(Isolate* isolate) {
   if (hash_field_ == 0) Hash();
-  return heap->AllocateOneByteInternalizedString(string_, hash_field_);
+  return isolate->factory()->NewOneByteInternalizedString(string_, hash_field_);
 }
 
 
-MaybeObject* TwoByteStringKey::AsObject(Heap* heap) {
+Handle<Object> TwoByteStringKey::AsHandle(Isolate* isolate) {
   if (hash_field_ == 0) Hash();
-  return heap->AllocateTwoByteInternalizedString(string_, hash_field_);
+  return isolate->factory()->NewTwoByteInternalizedString(string_, hash_field_);
 }
 
 
@@ -14498,19 +14466,18 @@ const uint16_t* SubStringKey<uint16_t>::GetChars() {
 
 
 template<>
-MaybeObject* SubStringKey<uint8_t>::AsObject(Heap* heap) {
+Handle<Object> SubStringKey<uint8_t>::AsHandle(Isolate* isolate) {
   if (hash_field_ == 0) Hash();
   Vector<const uint8_t> chars(GetChars() + from_, length_);
-  return heap->AllocateOneByteInternalizedString(chars, hash_field_);
+  return isolate->factory()->NewOneByteInternalizedString(chars, hash_field_);
 }
 
 
 template<>
-MaybeObject* SubStringKey<uint16_t>::AsObject(
-    Heap* heap) {
+Handle<Object> SubStringKey<uint16_t>::AsHandle(Isolate* isolate) {
   if (hash_field_ == 0) Hash();
   Vector<const uint16_t> chars(GetChars() + from_, length_);
-  return heap->AllocateTwoByteInternalizedString(chars, hash_field_);
+  return isolate->factory()->NewTwoByteInternalizedString(chars, hash_field_);
 }
 
 
@@ -14548,16 +14515,18 @@ class InternalizedStringKey : public HashTableKey {
     return String::cast(other)->Hash();
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     // Internalize the string if possible.
-    Map* map = heap->InternalizedStringMapForString(*string_);
-    if (map != NULL) {
-      string_->set_map_no_write_barrier(map);
+    MaybeHandle<Map> maybe_map =
+        isolate->factory()->InternalizedStringMapForString(string_);
+    Handle<Map> map;
+    if (maybe_map.ToHandle(&map)) {
+      string_->set_map_no_write_barrier(*map);
       ASSERT(string_->IsInternalizedString());
-      return *string_;
+      return string_;
     }
     // Otherwise allocate a new internalized string.
-    return heap->AllocateInternalizedStringImpl(
+    return isolate->factory()->NewInternalizedStringImpl(
         *string_, string_->length(), string_->hash_field());
   }
 
@@ -15483,7 +15452,7 @@ class TwoCharHashTableKey : public HashTableKey {
 #endif
   }
 
-  bool IsMatch(Object* o) {
+  bool IsMatch(Object* o) V8_OVERRIDE {
     if (!o->IsString()) return false;
     String* other = String::cast(o);
     if (other->length() != 2) return false;
@@ -15491,17 +15460,17 @@ class TwoCharHashTableKey : public HashTableKey {
     return other->Get(1) == c2_;
   }
 
-  uint32_t Hash() { return hash_; }
-  uint32_t HashForObject(Object* key) {
+  uint32_t Hash() V8_OVERRIDE { return hash_; }
+  uint32_t HashForObject(Object* key) V8_OVERRIDE {
     if (!key->IsString()) return 0;
     return String::cast(key)->Hash();
   }
 
-  Object* AsObject(Heap* heap) {
+  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     // The TwoCharHashTableKey is only used for looking in the string
     // table, not for adding to it.
     UNREACHABLE();
-    return NULL;
+    return MaybeHandle<Object>().ToHandleChecked();
   }
 
  private:
@@ -15623,7 +15592,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
   StringSharedKey key(src, shared, FLAG_use_strict ? STRICT : SLOPPY,
                       RelocInfo::kNoPosition);
   cache = EnsureCapacity(cache, 1, &key);
-  Handle<Object> k = key.AsObject(isolate->factory());
+  Handle<Object> k = key.AsHandle(isolate);
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
@@ -15640,7 +15609,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, value->strict_mode(), scope_position);
   cache = EnsureCapacity(cache, 1, &key);
-  Handle<Object> k = key.AsObject(isolate->factory());
+  Handle<Object> k = key.AsHandle(isolate);
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
@@ -15685,7 +15654,7 @@ class StringsKey : public HashTableKey {
  public:
   explicit StringsKey(Handle<FixedArray> strings) : strings_(strings) { }
 
-  bool IsMatch(Object* strings) {
+  bool IsMatch(Object* strings) V8_OVERRIDE {
     FixedArray* o = FixedArray::cast(strings);
     int len = strings_->length();
     if (o->length() != len) return false;
@@ -15695,9 +15664,9 @@ class StringsKey : public HashTableKey {
     return true;
   }
 
-  uint32_t Hash() { return HashForObject(*strings_); }
+  uint32_t Hash() V8_OVERRIDE { return HashForObject(*strings_); }
 
-  uint32_t HashForObject(Object* obj) {
+  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
     FixedArray* strings = FixedArray::cast(obj);
     int len = strings->length();
     uint32_t hash = 0;
@@ -15707,7 +15676,7 @@ class StringsKey : public HashTableKey {
     return hash;
   }
 
-  Object* AsObject(Heap* heap) { return *strings_; }
+  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE { return strings_; }
 
  private:
   Handle<FixedArray> strings_;

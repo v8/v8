@@ -1003,10 +1003,6 @@ class Heap {
   bool InternalizeStringIfExists(String* str, String** result);
   bool InternalizeTwoCharsStringIfExists(String* str, String** result);
 
-  // Compute the matching internalized string map for a string if possible.
-  // NULL is returned if string is in new space or not flattened.
-  Map* InternalizedStringMapForString(String* str);
-
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
 

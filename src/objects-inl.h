@@ -470,11 +470,6 @@ uc32 FlatStringReader::Get(int index) {
 }
 
 
-Handle<Object> HashTableKey::AsHandle(Isolate* isolate) {
-  CALL_HEAP_FUNCTION(isolate, AsObject(isolate->heap()), Object);
-}
-
-
 Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
   return key->AsHandle(isolate);
 }
@@ -532,7 +527,7 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 };
 
 
@@ -563,7 +558,7 @@ class SubStringKey : public HashTableKey {
   }
 
   virtual bool IsMatch(Object* string) V8_OVERRIDE;
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 
  private:
   const Char* GetChars();
@@ -592,7 +587,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 };
 
 
@@ -618,11 +613,10 @@ class Utf8StringKey : public HashTableKey {
     return String::cast(other)->Hash();
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     if (hash_field_ == 0) Hash();
-    return heap->AllocateInternalizedStringFromUtf8(string_,
-                                                    chars_,
-                                                    hash_field_);
+    return isolate->factory()->NewInternalizedStringFromUtf8(
+        string_, chars_, hash_field_);
   }
 
   Vector<const char> string_;

@@ -3634,7 +3634,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(Key key, Object* object);
 //     // Convert key to an object.
-//     static inline Object* AsObject(Heap* heap, Key key);
+//     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -3852,10 +3852,7 @@ class HashTableKey {
   // Returns the hash value for object.
   virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
-  // If allocations fails a failure object is returned.
-  MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
-  // TODO(ishell): This should eventually replace AsObject().
-  inline Handle<Object> AsHandle(Isolate* isolate);
+  MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate) = 0;
   // Required.
   virtual ~HashTableKey() {}
 };

@@ -145,6 +145,30 @@ class Factory V8_FINAL {
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates an internalized string in old space based on the character
+  // stream.
+  MUST_USE_RESULT Handle<String> NewInternalizedStringFromUtf8(
+      Vector<const char> str,
+      int chars,
+      uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewOneByteInternalizedString(
+        Vector<const uint8_t> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewTwoByteInternalizedString(
+        Vector<const uc16> str,
+        uint32_t hash_field);
+
+  template<typename T>
+  MUST_USE_RESULT Handle<String> NewInternalizedStringImpl(
+      T t, int chars, uint32_t hash_field);
+
+  // Compute the matching internalized string map for a string if possible.
+  // Empty handle is returned if string is in new space or not flattened.
+  MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
+      Handle<String> string);
+
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.

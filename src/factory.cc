@@ -280,6 +280,75 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
+Handle<String> Factory::NewInternalizedStringFromUtf8(Vector<const char> str,
+                                                      int chars,
+                                                      uint32_t hash_field) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateInternalizedStringFromUtf8(
+          str, chars, hash_field),
+      String);
+}
+
+
+MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedString(
+      Vector<const uint8_t> str,
+      uint32_t hash_field) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateOneByteInternalizedString(str, hash_field),
+      String);
+}
+
+
+MUST_USE_RESULT Handle<String> Factory::NewTwoByteInternalizedString(
+      Vector<const uc16> str,
+      uint32_t hash_field) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateTwoByteInternalizedString(str, hash_field),
+      String);
+}
+
+
+template<typename T>
+Handle<String> Factory::NewInternalizedStringImpl(
+    T t, int chars, uint32_t hash_field) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateInternalizedStringImpl(t, chars, hash_field),
+      String);
+}
+
+template
+Handle<String> Factory::NewInternalizedStringImpl(String*, int, uint32_t);
+
+
+MaybeHandle<Map> Factory::InternalizedStringMapForString(
+    Handle<String> string) {
+  // If the string is in new space it cannot be used as internalized.
+  if (isolate()->heap()->InNewSpace(*string)) return MaybeHandle<Map>();
+
+  // Find the corresponding internalized string map for strings.
+  switch (string->map()->instance_type()) {
+    case STRING_TYPE: return internalized_string_map();
+    case ASCII_STRING_TYPE: return ascii_internalized_string_map();
+    case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
+    case EXTERNAL_ASCII_STRING_TYPE:
+      return external_ascii_internalized_string_map();
+    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return external_internalized_string_with_one_byte_data_map();
+    case SHORT_EXTERNAL_STRING_TYPE:
+      return short_external_internalized_string_map();
+    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
+      return short_external_ascii_internalized_string_map();
+    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
+      return short_external_internalized_string_with_one_byte_data_map();
+    default: return MaybeHandle<Map>();  // No match found.
+  }
+}
+
+
 MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
     int length, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(

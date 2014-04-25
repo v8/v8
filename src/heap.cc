@@ -3997,30 +3997,6 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Map* Heap::InternalizedStringMapForString(String* string) {
-  // If the string is in new space it cannot be used as internalized.
-  if (InNewSpace(string)) return NULL;
-
-  // Find the corresponding internalized string map for strings.
-  switch (string->map()->instance_type()) {
-    case STRING_TYPE: return internalized_string_map();
-    case ASCII_STRING_TYPE: return ascii_internalized_string_map();
-    case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
-    case EXTERNAL_ASCII_STRING_TYPE:
-      return external_ascii_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return external_internalized_string_with_one_byte_data_map();
-    case SHORT_EXTERNAL_STRING_TYPE:
-      return short_external_internalized_string_map();
-    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
-      return short_external_ascii_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return short_external_internalized_string_with_one_byte_data_map();
-    default: return NULL;  // No match found.
-  }
-}
-
-
 static inline void WriteOneByteData(Vector<const char> vector,
                                     uint8_t* chars,
                                     int len) {
