@@ -359,9 +359,12 @@ CpuProfile::CpuProfile(const char* title, bool record_samples)
 }
 
 
-void CpuProfile::AddPath(const Vector<CodeEntry*>& path) {
+void CpuProfile::AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path) {
   ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
-  if (record_samples_) samples_.Add(top_frame_node);
+  if (record_samples_) {
+    timestamps_.Add(timestamp);
+    samples_.Add(top_frame_node);
+  }
 }
 
 
@@ -545,13 +548,13 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
 
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    const Vector<CodeEntry*>& path) {
+    TimeTicks timestamp, const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
   current_profiles_semaphore_.Wait();
   for (int i = 0; i < current_profiles_.length(); ++i) {
-    current_profiles_[i]->AddPath(path);
+    current_profiles_[i]->AddPath(timestamp, path);
   }
   current_profiles_semaphore_.Signal();
 }
@@ -674,7 +677,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     }
   }
 
-  profiles_->AddPathToCurrentProfiles(entries);
+  profiles_->AddPathToCurrentProfiles(sample.timestamp, entries);
 }
 
 

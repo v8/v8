@@ -7067,6 +7067,12 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 }
 
 
+int64_t CpuProfile::GetSampleTimestamp(int index) const {
+  const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  return (profile->sample_timestamp(index) - i::TimeTicks()).InMicroseconds();
+}
+
+
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return (profile->start_time() - i::TimeTicks()).InMicroseconds();

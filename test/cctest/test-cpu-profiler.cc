@@ -401,12 +401,12 @@ TEST(ProfileStartEndTime) {
 static v8::CpuProfile* RunProfiler(
     v8::Handle<v8::Context> env, v8::Handle<v8::Function> function,
     v8::Handle<v8::Value> argv[], int argc,
-    unsigned min_js_samples) {
+    unsigned min_js_samples, bool collect_samples = false) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   v8::Local<v8::String> profile_name =
       v8::String::NewFromUtf8(env->GetIsolate(), "my_profile");
 
-  cpu_profiler->StartProfiling(profile_name);
+  cpu_profiler->StartProfiling(profile_name, collect_samples);
 
   i::Sampler* sampler =
       reinterpret_cast<i::Isolate*>(env->GetIsolate())->logger()->sampler();
@@ -586,6 +586,37 @@ TEST(CollectCpuProfile) {
   profile->Delete();
 }
 
+
+TEST(CollectCpuProfileSamples) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
+                                              cpu_profiler_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+
+  int32_t profiling_interval_ms = 200;
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
+  };
+  v8::CpuProfile* profile =
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200, true);
+
+  CHECK_LE(200, profile->GetSamplesCount());
+  uint64_t end_time = profile->GetEndTime();
+  uint64_t current_time = profile->GetStartTime();
+  CHECK_LE(current_time, end_time);
+  for (int i = 0; i < profile->GetSamplesCount(); i++) {
+    CHECK_NE(NULL, profile->GetSample(i));
+    uint64_t timestamp = profile->GetSampleTimestamp(i);
+    CHECK_LE(current_time, timestamp);
+    CHECK_LE(timestamp, end_time);
+    current_time = timestamp;
+  }
+
+  profile->Delete();
+}
 
 
 static const char* cpu_profiler_test_source2 = "function loop() {}\n"

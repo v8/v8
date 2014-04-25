@@ -199,7 +199,7 @@ class CpuProfile {
   CpuProfile(const char* title, bool record_samples);
 
   // Add pc -> ... -> main() call path to the profile.
-  void AddPath(const Vector<CodeEntry*>& path);
+  void AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path);
   void CalculateTotalTicksAndSamplingRate();
 
   const char* title() const { return title_; }
@@ -207,6 +207,7 @@ class CpuProfile {
 
   int samples_count() const { return samples_.length(); }
   ProfileNode* sample(int index) const { return samples_.at(index); }
+  TimeTicks sample_timestamp(int index) const { return timestamps_.at(index); }
 
   TimeTicks start_time() const { return start_time_; }
   TimeTicks end_time() const { return end_time_; }
@@ -221,6 +222,7 @@ class CpuProfile {
   TimeTicks start_time_;
   TimeTicks end_time_;
   List<ProfileNode*> samples_;
+  List<TimeTicks> timestamps_;
   ProfileTree top_down_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
@@ -305,7 +307,8 @@ class CpuProfilesCollection {
       int column_number = v8::CpuProfileNode::kNoColumnNumberInfo);
 
   // Called from profile generator thread.
-  void AddPathToCurrentProfiles(const Vector<CodeEntry*>& path);
+  void AddPathToCurrentProfiles(
+      TimeTicks timestamp, const Vector<CodeEntry*>& path);
 
   // Limits the number of profiles that can be simultaneously collected.
   static const int kMaxSimultaneousProfiles = 100;

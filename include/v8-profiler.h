@@ -106,28 +106,35 @@ class V8_EXPORT CpuProfile {
   const CpuProfileNode* GetTopDownRoot() const;
 
   /**
-    * Returns number of samples recorded. The samples are not recorded unless
-    * |record_samples| parameter of CpuProfiler::StartCpuProfiling is true.
-    */
+   * Returns number of samples recorded. The samples are not recorded unless
+   * |record_samples| parameter of CpuProfiler::StartCpuProfiling is true.
+   */
   int GetSamplesCount() const;
 
   /**
-    * Returns profile node corresponding to the top frame the sample at
-    * the given index.
-    */
+   * Returns profile node corresponding to the top frame the sample at
+   * the given index.
+   */
   const CpuProfileNode* GetSample(int index) const;
 
   /**
-    * Returns time when the profile recording was started (in microseconds)
-    * since some unspecified starting point.
-    */
+   * Returns the timestamp of the sample. The timestamp is the number of
+   * microseconds since some unspecified starting point.
+   * The point is equal to the starting point used by GetStartTime.
+   */
+  int64_t GetSampleTimestamp(int index) const;
+
+  /**
+   * Returns time when the profile recording was started (in microseconds)
+   * since some unspecified starting point.
+   */
   int64_t GetStartTime() const;
 
   /**
-    * Returns time when the profile recording was stopped (in microseconds)
-    * since some unspecified starting point. The point is however equal to the
-    * starting point used by GetStartTime.
-    */
+   * Returns time when the profile recording was stopped (in microseconds)
+   * since some unspecified starting point.
+   * The point is equal to the starting point used by GetStartTime.
+   */
   int64_t GetEndTime() const;
 
   /**

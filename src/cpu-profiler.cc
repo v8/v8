@@ -432,7 +432,6 @@ void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
   if (profiles_->StartProfiling(title, record_samples)) {
     StartProcessorIfNotStarted();
   }
-  processor_->AddCurrentStack(isolate_);
 }
 
 
@@ -463,6 +462,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     // Enable stack sampling.
     sampler->SetHasProcessingThread(true);
     sampler->IncreaseProfilingDepth();
+    processor_->AddCurrentStack(isolate_);
     processor_->StartSynchronously();
   }
 }
