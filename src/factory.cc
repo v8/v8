@@ -1737,7 +1737,7 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
   map->set_prototype(object->map()->prototype());
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
 
   Heap* heap = isolate()->heap();
@@ -1788,7 +1788,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   ASSERT(map->instance_type() == object->map()->instance_type());
 
   // Allocate the backing storage for the properties.
-  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  int prop_size = map->InitialPropertiesLength();
   Handle<FixedArray> properties = NewFixedArray(prop_size, TENURED);
 
   // In order to keep heap in consistent state there must be no allocations
