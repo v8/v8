@@ -1196,8 +1196,8 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type_ != INTEGER) {
     // Detect integer exponents stored as doubles and handle those in the
     // integer fast-path.
-    __ TryConvertDoubleToInt64(exponent_integer, exponent_double,
-                               scratch0_double, &exponent_is_integer);
+    __ TryRepresentDoubleAsInt64(exponent_integer, exponent_double,
+                                 scratch0_double, &exponent_is_integer);
 
     if (exponent_type_ == ON_STACK) {
       FPRegister  half_double = d3;

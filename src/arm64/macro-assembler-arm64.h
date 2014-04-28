@@ -945,34 +945,34 @@ class MacroAssembler : public Assembler {
                           DoubleRegister input,
                           DoubleRegister dbl_scratch);
 
-  // Try to convert a double to a signed 32-bit int.
+  // Try to represent a double as a signed 32-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are converted to 0 and handled as a success.
+  // are represented as 0 and handled as a success.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt32(Register as_int,
-                               FPRegister value,
-                               FPRegister scratch_d,
-                               Label* on_successful_conversion = NULL,
-                               Label* on_failed_conversion = NULL) {
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt32(Register as_int,
+                                 FPRegister value,
+                                 FPRegister scratch_d,
+                                 Label* on_successful_conversion = NULL,
+                                 Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is32Bits());
-    TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
-                          on_failed_conversion);
+    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
+                            on_failed_conversion);
   }
 
-  // Try to convert a double to a signed 64-bit int.
+  // Try to represent a double as a signed 64-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
-  // are converted to 0 and handled as a success.
+  // are represented as 0 and handled as a success.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt64(Register as_int,
-                               FPRegister value,
-                               FPRegister scratch_d,
-                               Label* on_successful_conversion = NULL,
-                               Label* on_failed_conversion = NULL) {
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt64(Register as_int,
+                                 FPRegister value,
+                                 FPRegister scratch_d,
+                                 Label* on_successful_conversion = NULL,
+                                 Label* on_failed_conversion = NULL) {
     ASSERT(as_int.Is64Bits());
-    TryConvertDoubleToInt(as_int, value, scratch_d, on_successful_conversion,
-                          on_failed_conversion);
+    TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
+                            on_failed_conversion);
   }
 
   // ---- Object Utilities ----
@@ -2073,7 +2073,7 @@ class MacroAssembler : public Assembler {
                   Condition cond,  // eq for new space, ne otherwise.
                   Label* branch);
 
-  // Try to convert a double to an int so that integer fast-paths may be
+  // Try to represent a double as an int so that integer fast-paths may be
   // used. Not every valid integer value is guaranteed to be caught.
   // It supports both 32-bit and 64-bit integers depending whether 'as_int'
   // is a W or X register.
@@ -2081,12 +2081,12 @@ class MacroAssembler : public Assembler {
   // This does not distinguish between +0 and -0, so if this distinction is
   // important it must be checked separately.
   //
-  // On output the Z flag is set if the conversion was successful.
-  void TryConvertDoubleToInt(Register as_int,
-                             FPRegister value,
-                             FPRegister scratch_d,
-                             Label* on_successful_conversion = NULL,
-                             Label* on_failed_conversion = NULL);
+  // On output the Z flag is set if the operation was successful.
+  void TryRepresentDoubleAsInt(Register as_int,
+                               FPRegister value,
+                               FPRegister scratch_d,
+                               Label* on_successful_conversion = NULL,
+                               Label* on_failed_conversion = NULL);
 
   bool generating_stub_;
 #if DEBUG

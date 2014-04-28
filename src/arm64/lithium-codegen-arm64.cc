@@ -2757,7 +2757,7 @@ void LCodeGen::DoDoubleToIntOrSmi(LDoubleToIntOrSmi* instr) {
     DeoptimizeIfMinusZero(input, instr->environment());
   }
 
-  __ TryConvertDoubleToInt32(result, input, double_scratch());
+  __ TryRepresentDoubleAsInt32(result, input, double_scratch());
   DeoptimizeIf(ne, instr->environment());
 
   if (instr->tag_result()) {
@@ -5508,7 +5508,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     // A heap number: load value and convert to int32 using non-truncating
     // function. If the result is out of range, branch to deoptimize.
     __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
-    __ TryConvertDoubleToInt32(output, dbl_scratch1, dbl_scratch2);
+    __ TryRepresentDoubleAsInt32(output, dbl_scratch1, dbl_scratch2);
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {

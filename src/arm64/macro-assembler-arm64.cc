@@ -2284,11 +2284,11 @@ void MacroAssembler::LookupNumberStringCache(Register object,
 }
 
 
-void MacroAssembler::TryConvertDoubleToInt(Register as_int,
-                                           FPRegister value,
-                                           FPRegister scratch_d,
-                                           Label* on_successful_conversion,
-                                           Label* on_failed_conversion) {
+void MacroAssembler::TryRepresentDoubleAsInt(Register as_int,
+                                             FPRegister value,
+                                             FPRegister scratch_d,
+                                             Label* on_successful_conversion,
+                                             Label* on_failed_conversion) {
   // Convert to an int and back again, then compare with the original value.
   Fcvtzs(as_int, value);
   Scvtf(scratch_d, as_int);
