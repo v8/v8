@@ -5114,9 +5114,9 @@ static bool CanInlinePropertyAccess(Type* type) {
 static bool IsFastLiteral(Handle<JSObject> boilerplate,
                           int max_depth,
                           int* max_properties) {
-  if (boilerplate->map()->is_deprecated()) {
-    Handle<Object> result = JSObject::TryMigrateInstance(boilerplate);
-    if (result.is_null()) return false;
+  if (boilerplate->map()->is_deprecated() &&
+      !JSObject::TryMigrateInstance(boilerplate)) {
+    return false;
   }
 
   ASSERT(max_depth >= 0 && *max_properties >= 0);
