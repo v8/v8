@@ -7659,3 +7659,34 @@ TEST(PrecompiledFunction) {
   v8::Debug::SetDebugEventListener2(NULL);
   CheckDebuggerUnloaded();
 }
+
+
+static void DebugBreakStackTraceListener(
+    const v8::Debug::EventDetails& event_details) {
+  v8::StackTrace::CurrentStackTrace(CcTest::isolate(), 10);
+}
+
+
+static void AddDebugBreak(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Debug::DebugBreak(args.GetIsolate());
+}
+
+
+TEST(DebugBreakStackTrace) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Debug::SetDebugEventListener2(DebugBreakStackTraceListener);
+  v8::Handle<v8::FunctionTemplate> add_debug_break_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), AddDebugBreak);
+  v8::Handle<v8::Function> add_debug_break =
+      add_debug_break_template->GetFunction();
+  env->Global()->Set(v8_str("add_debug_break"), add_debug_break);
+
+  CompileRun("(function loop() {"
+             "  for (var j = 0; j < 1000; j++) {"
+             "    for (var i = 0; i < 1000; i++) {"
+             "      if (i == 999) add_debug_break();"
+             "    }"
+             "  }"
+             "})()");
+}
