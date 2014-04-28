@@ -97,7 +97,6 @@ namespace internal {
   F(SetNativeFlag, 1, 1) \
   F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
-  F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(DebugPendingExceptionInPromise, 2, 1) \
   F(FlattenString, 1, 1) \
@@ -707,7 +706,9 @@ namespace internal {
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
   F(MathSqrt, 1, 1)                                                          \
-  F(MathLog, 1, 1)
+  F(MathLog, 1, 1)                                                           \
+  /* Debugger */                                                             \
+  F(DebugCallbackSupportsStepping, 1, 1)
 
 
 //---------------------------------------------------------------------------

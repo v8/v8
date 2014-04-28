@@ -11055,6 +11055,14 @@ void HOptimizedGraphBuilder::GenerateDebugBreakInOptimizedCode(
 }
 
 
+void HOptimizedGraphBuilder::GenerateDebugCallbackSupportsStepping(
+    CallRuntime* call) {
+  ASSERT(call->arguments()->length() == 1);
+  // Debugging is not supported in optimized code.
+  return ast_context()->ReturnValue(graph()->GetConstantFalse());
+}
+
+
 #undef CHECK_BAILOUT
 #undef CHECK_ALIVE
 
