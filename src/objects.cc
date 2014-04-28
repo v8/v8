@@ -2779,31 +2779,64 @@ MaybeHandle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
 
 
 // static
-MaybeHandle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> map) {
-  if (!map->is_deprecated()) return map;
-
+MaybeHandle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> old_map) {
   DisallowHeapAllocation no_allocation;
-  DescriptorArray* old_descriptors = map->instance_descriptors();
 
-  int descriptors = map->NumberOfOwnDescriptors();
-  Map* root_map = map->FindRootMap();
+  if (!old_map->is_deprecated()) return old_map;
 
   // Check the state of the root map.
-  if (!map->EquivalentToForTransition(root_map)) return MaybeHandle<Map>();
-  int verbatim = root_map->NumberOfOwnDescriptors();
+  Map* root_map = old_map->FindRootMap();
+  if (!old_map->EquivalentToForTransition(root_map)) return MaybeHandle<Map>();
+  int root_nof = root_map->NumberOfOwnDescriptors();
 
-  Map* updated = root_map->FindUpdatedMap(
-      verbatim, descriptors, old_descriptors);
-  if (updated == NULL) return MaybeHandle<Map>();
+  int old_nof = old_map->NumberOfOwnDescriptors();
+  DescriptorArray* old_descriptors = old_map->instance_descriptors();
 
-  DescriptorArray* updated_descriptors = updated->instance_descriptors();
-  int valid = updated->NumberOfOwnDescriptors();
-  if (!updated_descriptors->IsMoreGeneralThan(
-          verbatim, valid, descriptors, old_descriptors)) {
-    return MaybeHandle<Map>();
+  Map* new_map = root_map;
+  for (int i = root_nof; i < old_nof; ++i) {
+    int j = new_map->SearchTransition(old_descriptors->GetKey(i));
+    if (j == TransitionArray::kNotFound) return MaybeHandle<Map>();
+    new_map = new_map->GetTransition(j);
+    DescriptorArray* new_descriptors = new_map->instance_descriptors();
+
+    PropertyDetails new_details = new_descriptors->GetDetails(i);
+    PropertyDetails old_details = old_descriptors->GetDetails(i);
+    if (old_details.attributes() != new_details.attributes() ||
+        !old_details.representation().fits_into(new_details.representation())) {
+      return MaybeHandle<Map>();
+    }
+    PropertyType new_type = new_details.type();
+    PropertyType old_type = old_details.type();
+    Object* new_value = new_descriptors->GetValue(i);
+    Object* old_value = old_descriptors->GetValue(i);
+    switch (new_type) {
+      case FIELD:
+        if ((old_type == FIELD &&
+             !HeapType::cast(old_value)->NowIs(HeapType::cast(new_value))) ||
+            (old_type == CONSTANT &&
+             !HeapType::cast(new_value)->NowContains(old_value)) ||
+            (old_type == CALLBACKS &&
+             !HeapType::Any()->Is(HeapType::cast(new_value)))) {
+          return MaybeHandle<Map>();
+        }
+        break;
+
+      case CONSTANT:
+      case CALLBACKS:
+        if (old_type != new_type || old_value != new_value) {
+          return MaybeHandle<Map>();
+        }
+        break;
+
+      case NORMAL:
+      case HANDLER:
+      case INTERCEPTOR:
+      case NONEXISTENT:
+        UNREACHABLE();
+    }
   }
-
-  return handle(updated);
+  if (new_map->NumberOfOwnDescriptors() != old_nof) return MaybeHandle<Map>();
+  return handle(new_map);
 }
 
 
