@@ -51,8 +51,8 @@ static Handle<AccessorInfo> MakeAccessor(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
-  info->set_all_can_read(true);
-  info->set_all_can_write(true);
+  info->set_all_can_read(false);
+  info->set_all_can_write(false);
   info->set_prohibits_overwriting(false);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -1190,29 +1190,23 @@ class FrameFunctionIterator {
 };
 
 
-Object* Accessors::FunctionGetCaller(Isolate* isolate,
-                                     Object* object,
-                                     void*) {
-  HandleScope scope(isolate);
+MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
+                                   Handle<JSFunction> function) {
   DisallowHeapAllocation no_allocation;
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  if (holder->shared()->native()) return isolate->heap()->null_value();
-  Handle<JSFunction> function(holder, isolate);
-
   FrameFunctionIterator it(isolate, no_allocation);
-
+  if (function->shared()->native()) {
+    return MaybeHandle<JSFunction>();
+  }
   // Find the function from the frames.
   if (!it.Find(*function)) {
     // No frame corresponding to the given function found. Return null.
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-
   // Find previously called non-toplevel function.
   JSFunction* caller;
   do {
     caller = it.next();
-    if (caller == NULL) return isolate->heap()->null_value();
+    if (caller == NULL) return MaybeHandle<JSFunction>();
   } while (caller->shared()->is_toplevel());
 
   // If caller is a built-in function and caller's caller is also built-in,
@@ -1229,24 +1223,64 @@ Object* Accessors::FunctionGetCaller(Isolate* isolate,
   // allows us to make bound functions use the strict function map
   // and its associated throwing caller and arguments.
   if (caller->shared()->bound()) {
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
   if (caller->shared()->strict_mode() == STRICT) {
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-
-  return caller;
+  return Handle<JSFunction>(caller);
 }
 
 
-const AccessorDescriptor Accessors::FunctionCaller = {
-  FunctionGetCaller,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionCallerGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
+  }
+  Handle<JSFunction> function;
+  Handle<Object> result;
+  if (maybe_function.ToHandle(&function)) {
+    MaybeHandle<JSFunction> maybe_caller;
+    maybe_caller = FindCaller(isolate, function);
+    Handle<JSFunction> caller;
+    if (maybe_caller.ToHandle(&caller)) {
+      result = caller;
+    } else {
+      result = isolate->factory()->null_value();
+    }
+  } else {
+    result = isolate->factory()->undefined_value();
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+
+void Accessors::FunctionCallerSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionCallerInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->caller_string(),
+                      &FunctionCallerGetter,
+                      &FunctionCallerSetter,
+                      attributes);
+}
 
 
 //
