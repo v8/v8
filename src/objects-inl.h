@@ -219,6 +219,11 @@ bool Object::IsSpecFunction() {
 }
 
 
+bool Object::IsTemplateInfo() {
+  return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
+}
+
+
 bool Object::IsInternalizedString() {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();

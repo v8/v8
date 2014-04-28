@@ -6583,8 +6583,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
           FixedArray);
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, content,
-          FixedArray::AddKeysFromJSArray(
-              content, Handle<JSArray>::cast(names)),
+          FixedArray::AddKeysFromArrayLike(
+              content, Handle<JSObject>::cast(names)),
           FixedArray);
       break;
     }
@@ -6612,12 +6612,12 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
 
     // Add the element keys from the interceptor.
     if (current->HasIndexedInterceptor()) {
-      Handle<JSArray> result;
+      Handle<JSObject> result;
       if (JSObject::GetKeysForIndexedInterceptor(
               current, object).ToHandle(&result)) {
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, content,
-            FixedArray::AddKeysFromJSArray(content, result),
+            FixedArray::AddKeysFromArrayLike(content, result),
             FixedArray);
       }
       ASSERT(ContainsOnlyValidKeys(content));
@@ -6649,12 +6649,12 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
 
     // Add the property keys from the interceptor.
     if (current->HasNamedInterceptor()) {
-      Handle<JSArray> result;
+      Handle<JSObject> result;
       if (JSObject::GetKeysForNamedInterceptor(
               current, object).ToHandle(&result)) {
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, content,
-            FixedArray::AddKeysFromJSArray(content, result),
+            FixedArray::AddKeysFromArrayLike(content, result),
             FixedArray);
       }
       ASSERT(ContainsOnlyValidKeys(content));
@@ -8366,9 +8366,10 @@ void FixedArray::Shrink(int new_length) {
 }
 
 
-MaybeHandle<FixedArray> FixedArray::AddKeysFromJSArray(
+MaybeHandle<FixedArray> FixedArray::AddKeysFromArrayLike(
     Handle<FixedArray> content,
-    Handle<JSArray> array) {
+    Handle<JSObject> array) {
+  ASSERT(array->IsJSArray() || array->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = array->GetElementsAccessor();
   Handle<FixedArray> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -13896,13 +13897,13 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
 
 // Compute the property keys from the interceptor.
 // TODO(rossberg): support symbols in API, and filter here if needed.
-MaybeHandle<JSArray> JSObject::GetKeysForNamedInterceptor(
+MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
   PropertyCallbackArguments
       args(isolate, interceptor->data(), *receiver, *object);
-  v8::Handle<v8::Array> result;
+  v8::Handle<v8::Object> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::NamedPropertyEnumeratorCallback enum_fun =
         v8::ToCData<v8::NamedPropertyEnumeratorCallback>(
@@ -13910,9 +13911,10 @@ MaybeHandle<JSArray> JSObject::GetKeysForNamedInterceptor(
     LOG(isolate, ApiObjectAccess("interceptor-named-enum", *object));
     result = args.Call(enum_fun);
   }
-  if (result.IsEmpty()) return MaybeHandle<JSArray>();
+  if (result.IsEmpty()) return MaybeHandle<JSObject>();
 #if ENABLE_EXTRA_CHECKS
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
+        v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
 #endif
   // Rebox before returning.
   return handle(*v8::Utils::OpenHandle(*result), isolate);
@@ -13920,13 +13922,13 @@ MaybeHandle<JSArray> JSObject::GetKeysForNamedInterceptor(
 
 
 // Compute the element keys from the interceptor.
-MaybeHandle<JSArray> JSObject::GetKeysForIndexedInterceptor(
+MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
   PropertyCallbackArguments
       args(isolate, interceptor->data(), *receiver, *object);
-  v8::Handle<v8::Array> result;
+  v8::Handle<v8::Object> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     v8::IndexedPropertyEnumeratorCallback enum_fun =
         v8::ToCData<v8::IndexedPropertyEnumeratorCallback>(
@@ -13934,9 +13936,10 @@ MaybeHandle<JSArray> JSObject::GetKeysForIndexedInterceptor(
     LOG(isolate, ApiObjectAccess("interceptor-indexed-enum", *object));
     result = args.Call(enum_fun);
   }
-  if (result.IsEmpty()) return MaybeHandle<JSArray>();
+  if (result.IsEmpty()) return MaybeHandle<JSObject>();
 #if ENABLE_EXTRA_CHECKS
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSObject());
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
+        v8::Utils::OpenHandle(*result)->HasSloppyArgumentsElements());
 #endif
   // Rebox before returning.
   return handle(*v8::Utils::OpenHandle(*result), isolate);

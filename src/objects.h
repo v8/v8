@@ -758,8 +758,6 @@ enum InstanceType {
   CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
-  JS_MESSAGE_OBJECT_TYPE,
-
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
   // the two forms of function. This organization enables using the same
@@ -769,6 +767,7 @@ enum InstanceType {
   JS_PROXY_TYPE,  // LAST_JS_PROXY_TYPE
 
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -1430,6 +1429,7 @@ class Object : public MaybeObject {
 
   INLINE(bool IsSpecObject());
   INLINE(bool IsSpecFunction());
+  INLINE(bool IsTemplateInfo());
   bool IsCallable();
 
   // Oddball testing.
@@ -2520,10 +2520,10 @@ class JSObject: public JSReceiver {
 
   // Computes the enumerable keys from interceptors. Used for debug mirrors and
   // by JSReceiver::GetKeys.
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForNamedInterceptor(
+  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForNamedInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver);
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForIndexedInterceptor(
+  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForIndexedInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver);
 
@@ -3074,9 +3074,9 @@ class FixedArray: public FixedArrayBase {
                                      PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
-  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromJSArray(
+  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromArrayLike(
       Handle<FixedArray> content,
-      Handle<JSArray> array);
+      Handle<JSObject> array);
 
   // Computes the union of keys and return the result.
   // Used for implementing "for (n in object) { }"

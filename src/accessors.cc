@@ -867,7 +867,8 @@ void Accessors::FunctionPrototypeSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<JSObject> object =
+      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value = Utils::OpenHandle(*val);
 
   SetFunctionPrototype(isolate, object, value);
