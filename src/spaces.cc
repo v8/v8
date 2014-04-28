@@ -2587,33 +2587,13 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 }
 
 
-bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
-  MarkCompactCollector* collector = heap()->mark_compact_collector();
-  if (collector->AreSweeperThreadsActivated()) {
-    if (collector->IsConcurrentSweepingInProgress()) {
-      if (collector->RefillFreeLists(this) < size_in_bytes) {
-        if (!collector->sequential_sweeping()) {
-          collector->WaitUntilSweepingCompleted();
-          return true;
-        }
-      }
-      return false;
-    }
-  }
-  return true;
-}
-
-
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
-  // If there are unswept pages advance sweeping a bounded number of times
-  // until we find a size_in_bytes contiguous piece of memory
-  const int kMaxSweepingTries = 5;
-  bool sweeping_complete = false;
-
-  for (int i = 0; i < kMaxSweepingTries && !sweeping_complete; i++) {
-    sweeping_complete = EnsureSweeperProgress(size_in_bytes);
+  // If sweeper threads are active, try to re-fill the free-lists.
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->RefillFreeList(this);
 
     // Retry the free list allocation.
     HeapObject* object = free_list_.Allocate(size_in_bytes);
@@ -2634,11 +2614,12 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     return free_list_.Allocate(size_in_bytes);
   }
 
-  // Last ditch, sweep all the remaining pages to try to find space.
-  if (heap()->mark_compact_collector()->IsConcurrentSweepingInProgress()) {
-    heap()->mark_compact_collector()->WaitUntilSweepingCompleted();
+  // If sweeper threads are active, wait for them at that point.
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->WaitUntilSweepingCompleted();
 
-    // Retry the free list allocation.
+    // After waiting for the sweeper threads, there may be new free-list
+    // entries.
     HeapObject* object = free_list_.Allocate(size_in_bytes);
     if (object != NULL) return object;
   }

@@ -627,14 +627,14 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
   }
   ParallelSweepSpacesComplete();
   sweeping_pending_ = false;
-  RefillFreeLists(heap()->paged_space(OLD_DATA_SPACE));
-  RefillFreeLists(heap()->paged_space(OLD_POINTER_SPACE));
+  RefillFreeList(heap()->paged_space(OLD_DATA_SPACE));
+  RefillFreeList(heap()->paged_space(OLD_POINTER_SPACE));
   heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
 }
 
 
-intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
+void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
   FreeList* free_list;
 
   if (space == heap()->old_pointer_space()) {
@@ -644,13 +644,12 @@ intptr_t MarkCompactCollector::RefillFreeLists(PagedSpace* space) {
   } else {
     // Any PagedSpace might invoke RefillFreeLists, so we need to make sure
     // to only refill them for old data and pointer spaces.
-    return 0;
+    return;
   }
 
   intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
-  return freed_bytes;
 }
 
 

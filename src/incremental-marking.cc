@@ -909,7 +909,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   }
 
   if (state_ == SWEEPING) {
-    if (heap_->EnsureSweepersProgressed(static_cast<int>(bytes_to_process))) {
+    if (!heap_->mark_compact_collector()->IsConcurrentSweepingInProgress()) {
       bytes_scanned_ = 0;
       StartMarking(PREVENT_COMPACTION);
     }
