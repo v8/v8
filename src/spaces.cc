@@ -1138,10 +1138,7 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     DecreaseUnsweptFreeBytes(page);
   }
 
-  // TODO(hpayer): This check is just used for debugging purpose and
-  // should be removed or turned into an assert after investigating the
-  // crash in concurrent sweeping.
-  CHECK(!free_list_.ContainsPageFreeListItems(page));
+  ASSERT(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);

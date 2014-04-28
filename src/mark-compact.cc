@@ -595,11 +595,8 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
 
 
 void MarkCompactCollector::StartSweeperThreads() {
-  // TODO(hpayer): This check is just used for debugging purpose and
-  // should be removed or turned into an assert after investigating the
-  // crash in concurrent sweeping.
-  CHECK(free_list_old_pointer_space_.get()->IsEmpty());
-  CHECK(free_list_old_data_space_.get()->IsEmpty());
+  ASSERT(free_list_old_pointer_space_.get()->IsEmpty());
+  ASSERT(free_list_old_data_space_.get()->IsEmpty());
   sweeping_pending_ = true;
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
@@ -3078,8 +3075,7 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 
 bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                                             int object_size) {
-  // TODO(hpayer): Replace that check with an assert.
-  CHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
 
   OldSpace* target_space = heap()->TargetSpace(object);
 
@@ -3186,12 +3182,10 @@ void MarkCompactCollector::EvacuatePages() {
   int npages = evacuation_candidates_.length();
   for (int i = 0; i < npages; i++) {
     Page* p = evacuation_candidates_[i];
-    // TODO(hpayer): This check is just used for debugging purpose and
-    // should be removed or turned into an assert after investigating the
-    // crash in concurrent sweeping.
-    CHECK(p->IsEvacuationCandidate() ||
-          p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-    CHECK_EQ(static_cast<int>(p->parallel_sweeping()), 0);
+    ASSERT(p->IsEvacuationCandidate() ||
+           p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
+    ASSERT(static_cast<int>(p->parallel_sweeping()) ==
+           MemoryChunk::PARALLEL_SWEEPING_DONE);
     if (p->IsEvacuationCandidate()) {
       // During compaction we might have to request a new page.
       // Check that space still have room for that.
@@ -4040,10 +4034,7 @@ template<MarkCompactCollector::SweepingParallelism mode>
 intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
                                                    FreeList* free_list,
                                                    Page* p) {
-  // TODO(hpayer): This check is just used for debugging purpose and
-  // should be removed or turned into an assert after investigating the
-  // crash in concurrent sweeping.
-  CHECK(!p->IsEvacuationCandidate() && !p->WasSwept());
+  ASSERT(!p->IsEvacuationCandidate() && !p->WasSwept());
   ASSERT((mode == MarkCompactCollector::SWEEP_IN_PARALLEL &&
          free_list != NULL) ||
          (mode == MarkCompactCollector::SWEEP_SEQUENTIALLY &&
@@ -4287,7 +4278,6 @@ void MarkCompactCollector::SweepSpaces() {
 
     if (how_to_sweep == PARALLEL_CONSERVATIVE ||
         how_to_sweep == CONCURRENT_CONSERVATIVE) {
-      // TODO(hpayer): fix race with concurrent sweeper
       StartSweeperThreads();
     }
 
