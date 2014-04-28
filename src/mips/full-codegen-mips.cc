@@ -1850,7 +1850,17 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ Push(a3, a2, a1, a0);
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);
   } else {
-    FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
+    ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
+           FLAG_smi_only_arrays);
+    FastCloneShallowArrayStub::Mode mode =
+        FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
+
+    if (has_fast_elements) {
+      mode = FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    }
+
+    FastCloneShallowArrayStub stub(isolate(), mode, allocation_site_mode,
+                                   length);
     __ CallStub(&stub);
   }
 
