@@ -1502,7 +1502,6 @@ class Object : public MaybeObject {
 
   inline bool HasSpecificClassOf(String* name);
 
-  MUST_USE_RESULT MaybeObject* ToObject(Isolate* isolate);  // ECMA-262 9.9.
   bool BooleanValue();                                      // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
@@ -2225,7 +2224,6 @@ class JSObject: public JSReceiver {
   // Requires: HasFastElements().
   static Handle<FixedArray> EnsureWritableFastElements(
       Handle<JSObject> object);
-  MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
@@ -2507,9 +2505,6 @@ class JSObject: public JSReceiver {
       SetFastElementsCapacitySmiMode smi_mode);
   static void SetFastDoubleElementsCapacityAndLength(
       Handle<JSObject> object,
-      int capacity,
-      int length);
-  MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
       int capacity,
       int length);
 
@@ -3065,10 +3060,7 @@ class FixedArray: public FixedArrayBase {
   // Shrink length and insert filler objects.
   void Shrink(int length);
 
-  // Copy operations.
-  MUST_USE_RESULT inline MaybeObject* Copy();
-  MUST_USE_RESULT MaybeObject* CopySize(int new_length,
-                                        PretenureFlag pretenure = NOT_TENURED);
+  // Copy operation.
   static Handle<FixedArray> CopySize(Handle<FixedArray> array,
                                      int new_length,
                                      PretenureFlag pretenure = NOT_TENURED);
@@ -3167,9 +3159,6 @@ class FixedDoubleArray: public FixedArrayBase {
   // Checking for the hole.
   inline bool is_the_hole(int index);
 
-  // Copy operations
-  MUST_USE_RESULT inline MaybeObject* Copy();
-
   // Garbage collection support.
   inline static int SizeFor(int length) {
     return kHeaderSize + length * kDoubleSize;
@@ -3258,9 +3247,6 @@ class ConstantPoolArray: public FixedArrayBase {
                    int number_of_code_ptr_entries,
                    int number_of_heap_ptr_entries,
                    int number_of_int32_entries);
-
-  // Copy operations
-  MUST_USE_RESULT inline MaybeObject* Copy();
 
   // Garbage collection support.
   inline static int SizeFor(int number_of_int64_entries,
@@ -5296,9 +5282,9 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationInputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
-                                               int deopt_entry_count,
-                                               PretenureFlag pretenure);
+  static Handle<DeoptimizationInputData> New(Isolate* isolate,
+                                             int deopt_entry_count,
+                                             PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
@@ -5343,9 +5329,9 @@ class DeoptimizationOutputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationOutputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
-                                               int number_of_deopt_points,
-                                               PretenureFlag pretenure);
+  static Handle<DeoptimizationOutputData> New(Isolate* isolate,
+                                              int number_of_deopt_points,
+                                              PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);

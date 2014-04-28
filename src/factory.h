@@ -53,13 +53,6 @@ class Factory V8_FINAL {
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 
-  Handle<DeoptimizationInputData> NewDeoptimizationInputData(
-      int deopt_entry_count,
-      PretenureFlag pretenure);
-  Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
-      int deopt_entry_count,
-      PretenureFlag pretenure);
-
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
@@ -307,15 +300,14 @@ class Factory V8_FINAL {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
+  Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
+                                           Handle<Map> map);
+
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // This method expects a COW array in new space, and creates a copy
   // of it in old space.
   Handle<FixedArray> CopyAndTenureFixedCOWArray(Handle<FixedArray> array);
-
-  Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
-                                        int new_length,
-                                        PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);

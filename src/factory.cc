@@ -141,30 +141,6 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 }
 
 
-Handle<DeoptimizationInputData> Factory::NewDeoptimizationInputData(
-    int deopt_entry_count,
-    PretenureFlag pretenure) {
-  ASSERT(deopt_entry_count > 0);
-  CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationInputData::Allocate(isolate(),
-                                                       deopt_entry_count,
-                                                       pretenure),
-                     DeoptimizationInputData);
-}
-
-
-Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
-    int deopt_entry_count,
-    PretenureFlag pretenure) {
-  ASSERT(deopt_entry_count > 0);
-  CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationOutputData::Allocate(isolate(),
-                                                        deopt_entry_count,
-                                                        pretenure),
-                     DeoptimizationOutputData);
-}
-
-
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
@@ -977,8 +953,18 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
+Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
+                                                  Handle<Map> map) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedArrayWithMap(*array, *map),
+                     FixedArray);
+}
+
+
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedArray(*array),
+                     FixedArray);
 }
 
 
@@ -991,24 +977,19 @@ Handle<FixedArray> Factory::CopyAndTenureFixedCOWArray(
 }
 
 
-Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
-                                               int new_length,
-                                               PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     array->CopySize(new_length, pretenure),
-                     FixedArray);
-}
-
-
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedDoubleArray(*array),
+                     FixedDoubleArray);
 }
 
 
 Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
     Handle<ConstantPoolArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), ConstantPoolArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyConstantPoolArray(*array),
+                     ConstantPoolArray);
 }
 
 

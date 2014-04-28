@@ -371,9 +371,15 @@ static Handle<Object> GetDeclaredAccessorProperty(
 
 Handle<FixedArray> JSObject::EnsureWritableFastElements(
     Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->EnsureWritableFastElements(),
-                     FixedArray);
+  ASSERT(object->HasFastSmiOrObjectElements());
+  Isolate* isolate = object->GetIsolate();
+  Handle<FixedArray> elems(FixedArray::cast(object->elements()), isolate);
+  if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
+  Handle<FixedArray> writable_elems = isolate->factory()->CopyFixedArrayWithMap(
+      elems, isolate->factory()->fixed_array_map());
+  object->set_elements(*writable_elems);
+  isolate->counters()->cow_arrays_converted()->Increment();
+  return writable_elems;
 }
 
 
@@ -8416,35 +8422,24 @@ MaybeHandle<FixedArray> FixedArray::UnionOfKeys(Handle<FixedArray> first,
 }
 
 
-MaybeObject* FixedArray::CopySize(int new_length, PretenureFlag pretenure) {
-  Heap* heap = GetHeap();
-  if (new_length == 0) return heap->empty_fixed_array();
-  Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArray(new_length, pretenure);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  FixedArray* result = FixedArray::cast(obj);
-  // Copy the content
-  DisallowHeapAllocation no_gc;
-  int len = length();
-  if (new_length < len) len = new_length;
-  // We are taking the map from the old fixed array so the map is sure to
-  // be an immortal immutable object.
-  result->set_map_no_write_barrier(map());
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < len; i++) {
-    result->set(i, get(i), mode);
-  }
-  return result;
-}
-
-
 Handle<FixedArray> FixedArray::CopySize(
     Handle<FixedArray> array, int new_length, PretenureFlag pretenure) {
   Isolate* isolate = array->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     array->CopySize(new_length, pretenure),
-                     FixedArray);
+  if (new_length == 0) return isolate->factory()->empty_fixed_array();
+  Handle<FixedArray> result =
+      isolate->factory()->NewFixedArray(new_length, pretenure);
+  // Copy the content
+  DisallowHeapAllocation no_gc;
+  int len = array->length();
+  if (new_length < len) len = new_length;
+  // We are taking the map from the old fixed array so the map is sure to
+  // be an immortal immutable object.
+  result->set_map_no_write_barrier(array->map());
+  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+  for (int i = 0; i < len; i++) {
+    result->set(i, array->get(i), mode);
+  }
+  return result;
 }
 
 
@@ -8596,21 +8591,29 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 }
 
 
-MaybeObject* DeoptimizationInputData::Allocate(Isolate* isolate,
-                                               int deopt_entry_count,
-                                               PretenureFlag pretenure) {
+Handle<DeoptimizationInputData> DeoptimizationInputData::New(
+    Isolate* isolate,
+    int deopt_entry_count,
+    PretenureFlag pretenure) {
   ASSERT(deopt_entry_count > 0);
-  return isolate->heap()->AllocateFixedArray(LengthFor(deopt_entry_count),
-                                             pretenure);
+  return Handle<DeoptimizationInputData>::cast(
+      isolate->factory()->NewFixedArray(
+          LengthFor(deopt_entry_count), pretenure));
 }
 
 
-MaybeObject* DeoptimizationOutputData::Allocate(Isolate* isolate,
-                                                int number_of_deopt_points,
-                                                PretenureFlag pretenure) {
-  if (number_of_deopt_points == 0) return isolate->heap()->empty_fixed_array();
-  return isolate->heap()->AllocateFixedArray(
-      LengthOfFixedArray(number_of_deopt_points), pretenure);
+Handle<DeoptimizationOutputData> DeoptimizationOutputData::New(
+    Isolate* isolate,
+    int number_of_deopt_points,
+    PretenureFlag pretenure) {
+  Handle<FixedArray> result;
+  if (number_of_deopt_points == 0) {
+    result = isolate->factory()->empty_fixed_array();
+  } else {
+    result = isolate->factory()->NewFixedArray(
+        LengthOfFixedArray(number_of_deopt_points), pretenure);
+  }
+  return Handle<DeoptimizationOutputData>::cast(result);
 }
 
 
@@ -10055,7 +10058,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map = Handle<FixedArray>::cast(value);
     ASSERT_EQ(-1, shared->SearchOptimizedCodeMap(*native_context, osr_ast_id));
     old_length = old_code_map->length();
-    new_code_map = isolate->factory()->CopySizeFixedArray(
+    new_code_map = FixedArray::CopySize(
         old_code_map, old_length + kEntryLength);
     // Zap the old map for the sake of the heap verifier.
     if (Heap::ShouldZapGarbage()) {
@@ -12106,8 +12109,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
     if (capacity > kMaxCachedPrototypeTransitions) return map;
 
     // Grow array by factor 2 over and above what we need.
-    Factory* factory = map->GetIsolate()->factory();
-    cache = factory->CopySizeFixedArray(cache, transitions * 2 * step + header);
+    cache = FixedArray::CopySize(cache, transitions * 2 * step + header);
 
     SetPrototypeTransitions(map, cache);
   }
@@ -12223,11 +12225,10 @@ Handle<DependentCode> DependentCode::Insert(Handle<DependentCode> entries,
     if (entries->object_at(i) == *object) return entries;
   }
   if (entries->length() < kCodesStartIndex + number_of_entries + 1) {
-    Factory* factory = entries->GetIsolate()->factory();
     int capacity = kCodesStartIndex + number_of_entries + 1;
     if (capacity > 5) capacity = capacity * 5 / 4;
     Handle<DependentCode> new_entries = Handle<DependentCode>::cast(
-        factory->CopySizeFixedArray(entries, capacity, TENURED));
+        FixedArray::CopySize(entries, capacity, TENURED));
     // The number of codes can change after GC.
     starts.Recompute(*entries);
     start = starts.at(group);

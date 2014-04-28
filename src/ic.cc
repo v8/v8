@@ -1945,8 +1945,7 @@ RUNTIME_FUNCTION(SharedStoreIC_ExtendStorage) {
   int new_unused = transition->unused_property_fields();
   int new_size = old_storage->length() + new_unused + 1;
 
-  Handle<FixedArray> new_storage = isolate->factory()->CopySizeFixedArray(
-      old_storage, new_size);
+  Handle<FixedArray> new_storage = FixedArray::CopySize(old_storage, new_size);
 
   Handle<Object> to_store = value;
 

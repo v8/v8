@@ -6251,24 +6251,6 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-MaybeObject* JSObject::EnsureWritableFastElements() {
-  ASSERT(HasFastSmiOrObjectElements());
-  FixedArray* elems = FixedArray::cast(elements());
-  Isolate* isolate = GetIsolate();
-  if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
-  Object* writable_elems;
-  { MaybeObject* maybe_writable_elems = isolate->heap()->CopyFixedArrayWithMap(
-      elems, isolate->heap()->fixed_array_map());
-    if (!maybe_writable_elems->ToObject(&writable_elems)) {
-      return maybe_writable_elems;
-    }
-  }
-  set_elements(FixedArray::cast(writable_elems));
-  isolate->counters()->cow_arrays_converted()->Increment();
-  return writable_elems;
-}
-
-
 NameDictionary* JSObject::property_dictionary() {
   ASSERT(!HasFastProperties());
   return NameDictionary::cast(properties());
@@ -6807,24 +6789,6 @@ void JSArray::SetContent(Handle<JSArray> array,
             Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));
-}
-
-
-MaybeObject* FixedArray::Copy() {
-  if (length() == 0) return this;
-  return GetHeap()->CopyFixedArray(this);
-}
-
-
-MaybeObject* FixedDoubleArray::Copy() {
-  if (length() == 0) return this;
-  return GetHeap()->CopyFixedDoubleArray(this);
-}
-
-
-MaybeObject* ConstantPoolArray::Copy() {
-  if (length() == 0) return this;
-  return GetHeap()->CopyConstantPoolArray(this);
 }
 
 

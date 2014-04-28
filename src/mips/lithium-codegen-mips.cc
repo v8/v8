@@ -861,7 +861,7 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   int length = deoptimizations_.length();
   if (length == 0) return;
   Handle<DeoptimizationInputData> data =
-      factory()->NewDeoptimizationInputData(length, TENURED);
+      DeoptimizationInputData::New(isolate(), length, TENURED);
 
   Handle<ByteArray> translations =
       translations_.CreateByteArray(isolate()->factory());

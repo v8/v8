@@ -694,7 +694,7 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
     return i::Handle<i::FixedArray>();
   }
   int new_size = i::Max(index, data->length() << 1) + 1;
-  data = env->GetIsolate()->factory()->CopySizeFixedArray(data, new_size);
+  data = i::FixedArray::CopySize(data, new_size);
   env->set_embedder_data(*data);
   return data;
 }

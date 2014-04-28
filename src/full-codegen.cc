@@ -401,8 +401,8 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
   if (!info_->HasDeoptimizationSupport()) return;
   int length = bailout_entries_.length();
-  Handle<DeoptimizationOutputData> data = isolate()->factory()->
-      NewDeoptimizationOutputData(length, TENURED);
+  Handle<DeoptimizationOutputData> data =
+      DeoptimizationOutputData::New(isolate(), length, TENURED);
   for (int i = 0; i < length; i++) {
     data->SetAstId(i, bailout_entries_[i].id);
     data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
