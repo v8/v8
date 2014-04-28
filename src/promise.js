@@ -215,9 +215,9 @@ function PromiseHandle(value, handler, deferred) {
 
 function PromiseThen(onResolve, onReject) {
   onResolve =
-    IS_NULL_OR_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
+    IS_SPEC_FUNCTION(onResolve) ? onResolve : PromiseIdResolveHandler;
   onReject =
-    IS_NULL_OR_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
+    IS_SPEC_FUNCTION(onReject) ? onReject : PromiseIdRejectHandler;
   var that = this;
   var constructor = this.constructor;
   return %_CallFunction(
