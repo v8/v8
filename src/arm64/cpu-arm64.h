@@ -42,7 +42,7 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
+  static void Probe(bool serializer_enabled);
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
@@ -80,6 +80,8 @@ class CpuFeatures : public AllStatic {
     ASSERT(cross_compile_ == 0);
     return true;
   }
+
+  static bool SupportsCrankshaft() { return true; }
 
  private:
   // Return the content of the cache type register.

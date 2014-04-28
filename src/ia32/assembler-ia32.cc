@@ -89,13 +89,13 @@ const char* IntelDoubleRegister::AllocationIndexToString(int index) {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(!initialized_);
   ASSERT(supported_ == 0);
 #ifdef DEBUG
   initialized_ = true;
 #endif
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }

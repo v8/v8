@@ -144,7 +144,7 @@ void V8::InitializeOncePerProcessImpl() {
   platform_ = new DefaultPlatform;
 #endif
   Sampler::SetUp();
-  CPU::SetUp();
+  CpuFeatures::Probe(Serializer::enabled());
   OS::PostSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();

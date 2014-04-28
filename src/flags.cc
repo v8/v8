@@ -360,10 +360,15 @@ static Flag* FindFlag(const char* name) {
 }
 
 
+bool FlagList::serializer_enabled_ = false;
+
+
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc,
                                       char** argv,
-                                      bool remove_flags) {
+                                      bool remove_flags,
+                                      bool serializer_enabled) {
+  serializer_enabled_ = serializer_enabled;
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -545,7 +550,7 @@ void FlagList::ResetAllFlags() {
 void FlagList::PrintHelp() {
 #if V8_TARGET_ARCH_ARM
   CpuFeatures::PrintTarget();
-  CpuFeatures::ProbeWithoutIsolate();
+  CpuFeatures::Probe(serializer_enabled_);
   CpuFeatures::PrintFeatures();
 #endif  // V8_TARGET_ARCH_ARM
 

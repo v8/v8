@@ -56,12 +56,7 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe();
-
-  // A special case for printing target and features, which we want to do
-  // before initializing the isolate
-  static void SetHintCreatingSnapshot();
-  static void ProbeWithoutIsolate();
+  static void Probe(bool serializer_enabled);
 
   // Display target use when compiling.
   static void PrintTarget();
@@ -98,10 +93,9 @@ class CpuFeatures : public AllStatic {
            (cross_compile_ & mask) == mask;
   }
 
- private:
-  static void Probe(bool serializer_enabled);
-  static bool hint_creating_snapshot_;
+  static bool SupportsCrankshaft() { return CpuFeatures::IsSupported(VFP3); }
 
+ private:
   static bool Check(CpuFeature f, unsigned set) {
     return (set & flag2set(f)) != 0;
   }

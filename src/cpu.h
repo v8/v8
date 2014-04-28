@@ -102,11 +102,6 @@ class CPU V8_FINAL BASE_EMBEDDED {
   // Returns the number of processors online.
   static int NumberOfProcessorsOnline();
 
-  // Initializes the cpu architecture support. Called once at VM startup.
-  static void SetUp();
-
-  static bool SupportsCrankshaft();
-
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
 
