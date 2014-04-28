@@ -174,15 +174,6 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
 //
 
 
-Object* Accessors::ArrayGetLength(Isolate* isolate,
-                                  Object* object,
-                                  void*) {
-  // Traverse the prototype chain until we reach an array.
-  JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
-  return holder == NULL ? Smi::FromInt(0) : holder->length();
-}
-
-
 // The helper function will 'flatten' Number objects.
 Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
                                         Handle<Object> value) {
@@ -199,55 +190,84 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
 }
 
 
-Object* Accessors::ArraySetLength(Isolate* isolate,
-                                  JSObject* object_raw,
-                                  Object* value_raw,
-                                  void*) {
+void Accessors::ArrayLengthGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Handle<JSObject> object(object_raw, isolate);
-  Handle<Object> value(value_raw, isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  // Traverse the prototype chain until we reach an array.
+  JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
+  Object* result;
+  if (holder != NULL) {
+    result = holder->length();
+  } else {
+    result = Smi::FromInt(0);
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
 
+
+void Accessors::ArrayLengthSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Handle<JSObject>::cast(
+      Utils::OpenHandle(*info.This()));
+  Handle<Object> value = Utils::OpenHandle(*val);
   // This means one of the object's prototypes is a JSArray and the
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
+    MaybeHandle<Object> maybe_result =
         JSObject::SetLocalPropertyIgnoreAttributes(
-            object, isolate->factory()->length_string(), value, NONE));
-    return *result;
+            object, isolate->factory()->length_string(), value, NONE);
+    maybe_result.ToHandleChecked();
+    return;
   }
 
   value = FlattenNumber(isolate, value);
 
   Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
-
+  MaybeHandle<Object> maybe;
   Handle<Object> uint32_v;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, uint32_v, Execution::ToUint32(isolate, value));
+  maybe = Execution::ToUint32(isolate, value);
+  if (!maybe.ToHandle(&uint32_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
   Handle<Object> number_v;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, number_v, Execution::ToNumber(isolate, value));
+  maybe = Execution::ToNumber(isolate, value);
+  if (!maybe.ToHandle(&number_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
 
   if (uint32_v->Number() == number_v->Number()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        JSArray::SetElementsLength(array_handle, uint32_v));
-    return *result;
+    MaybeHandle<Object> result;
+    result = JSArray::SetElementsLength(array_handle, uint32_v);
+    USE(result);
+    return;
   }
-  return isolate->Throw(
+
+  isolate->ScheduleThrow(
       *isolate->factory()->NewRangeError("invalid_array_length",
                                          HandleVector<Object>(NULL, 0)));
 }
 
 
-const AccessorDescriptor Accessors::ArrayLength = {
-  ArrayGetLength,
-  ArraySetLength,
-  0
-};
+Handle<AccessorInfo> Accessors::ArrayLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &ArrayLengthGetter,
+                      &ArrayLengthSetter,
+                      attributes);
+}
+
 
 
 //

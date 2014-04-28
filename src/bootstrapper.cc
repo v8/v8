@@ -863,12 +863,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     ASSERT(initial_map->elements_kind() == GetInitialFastElementsKind());
     Map::EnsureDescriptorSlack(initial_map, 1);
 
-    Handle<Foreign> array_length(factory->NewForeign(&Accessors::ArrayLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE);
 
+    Handle<AccessorInfo> array_length =
+        Accessors::ArrayLengthInfo(isolate, attribs);
     {  // Add length.
-      CallbacksDescriptor d(factory->length_string(), array_length, attribs);
+      CallbacksDescriptor d(
+          Handle<Name>(Name::cast(array_length->name())),
+          array_length, attribs);
       array_function->initial_map()->AppendDescriptor(&d);
     }
 
@@ -1614,14 +1617,14 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(initial_map, 1);
 
-  Handle<Foreign> array_length(factory()->NewForeign(
-      &Accessors::ArrayLength));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE);
 
+  Handle<AccessorInfo> array_length =
+      Accessors::ArrayLengthInfo(isolate(), attribs);
   {  // Add length.
     CallbacksDescriptor d(
-        factory()->length_string(), array_length, attribs);
+        Handle<Name>(Name::cast(array_length->name())), array_length, attribs);
     array_function->initial_map()->AppendDescriptor(&d);
   }
 
