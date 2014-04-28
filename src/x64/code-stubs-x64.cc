@@ -82,11 +82,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { rax, rbx, rcx };
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
-  static Representation representations[] = {
-    Representation::Tagged(),
-    Representation::Smi(),
-    Representation::Tagged() };
-  descriptor->register_param_representations_ = representations;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(
           Runtime::kHiddenCreateArrayLiteralStubBailout)->entry;
@@ -216,11 +211,6 @@ static void InitializeArrayConstructorDescriptor(
     descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
     descriptor->stack_parameter_count_ = rax;
     descriptor->register_param_count_ = 3;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
     descriptor->register_params_ = registers_variable_args;
   }
 
@@ -249,10 +239,6 @@ static void InitializeInternalArrayConstructorDescriptor(
     descriptor->stack_parameter_count_ = rax;
     descriptor->register_param_count_ = 2;
     descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -4856,7 +4842,8 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // v8::InvocationCallback's argument.
   __ leap(arguments_arg, StackSpaceOperand(0));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(isolate());
 
   // Accessor for FunctionCallbackInfo and first js arg.
   StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength + 1,
@@ -4868,7 +4855,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
       is_store ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
   __ CallApiFunctionAndReturn(
       api_function_address,
-      thunk_address,
+      thunk_ref,
       callback_arg,
       argc + FCA::kArgsLength + 1,
       return_value_operand,
@@ -4915,7 +4902,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // could be used to pass arguments.
   __ leap(accessor_info_arg, StackSpaceOperand(0));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback(isolate());
 
   // It's okay if api_function_address == getter_arg
   // but not accessor_info_arg or name_arg
@@ -4928,7 +4916,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
       PropertyCallbackArguments::kArgsLength - 1 -
       PropertyCallbackArguments::kReturnValueOffset);
   __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_address,
+                              thunk_ref,
                               getter_arg,
                               kStackSpace,
                               return_value_operand,

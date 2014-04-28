@@ -46,7 +46,6 @@ namespace internal {
 #ifdef DEBUG
 bool CpuFeatures::initialized_ = false;
 #endif
-bool CpuFeatures::hint_creating_snapshot_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
@@ -100,22 +99,6 @@ const char* DoubleRegister::AllocationIndexToString(int index) {
     "f26"
   };
   return names[index];
-}
-
-
-void CpuFeatures::SetHintCreatingSnapshot() {
-  hint_creating_snapshot_ = true;
-}
-
-
-void CpuFeatures::ProbeWithoutIsolate() {
-  Probe(hint_creating_snapshot_);
-}
-
-
-void CpuFeatures::Probe() {
-  // The Serializer can only be queried after isolate initialization.
-  Probe(Serializer::enabled());
 }
 
 

@@ -1808,7 +1808,7 @@ bool Isolate::Init(Deserializer* des) {
 
   use_crankshaft_ = FLAG_crankshaft
       && !Serializer::enabled()
-      && CPU::SupportsCrankshaft();
+      && CpuFeatures::SupportsCrankshaft();
 
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code

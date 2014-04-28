@@ -52,13 +52,13 @@ ExternalReference ExternalReference::cpu_features() {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG
   initialized_ = true;
 #endif
   supported_ = kDefaultCpuFeatures;
-  if (Serializer::enabled()) {
+  if (serializer_enabled) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
   }

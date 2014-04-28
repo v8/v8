@@ -39,6 +39,7 @@
 #include "builtins.h"
 #include "counters.h"
 #include "cpu.h"
+#include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
@@ -1314,6 +1315,30 @@ ExternalReference ExternalReference::address_of_the_hole_nan() {
 ExternalReference ExternalReference::address_of_uint32_bias() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));
+}
+
+
+ExternalReference ExternalReference::is_profiling_address(Isolate* isolate) {
+  return ExternalReference(isolate->cpu_profiler()->is_profiling_address());
+}
+
+
+ExternalReference ExternalReference::invoke_function_callback(
+    Isolate* isolate) {
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference(&thunk_fun, thunk_type, isolate);
+}
+
+
+ExternalReference ExternalReference::invoke_accessor_getter_callback(
+    Isolate* isolate) {
+  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference::Type thunk_type =
+      ExternalReference::PROFILING_GETTER_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference(&thunk_fun, thunk_type, isolate);
 }
 
 

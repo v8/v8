@@ -554,6 +554,26 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       62,
       "Code::MarkCodeAsExecuted");
 
+  Add(ExternalReference::is_profiling_address(isolate).address(),
+      UNCLASSIFIED,
+      63,
+      "CpuProfiler::is_profiling");
+
+  Add(ExternalReference::scheduled_exception_address(isolate).address(),
+      UNCLASSIFIED,
+      64,
+      "Isolate::scheduled_exception");
+
+  Add(ExternalReference::invoke_function_callback(isolate).address(),
+      UNCLASSIFIED,
+      65,
+      "InvokeFunctionCallback");
+
+  Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
+      UNCLASSIFIED,
+      66,
+      "InvokeAccessorGetterCallback");
+
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
   HandleScope scope(isolate);

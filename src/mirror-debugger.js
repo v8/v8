@@ -1216,6 +1216,11 @@ PromiseMirror.prototype.status = function() {
 };
 
 
+PromiseMirror.prototype.promiseValue = function() {
+  return %GetPromiseValue(this.value_);
+};
+
+
 /**
  * Base mirror object for properties.
  * @param {ObjectMirror} mirror The mirror object having this property
@@ -2533,6 +2538,7 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   if (mirror.isPromise()) {
     // Add promise specific properties.
     content.status = mirror.status();
+    content.promiseValue = mirror.promiseValue();
   }
 
   // Add actual properties - named properties followed by indexed properties.

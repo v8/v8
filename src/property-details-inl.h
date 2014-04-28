@@ -28,9 +28,9 @@
 #ifndef V8_PROPERTY_DETAILS_INL_H_
 #define V8_PROPERTY_DETAILS_INL_H_
 
+#include "conversions.h"
 #include "objects.h"
 #include "property-details.h"
-#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {

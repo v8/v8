@@ -86,11 +86,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { eax, ebx, ecx };
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
-  static Representation representations[] = {
-    Representation::Tagged(),
-    Representation::Smi(),
-    Representation::Tagged() };
-  descriptor->register_param_representations_ = representations;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(
           Runtime::kHiddenCreateArrayLiteralStubBailout)->entry;
@@ -222,11 +217,6 @@ static void InitializeArrayConstructorDescriptor(
     descriptor->stack_parameter_count_ = eax;
     descriptor->register_param_count_ = 3;
     descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -254,10 +244,6 @@ static void InitializeInternalArrayConstructorDescriptor(
     descriptor->stack_parameter_count_ = eax;
     descriptor->register_param_count_ = 2;
     descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -5001,7 +4987,8 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   __ lea(scratch, ApiParameterOperand(2));
   __ mov(ApiParameterOperand(0), scratch);
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(isolate());
 
   Operand context_restore_operand(ebp,
                                   (2 + FCA::kContextSaveIndex) * kPointerSize);
@@ -5014,7 +5001,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   }
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
   __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_address,
+                              thunk_ref,
                               ApiParameterOperand(1),
                               argc + FCA::kArgsLength + 1,
                               return_value_operand,
@@ -5049,10 +5036,11 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ add(scratch, Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback(isolate());
 
   __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_address,
+                              thunk_ref,
                               ApiParameterOperand(2),
                               kStackSpace,
                               Operand(ebp, 7 * kPointerSize),

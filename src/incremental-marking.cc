@@ -31,9 +31,9 @@
 
 #include "code-stubs.h"
 #include "compilation-cache.h"
+#include "conversions.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
-#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {

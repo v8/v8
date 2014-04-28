@@ -301,15 +301,9 @@ int main(int argc, char** argv) {
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
-#if V8_TARGET_ARCH_ARM
-  // Printing flags on ARM requires knowing if we intend to enable
-  // the serializer or not.
-  v8::internal::CpuFeatures::SetHintCreatingSnapshot();
-#endif
-
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
-  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true, true);
   if (result > 0 || argc != 2 || i::FLAG_help) {
     ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
     i::FlagList::PrintHelp();

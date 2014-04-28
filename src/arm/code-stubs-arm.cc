@@ -81,11 +81,6 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { r3, r2, r1 };
   descriptor->register_param_count_ = 3;
   descriptor->register_params_ = registers;
-  static Representation representations[] = {
-    Representation::Tagged(),
-    Representation::Smi(),
-    Representation::Tagged() };
-  descriptor->register_param_representations_ = representations;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(
           Runtime::kHiddenCreateArrayLiteralStubBailout)->entry;
@@ -229,11 +224,6 @@ static void InitializeArrayConstructorDescriptor(
     descriptor->stack_parameter_count_ = r0;
     descriptor->register_param_count_ = 3;
     descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -261,10 +251,6 @@ static void InitializeInternalArrayConstructorDescriptor(
     descriptor->stack_parameter_count_ = r0;
     descriptor->register_param_count_ = 2;
     descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -5107,11 +5093,8 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   __ str(ip, MemOperand(r0, 3 * kPointerSize));
 
   const int kStackUnwindSpace = argc + FCA::kArgsLength + 1;
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
-  ExternalReference::Type thunk_type = ExternalReference::PROFILING_API_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      isolate());
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(isolate());
 
   AllowExternalCallThatCantCauseGC scope(masm);
   MemOperand context_restore_operand(
@@ -5157,12 +5140,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
-  ExternalReference::Type thunk_type =
-      ExternalReference::PROFILING_GETTER_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  ExternalReference thunk_ref = ExternalReference(&thunk_fun, thunk_type,
-      isolate());
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback(isolate());
   __ CallApiFunctionAndReturn(api_function_address,
                               thunk_ref,
                               kStackUnwindSpace,

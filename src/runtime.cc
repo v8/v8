@@ -38,6 +38,7 @@
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "compiler.h"
+#include "conversions.h"
 #include "cpu.h"
 #include "cpu-profiler.h"
 #include "dateparser-inl.h"
@@ -63,7 +64,6 @@
 #include "string-search.h"
 #include "stub-cache.h"
 #include "uri.h"
-#include "v8conversions.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 
@@ -14583,8 +14583,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   // code where we can't handle lazy deopts for lack of a suitable bailout
   // ID. So we just try migration and signal failure if necessary,
   // which will also trigger a deopt.
-  Handle<Object> result = JSObject::TryMigrateInstance(js_object);
-  if (result.is_null()) return Smi::FromInt(0);
+  if (!JSObject::TryMigrateInstance(js_object)) return Smi::FromInt(0);
   return *object;
 }
 

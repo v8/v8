@@ -861,6 +861,10 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference cpu_features();
 
+  static ExternalReference is_profiling_address(Isolate* isolate);
+  static ExternalReference invoke_function_callback(Isolate* isolate);
+  static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
+
   Address address() const { return reinterpret_cast<Address>(address_); }
 
   // Function Debug::Break()

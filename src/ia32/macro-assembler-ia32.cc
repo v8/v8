@@ -2300,7 +2300,7 @@ void MacroAssembler::PrepareCallApiFunction(int argc) {
 
 void MacroAssembler::CallApiFunctionAndReturn(
     Register function_address,
-    Address thunk_address,
+    ExternalReference thunk_ref,
     Operand thunk_last_arg,
     int stack_space,
     Operand return_value_operand,
@@ -2331,17 +2331,15 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   Label profiler_disabled;
   Label end_profiler_check;
-  bool* is_profiling_flag =
-      isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  mov(eax, Immediate(reinterpret_cast<Address>(is_profiling_flag)));
+  mov(eax, Immediate(ExternalReference::is_profiling_address(isolate())));
   cmpb(Operand(eax, 0), 0);
   j(zero, &profiler_disabled);
 
   // Additional parameter is the address of the actual getter function.
   mov(thunk_last_arg, function_address);
   // Call the api function.
-  call(thunk_address, RelocInfo::RUNTIME_ENTRY);
+  mov(eax, Immediate(thunk_ref));
+  call(eax);
   jmp(&end_profiler_check);
 
   bind(&profiler_disabled);

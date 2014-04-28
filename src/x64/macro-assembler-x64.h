@@ -1313,7 +1313,7 @@ class MacroAssembler: public Assembler {
   // caller-save registers.  Restores context.  On return removes
   // stack_space * kPointerSize (GCed).
   void CallApiFunctionAndReturn(Register function_address,
-                                Address thunk_address,
+                                ExternalReference thunk_ref,
                                 Register thunk_last_arg,
                                 int stack_space,
                                 Operand return_value_operand,

@@ -947,21 +947,47 @@ Handle<AccessorInfo> Accessors::FunctionLengthInfo(
 //
 
 
-Object* Accessors::FunctionGetName(Isolate* isolate,
-                                   Object* object,
-                                   void*) {
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  return holder == NULL
-      ? isolate->heap()->undefined_value()
-      : holder->shared()->name();
+void Accessors::FunctionNameGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
+  }
+
+  Handle<JSFunction> function;
+  Handle<Object> result;
+  if (maybe_function.ToHandle(&function)) {
+    result = Handle<Object>(function->shared()->name(), isolate);
+  } else {
+    result = isolate->factory()->undefined_value();
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionName = {
-  FunctionGetName,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionNameSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionNameInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->name_string(),
+                      &FunctionNameGetter,
+                      &FunctionNameSetter,
+                      attributes);
+}
 
 
 //

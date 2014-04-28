@@ -32,6 +32,7 @@
 #include "bootstrapper.h"
 #include "codegen.h"
 #include "compilation-cache.h"
+#include "conversions.h"
 #include "cpu-profiler.h"
 #include "debug.h"
 #include "deoptimizer.h"
@@ -50,7 +51,6 @@
 #include "store-buffer.h"
 #include "utils/random-number-generator.h"
 #include "utils.h"
-#include "v8conversions.h"
 #include "v8threads.h"
 #include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP

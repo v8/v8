@@ -49,16 +49,6 @@ unsigned CpuFeatures::dcache_line_size_ = 1;
 unsigned CpuFeatures::icache_line_size_ = 1;
 
 
-void CPU::SetUp() {
-  CpuFeatures::Probe();
-}
-
-
-bool CPU::SupportsCrankshaft() {
-  return true;
-}
-
-
 void CPU::FlushICache(void* address, size_t length) {
   if (length == 0) {
     return;
@@ -139,7 +129,7 @@ void CPU::FlushICache(void* address, size_t length) {
 }
 
 
-void CpuFeatures::Probe() {
+void CpuFeatures::Probe(bool serializer_enabled) {
   // Compute I and D cache line size. The cache type register holds
   // information about the caches.
   uint32_t cache_type_register = GetCacheType();

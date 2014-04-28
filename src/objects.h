@@ -2294,8 +2294,8 @@ class JSObject: public JSReceiver {
   static void MigrateInstance(Handle<JSObject> instance);
 
   // Migrates the given object only if the target map is already available,
-  // or returns an empty handle if such a map is not yet available.
-  static Handle<Object> TryMigrateInstance(Handle<JSObject> instance);
+  // or returns false if such a map is not yet available.
+  static bool TryMigrateInstance(Handle<JSObject> instance);
 
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
@@ -3440,20 +3440,6 @@ class DescriptorArray: public FixedArray {
   // to add descriptors in bulk at the end, followed by sorting the descriptor
   // array.
   inline void Append(Descriptor* desc);
-
-  static Handle<DescriptorArray> Merge(Handle<Map> left_map,
-                                       int verbatim,
-                                       int valid,
-                                       int new_size,
-                                       int modify_index,
-                                       StoreMode store_mode,
-                                       Handle<Map> right_map)
-      V8_WARN_UNUSED_RESULT;
-
-  bool IsMoreGeneralThan(int verbatim,
-                         int valid,
-                         int new_size,
-                         DescriptorArray* other);
 
   static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
                                           int enumeration_index,
@@ -6429,9 +6415,11 @@ class Map: public HeapObject {
   // is found by re-transitioning from the root of the transition tree using the
   // descriptor array of the map. Returns NULL if no updated map is found.
   // This method also applies any pending migrations along the prototype chain.
-  static Handle<Map> CurrentMapForDeprecated(Handle<Map> map);
+  static MaybeHandle<Map> CurrentMapForDeprecated(Handle<Map> map)
+      V8_WARN_UNUSED_RESULT;
   // Same as above, but does not touch the prototype chain.
-  static Handle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map);
+  static MaybeHandle<Map> CurrentMapForDeprecatedInternal(Handle<Map> map)
+      V8_WARN_UNUSED_RESULT;
 
   static Handle<Map> CopyDropDescriptors(Handle<Map> map);
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
@@ -6731,7 +6719,6 @@ class Map: public HeapObject {
   void DeprecateTransitionTree();
   void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
 
-  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   void UpdateDescriptor(int descriptor_number, Descriptor* desc);

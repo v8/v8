@@ -46,16 +46,6 @@
 namespace v8 {
 namespace internal {
 
-void CPU::SetUp() {
-  CpuFeatures::Probe();
-}
-
-
-bool CPU::SupportsCrankshaft() {
-  return CpuFeatures::IsSupported(VFP3);
-}
-
-
 void CPU::FlushICache(void* start, size_t size) {
   // Nothing to do flushing no instructions.
   if (size == 0) {
