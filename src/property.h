@@ -66,7 +66,6 @@ class Descriptor BASE_EMBEDDED {
         details_(attributes, type, representation, field_index) { }
 
   friend class DescriptorArray;
-  friend class Map;
 };
 
 

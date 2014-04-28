@@ -2425,6 +2425,43 @@ Map* Map::FindRootMap() {
 }
 
 
+// Returns NULL if the updated map is incompatible.
+Map* Map::FindUpdatedMap(int verbatim,
+                         int length,
+                         DescriptorArray* descriptors) {
+  DisallowHeapAllocation no_allocation;
+
+  // This can only be called on roots of transition trees.
+  ASSERT(GetBackPointer()->IsUndefined());
+
+  Map* current = this;
+
+  for (int i = verbatim; i < length; i++) {
+    if (!current->HasTransitionArray()) break;
+    Name* name = descriptors->GetKey(i);
+    TransitionArray* transitions = current->transitions();
+    int transition = transitions->Search(name);
+    if (transition == TransitionArray::kNotFound) break;
+    current = transitions->GetTarget(transition);
+    PropertyDetails details = descriptors->GetDetails(i);
+    PropertyDetails target_details =
+        current->instance_descriptors()->GetDetails(i);
+    if (details.attributes() != target_details.attributes()) return NULL;
+    if (details.type() == CALLBACKS) {
+      if (target_details.type() != CALLBACKS) return NULL;
+      if (descriptors->GetValue(i) !=
+              current->instance_descriptors()->GetValue(i)) {
+        return NULL;
+      }
+    } else if (target_details.type() == CALLBACKS) {
+      return NULL;
+    }
+  }
+
+  return current;
+}
+
+
 Map* Map::FindLastMatchMap(int verbatim,
                            int length,
                            DescriptorArray* descriptors) {
@@ -2515,22 +2552,19 @@ void Map::GeneralizeFieldType(Handle<Map> map,
                               int modify_index,
                               Handle<HeapType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
+  Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
+  Handle<DescriptorArray> descriptors(
+      field_owner->instance_descriptors(), isolate);
 
   // Check if we actually need to generalize the field type at all.
   Handle<HeapType> old_field_type(
-      map->instance_descriptors()->GetFieldType(modify_index), isolate);
+      descriptors->GetFieldType(modify_index), isolate);
   if (new_field_type->NowIs(old_field_type)) {
     ASSERT(Map::GeneralizeFieldType(old_field_type,
                                     new_field_type,
                                     isolate)->NowIs(old_field_type));
     return;
   }
-
-  // Determine the field owner.
-  Handle<Map> field_owner(map->FindFieldOwner(modify_index), isolate);
-  Handle<DescriptorArray> descriptors(
-      field_owner->instance_descriptors(), isolate);
-  ASSERT_EQ(*old_field_type, descriptors->GetFieldType(modify_index));
 
   // Determine the generalized new field type.
   new_field_type = Map::GeneralizeFieldType(
@@ -2564,28 +2598,23 @@ void Map::GeneralizeFieldType(Handle<Map> map,
 // (partial) version of the type in the transition tree.
 // To do this, on each rewrite:
 // - Search the root of the transition tree using FindRootMap.
-// - Find |target_map|, the newest matching version of this map using the keys
-//   in the |old_map|'s descriptor array to walk the transition tree.
-// - Merge/generalize the descriptor array of the |old_map| and |target_map|.
-// - Generalize the |modify_index| descriptor using |new_representation| and
-//   |new_field_type|.
-// - Walk the tree again starting from the root towards |target_map|. Stop at
+// - Find |updated|, the newest matching version of this map using
+//   FindUpdatedMap. This uses the keys in the own map's descriptor array to
+//   walk the transition tree.
+// - Merge/generalize the descriptor array of the current map and |updated|.
+// - Generalize the |modify_index| descriptor using |new_representation|.
+// - Walk the tree again starting from the root towards |updated|. Stop at
 //   |split_map|, the first map who's descriptor array does not match the merged
 //   descriptor array.
-// - If |target_map| == |split_map|, |target_map| is in the expected state.
-//   Return it.
-// - Otherwise, invalidate the outdated transition target from |target_map|, and
+// - If |updated| == |split_map|, |updated| is in the expected state. Return it.
+// - Otherwise, invalidate the outdated transition target from |updated|, and
 //   replace its transition tree with a new branch for the updated descriptors.
 Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
                                           int modify_index,
                                           Representation new_representation,
                                           Handle<HeapType> new_field_type,
                                           StoreMode store_mode) {
-  Isolate* isolate = old_map->GetIsolate();
-
-  Handle<DescriptorArray> old_descriptors(
-      old_map->instance_descriptors(), isolate);
-  int old_nof = old_map->NumberOfOwnDescriptors();
+  Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
   PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
   Representation old_representation = old_details.representation();
 
@@ -2612,239 +2641,84 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
     return old_map;
   }
 
+  if (new_representation.Equals(old_representation) &&
+      old_details.type() == FIELD) {
+    Map::GeneralizeFieldType(old_map, modify_index, new_field_type);
+    return old_map;
+  }
+
+  Handle<Map> root_map(old_map->FindRootMap());
+
   // Check the state of the root map.
-  Handle<Map> root_map(old_map->FindRootMap(), isolate);
   if (!old_map->EquivalentToForTransition(*root_map)) {
     return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
         old_details.attributes(), "not equivalent");
   }
-  int root_nof = root_map->NumberOfOwnDescriptors();
-  if (modify_index < root_nof) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    if ((old_details.type() != FIELD && store_mode == FORCE_FIELD) ||
-        (old_details.type() == FIELD &&
-         (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
-          !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-          old_details.attributes(), "root modification");
-    }
+
+  int verbatim = root_map->NumberOfOwnDescriptors();
+
+  if (store_mode != ALLOW_AS_CONSTANT && modify_index < verbatim) {
+    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
+        old_details.attributes(), "root modification");
   }
 
-  Handle<Map> target_map = root_map;
-  for (int i = root_nof; i < old_nof; ++i) {
-    int j = target_map->SearchTransition(old_descriptors->GetKey(i));
-    if (j == TransitionArray::kNotFound) break;
-    Handle<Map> tmp_map(target_map->GetTransition(j), isolate);
-    Handle<DescriptorArray> tmp_descriptors = handle(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is incompatible.
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    PropertyType old_type = old_details.type();
-    PropertyType tmp_type = tmp_details.type();
-    if (tmp_details.attributes() != old_details.attributes() ||
-        ((tmp_type == CALLBACKS || old_type == CALLBACKS) &&
-         (tmp_type != old_type ||
-          tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
-    }
-    Representation old_representation = old_details.representation();
-    Representation tmp_representation = tmp_details.representation();
-    if (!old_representation.fits_into(tmp_representation) ||
-        (!new_representation.fits_into(tmp_representation) &&
-         modify_index == i)) {
-      break;
-    }
-    if (tmp_type == FIELD) {
-      // Generalize the field type as necessary.
-      Handle<HeapType> old_field_type = (old_type == FIELD)
-          ? handle(old_descriptors->GetFieldType(i), isolate)
-          : old_descriptors->GetValue(i)->OptimalType(
-              isolate, tmp_representation);
-      if (modify_index == i) {
-        old_field_type = GeneralizeFieldType(
-            new_field_type, old_field_type, isolate);
-      }
-      GeneralizeFieldType(tmp_map, i, old_field_type);
-    } else if (tmp_type == CONSTANT) {
-      if (old_type != CONSTANT ||
-          old_descriptors->GetConstant(i) != tmp_descriptors->GetConstant(i)) {
-        break;
-      }
-    } else {
-      ASSERT_EQ(tmp_type, old_type);
-      ASSERT_EQ(tmp_descriptors->GetValue(i), old_descriptors->GetValue(i));
-    }
-    target_map = tmp_map;
+  int descriptors = old_map->NumberOfOwnDescriptors();
+  Map* raw_updated = root_map->FindUpdatedMap(
+      verbatim, descriptors, *old_descriptors);
+  if (raw_updated == NULL) {
+    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
+        old_details.attributes(), "incompatible");
   }
 
-  // Directly change the map if the target map is more general.
-  Handle<DescriptorArray> target_descriptors(
-      target_map->instance_descriptors(), isolate);
-  int target_nof = target_map->NumberOfOwnDescriptors();
-  if (target_nof == old_nof &&
-      (store_mode != FORCE_FIELD ||
-       target_descriptors->GetDetails(modify_index).type() == FIELD)) {
-    ASSERT(modify_index < target_nof);
-    ASSERT(new_representation.fits_into(
-            target_descriptors->GetDetails(modify_index).representation()));
-    ASSERT(target_descriptors->GetDetails(modify_index).type() != FIELD ||
-           new_field_type->NowIs(
-               target_descriptors->GetFieldType(modify_index)));
-    return target_map;
+  Handle<Map> updated(raw_updated);
+  Handle<DescriptorArray> updated_descriptors(updated->instance_descriptors());
+
+  int valid = updated->NumberOfOwnDescriptors();
+
+  // Directly change the map if the target map is more general. Ensure that the
+  // target type of the modify_index is a FIELD, unless we are migrating.
+  if (updated_descriptors->IsMoreGeneralThan(
+          verbatim, valid, descriptors, *old_descriptors) &&
+      (store_mode == ALLOW_AS_CONSTANT ||
+       updated_descriptors->GetDetails(modify_index).type() == FIELD)) {
+    Representation updated_representation =
+        updated_descriptors->GetDetails(modify_index).representation();
+    if (new_representation.fits_into(updated_representation)) return updated;
   }
 
-  // Find the last compatible target map in the transition tree.
-  for (int i = target_nof; i < old_nof; ++i) {
-    int j = target_map->SearchTransition(old_descriptors->GetKey(i));
-    if (j == TransitionArray::kNotFound) break;
-    Handle<Map> tmp_map(target_map->GetTransition(j), isolate);
-    Handle<DescriptorArray> tmp_descriptors(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is compatible.
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    if (tmp_details.attributes() != old_details.attributes() ||
-        ((tmp_details.type() == CALLBACKS || old_details.type() == CALLBACKS) &&
-         (tmp_details.type() != old_details.type() ||
-          tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
-    }
-    target_map = tmp_map;
-  }
-  target_nof = target_map->NumberOfOwnDescriptors();
-  target_descriptors = handle(target_map->instance_descriptors(), isolate);
-
-  // Allocate a new descriptor array large enough to hold the required
-  // descriptors, with minimally the exact same size as the old descriptor
-  // array.
-  int new_slack = Max(
-      old_nof, old_descriptors->number_of_descriptors()) - old_nof;
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::Allocate(
-      isolate, old_nof, new_slack);
-  ASSERT(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
-         new_descriptors->number_of_descriptors() ==
-         old_descriptors->number_of_descriptors());
-  ASSERT(new_descriptors->number_of_descriptors() == old_nof);
-
-  // 0 -> |root_nof|
-  int current_offset = 0;
-  for (int i = 0; i < root_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.type() == FIELD) current_offset++;
-    Descriptor d(handle(old_descriptors->GetKey(i), isolate),
-                 handle(old_descriptors->GetValue(i), isolate),
-                 old_details);
-    new_descriptors->Set(i, &d);
-  }
-
-  // |root_nof| -> |target_nof|
-  for (int i = root_nof; i < target_nof; ++i) {
-    Handle<Name> target_key(target_descriptors->GetKey(i), isolate);
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyDetails target_details = target_descriptors->GetDetails(i);
-    target_details = target_details.CopyWithRepresentation(
-        old_details.representation().generalize(
-            target_details.representation()));
-    if (modify_index == i) {
-      target_details = target_details.CopyWithRepresentation(
-          new_representation.generalize(target_details.representation()));
-    }
-    if (old_details.type() == FIELD ||
-        target_details.type() == FIELD ||
-        (modify_index == i && store_mode == FORCE_FIELD) ||
-        (target_descriptors->GetValue(i) != old_descriptors->GetValue(i))) {
-      Handle<HeapType> old_field_type = (old_details.type() == FIELD)
-          ? handle(old_descriptors->GetFieldType(i), isolate)
-          : old_descriptors->GetValue(i)->OptimalType(
-              isolate, target_details.representation());
-      Handle<HeapType> target_field_type = (target_details.type() == FIELD)
-          ? handle(target_descriptors->GetFieldType(i), isolate)
-          : target_descriptors->GetValue(i)->OptimalType(
-              isolate, target_details.representation());
-      target_field_type = GeneralizeFieldType(
-          target_field_type, old_field_type, isolate);
-      if (modify_index == i) {
-        target_field_type = GeneralizeFieldType(
-            target_field_type, new_field_type, isolate);
-      }
-      FieldDescriptor d(target_key,
-                        current_offset++,
-                        target_field_type,
-                        target_details.attributes(),
-                        target_details.representation());
-      new_descriptors->Set(i, &d);
-    } else {
-      ASSERT_NE(FIELD, target_details.type());
-      Descriptor d(target_key,
-                   handle(target_descriptors->GetValue(i), isolate),
-                   target_details);
-      new_descriptors->Set(i, &d);
-    }
-  }
-
-  // |target_nof| -> |old_nof|
-  for (int i = target_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    Handle<Name> old_key(old_descriptors->GetKey(i), isolate);
-    if (modify_index == i) {
-      old_details = old_details.CopyWithRepresentation(
-          new_representation.generalize(old_details.representation()));
-    }
-    if (old_details.type() == FIELD) {
-      Handle<HeapType> old_field_type(
-          old_descriptors->GetFieldType(i), isolate);
-      if (modify_index == i) {
-        old_field_type = GeneralizeFieldType(
-            old_field_type, new_field_type, isolate);
-      }
-      FieldDescriptor d(old_key,
-                        current_offset++,
-                        old_field_type,
-                        old_details.attributes(),
-                        old_details.representation());
-      new_descriptors->Set(i, &d);
-    } else {
-      ASSERT(old_details.type() == CONSTANT || old_details.type() == CALLBACKS);
-      if (modify_index == i && store_mode == FORCE_FIELD) {
-        FieldDescriptor d(old_key,
-                          current_offset++,
-                          GeneralizeFieldType(
-                              old_descriptors->GetValue(i)->OptimalType(
-                                  isolate, old_details.representation()),
-                              new_field_type, isolate),
-                          old_details.attributes(),
-                          old_details.representation());
-        new_descriptors->Set(i, &d);
-      } else {
-        ASSERT_NE(FIELD, old_details.type());
-        Descriptor d(old_key,
-                     handle(old_descriptors->GetValue(i), isolate),
-                     old_details);
-        new_descriptors->Set(i, &d);
-      }
-    }
-  }
-
-  new_descriptors->Sort();
-
-  ASSERT(store_mode != FORCE_FIELD ||
+  Handle<DescriptorArray> new_descriptors = DescriptorArray::Merge(
+      updated, verbatim, valid, descriptors, modify_index,
+      store_mode, old_map);
+  ASSERT(store_mode == ALLOW_AS_CONSTANT ||
          new_descriptors->GetDetails(modify_index).type() == FIELD);
 
-  Handle<Map> split_map(root_map->FindLastMatchMap(
-          root_nof, old_nof, *new_descriptors), isolate);
-  int split_nof = split_map->NumberOfOwnDescriptors();
-  ASSERT_NE(old_nof, split_nof);
+  Isolate* isolate = new_descriptors->GetIsolate();
+  old_representation =
+      new_descriptors->GetDetails(modify_index).representation();
+  Representation updated_representation =
+      new_representation.generalize(old_representation);
+  if (!updated_representation.Equals(old_representation)) {
+    new_descriptors->SetRepresentation(modify_index, updated_representation);
+  }
+  if (new_descriptors->GetDetails(modify_index).type() == FIELD) {
+    Handle<HeapType> field_type(
+        new_descriptors->GetFieldType(modify_index), isolate);
+    new_field_type = Map::GeneralizeFieldType(
+        field_type, new_field_type, isolate);
+    new_descriptors->SetValue(modify_index, *new_field_type);
+  }
 
+  Handle<Map> split_map(root_map->FindLastMatchMap(
+      verbatim, descriptors, *new_descriptors));
+
+  int split_descriptors = split_map->NumberOfOwnDescriptors();
+  // This is shadowed by |updated_descriptors| being more general than
+  // |old_descriptors|.
+  ASSERT(descriptors != split_descriptors);
+
+  int descriptor = split_descriptors;
   split_map->DeprecateTarget(
-      old_descriptors->GetKey(split_nof), *new_descriptors);
+      old_descriptors->GetKey(descriptor), *new_descriptors);
 
   if (FLAG_trace_generalization) {
     PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
@@ -2858,7 +2732,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         : HeapType::Constant(handle(new_descriptors->GetValue(modify_index),
                                     isolate), isolate);
     old_map->PrintGeneralization(
-        stdout, "", modify_index, split_nof, old_nof,
+        stdout, "", modify_index, descriptor, descriptors,
         old_details.type() == CONSTANT && store_mode == FORCE_FIELD,
         old_details.representation(), new_details.representation(),
         *old_field_type, *new_field_type);
@@ -2866,9 +2740,10 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
 
   // Add missing transitions.
   Handle<Map> new_map = split_map;
-  for (int i = split_nof; i < old_nof; ++i) {
-    new_map = CopyInstallDescriptors(new_map, i, new_descriptors);
+  for (; descriptor < descriptors; descriptor++) {
+    new_map = CopyInstallDescriptors(new_map, descriptor, new_descriptors);
   }
+
   new_map->set_owns_descriptors(true);
   return new_map;
 }
@@ -8519,6 +8394,150 @@ void DescriptorArray::CopyFrom(int index,
                   handle(value, src->GetIsolate()),
                   details);
   Set(index, &desc, witness);
+}
+
+
+// Creates a new descriptor array by merging the descriptor array of |right_map|
+// into the (at least partly) updated descriptor array of |left_map|.
+// The method merges two descriptor array in three parts. Both descriptor arrays
+// are identical up to |verbatim|. They also overlap in keys up to |valid|.
+// Between |verbatim| and |valid|, the resulting descriptor type as well as the
+// representation are generalized from both |left_map| and |right_map|. Beyond
+// |valid|, the descriptors are copied verbatim from |right_map| up to
+// |new_size|.
+// In case of incompatible types, the type and representation of |right_map| is
+// used.
+Handle<DescriptorArray> DescriptorArray::Merge(Handle<Map> left_map,
+                                               int verbatim,
+                                               int valid,
+                                               int new_size,
+                                               int modify_index,
+                                               StoreMode store_mode,
+                                               Handle<Map> right_map) {
+  ASSERT(verbatim <= valid);
+  ASSERT(valid <= new_size);
+
+  // Allocate a new descriptor array large enough to hold the required
+  // descriptors, with minimally the exact same size as this descriptor array.
+  Isolate* isolate = left_map->GetIsolate();
+  Handle<DescriptorArray> left(left_map->instance_descriptors());
+  Handle<DescriptorArray> right(right_map->instance_descriptors());
+  Handle<DescriptorArray> result = DescriptorArray::Allocate(
+      isolate,
+      new_size,
+      Max(new_size, right->number_of_descriptors()) - new_size);
+  ASSERT(result->length() > left->length() ||
+         result->NumberOfSlackDescriptors() > 0 ||
+         result->number_of_descriptors() == right->number_of_descriptors());
+  ASSERT(result->number_of_descriptors() == new_size);
+
+  int descriptor;
+
+  // 0 -> |verbatim|
+  int current_offset = 0;
+  for (descriptor = 0; descriptor < verbatim; descriptor++) {
+    if (left->GetDetails(descriptor).type() == FIELD) current_offset++;
+    Descriptor d(handle(right->GetKey(descriptor)),
+                 handle(right->GetValue(descriptor), right->GetIsolate()),
+                 right->GetDetails(descriptor));
+    result->Set(descriptor, &d);
+  }
+
+  // |verbatim| -> |valid|
+  for (; descriptor < valid; descriptor++) {
+    PropertyDetails left_details = left->GetDetails(descriptor);
+    PropertyDetails right_details = right->GetDetails(descriptor);
+    if (left_details.type() == FIELD || right_details.type() == FIELD ||
+        (store_mode == FORCE_FIELD && descriptor == modify_index) ||
+        (left_details.type() == CONSTANT &&
+         right_details.type() == CONSTANT &&
+         left->GetValue(descriptor) != right->GetValue(descriptor))) {
+      ASSERT(left_details.type() == CONSTANT || left_details.type() == FIELD);
+      ASSERT(right_details.type() == CONSTANT || right_details.type() == FIELD);
+      Representation representation = left_details.representation().generalize(
+          right_details.representation());
+      Handle<HeapType> left_type = (left_details.type() == FIELD)
+          ? handle(left->GetFieldType(descriptor), isolate)
+          : left->GetValue(descriptor)->OptimalType(isolate, representation);
+      Handle<HeapType> right_type = (right_details.type() == FIELD)
+          ? handle(right->GetFieldType(descriptor), isolate)
+          : right->GetValue(descriptor)->OptimalType(isolate, representation);
+      Handle<HeapType> field_type = Map::GeneralizeFieldType(
+          left_type, right_type, isolate);
+      FieldDescriptor d(handle(left->GetKey(descriptor), isolate),
+                        current_offset++,
+                        field_type,
+                        right_details.attributes(),
+                        representation);
+      result->Set(descriptor, &d);
+    } else {
+      Descriptor d(handle(right->GetKey(descriptor), isolate),
+                   handle(right->GetValue(descriptor), isolate),
+                   right_details);
+      result->Set(descriptor, &d);
+    }
+  }
+
+  // |valid| -> |new_size|
+  for (; descriptor < new_size; descriptor++) {
+    PropertyDetails right_details = right->GetDetails(descriptor);
+    if (right_details.type() == FIELD) {
+      FieldDescriptor d(handle(right->GetKey(descriptor), isolate),
+                        current_offset++,
+                        handle(right->GetFieldType(descriptor), isolate),
+                        right_details.attributes(),
+                        right_details.representation());
+      result->Set(descriptor, &d);
+    } else if (store_mode == FORCE_FIELD && descriptor == modify_index) {
+      ASSERT_EQ(CONSTANT, right_details.type());
+      Representation field_representation = right_details.representation();
+      Handle<HeapType> field_type = right->GetValue(descriptor)->OptimalType(
+          isolate, field_representation);
+      FieldDescriptor d(handle(right->GetKey(descriptor), isolate),
+                        current_offset++,
+                        field_type,
+                        right_details.attributes(),
+                        field_representation);
+      result->Set(descriptor, &d);
+    } else {
+      Descriptor d(handle(right->GetKey(descriptor), isolate),
+                   handle(right->GetValue(descriptor), isolate),
+                   right_details);
+      result->Set(descriptor, &d);
+    }
+  }
+
+  result->Sort();
+  return result;
+}
+
+
+// Checks whether a merge of |other| into |this| would return a copy of |this|.
+bool DescriptorArray::IsMoreGeneralThan(int verbatim,
+                                        int valid,
+                                        int new_size,
+                                        DescriptorArray* other) {
+  ASSERT(verbatim <= valid);
+  ASSERT(valid <= new_size);
+  if (valid != new_size) return false;
+
+  for (int descriptor = verbatim; descriptor < valid; descriptor++) {
+    PropertyDetails details = GetDetails(descriptor);
+    PropertyDetails other_details = other->GetDetails(descriptor);
+    if (!other_details.representation().fits_into(details.representation())) {
+      return false;
+    }
+    if (details.type() == CONSTANT) {
+      if (other_details.type() != CONSTANT) return false;
+      if (GetValue(descriptor) != other->GetValue(descriptor)) return false;
+    } else if (details.type() == FIELD && other_details.type() == FIELD) {
+      if (!other->GetFieldType(descriptor)->NowIs(GetFieldType(descriptor))) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 
