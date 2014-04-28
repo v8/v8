@@ -1,3 +1,22 @@
+2014-04-28: Version 3.26.25
+
+        Add timestamps to CPU profile samples (Chromium issue 363976).
+
+        Expose promise status through promise mirror (issue 3093).
+
+        Remove static CallCompletedCallback handlers.
+
+        Added an Isolate* field to NoTrackDoubleFieldsForSerializerScope,
+        PlatformFeatureScope and BinaryOpIC::State (Chromium issue 359977).
+
+        Trigger debug event on not yet caught exception in promises (issue
+        3093).
+
+        Unbreak vtunejit=on (issue 3288).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-25: Version 3.26.24
 
         MIPS: CodeStubs contain their corresponding Isolate* now. (part 2)

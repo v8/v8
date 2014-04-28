@@ -54,21 +54,13 @@ bool Isolate::IsCodePreAgingActive() {
 
 
 bool Isolate::IsDebuggerActive() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!NoBarrier_Load(&debugger_initialized_)) return false;
   return debugger()->IsDebuggerActive();
-#else
-  return false;
-#endif
 }
 
 
 bool Isolate::DebuggerHasBreakPoints() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   return debug()->has_break_points();
-#else
-  return false;
-#endif
 }
 
 

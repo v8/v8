@@ -1052,12 +1052,11 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
 
   thread_local_top()->rethrowing_message_ = false;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
   if (catchable_by_javascript) {
-    debugger_->OnException(exception_handle, report_exception);
+    debugger_->OnException(
+        exception_handle, report_exception, factory()->undefined_value());
   }
-#endif
 
   // Generate the message if required.
   if (report_exception || try_catch_needs_message) {
@@ -1326,7 +1325,6 @@ Handle<Context> Isolate::global_context() {
 
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (debug_->InDebugger()) {
     while (!it.done()) {
       JavaScriptFrame* frame = it.frame();
@@ -1338,7 +1336,6 @@ Handle<Context> Isolate::GetCallingNativeContext() {
       }
     }
   }
-#endif  // ENABLE_DEBUGGER_SUPPORT
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
@@ -1510,10 +1507,8 @@ Isolate::Isolate()
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
 #endif
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   debug_ = NULL;
   debugger_ = NULL;
-#endif
 
   handle_scope_data_.Initialize();
 
@@ -1569,9 +1564,7 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
     debugger()->UnloadDebugger();
-#endif
 
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
@@ -1739,12 +1732,10 @@ Isolate::~Isolate() {
   delete random_number_generator_;
   random_number_generator_ = NULL;
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;
   debugger_ = NULL;
   delete debug_;
   debug_ = NULL;
-#endif
 }
 
 
@@ -1798,14 +1789,12 @@ void Isolate::InitializeLoggingAndCounters() {
 
 
 void Isolate::InitializeDebugger() {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   LockGuard<RecursiveMutex> lock_guard(debugger_access());
   if (NoBarrier_Load(&debugger_initialized_)) return;
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
   debugger_ = new Debugger(this);
   Release_Store(&debugger_initialized_, true);
-#endif
 }
 
 
@@ -1950,9 +1939,7 @@ bool Isolate::Init(Deserializer* des) {
     }
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   debug_->SetUp(create_heap_objects);
-#endif
 
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
@@ -2253,6 +2240,39 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     }
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());
+}
+
+
+void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    if (callback == call_completed_callbacks_.at(i)) return;
+  }
+  call_completed_callbacks_.Add(callback);
+}
+
+
+void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    if (callback == call_completed_callbacks_.at(i)) {
+      call_completed_callbacks_.Remove(i);
+    }
+  }
+}
+
+
+void Isolate::FireCallCompletedCallback() {
+  bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
+  bool run_microtasks = autorun_microtasks() && microtask_pending();
+  if (!has_call_completed_callbacks && !run_microtasks) return;
+
+  if (!handle_scope_implementer()->CallDepthIsZero()) return;
+  // Fire callbacks.  Increase call depth to prevent recursive callbacks.
+  handle_scope_implementer()->IncrementCallDepth();
+  if (run_microtasks) Execution::RunMicrotasks(this);
+  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
+    call_completed_callbacks_.at(i)();
+  }
+  handle_scope_implementer()->DecrementCallDepth();
 }
 
 

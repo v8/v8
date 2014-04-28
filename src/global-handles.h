@@ -33,7 +33,7 @@
 
 #include "handles.h"
 #include "list.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {

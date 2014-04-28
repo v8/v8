@@ -42,6 +42,18 @@ function ClearMirrorCache() {
 }
 
 
+// Wrapper to check whether an object is a Promise.  The call may not work
+// if promises are not enabled.
+// TODO(yangguo): remove this wrapper once promises are enabled by default.
+function ObjectIsPromise(value) {
+  try {
+    return %IsPromise(value);
+  } catch (e) {
+    return false;
+  }
+}
+
+
 /**
  * Returns the mirror for a specified value or object.
  *
@@ -90,6 +102,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new ErrorMirror(value);
   } else if (IS_SCRIPT(value)) {
     mirror = new ScriptMirror(value);
+  } else if (ObjectIsPromise(value)) {
+    mirror = new PromiseMirror(value);
   } else {
     mirror = new ObjectMirror(value, OBJECT_TYPE, opt_transient);
   }
@@ -159,6 +173,7 @@ var FRAME_TYPE = 'frame';
 var SCRIPT_TYPE = 'script';
 var CONTEXT_TYPE = 'context';
 var SCOPE_TYPE = 'scope';
+var PROMISE_TYPE = 'promise';
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
@@ -212,6 +227,7 @@ var ScopeType = { Global: 0,
 //         - DateMirror
 //         - RegExpMirror
 //         - ErrorMirror
+//         - PromiseMirror
 //     - PropertyMirror
 //     - InternalPropertyMirror
 //     - FrameMirror
@@ -347,6 +363,15 @@ Mirror.prototype.isRegExp = function() {
  */
 Mirror.prototype.isError = function() {
   return this instanceof ErrorMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a promise.
+ * @returns {boolean} True if the mirror reflects a promise
+ */
+Mirror.prototype.isPromise = function() {
+  return this instanceof PromiseMirror;
 };
 
 
@@ -637,9 +662,9 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
-    // Get all the local property names.
+    // Get all the local property names except for private symbols.
     propertyNames =
-        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_NONE);
+        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.
@@ -1168,6 +1193,26 @@ ErrorMirror.prototype.toText = function() {
     str = '#<Error>';
   }
   return str;
+};
+
+
+/**
+ * Mirror object for a Promise object.
+ * @param {Object} data The Promise object
+ * @constructor
+ * @extends Mirror
+ */
+function PromiseMirror(value) {
+  %_CallFunction(this, value, PROMISE_TYPE, ObjectMirror);
+}
+inherits(PromiseMirror, ObjectMirror);
+
+
+PromiseMirror.prototype.status = function() {
+  var status = %GetPromiseStatus(this.value_);
+  if (status == 0) return "pending";
+  if (status == 1) return "resolved";
+  return "rejected";
 };
 
 
@@ -2350,6 +2395,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
     case FUNCTION_TYPE:
     case ERROR_TYPE:
     case REGEXP_TYPE:
+    case PROMISE_TYPE:
       // Add object representation.
       this.serializeObject_(mirror, content, details);
       break;
@@ -2452,7 +2498,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     content.indexedInterceptor = true;
   }
 
-  // Add function specific properties.
   if (mirror.isFunction()) {
     // Add function specific properties.
     content.name = mirror.name();
@@ -2480,10 +2525,14 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     }
   }
 
-  // Add date specific properties.
   if (mirror.isDate()) {
     // Add date specific properties.
     content.value = mirror.value();
+  }
+
+  if (mirror.isPromise()) {
+    // Add promise specific properties.
+    content.status = mirror.status();
   }
 
   // Add actual properties - named properties followed by indexed properties.

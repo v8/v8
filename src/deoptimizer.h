@@ -169,7 +169,6 @@ class Deoptimizer : public Malloced {
                           Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // The returned object with information on the optimized frame needs to be
   // freed before another one can be generated.
   static DeoptimizedFrameInfo* DebuggerInspectableFrame(JavaScriptFrame* frame,
@@ -177,7 +176,6 @@ class Deoptimizer : public Malloced {
                                                         Isolate* isolate);
   static void DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
                                              Isolate* isolate);
-#endif
 
   // Makes sure that there is enough room in the relocation
   // information of a code object to perform lazy deoptimization
@@ -212,14 +210,13 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapObjects(JavaScriptFrameIterator* it);
-#ifdef ENABLE_DEBUGGER_SUPPORT
+
   void MaterializeHeapNumbersForDebuggerInspectableFrame(
       Address parameters_top,
       uint32_t parameters_size,
       Address expressions_top,
       uint32_t expressions_size,
       DeoptimizedFrameInfo* info);
-#endif
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -329,13 +326,20 @@ class Deoptimizer : public Malloced {
   void DoComputeCompiledStubFrame(TranslationIterator* iterator,
                                   int frame_index);
 
+  // Translate object, store the result into an auxiliary array
+  // (deferred_objects_tagged_values_).
   void DoTranslateObject(TranslationIterator* iterator,
                          int object_index,
                          int field_index);
 
+  // Translate value, store the result into the given frame slot.
   void DoTranslateCommand(TranslationIterator* iterator,
                           int frame_index,
                           unsigned output_offset);
+
+  // Translate object, do not store the result anywhere (but do update
+  // the deferred materialization array).
+  void DoTranslateObjectAndSkip(TranslationIterator* iterator);
 
   unsigned ComputeInputFrameSize() const;
   unsigned ComputeFixedSize(JSFunction* function) const;
@@ -644,18 +648,14 @@ class DeoptimizerData {
   explicit DeoptimizerData(MemoryAllocator* allocator);
   ~DeoptimizerData();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   void Iterate(ObjectVisitor* v);
-#endif
 
  private:
   MemoryAllocator* allocator_;
   int deopt_entry_code_entries_[Deoptimizer::kBailoutTypesWithCodeEntry];
   MemoryChunk* deopt_entry_code_[Deoptimizer::kBailoutTypesWithCodeEntry];
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   DeoptimizedFrameInfo* deoptimized_frame_info_;
-#endif
 
   Deoptimizer* current_;
 
@@ -919,7 +919,6 @@ class MaterializedObjectStore {
 };
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 // Class used to represent an unoptimized frame when the debugger
 // needs to inspect a frame that is part of an optimized frame. The
 // internally used FrameDescription objects are not GC safe so for use
@@ -993,7 +992,6 @@ class DeoptimizedFrameInfo : public Malloced {
 
   friend class Deoptimizer;
 };
-#endif
 
 } }  // namespace v8::internal
 

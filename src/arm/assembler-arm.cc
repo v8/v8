@@ -3175,9 +3175,7 @@ void Assembler::RecordComment(const char* msg) {
 void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
-#ifdef ENABLE_DEBUGGER_SUPPORT
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
-#endif
 }
 
 

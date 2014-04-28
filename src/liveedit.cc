@@ -45,10 +45,6 @@
 namespace v8 {
 namespace internal {
 
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-
 void SetElementSloppy(Handle<JSObject> object,
                       uint32_t index,
                       Handle<Object> value) {
@@ -1975,37 +1971,5 @@ void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
 bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
   return isolate->active_function_info_listener() != NULL;
 }
-
-
-#else  // ENABLE_DEBUGGER_SUPPORT
-
-// This ifdef-else-endif section provides working or stub implementation of
-// LiveEditFunctionTracker.
-LiveEditFunctionTracker::LiveEditFunctionTracker(Isolate* isolate,
-                                                 FunctionLiteral* fun) {
-}
-
-
-LiveEditFunctionTracker::~LiveEditFunctionTracker() {
-}
-
-
-void LiveEditFunctionTracker::RecordFunctionInfo(
-    Handle<SharedFunctionInfo> info, FunctionLiteral* lit,
-    Zone* zone) {
-}
-
-
-void LiveEditFunctionTracker::RecordRootFunctionInfo(Handle<Code> code) {
-}
-
-
-bool LiveEditFunctionTracker::IsActive(Isolate* isolate) {
-  return false;
-}
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
-
 
 } }  // namespace v8::internal

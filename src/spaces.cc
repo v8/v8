@@ -953,7 +953,6 @@ PagedSpace::PagedSpace(Heap* heap,
     : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
-      first_unswept_page_(Page::FromAddress(NULL)),
       unswept_free_bytes_(0) {
   if (id == CODE_SPACE) {
     area_size_ = heap->isolate()->memory_allocator()->
@@ -1130,14 +1129,6 @@ void PagedSpace::IncreaseCapacity(int size) {
 void PagedSpace::ReleasePage(Page* page, bool unlink) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
-
-  // Adjust list of unswept pages if the page is the head of the list.
-  if (first_unswept_page_ == page) {
-    first_unswept_page_ = page->next_page();
-    if (first_unswept_page_ == anchor()) {
-      first_unswept_page_ = Page::FromAddress(NULL);
-    }
-  }
 
   if (page->WasSwept()) {
     intptr_t size = free_list_.EvictFreeListItems(page);
@@ -2555,24 +2546,8 @@ void PagedSpace::PrepareForMarkCompact() {
   // on the first allocation after the sweep.
   EmptyAllocationInfo();
 
-  // Stop lazy sweeping and clear marking bits for unswept pages.
-  if (first_unswept_page_ != NULL) {
-    Page* p = first_unswept_page_;
-    do {
-      // Do not use ShouldBeSweptLazily predicate here.
-      // New evacuation candidates were selected but they still have
-      // to be swept before collection starts.
-      if (!p->WasSwept()) {
-        Bitmap::Clear(p);
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " lazily abandoned.\n",
-                 reinterpret_cast<intptr_t>(p));
-        }
-      }
-      p = p->next_page();
-    } while (p != anchor());
-  }
-  first_unswept_page_ = Page::FromAddress(NULL);
+  // This counter will be increased for pages which will be swept by the
+  // sweeper threads.
   unswept_free_bytes_ = 0;
 
   // Clear the free list before a full GC---it will be rebuilt afterward.
@@ -2581,7 +2556,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 
 intptr_t PagedSpace::SizeOfObjects() {
-  ASSERT(!heap()->IsSweepingComplete() || (unswept_free_bytes_ == 0));
+  ASSERT(heap()->mark_compact_collector()->IsConcurrentSweepingInProgress() ||
+         (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
 }
 
@@ -2592,39 +2568,6 @@ intptr_t PagedSpace::SizeOfObjects() {
 // fix them.
 void PagedSpace::RepairFreeListsAfterBoot() {
   free_list_.RepairLists(heap());
-}
-
-
-bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
-  if (IsLazySweepingComplete()) return true;
-
-  intptr_t freed_bytes = 0;
-  Page* p = first_unswept_page_;
-  do {
-    Page* next_page = p->next_page();
-    if (ShouldBeSweptLazily(p)) {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " lazily advanced.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      DecreaseUnsweptFreeBytes(p);
-      freed_bytes +=
-          MarkCompactCollector::
-              SweepConservatively<MarkCompactCollector::SWEEP_SEQUENTIALLY>(
-                  this, NULL, p);
-    }
-    p = next_page;
-  } while (p != anchor() && freed_bytes < bytes_to_sweep);
-
-  if (p == anchor()) {
-    first_unswept_page_ = Page::FromAddress(NULL);
-  } else {
-    first_unswept_page_ = p;
-  }
-
-  heap()->FreeQueuedChunks();
-
-  return IsLazySweepingComplete();
 }
 
 
@@ -2656,17 +2599,15 @@ bool PagedSpace::EnsureSweeperProgress(intptr_t size_in_bytes) {
       }
       return false;
     }
-    return true;
-  } else {
-    return AdvanceSweeper(size_in_bytes);
   }
+  return true;
 }
 
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
-  // If there are unswept pages advance lazy sweeper a bounded number of times
+  // If there are unswept pages advance sweeping a bounded number of times
   // until we find a size_in_bytes contiguous piece of memory
   const int kMaxSweepingTries = 5;
   bool sweeping_complete = false;
@@ -2693,10 +2634,9 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     return free_list_.Allocate(size_in_bytes);
   }
 
-  // Last ditch, sweep all the remaining pages to try to find space.  This may
-  // cause a pause.
-  if (!IsLazySweepingComplete()) {
-    EnsureSweeperProgress(kMaxInt);
+  // Last ditch, sweep all the remaining pages to try to find space.
+  if (heap()->mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+    heap()->mark_compact_collector()->WaitUntilSweepingCompleted();
 
     // Retry the free list allocation.
     HeapObject* object = free_list_.Allocate(size_in_bytes);

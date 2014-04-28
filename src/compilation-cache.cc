@@ -65,18 +65,11 @@ CompilationCache::CompilationCache(Isolate* isolate)
 CompilationCache::~CompilationCache() {}
 
 
-static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
-  CALL_HEAP_FUNCTION(isolate,
-                     CompilationCacheTable::Allocate(isolate->heap(), size),
-                     CompilationCacheTable);
-}
-
-
 Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   ASSERT(generation < generations_);
   Handle<CompilationCacheTable> result;
   if (tables_[generation]->IsUndefined()) {
-    result = AllocateTable(isolate(), kInitialCacheSize);
+    result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
     CompilationCacheTable* table =

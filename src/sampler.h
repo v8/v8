@@ -69,6 +69,7 @@ struct TickSample {
   };
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
+  TimeTicks timestamp;
   int frames_count : 8;  // Number of captured frames.
   bool has_external_callback : 1;
   StackFrame::Type top_frame_type : 4;

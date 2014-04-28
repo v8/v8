@@ -106,7 +106,7 @@ TEST(HashMap) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  TestHashMap(isolate->factory()->NewObjectHashTable(23));
+  TestHashMap(ObjectHashTable::New(isolate, 23));
   TestHashMap(isolate->factory()->NewOrderedHashMap());
 }
 
@@ -131,30 +131,29 @@ class ObjectHashTableTest: public ObjectHashTable {
 TEST(HashTableRehash) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
   // Test almost filled table.
   {
-    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
     ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
   }
   // Test half-filled table.
   {
-    Handle<ObjectHashTable> table = factory->NewObjectHashTable(100);
+    Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 100);
     ObjectHashTableTest* t = reinterpret_cast<ObjectHashTableTest*>(*table);
     int capacity = t->capacity();
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(Smi::FromInt(0));
+    t->Rehash(handle(Smi::FromInt(0), isolate));
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -240,7 +239,7 @@ TEST(ObjectHashTableCausesGC) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  TestHashMapCausesGC(isolate->factory()->NewObjectHashTable(1));
+  TestHashMapCausesGC(ObjectHashTable::New(isolate, 1));
   TestHashMapCausesGC(isolate->factory()->NewOrderedHashMap());
 }
 #endif

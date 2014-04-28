@@ -28,7 +28,6 @@
 #ifndef V8_DEBUG_AGENT_H_
 #define V8_DEBUG_AGENT_H_
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 #include "platform.h"
 
@@ -113,7 +112,5 @@ class DebuggerAgentUtil {
 };
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_DEBUG_AGENT_H_

@@ -42,7 +42,6 @@ Address IC::address() const {
   // Get the address of the call.
   Address result = Assembler::target_address_from_return_address(pc());
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debug* debug = isolate()->debug();
   // First check if any break points are active if not just return the address
   // of the call.
@@ -68,9 +67,6 @@ Address IC::address() const {
     // No break point here just return the address of the call.
     return result;
   }
-#else
-  return result;
-#endif
 }
 
 
@@ -79,7 +75,6 @@ ConstantPoolArray* IC::constant_pool() const {
     return NULL;
   } else {
     Handle<ConstantPoolArray> result = raw_constant_pool_;
-#ifdef ENABLE_DEBUGGER_SUPPORT
     Debug* debug = isolate()->debug();
     // First check if any break points are active if not just return the
     // original constant pool.
@@ -94,7 +89,6 @@ ConstantPoolArray* IC::constant_pool() const {
       // constant pool for the original code instead of the breakpointed code.
       return GetOriginalCode()->constant_pool();
     }
-#endif
     return *result;
   }
 }

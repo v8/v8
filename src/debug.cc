@@ -53,9 +53,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-
 Debug::Debug(Isolate* isolate)
     : has_break_points_(false),
       script_cache_(NULL),
@@ -2628,13 +2625,15 @@ MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
 
 
 MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
-                                                 bool uncaught) {
+                                                 bool uncaught,
+                                                 Handle<Object> promise) {
   Handle<Object> exec_state;
   if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new exception event object.
   Handle<Object> argv[] = { exec_state,
                             exception,
-                            isolate_->factory()->ToBoolean(uncaught) };
+                            isolate_->factory()->ToBoolean(uncaught),
+                            promise };
   return MakeJSObject(CStrVector("MakeExceptionEvent"), ARRAY_SIZE(argv), argv);
 }
 
@@ -2664,7 +2663,9 @@ MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
 }
 
 
-void Debugger::OnException(Handle<Object> exception, bool uncaught) {
+void Debugger::OnException(Handle<Object> exception,
+                           bool uncaught,
+                           Handle<Object> promise) {
   HandleScope scope(isolate_);
   Debug* debug = isolate_->debug();
 
@@ -2688,13 +2689,21 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
 
   // Clear all current stepping setup.
   debug->ClearStepping();
+
+  // Determine event;
+  DebugEvent event = promise->IsUndefined()
+      ? v8::Exception : v8::UncaughtExceptionInPromise;
+
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeExceptionEvent(exception, uncaught).ToHandle(&event_data)) return;
+  if (!MakeExceptionEvent(
+          exception, uncaught, promise).ToHandle(&event_data)) {
+    return;
+  }
 
   // Process debug event.
-  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
+  ProcessDebugEvent(event, Handle<JSObject>::cast(event_data), false);
   // Return to continue execution from where the exception was thrown.
 }
 
@@ -3739,7 +3748,5 @@ void MessageDispatchHelperThread::Run() {
     }
   }
 }
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

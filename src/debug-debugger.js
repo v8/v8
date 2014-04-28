@@ -42,7 +42,8 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     ScriptCollected: 6 };
+                     ScriptCollected: 6,
+                     PendingExceptionInPromise: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1093,15 +1094,16 @@ BreakEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeExceptionEvent(exec_state, exception, uncaught) {
-  return new ExceptionEvent(exec_state, exception, uncaught);
+function MakeExceptionEvent(exec_state, exception, uncaught, promise) {
+  return new ExceptionEvent(exec_state, exception, uncaught, promise);
 }
 
 
-function ExceptionEvent(exec_state, exception, uncaught) {
+function ExceptionEvent(exec_state, exception, uncaught, promise) {
   this.exec_state_ = exec_state;
   this.exception_ = exception;
   this.uncaught_ = uncaught;
+  this.promise_ = promise;
 }
 
 
@@ -1122,6 +1124,11 @@ ExceptionEvent.prototype.exception = function() {
 
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
+};
+
+
+ExceptionEvent.prototype.promise = function() {
+  return this.promise_;
 };
 
 

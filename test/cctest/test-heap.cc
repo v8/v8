@@ -1347,7 +1347,6 @@ TEST(TestCodeFlushingIncrementalAbort) {
   // code flushing candidate.
   SimulateIncrementalMarking();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Enable the debugger and add a breakpoint while incremental marking
   // is running so that incremental marking aborts and code flushing is
   // disabled.
@@ -1355,7 +1354,6 @@ TEST(TestCodeFlushingIncrementalAbort) {
   Handle<Object> breakpoint_object(Smi::FromInt(0), isolate);
   isolate->debug()->SetBreakPoint(function, breakpoint_object, &position);
   isolate->debug()->ClearAllBreakPoints();
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   // Force optimization now that code flushing is disabled.
   { v8::HandleScope scope(CcTest::isolate());
@@ -1606,12 +1604,16 @@ TEST(TestSizeOfObjects) {
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(CcTest::heap()->old_pointer_space()->IsLazySweepingComplete());
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->WaitUntilSweepingCompleted();
+  }
   int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
   {
     // Allocate objects on several different old-space pages so that
-    // lazy sweeping kicks in for subsequent GC runs.
+    // concurrent sweeper threads will be busy sweeping the old space on
+    // subsequent GC runs.
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
@@ -1629,11 +1631,11 @@ TEST(TestSizeOfObjects) {
 
   CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
 
-  // Advancing the sweeper step-wise should not change the heap size.
-  while (!CcTest::heap()->old_pointer_space()->IsLazySweepingComplete()) {
-    CcTest::heap()->old_pointer_space()->AdvanceSweeper(KB);
-    CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
+  // Waiting for sweeper threads should not change heap size.
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->WaitUntilSweepingCompleted();
   }
+  CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
 }
 
 
@@ -3660,10 +3662,8 @@ TEST(Regress173458) {
   // explicitly enqueued.
   SimulateIncrementalMarking();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Now enable the debugger which in turn will disable code flushing.
   CHECK(isolate->debug()->Load());
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
   // This cycle will bust the heap and subsequent cycles will go ballistic.
   heap->CollectAllGarbage(Heap::kNoGCFlags);
@@ -4199,11 +4199,8 @@ TEST(Regress357137) {
 }
 
 
-TEST(ArrayShiftLazySweeping) {
+TEST(ArrayShiftSweeping) {
   i::FLAG_expose_gc = true;
-  i::FLAG_parallel_sweeping = false;
-  i::FLAG_concurrent_sweeping = false;
-  i::FLAG_lazy_sweeping = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();

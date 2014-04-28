@@ -38,8 +38,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return Debug::IsDebugBreakAtReturn(rinfo());
 }
@@ -385,8 +383,6 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 }
 
 const bool Debug::kFrameDropperSupported = false;
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
 

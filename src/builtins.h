@@ -197,7 +197,6 @@ enum BuiltinExtraArguments {
   V(LoadIC_Normal,                  LOAD_IC)                            \
   V(StoreIC_Normal,                 STORE_IC)
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
 #define BUILTIN_LIST_DEBUG_A(V)                                               \
   V(Return_DebugBreak,                         BUILTIN, DEBUG_STUB,           \
@@ -226,9 +225,6 @@ enum BuiltinExtraArguments {
                                                DEBUG_BREAK)                   \
   V(FrameDropper_LiveEdit,                     BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)
-#else
-#define BUILTIN_LIST_DEBUG_A(V)
-#endif
 
 // Define list of builtins implemented in JavaScript.
 #define BUILTINS_LIST_JS(V)              \

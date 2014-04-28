@@ -158,10 +158,11 @@ class CpuFeatureScope BASE_EMBEDDED {
 // different CPU.
 class PlatformFeatureScope BASE_EMBEDDED {
  public:
-  explicit PlatformFeatureScope(CpuFeature f);
+  PlatformFeatureScope(Isolate* isolate, CpuFeature f);
   ~PlatformFeatureScope();
 
  private:
+  Isolate* isolate_;
   uint64_t old_cross_compile_;
 };
 
@@ -669,9 +670,7 @@ class RelocIterator: public Malloced {
 //----------------------------------------------------------------------------
 class IC_Utility;
 class SCTableReference;
-#ifdef ENABLE_DEBUGGER_SUPPORT
 class Debug_Address;
-#endif
 
 
 // An ExternalReference represents a C++ address used in the generated
@@ -741,9 +740,7 @@ class ExternalReference BASE_EMBEDDED {
 
   ExternalReference(const IC_Utility& ic_utility, Isolate* isolate);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference(const Debug_Address& debug_address, Isolate* isolate);
-#endif
 
   explicit ExternalReference(StatsCounter* counter);
 
@@ -866,13 +863,11 @@ class ExternalReference BASE_EMBEDDED {
 
   Address address() const { return reinterpret_cast<Address>(address_); }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Function Debug::Break()
   static ExternalReference debug_break(Isolate* isolate);
 
   // Used to check if single stepping is enabled in generated code.
   static ExternalReference debug_step_in_fp_address(Isolate* isolate);
-#endif
 
 #ifndef V8_INTERPRETED_REGEXP
   // C functions called from RegExp generated code.

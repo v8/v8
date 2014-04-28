@@ -49,9 +49,9 @@
 #include "snapshot.h"
 #include "store-buffer.h"
 #include "utils/random-number-generator.h"
+#include "utils.h"
 #include "v8conversions.h"
 #include "v8threads.h"
-#include "v8utils.h"
 #include "vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
 #include "regexp-macro-assembler.h"
@@ -711,12 +711,10 @@ void Heap::GarbageCollectionEpilogue() {
 #undef UPDATE_FRAGMENTATION_FOR_SPACE
 #undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
 
-#if defined(DEBUG)
+#ifdef DEBUG
   ReportStatisticsAfterGC();
 #endif  // DEBUG
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->AfterGarbageCollection();
-#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 
@@ -2916,20 +2914,13 @@ bool Heap::CreateInitialObjects() {
   }
   hidden_string_ = String::cast(obj);
 
-  // Allocate the code_stubs dictionary. The initial size is set to avoid
+  // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 128);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_code_stubs(UnseededNumberDictionary::cast(obj));
+  set_code_stubs(*UnseededNumberDictionary::New(isolate(), 128));
 
-
-  // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
+  // Create the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
-  { MaybeObject* maybe_obj = UnseededNumberDictionary::Allocate(this, 64);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_non_monomorphic_cache(UnseededNumberDictionary::cast(obj));
+  set_non_monomorphic_cache(*UnseededNumberDictionary::New(isolate(), 64));
 
   { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -3037,11 +3028,12 @@ bool Heap::CreateInitialObjects() {
   Symbol::cast(obj)->set_is_private(true);
   set_megamorphic_symbol(Symbol::cast(obj));
 
-  { MaybeObject* maybe_obj = SeededNumberDictionary::Allocate(this, 0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  {
+    Handle<SeededNumberDictionary> dict =
+        SeededNumberDictionary::New(isolate(), 0, TENURED);
+    dict->set_requires_slow_elements();
+    set_empty_slow_element_dictionary(*dict);
   }
-  SeededNumberDictionary::cast(obj)->set_requires_slow_elements();
-  set_empty_slow_element_dictionary(SeededNumberDictionary::cast(obj));
 
   { MaybeObject* maybe_obj = AllocateSymbol();
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -4005,30 +3997,6 @@ MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Map* Heap::InternalizedStringMapForString(String* string) {
-  // If the string is in new space it cannot be used as internalized.
-  if (InNewSpace(string)) return NULL;
-
-  // Find the corresponding internalized string map for strings.
-  switch (string->map()->instance_type()) {
-    case STRING_TYPE: return internalized_string_map();
-    case ASCII_STRING_TYPE: return ascii_internalized_string_map();
-    case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
-    case EXTERNAL_ASCII_STRING_TYPE:
-      return external_ascii_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return external_internalized_string_with_one_byte_data_map();
-    case SHORT_EXTERNAL_STRING_TYPE:
-      return short_external_internalized_string_map();
-    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
-      return short_external_ascii_internalized_string_map();
-    case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return short_external_internalized_string_with_one_byte_data_map();
-    default: return NULL;  // No match found.
-  }
-}
-
-
 static inline void WriteOneByteData(Vector<const char> vector,
                                     uint8_t* chars,
                                     int len) {
@@ -4606,16 +4574,7 @@ bool Heap::IdleNotification(int hint) {
   // An incremental GC progresses as follows:
   // 1. many incremental marking steps,
   // 2. one old space mark-sweep-compact,
-  // 3. many lazy sweep steps.
   // Use mark-sweep-compact events to count incremental GCs in a round.
-
-  if (incremental_marking()->IsStopped()) {
-    if (!mark_compact_collector()->AreSweeperThreadsActivated() &&
-        !IsSweepingComplete() &&
-        !AdvanceSweepers(static_cast<int>(step_size))) {
-      return false;
-    }
-  }
 
   if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
     if (EnoughGarbageSinceLastIdleRound()) {
@@ -5123,12 +5082,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   Relocatable::Iterate(isolate_, v);
   v->Synchronize(VisitorSynchronization::kRelocatable);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->Iterate(v);
   if (isolate_->deoptimizer_data() != NULL) {
     isolate_->deoptimizer_data()->Iterate(v);
   }
-#endif
   v->Synchronize(VisitorSynchronization::kDebug);
   isolate_->compilation_cache()->Iterate(v);
   v->Synchronize(VisitorSynchronization::kCompilationCache);
@@ -5337,14 +5294,6 @@ intptr_t Heap::PromotedSpaceSizeOfObjects() {
       + cell_space_->SizeOfObjects()
       + property_cell_space_->SizeOfObjects()
       + lo_space_->SizeOfObjects();
-}
-
-
-bool Heap::AdvanceSweepers(int step_size) {
-  ASSERT(!mark_compact_collector()->AreSweeperThreadsActivated());
-  bool sweeping_complete = old_data_space()->AdvanceSweeper(step_size);
-  sweeping_complete &= old_pointer_space()->AdvanceSweeper(step_size);
-  return sweeping_complete;
 }
 
 
@@ -5678,20 +5627,21 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCEpilogueCallback callback) {
 }
 
 
-MaybeObject* Heap::AddWeakObjectToCodeDependency(Object* obj,
-                                                 DependentCode* dep) {
-  ASSERT(!InNewSpace(obj));
-  ASSERT(!InNewSpace(dep));
-  MaybeObject* maybe_obj =
-      WeakHashTable::cast(weak_object_to_code_table_)->Put(obj, dep);
-  WeakHashTable* table;
-  if (!maybe_obj->To(&table)) return maybe_obj;
-  if (ShouldZapGarbage() && weak_object_to_code_table_ != table) {
+// TODO(ishell): Find a better place for this.
+void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
+                                         Handle<DependentCode> dep) {
+  ASSERT(!InNewSpace(*obj));
+  ASSERT(!InNewSpace(*dep));
+  HandleScope scope(isolate());
+  Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
+                              isolate());
+  table = WeakHashTable::Put(table, obj, dep);
+
+  if (ShouldZapGarbage() && weak_object_to_code_table_ != *table) {
     WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
   }
-  set_weak_object_to_code_table(table);
-  ASSERT_EQ(dep, WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj));
-  return weak_object_to_code_table_;
+  set_weak_object_to_code_table(*table);
+  ASSERT_EQ(*dep, table->Lookup(*obj));
 }
 
 
@@ -5704,7 +5654,8 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Object* obj) {
 
 void Heap::EnsureWeakObjectToCodeTable() {
   if (!weak_object_to_code_table()->IsHashTable()) {
-    set_weak_object_to_code_table(*isolate()->factory()->NewWeakHashTable(16));
+    set_weak_object_to_code_table(*WeakHashTable::New(
+        isolate(), 16, USE_DEFAULT_MINIMUM_CAPACITY, TENURED));
   }
 }
 

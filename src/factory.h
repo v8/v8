@@ -50,22 +50,8 @@ class Factory V8_FINAL {
       int number_of_heap_ptr_entries,
       int number_of_int32_entries);
 
-  Handle<SeededNumberDictionary> NewSeededNumberDictionary(
-      int at_least_space_for);
-
-  Handle<UnseededNumberDictionary> NewUnseededNumberDictionary(
-      int at_least_space_for);
-
-  Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
-
-  Handle<ObjectHashTable> NewObjectHashTable(
-      int at_least_space_for,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
-
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
-
-  Handle<WeakHashTable> NewWeakHashTable(int at_least_space_for);
 
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,
@@ -158,6 +144,29 @@ class Factory V8_FINAL {
   MUST_USE_RESULT MaybeHandle<String> NewStringFromTwoByte(
       Vector<const uc16> str,
       PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates an internalized string in old space based on the character
+  // stream.
+  MUST_USE_RESULT Handle<String> NewInternalizedStringFromUtf8(
+      Vector<const char> str,
+      int chars,
+      uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewOneByteInternalizedString(
+        Vector<const uint8_t> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewTwoByteInternalizedString(
+        Vector<const uc16> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewInternalizedStringImpl(
+      Handle<String> string, int chars, uint32_t hash_field);
+
+  // Compute the matching internalized string map for a string if possible.
+  // Empty handle is returned if string is in new space or not flattened.
+  MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
+      Handle<String> string);
 
   // Allocates and partially initializes an ASCII or TwoByte String. The
   // characters of the string are uninitialized. Currently used in regexp code
@@ -607,9 +616,7 @@ class Factory V8_FINAL {
       Handle<Object> script,
       Handle<Object> stack_frames);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
-#endif
 
   // Return a map using the map cache in the native context.
   // The key the an ordered set of property names.

@@ -1235,9 +1235,9 @@ Operand LCodeGen::ToOperand32(LOperand* op, IntegerSignedness signedness) {
     Representation r = chunk_->LookupLiteralRepresentation(const_op);
     if (r.IsInteger32()) {
       ASSERT(constant->HasInteger32Value());
-      return Operand(signedness == SIGNED_INT32
-                     ? constant->Integer32Value()
-                     : static_cast<uint32_t>(constant->Integer32Value()));
+      return (signedness == SIGNED_INT32)
+          ? Operand(constant->Integer32Value())
+          : Operand(static_cast<uint32_t>(constant->Integer32Value()));
     } else {
       // Other constants not implemented.
       Abort(kToOperand32UnsupportedImmediate);

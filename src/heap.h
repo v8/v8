@@ -1003,10 +1003,6 @@ class Heap {
   bool InternalizeStringIfExists(String* str, String** result);
   bool InternalizeTwoCharsStringIfExists(String* str, String** result);
 
-  // Compute the matching internalized string map for a string if possible.
-  // NULL is returned if string is in new space or not flattened.
-  Map* InternalizedStringMapForString(String* str);
-
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
 
@@ -1553,14 +1549,6 @@ class Heap {
     return &incremental_marking_;
   }
 
-  bool IsSweepingComplete() {
-    return !mark_compact_collector()->IsConcurrentSweepingInProgress() &&
-           old_data_space()->IsLazySweepingComplete() &&
-           old_pointer_space()->IsLazySweepingComplete();
-  }
-
-  bool AdvanceSweepers(int step_size);
-
   bool EnsureSweepersProgressed(int step_size) {
     bool sweeping_complete = old_data_space()->EnsureSweeperProgress(step_size);
     sweeping_complete &= old_pointer_space()->EnsureSweeperProgress(step_size);
@@ -1703,7 +1691,8 @@ class Heap {
     Heap* heap_;
   };
 
-  MaybeObject* AddWeakObjectToCodeDependency(Object* obj, DependentCode* dep);
+  void AddWeakObjectToCodeDependency(Handle<Object> obj,
+                                     Handle<DependentCode> dep);
 
   DependentCode* LookupWeakObjectToCodeDependency(Object* obj);
 

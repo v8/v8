@@ -1211,7 +1211,6 @@ void Script::ScriptPrint(FILE* out) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void DebugInfo::DebugInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "DebugInfo");
   PrintF(out, "\n - shared: ");
@@ -1233,7 +1232,6 @@ void BreakPointInfo::BreakPointInfoPrint(FILE* out) {
   PrintF(out, "\n - break_point_objects: ");
   break_point_objects()->ShortPrint(out);
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 void DescriptorArray::PrintDescriptors(FILE* out) {

@@ -470,10 +470,26 @@ uc32 FlatStringReader::Get(int index) {
 }
 
 
-Handle<Object> HashTableKey::AsHandle(Isolate* isolate) {
-  CALL_HEAP_FUNCTION(isolate, AsObject(isolate->heap()), Object);
+Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+  return key->AsHandle(isolate);
 }
 
+
+Handle<Object> MapCacheShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+
+Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
+                                               HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+
+Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
+                                                 HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
 
 template <typename Char>
 class SequentialStringKey : public HashTableKey {
@@ -511,7 +527,7 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 };
 
 
@@ -542,7 +558,7 @@ class SubStringKey : public HashTableKey {
   }
 
   virtual bool IsMatch(Object* string) V8_OVERRIDE;
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 
  private:
   const Char* GetChars();
@@ -571,7 +587,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 };
 
 
@@ -597,11 +613,10 @@ class Utf8StringKey : public HashTableKey {
     return String::cast(other)->Hash();
   }
 
-  virtual MaybeObject* AsObject(Heap* heap) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
     if (hash_field_ == 0) Hash();
-    return heap->AllocateInternalizedStringFromUtf8(string_,
-                                                    chars_,
-                                                    hash_field_);
+    return isolate->factory()->NewInternalizedStringFromUtf8(
+        string_, chars_, hash_field_);
   }
 
   Vector<const char> string_;
@@ -5166,7 +5181,6 @@ void Script::set_compilation_state(CompilationState state) {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)
 ACCESSORS(DebugInfo, code, Code, kPatchedCodeIndex)
@@ -5176,7 +5190,6 @@ ACCESSORS_TO_SMI(BreakPointInfo, code_position, kCodePositionIndex)
 ACCESSORS_TO_SMI(BreakPointInfo, source_position, kSourcePositionIndex)
 ACCESSORS_TO_SMI(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
-#endif
 
 ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
@@ -6588,16 +6601,16 @@ bool AccessorPair::prohibits_overwriting() {
 
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Object* key,
-                                               Object* value) {
+                                               Handle<Object> key,
+                                               Handle<Object> value) {
   SetEntry(entry, key, value, PropertyDetails(Smi::FromInt(0)));
 }
 
 
 template<typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
-                                               Object* key,
-                                               Object* value,
+                                               Handle<Object> key,
+                                               Handle<Object> value,
                                                PropertyDetails details) {
   ASSERT(!key->IsName() ||
          details.IsDeleted() ||
@@ -6605,8 +6618,8 @@ void Dictionary<Derived, Shape, Key>::SetEntry(int entry,
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
-  FixedArray::set(index, key, mode);
-  FixedArray::set(index+1, value, mode);
+  FixedArray::set(index, *key, mode);
+  FixedArray::set(index+1, *value, mode);
   FixedArray::set(index+2, details.AsSmi());
 }
 
@@ -6628,9 +6641,11 @@ uint32_t UnseededNumberDictionaryShape::HashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), 0);
 }
 
+
 uint32_t SeededNumberDictionaryShape::SeededHash(uint32_t key, uint32_t seed) {
   return ComputeIntegerHash(key, seed);
 }
+
 
 uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
                                                           uint32_t seed,
@@ -6639,9 +6654,6 @@ uint32_t SeededNumberDictionaryShape::SeededHashForObject(uint32_t key,
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()), seed);
 }
 
-MaybeObject* NumberDictionaryShape::AsObject(Heap* heap, uint32_t key) {
-  return heap->NumberFromUint32(key);
-}
 
 Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
   return isolate->factory()->NewNumberFromUint(key);
@@ -6666,12 +6678,6 @@ uint32_t NameDictionaryShape::HashForObject(Handle<Name> key, Object* other) {
 }
 
 
-MaybeObject* NameDictionaryShape::AsObject(Heap* heap, Handle<Name> key) {
-  ASSERT(key->IsUniqueName());
-  return *key;
-}
-
-
 Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
                                              Handle<Name> key) {
   ASSERT(key->IsUniqueName());
@@ -6685,47 +6691,49 @@ void NameDictionary::DoGenerateNewEnumerationIndices(
 }
 
 
-bool ObjectHashTableShape::IsMatch(Object* key, Object* other) {
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
   return key->SameValue(other);
 }
 
 
-uint32_t ObjectHashTableShape::Hash(Object* key) {
+uint32_t ObjectHashTableShape::Hash(Handle<Object> key) {
   return Smi::cast(key->GetHash())->value();
 }
 
 
-uint32_t ObjectHashTableShape::HashForObject(Object* key, Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Handle<Object> key,
+                                             Object* other) {
   return Smi::cast(other->GetHash())->value();
 }
 
 
-MaybeObject* ObjectHashTableShape::AsObject(Heap* heap, Object* key) {
+Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
+                                              Handle<Object> key) {
   return key;
 }
 
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(
     Handle<ObjectHashTable> table, Handle<Object> key) {
-  return HashTable_::Shrink(table, *key);
+  return DerivedHashTable::Shrink(table, key);
 }
 
 
 template <int entrysize>
-bool WeakHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
+bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
   return key->SameValue(other);
 }
 
 
 template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::Hash(Object* key) {
-  intptr_t hash = reinterpret_cast<intptr_t>(key);
+uint32_t WeakHashTableShape<entrysize>::Hash(Handle<Object> key) {
+  intptr_t hash = reinterpret_cast<intptr_t>(*key);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
 
 template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
+uint32_t WeakHashTableShape<entrysize>::HashForObject(Handle<Object> key,
                                                       Object* other) {
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);
@@ -6733,8 +6741,8 @@ uint32_t WeakHashTableShape<entrysize>::HashForObject(Object* key,
 
 
 template <int entrysize>
-MaybeObject* WeakHashTableShape<entrysize>::AsObject(Heap* heap,
-                                                    Object* key) {
+Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
+                                                       Handle<Object> key) {
   return key;
 }
 

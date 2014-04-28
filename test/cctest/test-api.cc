@@ -17224,12 +17224,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
                     stackTrace->GetFrame(0));
     checkStackFrame(origin, "baz", 8, 3, false, true,
                     stackTrace->GetFrame(1));
-#ifdef ENABLE_DEBUGGER_SUPPORT
     bool is_eval = true;
-#else  // ENABLE_DEBUGGER_SUPPORT
-    bool is_eval = false;
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
     // This is the source string inside the eval which has the call to baz.
     checkStackFrame(NULL, "", 1, 5, is_eval, false,
                     stackTrace->GetFrame(2));
@@ -20648,9 +20643,9 @@ TEST(CallCompletedCallback) {
   env->Global()->Set(v8_str("recursion"),
                      recursive_runtime->GetFunction());
   // Adding the same callback a second time has no effect.
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
-  v8::V8::AddCallCompletedCallback(CallCompletedCallback2);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback2);
   i::OS::Print("--- Script (1) ---\n");
   Local<Script> script = v8::Script::Compile(
       v8::String::NewFromUtf8(env->GetIsolate(), "recursion(0)"));
@@ -20659,7 +20654,7 @@ TEST(CallCompletedCallback) {
 
   i::OS::Print("\n--- Script (2) ---\n");
   callback_fired = 0;
-  v8::V8::RemoveCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->RemoveCallCompletedCallback(CallCompletedCallback1);
   script->Run();
   CHECK_EQ(2, callback_fired);
 
@@ -20688,7 +20683,7 @@ void CallCompletedCallbackException() {
 TEST(CallCompletedCallbackOneException) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::V8::AddCallCompletedCallback(CallCompletedCallbackNoException);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallbackNoException);
   CompileRun("throw 'exception';");
 }
 
@@ -20696,7 +20691,7 @@ TEST(CallCompletedCallbackOneException) {
 TEST(CallCompletedCallbackTwoExceptions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::V8::AddCallCompletedCallback(CallCompletedCallbackException);
+  env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallbackException);
   CompileRun("throw 'first exception';");
 }
 

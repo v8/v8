@@ -508,9 +508,9 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
 // This function iterates over all the pointers in a paged space in the heap,
 // looking for pointers into new space.  Within the pages there may be dead
 // objects that have not been overwritten by free spaces or fillers because of
-// lazy sweeping.  These dead objects may not contain pointers to new space.
-// The garbage areas that have been swept properly (these will normally be the
-// large ones) will be marked with free space and filler map words.  In
+// concurrent sweeping.  These dead objects may not contain pointers to new
+// space. The garbage areas that have been swept properly (these will normally
+// be the large ones) will be marked with free space and filler map words.  In
 // addition any area that has never been used at all for object allocation must
 // be marked with a free space or filler.  Because the free space and filler
 // maps do not move we can always recognize these even after a compaction.

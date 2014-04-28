@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 #include "v8.h"
 #include "debug.h"
 #include "debug-agent.h"
@@ -504,5 +502,3 @@ int DebuggerAgentUtil::ReceiveAll(Socket* conn, char* data, int len) {
 }
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_DEBUGGER_SUPPORT

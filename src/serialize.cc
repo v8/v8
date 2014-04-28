@@ -208,7 +208,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
               isolate);
   }
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
   Add(Debug_Address(Debug::k_after_break_target_address).address(isolate),
       DEBUG_ADDRESS,
@@ -226,7 +225,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       DEBUG_ADDRESS,
       Debug::k_restarter_frame_function_pointer << kDebugIdShift,
       "Debug::restarter_frame_function_pointer_address()");
-#endif
 
   // Stat counters
   struct StatsRefTableEntry {
@@ -382,7 +380,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       15,
       "Heap::NewSpaceAllocationTopAddress()");
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break(isolate).address(),
       UNCLASSIFIED,
       16,
@@ -391,7 +388,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       17,
       "Debug::step_in_fp_addr()");
-#endif
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       UNCLASSIFIED,
       22,

@@ -37,8 +37,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   return Debug::IsDebugBreakAtReturn(rinfo());
 }
@@ -338,9 +336,6 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 const bool Debug::kFrameDropperSupported = false;
 
 #undef __
-
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal
 

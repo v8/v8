@@ -55,7 +55,7 @@
 #include "v8checks.h"
 #include "allocation.h"
 #include "assert-scope.h"
-#include "v8utils.h"
+#include "utils.h"
 #include "flags.h"
 
 // Objects & heap
@@ -98,10 +98,6 @@ class V8 : public AllStatic {
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
-  static void AddCallCompletedCallback(CallCompletedCallback callback);
-  static void RemoveCallCompletedCallback(CallCompletedCallback callback);
-  static void FireCallCompletedCallback(Isolate* isolate);
-
   static void RunMicrotasks(Isolate* isolate);
 
   static v8::ArrayBuffer::Allocator* ArrayBufferAllocator() {
@@ -121,8 +117,6 @@ class V8 : public AllStatic {
   static void InitializeOncePerProcessImpl();
   static void InitializeOncePerProcess();
 
-  // List of callbacks when a Call completes.
-  static List<CallCompletedCallback>* call_completed_callbacks_;
   // Allocator for external array buffers.
   static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   // v8::Platform to use.

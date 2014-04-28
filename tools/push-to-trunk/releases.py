@@ -6,6 +6,10 @@
 # This script retrieves the history of all V8 branches and trunk revisions and
 # their corresponding Chromium revisions.
 
+# Requires a chromium checkout with branch heads:
+# gclient sync --with_branch_heads
+# gclient fetch
+
 import argparse
 import csv
 import itertools
@@ -87,6 +91,7 @@ def BuildRevisionRanges(cr_releases):
   entry is the only one of the form R1, as there is no end range.
 
   cr_releases is a list of [cr_rev, v8_rev] reverse-sorted by cr_rev.
+  cr_rev either refers to a chromium svn revision or a chromium branch number.
   """
   range_lists = {}
   cr_releases = FilterDuplicatesAndReverse(cr_releases)
@@ -174,6 +179,8 @@ class RetrieveV8Releases(Step):
       "patches_merged": patches,
       # Default for easier output formatting.
       "chromium_revision": "",
+      # Default for easier output formatting.
+      "chromium_branch": "",
       # Link to the CL on code review. Trunk pushes are not uploaded, so this
       # field will be populated below with the recent roll CL link.
       "review_link": MatchSafe(REVIEW_LINK_RE.search(body)),
@@ -326,6 +333,64 @@ class RetrieveChromiumV8Releases(Step):
     for revision, ranges in all_ranges.iteritems():
       trunk_dict.get(revision, {})["chromium_revision"] = ranges
 
+
+# TODO(machenbach): Unify common code with method above.
+class RietrieveChromiumBranches(Step):
+  MESSAGE = "Retrieve Chromium branch information."
+  REQUIRES = "chrome_path"
+
+  def RunStep(self):
+    os.chdir(self["chrome_path"])
+
+    trunk_releases = filter(lambda r: r["branch"] == "trunk", self["releases"])
+    if not trunk_releases:  # pragma: no cover
+      print "No trunk releases detected. Skipping chromium history."
+      return True
+
+    oldest_v8_rev = int(trunk_releases[-1]["revision"])
+
+    # Filter out irrelevant branches.
+    branches = filter(lambda r: re.match(r"branch-heads/\d+", r),
+                      self.GitRemotes())
+
+    # Transform into pure branch numbers.
+    branches = map(lambda r: int(re.match(r"branch-heads/(\d+)", r).group(1)),
+                   branches)
+
+    branches = sorted(branches, reverse=True)
+
+    cr_branches = []
+    try:
+      for branch in branches:
+        if not self.GitCheckoutFileSafe(self._config[DEPS_FILE],
+                                        "branch-heads/%d" % branch):
+          break  # pragma: no cover
+        deps = FileToText(self.Config(DEPS_FILE))
+        match = DEPS_RE.search(deps)
+        if match:
+          v8_rev = match.group(1)
+          cr_branches.append([str(branch), v8_rev])
+
+          # Stop after reaching beyond the last v8 revision we want to update.
+          # We need a small buffer for possible revert/reland frenzies.
+          # TODO(machenbach): Subtraction is not git friendly.
+          if int(v8_rev) < oldest_v8_rev - 100:
+            break  # pragma: no cover
+
+    # Allow Ctrl-C interrupt.
+    except (KeyboardInterrupt, SystemExit):  # pragma: no cover
+      pass
+
+    # Clean up.
+    self.GitCheckoutFileSafe(self._config[DEPS_FILE], "HEAD")
+
+    # Add the chromium branches to the v8 trunk releases.
+    all_ranges = BuildRevisionRanges(cr_branches)
+    trunk_dict = dict((r["revision"], r) for r in trunk_releases)
+    for revision, ranges in all_ranges.iteritems():
+      trunk_dict.get(revision, {})["chromium_branch"] = ranges
+
+
 class SwitchV8(Step):
   MESSAGE = "Returning to V8 checkout."
   REQUIRES = "chrome_path"
@@ -388,6 +453,7 @@ class Releases(ScriptsBase):
       SwitchChromium,
       UpdateChromiumCheckout,
       RetrieveChromiumV8Releases,
+      RietrieveChromiumBranches,
       SwitchV8,
       CleanUp,
       WriteOutput,

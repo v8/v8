@@ -75,12 +75,9 @@ class LiveEditFunctionTracker {
   static bool IsActive(Isolate* isolate);
 
  private:
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Isolate* isolate_;
-#endif
 };
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 
 class LiveEdit : AllStatic {
  public:
@@ -321,9 +318,6 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
 
   friend class JSArrayBasedStruct<SharedInfoWrapper>;
 };
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
-
 
 } }  // namespace v8::internal
 

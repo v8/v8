@@ -95,11 +95,9 @@ template <StateTag Tag> class VMState;
 typedef void* ExternalReferenceRedirectorPointer();
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 class Debug;
 class Debugger;
 class DebuggerAgent;
-#endif
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
     !defined(__aarch64__) && V8_TARGET_ARCH_ARM64 || \
@@ -310,17 +308,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
-#define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
-  V(DebuggerAgent*, debugger_agent_instance, NULL)
-#else
-
-#define ISOLATE_DEBUGGER_INIT_LIST(V)
-
-#endif
-
-
 #if V8_TARGET_ARCH_ARM && !defined(__arm__) || \
     V8_TARGET_ARCH_ARM64 && !defined(__aarch64__) || \
     V8_TARGET_ARCH_MIPS && !defined(__mips__)
@@ -393,8 +380,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, fp_stubs_generated, false)                                           \
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  ISOLATE_INIT_SIMULATOR_LIST(V)                                               \
-  ISOLATE_DEBUGGER_INIT_LIST(V)
+  V(DebuggerAgent*, debugger_agent_instance, NULL)                             \
+  ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -964,7 +951,6 @@ class Isolate {
 
   inline bool IsCodePreAgingActive();
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger() {
     if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
     return debugger_;
@@ -973,7 +959,6 @@ class Isolate {
     if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
     return debug_;
   }
-#endif
 
   inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
@@ -1110,6 +1095,10 @@ class Isolate {
 
   // Get (and lazily initialize) the registry for per-isolate symbols.
   Handle<JSObject> GetSymbolRegistry();
+
+  void AddCallCompletedCallback(CallCompletedCallback callback);
+  void RemoveCallCompletedCallback(CallCompletedCallback callback);
+  void FireCallCompletedCallback();
 
  private:
   Isolate();
@@ -1292,10 +1281,8 @@ class Isolate {
   JSObject::SpillInformation js_spill_information_;
 #endif
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger_;
   Debug* debug_;
-#endif
   CpuProfiler* cpu_profiler_;
   HeapProfiler* heap_profiler_;
   FunctionEntryHook function_entry_hook_;
@@ -1330,6 +1317,9 @@ class Isolate {
   unsigned int stress_deopt_count_;
 
   int next_optimization_id_;
+
+  // List of callbacks when a Call completes.
+  List<CallCompletedCallback> call_completed_callbacks_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

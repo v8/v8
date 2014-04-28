@@ -103,12 +103,10 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   ASSERT(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     isolate->ReportPendingMessages();
-#ifdef ENABLE_DEBUGGER_SUPPORT
     // Reset stepping state when script exits with uncaught exception.
     if (isolate->debugger()->IsDebuggerActive()) {
       isolate->debug()->ClearStepping();
     }
-#endif  // ENABLE_DEBUGGER_SUPPORT
     return MaybeHandle<Object>();
   } else {
     isolate->clear_pending_message();
@@ -316,7 +314,7 @@ void Execution::RunMicrotasks(Isolate* isolate) {
       isolate->run_microtasks(),
       isolate->factory()->undefined_value(),
       0,
-      NULL).Assert();
+      NULL).Check();
 }
 
 
@@ -327,7 +325,7 @@ void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
       isolate->enqueue_external_microtask(),
       isolate->factory()->undefined_value(),
       1,
-      args).Assert();
+      args).Check();
 }
 
 
@@ -478,7 +476,6 @@ void StackGuard::DeoptMarkedAllocationSites() {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 bool StackGuard::IsDebugBreak() {
   ExecutionAccess access(isolate_);
   return thread_local_.interrupt_flags_ & DEBUGBREAK;
@@ -503,7 +500,7 @@ void StackGuard::DebugCommand() {
   thread_local_.interrupt_flags_ |= DEBUGCOMMAND;
   set_interrupt_limits(access);
 }
-#endif
+
 
 void StackGuard::Continue(InterruptFlag after_what) {
   ExecutionAccess access(isolate_);
@@ -841,7 +838,6 @@ static Object* RuntimePreempt(Isolate* isolate) {
   // Clear the preempt request flag.
   isolate->stack_guard()->Continue(PREEMPT);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (isolate->debug()->InDebugger()) {
     // If currently in the debugger don't do any actual preemption but record
     // that preemption occoured while in the debugger.
@@ -851,19 +847,11 @@ static Object* RuntimePreempt(Isolate* isolate) {
     v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
     Thread::YieldCPU();
   }
-#else
-  { // NOLINT
-    // Perform preemption.
-    v8::Unlocker unlocker(reinterpret_cast<v8::Isolate*>(isolate));
-    Thread::YieldCPU();
-  }
-#endif
 
   return isolate->heap()->undefined_value();
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 Object* Execution::DebugBreakHelper(Isolate* isolate) {
   // Just continue if breaks are disabled.
   if (isolate->debug()->disable_break()) {
@@ -939,7 +927,7 @@ void Execution::ProcessDebugMessages(Isolate* isolate,
   isolate->debugger()->OnDebugBreak(isolate->factory()->undefined_value(),
                                     debug_command_only);
 }
-#endif
+
 
 Object* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
@@ -960,11 +948,9 @@ Object* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
 
   isolate->counters()->stack_interrupts()->Increment();
   isolate->counters()->runtime_profiler_ticks()->Increment();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {
     DebugBreakHelper(isolate);
   }
-#endif
   if (stack_guard->IsPreempted()) RuntimePreempt(isolate);
   if (stack_guard->IsTerminateExecution()) {
     stack_guard->Continue(TERMINATE);

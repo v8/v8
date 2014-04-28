@@ -1060,7 +1060,6 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 }
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 void DebugInfo::DebugInfoVerify() {
   CHECK(IsDebugInfo());
   VerifyPointer(shared());
@@ -1077,7 +1076,6 @@ void BreakPointInfo::BreakPointInfoVerify() {
   statement_position()->SmiVerify();
   VerifyPointer(break_point_objects());
 }
-#endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // VERIFY_HEAP
 
 #ifdef DEBUG

@@ -687,6 +687,67 @@ class PreParserExpressionList {
 };
 
 
+class PreParserStatement {
+ public:
+  static PreParserStatement Default() {
+    return PreParserStatement(kUnknownStatement);
+  }
+
+  static PreParserStatement FunctionDeclaration() {
+    return PreParserStatement(kFunctionDeclaration);
+  }
+
+  // Creates expression statement from expression.
+  // Preserves being an unparenthesized string literal, possibly
+  // "use strict".
+  static PreParserStatement ExpressionStatement(
+      PreParserExpression expression) {
+    if (expression.IsUseStrictLiteral()) {
+      return PreParserStatement(kUseStrictExpressionStatement);
+    }
+    if (expression.IsStringLiteral()) {
+      return PreParserStatement(kStringLiteralExpressionStatement);
+    }
+    return Default();
+  }
+
+  bool IsStringLiteral() {
+    return code_ == kStringLiteralExpressionStatement;
+  }
+
+  bool IsUseStrictLiteral() {
+    return code_ == kUseStrictExpressionStatement;
+  }
+
+  bool IsFunctionDeclaration() {
+    return code_ == kFunctionDeclaration;
+  }
+
+ private:
+  enum Type {
+    kUnknownStatement,
+    kStringLiteralExpressionStatement,
+    kUseStrictExpressionStatement,
+    kFunctionDeclaration
+  };
+
+  explicit PreParserStatement(Type code) : code_(code) {}
+  Type code_;
+};
+
+
+
+// PreParserStatementList doesn't actually store the statements because
+// the PreParser does not need them.
+class PreParserStatementList {
+ public:
+  // These functions make list->Add(some_expression) work as no-ops.
+  PreParserStatementList() {}
+  PreParserStatementList* operator->() { return this; }
+  void Add(PreParserStatement, void*) {}
+};
+
+
 class PreParserScope {
  public:
   explicit PreParserScope(PreParserScope* outer_scope, ScopeType scope_type)
@@ -830,6 +891,7 @@ class PreParserTraits {
     typedef PreParserExpression Literal;
     typedef PreParserExpressionList ExpressionList;
     typedef PreParserExpressionList PropertyList;
+    typedef PreParserStatementList StatementList;
 
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
@@ -993,6 +1055,10 @@ class PreParserTraits {
     return PreParserExpressionList();
   }
 
+  static PreParserStatementList NewStatementList(int size, void* zone) {
+    return PreParserStatementList();
+  }
+
   static PreParserExpressionList NewPropertyList(int size, void* zone) {
     return PreParserExpressionList();
   }
@@ -1029,6 +1095,7 @@ class PreParser : public ParserBase<PreParserTraits> {
  public:
   typedef PreParserIdentifier Identifier;
   typedef PreParserExpression Expression;
+  typedef PreParserStatement Statement;
 
   enum PreParseResult {
     kPreParseStackOverflow,
@@ -1090,52 +1157,6 @@ class PreParser : public ParserBase<PreParserTraits> {
     kHasNoInitializers
   };
 
-  class Statement {
-   public:
-    static Statement Default() {
-      return Statement(kUnknownStatement);
-    }
-
-    static Statement FunctionDeclaration() {
-      return Statement(kFunctionDeclaration);
-    }
-
-    // Creates expression statement from expression.
-    // Preserves being an unparenthesized string literal, possibly
-    // "use strict".
-    static Statement ExpressionStatement(Expression expression) {
-      if (expression.IsUseStrictLiteral()) {
-        return Statement(kUseStrictExpressionStatement);
-      }
-      if (expression.IsStringLiteral()) {
-        return Statement(kStringLiteralExpressionStatement);
-      }
-      return Default();
-    }
-
-    bool IsStringLiteral() {
-      return code_ == kStringLiteralExpressionStatement;
-    }
-
-    bool IsUseStrictLiteral() {
-      return code_ == kUseStrictExpressionStatement;
-    }
-
-    bool IsFunctionDeclaration() {
-      return code_ == kFunctionDeclaration;
-    }
-
-   private:
-    enum Type {
-      kUnknownStatement,
-      kStringLiteralExpressionStatement,
-      kUseStrictExpressionStatement,
-      kFunctionDeclaration
-    };
-
-    explicit Statement(Type code) : code_(code) {}
-    Type code_;
-  };
 
   enum SourceElements {
     kUnknownSourceElements

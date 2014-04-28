@@ -347,9 +347,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   cgen.PopulateTypeFeedbackInfo(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
-#ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_compiled_optimizable(info->IsOptimizable());
-#endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_profiler_ticks(0);
   code->set_back_edge_table_offset(table_offset);
@@ -833,7 +831,6 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 
 
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
@@ -852,14 +849,10 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
       Debug::GenerateSlot(masm_);
     }
   }
-#else
-  CodeGenerator::RecordPositions(masm_, stmt->position());
-#endif
 }
 
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   if (!isolate()->debugger()->IsDebuggerActive()) {
     CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
@@ -882,9 +875,6 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
       Debug::GenerateSlot(masm_);
     }
   }
-#else
-  CodeGenerator::RecordPositions(masm_, expr->position());
-#endif
 }
 
 
@@ -1506,13 +1496,11 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   Comment cmnt(masm_, "[ DebuggerStatement");
   SetStatementPosition(stmt);
 
   __ DebugBreak();
   // Ignore the return value.
-#endif
 }
 
 

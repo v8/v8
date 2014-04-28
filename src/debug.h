@@ -41,7 +41,6 @@
 #include "string-stream.h"
 #include "v8threads.h"
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 #include "../include/v8-debug.h"
 
 namespace v8 {
@@ -793,13 +792,17 @@ class Debugger {
   MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
       Handle<Object> break_points_hit);
   MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception, bool uncaught);
+      Handle<Object> exception,
+      bool uncaught,
+      Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, bool before);
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
+  void OnException(Handle<Object> exception,
+                   bool uncaught,
+                   Handle<Object> promise = Handle<Object>::null());
   void OnBeforeCompile(Handle<Script> script);
 
   enum AfterCompileFlags {
@@ -1061,7 +1064,5 @@ class MessageDispatchHelperThread: public Thread {
 
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 #endif  // V8_DEBUG_H_

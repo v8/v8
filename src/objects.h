@@ -553,7 +553,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
 // Note that for subtle reasons related to the ordering or numerical values of
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
-#define STRUCT_LIST_ALL(V)                                                     \
+#define STRUCT_LIST(V)                                                         \
   V(BOX, Box, box)                                                             \
   V(DECLARED_ACCESSOR_DESCRIPTOR,                                              \
     DeclaredAccessorDescriptor,                                                \
@@ -574,19 +574,9 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(CODE_CACHE, CodeCache, code_cache)                                         \
   V(POLYMORPHIC_CODE_CACHE, PolymorphicCodeCache, polymorphic_code_cache)      \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                  \
-  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry)
-
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define STRUCT_LIST_DEBUGGER(V)                                                \
+  V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry)   \
   V(DEBUG_INFO, DebugInfo, debug_info)                                         \
   V(BREAK_POINT_INFO, BreakPointInfo, break_point_info)
-#else
-#define STRUCT_LIST_DEBUGGER(V)
-#endif
-
-#define STRUCT_LIST(V)                                                         \
-  STRUCT_LIST_ALL(V)                                                           \
-  STRUCT_LIST_DEBUGGER(V)
 
 // We use the full 8 bits of the instance_type field to encode heap object
 // instance types.  The high-order bit (bit 7) is set if the object is not a
@@ -761,10 +751,6 @@ enum InstanceType {
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   BOX_TYPE,
-  // The following two instance types are only used when ENABLE_DEBUGGER_SUPPORT
-  // is defined. However as include/v8.h contain some of the instance type
-  // constants always having them avoids them getting different numbers
-  // depending on whether ENABLE_DEBUGGER_SUPPORT is defined or not.
   DEBUG_INFO_TYPE,
   BREAK_POINT_INFO_TYPE,
 
@@ -3648,7 +3634,7 @@ inline int Search(T* array, Name* name, int valid_entries = 0);
 //     // Returns the hash value for object.
 //     static uint32_t HashForObject(Key key, Object* object);
 //     // Convert key to an object.
-//     static inline Object* AsObject(Heap* heap, Key key);
+//     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
 //     // of the backing storage.
 //     static const int kPrefixSize = ..;
@@ -3681,8 +3667,7 @@ class HashTable: public FixedArray {
   // Wrapper methods
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
-      return Shape::SeededHash(key,
-          GetHeap()->HashSeed());
+      return Shape::SeededHash(key, GetHeap()->HashSeed());
     } else {
       return Shape::Hash(key);
     }
@@ -3690,8 +3675,7 @@ class HashTable: public FixedArray {
 
   inline uint32_t HashForObject(Key key, Object* object) {
     if (Shape::UsesSeed) {
-      return Shape::SeededHashForObject(key,
-          GetHeap()->HashSeed(), object);
+      return Shape::SeededHashForObject(key, GetHeap()->HashSeed(), object);
     } else {
       return Shape::HashForObject(key, object);
     }
@@ -3727,16 +3711,8 @@ class HashTable: public FixedArray {
     SetNumberOfDeletedElements(NumberOfDeletedElements() + n);
   }
 
-  // Returns a new HashTable object. Might return Failure.
-  // TODO(ishell): this will be eventually replaced by New().
-  MUST_USE_RESULT static MaybeObject* Allocate(
-      Heap* heap,
-      int at_least_space_for,
-      MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Returns a new HashTable object.
-  static Handle<Derived> New(
+  MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate,
       int at_least_space_for,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY,
@@ -3843,6 +3819,17 @@ class HashTable: public FixedArray {
     return (last + number) & (size - 1);
   }
 
+  // Attempt to shrink hash table after removal of key.
+  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table, Key key);
+
+  // Ensure enough space for n additional elements.
+  MUST_USE_RESULT static Handle<Derived> EnsureCapacity(
+      Handle<Derived> table,
+      int n,
+      Key key,
+      PretenureFlag pretenure = NOT_TENURED);
+
+ private:
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
@@ -3851,21 +3838,7 @@ class HashTable: public FixedArray {
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Derived* new_table, Key key);
-
-  // Attempt to shrink hash table after removal of key.
-  static Handle<Derived> Shrink(Handle<Derived> table, Key key);
-
-  // Ensure enough space for n additional elements.
-  MUST_USE_RESULT MaybeObject* EnsureCapacity(
-      int n,
-      Key key,
-      PretenureFlag pretenure = NOT_TENURED);
-  static Handle<Derived> EnsureCapacity(
-      Handle<Derived> table,
-      int n,
-      Key key,
-      PretenureFlag pretenure = NOT_TENURED);
+  void Rehash(Handle<Derived> new_table, Key key);
 };
 
 
@@ -3879,10 +3852,7 @@ class HashTableKey {
   // Returns the hash value for object.
   virtual uint32_t HashForObject(Object* key) = 0;
   // Returns the key object for storing into the hash table.
-  // If allocations fails a failure object is returned.
-  MUST_USE_RESULT virtual MaybeObject* AsObject(Heap* heap) = 0;
-  // TODO(ishell): This should eventually replace AsObject().
-  inline Handle<Object> AsHandle(Isolate* isolate);
+  MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate) = 0;
   // Required.
   virtual ~HashTableKey() {}
 };
@@ -3893,16 +3863,16 @@ class StringTableShape : public BaseShape<HashTableKey*> {
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
+
   static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
+
   static inline uint32_t HashForObject(HashTableKey* key, Object* object) {
     return key->HashForObject(object);
   }
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
@@ -3946,6 +3916,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
   }
+
   static inline uint32_t Hash(HashTableKey* key) {
     return key->Hash();
   }
@@ -3954,10 +3925,7 @@ class MapCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -4017,15 +3985,15 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   void CopyValuesTo(FixedArray* elements);
 
   // Delete a property from the dictionary.
-  Object* DeleteProperty(int entry, JSObject::DeleteMode mode);
-  // TODO(ishell): Temporary wrapper until handlified.
   static Handle<Object> DeleteProperty(
-      Handle<Dictionary> dictionary,
+      Handle<Derived> dictionary,
       int entry,
       JSObject::DeleteMode mode);
 
   // Attempt to shrink the dictionary after deletion of key.
-  static inline Handle<Derived> Shrink(Handle<Derived> dictionary, Key key) {
+  MUST_USE_RESULT static inline Handle<Derived> Shrink(
+      Handle<Derived> dictionary,
+      Key key) {
     return DerivedHashTable::Shrink(dictionary, key);
   }
 
@@ -4057,12 +4025,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     return Smi::cast(this->get(kNextEnumerationIndexIndex))->value();
   }
 
-  // Returns a new array for dictionary usage. Might return Failure.
-  MUST_USE_RESULT static MaybeObject* Allocate(
-      Heap* heap,
-      int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED);
-
   // Creates a new dictionary.
   MUST_USE_RESULT static Handle<Derived> New(
       Isolate* isolate,
@@ -4080,11 +4042,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Sets the entry to (key, value) pair.
   inline void SetEntry(int entry,
-                       Object* key,
-                       Object* value);
+                       Handle<Object> key,
+                       Handle<Object> value);
   inline void SetEntry(int entry,
-                       Object* key,
-                       Object* value,
+                       Handle<Object> key,
+                       Handle<Object> value,
                        PropertyDetails details);
 
   MUST_USE_RESULT static Handle<Derived> Add(
@@ -4101,11 +4063,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       Handle<Object> value);
 
   // Add entry to dictionary.
-  MUST_USE_RESULT MaybeObject* AddEntry(Key key,
-                                        Object* value,
-                                        PropertyDetails details,
-                                        uint32_t hash);
-  MUST_USE_RESULT static Handle<Derived> AddEntry(
+  static void AddEntry(
       Handle<Derived> dictionary,
       Key key,
       Handle<Object> value,
@@ -4124,8 +4082,6 @@ class NameDictionaryShape : public BaseShape<Handle<Name> > {
   static inline bool IsMatch(Handle<Name> key, Object* other);
   static inline uint32_t Hash(Handle<Name> key);
   static inline uint32_t HashForObject(Handle<Name> key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Handle<Name> key);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
@@ -4162,9 +4118,6 @@ class NameDictionary: public Dictionary<NameDictionary,
 class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  // TODO(ishell): This should be eventually replaced with AsHandle().
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      uint32_t key);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
@@ -4272,13 +4225,12 @@ class UnseededNumberDictionary
 };
 
 
-class ObjectHashTableShape : public BaseShape<Object*> {
+class ObjectHashTableShape : public BaseShape<Handle<Object> > {
  public:
-  static inline bool IsMatch(Object* key, Object* other);
-  static inline uint32_t Hash(Object* key);
-  static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Object* key);
+  static inline bool IsMatch(Handle<Object> key, Object* other);
+  static inline uint32_t Hash(Handle<Object> key);
+  static inline uint32_t HashForObject(Handle<Object> key, Object* object);
+  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
 };
@@ -4288,8 +4240,9 @@ class ObjectHashTableShape : public BaseShape<Object*> {
 // using the identity hash of the key for hashing purposes.
 class ObjectHashTable: public HashTable<ObjectHashTable,
                                         ObjectHashTableShape,
-                                        Object*> {
-  typedef HashTable<ObjectHashTable, ObjectHashTableShape, Object*> HashTable_;
+                                        Handle<Object> > {
+  typedef HashTable<
+      ObjectHashTable, ObjectHashTableShape, Handle<Object> > DerivedHashTable;
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4297,12 +4250,17 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   }
 
   // Attempt to shrink hash table after removal of key.
-  static inline Handle<ObjectHashTable> Shrink(Handle<ObjectHashTable> table,
-                                               Handle<Object> key);
+  MUST_USE_RESULT static inline Handle<ObjectHashTable> Shrink(
+      Handle<ObjectHashTable> table,
+      Handle<Object> key);
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
   Object* Lookup(Object* key);
+
+  int FindEntry(Handle<Object> key);
+  // TODO(ishell): Remove this when all the callers are handlified.
+  int FindEntry(Object* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
@@ -4502,13 +4460,12 @@ class OrderedHashMap:public OrderedHashTable<
 
 
 template <int entrysize>
-class WeakHashTableShape : public BaseShape<Object*> {
+class WeakHashTableShape : public BaseShape<Handle<Object> > {
  public:
-  static inline bool IsMatch(Object* key, Object* other);
-  static inline uint32_t Hash(Object* key);
-  static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Heap* heap,
-                                                      Object* key);
+  static inline bool IsMatch(Handle<Object> key, Object* other);
+  static inline uint32_t Hash(Handle<Object> key);
+  static inline uint32_t HashForObject(Handle<Object> key, Object* object);
+  static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntrySize = entrysize;
 };
@@ -4519,7 +4476,9 @@ class WeakHashTableShape : public BaseShape<Object*> {
 // embedded in optimized code to dependent code lists.
 class WeakHashTable: public HashTable<WeakHashTable,
                                       WeakHashTableShape<2>,
-                                      Object*> {
+                                      Handle<Object> > {
+  typedef HashTable<
+      WeakHashTable, WeakHashTableShape<2>, Handle<Object> > DerivedHashTable;
  public:
   static inline WeakHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -4530,9 +4489,15 @@ class WeakHashTable: public HashTable<WeakHashTable,
   // returned in case the key is not present.
   Object* Lookup(Object* key);
 
+  int FindEntry(Handle<Object> key);
+  // TODO(ishell): Remove this when all the callers are handlified.
+  int FindEntry(Object* key);
+
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+  MUST_USE_RESULT static Handle<WeakHashTable> Put(Handle<WeakHashTable> table,
+                                                   Handle<Object> key,
+                                                   Handle<Object> value);
 
   // This function is called when heap verification is turned on.
   void Zap(Object* value) {
@@ -4546,7 +4511,7 @@ class WeakHashTable: public HashTable<WeakHashTable,
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, Object* key, Object* value);
+  void AddEntry(int entry, Handle<Object> key, Handle<Object> value);
 
   // Returns the index to the value of an entry.
   static inline int EntryToValueIndex(int entry) {
@@ -8303,10 +8268,7 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
-                                               HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -8406,10 +8368,7 @@ class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
     return key->HashForObject(object);
   }
 
-  MUST_USE_RESULT static MaybeObject* AsObject(Heap* heap,
-                                               HashTableKey* key) {
-    return key->AsObject(heap);
-  }
+  static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 2;
@@ -11053,7 +11012,6 @@ class TypeSwitchInfo: public Struct {
 };
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 // The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
@@ -11157,7 +11115,6 @@ class BreakPointInfo: public Struct {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(BreakPointInfo);
 };
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 #undef DECL_BOOLEAN_ACCESSORS

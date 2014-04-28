@@ -2595,9 +2595,6 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 
 
 void HSimulate::MergeWith(ZoneList<HSimulate*>* list) {
-  if (!list->is_empty() && !HasAstId()) {
-    set_ast_id(list->last()->ast_id());
-  }
   while (!list->is_empty()) {
     HSimulate* from = list->RemoveLast();
     ZoneList<HValue*>* from_values = &from->values_;

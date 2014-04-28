@@ -2673,12 +2673,10 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
   RelocInfo rinfo(buffer_ + location_offset,
                   RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
                   NULL);
   reloc_info_writer.Write(&rinfo);
-#endif
 }
 
 
@@ -2812,9 +2810,7 @@ void Assembler::RecordDebugBreakSlot() {
 void Assembler::RecordConstPool(int size) {
   // We only need this for debugger support, to correctly compute offsets in the
   // code.
-#ifdef ENABLE_DEBUGGER_SUPPORT
   RecordRelocInfo(RelocInfo::CONST_POOL, static_cast<intptr_t>(size));
-#endif
 }
 
 

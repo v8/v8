@@ -436,12 +436,10 @@ void FullCodeGenerator::EmitReturnSequence() {
 
     int arguments_bytes = (info_->scope()->num_parameters() + 1) * kPointerSize;
     __ Ret(arguments_bytes, ecx);
-#ifdef ENABLE_DEBUGGER_SUPPORT
     // Check that the size of the code used for returning is large enough
     // for the debugger's requirements.
     ASSERT(Assembler::kJSReturnSequenceLength <=
            masm_->SizeOfCodeGeneratedSince(&check_exit_codesize));
-#endif
     info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
   }
 }
@@ -1760,24 +1758,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
   }
 
-  Heap* heap = isolate()->heap();
-  if (has_constant_fast_elements &&
-      constant_elements_values->map() == heap->fixed_cow_array_map()) {
-    // If the elements are already FAST_*_ELEMENTS, the boilerplate cannot
-    // change, so it's possible to specialize the stub in advance.
-    __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(), 1);
-    __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ mov(eax, FieldOperand(ebx, JSFunction::kLiteralsOffset));
-    __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
-    __ mov(ecx, Immediate(constant_elements));
-    FastCloneShallowArrayStub stub(
-        isolate(),
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS,
-        allocation_site_mode,
-        length);
-    __ CallStub(&stub);
-  } else if (expr->depth() > 1 || Serializer::enabled() ||
-             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+  if (expr->depth() > 1) {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
     __ push(Immediate(Smi::FromInt(expr->literal_index())));
@@ -1785,25 +1766,11 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ push(Immediate(Smi::FromInt(flags)));
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);
   } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
-           FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
-
-    // If the elements are already FAST_*_ELEMENTS, the boilerplate cannot
-    // change, so it's possible to specialize the stub in advance.
-    if (has_constant_fast_elements) {
-      mode = FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    }
-
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ mov(eax, FieldOperand(ebx, JSFunction::kLiteralsOffset));
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_elements));
-    FastCloneShallowArrayStub stub(isolate(),
-                                   mode,
-                                   allocation_site_mode,
-                                   length);
+    FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
     __ CallStub(&stub);
   }
 

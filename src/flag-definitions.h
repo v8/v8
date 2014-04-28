@@ -565,8 +565,6 @@ DEFINE_bool(native_code_counters, false,
 
 // mark-compact.cc
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
-DEFINE_bool(lazy_sweeping, true,
-            "Use lazy sweeping for old pointer and data spaces")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_bool(compact_code_space, true,
@@ -679,13 +677,11 @@ DEFINE_neg_implication(predictable, parallel_sweeping)
 DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
 DEFINE_bool(debugger, false, "Enable JavaScript debugger")
 DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")
 DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
-#endif  // ENABLE_DEBUGGER_SUPPORT
 
 DEFINE_string(map_counters, "", "Map counters to a file")
 DEFINE_args(js_arguments,

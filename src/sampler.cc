@@ -589,6 +589,7 @@ SamplerThread* SamplerThread::instance_ = NULL;
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
                                    const RegisterState& regs) {
   ASSERT(isolate->IsInitialized());
+  timestamp = TimeTicks::HighResolutionNow();
   pc = regs.pc;
   state = isolate->current_vm_state();
 

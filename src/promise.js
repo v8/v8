@@ -191,9 +191,22 @@ function PromiseHandle(value, handler, deferred) {
       %_CallFunction(result, deferred.resolve, deferred.reject, PromiseChain);
     else
       deferred.resolve(result);
-  } catch(e) {
-    // TODO(rossberg): perhaps log uncaught exceptions below.
-    try { deferred.reject(e) } catch(e) {}
+  } catch (exception) {
+    var uncaught = false;
+    var reject_queue = GET_PRIVATE(deferred.promise, promiseOnReject);
+    if (reject_queue && reject_queue.length == 0) {
+      // The deferred promise may get a reject handler attached later.
+      // For now, we consider the exception to be (for the moment) uncaught.
+      uncaught = true;
+    }
+    try {
+      deferred.reject(exception);
+    } catch (e) {
+      // The reject handler can only throw for a custom deferred promise.
+      // We consider the original exception to be uncaught.
+      uncaught = true;
+    }
+    if (uncaught) %DebugPendingExceptionInPromise(exception, deferred.promise);
   }
 }
 
@@ -325,3 +338,20 @@ function SetUpPromise() {
 }
 
 SetUpPromise();
+
+// Functions to expose promise details to the debugger.
+function GetPromiseStatus(promise) {
+  return GET_PRIVATE(promise, promiseStatus);
+}
+
+function GetPromiseOnResolve(promise) {
+  return GET_PRIVATE(promise, promiseOnResolve);
+}
+
+function GetPromiseOnReject(promise) {
+  return GET_PRIVATE(promise, promiseOnReject);
+}
+
+function GetPromiseValue(promise) {
+  return GET_PRIVATE(promise, promiseValue);
+}

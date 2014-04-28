@@ -425,6 +425,7 @@ class ParserTraits {
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
     typedef ZoneList<ObjectLiteral::Property*>* PropertyList;
+    typedef ZoneList<v8::internal::Statement*>* StatementList;
 
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory<AstConstructionVisitor> Factory;
@@ -591,6 +592,9 @@ class ParserTraits {
   }
   ZoneList<ObjectLiteral::Property*>* NewPropertyList(int size, Zone* zone) {
     return new(zone) ZoneList<ObjectLiteral::Property*>(size, zone);
+  }
+  ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
+    return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
 
   // Temporary glue; these functions will move to ParserBase.

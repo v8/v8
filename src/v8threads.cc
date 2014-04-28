@@ -162,9 +162,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->handle_scope_implementer()->RestoreThread(from);
   from = isolate_->RestoreThread(from);
   from = Relocatable::RestoreState(isolate_, from);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   from = isolate_->debug()->RestoreDebug(from);
-#endif
   from = isolate_->stack_guard()->RestoreStackGuard(from);
   from = isolate_->regexp_stack()->RestoreStack(from);
   from = isolate_->bootstrapper()->RestoreState(from);
@@ -196,9 +194,7 @@ void ThreadManager::Unlock() {
 static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
                         Isolate::ArchiveSpacePerThread() +
-#ifdef ENABLE_DEBUGGER_SUPPORT
                           Debug::ArchiveSpacePerThread() +
-#endif
                      StackGuard::ArchiveSpacePerThread() +
                     RegExpStack::ArchiveSpacePerThread() +
                    Bootstrapper::ArchiveSpacePerThread() +
@@ -324,9 +320,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = isolate_->handle_scope_implementer()->ArchiveThread(to);
   to = isolate_->ArchiveThread(to);
   to = Relocatable::ArchiveState(isolate_, to);
-#ifdef ENABLE_DEBUGGER_SUPPORT
   to = isolate_->debug()->ArchiveDebug(to);
-#endif
   to = isolate_->stack_guard()->ArchiveStackGuard(to);
   to = isolate_->regexp_stack()->ArchiveStack(to);
   to = isolate_->bootstrapper()->ArchiveState(to);
@@ -338,9 +332,7 @@ void ThreadManager::EagerlyArchiveThread() {
 void ThreadManager::FreeThreadResources() {
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
-#ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->FreeThreadResources();
-#endif
   isolate_->stack_guard()->FreeThreadResources();
   isolate_->regexp_stack()->FreeThreadResources();
   isolate_->bootstrapper()->FreeThreadResources();

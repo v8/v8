@@ -594,7 +594,6 @@ class MarkCompactCollector {
 
   enum SweeperType {
     CONSERVATIVE,
-    LAZY_CONSERVATIVE,
     PARALLEL_CONSERVATIVE,
     CONCURRENT_CONSERVATIVE,
     PRECISE

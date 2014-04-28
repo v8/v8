@@ -99,6 +99,7 @@ namespace internal {
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
+  F(DebugPendingExceptionInPromise, 2, 1) \
   F(FlattenString, 1, 1) \
   F(LoadMutableDouble, 2, 1) \
   F(TryMigrateInstance, 1, 1) \
@@ -422,8 +423,7 @@ namespace internal {
   F(IsAccessCheckNeeded, 1, 1)
 
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+#define RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   /* Debugger support*/ \
   F(DebugBreak, 0, 1) \
   F(SetDebugEventListener, 2, 1) \
@@ -485,10 +485,6 @@ namespace internal {
   F(SetFlags, 1, 1) \
   F(CollectGarbage, 1, 1) \
   F(GetHeapUsage, 0, 1) \
-
-#else
-#define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
-#endif
 
 
 #ifdef V8_I18N_SUPPORT
@@ -552,7 +548,7 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
+  RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
 // RUNTIME_HIDDEN_FUNCTION_LIST defines all runtime functions accessed

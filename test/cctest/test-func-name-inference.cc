@@ -77,7 +77,6 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
                                       0);
   CHECK_NE(0, func_pos);
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
   isolate->debug()->PrepareForBreakPoints();
   Object* shared_func_info_ptr =
@@ -90,7 +89,6 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
   SmartArrayPointer<char> inferred_name =
       shared_func_info->inferred_name()->ToCString();
   CHECK_EQ(ref_inferred_name, inferred_name.get());
-#endif  // ENABLE_DEBUGGER_SUPPORT
 }
 
 

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifdef ENABLE_DEBUGGER_SUPPORT
-
 #include "d8.h"
 #include "d8-debug.h"
 #include "debug-agent.h"
@@ -370,5 +368,3 @@ void KeyboardThread::Run() {
 
 
 }  // namespace v8
-
-#endif  // ENABLE_DEBUGGER_SUPPORT

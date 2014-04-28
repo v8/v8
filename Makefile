@@ -96,10 +96,6 @@ endif
 ifeq ($(optdebug), on)
   GYPFLAGS += -Dv8_optimized_debug=2
 endif
-# debuggersupport=off
-ifeq ($(debuggersupport), off)
-  GYPFLAGS += -Dv8_enable_debugger_support=0
-endif
 # unalignedaccess=on
 ifeq ($(unalignedaccess), on)
   GYPFLAGS += -Dv8_can_use_unaligned_accesses=true

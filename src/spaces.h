@@ -33,7 +33,7 @@
 #include "list.h"
 #include "log.h"
 #include "platform/mutex.h"
-#include "v8utils.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1783,8 +1783,9 @@ class PagedSpace : public Space {
   intptr_t Available() { return free_list_.available(); }
 
   // Allocated bytes in this space.  Garbage bytes that were not found due to
-  // lazy sweeping are counted as being allocated!  The bytes in the current
-  // linear allocation area (between top and limit) are also counted here.
+  // concurrent sweeping are counted as being allocated!  The bytes in the
+  // current linear allocation area (between top and limit) are also counted
+  // here.
   virtual intptr_t Size() { return accounting_stats_.Size(); }
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
@@ -1885,16 +1886,10 @@ class PagedSpace : public Space {
 
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
-  static bool ShouldBeSweptLazily(Page* p) {
+  static bool ShouldBeSweptBySweeperThreads(Page* p) {
     return !p->IsEvacuationCandidate() &&
            !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) &&
            !p->WasSweptPrecisely();
-  }
-
-  void SetPagesToSweep(Page* first) {
-    ASSERT(unswept_free_bytes_ == 0);
-    if (first == &anchor_) first = NULL;
-    first_unswept_page_ = first;
   }
 
   void IncrementUnsweptFreeBytes(intptr_t by) {
@@ -1902,7 +1897,7 @@ class PagedSpace : public Space {
   }
 
   void IncreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptLazily(p));
+    ASSERT(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
@@ -1911,7 +1906,7 @@ class PagedSpace : public Space {
   }
 
   void DecreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptLazily(p));
+    ASSERT(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
   }
 
@@ -1919,16 +1914,11 @@ class PagedSpace : public Space {
     unswept_free_bytes_ = 0;
   }
 
-  bool AdvanceSweeper(intptr_t bytes_to_sweep);
-
-  // When parallel sweeper threads are active and the main thread finished
-  // its sweeping phase, this function waits for them to complete, otherwise
-  // AdvanceSweeper with size_in_bytes is called.
+  // This function tries to steal size_in_bytes memory from the sweeper threads
+  // free-lists. If it does not succeed stealing enough memory, it will wait
+  // for the sweeper threads to finish sweeping.
+  // It returns true when sweeping is completed and false otherwise.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
-
-  bool IsLazySweepingComplete() {
-    return !first_unswept_page_->is_valid();
-  }
 
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
@@ -1969,13 +1959,9 @@ class PagedSpace : public Space {
 
   bool was_swept_conservatively_;
 
-  // The first page to be swept when the lazy sweeper advances. Is set
-  // to NULL when all pages have been swept.
-  Page* first_unswept_page_;
-
   // The number of free bytes which could be reclaimed by advancing the
-  // lazy sweeper.  This is only an estimation because lazy sweeping is
-  // done conservatively.
+  // concurrent sweeper threads.  This is only an estimation because concurrent
+  // sweeping is done conservatively.
   intptr_t unswept_free_bytes_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
