@@ -50,7 +50,8 @@ enum PerThreadAssertType {
 enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
-  ALLOCATION_FAILURE_ASSERT
+  ALLOCATION_FAILURE_ASSERT,
+  DEOPTIMIZATION_ASSERT
 };
 
 
@@ -267,6 +268,14 @@ typedef PerIsolateAssertScopeDebugOnly<ALLOCATION_FAILURE_ASSERT, false>
 // Scope to introduce an exception to DisallowAllocationFailure.
 typedef PerIsolateAssertScopeDebugOnly<ALLOCATION_FAILURE_ASSERT, true>
     AllowAllocationFailure;
+
+// Scope to document where we do not expect deoptimization.
+typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>
+    DisallowDeoptimization;
+
+// Scope to introduce an exception to DisallowDeoptimization.
+typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>
+    AllowDeoptimization;
 
 } }  // namespace v8::internal
 

@@ -4679,6 +4679,7 @@ bool Code::marked_for_deoptimization() {
 
 void Code::set_marked_for_deoptimization(bool flag) {
   ASSERT(kind() == OPTIMIZED_FUNCTION);
+  ASSERT(!flag || AllowDeoptimization::IsAllowed(GetIsolate()));
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = MarkedForDeoptimizationField::update(previous, flag);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);

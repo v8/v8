@@ -2781,6 +2781,7 @@ MaybeHandle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
 // static
 MaybeHandle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> old_map) {
   DisallowHeapAllocation no_allocation;
+  DisallowDeoptimization no_deoptimization(old_map->GetIsolate());
 
   if (!old_map->is_deprecated()) return old_map;
 
@@ -3940,7 +3941,9 @@ void JSObject::MigrateInstance(Handle<JSObject> object) {
 
 // static
 bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
-  Handle<Map> original_map(object->map());
+  Isolate* isolate = object->GetIsolate();
+  DisallowDeoptimization no_deoptimization(isolate);
+  Handle<Map> original_map(object->map(), isolate);
   Handle<Map> new_map;
   if (!Map::CurrentMapForDeprecatedInternal(original_map).ToHandle(&new_map)) {
     return false;
