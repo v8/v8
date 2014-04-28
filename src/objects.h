@@ -3441,20 +3441,6 @@ class DescriptorArray: public FixedArray {
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> Merge(Handle<Map> left_map,
-                                       int verbatim,
-                                       int valid,
-                                       int new_size,
-                                       int modify_index,
-                                       StoreMode store_mode,
-                                       Handle<Map> right_map)
-      V8_WARN_UNUSED_RESULT;
-
-  bool IsMoreGeneralThan(int verbatim,
-                         int valid,
-                         int new_size,
-                         DescriptorArray* other);
-
   static Handle<DescriptorArray> CopyUpTo(Handle<DescriptorArray> desc,
                                           int enumeration_index,
                                           int slack = 0);
@@ -6733,7 +6719,6 @@ class Map: public HeapObject {
   void DeprecateTransitionTree();
   void DeprecateTarget(Name* key, DescriptorArray* new_descriptors);
 
-  Map* FindUpdatedMap(int verbatim, int length, DescriptorArray* descriptors);
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
   void UpdateDescriptor(int descriptor_number, Descriptor* desc);
