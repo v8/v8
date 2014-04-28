@@ -1421,8 +1421,7 @@ class HGraphBuilder {
     store_map->SkipWriteBarrier();
     return store_map;
   }
-  HLoadNamedField* AddLoadElements(HValue* object,
-                                   HValue* dependency = NULL);
+  HLoadNamedField* AddLoadElements(HValue* object);
 
   bool MatchRotateRight(HValue* left,
                         HValue* right,
@@ -1438,12 +1437,7 @@ class HGraphBuilder {
                                Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode);
 
-  HLoadNamedField* AddLoadFixedArrayLength(HValue *object,
-                                           HValue *dependency = NULL);
-
-  HLoadNamedField* AddLoadArrayLength(HValue *object,
-                                      ElementsKind kind,
-                                      HValue *dependency = NULL);
+  HLoadNamedField* AddLoadFixedArrayLength(HValue *object);
 
   HValue* AddLoadJSBuiltin(Builtins::JavaScript builtin);
 
@@ -1786,33 +1780,18 @@ class HGraphBuilder {
                                  HValue* from,
                                  HValue* to);
 
-  void BuildCopyElements(HValue* array,
-                         HValue* from_elements,
+  void BuildCopyElements(HValue* from_elements,
                          ElementsKind from_elements_kind,
                          HValue* to_elements,
                          ElementsKind to_elements_kind,
                          HValue* length,
                          HValue* capacity);
 
-  HValue* BuildCloneShallowArrayCommon(HValue* boilerplate,
-                                       HValue* allocation_site,
-                                       HValue* extra_size,
-                                       HValue** return_elements,
-                                       AllocationSiteMode mode);
-
-  HValue* BuildCloneShallowArrayCow(HValue* boilerplate,
-                                    HValue* allocation_site,
-                                    AllocationSiteMode mode,
-                                    ElementsKind kind);
-
-  HValue* BuildCloneShallowArrayEmpty(HValue* boilerplate,
-                                      HValue* allocation_site,
-                                      AllocationSiteMode mode);
-
-  HValue* BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
-                                         HValue* allocation_site,
-                                         AllocationSiteMode mode,
-                                         ElementsKind kind);
+  HValue* BuildCloneShallowArray(HValue* boilerplate,
+                                 HValue* allocation_site,
+                                 AllocationSiteMode mode,
+                                 ElementsKind kind,
+                                 int length);
 
   HValue* BuildElementIndexHash(HValue* index);
 

@@ -1834,7 +1834,18 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
   __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
   __ li(a1, Operand(constant_elements));
-  if (expr->depth() > 1) {
+  if (has_fast_elements && constant_elements_values->map() ==
+      isolate()->heap()->fixed_cow_array_map()) {
+    FastCloneShallowArrayStub stub(
+        isolate(),
+        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS,
+        allocation_site_mode,
+        length);
+    __ CallStub(&stub);
+    __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
+        1, a1, a2);
+  } else if (expr->depth() > 1 || Serializer::enabled() ||
+             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ li(a0, Operand(Smi::FromInt(flags)));
     __ Push(a3, a2, a1, a0);
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);

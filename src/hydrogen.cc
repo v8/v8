@@ -2414,26 +2414,15 @@ HInstruction* HGraphBuilder::AddElementAccess(
 }
 
 
-HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object,
-                                                HValue* dependency) {
+HLoadNamedField* HGraphBuilder::AddLoadElements(HValue* object) {
   return Add<HLoadNamedField>(
-      object, dependency, HObjectAccess::ForElementsPointer());
+      object, static_cast<HValue*>(NULL), HObjectAccess::ForElementsPointer());
 }
 
 
-HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(
-    HValue* array,
-    HValue* dependency) {
+HLoadNamedField* HGraphBuilder::AddLoadFixedArrayLength(HValue* object) {
   return Add<HLoadNamedField>(
-      array, dependency, HObjectAccess::ForFixedArrayLength());
-}
-
-
-HLoadNamedField* HGraphBuilder::AddLoadArrayLength(HValue* array,
-                                                   ElementsKind kind,
-                                                   HValue* dependency) {
-  return Add<HLoadNamedField>(
-      array, dependency, HObjectAccess::ForArrayLength(kind));
+      object, static_cast<HValue*>(NULL), HObjectAccess::ForFixedArrayLength());
 }
 
 
@@ -2474,8 +2463,9 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);
 
-  BuildCopyElements(object, elements, kind, new_elements,
-                    new_kind, length, new_capacity);
+  BuildCopyElements(elements, kind,
+                    new_elements, new_kind,
+                    length, new_capacity);
 
   Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
                         new_elements);
@@ -2488,8 +2478,8 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
                                               ElementsKind elements_kind,
                                               HValue* from,
                                               HValue* to) {
-  // Fast elements kinds need to be initialized in case statements below cause a
-  // garbage collection.
+  // Fast elements kinds need to be initialized in case statements below cause
+  // a garbage collection.
   Factory* factory = isolate()->factory();
 
   double nan_double = FixedDoubleArray::hole_nan_as_double();
@@ -2533,137 +2523,93 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
 }
 
 
-void HGraphBuilder::BuildCopyElements(HValue* array,
-                                      HValue* from_elements,
+void HGraphBuilder::BuildCopyElements(HValue* from_elements,
                                       ElementsKind from_elements_kind,
                                       HValue* to_elements,
                                       ElementsKind to_elements_kind,
                                       HValue* length,
                                       HValue* capacity) {
-  int constant_capacity = -1;
-  if (capacity->IsConstant() &&
-      HConstant::cast(capacity)->HasInteger32Value()) {
-    int constant_candidate = HConstant::cast(capacity)->Integer32Value();
-    if (constant_candidate <=
-        FastCloneShallowArrayStub::kMaximumInlinedCloneLength) {
-      constant_capacity = constant_candidate;
-    }
-  }
-
-  if (constant_capacity != -1) {
-    // Unroll the loop for small elements kinds.
-    for (int i = 0; i < constant_capacity; i++) {
-      HValue* key_constant = Add<HConstant>(i);
-      HInstruction* value = Add<HLoadKeyed>(from_elements, key_constant,
-                                            static_cast<HValue*>(NULL),
-                                            from_elements_kind);
-      Add<HStoreKeyed>(to_elements, key_constant, value, to_elements_kind);
-    }
-  } else {
-    bool pre_fill_with_holes =
+  bool pre_fill_with_holes =
       IsFastDoubleElementsKind(from_elements_kind) &&
       IsFastObjectElementsKind(to_elements_kind);
 
-    if (pre_fill_with_holes) {
-      // If the copy might trigger a GC, make sure that the FixedArray is
-      // pre-initialized with holes to make sure that it's always in a
-      // consistent state.
-      BuildFillElementsWithHole(to_elements, to_elements_kind,
-                                graph()->GetConstant0(), capacity);
-    }
+  if (pre_fill_with_holes) {
+    // If the copy might trigger a GC, make sure that the FixedArray is
+    // pre-initialized with holes to make sure that it's always in a consistent
+    // state.
+    BuildFillElementsWithHole(to_elements, to_elements_kind,
+                              graph()->GetConstant0(), capacity);
+  }
 
-    LoopBuilder builder(this, context(), LoopBuilder::kPostDecrement);
+  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
 
-    // Be very careful to copy the elements up to length backwards down to
-    // zero. This eliminates the need to keep length alive through the loop,
-    // since the termination condition compares to a constant. This reduces
-    // register pressure in code stubs that otherwise would spill and create
-    // a stack frame.
-    HValue* decremented_length = AddUncasted<HSub>(length,
-                                                   graph()->GetConstant1());
-    decremented_length->ClearFlag(HValue::kCanOverflow);
-    HValue* key = builder.BeginBody(decremented_length, Add<HConstant>(-1),
-                                    Token::NE);
-    HValue* element = Add<HLoadKeyed>(from_elements, key,
-                                      static_cast<HValue*>(NULL),
-                                      from_elements_kind,
-                                      ALLOW_RETURN_HOLE);
+  HValue* key = builder.BeginBody(graph()->GetConstant0(), length, Token::LT);
 
-    ElementsKind kind = (IsHoleyElementsKind(from_elements_kind) &&
-                         IsFastSmiElementsKind(to_elements_kind))
+  HValue* element = Add<HLoadKeyed>(from_elements, key,
+                                    static_cast<HValue*>(NULL),
+                                    from_elements_kind,
+                                    ALLOW_RETURN_HOLE);
+
+  ElementsKind kind = (IsHoleyElementsKind(from_elements_kind) &&
+                       IsFastSmiElementsKind(to_elements_kind))
       ? FAST_HOLEY_ELEMENTS : to_elements_kind;
 
-    if (IsHoleyElementsKind(from_elements_kind) &&
-        from_elements_kind != to_elements_kind) {
-      IfBuilder if_hole(this);
-      if_hole.If<HCompareHoleAndBranch>(element);
-      if_hole.Then();
-      HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
+  if (IsHoleyElementsKind(from_elements_kind) &&
+      from_elements_kind != to_elements_kind) {
+    IfBuilder if_hole(this);
+    if_hole.If<HCompareHoleAndBranch>(element);
+    if_hole.Then();
+    HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
         ? Add<HConstant>(FixedDoubleArray::hole_nan_as_double())
         : graph()->GetConstantHole();
-      Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
-      if_hole.Else();
-      HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
-      store->SetFlag(HValue::kAllowUndefinedAsNaN);
-      if_hole.End();
-    } else {
-      HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
-      store->SetFlag(HValue::kAllowUndefinedAsNaN);
-    }
-
-    builder.EndBody();
-
-    if (!pre_fill_with_holes && !length->Equals(capacity)) {
-      // Force an explicit reload of capacity and length from locations where we
-      // know they are available. This caps their live ranges before entering
-      // the the element copy loop above, reducing register pressure enough to
-      // not spill and create stack frames for performance-critical array stubs
-      // on platforms with a small register set.
-      capacity = AddLoadFixedArrayLength(to_elements);
-      capacity->ClearFlag(HValue::kUseGVN);
-      length = AddLoadArrayLength(array, to_elements_kind);
-      length->ClearFlag(HValue::kUseGVN);
-      // Fill unused capacity with the hole.
-      BuildFillElementsWithHole(to_elements, to_elements_kind,
-                                length, capacity);
-    }
+    Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
+    if_hole.Else();
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
+    if_hole.End();
+  } else {
+    HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+    store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 
-  Counters* counters = isolate()->counters();
-  AddIncrementCounter(counters->inlined_copyied_elements());
+  builder.EndBody();
+
+  if (!pre_fill_with_holes && length != capacity) {
+    // Fill unused capacity with the hole.
+    BuildFillElementsWithHole(to_elements, to_elements_kind,
+                              key, capacity);
+  }
 }
 
-HValue* HGraphBuilder::BuildCloneShallowArrayCommon(
-    HValue* boilerplate,
-    HValue* allocation_site,
-    HValue* extra_size,
-    HValue** return_elements,
-    AllocationSiteMode mode) {
+
+HValue* HGraphBuilder::BuildCloneShallowArray(HValue* boilerplate,
+                                              HValue* allocation_site,
+                                              AllocationSiteMode mode,
+                                              ElementsKind kind,
+                                              int length) {
+  NoObservableSideEffectsScope no_effects(this);
+
   // All sizes here are multiples of kPointerSize.
-  int array_size = JSArray::kSize;
+  int size = JSArray::kSize;
   if (mode == TRACK_ALLOCATION_SITE) {
-    array_size += AllocationMemento::kSize;
+    size += AllocationMemento::kSize;
   }
 
-  HValue* size_in_bytes = Add<HConstant>(array_size);
-  if (extra_size != NULL) {
-    size_in_bytes = AddUncasted<HAdd>(extra_size, size_in_bytes);
-    size_in_bytes->ClearFlag(HValue::kCanOverflow);
-  }
-
+  HValue* size_in_bytes = Add<HConstant>(size);
   HInstruction* object = Add<HAllocate>(size_in_bytes,
                                         HType::JSObject(),
                                         NOT_TENURED,
                                         JS_OBJECT_TYPE);
 
   // Copy the JS array part.
-  HValue* map = Add<HLoadNamedField>(boilerplate,
-      static_cast<HValue*>(NULL), HObjectAccess::ForMap());
-  Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
-                     INITIALIZING_STORE);
-  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map,
-                        INITIALIZING_STORE);
+  for (int i = 0; i < JSArray::kSize; i += kPointerSize) {
+    if ((i != JSArray::kElementsOffset) || (length == 0)) {
+      HObjectAccess access = HObjectAccess::ForJSArrayOffset(i);
+      Add<HStoreNamedField>(
+          object, access, Add<HLoadNamedField>(
+              boilerplate, static_cast<HValue*>(NULL), access));
+    }
+  }
 
   // Create an allocation site info if requested.
   if (mode == TRACK_ALLOCATION_SITE) {
@@ -2671,94 +2617,51 @@ HValue* HGraphBuilder::BuildCloneShallowArrayCommon(
         object, Add<HConstant>(JSArray::kSize), allocation_site);
   }
 
-  if (extra_size != NULL) {
-    HValue* elements = Add<HInnerAllocatedObject>(object,
-        Add<HConstant>(array_size));
-    if (return_elements != NULL) *return_elements = elements;
+  if (length > 0) {
+    // We have to initialize the elements pointer if allocation folding is
+    // turned off.
+    if (!FLAG_use_gvn || !FLAG_use_allocation_folding) {
+      HConstant* empty_fixed_array = Add<HConstant>(
+          isolate()->factory()->empty_fixed_array());
+      Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+          empty_fixed_array, INITIALIZING_STORE);
+    }
+
+    HValue* boilerplate_elements = AddLoadElements(boilerplate);
+    HValue* object_elements;
+    if (IsFastDoubleElementsKind(kind)) {
+      HValue* elems_size = Add<HConstant>(FixedDoubleArray::SizeFor(length));
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
+          NOT_TENURED, FIXED_DOUBLE_ARRAY_TYPE);
+    } else {
+      HValue* elems_size = Add<HConstant>(FixedArray::SizeFor(length));
+      object_elements = Add<HAllocate>(elems_size, HType::Tagged(),
+          NOT_TENURED, FIXED_ARRAY_TYPE);
+    }
+    Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
+                          object_elements);
+
+    // Copy the elements array header.
+    for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
+      HObjectAccess access = HObjectAccess::ForFixedArrayHeader(i);
+      Add<HStoreNamedField>(
+          object_elements, access, Add<HLoadNamedField>(
+              boilerplate_elements, static_cast<HValue*>(NULL), access));
+    }
+
+    // Copy the elements array contents.
+    // TODO(mstarzinger): Teach HGraphBuilder::BuildCopyElements to unfold
+    // copying loops with constant length up to a given boundary and use this
+    // helper here instead.
+    for (int i = 0; i < length; i++) {
+      HValue* key_constant = Add<HConstant>(i);
+      HInstruction* value = Add<HLoadKeyed>(boilerplate_elements, key_constant,
+                                            static_cast<HValue*>(NULL), kind);
+      Add<HStoreKeyed>(object_elements, key_constant, value, kind);
+    }
   }
 
   return object;
-}
-
-
-HValue* HGraphBuilder::BuildCloneShallowArrayCow(HValue* boilerplate,
-                                                 HValue* allocation_site,
-                                                 AllocationSiteMode mode,
-                                                 ElementsKind kind) {
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-      allocation_site, NULL, NULL, mode);
-
-  HValue* length = AddLoadArrayLength(boilerplate, kind);
-  HValue* elements = AddLoadElements(boilerplate);
-  HObjectAccess access1 = HObjectAccess::ForArrayLength(kind);
-  HObjectAccess access2 = HObjectAccess::ForElementsPointer();
-  Add<HStoreNamedField>(result, access1, length, INITIALIZING_STORE);
-  Add<HStoreNamedField>(result, access2, elements, INITIALIZING_STORE);
-
-  return result;
-}
-
-
-HValue* HGraphBuilder::BuildCloneShallowArrayEmpty(HValue* boilerplate,
-                                                   HValue* allocation_site,
-                                                   AllocationSiteMode mode) {
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-     allocation_site, NULL, NULL, mode);
-
-  HObjectAccess access = HObjectAccess::ForArrayLength(FAST_ELEMENTS);
-  Add<HStoreNamedField>(result, access, graph()->GetConstant0(),
-                        INITIALIZING_STORE);
-  access = HObjectAccess::ForElementsPointer();
-  Add<HStoreNamedField>(result, access,
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
-                     INITIALIZING_STORE);
-
-  return result;
-}
-
-
-HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
-                                                      HValue* allocation_site,
-                                                      AllocationSiteMode mode,
-                                                      ElementsKind kind) {
-  int elements_kind_size = IsFastDoubleElementsKind(kind)
-    ? kDoubleSize : kPointerSize;
-
-  HValue* boilerplate_elements = AddLoadElements(boilerplate);
-  HValue* capacity = AddLoadFixedArrayLength(boilerplate_elements);
-  HValue* extra = AddUncasted<HMul>(capacity,
-                                    Add<HConstant>(elements_kind_size));
-  extra->ClearFlag(HValue::kCanOverflow);
-  extra = AddUncasted<HAdd>(extra, Add<HConstant>(FixedArray::kHeaderSize));
-  extra->ClearFlag(HValue::kCanOverflow);
-  HValue* elements = NULL;
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-      allocation_site, extra, &elements, mode);
-
-  // Explicitly reload the boilerplate's elements. This frees up a register
-  // during the allocation which otherwise causes spillage in many common code
-  // sequences on platforms with tight register constraints.
-  boilerplate_elements = AddLoadElements(boilerplate);
-  boilerplate_elements->ClearFlag(HValue::kUseGVN);
-  HValue* length = Add<HLoadNamedField>(boilerplate, static_cast<HValue*>(NULL),
-                                        HObjectAccess::ForArrayLength(kind));
-  Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(),
-                        elements, INITIALIZING_STORE);
-  Add<HStoreNamedField>(result, HObjectAccess::ForArrayLength(kind),
-      length, INITIALIZING_STORE);
-
-  // Copy the elements array header.
-  for (int i = 0; i < FixedArrayBase::kHeaderSize; i += kPointerSize) {
-    HObjectAccess access = HObjectAccess::ForFixedArrayHeader(i);
-    Add<HStoreNamedField>(elements, access,
-        Add<HLoadNamedField>(boilerplate_elements,
-                             static_cast<HValue*>(NULL), access));
-  }
-
-  BuildCopyElements(result, boilerplate_elements, kind, elements,
-                    kind, length, capacity);
-
-  return result;
 }
 
 
