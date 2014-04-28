@@ -29,8 +29,13 @@
 #include <limits.h>
 #include <cmath>
 
+#include "v8.h"
+
+#include "assert-scope.h"
+#include "conversions.h"
 #include "conversions-inl.h"
 #include "dtoa.h"
+#include "factory.h"
 #include "list-inl.h"
 #include "strtod.h"
 #include "utils.h"
@@ -42,6 +47,47 @@ using std::fpclassify;
 
 namespace v8 {
 namespace internal {
+
+
+namespace {
+
+// C++-style iterator adaptor for StringCharacterStream
+// (unlike C++ iterators the end-marker has different type).
+class StringCharacterStreamIterator {
+ public:
+  class EndMarker {};
+
+  explicit StringCharacterStreamIterator(StringCharacterStream* stream);
+
+  uint16_t operator*() const;
+  void operator++();
+  bool operator==(EndMarker const&) const { return end_; }
+  bool operator!=(EndMarker const& m) const { return !end_; }
+
+ private:
+  StringCharacterStream* const stream_;
+  uint16_t current_;
+  bool end_;
+};
+
+
+StringCharacterStreamIterator::StringCharacterStreamIterator(
+    StringCharacterStream* stream) : stream_(stream) {
+  ++(*this);
+}
+
+uint16_t StringCharacterStreamIterator::operator*() const {
+  return current_;
+}
+
+
+void StringCharacterStreamIterator::operator++() {
+  end_ = !stream_->HasMore();
+  if (!end_) {
+    current_ = stream_->GetNext();
+  }
+}
+}  // End anonymous namespace.
 
 
 double StringToDouble(UnicodeCache* unicode_cache,
@@ -273,7 +319,6 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
 }
 
 
-
 char* DoubleToExponentialCString(double value, int f) {
   const int kMaxDigitsAfterPoint = 20;
   // f might be -1 to signal that f was undefined in JavaScript.
@@ -459,5 +504,23 @@ char* DoubleToRadixCString(double value, int radix) {
   builder.AddSubstring(decimal_buffer, decimal_pos);
   return builder.Finalize();
 }
+
+
+double StringToDouble(UnicodeCache* unicode_cache,
+                      String* string,
+                      int flags,
+                      double empty_string_val) {
+  DisallowHeapAllocation no_gc;
+  String::FlatContent flat = string->GetFlatContent();
+  // ECMA-262 section 15.1.2.3, empty string is NaN
+  if (flat.IsAscii()) {
+    return StringToDouble(
+        unicode_cache, flat.ToOneByteVector(), flags, empty_string_val);
+  } else {
+    return StringToDouble(
+        unicode_cache, flat.ToUC16Vector(), flags, empty_string_val);
+  }
+}
+
 
 } }  // namespace v8::internal

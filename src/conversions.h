@@ -28,6 +28,11 @@
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
 
+#include <limits>
+
+#include "checks.h"
+#include "handles.h"
+#include "objects.h"
 #include "utils.h"
 
 namespace v8 {
@@ -162,6 +167,77 @@ char* DoubleToFixedCString(double value, int f);
 char* DoubleToExponentialCString(double value, int f);
 char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
+
+
+static inline bool IsMinusZero(double value) {
+  static const DoubleRepresentation minus_zero(-0.0);
+  return DoubleRepresentation(value) == minus_zero;
+}
+
+
+// Integer32 is an integer that can be represented as a signed 32-bit
+// integer. It has to be in the range [-2^31, 2^31 - 1].
+// We also have to check for negative 0 as it is not an Integer32.
+static inline bool IsInt32Double(double value) {
+  return !IsMinusZero(value) &&
+         value >= kMinInt &&
+         value <= kMaxInt &&
+         value == FastI2D(FastD2I(value));
+}
+
+
+// Convert from Number object to C integer.
+inline int32_t NumberToInt32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToInt32(number->Number());
+}
+
+
+inline uint32_t NumberToUint32(Object* number) {
+  if (number->IsSmi()) return Smi::cast(number)->value();
+  return DoubleToUint32(number->Number());
+}
+
+
+double StringToDouble(UnicodeCache* unicode_cache,
+                      String* string,
+                      int flags,
+                      double empty_string_val = 0.0);
+
+
+inline bool TryNumberToSize(Isolate* isolate,
+                            Object* number, size_t* result) {
+  SealHandleScope shs(isolate);
+  if (number->IsSmi()) {
+    int value = Smi::cast(number)->value();
+    ASSERT(static_cast<unsigned>(Smi::kMaxValue)
+           <= std::numeric_limits<size_t>::max());
+    if (value >= 0) {
+      *result = static_cast<size_t>(value);
+      return true;
+    }
+    return false;
+  } else {
+    ASSERT(number->IsHeapNumber());
+    double value = HeapNumber::cast(number)->value();
+    if (value >= 0 &&
+        value <= std::numeric_limits<size_t>::max()) {
+      *result = static_cast<size_t>(value);
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
+
+// Converts a number into size_t.
+inline size_t NumberToSize(Isolate* isolate,
+                           Object* number) {
+  size_t result = 0;
+  bool is_valid = TryNumberToSize(isolate, number, &result);
+  CHECK(is_valid);
+  return result;
+}
 
 } }  // namespace v8::internal
 

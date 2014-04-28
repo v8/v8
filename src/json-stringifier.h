@@ -29,8 +29,8 @@
 #define V8_JSON_STRINGIFIER_H_
 
 #include "v8.h"
+#include "conversions.h"
 #include "utils.h"
-#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
