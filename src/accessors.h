@@ -37,11 +37,11 @@ namespace internal {
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
 #define ACCESSOR_DESCRIPTOR_LIST(V) \
-  V(FunctionArguments)              \
   V(FunctionCaller)                 \
   V(ArrayLength)
 
 #define ACCESSOR_INFO_LIST(V)       \
+  V(FunctionArguments)              \
   V(FunctionName)                   \
   V(FunctionLength)                 \
   V(FunctionPrototype)              \
@@ -114,21 +114,6 @@ class Accessors : public AllStatic {
                                       int* object_offset);
 
  private:
-  // Accessor functions only used through the descriptor.
-  static Object* FunctionSetPrototype(Isolate* isolate,
-                                      JSObject* object,
-                                      Object*,
-                                      void*);
-  static Object* FunctionGetPrototype(Isolate* isolate,
-                                      Object* object,
-                                      void*);
-  static Object* FunctionGetLength(Isolate* isolate,
-                                   Object* object,
-                                   void*);
-  static Object* FunctionGetName(Isolate* isolate, Object* object, void*);
-  static Object* FunctionGetArguments(Isolate* isolate,
-                                      Object* object,
-                                      void*);
   static Object* FunctionGetCaller(Isolate* isolate,
                                    Object* object,
                                    void*);
