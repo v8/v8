@@ -105,6 +105,7 @@ double fast_sqrt(double input);
 // on demand.
 void lazily_initialize_fast_exp();
 
+
 // ----------------------------------------------------------------------------
 // Fast TLS support
 

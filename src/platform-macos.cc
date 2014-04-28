@@ -59,8 +59,6 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "simulator.h"
-#include "vm-state-inl.h"
 
 
 namespace v8 {

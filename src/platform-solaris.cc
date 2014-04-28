@@ -53,7 +53,6 @@
 
 #include "platform.h"
 #include "v8threads.h"
-#include "vm-state-inl.h"
 
 
 // It seems there is a bug in some Solaris distributions (experienced in

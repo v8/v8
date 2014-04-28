@@ -68,7 +68,6 @@
 
 #include "platform.h"
 #include "v8threads.h"
-#include "vm-state-inl.h"
 
 
 namespace v8 {

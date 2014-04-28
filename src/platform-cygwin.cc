@@ -42,9 +42,7 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "simulator.h"
 #include "v8threads.h"
-#include "vm-state-inl.h"
 #include "win32-headers.h"
 
 namespace v8 {

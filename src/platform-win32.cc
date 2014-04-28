@@ -45,8 +45,6 @@
 #include "codegen.h"
 #include "isolate-inl.h"
 #include "platform.h"
-#include "simulator.h"
-#include "vm-state-inl.h"
 
 #ifdef _MSC_VER
 
