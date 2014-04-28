@@ -3929,10 +3929,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
 
   Label profiler_disabled;
   Label end_profiler_check;
-  bool* is_profiling_flag =
-      isolate()->cpu_profiler()->is_profiling_address();
-  STATIC_ASSERT(sizeof(*is_profiling_flag) == 1);
-  li(t9, reinterpret_cast<int32_t>(is_profiling_flag));
+  li(t9, Operand(ExternalReference::is_profiling_address(isolate())));
   lb(t9, MemOperand(t9, 0));
   Branch(&profiler_disabled, eq, t9, Operand(zero_reg));
 

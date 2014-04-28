@@ -4856,7 +4856,8 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   // v8::InvocationCallback's argument.
   __ leap(arguments_arg, StackSpaceOperand(0));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(isolate());
 
   // Accessor for FunctionCallbackInfo and first js arg.
   StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength + 1,
@@ -4868,7 +4869,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
       is_store ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
   __ CallApiFunctionAndReturn(
       api_function_address,
-      thunk_address,
+      thunk_ref,
       callback_arg,
       argc + FCA::kArgsLength + 1,
       return_value_operand,
@@ -4915,7 +4916,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // could be used to pass arguments.
   __ leap(accessor_info_arg, StackSpaceOperand(0));
 
-  Address thunk_address = FUNCTION_ADDR(&InvokeAccessorGetterCallback);
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_accessor_getter_callback(isolate());
 
   // It's okay if api_function_address == getter_arg
   // but not accessor_info_arg or name_arg
@@ -4928,7 +4930,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
       PropertyCallbackArguments::kArgsLength - 1 -
       PropertyCallbackArguments::kReturnValueOffset);
   __ CallApiFunctionAndReturn(api_function_address,
-                              thunk_address,
+                              thunk_ref,
                               getter_arg,
                               kStackSpace,
                               return_value_operand,
