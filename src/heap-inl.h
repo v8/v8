@@ -161,16 +161,19 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
 }
 
 MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
+  if (src->length() == 0) return src;
   return CopyFixedArrayWithMap(src, src->map());
 }
 
 
 MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
+  if (src->length() == 0) return src;
   return CopyFixedDoubleArrayWithMap(src, src->map());
 }
 
 
 MaybeObject* Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
+  if (src->length() == 0) return src;
   return CopyConstantPoolArrayWithMap(src, src->map());
 }
 
