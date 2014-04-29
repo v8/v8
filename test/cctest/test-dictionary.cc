@@ -76,7 +76,7 @@ static void TestHashMap(Handle<HashMap> table) {
     Handle<JSObject> value = factory->NewJSArray(11);
     table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(*key), HashMap::kNotFound);
+    CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), *value);
     CHECK(key->GetIdentityHash()->IsSmi());
   }
@@ -86,7 +86,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
-    CHECK_EQ(table->FindEntry(*key), HashMap::kNotFound);
+    CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
     CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK(key->GetIdentityHash()->IsSmi());
   }
@@ -183,7 +183,7 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
-  CHECK(!table->Contains(*key));
+  CHECK(!table->Contains(key));
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.

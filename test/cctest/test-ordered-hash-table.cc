@@ -71,13 +71,13 @@ TEST(Set) {
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
-  CHECK(!ordered_set->Contains(*obj));
+  CHECK(!ordered_set->Contains(obj));
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   CHECK_EQ(1, ordered_set->NumberOfElements());
-  CHECK(ordered_set->Contains(*obj));
+  CHECK(ordered_set->Contains(obj));
   ordered_set = OrderedHashSet::Remove(ordered_set, obj);
   CHECK_EQ(0, ordered_set->NumberOfElements());
-  CHECK(!ordered_set->Contains(*obj));
+  CHECK(!ordered_set->Contains(obj));
 
   // Test for collisions/chaining
   Handle<JSObject> obj1 = factory->NewJSObjectFromMap(map);
@@ -87,9 +87,9 @@ TEST(Set) {
   Handle<JSObject> obj3 = factory->NewJSObjectFromMap(map);
   ordered_set = OrderedHashSet::Add(ordered_set, obj3);
   CHECK_EQ(3, ordered_set->NumberOfElements());
-  CHECK(ordered_set->Contains(*obj1));
-  CHECK(ordered_set->Contains(*obj2));
-  CHECK(ordered_set->Contains(*obj3));
+  CHECK(ordered_set->Contains(obj1));
+  CHECK(ordered_set->Contains(obj2));
+  CHECK(ordered_set->Contains(obj3));
 
   // Test iteration
   CheckIterResultObject(
@@ -107,11 +107,11 @@ TEST(Set) {
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
   ordered_set = OrderedHashSet::Add(ordered_set, obj4);
-  CHECK(ordered_set->Contains(*obj));
-  CHECK(ordered_set->Contains(*obj1));
-  CHECK(ordered_set->Contains(*obj2));
-  CHECK(ordered_set->Contains(*obj3));
-  CHECK(ordered_set->Contains(*obj4));
+  CHECK(ordered_set->Contains(obj));
+  CHECK(ordered_set->Contains(obj1));
+  CHECK(ordered_set->Contains(obj2));
+  CHECK(ordered_set->Contains(obj3));
+  CHECK(ordered_set->Contains(obj4));
   CHECK_EQ(5, ordered_set->NumberOfElements());
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
   CHECK_EQ(4, ordered_set->NumberOfBuckets());

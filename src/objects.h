@@ -4270,7 +4270,7 @@ class OrderedHashTable: public FixedArray {
   static Handle<Derived> Clear(Handle<Derived> table);
 
   // Returns kNotFound if the key isn't present.
-  int FindEntry(Object* key);
+  int FindEntry(Handle<Object> key);
 
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
@@ -4369,7 +4369,7 @@ class OrderedHashSet: public OrderedHashTable<
     return reinterpret_cast<OrderedHashSet*>(obj);
   }
 
-  bool Contains(Object* key);
+  bool Contains(Handle<Object> key);
   static Handle<OrderedHashSet> Add(
       Handle<OrderedHashSet> table, Handle<Object> key);
   static Handle<OrderedHashSet> Remove(

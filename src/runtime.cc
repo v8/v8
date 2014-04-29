@@ -1531,7 +1531,7 @@ RUNTIME_FUNCTION(Runtime_SetHas) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  return isolate->heap()->ToBoolean(table->Contains(*key));
+  return isolate->heap()->ToBoolean(table->Contains(key));
 }
 
 

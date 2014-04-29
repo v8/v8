@@ -16287,7 +16287,9 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
 
 
 template<class Derived, class Iterator, int entrysize>
-int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(Object* key) {
+int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
+    Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
   ASSERT(!key->IsTheHole());
   Object* hash = key->GetHash();
   if (hash->IsUndefined()) return kNotFound;
@@ -16295,7 +16297,7 @@ int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(Object* key) {
        entry != kNotFound;
        entry = ChainAt(entry)) {
     Object* candidate = KeyAt(entry);
-    if (candidate->SameValue(key))
+    if (candidate->SameValue(*key))
       return entry;
   }
   return kNotFound;
@@ -16350,7 +16352,8 @@ OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Clear(
     Handle<OrderedHashSet> table);
 
 template int
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(Object* key);
+OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
+    Handle<Object> key);
 
 template int
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::AddEntry(int hash);
@@ -16376,7 +16379,8 @@ OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Clear(
     Handle<OrderedHashMap> table);
 
 template int
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(Object* key);
+OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
+    Handle<Object> key);
 
 template int
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::AddEntry(int hash);
@@ -16385,14 +16389,14 @@ template void
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::RemoveEntry(int entry);
 
 
-bool OrderedHashSet::Contains(Object* key) {
+bool OrderedHashSet::Contains(Handle<Object> key) {
   return FindEntry(key) != kNotFound;
 }
 
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
-  if (table->FindEntry(*key) != kNotFound) return table;
+  if (table->FindEntry(key) != kNotFound) return table;
 
   table = EnsureGrowable(table);
 
@@ -16405,7 +16409,7 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 
 Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
                                               Handle<Object> key) {
-  int entry = table->FindEntry(*key);
+  int entry = table->FindEntry(key);
   if (entry == kNotFound) return table;
   table->RemoveEntry(entry);
   return Shrink(table);
@@ -16414,7 +16418,7 @@ Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
 
 Object* OrderedHashMap::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
-  int entry = FindEntry(*key);
+  int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->the_hole_value();
   return ValueAt(entry);
 }
@@ -16423,7 +16427,7 @@ Object* OrderedHashMap::Lookup(Handle<Object> key) {
 Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
                                            Handle<Object> key,
                                            Handle<Object> value) {
-  int entry = table->FindEntry(*key);
+  int entry = table->FindEntry(key);
 
   if (value->IsTheHole()) {
     if (entry == kNotFound) return table;
