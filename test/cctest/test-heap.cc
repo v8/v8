@@ -2999,7 +2999,7 @@ TEST(Regress2211) {
 
   v8::Handle<v8::String> value = v8_str("val string");
   Smi* hash = Smi::FromInt(321);
-  Heap* heap = CcTest::heap();
+  Factory* factory = CcTest::i_isolate()->factory();
 
   for (int i = 0; i < 2; i++) {
     // Store identity hash first and common hidden property second.
@@ -3015,7 +3015,7 @@ TEST(Regress2211) {
 
     // Check values.
     CHECK_EQ(hash,
-             internal_obj->GetHiddenProperty(heap->identity_hash_string()));
+             internal_obj->GetHiddenProperty(factory->identity_hash_string()));
     CHECK(value->Equals(obj->GetHiddenValue(v8_str("key string"))));
 
     // Check size.

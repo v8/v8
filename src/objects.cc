@@ -5113,8 +5113,13 @@ void JSObject::SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash) {
 
 
 Object* JSObject::GetIdentityHash() {
-  Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_string());
-  return stored_value->IsSmi() ? stored_value : GetHeap()->undefined_value();
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  Object* stored_value =
+      GetHiddenProperty(isolate->factory()->identity_hash_string());
+  return stored_value->IsSmi()
+      ? stored_value
+      : isolate->heap()->undefined_value();
 }
 
 
@@ -5156,7 +5161,8 @@ Handle<Object> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
 }
 
 
-Object* JSObject::GetHiddenProperty(Name* key) {
+Object* JSObject::GetHiddenProperty(Handle<Name> key) {
+  DisallowHeapAllocation no_gc;
   ASSERT(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
     // For a proxy, use the prototype as target object.
@@ -5171,7 +5177,7 @@ Object* JSObject::GetHiddenProperty(Name* key) {
 
   if (inline_value->IsSmi()) {
     // Handle inline-stored identity hash.
-    if (key == GetHeap()->identity_hash_string()) {
+    if (*key == GetHeap()->identity_hash_string()) {
       return inline_value;
     } else {
       return GetHeap()->the_hole_value();
@@ -5181,7 +5187,7 @@ Object* JSObject::GetHiddenProperty(Name* key) {
   if (inline_value->IsUndefined()) return GetHeap()->the_hole_value();
 
   ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
-  Object* entry = hashtable->Lookup(key);
+  Object* entry = hashtable->Lookup(*key);
   return entry;
 }
 
