@@ -100,7 +100,8 @@ bool Object::IsCallable() {
 }
 
 
-void Object::Lookup(Name* name, LookupResult* result) {
+void Object::Lookup(Handle<Name> name, LookupResult* result) {
+  DisallowHeapAllocation no_gc;
   Object* holder = NULL;
   if (IsJSReceiver()) {
     holder = this;
@@ -130,7 +131,7 @@ MaybeHandle<Object> Object::GetPropertyWithReceiver(
     Handle<Name> name,
     PropertyAttributes* attributes) {
   LookupResult lookup(name->GetIsolate());
-  object->Lookup(*name, &lookup);
+  object->Lookup(name, &lookup);
   MaybeHandle<Object> result =
       GetProperty(object, receiver, &lookup, name, attributes);
   ASSERT(*attributes <= ABSENT);
@@ -483,7 +484,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
       case CONSTANT: {
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r(isolate);
-        result->holder()->LookupRealNamedPropertyInPrototypes(*name, &r);
+        result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
         if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(
               object, receiver, &r, name, attributes);
@@ -494,7 +495,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
         LookupResult r(isolate);
-        result->holder()->LookupRealNamedProperty(*name, &r);
+        result->holder()->LookupRealNamedProperty(name, &r);
         if (r.IsProperty()) {
           return GetPropertyWithFailedAccessCheck(
               object, receiver, &r, name, attributes);
@@ -544,7 +545,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         if (!continue_search) break;
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r(object->GetIsolate());
-        result->holder()->LookupRealNamedPropertyInPrototypes(*name, &r);
+        result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
         if (r.IsProperty()) {
           return GetPropertyAttributeWithFailedAccessCheck(
               object, &r, name, continue_search);
@@ -557,9 +558,9 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         // No access check in GetPropertyAttributeWithInterceptor.
         LookupResult r(object->GetIsolate());
         if (continue_search) {
-          result->holder()->LookupRealNamedProperty(*name, &r);
+          result->holder()->LookupRealNamedProperty(name, &r);
         } else {
-          result->holder()->LocalLookupRealNamedProperty(*name, &r);
+          result->holder()->LocalLookupRealNamedProperty(name, &r);
         }
         if (!r.IsFound()) break;
         return GetPropertyAttributeWithFailedAccessCheck(
@@ -1997,7 +1998,7 @@ MaybeHandle<Object> JSObject::SetPropertyPostInterceptor(
   // Check local property, ignore interceptor.
   Isolate* isolate = object->GetIsolate();
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*name, &result);
+  object->LocalLookupRealNamedProperty(name, &result);
   if (!result.IsFound()) {
     object->map()->LookupTransition(*object, *name, &result);
   }
@@ -2976,7 +2977,7 @@ MaybeHandle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
                                             StrictMode strict_mode,
                                             StoreFromKeyed store_mode) {
   LookupResult result(object->GetIsolate());
-  object->LocalLookup(*name, &result, true);
+  object->LocalLookup(name, &result, true);
   if (!result.IsFound()) {
     object->map()->LookupTransition(JSObject::cast(*object), *name, &result);
   }
@@ -3128,7 +3129,7 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
   // accessor that wants to handle the property, or whether the property is
   // read-only on the prototype chain.
   LookupResult result(isolate);
-  object->LookupRealNamedPropertyInPrototypes(*name, &result);
+  object->LookupRealNamedPropertyInPrototypes(name, &result);
   if (result.IsFound()) {
     switch (result.type()) {
       case NORMAL:
@@ -3492,7 +3493,8 @@ Handle<Map> Map::AsElementsKind(Handle<Map> map, ElementsKind kind) {
 }
 
 
-void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
+void JSObject::LocalLookupRealNamedProperty(Handle<Name> name,
+                                            LookupResult* result) {
   DisallowHeapAllocation no_gc;
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
@@ -3502,7 +3504,7 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
   }
 
   if (HasFastProperties()) {
-    map()->LookupDescriptor(this, name, result);
+    map()->LookupDescriptor(this, *name, result);
     // A property or a map transition was found. We return all of these result
     // types because LocalLookupRealNamedProperty is used when setting
     // properties where map transitions are handled.
@@ -3540,7 +3542,9 @@ void JSObject::LocalLookupRealNamedProperty(Name* name, LookupResult* result) {
 }
 
 
-void JSObject::LookupRealNamedProperty(Name* name, LookupResult* result) {
+void JSObject::LookupRealNamedProperty(Handle<Name> name,
+                                       LookupResult* result) {
+  DisallowHeapAllocation no_gc;
   LocalLookupRealNamedProperty(name, result);
   if (result->IsFound()) return;
 
@@ -3548,8 +3552,9 @@ void JSObject::LookupRealNamedProperty(Name* name, LookupResult* result) {
 }
 
 
-void JSObject::LookupRealNamedPropertyInPrototypes(Name* name,
+void JSObject::LookupRealNamedPropertyInPrototypes(Handle<Name> name,
                                                    LookupResult* result) {
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
   Heap* heap = isolate->heap();
   for (Object* pt = GetPrototype();
@@ -3575,7 +3580,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
     bool check_prototype,
     StrictMode strict_mode) {
   if (check_prototype && !result->IsProperty()) {
-    object->LookupRealNamedPropertyInPrototypes(*name, result);
+    object->LookupRealNamedPropertyInPrototypes(name, result);
   }
 
   if (result->IsProperty()) {
@@ -3610,7 +3615,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
           // Try lookup real named properties. Note that only property can be
           // set is callbacks marked as ALL_CAN_WRITE on the prototype chain.
           LookupResult r(object->GetIsolate());
-          object->LookupRealNamedProperty(*name, &r);
+          object->LookupRealNamedProperty(name, &r);
           if (r.IsProperty()) {
             return SetPropertyWithFailedAccessCheck(object,
                                                     &r,
@@ -4282,7 +4287,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
       EnqueueChangeRecord(object, "add", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
-      object->LocalLookup(*name, &new_lookup, true);
+      object->LocalLookup(name, &new_lookup, true);
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value =
             Object::GetPropertyOrElement(object, name).ToHandleChecked();
@@ -4321,7 +4326,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
   AssertNoContextChange ncc(isolate);
 
   LookupResult lookup(isolate);
-  object->LocalLookup(*name, &lookup, true);
+  object->LocalLookup(name, &lookup, true);
   if (!lookup.IsFound()) {
     object->map()->LookupTransition(*object, *name, &lookup);
   }
@@ -4344,7 +4349,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
 
   if (lookup.IsInterceptor() ||
       (lookup.IsDescriptorOrDictionary() && lookup.type() == CALLBACKS)) {
-    object->LocalLookupRealNamedProperty(*name, &lookup);
+    object->LocalLookupRealNamedProperty(name, &lookup);
   }
 
   // Check for accessor in prototype chain removed here in clone.
@@ -4408,7 +4413,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
       EnqueueChangeRecord(object, "reconfigure", name, old_value);
     } else {
       LookupResult new_lookup(isolate);
-      object->LocalLookup(*name, &new_lookup, true);
+      object->LocalLookup(name, &new_lookup, true);
       bool value_changed = false;
       if (new_lookup.IsDataProperty()) {
         Handle<Object> new_value =
@@ -4436,7 +4441,7 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
   // Check local property, ignore interceptor.
   Isolate* isolate = object->GetIsolate();
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*name, &result);
+  object->LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) return result.GetAttributes();
 
   if (continue_search) {
@@ -4505,7 +4510,7 @@ PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
   }
   // Named property.
   LookupResult lookup(object->GetIsolate());
-  object->Lookup(*key, &lookup);
+  object->Lookup(key, &lookup);
   return GetPropertyAttributeForResult(object, receiver, &lookup, key, true);
 }
 
@@ -4559,7 +4564,7 @@ PropertyAttributes JSReceiver::GetLocalPropertyAttribute(
   }
   // Named property.
   LookupResult lookup(object->GetIsolate());
-  object->LocalLookup(*name, &lookup, true);
+  object->LocalLookup(name, &lookup, true);
   return GetPropertyAttributeForResult(object, object, &lookup, name, false);
 }
 
@@ -5276,8 +5281,9 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
       return GetHeap()->undefined_value();
     }
   } else {
-    LookupResult result(GetIsolate());
-    LocalLookupRealNamedProperty(GetHeap()->hidden_string(), &result);
+    Isolate* isolate = GetIsolate();
+    LookupResult result(isolate);
+    LocalLookupRealNamedProperty(isolate->factory()->hidden_string(), &result);
     if (result.IsFound()) {
       ASSERT(result.IsNormal());
       ASSERT(result.holder() == this);
@@ -5364,7 +5370,7 @@ Handle<Object> JSObject::DeletePropertyPostInterceptor(Handle<JSObject> object,
   // Check local property, ignore interceptor.
   Isolate* isolate = object->GetIsolate();
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*name, &result);
+  object->LocalLookupRealNamedProperty(name, &result);
   if (!result.IsFound()) return isolate->factory()->true_value();
 
   // Normalize object if needed.
@@ -5536,7 +5542,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   LookupResult lookup(isolate);
-  object->LocalLookup(*name, &lookup, true);
+  object->LocalLookup(name, &lookup, true);
   if (!lookup.IsFound()) return isolate->factory()->true_value();
   // Ignore attributes if forcing a deletion.
   if (lookup.IsDontDelete() && mode != FORCE_DELETION) {
@@ -6191,7 +6197,7 @@ Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
   LookupResult lookup(isolate);
   {
     DisallowHeapAllocation no_allocation;
-    object->LookupRealNamedProperty(*key, &lookup);
+    object->LookupRealNamedProperty(key, &lookup);
   }
   Handle<Object> result = isolate->factory()->undefined_value();
   if (lookup.IsFound() && !lookup.IsTransition()) {
@@ -6294,10 +6300,9 @@ int Map::NextFreePropertyIndex() {
 
 
 void JSReceiver::LocalLookup(
-    Name* name, LookupResult* result, bool search_hidden_prototypes) {
+    Handle<Name> name, LookupResult* result, bool search_hidden_prototypes) {
+  DisallowHeapAllocation no_gc;
   ASSERT(name->IsName());
-
-  Heap* heap = GetHeap();
 
   if (IsJSGlobalProxy()) {
     Object* proto = GetPrototype();
@@ -6322,7 +6327,7 @@ void JSReceiver::LocalLookup(
 
   // Check for lookup interceptor except when bootstrapping.
   if (js_object->HasNamedInterceptor() &&
-      !heap->isolate()->bootstrapper()->IsActive()) {
+      !GetIsolate()->bootstrapper()->IsActive()) {
     result->InterceptorResult(js_object);
     return;
   }
@@ -6339,11 +6344,12 @@ void JSReceiver::LocalLookup(
 }
 
 
-void JSReceiver::Lookup(Name* name, LookupResult* result) {
+void JSReceiver::Lookup(Handle<Name> name, LookupResult* result) {
+  DisallowHeapAllocation no_gc;
   // Ecma-262 3rd 8.6.2.4
-  Heap* heap = GetHeap();
+  Handle<Object> null_value = GetIsolate()->factory()->null_value();
   for (Object* current = this;
-       current != heap->null_value();
+       current != *null_value;
        current = JSObject::cast(current)->GetPrototype()) {
     JSReceiver::cast(current)->LocalLookup(name, result, false);
     if (result->IsFound()) return;
@@ -6353,10 +6359,11 @@ void JSReceiver::Lookup(Name* name, LookupResult* result) {
 
 
 // Search object and its prototype chain for callback properties.
-void JSObject::LookupCallbackProperty(Name* name, LookupResult* result) {
-  Heap* heap = GetHeap();
+void JSObject::LookupCallbackProperty(Handle<Name> name, LookupResult* result) {
+  DisallowHeapAllocation no_gc;
+  Handle<Object> null_value = GetIsolate()->factory()->null_value();
   for (Object* current = this;
-       current != heap->null_value() && current->IsJSObject();
+       current != *null_value && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
     if (result->IsPropertyCallbacks()) return;
@@ -6705,7 +6712,7 @@ Handle<AccessorPair> JSObject::CreateAccessorPairFor(Handle<JSObject> object,
                                                      Handle<Name> name) {
   Isolate* isolate = object->GetIsolate();
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*name, &result);
+  object->LocalLookupRealNamedProperty(name, &result);
   if (result.IsPropertyCallbacks()) {
     // Note that the result can actually have IsDontDelete() == true when we
     // e.g. have to fall back to the slow case while adding a setter after
@@ -6761,7 +6768,7 @@ bool JSObject::CanSetCallback(Handle<JSObject> object, Handle<Name> name) {
   // to be overwritten because allowing overwriting could potentially
   // cause security problems.
   LookupResult callback_result(isolate);
-  object->LookupCallbackProperty(*name, &callback_result);
+  object->LookupCallbackProperty(name, &callback_result);
   if (callback_result.IsFound()) {
     Object* callback_obj = callback_result.GetCallbackObject();
     if (callback_obj->IsAccessorInfo()) {
@@ -6919,7 +6926,7 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
       }
     } else {
       LookupResult lookup(isolate);
-      object->LocalLookup(*name, &lookup, true);
+      object->LocalLookup(name, &lookup, true);
       preexists = lookup.IsProperty();
       if (preexists && lookup.IsDataProperty()) {
         old_value =
@@ -6980,7 +6987,7 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
   ASSERT(accessor->IsSpecFunction() || accessor->IsUndefined());
   Isolate* isolate = object->GetIsolate();
   LookupResult result(isolate);
-  object->LocalLookup(*name, &result);
+  object->LocalLookup(name, &result);
 
   if (result.IsFound() && !result.IsPropertyCallbacks()) {
     return false;
@@ -7115,7 +7122,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   } else {
     // Lookup the name.
     LookupResult result(isolate);
-    object->LocalLookup(*name, &result, true);
+    object->LocalLookup(name, &result, true);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
     if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
@@ -7171,7 +7178,7 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
          !obj->IsNull();
          obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
       LookupResult result(isolate);
-      JSReceiver::cast(*obj)->LocalLookup(*name, &result);
+      JSReceiver::cast(*obj)->LocalLookup(name, &result);
       if (result.IsFound()) {
         if (result.IsReadOnly()) return isolate->factory()->undefined_value();
         if (result.IsPropertyCallbacks()) {
@@ -12435,7 +12442,7 @@ MaybeHandle<AccessorPair> JSObject::GetLocalPropertyAccessorPair(
 
   Isolate* isolate = object->GetIsolate();
   LookupResult lookup(isolate);
-  object->LocalLookupRealNamedProperty(*name, &lookup);
+  object->LocalLookupRealNamedProperty(name, &lookup);
 
   if (lookup.IsPropertyCallbacks() &&
       lookup.GetCallbackObject()->IsAccessorPair()) {
@@ -13759,7 +13766,7 @@ MaybeHandle<Object> JSObject::GetPropertyPostInterceptor(
   // Check local property in holder, ignore interceptor.
   Isolate* isolate = object->GetIsolate();
   LookupResult lookup(isolate);
-  object->LocalLookupRealNamedProperty(*name, &lookup);
+  object->LocalLookupRealNamedProperty(name, &lookup);
   if (lookup.IsFound()) {
     return GetProperty(object, receiver, &lookup, name, attributes);
   } else {
@@ -13873,7 +13880,7 @@ bool JSObject::HasRealNamedProperty(Handle<JSObject> object,
   }
 
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*key, &result);
+  object->LocalLookupRealNamedProperty(key, &result);
   return result.IsFound() && !result.IsInterceptor();
 }
 
@@ -13917,7 +13924,7 @@ bool JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
   }
 
   LookupResult result(isolate);
-  object->LocalLookupRealNamedProperty(*key, &result);
+  object->LocalLookupRealNamedProperty(key, &result);
   return result.IsPropertyCallbacks();
 }
 
@@ -14515,15 +14522,6 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
   table->SetNumberOfDeletedElements(0);
   table->SetCapacity(capacity);
   return table;
-}
-
-
-// TODO(ishell): Remove this when all the callers are handlified.
-int NameDictionary::FindEntry(Name* key) {
-  DisallowHeapAllocation no_allocation;
-  Isolate* isolate = key->GetIsolate();
-  HandleScope scope(isolate);
-  return FindEntry(handle(key, isolate));
 }
 
 

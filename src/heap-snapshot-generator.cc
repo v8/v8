@@ -1740,8 +1740,10 @@ String* V8HeapExplorer::GetConstructorName(JSObject* object) {
     // return its name. This is for instances of binding objects, which
     // have prototype constructor type "Object".
     Object* constructor_prop = NULL;
-    LookupResult result(heap->isolate());
-    object->LocalLookupRealNamedProperty(heap->constructor_string(), &result);
+    Isolate* isolate = heap->isolate();
+    LookupResult result(isolate);
+    object->LocalLookupRealNamedProperty(
+        isolate->factory()->constructor_string(), &result);
     if (!result.IsFound()) return object->constructor_name();
 
     constructor_prop = result.GetLazyValue();

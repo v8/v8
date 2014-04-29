@@ -1493,7 +1493,7 @@ class Object : public MaybeObject {
   static MUST_USE_RESULT inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
                                                        Handle<Object> object);
 
-  void Lookup(Name* name, LookupResult* result);
+  void Lookup(Handle<Name> name, LookupResult* result);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
       Handle<Object> object,
@@ -2064,9 +2064,9 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(Name* name, LookupResult* result,
+  void LocalLookup(Handle<Name> name, LookupResult* result,
                    bool search_hidden_prototypes = false);
-  void Lookup(Name* name, LookupResult* result);
+  void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 
@@ -2516,10 +2516,11 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Smi* value);
 
   // The following lookup functions skip interceptors.
-  void LocalLookupRealNamedProperty(Name* name, LookupResult* result);
-  void LookupRealNamedProperty(Name* name, LookupResult* result);
-  void LookupRealNamedPropertyInPrototypes(Name* name, LookupResult* result);
-  void LookupCallbackProperty(Name* name, LookupResult* result);
+  void LocalLookupRealNamedProperty(Handle<Name> name, LookupResult* result);
+  void LookupRealNamedProperty(Handle<Name> name, LookupResult* result);
+  void LookupRealNamedPropertyInPrototypes(Handle<Name> name,
+                                           LookupResult* result);
+  void LookupCallbackProperty(Handle<Name> name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -4055,9 +4056,6 @@ class NameDictionary: public Dictionary<NameDictionary,
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(Handle<Name> key);
-
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Name* key);
 };
 
 

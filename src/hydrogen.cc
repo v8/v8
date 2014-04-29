@@ -4847,7 +4847,7 @@ HOptimizedGraphBuilder::GlobalPropertyAccess
     return kUseGeneric;
   }
   Handle<GlobalObject> global(current_info()->global_object());
-  global->Lookup(*var->name(), lookup);
+  global->Lookup(var->name(), lookup);
   if (!lookup->IsNormal() ||
       (access_type == STORE && lookup->IsReadOnly()) ||
       lookup->holder() != *global) {
@@ -5332,7 +5332,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
 
     if (object->IsJSObject()) {
       LookupResult lookup(isolate());
-      Handle<JSObject>::cast(object)->Lookup(*info->name(), &lookup);
+      Handle<JSObject>::cast(object)->Lookup(info->name(), &lookup);
       Handle<Object> value(lookup.GetLazyValue(), isolate());
 
       if (!value->IsTheHole()) {
@@ -9879,7 +9879,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       Handle<String> name = proxy->name();
       Handle<GlobalObject> global(current_info()->global_object());
       LookupResult lookup(isolate());
-      global->Lookup(*name, &lookup);
+      global->Lookup(name, &lookup);
       if (lookup.IsNormal() && lookup.GetValue()->IsJSFunction()) {
         Handle<JSFunction> candidate(JSFunction::cast(lookup.GetValue()));
         // If the function is in new space we assume it's more likely to

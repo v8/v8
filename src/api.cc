@@ -3511,7 +3511,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
+  self_obj->LookupRealNamedPropertyInPrototypes(key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
@@ -3524,7 +3524,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedProperty(*key_obj, &lookup);
+  self_obj->LookupRealNamedProperty(key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
@@ -4000,7 +4000,7 @@ Handle<Value> Function::GetDisplayName() const {
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("displayName"));
   i::LookupResult lookup(isolate);
-  func->LookupRealNamedProperty(*property_name, &lookup);
+  func->LookupRealNamedProperty(property_name, &lookup);
   if (lookup.IsFound()) {
     i::Object* value = lookup.GetLazyValue();
     if (value && value->IsString()) {

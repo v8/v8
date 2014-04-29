@@ -339,7 +339,7 @@ void BasicJsonStringifier::Append_(const Char* chars) {
 MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
     Handle<Object> object, Handle<Object> key) {
   LookupResult lookup(isolate_);
-  JSObject::cast(*object)->LookupRealNamedProperty(*tojson_string_, &lookup);
+  JSObject::cast(*object)->LookupRealNamedProperty(tojson_string_, &lookup);
   if (!lookup.IsProperty()) return object;
   PropertyAttributes attr;
   Handle<Object> fun;

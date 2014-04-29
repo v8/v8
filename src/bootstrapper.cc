@@ -1111,11 +1111,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(heap->callee_string(), &lookup);
+    result->LocalLookup(factory->callee_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsCalleeIndex);
 
-    result->LocalLookup(heap->length_string(), &lookup);
+    result->LocalLookup(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -1212,7 +1212,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(heap->length_string(), &lookup);
+    result->LocalLookup(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -2413,13 +2413,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case CALLBACKS: {
           LookupResult result(isolate());
-          to->LocalLookup(descs->GetKey(i), &result);
+          Handle<Name> key(Name::cast(descs->GetKey(i)), isolate());
+          to->LocalLookup(key, &result);
           // If the property is already there we skip it
           if (result.IsFound()) continue;
           HandleScope inner(isolate());
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
-          Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(
               details.attributes(), CALLBACKS, i + 1);
@@ -2446,10 +2446,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         ASSERT(raw_key->IsName());
         // If the property is already there we skip it.
         LookupResult result(isolate());
-        to->LocalLookup(Name::cast(raw_key), &result);
+        Handle<Name> key(Name::cast(raw_key));
+        to->LocalLookup(key, &result);
         if (result.IsFound()) continue;
         // Set the property.
-        Handle<Name> key = Handle<Name>(Name::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
         ASSERT(!value->IsCell());
