@@ -5187,7 +5187,7 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
   if (inline_value->IsUndefined()) return GetHeap()->the_hole_value();
 
   ObjectHashTable* hashtable = ObjectHashTable::cast(inline_value);
-  Object* entry = hashtable->Lookup(*key);
+  Object* entry = hashtable->Lookup(key);
   return entry;
 }
 
@@ -16036,8 +16036,9 @@ Object* Dictionary<Derived, Shape, Key>::SlowReverseLookup(Object* value) {
 }
 
 
-Object* ObjectHashTable::Lookup(Object* key) {
-  ASSERT(IsKey(key));
+Object* ObjectHashTable::Lookup(Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(IsKey(*key));
 
   // If the object does not have an identity hash, it was never used as a key.
   Object* hash = key->GetHash();
@@ -16411,8 +16412,9 @@ Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
 }
 
 
-Object* OrderedHashMap::Lookup(Object* key) {
-  int entry = FindEntry(key);
+Object* OrderedHashMap::Lookup(Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
+  int entry = FindEntry(*key);
   if (entry == kNotFound) return GetHeap()->the_hole_value();
   return ValueAt(entry);
 }

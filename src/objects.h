@@ -4200,7 +4200,7 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Object* key);
+  Object* Lookup(Handle<Object> key);
 
   int FindEntry(Handle<Object> key);
   // TODO(ishell): Remove this when all the callers are handlified.
@@ -4388,7 +4388,7 @@ class OrderedHashMap:public OrderedHashTable<
     return reinterpret_cast<OrderedHashMap*>(obj);
   }
 
-  Object* Lookup(Object* key);
+  Object* Lookup(Handle<Object> key);
   static Handle<OrderedHashMap> Put(
       Handle<OrderedHashMap> table,
       Handle<Object> key,

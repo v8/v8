@@ -1612,7 +1612,7 @@ RUNTIME_FUNCTION(Runtime_MapGet) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
 }
 
@@ -1623,7 +1623,7 @@ RUNTIME_FUNCTION(Runtime_MapHas) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
@@ -1634,7 +1634,7 @@ RUNTIME_FUNCTION(Runtime_MapDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   Handle<OrderedHashMap> new_table =
       OrderedHashMap::Put(table, key, isolate->factory()->the_hole_value());
   holder->set_table(*new_table);
@@ -1731,7 +1731,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   return lookup->IsTheHole() ? isolate->heap()->undefined_value() : *lookup;
 }
 
@@ -1743,7 +1743,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   return isolate->heap()->ToBoolean(!lookup->IsTheHole());
 }
 
@@ -1755,7 +1755,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<ObjectHashTable> table(ObjectHashTable::cast(
       weak_collection->table()));
-  Handle<Object> lookup(table->Lookup(*key), isolate);
+  Handle<Object> lookup(table->Lookup(key), isolate);
   Handle<ObjectHashTable> new_table =
       ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
   weak_collection->set_table(*new_table);
