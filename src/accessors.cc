@@ -175,7 +175,7 @@ void Accessors::ArrayLengthSetter(
     MaybeHandle<Object> maybe_result =
         JSObject::SetLocalPropertyIgnoreAttributes(
             object, isolate->factory()->length_string(), value, NONE);
-    maybe_result.ToHandleChecked();
+    maybe_result.Check();
     return;
   }
 
@@ -197,9 +197,8 @@ void Accessors::ArrayLengthSetter(
   }
 
   if (uint32_v->Number() == number_v->Number()) {
-    MaybeHandle<Object> result;
-    result = JSArray::SetElementsLength(array_handle, uint32_v);
-    USE(result);
+    maybe = JSArray::SetElementsLength(array_handle, uint32_v);
+    maybe.Check();
     return;
   }
 
