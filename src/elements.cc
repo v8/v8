@@ -1848,9 +1848,10 @@ MaybeHandle<Object> ElementsAccessorBase<ElementsAccessorSubclass,
   Handle<JSArray> array = Handle<JSArray>::cast(obj);
 
   // Fast case: The new length fits into a Smi.
-  Handle<Object> smi_length = Object::ToSmi(isolate, length);
+  Handle<Object> smi_length;
 
-  if (!smi_length.is_null() && smi_length->IsSmi()) {
+  if (Object::ToSmi(isolate, length).ToHandle(&smi_length) &&
+      smi_length->IsSmi()) {
     const int value = Handle<Smi>::cast(smi_length)->value();
     if (value >= 0) {
       Handle<Object> new_length = ElementsAccessorSubclass::

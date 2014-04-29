@@ -1614,9 +1614,8 @@ bool IsOutOfBoundsAccess(Handle<JSObject> receiver,
 KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
                                                 Handle<Object> key,
                                                 Handle<Object> value) {
-  Handle<Object> smi_key = Object::ToSmi(isolate(), key);
-  ASSERT(!smi_key.is_null() && smi_key->IsSmi());
-  int index = Handle<Smi>::cast(smi_key)->value();
+  Handle<Smi> smi_key = Object::ToSmi(isolate(), key).ToHandleChecked();
+  int index = smi_key->value();
   bool oob_access = IsOutOfBoundsAccess(receiver, index);
   // Don't consider this a growing store if the store would send the receiver to
   // dictionary mode.

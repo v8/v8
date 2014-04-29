@@ -1037,8 +1037,8 @@ bool Object::IsNaN() {
 }
 
 
-Handle<Object> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
-  if (object->IsSmi()) return object;
+MaybeHandle<Smi> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
+  if (object->IsSmi()) return Handle<Smi>::cast(object);
   if (object->IsHeapNumber()) {
     double value = Handle<HeapNumber>::cast(object)->value();
     int int_value = FastD2I(value);
@@ -1046,7 +1046,7 @@ Handle<Object> Object::ToSmi(Isolate* isolate, Handle<Object> object) {
       return handle(Smi::FromInt(int_value), isolate);
     }
   }
-  return Handle<Object>();
+  return Handle<Smi>();
 }
 
 
