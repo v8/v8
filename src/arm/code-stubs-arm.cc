@@ -3391,10 +3391,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Make sure first argument is a string.
   __ ldr(r0, MemOperand(sp, kStringOffset));
-  // Do a JumpIfSmi, but fold its jump into the subsequent string test.
-  __ SmiTst(r0);
-  Condition is_string = masm->IsObjectStringType(r0, r1, ne);
-  ASSERT(is_string == eq);
+  __ JumpIfSmi(r0, &runtime);
+  Condition is_string = masm->IsObjectStringType(r0, r1);
   __ b(NegateCondition(is_string), &runtime);
 
   Label single_char;
