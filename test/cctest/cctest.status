@@ -81,6 +81,10 @@
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
+
+  # Object.observe is disabled.
+  'test-object-observe/*': [SKIP],
+  'test-microtask-delivery/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

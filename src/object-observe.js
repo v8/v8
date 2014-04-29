@@ -623,4 +623,5 @@ function SetupObjectObserve() {
   ));
 }
 
-SetupObjectObserve();
+// Disable Object.observe API for M35.
+// SetupObjectObserve();
