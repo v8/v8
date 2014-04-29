@@ -72,10 +72,6 @@ class HCheckTable : public ZoneObject {
         ReduceCheckMaps(HCheckMaps::cast(instr));
         break;
       }
-      case HValue::kCheckValue: {
-        ReduceCheckValue(HCheckValue::cast(instr));
-        break;
-      }
       case HValue::kLoadNamedField: {
         ReduceLoadNamedField(HLoadNamedField::cast(instr));
         break;
@@ -305,7 +301,7 @@ class HCheckTable : public ZoneObject {
     if (entry != NULL) {
       // entry found;
       MapSet a = entry->maps_;
-      MapSet i = instr->map_set()->Copy(phase_->zone());
+      const UniqueSet<Map>* i = instr->map_set();
       if (a->IsSubset(i)) {
         // The first check is more strict; the second is redundant.
         if (entry->check_ != NULL) {
@@ -365,18 +361,6 @@ class HCheckTable : public ZoneObject {
     } else {
       // No entry; insert a new one.
       Insert(object, instr, instr->map_set()->Copy(phase_->zone()));
-    }
-  }
-
-  void ReduceCheckValue(HCheckValue* instr) {
-    // Canonicalize HCheckValues; they might have their values load-eliminated.
-    HValue* value = instr->Canonicalize();
-    if (value == NULL) {
-      instr->DeleteAndReplaceWith(instr->value());
-      INC_STAT(removed_);
-    } else if (value != instr) {
-      instr->DeleteAndReplaceWith(value);
-      INC_STAT(redundant_);
     }
   }
 
