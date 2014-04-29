@@ -730,6 +730,8 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   bool IsCodePtrEntry(RelocInfo::Mode rmode);
   bool IsHeapPtrEntry(RelocInfo::Mode rmode);
 
+  // TODO(rmcilroy): This should ideally be a ZoneList, however that would mean
+  // RelocInfo would need to subclass ZoneObject which it currently doesn't.
   std::vector<RelocInfo> entries_;
   std::vector<int> merged_indexes_;
   int count_of_64bit_;

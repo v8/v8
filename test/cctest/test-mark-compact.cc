@@ -128,7 +128,7 @@ TEST(MarkCompactCollector) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
+  TestHeap* heap = CcTest::test_heap();
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());

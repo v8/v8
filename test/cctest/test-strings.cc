@@ -230,11 +230,11 @@ class ConsStringStats {
   }
   void Reset();
   void VerifyEqual(const ConsStringStats& that) const;
-  unsigned leaves_;
-  unsigned empty_leaves_;
-  unsigned chars_;
-  unsigned left_traversals_;
-  unsigned right_traversals_;
+  int leaves_;
+  int empty_leaves_;
+  int chars_;
+  int left_traversals_;
+  int right_traversals_;
  private:
   DISALLOW_COPY_AND_ASSIGN(ConsStringStats);
 };
@@ -250,11 +250,11 @@ void ConsStringStats::Reset() {
 
 
 void ConsStringStats::VerifyEqual(const ConsStringStats& that) const {
-  CHECK(this->leaves_ == that.leaves_);
-  CHECK(this->empty_leaves_ == that.empty_leaves_);
-  CHECK(this->chars_ == that.chars_);
-  CHECK(this->left_traversals_ == that.left_traversals_);
-  CHECK(this->right_traversals_ == that.right_traversals_);
+  CHECK_EQ(this->leaves_, that.leaves_);
+  CHECK_EQ(this->empty_leaves_, that.empty_leaves_);
+  CHECK_EQ(this->chars_, that.chars_);
+  CHECK_EQ(this->left_traversals_, that.left_traversals_);
+  CHECK_EQ(this->right_traversals_, that.right_traversals_);
 }
 
 
@@ -270,14 +270,14 @@ class ConsStringGenerationData {
   double leftness_;
   double rightness_;
   double empty_leaf_threshold_;
-  unsigned max_leaves_;
+  int max_leaves_;
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
   String* empty_string_;
   MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;
-  unsigned early_terminations_;
+  int early_terminations_;
  private:
   DISALLOW_COPY_AND_ASSIGN(ConsStringGenerationData);
 };
@@ -356,23 +356,14 @@ void AccumulateStats(Handle<String> cons_string, ConsStringStats* stats) {
 
 void AccumulateStatsWithOperator(
     ConsString* cons_string, ConsStringStats* stats) {
-  unsigned offset = 0;
-  int32_t type = cons_string->map()->instance_type();
-  unsigned length = static_cast<unsigned>(cons_string->length());
-  ConsStringIteratorOp op;
-  String* string = op.Operate(cons_string, &offset, &type, &length);
-  CHECK(string != NULL);
-  while (true) {
-    ASSERT(!string->IsConsString());
+  ConsStringIteratorOp op(cons_string);
+  String* string;
+  int offset;
+  while (NULL != (string = op.Next(&offset))) {
     // Accumulate stats.
+    CHECK_EQ(0, offset);
     stats->leaves_++;
     stats->chars_ += string->length();
-    // Check for completion.
-    bool keep_going_fast_check = op.HasMore();
-    string = op.ContinueOperation(&type, &length);
-    if (string == NULL) return;
-    // Verify no false positives for fast check.
-    CHECK(keep_going_fast_check);
   }
 }
 
@@ -380,7 +371,7 @@ void AccumulateStatsWithOperator(
 void VerifyConsString(Handle<String> root, ConsStringGenerationData* data) {
   // Verify basic data.
   CHECK(root->IsConsString());
-  CHECK(static_cast<unsigned>(root->length()) == data->stats_.chars_);
+  CHECK_EQ(root->length(), data->stats_.chars_);
   // Recursive verify.
   ConsStringStats stats;
   AccumulateStats(ConsString::cast(*root), &stats);
@@ -625,9 +616,9 @@ static void VerifyCharacterStream(
     // Want to test the offset == length case.
     if (offset > length) offset = length;
     StringCharacterStream flat_stream(
-        flat_string, &cons_string_iterator_op_1, static_cast<unsigned>(offset));
+        flat_string, &cons_string_iterator_op_1, offset);
     StringCharacterStream cons_stream(
-        cons_string, &cons_string_iterator_op_2, static_cast<unsigned>(offset));
+        cons_string, &cons_string_iterator_op_2, offset);
     for (int i = offset; i < length; i++) {
       uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());
@@ -1087,7 +1078,7 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
-      CHECK_EQ(Handle<Smi>::cast(Object::ToSmi(isolate, results[i]))->value(),
+      CHECK_EQ(Object::ToSmi(isolate, results[i]).ToHandleChecked()->value(),
                result->ToInt32()->Value());
     }
   }

@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_SPACES_H_
 #define V8_SPACES_H_
@@ -1854,7 +1831,7 @@ class PagedSpace : public Space {
   void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page, bool unlink);
+  void ReleasePage(Page* page);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -1914,6 +1891,20 @@ class PagedSpace : public Space {
     unswept_free_bytes_ = 0;
   }
 
+  // This function tries to steal size_in_bytes memory from the sweeper threads
+  // free-lists. If it does not succeed stealing enough memory, it will wait
+  // for the sweeper threads to finish sweeping.
+  // It returns true when sweeping is completed and false otherwise.
+  bool EnsureSweeperProgress(intptr_t size_in_bytes);
+
+  void set_end_of_unswept_pages(Page* page) {
+    end_of_unswept_pages_ = page;
+  }
+
+  Page* end_of_unswept_pages() {
+    return end_of_unswept_pages_;
+  }
+
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
@@ -1957,6 +1948,11 @@ class PagedSpace : public Space {
   // concurrent sweeper threads.  This is only an estimation because concurrent
   // sweeping is done conservatively.
   intptr_t unswept_free_bytes_;
+
+  // The sweeper threads iterate over the list of pointer and data space pages
+  // and sweep these pages concurrently. They will stop sweeping after the
+  // end_of_unswept_pages_ page.
+  Page* end_of_unswept_pages_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap

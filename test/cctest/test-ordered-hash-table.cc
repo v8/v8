@@ -71,13 +71,13 @@ TEST(Set) {
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
-  CHECK(!ordered_set->Contains(*obj));
+  CHECK(!ordered_set->Contains(obj));
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   CHECK_EQ(1, ordered_set->NumberOfElements());
-  CHECK(ordered_set->Contains(*obj));
+  CHECK(ordered_set->Contains(obj));
   ordered_set = OrderedHashSet::Remove(ordered_set, obj);
   CHECK_EQ(0, ordered_set->NumberOfElements());
-  CHECK(!ordered_set->Contains(*obj));
+  CHECK(!ordered_set->Contains(obj));
 
   // Test for collisions/chaining
   Handle<JSObject> obj1 = factory->NewJSObjectFromMap(map);
@@ -87,9 +87,9 @@ TEST(Set) {
   Handle<JSObject> obj3 = factory->NewJSObjectFromMap(map);
   ordered_set = OrderedHashSet::Add(ordered_set, obj3);
   CHECK_EQ(3, ordered_set->NumberOfElements());
-  CHECK(ordered_set->Contains(*obj1));
-  CHECK(ordered_set->Contains(*obj2));
-  CHECK(ordered_set->Contains(*obj3));
+  CHECK(ordered_set->Contains(obj1));
+  CHECK(ordered_set->Contains(obj2));
+  CHECK(ordered_set->Contains(obj3));
 
   // Test iteration
   CheckIterResultObject(
@@ -107,11 +107,11 @@ TEST(Set) {
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
   ordered_set = OrderedHashSet::Add(ordered_set, obj4);
-  CHECK(ordered_set->Contains(*obj));
-  CHECK(ordered_set->Contains(*obj1));
-  CHECK(ordered_set->Contains(*obj2));
-  CHECK(ordered_set->Contains(*obj3));
-  CHECK(ordered_set->Contains(*obj4));
+  CHECK(ordered_set->Contains(obj));
+  CHECK(ordered_set->Contains(obj1));
+  CHECK(ordered_set->Contains(obj2));
+  CHECK(ordered_set->Contains(obj3));
+  CHECK(ordered_set->Contains(obj4));
   CHECK_EQ(5, ordered_set->NumberOfElements());
   CHECK_EQ(0, ordered_set->NumberOfDeletedElements());
   CHECK_EQ(4, ordered_set->NumberOfBuckets());
@@ -162,14 +162,14 @@ TEST(Map) {
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   Handle<JSObject> val = factory->NewJSObjectFromMap(map);
-  CHECK(ordered_map->Lookup(*obj)->IsTheHole());
+  CHECK(ordered_map->Lookup(obj)->IsTheHole());
   ordered_map = OrderedHashMap::Put(ordered_map, obj, val);
   CHECK_EQ(1, ordered_map->NumberOfElements());
-  CHECK(ordered_map->Lookup(*obj)->SameValue(*val));
+  CHECK(ordered_map->Lookup(obj)->SameValue(*val));
   ordered_map = OrderedHashMap::Put(
       ordered_map, obj, factory->the_hole_value());
   CHECK_EQ(0, ordered_map->NumberOfElements());
-  CHECK(ordered_map->Lookup(*obj)->IsTheHole());
+  CHECK(ordered_map->Lookup(obj)->IsTheHole());
 
   // Test for collisions/chaining
   Handle<JSObject> obj1 = factory->NewJSObjectFromMap(map);
@@ -182,9 +182,9 @@ TEST(Map) {
   ordered_map = OrderedHashMap::Put(ordered_map, obj2, val2);
   ordered_map = OrderedHashMap::Put(ordered_map, obj3, val3);
   CHECK_EQ(3, ordered_map->NumberOfElements());
-  CHECK(ordered_map->Lookup(*obj1)->SameValue(*val1));
-  CHECK(ordered_map->Lookup(*obj2)->SameValue(*val2));
-  CHECK(ordered_map->Lookup(*obj3)->SameValue(*val3));
+  CHECK(ordered_map->Lookup(obj1)->SameValue(*val1));
+  CHECK(ordered_map->Lookup(obj2)->SameValue(*val2));
+  CHECK(ordered_map->Lookup(obj3)->SameValue(*val3));
 
   // Test iteration
   CheckIterResultObject(
@@ -203,11 +203,11 @@ TEST(Map) {
   Handle<JSObject> obj4 = factory->NewJSObjectFromMap(map);
   Handle<JSObject> val4 = factory->NewJSObjectFromMap(map);
   ordered_map = OrderedHashMap::Put(ordered_map, obj4, val4);
-  CHECK(ordered_map->Lookup(*obj)->SameValue(*val));
-  CHECK(ordered_map->Lookup(*obj1)->SameValue(*val1));
-  CHECK(ordered_map->Lookup(*obj2)->SameValue(*val2));
-  CHECK(ordered_map->Lookup(*obj3)->SameValue(*val3));
-  CHECK(ordered_map->Lookup(*obj4)->SameValue(*val4));
+  CHECK(ordered_map->Lookup(obj)->SameValue(*val));
+  CHECK(ordered_map->Lookup(obj1)->SameValue(*val1));
+  CHECK(ordered_map->Lookup(obj2)->SameValue(*val2));
+  CHECK(ordered_map->Lookup(obj3)->SameValue(*val3));
+  CHECK(ordered_map->Lookup(obj4)->SameValue(*val4));
   CHECK_EQ(5, ordered_map->NumberOfElements());
   CHECK_EQ(4, ordered_map->NumberOfBuckets());
 

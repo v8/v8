@@ -53,13 +53,6 @@ class Factory V8_FINAL {
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 
-  Handle<DeoptimizationInputData> NewDeoptimizationInputData(
-      int deopt_entry_count,
-      PretenureFlag pretenure);
-  Handle<DeoptimizationOutputData> NewDeoptimizationOutputData(
-      int deopt_entry_count,
-      PretenureFlag pretenure);
-
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
 
@@ -186,8 +179,6 @@ class Factory V8_FINAL {
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
 
-  Handle<ConsString> NewRawConsString(String::Encoding encoding);
-
   // Create a new sequential string containing the concatenation of the inputs.
   Handle<String> NewFlatConcatString(Handle<String> first,
                                      Handle<String> second);
@@ -202,8 +193,6 @@ class Factory V8_FINAL {
     if (begin == 0 && end == str->length()) return str;
     return NewProperSubString(str, begin, end);
   }
-
-  Handle<SlicedString> NewRawSlicedString(String::Encoding encoding);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: ASCII and two byte.  Unlike other String types, it does
@@ -307,15 +296,19 @@ class Factory V8_FINAL {
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
+  Handle<JSObject> CopyJSObject(Handle<JSObject> object);
+
+  Handle<JSObject> CopyJSObjectWithAllocationSite(Handle<JSObject> object,
+                                                  Handle<AllocationSite> site);
+
+  Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
+                                           Handle<Map> map);
+
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // This method expects a COW array in new space, and creates a copy
   // of it in old space.
   Handle<FixedArray> CopyAndTenureFixedCOWArray(Handle<FixedArray> array);
-
-  Handle<FixedArray> CopySizeFixedArray(Handle<FixedArray> array,
-                                        int new_length,
-                                        PretenureFlag pretenure = NOT_TENURED);
 
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
@@ -346,7 +339,9 @@ class Factory V8_FINAL {
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
-  Handle<JSObject> NewNeanderObject();
+  inline Handle<JSObject> NewNeanderObject() {
+    return NewJSObjectFromMap(neander_map());
+  }
 
   Handle<JSObject> NewArgumentsObject(Handle<Object> callee, int length);
 
@@ -660,6 +655,9 @@ class Factory V8_FINAL {
   Handle<T> New(Handle<Map> map,
                 AllocationSpace space,
                 Handle<AllocationSite> allocation_site);
+
+  // Creates a code object that is not yet fully initialized yet.
+  inline Handle<Code> NewCodeRaw(int object_size, bool immovable);
 
   // Initializes a function with a shared part and prototype.
   // Note: this code was factored out of NewFunction such that other parts of

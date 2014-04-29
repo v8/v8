@@ -141,30 +141,6 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 }
 
 
-Handle<DeoptimizationInputData> Factory::NewDeoptimizationInputData(
-    int deopt_entry_count,
-    PretenureFlag pretenure) {
-  ASSERT(deopt_entry_count > 0);
-  CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationInputData::Allocate(isolate(),
-                                                       deopt_entry_count,
-                                                       pretenure),
-                     DeoptimizationInputData);
-}
-
-
-Handle<DeoptimizationOutputData> Factory::NewDeoptimizationOutputData(
-    int deopt_entry_count,
-    PretenureFlag pretenure) {
-  ASSERT(deopt_entry_count > 0);
-  CALL_HEAP_FUNCTION(isolate(),
-                     DeoptimizationOutputData::Allocate(isolate(),
-                                                        deopt_entry_count,
-                                                        pretenure),
-                     DeoptimizationOutputData);
-}
-
-
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
@@ -442,13 +418,6 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 }
 
 
-Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
-  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
-      ? cons_ascii_string_map() : cons_string_map();
-  return New<ConsString>(map, NEW_SPACE);
-}
-
-
 MaybeHandle<String> Factory::NewConsString(Handle<String> left,
                                            Handle<String> right) {
   int left_length = left->length();
@@ -518,10 +487,9 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
-  Handle<ConsString> result = NewRawConsString(
-      (is_one_byte || is_one_byte_data_in_two_byte_string)
-          ? String::ONE_BYTE_ENCODING
-          : String::TWO_BYTE_ENCODING);
+  Handle<Map> map = (is_one_byte || is_one_byte_data_in_two_byte_string)
+      ? cons_ascii_string_map()  : cons_string_map();
+  Handle<ConsString> result =  New<ConsString>(map, NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -544,13 +512,6 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
     return ConcatStringContent<uc16>(
         NewRawTwoByteString(total_length).ToHandleChecked(), first, second);
   }
-}
-
-
-Handle<SlicedString> Factory::NewRawSlicedString(String::Encoding encoding) {
-  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
-      ? sliced_ascii_string_map() : sliced_string_map();
-  return New<SlicedString>(map, NEW_SPACE);
 }
 
 
@@ -605,9 +566,9 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   }
 
   ASSERT(str->IsSeqString() || str->IsExternalString());
-  Handle<SlicedString> slice = NewRawSlicedString(
-      str->IsOneByteRepresentation() ? String::ONE_BYTE_ENCODING
-                                     : String::TWO_BYTE_ENCODING);
+  Handle<Map> map = str->IsOneByteRepresentation() ? sliced_ascii_string_map()
+                                                   : sliced_string_map();
+  Handle<SlicedString> slice = New<SlicedString>(map, NEW_SPACE);
 
   slice->set_hash_field(String::kEmptyHashField);
   slice->set_length(length);
@@ -670,10 +631,9 @@ Handle<Symbol> Factory::NewSymbol() {
 
 
 Handle<Symbol> Factory::NewPrivateSymbol() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocatePrivateSymbol(),
-      Symbol);
+  Handle<Symbol> symbol = NewSymbol();
+  symbol->set_is_private(true);
+  return symbol;
 }
 
 
@@ -977,8 +937,36 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
+Handle<JSObject> Factory::CopyJSObject(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyJSObject(*object, NULL),
+                     JSObject);
+}
+
+
+Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
+    Handle<JSObject> object,
+    Handle<AllocationSite> site) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyJSObject(
+                         *object,
+                         site.is_null() ? NULL : *site),
+                     JSObject);
+}
+
+
+Handle<FixedArray> Factory::CopyFixedArrayWithMap(Handle<FixedArray> array,
+                                                  Handle<Map> map) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedArrayWithMap(*array, *map),
+                     FixedArray);
+}
+
+
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedArray(*array),
+                     FixedArray);
 }
 
 
@@ -991,24 +979,19 @@ Handle<FixedArray> Factory::CopyAndTenureFixedCOWArray(
 }
 
 
-Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
-                                               int new_length,
-                                               PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     array->CopySize(new_length, pretenure),
-                     FixedArray);
-}
-
-
 Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
     Handle<FixedDoubleArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyFixedDoubleArray(*array),
+                     FixedDoubleArray);
 }
 
 
 Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
     Handle<ConstantPoolArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), ConstantPoolArray);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyConstantPoolArray(*array),
+                     ConstantPoolArray);
 }
 
 
@@ -1099,15 +1082,6 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
-}
-
-
-Handle<JSObject> Factory::NewNeanderObject() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObjectFromMap(
-          isolate()->heap()->neander_map()),
-      JSObject);
 }
 
 
@@ -1358,9 +1332,9 @@ Handle<JSObject> Factory::NewExternal(void* value) {
 }
 
 
-Handle<Code> NewCodeHelper(Isolate* isolate, int object_size, bool immovable) {
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->AllocateCode(object_size, immovable),
+Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateCode(object_size, immovable),
                      Code);
 }
 
@@ -1379,7 +1353,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
 
-  Handle<Code> code = NewCodeHelper(isolate(), obj_size, immovable);
+  Handle<Code> code = NewCodeRaw(obj_size, immovable);
   ASSERT(!isolate()->code_range()->exists() ||
          isolate()->code_range()->contains(code->address()));
 

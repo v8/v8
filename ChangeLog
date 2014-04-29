@@ -1,3 +1,11 @@
+2014-04-29: Version 3.26.28
+
+        PromiseThen should ignore non-function parameters (Chromium issue
+        347455).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-29: Version 3.26.27
 
         Error stack getter should not overwrite itself with a data property

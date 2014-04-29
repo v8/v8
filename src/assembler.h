@@ -254,7 +254,7 @@ enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
 // describe a property of the datum. Such rmodes are useful for GC
 // and nice disassembly output.
 
-class RelocInfo BASE_EMBEDDED {
+class RelocInfo {
  public:
   // The constant kNoPosition is used with the collecting of source positions
   // in the relocation information. Two types of source positions are collected

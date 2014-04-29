@@ -27,6 +27,7 @@
 
 #include "v8.h"
 #include "accessors.h"
+#include "api.h"
 
 #include "cctest.h"
 
@@ -37,7 +38,7 @@ using namespace v8::internal;
 static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();
-  Heap* heap = CcTest::heap();
+  TestHeap* heap = CcTest::test_heap();
 
   // New space.
   SimulateFullSpace(heap->new_space());
@@ -104,16 +105,29 @@ TEST(StressHandles) {
 }
 
 
-static Object* TestAccessorGet(Isolate* isolate, Object* object, void*) {
-  return *Test();
+void TestGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  info.GetReturnValue().Set(v8::Utils::ToLocal(Test()));
 }
 
 
-const AccessorDescriptor kDescriptor = {
-  TestAccessorGet,
-  0,
-  0
-};
+void TestSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  UNREACHABLE();
+}
+
+
+Handle<AccessorInfo> TestAccessorInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  Handle<String> name = isolate->factory()->NewStringFromStaticAscii("get");
+  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter,
+                                 attributes);
+}
 
 
 TEST(StressJS) {
@@ -132,15 +146,14 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  Handle<Foreign> foreign = factory->NewForeign(&kDescriptor);
-  Handle<String> name = factory->NewStringFromStaticAscii("get");
   ASSERT(instance_descriptors->IsEmpty());
 
+  PropertyAttributes attrs = static_cast<PropertyAttributes>(0);
+  Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(map, 1);
 
-  CallbacksDescriptor d(name,
-                        foreign,
-                        static_cast<PropertyAttributes>(0));
+  CallbacksDescriptor d(Handle<Name>(Name::cast(foreign->name())),
+                        foreign, attrs);
   map->AppendDescriptor(&d);
 
   // Add the Foo constructor the global object.

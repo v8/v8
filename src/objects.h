@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
@@ -758,8 +735,6 @@ enum InstanceType {
   CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
-  JS_MESSAGE_OBJECT_TYPE,
-
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
   // the two forms of function. This organization enables using the same
@@ -769,6 +744,7 @@ enum InstanceType {
   JS_PROXY_TYPE,  // LAST_JS_PROXY_TYPE
 
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_MESSAGE_OBJECT_TYPE,
   JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
@@ -1430,6 +1406,7 @@ class Object : public MaybeObject {
 
   INLINE(bool IsSpecObject());
   INLINE(bool IsSpecFunction());
+  INLINE(bool IsTemplateInfo());
   bool IsCallable();
 
   // Oddball testing.
@@ -1502,7 +1479,6 @@ class Object : public MaybeObject {
 
   inline bool HasSpecificClassOf(String* name);
 
-  MUST_USE_RESULT MaybeObject* ToObject(Isolate* isolate);  // ECMA-262 9.9.
   bool BooleanValue();                                      // ECMA-262 9.2.
 
   // Convert to a JSObject if needed.
@@ -1514,11 +1490,10 @@ class Object : public MaybeObject {
                                           Handle<Context> context);
 
   // Converts this to a Smi if possible.
-  // Failure is returned otherwise.
-  static MUST_USE_RESULT inline Handle<Object> ToSmi(Isolate* isolate,
-                                                     Handle<Object> object);
+  static MUST_USE_RESULT inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
+                                                       Handle<Object> object);
 
-  void Lookup(Name* name, LookupResult* result);
+  void Lookup(Handle<Name> name, LookupResult* result);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
       Handle<Object> object,
@@ -2089,9 +2064,9 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(Name* name, LookupResult* result,
+  void LocalLookup(Handle<Name> name, LookupResult* result,
                    bool search_hidden_prototypes = false);
-  void Lookup(Name* name, LookupResult* result);
+  void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 
@@ -2225,7 +2200,6 @@ class JSObject: public JSReceiver {
   // Requires: HasFastElements().
   static Handle<FixedArray> EnsureWritableFastElements(
       Handle<JSObject> object);
-  MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
   // Collects elements starting at index 0.
   // Undefined values are placed after non-undefined values.
@@ -2398,7 +2372,7 @@ class JSObject: public JSReceiver {
   // Gets the value of a hidden property with the given key. Returns the hole
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
-  Object* GetHiddenProperty(Name* key);
+  Object* GetHiddenProperty(Handle<Name> key);
   // Deletes a hidden property. Deleting a non-existing property is
   // considered successful.
   static void DeleteHiddenProperty(Handle<JSObject> object,
@@ -2509,9 +2483,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       int capacity,
       int length);
-  MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
-      int capacity,
-      int length);
 
   // Lookup interceptors are used for handling properties controlled by host
   // objects.
@@ -2520,10 +2491,10 @@ class JSObject: public JSReceiver {
 
   // Computes the enumerable keys from interceptors. Used for debug mirrors and
   // by JSReceiver::GetKeys.
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForNamedInterceptor(
+  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForNamedInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver);
-  MUST_USE_RESULT static MaybeHandle<JSArray> GetKeysForIndexedInterceptor(
+  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForIndexedInterceptor(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver);
 
@@ -2545,10 +2516,11 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Smi* value);
 
   // The following lookup functions skip interceptors.
-  void LocalLookupRealNamedProperty(Name* name, LookupResult* result);
-  void LookupRealNamedProperty(Name* name, LookupResult* result);
-  void LookupRealNamedPropertyInPrototypes(Name* name, LookupResult* result);
-  void LookupCallbackProperty(Name* name, LookupResult* result);
+  void LocalLookupRealNamedProperty(Handle<Name> name, LookupResult* result);
+  void LookupRealNamedProperty(Handle<Name> name, LookupResult* result);
+  void LookupRealNamedPropertyInPrototypes(Handle<Name> name,
+                                           LookupResult* result);
+  void LookupCallbackProperty(Handle<Name> name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2658,8 +2630,6 @@ class JSObject: public JSReceiver {
     kObjectIsShallowArray = 1
   };
 
-  static Handle<JSObject> Copy(Handle<JSObject> object,
-                               Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
       Handle<JSObject> object,
@@ -3065,18 +3035,15 @@ class FixedArray: public FixedArrayBase {
   // Shrink length and insert filler objects.
   void Shrink(int length);
 
-  // Copy operations.
-  MUST_USE_RESULT inline MaybeObject* Copy();
-  MUST_USE_RESULT MaybeObject* CopySize(int new_length,
-                                        PretenureFlag pretenure = NOT_TENURED);
+  // Copy operation.
   static Handle<FixedArray> CopySize(Handle<FixedArray> array,
                                      int new_length,
                                      PretenureFlag pretenure = NOT_TENURED);
 
   // Add the elements of a JSArray to this FixedArray.
-  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromJSArray(
+  MUST_USE_RESULT static MaybeHandle<FixedArray> AddKeysFromArrayLike(
       Handle<FixedArray> content,
-      Handle<JSArray> array);
+      Handle<JSObject> array);
 
   // Computes the union of keys and return the result.
   // Used for implementing "for (n in object) { }"
@@ -3167,9 +3134,6 @@ class FixedDoubleArray: public FixedArrayBase {
   // Checking for the hole.
   inline bool is_the_hole(int index);
 
-  // Copy operations
-  MUST_USE_RESULT inline MaybeObject* Copy();
-
   // Garbage collection support.
   inline static int SizeFor(int length) {
     return kHeaderSize + length * kDoubleSize;
@@ -3258,9 +3222,6 @@ class ConstantPoolArray: public FixedArrayBase {
                    int number_of_code_ptr_entries,
                    int number_of_heap_ptr_entries,
                    int number_of_int32_entries);
-
-  // Copy operations
-  MUST_USE_RESULT inline MaybeObject* Copy();
 
   // Garbage collection support.
   inline static int SizeFor(int number_of_int64_entries,
@@ -4095,9 +4056,6 @@ class NameDictionary: public Dictionary<NameDictionary,
   // Find entry for key, otherwise return kNotFound. Optimized version of
   // HashTable::FindEntry.
   int FindEntry(Handle<Name> key);
-
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Name* key);
 };
 
 
@@ -4242,11 +4200,7 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Object* key);
-
-  int FindEntry(Handle<Object> key);
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Object* key);
+  Object* Lookup(Handle<Object> key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
@@ -4312,7 +4266,7 @@ class OrderedHashTable: public FixedArray {
   static Handle<Derived> Clear(Handle<Derived> table);
 
   // Returns kNotFound if the key isn't present.
-  int FindEntry(Object* key);
+  int FindEntry(Handle<Object> key);
 
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
@@ -4411,7 +4365,7 @@ class OrderedHashSet: public OrderedHashTable<
     return reinterpret_cast<OrderedHashSet*>(obj);
   }
 
-  bool Contains(Object* key);
+  bool Contains(Handle<Object> key);
   static Handle<OrderedHashSet> Add(
       Handle<OrderedHashSet> table, Handle<Object> key);
   static Handle<OrderedHashSet> Remove(
@@ -4430,7 +4384,7 @@ class OrderedHashMap:public OrderedHashTable<
     return reinterpret_cast<OrderedHashMap*>(obj);
   }
 
-  Object* Lookup(Object* key);
+  Object* Lookup(Handle<Object> key);
   static Handle<OrderedHashMap> Put(
       Handle<OrderedHashMap> table,
       Handle<Object> key,
@@ -4473,11 +4427,7 @@ class WeakHashTable: public HashTable<WeakHashTable,
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Object* key);
-
-  int FindEntry(Handle<Object> key);
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Object* key);
+  Object* Lookup(Handle<Object> key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
@@ -5296,9 +5246,9 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationInputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
-                                               int deopt_entry_count,
-                                               PretenureFlag pretenure);
+  static Handle<DeoptimizationInputData> New(Isolate* isolate,
+                                             int deopt_entry_count,
+                                             PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
@@ -5343,9 +5293,9 @@ class DeoptimizationOutputData: public FixedArray {
   }
 
   // Allocates a DeoptimizationOutputData.
-  MUST_USE_RESULT static MaybeObject* Allocate(Isolate* isolate,
-                                               int number_of_deopt_points,
-                                               PretenureFlag pretenure);
+  static Handle<DeoptimizationOutputData> New(Isolate* isolate,
+                                              int number_of_deopt_points,
+                                              PretenureFlag pretenure);
 
   // Casting.
   static inline DeoptimizationOutputData* cast(Object* obj);
@@ -9248,29 +9198,10 @@ class String: public Name {
     return NonOneByteStart(chars, length) >= length;
   }
 
-  // TODO(dcarney): Replace all instances of this with VisitFlat.
-  template<class Visitor, class ConsOp>
-  static inline void Visit(String* string,
-                           unsigned offset,
-                           Visitor& visitor,
-                           ConsOp& cons_op,
-                           int32_t type,
-                           unsigned length);
-
   template<class Visitor>
   static inline ConsString* VisitFlat(Visitor* visitor,
                                       String* string,
-                                      int offset,
-                                      int length,
-                                      int32_t type);
-
-  template<class Visitor>
-  static inline ConsString* VisitFlat(Visitor* visitor,
-                                      String* string,
-                                      int offset = 0) {
-    int32_t type = string->map()->instance_type();
-    return VisitFlat(visitor, string, offset, string->length(), type);
-  }
+                                      int offset = 0);
 
   static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
                                               bool include_ending_line);
@@ -9656,57 +9587,63 @@ class ConsStringNullOp {
 // This maintains an off-stack representation of the stack frames required
 // to traverse a ConsString, allowing an entirely iterative and restartable
 // traversal of the entire string
-// Note: this class is not GC-safe.
 class ConsStringIteratorOp {
  public:
   inline ConsStringIteratorOp() {}
-  String* Operate(String* string,
-                  unsigned* offset_out,
-                  int32_t* type_out,
-                  unsigned* length_out);
-  inline String* ContinueOperation(int32_t* type_out, unsigned* length_out);
-  inline void Reset();
-  inline bool HasMore();
+  inline ConsStringIteratorOp(ConsString* cons_string, int offset = 0) {
+    Reset(cons_string, offset);
+  }
+  inline void Reset(ConsString* cons_string, int offset = 0) {
+    depth_ = 0;
+    // Next will always return NULL.
+    if (cons_string == NULL) return;
+    Initialize(cons_string, offset);
+  }
+  // Returns NULL when complete.
+  inline String* Next(int* offset_out) {
+    *offset_out = 0;
+    if (depth_ == 0) return NULL;
+    return Continue(offset_out);
+  }
 
  private:
-  // TODO(dcarney): Templatize this out for different stack sizes.
-  static const unsigned kStackSize = 32;
+  static const int kStackSize = 32;
   // Use a mask instead of doing modulo operations for stack wrapping.
-  static const unsigned kDepthMask = kStackSize-1;
+  static const int kDepthMask = kStackSize-1;
   STATIC_ASSERT(IS_POWER_OF_TWO(kStackSize));
-  static inline unsigned OffsetForDepth(unsigned depth);
+  static inline int OffsetForDepth(int depth);
 
   inline void PushLeft(ConsString* string);
   inline void PushRight(ConsString* string);
   inline void AdjustMaximumDepth();
   inline void Pop();
-  String* NextLeaf(bool* blew_stack, int32_t* type_out, unsigned* length_out);
-  String* Search(unsigned* offset_out,
-                 int32_t* type_out,
-                 unsigned* length_out);
+  inline bool StackBlown() { return maximum_depth_ - depth_ == kStackSize; }
+  void Initialize(ConsString* cons_string, int offset);
+  String* Continue(int* offset_out);
+  String* NextLeaf(bool* blew_stack);
+  String* Search(int* offset_out);
 
-  unsigned depth_;
-  unsigned maximum_depth_;
   // Stack must always contain only frames for which right traversal
   // has not yet been performed.
   ConsString* frames_[kStackSize];
-  unsigned consumed_;
   ConsString* root_;
+  int depth_;
+  int maximum_depth_;
+  int consumed_;
   DISALLOW_COPY_AND_ASSIGN(ConsStringIteratorOp);
 };
 
 
-// Note: this class is not GC-safe.
 class StringCharacterStream {
  public:
   inline StringCharacterStream(String* string,
                                ConsStringIteratorOp* op,
-                               unsigned offset = 0);
+                               int offset = 0);
   inline uint16_t GetNext();
   inline bool HasMore();
-  inline void Reset(String* string, unsigned offset = 0);
-  inline void VisitOneByteString(const uint8_t* chars, unsigned length);
-  inline void VisitTwoByteString(const uint16_t* chars, unsigned length);
+  inline void Reset(String* string, int offset = 0);
+  inline void VisitOneByteString(const uint8_t* chars, int length);
+  inline void VisitTwoByteString(const uint16_t* chars, int length);
 
  private:
   bool is_one_byte_;

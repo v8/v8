@@ -1,29 +1,6 @@
 // Copyright 2011 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 
@@ -582,10 +559,6 @@ void MemoryChunk::InsertAfter(MemoryChunk* other) {
 
 
 void MemoryChunk::Unlink() {
-  if (!InNewSpace() && IsFlagSet(SCAN_ON_SCAVENGE)) {
-    heap_->decrement_scan_on_scavenge_pages();
-    ClearFlag(SCAN_ON_SCAVENGE);
-  }
   MemoryChunk* next_element = next_chunk();
   MemoryChunk* prev_element = prev_chunk();
   next_element->set_prev_chunk(prev_element);
@@ -953,7 +926,8 @@ PagedSpace::PagedSpace(Heap* heap,
     : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
-      unswept_free_bytes_(0) {
+      unswept_free_bytes_(0),
+      end_of_unswept_pages_(NULL) {
   if (id == CODE_SPACE) {
     area_size_ = heap->isolate()->memory_allocator()->
         CodePageAreaSize();
@@ -1126,7 +1100,7 @@ void PagedSpace::IncreaseCapacity(int size) {
 }
 
 
-void PagedSpace::ReleasePage(Page* page, bool unlink) {
+void PagedSpace::ReleasePage(Page* page) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
 
@@ -1138,19 +1112,19 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     DecreaseUnsweptFreeBytes(page);
   }
 
-  // TODO(hpayer): This check is just used for debugging purpose and
-  // should be removed or turned into an assert after investigating the
-  // crash in concurrent sweeping.
-  CHECK(!free_list_.ContainsPageFreeListItems(page));
+  if (page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE)) {
+    heap()->decrement_scan_on_scavenge_pages();
+    page->ClearFlag(MemoryChunk::SCAN_ON_SCAVENGE);
+  }
+
+  ASSERT(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);
     allocation_info_.set_limit(NULL);
   }
 
-  if (unlink) {
-    page->Unlink();
-  }
+  page->Unlink();
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
   } else {

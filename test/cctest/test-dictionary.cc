@@ -50,24 +50,24 @@ static void TestHashMap(Handle<HashMap> table) {
   Handle<JSObject> b = factory->NewJSArray(11);
   table = HashMap::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), *b);
+  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   CcTest::heap()->CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), *b);
+  CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = HashMap::Put(table, a, factory->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
-  CHECK_NE(table->Lookup(*a), *b);
+  CHECK_NE(table->Lookup(a), *b);
 
   // Keys mapped to the hole should be removed permanently.
   table = HashMap::Put(table, a, factory->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
-  CHECK_EQ(table->Lookup(*a), CcTest::heap()->the_hole_value());
+  CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
@@ -76,8 +76,8 @@ static void TestHashMap(Handle<HashMap> table) {
     Handle<JSObject> value = factory->NewJSArray(11);
     table = HashMap::Put(table, key, value);
     CHECK_EQ(table->NumberOfElements(), i + 1);
-    CHECK_NE(table->FindEntry(*key), HashMap::kNotFound);
-    CHECK_EQ(table->Lookup(*key), *value);
+    CHECK_NE(table->FindEntry(key), HashMap::kNotFound);
+    CHECK_EQ(table->Lookup(key), *value);
     CHECK(key->GetIdentityHash()->IsSmi());
   }
 
@@ -86,8 +86,8 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(JSReceiver::GetOrCreateIdentityHash(key)->IsSmi());
-    CHECK_EQ(table->FindEntry(*key), HashMap::kNotFound);
-    CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->FindEntry(key), HashMap::kNotFound);
+    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK(key->GetIdentityHash()->IsSmi());
   }
 
@@ -95,7 +95,7 @@ static void TestHashMap(Handle<HashMap> table) {
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
-    CHECK_EQ(table->Lookup(*key), CcTest::heap()->the_hole_value());
+    CHECK_EQ(table->Lookup(key), CcTest::heap()->the_hole_value());
     CHECK_EQ(key->GetIdentityHash(),
              CcTest::heap()->undefined_value());
   }
@@ -119,7 +119,8 @@ class ObjectHashTableTest: public ObjectHashTable {
   }
 
   int lookup(int key) {
-    return Smi::cast(Lookup(Smi::FromInt(key)))->value();
+    Handle<Object> key_obj(Smi::FromInt(key), GetIsolate());
+    return Smi::cast(Lookup(key_obj))->value();
   }
 
   int capacity() {
@@ -182,7 +183,7 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
 
   // Calling Contains() should not cause GC ever.
   int gc_count = isolate->heap()->gc_count();
-  CHECK(!table->Contains(*key));
+  CHECK(!table->Contains(key));
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.
@@ -225,7 +226,7 @@ static void TestHashMapCausesGC(Handle<HashMap> table) {
   SimulateFullSpace(CcTest::heap()->old_pointer_space());
 
   // Calling Lookup() should not cause GC ever.
-  CHECK(table->Lookup(*key)->IsTheHole());
+  CHECK(table->Lookup(key)->IsTheHole());
 
   // Calling Put() should request GC by returning a failure.
   int gc_count = isolate->heap()->gc_count();

@@ -388,7 +388,6 @@ void Genesis::SetFunctionInstanceDescriptor(
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Map::EnsureDescriptorSlack(map, size);
 
-  Handle<Foreign> caller(factory()->NewForeign(&Accessors::FunctionCaller));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -413,8 +412,11 @@ void Genesis::SetFunctionInstanceDescriptor(
                           args, attribs);
     map->AppendDescriptor(&d);
   }
+  Handle<AccessorInfo> caller =
+      Accessors::FunctionCallerInfo(isolate(), attribs);
   {  // Add caller.
-    CallbacksDescriptor d(factory()->caller_string(), caller, attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(caller->name())),
+                          caller, attribs);
     map->AppendDescriptor(&d);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
@@ -861,12 +863,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     ASSERT(initial_map->elements_kind() == GetInitialFastElementsKind());
     Map::EnsureDescriptorSlack(initial_map, 1);
 
-    Handle<Foreign> array_length(factory->NewForeign(&Accessors::ArrayLength));
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
         DONT_ENUM | DONT_DELETE);
 
+    Handle<AccessorInfo> array_length =
+        Accessors::ArrayLengthInfo(isolate, attribs);
     {  // Add length.
-      CallbacksDescriptor d(factory->length_string(), array_length, attribs);
+      CallbacksDescriptor d(
+          Handle<Name>(Name::cast(array_length->name())),
+          array_length, attribs);
       array_function->initial_map()->AppendDescriptor(&d);
     }
 
@@ -1106,11 +1111,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(heap->callee_string(), &lookup);
+    result->LocalLookup(factory->callee_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsCalleeIndex);
 
-    result->LocalLookup(heap->length_string(), &lookup);
+    result->LocalLookup(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -1207,7 +1212,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(heap->length_string(), &lookup);
+    result->LocalLookup(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -1612,14 +1617,14 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(initial_map, 1);
 
-  Handle<Foreign> array_length(factory()->NewForeign(
-      &Accessors::ArrayLength));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE);
 
+  Handle<AccessorInfo> array_length =
+      Accessors::ArrayLengthInfo(isolate(), attribs);
   {  // Add length.
     CallbacksDescriptor d(
-        factory()->length_string(), array_length, attribs);
+        Handle<Name>(Name::cast(array_length->name())), array_length, attribs);
     array_function->initial_map()->AppendDescriptor(&d);
   }
 
@@ -2408,13 +2413,13 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case CALLBACKS: {
           LookupResult result(isolate());
-          to->LocalLookup(descs->GetKey(i), &result);
+          Handle<Name> key(Name::cast(descs->GetKey(i)), isolate());
+          to->LocalLookup(key, &result);
           // If the property is already there we skip it
           if (result.IsFound()) continue;
           HandleScope inner(isolate());
           ASSERT(!to->HasFastProperties());
           // Add to dictionary.
-          Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(
               details.attributes(), CALLBACKS, i + 1);
@@ -2441,10 +2446,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         ASSERT(raw_key->IsName());
         // If the property is already there we skip it.
         LookupResult result(isolate());
-        to->LocalLookup(Name::cast(raw_key), &result);
+        Handle<Name> key(Name::cast(raw_key));
+        to->LocalLookup(key, &result);
         if (result.IsFound()) continue;
         // Set the property.
-        Handle<Name> key = Handle<Name>(Name::cast(raw_key));
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
         ASSERT(!value->IsCell());

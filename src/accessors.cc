@@ -1,29 +1,6 @@
 // Copyright 2012 the V8 project authors. All rights reserved.
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-//
-//     * Redistributions of source code must retain the above copyright
-//       notice, this list of conditions and the following disclaimer.
-//     * Redistributions in binary form must reproduce the above
-//       copyright notice, this list of conditions and the following
-//       disclaimer in the documentation and/or other materials provided
-//       with the distribution.
-//     * Neither the name of Google Inc. nor the names of its
-//       contributors may be used to endorse or promote products derived
-//       from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "v8.h"
 #include "accessors.h"
@@ -43,16 +20,17 @@ namespace v8 {
 namespace internal {
 
 
-static Handle<AccessorInfo> MakeAccessor(Isolate* isolate,
-                                         Handle<String> name,
-                                         AccessorGetterCallback getter,
-                                         AccessorSetterCallback setter,
-                                         PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::MakeAccessor(
+    Isolate* isolate,
+    Handle<String> name,
+    AccessorGetterCallback getter,
+    AccessorSetterCallback setter,
+    PropertyAttributes attributes) {
   Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
-  info->set_all_can_read(true);
-  info->set_all_can_write(true);
+  info->set_all_can_read(false);
+  info->set_all_can_write(false);
   info->set_prohibits_overwriting(false);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -69,34 +47,6 @@ static C* FindInstanceOf(Isolate* isolate, Object* obj) {
     if (Is<C>(cur)) return C::cast(cur);
   }
   return NULL;
-}
-
-
-// Entry point that never should be called.
-Object* Accessors::IllegalSetter(Isolate* isolate,
-                                 JSObject*,
-                                 Object*,
-                                 void*) {
-  UNREACHABLE();
-  return NULL;
-}
-
-
-Object* Accessors::IllegalGetAccessor(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  UNREACHABLE();
-  return object;
-}
-
-
-Object* Accessors::ReadOnlySetAccessor(Isolate* isolate,
-                                       JSObject*,
-                                       Object* value,
-                                       void*) {
-  // According to ECMA-262, section 8.6.2.2, page 28, setting
-  // read-only properties must be silently ignored.
-  return value;
 }
 
 
@@ -174,15 +124,6 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
 //
 
 
-Object* Accessors::ArrayGetLength(Isolate* isolate,
-                                  Object* object,
-                                  void*) {
-  // Traverse the prototype chain until we reach an array.
-  JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
-  return holder == NULL ? Smi::FromInt(0) : holder->length();
-}
-
-
 // The helper function will 'flatten' Number objects.
 Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
                                         Handle<Object> value) {
@@ -199,55 +140,83 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
 }
 
 
-Object* Accessors::ArraySetLength(Isolate* isolate,
-                                  JSObject* object_raw,
-                                  Object* value_raw,
-                                  void*) {
+void Accessors::ArrayLengthGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Handle<JSObject> object(object_raw, isolate);
-  Handle<Object> value(value_raw, isolate);
+  Object* object = *Utils::OpenHandle(*info.This());
+  // Traverse the prototype chain until we reach an array.
+  JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
+  Object* result;
+  if (holder != NULL) {
+    result = holder->length();
+  } else {
+    result = Smi::FromInt(0);
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
 
+
+void Accessors::ArrayLengthSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Handle<JSObject>::cast(
+      Utils::OpenHandle(*info.This()));
+  Handle<Object> value = Utils::OpenHandle(*val);
   // This means one of the object's prototypes is a JSArray and the
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
+    MaybeHandle<Object> maybe_result =
         JSObject::SetLocalPropertyIgnoreAttributes(
-            object, isolate->factory()->length_string(), value, NONE));
-    return *result;
+            object, isolate->factory()->length_string(), value, NONE);
+    maybe_result.Check();
+    return;
   }
 
   value = FlattenNumber(isolate, value);
 
   Handle<JSArray> array_handle = Handle<JSArray>::cast(object);
-
+  MaybeHandle<Object> maybe;
   Handle<Object> uint32_v;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, uint32_v, Execution::ToUint32(isolate, value));
+  maybe = Execution::ToUint32(isolate, value);
+  if (!maybe.ToHandle(&uint32_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
   Handle<Object> number_v;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, number_v, Execution::ToNumber(isolate, value));
+  maybe = Execution::ToNumber(isolate, value);
+  if (!maybe.ToHandle(&number_v)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
 
   if (uint32_v->Number() == number_v->Number()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        JSArray::SetElementsLength(array_handle, uint32_v));
-    return *result;
+    maybe = JSArray::SetElementsLength(array_handle, uint32_v);
+    maybe.Check();
+    return;
   }
-  return isolate->Throw(
+
+  isolate->ScheduleThrow(
       *isolate->factory()->NewRangeError("invalid_array_length",
                                          HandleVector<Object>(NULL, 0)));
 }
 
 
-const AccessorDescriptor Accessors::ArrayLength = {
-  ArrayGetLength,
-  ArraySetLength,
-  0
-};
+Handle<AccessorInfo> Accessors::ArrayLengthInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->length_string(),
+                      &ArrayLengthGetter,
+                      &ArrayLengthSetter,
+                      attributes);
+}
+
 
 
 //
@@ -867,7 +836,8 @@ void Accessors::FunctionPrototypeSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<JSObject> object =
+      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value = Utils::OpenHandle(*val);
 
   SetFunctionPrototype(isolate, object, value);
@@ -1190,29 +1160,23 @@ class FrameFunctionIterator {
 };
 
 
-Object* Accessors::FunctionGetCaller(Isolate* isolate,
-                                     Object* object,
-                                     void*) {
-  HandleScope scope(isolate);
+MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
+                                   Handle<JSFunction> function) {
   DisallowHeapAllocation no_allocation;
-  JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-  if (holder == NULL) return isolate->heap()->undefined_value();
-  if (holder->shared()->native()) return isolate->heap()->null_value();
-  Handle<JSFunction> function(holder, isolate);
-
   FrameFunctionIterator it(isolate, no_allocation);
-
+  if (function->shared()->native()) {
+    return MaybeHandle<JSFunction>();
+  }
   // Find the function from the frames.
   if (!it.Find(*function)) {
     // No frame corresponding to the given function found. Return null.
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-
   // Find previously called non-toplevel function.
   JSFunction* caller;
   do {
     caller = it.next();
-    if (caller == NULL) return isolate->heap()->null_value();
+    if (caller == NULL) return MaybeHandle<JSFunction>();
   } while (caller->shared()->is_toplevel());
 
   // If caller is a built-in function and caller's caller is also built-in,
@@ -1229,24 +1193,64 @@ Object* Accessors::FunctionGetCaller(Isolate* isolate,
   // allows us to make bound functions use the strict function map
   // and its associated throwing caller and arguments.
   if (caller->shared()->bound()) {
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
   if (caller->shared()->strict_mode() == STRICT) {
-    return isolate->heap()->null_value();
+    return MaybeHandle<JSFunction>();
   }
-
-  return caller;
+  return Handle<JSFunction>(caller);
 }
 
 
-const AccessorDescriptor Accessors::FunctionCaller = {
-  FunctionGetCaller,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionCallerGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+  {
+    DisallowHeapAllocation no_allocation;
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
+  }
+  Handle<JSFunction> function;
+  Handle<Object> result;
+  if (maybe_function.ToHandle(&function)) {
+    MaybeHandle<JSFunction> maybe_caller;
+    maybe_caller = FindCaller(isolate, function);
+    Handle<JSFunction> caller;
+    if (maybe_caller.ToHandle(&caller)) {
+      result = caller;
+    } else {
+      result = isolate->factory()->null_value();
+    }
+  } else {
+    result = isolate->factory()->undefined_value();
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
+}
+
+
+void Accessors::FunctionCallerSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionCallerInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->caller_string(),
+                      &FunctionCallerGetter,
+                      &FunctionCallerSetter,
+                      attributes);
+}
 
 
 //
