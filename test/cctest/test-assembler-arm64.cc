@@ -174,7 +174,7 @@ static void InitializeVM() {
   byte* buf = new byte[buf_size];                                              \
   MacroAssembler masm(isolate, buf, buf_size);                                 \
   RegisterDump core;                                                           \
-  CPU::SetUp();
+  CpuFeatures::Probe(false);
 
 #define RESET()                                                                \
   __ Reset();
