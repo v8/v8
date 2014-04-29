@@ -8826,34 +8826,47 @@ void FlatStringReader::PostGarbageCollection() {
 }
 
 
-String* ConsStringIteratorOp::Operate(String* string,
-                                      unsigned* offset_out,
-                                      int32_t* type_out,
-                                      unsigned* length_out) {
-  ASSERT(string->IsConsString());
-  ConsString* cons_string = ConsString::cast(string);
-  // Set up search data.
+void ConsStringIteratorOp::Initialize(ConsString* cons_string, int offset) {
+  ASSERT(cons_string != NULL);
   root_ = cons_string;
-  consumed_ = *offset_out;
-  // Now search.
-  return Search(offset_out, type_out, length_out);
+  consumed_ = offset;
+  // Force stack blown condition to trigger restart.
+  depth_ = 1;
+  maximum_depth_ = kStackSize + depth_;
+  ASSERT(StackBlown());
 }
 
 
-String* ConsStringIteratorOp::Search(unsigned* offset_out,
-                                     int32_t* type_out,
-                                     unsigned* length_out) {
+String* ConsStringIteratorOp::Continue(int* offset_out) {
+  ASSERT(depth_ != 0);
+  ASSERT_EQ(0, *offset_out);
+  bool blew_stack = StackBlown();
+  String* string = NULL;
+  // Get the next leaf if there is one.
+  if (!blew_stack) string = NextLeaf(&blew_stack);
+  // Restart search from root.
+  if (blew_stack) {
+    ASSERT(string == NULL);
+    string = Search(offset_out);
+  }
+  // Ensure future calls return null immediately.
+  if (string == NULL) Reset(NULL);
+  return string;
+}
+
+
+String* ConsStringIteratorOp::Search(int* offset_out) {
   ConsString* cons_string = root_;
   // Reset the stack, pushing the root string.
   depth_ = 1;
   maximum_depth_ = 1;
   frames_[0] = cons_string;
-  const unsigned consumed = consumed_;
-  unsigned offset = 0;
+  const int consumed = consumed_;
+  int offset = 0;
   while (true) {
     // Loop until the string is found which contains the target offset.
     String* string = cons_string->first();
-    unsigned length = string->length();
+    int length = string->length();
     int32_t type;
     if (consumed < offset + length) {
       // Target offset is in the left branch.
@@ -8864,7 +8877,7 @@ String* ConsStringIteratorOp::Search(unsigned* offset_out,
         PushLeft(cons_string);
         continue;
       }
-      // Tell the stack we're done decending.
+      // Tell the stack we're done descending.
       AdjustMaximumDepth();
     } else {
       // Descend right.
@@ -8876,7 +8889,6 @@ String* ConsStringIteratorOp::Search(unsigned* offset_out,
       if ((type & kStringRepresentationMask) == kConsStringTag) {
         cons_string = ConsString::cast(string);
         PushRight(cons_string);
-        // TODO(dcarney) Add back root optimization.
         continue;
       }
       // Need this to be updated for the current string.
@@ -8884,11 +8896,11 @@ String* ConsStringIteratorOp::Search(unsigned* offset_out,
       // Account for the possibility of an empty right leaf.
       // This happens only if we have asked for an offset outside the string.
       if (length == 0) {
-        // Reset depth so future operations will return null immediately.
-        Reset();
+        // Reset so future operations will return null immediately.
+        Reset(NULL);
         return NULL;
       }
-      // Tell the stack we're done decending.
+      // Tell the stack we're done descending.
       AdjustMaximumDepth();
       // Pop stack so next iteration is in correct place.
       Pop();
@@ -8897,8 +8909,6 @@ String* ConsStringIteratorOp::Search(unsigned* offset_out,
     // Adjust return values and exit.
     consumed_ = offset + length;
     *offset_out = consumed - offset;
-    *type_out = type;
-    *length_out = length;
     return string;
   }
   UNREACHABLE();
@@ -8906,9 +8916,7 @@ String* ConsStringIteratorOp::Search(unsigned* offset_out,
 }
 
 
-String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
-                                       int32_t* type_out,
-                                       unsigned* length_out) {
+String* ConsStringIteratorOp::NextLeaf(bool* blew_stack) {
   while (true) {
     // Tree traversal complete.
     if (depth_ == 0) {
@@ -8916,7 +8924,7 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
       return NULL;
     }
     // We've lost track of higher nodes.
-    if (maximum_depth_ - depth_ == kStackSize) {
+    if (StackBlown()) {
       *blew_stack = true;
       return NULL;
     }
@@ -8927,16 +8935,13 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
     if ((type & kStringRepresentationMask) != kConsStringTag) {
       // Pop stack so next iteration is in correct place.
       Pop();
-      unsigned length = static_cast<unsigned>(string->length());
+      int length = string->length();
       // Could be a flattened ConsString.
       if (length == 0) continue;
-      *length_out = length;
-      *type_out = type;
       consumed_ += length;
       return string;
     }
     cons_string = ConsString::cast(string);
-    // TODO(dcarney) Add back root optimization.
     PushRight(cons_string);
     // Need to traverse all the way left.
     while (true) {
@@ -8945,10 +8950,8 @@ String* ConsStringIteratorOp::NextLeaf(bool* blew_stack,
       type = string->map()->instance_type();
       if ((type & kStringRepresentationMask) != kConsStringTag) {
         AdjustMaximumDepth();
-        unsigned length = static_cast<unsigned>(string->length());
+        int length = string->length();
         ASSERT(length != 0);
-        *length_out = length;
-        *type_out = type;
         consumed_ += length;
         return string;
       }
@@ -9223,25 +9226,29 @@ class StringComparator {
     explicit inline State(ConsStringIteratorOp* op)
       : op_(op), is_one_byte_(true), length_(0), buffer8_(NULL) {}
 
-    inline void Init(String* string, unsigned len) {
-      op_->Reset();
-      int32_t type = string->map()->instance_type();
-      String::Visit(string, 0, *this, *op_, type, len);
+    inline void Init(String* string) {
+      ConsString* cons_string = String::VisitFlat(this, string);
+      op_->Reset(cons_string);
+      if (cons_string != NULL) {
+        int offset;
+        string = op_->Next(&offset);
+        String::VisitFlat(this, string, offset);
+      }
     }
 
-    inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
+    inline void VisitOneByteString(const uint8_t* chars, int length) {
       is_one_byte_ = true;
       buffer8_ = chars;
       length_ = length;
     }
 
-    inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
+    inline void VisitTwoByteString(const uint16_t* chars, int length) {
       is_one_byte_ = false;
       buffer16_ = chars;
       length_ = length;
     }
 
-    void Advance(unsigned consumed) {
+    void Advance(int consumed) {
       ASSERT(consumed <= length_);
       // Still in buffer.
       if (length_ != consumed) {
@@ -9254,18 +9261,16 @@ class StringComparator {
         return;
       }
       // Advance state.
-      ASSERT(op_->HasMore());
-      int32_t type = 0;
-      unsigned length = 0;
-      String* next = op_->ContinueOperation(&type, &length);
+      int offset;
+      String* next = op_->Next(&offset);
+      ASSERT_EQ(0, offset);
       ASSERT(next != NULL);
-      ConsStringNullOp null_op;
-      String::Visit(next, 0, *this, null_op, type, length);
+      String::VisitFlat(this, next);
     }
 
     ConsStringIteratorOp* const op_;
     bool is_one_byte_;
-    unsigned length_;
+    int length_;
     union {
       const uint8_t* buffer8_;
       const uint16_t* buffer16_;
@@ -9283,18 +9288,18 @@ class StringComparator {
   }
 
   template<typename Chars1, typename Chars2>
-  static inline bool Equals(State* state_1, State* state_2, unsigned to_check) {
+  static inline bool Equals(State* state_1, State* state_2, int to_check) {
     const Chars1* a = reinterpret_cast<const Chars1*>(state_1->buffer8_);
     const Chars2* b = reinterpret_cast<const Chars2*>(state_2->buffer8_);
     return RawStringComparator<Chars1, Chars2>::compare(a, b, to_check);
   }
 
-  bool Equals(unsigned length, String* string_1, String* string_2) {
-    ASSERT(length != 0);
-    state_1_.Init(string_1, length);
-    state_2_.Init(string_2, length);
+  bool Equals(String* string_1, String* string_2) {
+    int length = string_1->length();
+    state_1_.Init(string_1);
+    state_2_.Init(string_2);
     while (true) {
-      unsigned to_check = Min(state_1_.length_, state_2_.length_);
+      int to_check = Min(state_1_.length_, state_2_.length_);
       ASSERT(to_check > 0 && to_check <= length);
       bool is_equal;
       if (state_1_.is_one_byte_) {
@@ -9358,7 +9363,6 @@ bool String::SlowEquals(String* other) {
   // before we try to flatten the strings.
   if (this->Get(0) != other->Get(0)) return false;
 
-  // TODO(dcarney): Compare all types of flat strings with a Visitor.
   if (IsSeqOneByteString() && other->IsSeqOneByteString()) {
     const uint8_t* str1 = SeqOneByteString::cast(this)->GetChars();
     const uint8_t* str2 = SeqOneByteString::cast(other)->GetChars();
@@ -9369,7 +9373,7 @@ bool String::SlowEquals(String* other) {
   StringComparator comparator(isolate->objects_string_compare_iterator_a(),
                               isolate->objects_string_compare_iterator_b());
 
-  return comparator.Equals(static_cast<unsigned>(len), this, other);
+  return comparator.Equals(this, other);
 }
 
 
@@ -9504,49 +9508,31 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 class IteratingStringHasher: public StringHasher {
  public:
   static inline uint32_t Hash(String* string, uint32_t seed) {
-    const unsigned len = static_cast<unsigned>(string->length());
-    IteratingStringHasher hasher(len, seed);
-    if (hasher.has_trivial_hash()) {
-      return hasher.GetHashField();
-    }
-    int32_t type = string->map()->instance_type();
-    ConsStringNullOp null_op;
-    String::Visit(string, 0, hasher, null_op, type, len);
-    // Flat strings terminate immediately.
-    if (hasher.consumed_ == len) {
-      ASSERT(!string->IsConsString());
-      return hasher.GetHashField();
-    }
-    ASSERT(string->IsConsString());
+    IteratingStringHasher hasher(string->length(), seed);
+    // Nothing to do.
+    if (hasher.has_trivial_hash()) return hasher.GetHashField();
+    ConsString* cons_string = String::VisitFlat(&hasher, string);
+    // The string was flat.
+    if (cons_string == NULL) return hasher.GetHashField();
     // This is a ConsString, iterate across it.
-    ConsStringIteratorOp op;
-    unsigned offset = 0;
-    unsigned leaf_length = len;
-    string = op.Operate(string, &offset, &type, &leaf_length);
-    while (true) {
-      ASSERT(hasher.consumed_ < len);
-      String::Visit(string, 0, hasher, null_op, type, leaf_length);
-      if (hasher.consumed_ == len) break;
-      string = op.ContinueOperation(&type, &leaf_length);
-      // This should be taken care of by the length check.
-      ASSERT(string != NULL);
+    ConsStringIteratorOp op(cons_string);
+    int offset;
+    while (NULL != (string = op.Next(&offset))) {
+      String::VisitFlat(&hasher, string, offset);
     }
     return hasher.GetHashField();
   }
-  inline void VisitOneByteString(const uint8_t* chars, unsigned length) {
-    AddCharacters(chars, static_cast<int>(length));
-    consumed_ += length;
+  inline void VisitOneByteString(const uint8_t* chars, int length) {
+    AddCharacters(chars, length);
   }
-  inline void VisitTwoByteString(const uint16_t* chars, unsigned length) {
-    AddCharacters(chars, static_cast<int>(length));
-    consumed_ += length;
+  inline void VisitTwoByteString(const uint16_t* chars, int length) {
+    AddCharacters(chars, length);
   }
 
  private:
   inline IteratingStringHasher(int len, uint32_t seed)
-    : StringHasher(len, seed),
-      consumed_(0) {}
-  unsigned consumed_;
+      : StringHasher(len, seed) {
+  }
   DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 

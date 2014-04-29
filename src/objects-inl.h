@@ -3130,93 +3130,57 @@ String* String::GetUnderlying() {
 }
 
 
-template<class Visitor, class ConsOp>
-void String::Visit(
-    String* string,
-    unsigned offset,
-    Visitor& visitor,
-    ConsOp& cons_op,
-    int32_t type,
-    unsigned length) {
-  ASSERT(length == static_cast<unsigned>(string->length()));
+template<class Visitor>
+ConsString* String::VisitFlat(Visitor* visitor,
+                              String* string,
+                              const int offset) {
+  int slice_offset = offset;
+  const int length = string->length();
   ASSERT(offset <= length);
-  unsigned slice_offset = offset;
   while (true) {
-    ASSERT(type == string->map()->instance_type());
-
+    int32_t type = string->map()->instance_type();
     switch (type & (kStringRepresentationMask | kStringEncodingMask)) {
       case kSeqStringTag | kOneByteStringTag:
-        visitor.VisitOneByteString(
+        visitor->VisitOneByteString(
             SeqOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return;
+        return NULL;
 
       case kSeqStringTag | kTwoByteStringTag:
-        visitor.VisitTwoByteString(
+        visitor->VisitTwoByteString(
             SeqTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return;
+        return NULL;
 
       case kExternalStringTag | kOneByteStringTag:
-        visitor.VisitOneByteString(
+        visitor->VisitOneByteString(
             ExternalAsciiString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return;
+        return NULL;
 
       case kExternalStringTag | kTwoByteStringTag:
-        visitor.VisitTwoByteString(
+        visitor->VisitTwoByteString(
             ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return;
+        return NULL;
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
         SlicedString* slicedString = SlicedString::cast(string);
         slice_offset += slicedString->offset();
         string = slicedString->parent();
-        type = string->map()->instance_type();
         continue;
       }
 
       case kConsStringTag | kOneByteStringTag:
       case kConsStringTag | kTwoByteStringTag:
-        string = cons_op.Operate(string, &offset, &type, &length);
-        if (string == NULL) return;
-        slice_offset = offset;
-        ASSERT(length == static_cast<unsigned>(string->length()));
-        continue;
+        return ConsString::cast(string);
 
       default:
         UNREACHABLE();
-        return;
+        return NULL;
     }
   }
-}
-
-
-// TODO(dcarney): Remove this class after conversion to VisitFlat.
-class ConsStringCaptureOp {
- public:
-  inline ConsStringCaptureOp() : cons_string_(NULL) {}
-  inline String* Operate(String* string, unsigned*, int32_t*, unsigned*) {
-    cons_string_ = ConsString::cast(string);
-    return NULL;
-  }
-  ConsString* cons_string_;
-};
-
-
-template<class Visitor>
-ConsString* String::VisitFlat(Visitor* visitor,
-                              String* string,
-                              int offset,
-                              int length,
-                              int32_t type) {
-  ASSERT(length >= 0 && length == string->length());
-  ASSERT(offset >= 0 && offset <= length);
-  ConsStringCaptureOp op;
-  Visit(string, offset, *visitor, op, type, static_cast<unsigned>(length));
-  return op.cons_string_;
 }
 
 
@@ -3399,12 +3363,7 @@ const uint16_t* ExternalTwoByteString::ExternalTwoByteStringGetData(
 }
 
 
-String* ConsStringNullOp::Operate(String*, unsigned*, int32_t*, unsigned*) {
-  return NULL;
-}
-
-
-unsigned ConsStringIteratorOp::OffsetForDepth(unsigned depth) {
+int ConsStringIteratorOp::OffsetForDepth(int depth) {
   return depth & kDepthMask;
 }
 
@@ -3432,45 +3391,9 @@ void ConsStringIteratorOp::Pop() {
 }
 
 
-bool ConsStringIteratorOp::HasMore() {
-  return depth_ != 0;
-}
-
-
-void ConsStringIteratorOp::Reset() {
-  depth_ = 0;
-}
-
-
-String* ConsStringIteratorOp::ContinueOperation(int32_t* type_out,
-                                                unsigned* length_out) {
-  bool blew_stack = false;
-  String* string = NextLeaf(&blew_stack, type_out, length_out);
-  // String found.
-  if (string != NULL) {
-    // Verify output.
-    ASSERT(*length_out == static_cast<unsigned>(string->length()));
-    ASSERT(*type_out == string->map()->instance_type());
-    return string;
-  }
-  // Traversal complete.
-  if (!blew_stack) return NULL;
-  // Restart search from root.
-  unsigned offset_out;
-  string = Search(&offset_out, type_out, length_out);
-  // Verify output.
-  ASSERT(string == NULL || offset_out == 0);
-  ASSERT(string == NULL ||
-         *length_out == static_cast<unsigned>(string->length()));
-  ASSERT(string == NULL || *type_out == string->map()->instance_type());
-  return string;
-}
-
-
 uint16_t StringCharacterStream::GetNext() {
   ASSERT(buffer8_ != NULL && end_ != NULL);
   // Advance cursor if needed.
-  // TODO(dcarney): Ensure uses of the api call HasMore first and avoid this.
   if (buffer8_ == end_) HasMore();
   ASSERT(buffer8_ < end_);
   return is_one_byte_ ? *buffer8_++ : *buffer16_++;
@@ -3479,41 +3402,39 @@ uint16_t StringCharacterStream::GetNext() {
 
 StringCharacterStream::StringCharacterStream(String* string,
                                              ConsStringIteratorOp* op,
-                                             unsigned offset)
+                                             int offset)
   : is_one_byte_(false),
     op_(op) {
   Reset(string, offset);
 }
 
 
-void StringCharacterStream::Reset(String* string, unsigned offset) {
-  op_->Reset();
+void StringCharacterStream::Reset(String* string, int offset) {
   buffer8_ = NULL;
   end_ = NULL;
-  int32_t type = string->map()->instance_type();
-  unsigned length = string->length();
-  String::Visit(string, offset, *this, *op_, type, length);
+  ConsString* cons_string = String::VisitFlat(this, string, offset);
+  op_->Reset(cons_string, offset);
+  if (cons_string != NULL) {
+    string = op_->Next(&offset);
+    if (string != NULL) String::VisitFlat(this, string, offset);
+  }
 }
 
 
 bool StringCharacterStream::HasMore() {
   if (buffer8_ != end_) return true;
-  if (!op_->HasMore()) return false;
-  unsigned length;
-  int32_t type;
-  String* string = op_->ContinueOperation(&type, &length);
+  int offset;
+  String* string = op_->Next(&offset);
+  ASSERT_EQ(offset, 0);
   if (string == NULL) return false;
-  ASSERT(!string->IsConsString());
-  ASSERT(string->length() != 0);
-  ConsStringNullOp null_op;
-  String::Visit(string, 0, *this, null_op, type, length);
+  String::VisitFlat(this, string);
   ASSERT(buffer8_ != end_);
   return true;
 }
 
 
 void StringCharacterStream::VisitOneByteString(
-    const uint8_t* chars, unsigned length) {
+    const uint8_t* chars, int length) {
   is_one_byte_ = true;
   buffer8_ = chars;
   end_ = chars + length;
@@ -3521,7 +3442,7 @@ void StringCharacterStream::VisitOneByteString(
 
 
 void StringCharacterStream::VisitTwoByteString(
-    const uint16_t* chars, unsigned length) {
+    const uint16_t* chars, int length) {
   is_one_byte_ = false;
   buffer16_ = chars;
   end_ = reinterpret_cast<const uint8_t*>(chars + length);
