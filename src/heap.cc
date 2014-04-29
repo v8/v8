@@ -4475,6 +4475,12 @@ bool Heap::IdleNotification(int hint) {
     return true;
   }
 
+  // If the IdleNotifcation is called with a large hint we will wait for
+  // the sweepter threads here.
+  if (hint >= kMinHintForFullGC && IsConcurrentSweepingInProgress()) {
+    WaitUntilSweepingCompleted();
+  }
+
   return false;
 }
 
