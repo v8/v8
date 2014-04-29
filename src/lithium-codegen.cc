@@ -155,7 +155,7 @@ static void AddWeakObjectToCodeDependency(Isolate* isolate,
                                           Handle<Code> code) {
   Heap* heap = isolate->heap();
   heap->EnsureWeakObjectToCodeTable();
-  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(*object));
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
   dep = DependentCode::Insert(dep, DependentCode::kWeakCodeGroup, code);
   heap->AddWeakObjectToCodeDependency(object, dep);
 }

@@ -1485,7 +1485,7 @@ class Heap {
   void AddWeakObjectToCodeDependency(Handle<Object> obj,
                                      Handle<DependentCode> dep);
 
-  DependentCode* LookupWeakObjectToCodeDependency(Object* obj);
+  DependentCode* LookupWeakObjectToCodeDependency(Handle<Object> obj);
 
   void InitializeWeakObjectToCodeTable() {
     set_weak_object_to_code_table(undefined_value());

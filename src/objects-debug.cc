@@ -655,6 +655,9 @@ void Code::CodeVerify() {
 
 void Code::VerifyEmbeddedObjectsDependency() {
   if (!CanContainWeakObjects()) return;
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+  HandleScope scope(isolate);
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     Object* obj = it.rinfo()->target_object();
@@ -667,7 +670,8 @@ void Code::VerifyEmbeddedObjectsDependency() {
       } else if (obj->IsJSObject()) {
         Object* raw_table = GetIsolate()->heap()->weak_object_to_code_table();
         WeakHashTable* table = WeakHashTable::cast(raw_table);
-        CHECK(DependentCode::cast(table->Lookup(obj))->Contains(
+        Handle<Object> key_obj(obj, isolate);
+        CHECK(DependentCode::cast(table->Lookup(key_obj))->Contains(
             DependentCode::kWeakCodeGroup, this));
       }
     }

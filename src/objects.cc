@@ -16051,21 +16051,6 @@ Object* ObjectHashTable::Lookup(Handle<Object> key) {
 }
 
 
-// TODO(ishell): Try to remove this when FindEntry(Object* key) is removed
-int ObjectHashTable::FindEntry(Handle<Object> key) {
-  return DerivedHashTable::FindEntry(key);
-}
-
-
-// TODO(ishell): Remove this when all the callers are handlified.
-int ObjectHashTable::FindEntry(Object* key) {
-  DisallowHeapAllocation no_allocation;
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  return FindEntry(handle(key, isolate));
-}
-
-
 Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> key,
                                              Handle<Object> value) {
@@ -16114,26 +16099,12 @@ void ObjectHashTable::RemoveEntry(int entry) {
 }
 
 
-Object* WeakHashTable::Lookup(Object* key) {
-  ASSERT(IsKey(key));
+Object* WeakHashTable::Lookup(Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(IsKey(*key));
   int entry = FindEntry(key);
   if (entry == kNotFound) return GetHeap()->the_hole_value();
   return get(EntryToValueIndex(entry));
-}
-
-
-// TODO(ishell): Try to remove this when FindEntry(Object* key) is removed
-int WeakHashTable::FindEntry(Handle<Object> key) {
-  return DerivedHashTable::FindEntry(key);
-}
-
-
-// TODO(ishell): Remove this when all the callers are handlified.
-int WeakHashTable::FindEntry(Object* key) {
-  DisallowHeapAllocation no_allocation;
-  Isolate* isolate = GetIsolate();
-  HandleScope scope(isolate);
-  return FindEntry(handle(key, isolate));
 }
 
 

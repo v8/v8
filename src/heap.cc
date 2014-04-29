@@ -5505,11 +5505,11 @@ void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
     WeakHashTable::cast(weak_object_to_code_table_)->Zap(the_hole_value());
   }
   set_weak_object_to_code_table(*table);
-  ASSERT_EQ(*dep, table->Lookup(*obj));
+  ASSERT_EQ(*dep, table->Lookup(obj));
 }
 
 
-DependentCode* Heap::LookupWeakObjectToCodeDependency(Object* obj) {
+DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<Object> obj) {
   Object* dep = WeakHashTable::cast(weak_object_to_code_table_)->Lookup(obj);
   if (dep->IsDependentCode()) return DependentCode::cast(dep);
   return DependentCode::cast(empty_fixed_array());

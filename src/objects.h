@@ -4202,10 +4202,6 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   // returned in case the key is not present.
   Object* Lookup(Handle<Object> key);
 
-  int FindEntry(Handle<Object> key);
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Object* key);
-
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
   static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
@@ -4431,11 +4427,7 @@ class WeakHashTable: public HashTable<WeakHashTable,
 
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Object* key);
-
-  int FindEntry(Handle<Object> key);
-  // TODO(ishell): Remove this when all the callers are handlified.
-  int FindEntry(Object* key);
+  Object* Lookup(Handle<Object> key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the hole value causes removal of the whole entry.
