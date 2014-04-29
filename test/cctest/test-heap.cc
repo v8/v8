@@ -4209,6 +4209,7 @@ TEST(ArrayShiftSweeping) {
   v8::Local<v8::Value> result = CompileRun(
       "var array = new Array(40000);"
       "var tmp = new Array(100000);"
+      "array[0] = 10;"
       "gc();"
       "array.shift();"
       "array;");

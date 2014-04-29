@@ -279,8 +279,8 @@ static inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   // If there may be elements accessors in the prototype chain, the fast path
-  // cannot be used.
-  if (array->map()->DictionaryElementsInPrototypeChainOnly()) {
+  // cannot be used if there arguments to add to the array.
+  if (args != NULL && array->map()->DictionaryElementsInPrototypeChainOnly()) {
     return MaybeHandle<FixedArrayBase>();
   }
   if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
@@ -500,15 +500,11 @@ BUILTIN(ArrayPop) {
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = len - 1;
-  MaybeHandle<Object> maybe_element;
-  if (accessor->HasElement(array, array, new_length, elms_obj)) {
-    maybe_element = accessor->Get(array, array, new_length, elms_obj);
-  } else {
-    Handle<Object> proto(array->GetPrototype(), isolate);
-    maybe_element = Object::GetElement(isolate, proto, len - 1);
+  Handle<Object> element =
+      accessor->Get(array, array, new_length, elms_obj).ToHandleChecked();
+  if (element->IsTheHole()) {
+    return CallJsBuiltin(isolate, "ArrayPop", args);
   }
-  Handle<Object> element;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element, maybe_element);
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
       accessor->SetLength(array, handle(Smi::FromInt(new_length), isolate)));
@@ -536,11 +532,10 @@ BUILTIN(ArrayShift) {
 
   // Get first element
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<Object> first;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, first, accessor->Get(receiver, array, 0, elms_obj));
+  Handle<Object> first =
+    accessor->Get(array, array, 0, elms_obj).ToHandleChecked();
   if (first->IsTheHole()) {
-    first = isolate->factory()->undefined_value();
+    return CallJsBuiltin(isolate, "ArrayShift", args);
   }
 
   if (heap->CanMoveObjectStart(*elms_obj)) {
