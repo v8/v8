@@ -13,9 +13,6 @@ namespace internal {
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
-#define ACCESSOR_DESCRIPTOR_LIST(V) \
-
-
 #define ACCESSOR_INFO_LIST(V)       \
   V(ArrayLength)                    \
   V(FunctionArguments)              \
@@ -42,11 +39,6 @@ namespace internal {
 class Accessors : public AllStatic {
  public:
   // Accessor descriptors.
-#define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
-  static const AccessorDescriptor name;
-  ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
-#undef ACCESSOR_DESCRIPTOR_DECLARATION
-
 #define ACCESSOR_INFO_DECLARATION(name)                   \
   static void name##Getter(                               \
       v8::Local<v8::String> name,                         \
@@ -62,10 +54,6 @@ class Accessors : public AllStatic {
 #undef ACCESSOR_INFO_DECLARATION
 
   enum DescriptorId {
-#define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
-    k##name,
-  ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
-#undef ACCESSOR_DESCRIPTOR_DECLARATION
 #define ACCESSOR_INFO_DECLARATION(name) \
     k##name##Getter, \
     k##name##Setter,
@@ -91,27 +79,16 @@ class Accessors : public AllStatic {
                                       Handle<String> name,
                                       int* object_offset);
 
- private:
-  static Object* FunctionGetCaller(Isolate* isolate,
-                                   Object* object,
-                                   void*);
-  static Object* ArraySetLength(Isolate* isolate,
-                                JSObject* object,
-                                Object*,
-                                void*);
-  static Object* ArrayGetLength(Isolate* isolate, Object* object, void*);
+  static Handle<AccessorInfo> MakeAccessor(
+      Isolate* isolate,
+      Handle<String> name,
+      AccessorGetterCallback getter,
+      AccessorSetterCallback setter,
+      PropertyAttributes attributes);
 
+ private:
   // Helper functions.
   static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);
-  static Object* IllegalSetter(Isolate* isolate,
-                               JSObject*,
-                               Object*,
-                               void*);
-  static Object* IllegalGetAccessor(Isolate* isolate, Object* object, void*);
-  static Object* ReadOnlySetAccessor(Isolate* isolate,
-                                     JSObject*,
-                                     Object* value,
-                                     void*);
 };
 
 } }  // namespace v8::internal

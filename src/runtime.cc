@@ -1873,6 +1873,7 @@ RUNTIME_FUNCTION(Runtime_IsInPrototypeChain) {
 static bool CheckAccessException(Object* callback,
                                  v8::AccessType access_type) {
   DisallowHeapAllocation no_gc;
+  ASSERT(!callback->IsForeign());
   if (callback->IsAccessorInfo()) {
     AccessorInfo* info = AccessorInfo::cast(callback);
     return
@@ -5227,7 +5228,8 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
     // setter to update the value instead.
     // TODO(mstarzinger): So far this only works if property attributes don't
     // change, this should be fixed once we cleanup the underlying code.
-    if ((callback->IsForeign() || callback->IsAccessorInfo()) &&
+    ASSERT(!callback->IsForeign());
+    if (callback->IsAccessorInfo() &&
         lookup.GetAttributes() == attr) {
       Handle<Object> result_object;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -10799,7 +10801,8 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       return handle(result->GetConstant(), isolate);
     case CALLBACKS: {
       Handle<Object> structure(result->GetCallbackObject(), isolate);
-      if (structure->IsForeign() || structure->IsAccessorInfo()) {
+      ASSERT(!structure->IsForeign());
+      if (structure->IsAccessorInfo()) {
         MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
             handle(result->holder(), isolate), receiver, structure, name);
         if (!obj.ToHandle(&value)) {

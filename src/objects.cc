@@ -365,18 +365,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
                                                       Handle<Object> structure,
                                                       Handle<Name> name) {
   Isolate* isolate = name->GetIsolate();
-  // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually foreign
-  // callbacks should be phased out.
-  if (structure->IsForeign()) {
-    AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(
-            Handle<Foreign>::cast(structure)->foreign_address());
-    CALL_HEAP_FUNCTION(isolate,
-                       (callback->getter)(isolate, *receiver, callback->data),
-                       Object);
-  }
-
+  ASSERT(!structure->IsForeign());
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
     Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
@@ -3007,23 +2996,7 @@ MaybeHandle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
   // We should never get here to initialize a const with the hole
   // value since a const declaration would conflict with the setter.
   ASSERT(!value->IsTheHole());
-
-  // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually foreign
-  // callbacks should be phased out.
-  if (structure->IsForeign()) {
-    AccessorDescriptor* callback =
-        reinterpret_cast<AccessorDescriptor*>(
-            Handle<Foreign>::cast(structure)->foreign_address());
-    CALL_AND_RETRY_OR_DIE(isolate,
-                          (callback->setter)(
-                              isolate, *object, *value, callback->data),
-                          break,
-                          return Handle<Object>());
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return value;
-  }
-
+  ASSERT(!structure->IsForeign());
   if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
     ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(*structure);
@@ -12546,7 +12519,6 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
     Handle<Object> holder) {
   Isolate* isolate = object->GetIsolate();
   ASSERT(!structure->IsForeign());
-
   // api style callbacks.
   if (structure->IsExecutableAccessorInfo()) {
     Handle<ExecutableAccessorInfo> data =
@@ -12604,12 +12576,7 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
   // We should never get here to initialize a const with the hole
   // value since a const declaration would conflict with the setter.
   ASSERT(!value->IsTheHole());
-
-  // To accommodate both the old and the new api we switch on the
-  // data structure used to store the callbacks.  Eventually foreign
-  // callbacks should be phased out.
   ASSERT(!structure->IsForeign());
-
   if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
     Handle<ExecutableAccessorInfo> data =

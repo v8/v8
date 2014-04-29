@@ -1008,9 +1008,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         return compiler.CompileLoadViaGetter(type, holder, name, function);
       }
       // TODO(dcarney): Handle correctly.
-      if (callback->IsDeclaredAccessorInfo()) break;
-      ASSERT(callback->IsForeign());
-      // No IC support for old-style native accessors.
+      ASSERT(callback->IsDeclaredAccessorInfo());
       break;
     }
     case INTERCEPTOR:
@@ -1433,20 +1431,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
               receiver, holder, name, Handle<JSFunction>::cast(setter));
         }
         // TODO(dcarney): Handle correctly.
-        if (callback->IsDeclaredAccessorInfo()) break;
-        ASSERT(callback->IsForeign());
-
-        // Use specialized code for setting the length of arrays with fast
-        // properties. Slow properties might indicate redefinition of the length
-        // property.
-        if (receiver->IsJSArray() &&
-            String::Equals(isolate()->factory()->length_string(), name) &&
-            Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
-            receiver->HasFastProperties()) {
-          return compiler.CompileStoreArrayLength(receiver, lookup, name);
-        }
-
-        // No IC support for old-style native accessors.
+        ASSERT(callback->IsDeclaredAccessorInfo());
         break;
       }
       case INTERCEPTOR:

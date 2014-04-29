@@ -20,11 +20,12 @@ namespace v8 {
 namespace internal {
 
 
-static Handle<AccessorInfo> MakeAccessor(Isolate* isolate,
-                                         Handle<String> name,
-                                         AccessorGetterCallback getter,
-                                         AccessorSetterCallback setter,
-                                         PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::MakeAccessor(
+    Isolate* isolate,
+    Handle<String> name,
+    AccessorGetterCallback getter,
+    AccessorSetterCallback setter,
+    PropertyAttributes attributes) {
   Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
   info->set_property_attributes(attributes);
@@ -46,34 +47,6 @@ static C* FindInstanceOf(Isolate* isolate, Object* obj) {
     if (Is<C>(cur)) return C::cast(cur);
   }
   return NULL;
-}
-
-
-// Entry point that never should be called.
-Object* Accessors::IllegalSetter(Isolate* isolate,
-                                 JSObject*,
-                                 Object*,
-                                 void*) {
-  UNREACHABLE();
-  return NULL;
-}
-
-
-Object* Accessors::IllegalGetAccessor(Isolate* isolate,
-                                      Object* object,
-                                      void*) {
-  UNREACHABLE();
-  return object;
-}
-
-
-Object* Accessors::ReadOnlySetAccessor(Isolate* isolate,
-                                       JSObject*,
-                                       Object* value,
-                                       void*) {
-  // According to ECMA-262, section 8.6.2.2, page 28, setting
-  // read-only properties must be silently ignored.
-  return value;
 }
 
 

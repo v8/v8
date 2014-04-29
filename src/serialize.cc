@@ -246,14 +246,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   }
 
   // Accessors
-#define ACCESSOR_DESCRIPTOR_DECLARATION(name) \
-  Add((Address)&Accessors::name, \
-      ACCESSOR, \
-      Accessors::k##name, \
-      "Accessors::" #name);
-  ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
-#undef ACCESSOR_DESCRIPTOR_DECLARATION
-
 #define ACCESSOR_INFO_DECLARATION(name) \
   Add(FUNCTION_ADDR(&Accessors::name##Getter), \
       ACCESSOR, \
