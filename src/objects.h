@@ -2630,8 +2630,6 @@ class JSObject: public JSReceiver {
     kObjectIsShallowArray = 1
   };
 
-  static Handle<JSObject> Copy(Handle<JSObject> object,
-                               Handle<AllocationSite> site);
   static Handle<JSObject> Copy(Handle<JSObject> object);
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
       Handle<JSObject> object,

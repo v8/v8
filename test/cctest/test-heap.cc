@@ -818,7 +818,7 @@ TEST(JSObjectCopy) {
 
   // Make the clone.
   Handle<Object> value1, value2;
-  Handle<JSObject> clone = JSObject::Copy(obj);
+  Handle<JSObject> clone = factory->CopyJSObject(obj);
   CHECK(!clone.is_identical_to(obj));
 
   value1 = Object::GetElement(isolate, obj, 0).ToHandleChecked();

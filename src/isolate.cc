@@ -792,7 +792,7 @@ Object* Isolate::StackOverflow() {
   Handle<String> key = factory()->stack_overflow_string();
   Handle<JSObject> boilerplate = Handle<JSObject>::cast(
       Object::GetProperty(js_builtins_object(), key).ToHandleChecked());
-  Handle<JSObject> exception = JSObject::Copy(boilerplate);
+  Handle<JSObject> exception = factory()->CopyJSObject(boilerplate);
   DoThrow(*exception, NULL);
 
   // Get stack trace limit.

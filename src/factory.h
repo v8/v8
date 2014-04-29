@@ -179,8 +179,6 @@ class Factory V8_FINAL {
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
 
-  Handle<ConsString> NewRawConsString(String::Encoding encoding);
-
   // Create a new sequential string containing the concatenation of the inputs.
   Handle<String> NewFlatConcatString(Handle<String> first,
                                      Handle<String> second);
@@ -195,8 +193,6 @@ class Factory V8_FINAL {
     if (begin == 0 && end == str->length()) return str;
     return NewProperSubString(str, begin, end);
   }
-
-  Handle<SlicedString> NewRawSlicedString(String::Encoding encoding);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: ASCII and two byte.  Unlike other String types, it does
@@ -299,6 +295,11 @@ class Factory V8_FINAL {
                                      AllocationSpace space);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
+
+  Handle<JSObject> CopyJSObject(Handle<JSObject> object);
+
+  Handle<JSObject> CopyJSObjectWithAllocationSite(Handle<JSObject> object,
+                                                  Handle<AllocationSite> site);
 
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);

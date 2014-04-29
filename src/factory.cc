@@ -418,13 +418,6 @@ Handle<String> ConcatStringContent(Handle<StringType> result,
 }
 
 
-Handle<ConsString> Factory::NewRawConsString(String::Encoding encoding) {
-  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
-      ? cons_ascii_string_map() : cons_string_map();
-  return New<ConsString>(map, NEW_SPACE);
-}
-
-
 MaybeHandle<String> Factory::NewConsString(Handle<String> left,
                                            Handle<String> right) {
   int left_length = left->length();
@@ -494,10 +487,9 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
-  Handle<ConsString> result = NewRawConsString(
-      (is_one_byte || is_one_byte_data_in_two_byte_string)
-          ? String::ONE_BYTE_ENCODING
-          : String::TWO_BYTE_ENCODING);
+  Handle<Map> map = (is_one_byte || is_one_byte_data_in_two_byte_string)
+      ? cons_ascii_string_map()  : cons_string_map();
+  Handle<ConsString> result =  New<ConsString>(map, NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -520,13 +512,6 @@ Handle<String> Factory::NewFlatConcatString(Handle<String> first,
     return ConcatStringContent<uc16>(
         NewRawTwoByteString(total_length).ToHandleChecked(), first, second);
   }
-}
-
-
-Handle<SlicedString> Factory::NewRawSlicedString(String::Encoding encoding) {
-  Handle<Map> map = (encoding == String::ONE_BYTE_ENCODING)
-      ? sliced_ascii_string_map() : sliced_string_map();
-  return New<SlicedString>(map, NEW_SPACE);
 }
 
 
@@ -581,9 +566,9 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   }
 
   ASSERT(str->IsSeqString() || str->IsExternalString());
-  Handle<SlicedString> slice = NewRawSlicedString(
-      str->IsOneByteRepresentation() ? String::ONE_BYTE_ENCODING
-                                     : String::TWO_BYTE_ENCODING);
+  Handle<Map> map = str->IsOneByteRepresentation() ? sliced_ascii_string_map()
+                                                   : sliced_string_map();
+  Handle<SlicedString> slice = New<SlicedString>(map, NEW_SPACE);
 
   slice->set_hash_field(String::kEmptyHashField);
   slice->set_length(length);
@@ -950,6 +935,24 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   }
 
   return prototype;
+}
+
+
+Handle<JSObject> Factory::CopyJSObject(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyJSObject(*object, NULL),
+                     JSObject);
+}
+
+
+Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
+    Handle<JSObject> object,
+    Handle<AllocationSite> site) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->CopyJSObject(
+                         *object,
+                         site.is_null() ? NULL : *site),
+                     JSObject);
 }
 
 

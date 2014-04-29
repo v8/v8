@@ -5970,25 +5970,6 @@ void JSObject::SetObserved(Handle<JSObject> object) {
 }
 
 
-Handle<JSObject> JSObject::Copy(Handle<JSObject> object,
-                                Handle<AllocationSite> site) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->CopyJSObject(
-                         *object,
-                         site.is_null() ? NULL : *site),
-                     JSObject);
-}
-
-
-Handle<JSObject> JSObject::Copy(Handle<JSObject> object) {
-  Isolate* isolate = object->GetIsolate();
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->CopyJSObject(*object, NULL),
-                     JSObject);
-}
-
-
 Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         Representation representation,
                                         int index) {
@@ -6057,7 +6038,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     if (site_context()->ShouldCreateMemento(object)) {
       site_to_pass = site_context()->current();
     }
-    copy = JSObject::Copy(object, site_to_pass);
+    copy = isolate->factory()->CopyJSObjectWithAllocationSite(
+        object, site_to_pass);
   } else {
     copy = object;
   }
