@@ -339,7 +339,9 @@ class Factory V8_FINAL {
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
-  Handle<JSObject> NewNeanderObject();
+  inline Handle<JSObject> NewNeanderObject() {
+    return NewJSObjectFromMap(neander_map());
+  }
 
   Handle<JSObject> NewArgumentsObject(Handle<Object> callee, int length);
 

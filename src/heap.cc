@@ -2397,11 +2397,6 @@ MaybeObject* Heap::AllocateFillerObject(int size,
 }
 
 
-MaybeObject* Heap::AllocatePolymorphicCodeCache() {
-  return AllocateStruct(POLYMORPHIC_CODE_CACHE_TYPE);
-}
-
-
 const Heap::StringTypeTable Heap::string_type_table[] = {
 #define STRING_TYPE_ELEMENT(type, size, name, camel_name)                      \
   {type, size, k##camel_name##MapRootIndex},
@@ -2721,32 +2716,24 @@ MaybeObject* Heap::AllocatePropertyCell() {
 }
 
 
-bool Heap::CreateApiObjects() {
-  Object* obj;
+void Heap::CreateApiObjects() {
+  HandleScope scope(isolate());
+  Factory* factory = isolate()->factory();
+  Handle<Map> new_neander_map =
+      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 
-  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
   // Don't use Smi-only elements optimizations for objects with the neander
   // map. There are too many cases where element values are set directly with a
   // bottleneck to trap the Smi-only -> fast elements transition, and there
   // appears to be no benefit for optimize this case.
-  Map* new_neander_map = Map::cast(obj);
   new_neander_map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
-  set_neander_map(new_neander_map);
+  set_neander_map(*new_neander_map);
 
-  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(neander_map());
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Object* elements;
-  { MaybeObject* maybe_elements = AllocateFixedArray(2);
-    if (!maybe_elements->ToObject(&elements)) return false;
-  }
-  FixedArray::cast(elements)->set(0, Smi::FromInt(0));
-  JSObject::cast(obj)->set_elements(FixedArray::cast(elements));
-  set_message_listeners(JSObject::cast(obj));
-
-  return true;
+  Handle<JSObject> listeners = factory->NewNeanderObject();
+  Handle<FixedArray> elements = factory->NewFixedArray(2);
+  elements->set(0, Smi::FromInt(0));
+  listeners->set_elements(*elements);
+  set_message_listeners(*listeners);
 }
 
 
@@ -2792,7 +2779,7 @@ void Heap::CreateFixedStubs() {
 }
 
 
-bool Heap::CreateInitialObjects() {
+void Heap::CreateInitialObjects() {
   HandleScope scope(isolate());
   Factory* factory = isolate()->factory();
 
@@ -2874,19 +2861,14 @@ bool Heap::CreateInitialObjects() {
     roots_[constant_string_table[i].index] = *str;
   }
 
-  Object* obj;
-
   // Allocate the hidden string which is used to identify the hidden properties
   // in JSObjects. The hash code has a special value so that it will not match
   // the empty string when searching for the property. It cannot be part of the
   // loop above because it needs to be allocated manually with the special
   // hash code in place. The hash code for the hidden_string is zero to ensure
   // that it will always be at the first entry in property descriptors.
-  { MaybeObject* maybe_obj = AllocateOneByteInternalizedString(
+  hidden_string_ = *factory->NewOneByteInternalizedString(
       OneByteVector("", 0), String::kEmptyStringHash);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  hidden_string_ = String::cast(obj);
 
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
@@ -2896,10 +2878,8 @@ bool Heap::CreateInitialObjects() {
   // is set to avoid expanding the dictionary during bootstrapping.
   set_non_monomorphic_cache(*UnseededNumberDictionary::New(isolate(), 64));
 
-  { MaybeObject* maybe_obj = AllocatePolymorphicCodeCache();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_polymorphic_code_cache(PolymorphicCodeCache::cast(obj));
+  set_polymorphic_code_cache(PolymorphicCodeCache::cast(
+      *factory->NewStruct(POLYMORPHIC_CODE_CACHE_TYPE)));
 
   set_instanceof_cache_function(Smi::FromInt(0));
   set_instanceof_cache_map(Smi::FromInt(0));
@@ -2908,125 +2888,60 @@ bool Heap::CreateInitialObjects() {
   CreateFixedStubs();
 
   // Allocate the dictionary of intrinsic function names.
-  {
-    Handle<NameDictionary> function_names =
-        NameDictionary::New(isolate(), Runtime::kNumFunctions);
-    Runtime::InitializeIntrinsicFunctionNames(isolate(), function_names);
-    set_intrinsic_function_names(*function_names);
-  }
+  Handle<NameDictionary> intrinsic_names =
+      NameDictionary::New(isolate(), Runtime::kNumFunctions);
+  Runtime::InitializeIntrinsicFunctionNames(isolate(), intrinsic_names);
+  set_intrinsic_function_names(*intrinsic_names);
 
-  { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_number_string_cache(FixedArray::cast(obj));
+  set_number_string_cache(*factory->NewFixedArray(
+      kInitialNumberStringCacheSize * 2, TENURED));
 
   // Allocate cache for single character one byte strings.
-  { MaybeObject* maybe_obj =
-        AllocateFixedArray(String::kMaxOneByteCharCode + 1, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_single_character_string_cache(FixedArray::cast(obj));
+  set_single_character_string_cache(*factory->NewFixedArray(
+      String::kMaxOneByteCharCode + 1, TENURED));
 
-  // Allocate cache for string split.
-  { MaybeObject* maybe_obj = AllocateFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_string_split_cache(FixedArray::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateFixedArray(
-      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_regexp_multiple_cache(FixedArray::cast(obj));
+  // Allocate cache for string split and regexp-multiple.
+  set_string_split_cache(*factory->NewFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
+  set_regexp_multiple_cache(*factory->NewFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
 
   // Allocate cache for external strings pointing to native source code.
-  { MaybeObject* maybe_obj = AllocateFixedArray(Natives::GetBuiltinsCount());
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_natives_source_cache(FixedArray::cast(obj));
+  set_natives_source_cache(*factory->NewFixedArray(
+      Natives::GetBuiltinsCount()));
 
-  { MaybeObject* maybe_obj = AllocateCell(undefined_value());
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_undefined_cell(Cell::cast(obj));
+  set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // The symbol registry is initialized lazily.
   set_symbol_registry(undefined_value());
 
   // Allocate object to hold object observation state.
-  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_observation_state(JSObject::cast(obj));
+  set_observation_state(*factory->NewJSObjectFromMap(
+      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)));
 
   // Allocate object to hold object microtask state.
-  { MaybeObject* maybe_obj = AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  { MaybeObject* maybe_obj = AllocateJSObjectFromMap(Map::cast(obj));
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_microtask_state(JSObject::cast(obj));
+  set_microtask_state(*factory->NewJSObjectFromMap(
+      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)));
 
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_frozen_symbol(Symbol::cast(obj));
+  set_frozen_symbol(*factory->NewPrivateSymbol());
+  set_nonexistent_symbol(*factory->NewPrivateSymbol());
+  set_elements_transition_symbol(*factory->NewPrivateSymbol());
+  set_uninitialized_symbol(*factory->NewPrivateSymbol());
+  set_megamorphic_symbol(*factory->NewPrivateSymbol());
+  set_observed_symbol(*factory->NewPrivateSymbol());
 
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_nonexistent_symbol(Symbol::cast(obj));
+  Handle<SeededNumberDictionary> slow_element_dictionary =
+      SeededNumberDictionary::New(isolate(), 0, TENURED);
+  slow_element_dictionary->set_requires_slow_elements();
+  set_empty_slow_element_dictionary(*slow_element_dictionary);
 
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_elements_transition_symbol(Symbol::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_uninitialized_symbol(Symbol::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_megamorphic_symbol(Symbol::cast(obj));
-
-  {
-    Handle<SeededNumberDictionary> dict =
-        SeededNumberDictionary::New(isolate(), 0, TENURED);
-    dict->set_requires_slow_elements();
-    set_empty_slow_element_dictionary(*dict);
-  }
-
-  { MaybeObject* maybe_obj = AllocateSymbol();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  Symbol::cast(obj)->set_is_private(true);
-  set_observed_symbol(Symbol::cast(obj));
-
-  { MaybeObject* maybe_obj = AllocateFixedArray(0, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_materialized_objects(FixedArray::cast(obj));
+  set_materialized_objects(*factory->NewFixedArray(0, TENURED));
 
   // Handling of script id generation is in Factory::NewScript.
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
 
-  { MaybeObject* maybe_obj = AllocateAllocationSitesScratchpad();
-    if (!maybe_obj->ToObject(&obj)) return false;
-  }
-  set_allocation_sites_scratchpad(FixedArray::cast(obj));
+  set_allocation_sites_scratchpad(*factory->NewFixedArray(
+      kAllocationSiteScratchpadSize, TENURED));
   InitializeAllocationSitesScratchpad();
 
   // Initialize keyed lookup cache.
@@ -3040,8 +2955,6 @@ bool Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
-
-  return true;
 }
 
 
@@ -3175,13 +3088,6 @@ void RegExpResultsCache::Clear(FixedArray* cache) {
 }
 
 
-MaybeObject* Heap::AllocateInitialNumberStringCache() {
-  MaybeObject* maybe_obj =
-      AllocateFixedArray(kInitialNumberStringCacheSize * 2, TENURED);
-  return maybe_obj;
-}
-
-
 int Heap::FullSizeNumberStringCacheLength() {
   // Compute the size of the number string cache based on the max newspace size.
   // The number string cache has a minimum size based on twice the initial cache
@@ -3201,13 +3107,6 @@ void Heap::FlushNumberStringCache() {
   for (int i = 0; i < len; i++) {
     number_string_cache()->set_undefined(i);
   }
-}
-
-
-MaybeObject* Heap::AllocateAllocationSitesScratchpad() {
-  MaybeObject* maybe_obj =
-      AllocateFixedArray(kAllocationSiteScratchpadSize, TENURED);
-  return maybe_obj;
 }
 
 
@@ -5419,10 +5318,10 @@ bool Heap::SetUp() {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (!CreateApiObjects()) return false;
+  CreateApiObjects();
 
   // Create initial objects
-  if (!CreateInitialObjects()) return false;
+  CreateInitialObjects();
   CHECK_EQ(0, gc_count_);
 
   native_contexts_list_ = undefined_value();

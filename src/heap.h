@@ -739,9 +739,6 @@ class Heap {
                                                     bool double_align,
                                                     AllocationSpace space);
 
-  // Allocates an empty PolymorphicCodeCache.
-  MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
-
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
 
@@ -1281,7 +1278,7 @@ class Heap {
   // Support for the API.
   //
 
-  bool CreateApiObjects();
+  void CreateApiObjects();
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
@@ -1961,7 +1958,7 @@ class Heap {
                                    AllocationSite* allocation_site);
 
   bool CreateInitialMaps();
-  bool CreateInitialObjects();
+  void CreateInitialObjects();
 
   // These five Create*EntryStub functions are here and forced to not be inlined
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
@@ -2045,15 +2042,10 @@ class Heap {
 
   GCTracer* tracer_;
 
-  // Allocates a small number to string cache.
-  MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
   // Creates and installs the full-sized number string cache.
   int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
-
-  // Allocates a fixed-size allocation sites scratchpad.
-  MUST_USE_RESULT MaybeObject* AllocateAllocationSitesScratchpad();
 
   // Sets used allocation sites entries to undefined.
   void FlushAllocationSitesScratchpad();

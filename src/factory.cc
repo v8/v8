@@ -1086,15 +1086,6 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
-Handle<JSObject> Factory::NewNeanderObject() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateJSObjectFromMap(
-          isolate()->heap()->neander_map()),
-      JSObject);
-}
-
-
 Handle<Object> Factory::NewTypeError(const char* message,
                                      Vector< Handle<Object> > args) {
   return NewError("MakeTypeError", message, args);
