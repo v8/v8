@@ -608,6 +608,22 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
 }
 
 
+bool MarkCompactCollector::IsSweepingCompleted() {
+  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
+    if (!isolate()->sweeper_threads()[i]->SweepingCompleted()) {
+      return false;
+    }
+  }
+  if (FLAG_job_based_sweeping) {
+    if (!pending_sweeper_jobs_semaphore_.WaitFor(TimeDelta::FromSeconds(0))) {
+      return false;
+    }
+    pending_sweeper_jobs_semaphore_.Signal();
+  }
+  return true;
+}
+
+
 void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
   FreeList* free_list;
 

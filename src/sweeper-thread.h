@@ -26,6 +26,7 @@ class SweeperThread : public Thread {
   void Stop();
   void StartSweeping();
   void WaitForSweeperThread();
+  bool SweepingCompleted();
 
   static int NumberOfThreads(int max_available);
 

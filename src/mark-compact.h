@@ -671,6 +671,8 @@ class MarkCompactCollector {
 
   void WaitUntilSweepingCompleted();
 
+  bool IsSweepingCompleted();
+
   void RefillFreeList(PagedSpace* space);
 
   bool AreSweeperThreadsActivated();

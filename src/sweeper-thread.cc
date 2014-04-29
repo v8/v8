@@ -66,6 +66,15 @@ void SweeperThread::WaitForSweeperThread() {
 }
 
 
+bool SweeperThread::SweepingCompleted() {
+  bool value = end_sweeping_semaphore_.WaitFor(TimeDelta::FromSeconds(0));
+  if (value) {
+    end_sweeping_semaphore_.Signal();
+  }
+  return value;
+}
+
+
 int SweeperThread::NumberOfThreads(int max_available) {
   if (!FLAG_concurrent_sweeping && !FLAG_parallel_sweeping) return 0;
   if (FLAG_sweeper_threads > 0) return FLAG_sweeper_threads;
