@@ -2669,7 +2669,7 @@ void Debugger::OnException(Handle<Object> exception,
 
   // Determine event;
   DebugEvent event = promise->IsUndefined()
-      ? v8::Exception : v8::UncaughtExceptionInPromise;
+      ? v8::Exception : v8::PendingExceptionInPromise;
 
   // Create the event data object.
   Handle<Object> event_data;
