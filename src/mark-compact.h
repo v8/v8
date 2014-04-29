@@ -694,7 +694,7 @@ class MarkCompactCollector {
 
   void WaitUntilSweepingCompleted();
 
-  intptr_t RefillFreeLists(PagedSpace* space);
+  void RefillFreeList(PagedSpace* space);
 
   bool AreSweeperThreadsActivated();
 
@@ -713,7 +713,7 @@ class MarkCompactCollector {
   void MarkWeakObjectToCodeTable();
 
   // Special case for processing weak references in a full collection. We need
-  // to artifically keep AllocationSites alive for a time.
+  // to artificially keep AllocationSites alive for a time.
   void MarkAllocationSite(AllocationSite* site);
 
  private:

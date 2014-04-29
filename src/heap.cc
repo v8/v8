@@ -1517,9 +1517,6 @@ void Heap::Scavenge() {
 
   incremental_marking()->PrepareForScavenge();
 
-  paged_space(OLD_DATA_SPACE)->EnsureSweeperProgress(new_space_.Size());
-  paged_space(OLD_POINTER_SPACE)->EnsureSweeperProgress(new_space_.Size());
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_.Flip();

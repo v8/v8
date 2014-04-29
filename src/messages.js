@@ -1157,19 +1157,6 @@ function captureStackTrace(obj, cons_opt) {
                                  stackTraceLimit);
 
   var error_string = FormatErrorString(obj);
-  // The holder of this getter ('obj') may not be the receiver ('this').
-  // When this getter is called the first time, we use the context values to
-  // format a stack trace string and turn this accessor pair into a data
-  // property (on the holder).
-  var getter = function() {
-    // Stack is still a raw array awaiting to be formatted.
-    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
-    // Turn this accessor into a data property.
-    %DefineOrRedefineDataProperty(obj, 'stack', result, NONE);
-    // Release context values.
-    stack = error_string = UNDEFINED;
-    return result;
-  };
 
   // Set the 'stack' property on the receiver.  If the receiver is the same as
   // holder of this setter, the accessor pair is turned into a data property.
@@ -1180,6 +1167,21 @@ function captureStackTrace(obj, cons_opt) {
       // Release context values if holder is the same as the receiver.
       stack = error_string = UNDEFINED;
     }
+  };
+
+  // The holder of this getter ('obj') may not be the receiver ('this').
+  // When this getter is called the first time, we use the context values to
+  // format a stack trace string and turn this accessor pair into a data
+  // property (on the holder).
+  var getter = function() {
+    // Stack is still a raw array awaiting to be formatted.
+    var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
+    // Replace this accessor to return result directly.
+    %DefineOrRedefineAccessorProperty(
+        obj, 'stack', function() { return result }, setter, DONT_ENUM);
+    // Release context values.
+    stack = error_string = UNDEFINED;
+    return result;
   };
 
   %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
@@ -1320,6 +1322,15 @@ function SetUpStackOverflowBoilerplate() {
 
   var error_string = boilerplate.name + ": " + boilerplate.message;
 
+  // Set the 'stack' property on the receiver.  If the receiver is the same as
+  // holder of this setter, the accessor pair is turned into a data property.
+  var setter = function(v) {
+    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    // Tentatively clear the hidden property. If the receiver is the same as
+    // holder, we release the raw stack trace this way.
+    %GetAndClearOverflowedStackTrace(this);
+  };
+
   // The raw stack trace is stored as a hidden property on the holder of this
   // getter, which may not be the same as the receiver.  Find the holder to
   // retrieve the raw stack trace and then turn this accessor pair into a
@@ -1335,18 +1346,10 @@ function SetUpStackOverflowBoilerplate() {
     if (IS_UNDEFINED(stack)) return stack;
 
     var result = FormatStackTrace(holder, error_string, GetStackFrames(stack));
-    // Replace this accessor with a data property.
-    %DefineOrRedefineDataProperty(holder, 'stack', result, NONE);
+    // Replace this accessor to return result directly.
+    %DefineOrRedefineAccessorProperty(
+        holder, 'stack', function() { return result }, setter, DONT_ENUM);
     return result;
-  };
-
-  // Set the 'stack' property on the receiver.  If the receiver is the same as
-  // holder of this setter, the accessor pair is turned into a data property.
-  var setter = function(v) {
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
-    // Tentatively clear the hidden property. If the receiver is the same as
-    // holder, we release the raw stack trace this way.
-    %GetAndClearOverflowedStackTrace(this);
   };
 
   %DefineOrRedefineAccessorProperty(

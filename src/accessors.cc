@@ -1096,26 +1096,47 @@ Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
 }
 
 
-Object* Accessors::FunctionGetArguments(Isolate* isolate,
-                                        Object* object,
-                                        void*) {
+void Accessors::FunctionArgumentsGetter(
+    v8::Local<v8::String> name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSFunction> function;
+  Handle<Object> object = Utils::OpenHandle(*info.This());
+  MaybeHandle<JSFunction> maybe_function;
+
   {
     DisallowHeapAllocation no_allocation;
-    JSFunction* holder = FindInstanceOf<JSFunction>(isolate, object);
-    if (holder == NULL) return isolate->heap()->undefined_value();
-    function = Handle<JSFunction>(holder, isolate);
+    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
+    if (function != NULL) maybe_function = Handle<JSFunction>(function);
   }
-  return *GetFunctionArguments(isolate, function);
+
+  Handle<JSFunction> function;
+  Handle<Object> result;
+  if (maybe_function.ToHandle(&function)) {
+    result = GetFunctionArguments(isolate, function);
+  } else {
+    result = isolate->factory()->undefined_value();
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
 
-const AccessorDescriptor Accessors::FunctionArguments = {
-  FunctionGetArguments,
-  ReadOnlySetAccessor,
-  0
-};
+void Accessors::FunctionArgumentsSetter(
+    v8::Local<v8::String> name,
+    v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  // Do nothing.
+}
+
+
+Handle<AccessorInfo> Accessors::FunctionArgumentsInfo(
+      Isolate* isolate, PropertyAttributes attributes) {
+  return MakeAccessor(isolate,
+                      isolate->factory()->arguments_string(),
+                      &FunctionArgumentsGetter,
+                      &FunctionArgumentsSetter,
+                      attributes);
+}
 
 
 //

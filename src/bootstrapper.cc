@@ -388,7 +388,6 @@ void Genesis::SetFunctionInstanceDescriptor(
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Map::EnsureDescriptorSlack(map, size);
 
-  Handle<Foreign> args(factory()->NewForeign(&Accessors::FunctionArguments));
   Handle<Foreign> caller(factory()->NewForeign(&Accessors::FunctionCaller));
   PropertyAttributes attribs = static_cast<PropertyAttributes>(
       DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -407,8 +406,11 @@ void Genesis::SetFunctionInstanceDescriptor(
                           name, attribs);
     map->AppendDescriptor(&d);
   }
+  Handle<AccessorInfo> args =
+      Accessors::FunctionArgumentsInfo(isolate(), attribs);
   {  // Add arguments.
-    CallbacksDescriptor d(factory()->arguments_string(), args, attribs);
+    CallbacksDescriptor d(Handle<Name>(Name::cast(args->name())),
+                          args, attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add caller.

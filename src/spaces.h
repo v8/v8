@@ -1914,12 +1914,6 @@ class PagedSpace : public Space {
     unswept_free_bytes_ = 0;
   }
 
-  // This function tries to steal size_in_bytes memory from the sweeper threads
-  // free-lists. If it does not succeed stealing enough memory, it will wait
-  // for the sweeper threads to finish sweeping.
-  // It returns true when sweeping is completed and false otherwise.
-  bool EnsureSweeperProgress(intptr_t size_in_bytes);
-
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 

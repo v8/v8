@@ -76,6 +76,10 @@ class LGapResolver V8_FINAL BASE_EMBEDDED {
   int root_index_;
   bool in_cycle_;
   LOperand* saved_destination_;
+
+  // We use the root register as a scratch in a few places. When that happens,
+  // this flag is set to indicate that it needs to be restored.
+  bool need_to_restore_root_;
 };
 
 } }  // namespace v8::internal

@@ -990,13 +990,10 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       it.Next();  // Skip height.
 
       // The translation commands are ordered and the receiver is always
-      // at the first position. Since we are always at a call when we need
-      // to construct a stack trace, the receiver is always in a stack slot.
+      // at the first position.
+      // If we are at a call, the receiver is always in a stack slot.
+      // Otherwise we are not guaranteed to get the receiver value.
       opcode = static_cast<Translation::Opcode>(it.Next());
-      ASSERT(opcode == Translation::STACK_SLOT ||
-             opcode == Translation::LITERAL ||
-             opcode == Translation::CAPTURED_OBJECT ||
-             opcode == Translation::DUPLICATED_OBJECT);
       int index = it.Next();
 
       // Get the correct receiver in the optimized frame.
@@ -1020,6 +1017,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
               : this->GetParameter(parameter_index);
         }
       } else {
+        // The receiver is not in a stack slot nor in a literal.  We give up.
         // TODO(3029): Materializing a captured object (or duplicated
         // object) is hard, we return undefined for now. This breaks the
         // produced stack trace, as constructor frames aren't marked as

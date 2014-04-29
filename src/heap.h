@@ -1549,12 +1549,6 @@ class Heap {
     return &incremental_marking_;
   }
 
-  bool EnsureSweepersProgressed(int step_size) {
-    bool sweeping_complete = old_data_space()->EnsureSweeperProgress(step_size);
-    sweeping_complete &= old_pointer_space()->EnsureSweeperProgress(step_size);
-    return sweeping_complete;
-  }
-
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
   }
