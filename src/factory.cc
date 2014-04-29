@@ -631,10 +631,9 @@ Handle<Symbol> Factory::NewSymbol() {
 
 
 Handle<Symbol> Factory::NewPrivateSymbol() {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocatePrivateSymbol(),
-      Symbol);
+  Handle<Symbol> symbol = NewSymbol();
+  symbol->set_is_private(true);
+  return symbol;
 }
 
 
@@ -1333,9 +1332,9 @@ Handle<JSObject> Factory::NewExternal(void* value) {
 }
 
 
-Handle<Code> NewCodeHelper(Isolate* isolate, int object_size, bool immovable) {
-  CALL_HEAP_FUNCTION(isolate,
-                     isolate->heap()->AllocateCode(object_size, immovable),
+Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateCode(object_size, immovable),
                      Code);
 }
 
@@ -1354,7 +1353,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   int body_size = RoundUp(desc.instr_size, kObjectAlignment);
   int obj_size = Code::SizeFor(body_size);
 
-  Handle<Code> code = NewCodeHelper(isolate(), obj_size, immovable);
+  Handle<Code> code = NewCodeRaw(obj_size, immovable);
   ASSERT(!isolate()->code_range()->exists() ||
          isolate()->code_range()->contains(code->address()));
 

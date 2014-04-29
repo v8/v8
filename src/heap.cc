@@ -4336,15 +4336,6 @@ MaybeObject* Heap::AllocateSymbol() {
 }
 
 
-MaybeObject* Heap::AllocatePrivateSymbol() {
-  MaybeObject* maybe = AllocateSymbol();
-  Symbol* symbol;
-  if (!maybe->To(&symbol)) return maybe;
-  symbol->set_is_private(true);
-  return symbol;
-}
-
-
 MaybeObject* Heap::AllocateStruct(InstanceType type) {
   Map* map;
   switch (type) {

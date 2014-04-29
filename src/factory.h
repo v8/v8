@@ -656,6 +656,9 @@ class Factory V8_FINAL {
                 AllocationSpace space,
                 Handle<AllocationSite> allocation_site);
 
+  // Creates a code object that is not yet fully initialized yet.
+  inline Handle<Code> NewCodeRaw(int object_size, bool immovable);
+
   // Initializes a function with a shared part and prototype.
   // Note: this code was factored out of NewFunction such that other parts of
   // the VM could use it. Specifically, a function that creates instances of
