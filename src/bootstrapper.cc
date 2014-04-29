@@ -729,6 +729,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
     js_global_function =
         factory()->CreateApiFunction(js_global_constructor,
+                                     factory()->the_hole_value(),
                                      factory()->InnerGlobalObject);
   }
 
@@ -756,6 +757,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
             FunctionTemplateInfo::cast(data->constructor()));
     global_proxy_function =
         factory()->CreateApiFunction(global_constructor,
+                                     factory()->the_hole_value(),
                                      factory()->OuterGlobalObject);
   }
 

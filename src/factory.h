@@ -464,6 +464,12 @@ class Factory V8_FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
+  Handle<JSFunction> NewFunction(MaybeHandle<Object> maybe_prototype,
+                                 Handle<String> name,
+                                 InstanceType type,
+                                 int instance_size,
+                                 Handle<Code> code,
+                                 bool force_initial_map);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  InstanceType type,
                                  int instance_size,
@@ -551,6 +557,7 @@ class Factory V8_FINAL {
 
   Handle<JSFunction> CreateApiFunction(
       Handle<FunctionTemplateInfo> data,
+      Handle<Object> prototype,
       ApiInstanceType type = JavaScriptObject);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);

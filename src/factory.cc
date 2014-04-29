@@ -1255,19 +1255,30 @@ Handle<Object> Factory::NewError(const char* constructor,
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
+                                        Handle<String> name,
                                         InstanceType type,
                                         int instance_size,
                                         Handle<Code> code,
                                         bool force_initial_map) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, code, the_hole_value());
+  Handle<JSFunction> function = NewFunction(name, code, maybe_prototype);
 
-  if (force_initial_map ||
-      type != JS_OBJECT_TYPE ||
-      instance_size != JSObject::kHeaderSize) {
+  Handle<Object> prototype;
+  if (maybe_prototype.ToHandle(&prototype) &&
+      (force_initial_map ||
+       type != JS_OBJECT_TYPE ||
+       instance_size != JSObject::kHeaderSize)) {
     Handle<Map> initial_map = NewMap(type, instance_size);
-    Handle<JSObject> prototype = NewFunctionPrototype(function);
+    if (prototype->IsJSObject()) {
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          Handle<JSObject>::cast(prototype),
+          constructor_string(),
+          function,
+          DONT_ENUM).Assert();
+    } else if (!function->shared()->is_generator()) {
+      prototype = NewFunctionPrototype(function);
+    }
     initial_map->set_prototype(*prototype);
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
@@ -1277,6 +1288,16 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
   }
 
   return function;
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        InstanceType type,
+                                        int instance_size,
+                                        Handle<Code> code,
+                                        bool force_initial_map) {
+  return NewFunction(
+      the_hole_value(), name, type, instance_size, code, force_initial_map);
 }
 
 
@@ -2057,7 +2078,9 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 
 Handle<JSFunction> Factory::CreateApiFunction(
-    Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
+    Handle<FunctionTemplateInfo> obj,
+    Handle<Object> prototype,
+    ApiInstanceType instance_type) {
   Handle<Code> code = isolate()->builtins()->HandleApiCall();
   Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
@@ -2093,20 +2116,31 @@ Handle<JSFunction> Factory::CreateApiFunction(
       break;
   }
 
+  MaybeHandle<Object> maybe_prototype = prototype;
+  if (obj->remove_prototype()) maybe_prototype = MaybeHandle<Object>();
+
   Handle<JSFunction> result = NewFunction(
-      Factory::empty_string(), type, instance_size, code, true);
+      maybe_prototype, Factory::empty_string(), type,
+      instance_size, code, true);
 
-  // Set length.
   result->shared()->set_length(obj->length());
-
-  // Set class name.
-  Handle<Object> class_name = Handle<Object>(obj->class_name(), isolate());
+  Handle<Object> class_name(obj->class_name(), isolate());
   if (class_name->IsString()) {
     result->shared()->set_instance_class_name(*class_name);
     result->shared()->set_name(*class_name);
   }
+  result->shared()->set_function_data(*obj);
+  result->shared()->set_construct_stub(*construct_stub);
+  result->shared()->DontAdaptArguments();
 
-  Handle<Map> map = Handle<Map>(result->initial_map());
+  if (obj->remove_prototype()) {
+    ASSERT(result->shared()->IsApiFunction());
+    return result;
+  }
+  // Down from here is only valid for API functions that can be used as a
+  // constructor (don't set the "remove prototype" flag).
+
+  Handle<Map> map(result->initial_map());
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -2135,10 +2169,6 @@ Handle<JSFunction> Factory::CreateApiFunction(
   if (!obj->instance_call_handler()->IsUndefined()) {
     map->set_has_instance_call_handler();
   }
-
-  result->shared()->set_function_data(*obj);
-  result->shared()->set_construct_stub(*construct_stub);
-  result->shared()->DontAdaptArguments();
 
   // Recursively copy parent instance templates' accessors,
   // 'data' may be modified.

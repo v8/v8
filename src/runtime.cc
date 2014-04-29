@@ -2112,9 +2112,10 @@ RUNTIME_FUNCTION(Runtime_RegExpCompile) {
 
 RUNTIME_FUNCTION(Runtime_CreateApiFunction) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(FunctionTemplateInfo, data, 0);
-  return *isolate->factory()->CreateApiFunction(data);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  return *isolate->factory()->CreateApiFunction(data, prototype);
 }
 
 
@@ -2786,7 +2787,8 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
-      isolate->factory()->NewFunction(key,
+      isolate->factory()->NewFunction(MaybeHandle<Object>(),
+                                      key,
                                       JS_OBJECT_TYPE,
                                       JSObject::kHeaderSize,
                                       code,
