@@ -1831,7 +1831,7 @@ class PagedSpace : public Space {
   void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page, bool unlink);
+  void ReleasePage(Page* page);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -1891,6 +1891,20 @@ class PagedSpace : public Space {
     unswept_free_bytes_ = 0;
   }
 
+  // This function tries to steal size_in_bytes memory from the sweeper threads
+  // free-lists. If it does not succeed stealing enough memory, it will wait
+  // for the sweeper threads to finish sweeping.
+  // It returns true when sweeping is completed and false otherwise.
+  bool EnsureSweeperProgress(intptr_t size_in_bytes);
+
+  void set_end_of_unswept_pages(Page* page) {
+    end_of_unswept_pages_ = page;
+  }
+
+  Page* end_of_unswept_pages() {
+    return end_of_unswept_pages_;
+  }
+
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
@@ -1934,6 +1948,11 @@ class PagedSpace : public Space {
   // concurrent sweeper threads.  This is only an estimation because concurrent
   // sweeping is done conservatively.
   intptr_t unswept_free_bytes_;
+
+  // The sweeper threads iterate over the list of pointer and data space pages
+  // and sweep these pages concurrently. They will stop sweeping after the
+  // end_of_unswept_pages_ page.
+  Page* end_of_unswept_pages_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap

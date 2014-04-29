@@ -559,10 +559,6 @@ void MemoryChunk::InsertAfter(MemoryChunk* other) {
 
 
 void MemoryChunk::Unlink() {
-  if (!InNewSpace() && IsFlagSet(SCAN_ON_SCAVENGE)) {
-    heap_->decrement_scan_on_scavenge_pages();
-    ClearFlag(SCAN_ON_SCAVENGE);
-  }
   MemoryChunk* next_element = next_chunk();
   MemoryChunk* prev_element = prev_chunk();
   next_element->set_prev_chunk(prev_element);
@@ -930,7 +926,8 @@ PagedSpace::PagedSpace(Heap* heap,
     : Space(heap, id, executable),
       free_list_(this),
       was_swept_conservatively_(false),
-      unswept_free_bytes_(0) {
+      unswept_free_bytes_(0),
+      end_of_unswept_pages_(NULL) {
   if (id == CODE_SPACE) {
     area_size_ = heap->isolate()->memory_allocator()->
         CodePageAreaSize();
@@ -1103,7 +1100,7 @@ void PagedSpace::IncreaseCapacity(int size) {
 }
 
 
-void PagedSpace::ReleasePage(Page* page, bool unlink) {
+void PagedSpace::ReleasePage(Page* page) {
   ASSERT(page->LiveBytes() == 0);
   ASSERT(AreaSize() == page->area_size());
 
@@ -1115,6 +1112,11 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     DecreaseUnsweptFreeBytes(page);
   }
 
+  if (page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE)) {
+    heap()->decrement_scan_on_scavenge_pages();
+    page->ClearFlag(MemoryChunk::SCAN_ON_SCAVENGE);
+  }
+
   ASSERT(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
@@ -1122,9 +1124,7 @@ void PagedSpace::ReleasePage(Page* page, bool unlink) {
     allocation_info_.set_limit(NULL);
   }
 
-  if (unlink) {
-    page->Unlink();
-  }
+  page->Unlink();
   if (page->IsFlagSet(MemoryChunk::CONTAINS_ONLY_DATA)) {
     heap()->isolate()->memory_allocator()->Free(page);
   } else {
