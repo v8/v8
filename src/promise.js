@@ -35,10 +35,13 @@ function Promise(resolver) {
     throw MakeTypeError('resolver_not_a_function', [resolver]);
   var promise = PromiseInit(this);
   try {
+    %DebugPromiseHandlePrologue(function() { return promise });
     resolver(function(x) { PromiseResolve(promise, x) },
              function(r) { PromiseReject(promise, r) });
   } catch (e) {
     PromiseReject(promise, e);
+  } finally {
+    %DebugPromiseHandleEpilogue();
   }
 }
 
@@ -161,6 +164,11 @@ function PromiseEnqueue(value, tasks) {
 
 function PromiseHandle(value, handler, deferred) {
   try {
+    %DebugPromiseHandlePrologue(
+        function() {
+          var queue = GET_PRIVATE(deferred.promise, promiseOnReject);
+          return (queue && queue.length == 0) ? deferred.promise : UNDEFINED;
+        });
     var result = handler(value);
     if (result === deferred.promise)
       throw MakeTypeError('promise_cyclic', [result]);
@@ -169,21 +177,14 @@ function PromiseHandle(value, handler, deferred) {
     else
       deferred.resolve(result);
   } catch (exception) {
-    var uncaught = false;
-    var reject_queue = GET_PRIVATE(deferred.promise, promiseOnReject);
-    if (reject_queue && reject_queue.length == 0) {
-      // The deferred promise may get a reject handler attached later.
-      // For now, we consider the exception to be (for the moment) uncaught.
-      uncaught = true;
-    }
     try {
+      %DebugPromiseHandlePrologue(function() { return deferred.promise });
       deferred.reject(exception);
-    } catch (e) {
-      // The reject handler can only throw for a custom deferred promise.
-      // We consider the original exception to be uncaught.
-      uncaught = true;
+    } catch (e) { } finally {
+      %DebugPromiseHandleEpilogue();
     }
-    if (uncaught) %DebugPendingExceptionInPromise(exception, deferred.promise);
+  } finally {
+    %DebugPromiseHandleEpilogue();
   }
 }
 
@@ -319,14 +320,6 @@ SetUpPromise();
 // Functions to expose promise details to the debugger.
 function GetPromiseStatus(promise) {
   return GET_PRIVATE(promise, promiseStatus);
-}
-
-function GetPromiseOnResolve(promise) {
-  return GET_PRIVATE(promise, promiseOnResolve);
-}
-
-function GetPromiseOnReject(promise) {
-  return GET_PRIVATE(promise, promiseOnReject);
 }
 
 function GetPromiseValue(promise) {

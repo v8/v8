@@ -5657,13 +5657,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
 }
 
 
-// Notify the debugger if an expcetion in a promise is not caught (yet).
-RUNTIME_FUNCTION(Runtime_DebugPendingExceptionInPromise) {
-  ASSERT(args.length() == 2);
+// The argument is a closure that is kept until the epilogue is called.
+// On exception, the closure is called, which returns the promise if the
+// exception is considered uncaught, or undefined otherwise.
+RUNTIME_FUNCTION(Runtime_DebugPromiseHandlePrologue) {
+  ASSERT(args.length() == 1);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(Object, exception, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 1);
-  isolate->debugger()->OnException(exception, true, promise);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, promise_getter, 0);
+  isolate->debug()->PromiseHandlePrologue(promise_getter);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugPromiseHandleEpilogue) {
+  ASSERT(args.length() == 0);
+  SealHandleScope shs(isolate);
+  isolate->debug()->PromiseHandleEpilogue();
   return isolate->heap()->undefined_value();
 }
 

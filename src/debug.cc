@@ -37,6 +37,8 @@ Debug::Debug(Isolate* isolate)
       disable_break_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
+      promise_catch_handlers_(0),
+      promise_getters_(0),
       debug_break_return_(NULL),
       debug_break_slot_(NULL),
       isolate_(isolate) {
@@ -1315,6 +1317,53 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   } else {
     return break_on_exception_;
   }
+}
+
+
+void Debug::PromiseHandlePrologue(Handle<JSFunction> promise_getter) {
+  Handle<JSFunction> promise_getter_global = Handle<JSFunction>::cast(
+      isolate_->global_handles()->Create(*promise_getter));
+  StackHandler* handler =
+      StackHandler::FromAddress(Isolate::handler(isolate_->thread_local_top()));
+  promise_getters_.Add(promise_getter_global);
+  promise_catch_handlers_.Add(handler);
+}
+
+
+void Debug::PromiseHandleEpilogue() {
+  if (promise_catch_handlers_.length() == 0) return;
+  promise_catch_handlers_.RemoveLast();
+  Handle<Object> promise_getter = promise_getters_.RemoveLast();
+  isolate_->global_handles()->Destroy(promise_getter.location());
+}
+
+
+Handle<Object> Debug::GetPromiseForUncaughtException() {
+  Handle<Object> undefined = isolate_->factory()->undefined_value();
+  if (promise_getters_.length() == 0) return undefined;
+  Handle<JSFunction> promise_getter = promise_getters_.last();
+  StackHandler* promise_catch = promise_catch_handlers_.last();
+  // Find the top-most try-catch handler.
+  StackHandler* handler = StackHandler::FromAddress(
+      Isolate::handler(isolate_->thread_local_top()));
+  while (handler != NULL && !handler->is_catch()) {
+    handler = handler->next();
+  }
+#ifdef DEBUG
+  // Make sure that our promise catch handler is in the list of handlers,
+  // even if it's not the top-most try-catch handler.
+  StackHandler* temp = handler;
+  while (temp != promise_catch && !temp->is_catch()) {
+    temp = temp->next();
+    CHECK(temp != NULL);
+  }
+#endif  // DEBUG
+
+  if (handler == promise_catch) {
+    return Execution::Call(
+        isolate_, promise_getter, undefined, 0, NULL).ToHandleChecked();
+  }
+  return undefined;
 }
 
 
@@ -2647,15 +2696,16 @@ MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
 }
 
 
-void Debugger::OnException(Handle<Object> exception,
-                           bool uncaught,
-                           Handle<Object> promise) {
+void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   HandleScope scope(isolate_);
   Debug* debug = isolate_->debug();
 
   // Bail out based on state or if there is no listener for this event
   if (debug->InDebugger()) return;
   if (!Debugger::EventActive(v8::Exception)) return;
+
+  Handle<Object> promise = debug->GetPromiseForUncaughtException();
+  uncaught |= !promise->IsUndefined();
 
   // Bail out if exception breaks are not active
   if (uncaught) {
@@ -2674,10 +2724,6 @@ void Debugger::OnException(Handle<Object> exception,
   // Clear all current stepping setup.
   debug->ClearStepping();
 
-  // Determine event;
-  DebugEvent event = promise->IsUndefined()
-      ? v8::Exception : v8::PendingExceptionInPromise;
-
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
@@ -2687,7 +2733,7 @@ void Debugger::OnException(Handle<Object> exception,
   }
 
   // Process debug event.
-  ProcessDebugEvent(event, Handle<JSObject>::cast(event_data), false);
+  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
   // Return to continue execution from where the exception was thrown.
 }
 
@@ -3169,7 +3215,8 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
 
 
 void Debugger::ListenersChanged() {
-  if (IsDebuggerActive()) {
+  bool active = IsDebuggerActive();
+  if (active) {
     // Disable the compilation cache when the debugger is active.
     isolate_->compilation_cache()->Disable();
     debugger_unload_pending_ = false;

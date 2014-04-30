@@ -1186,7 +1186,7 @@ inherits(PromiseMirror, ObjectMirror);
 
 
 PromiseMirror.prototype.status = function() {
-  var status = %GetPromiseStatus(this.value_);
+  var status = builtins.GetPromiseStatus(this.value_);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
@@ -1194,7 +1194,7 @@ PromiseMirror.prototype.status = function() {
 
 
 PromiseMirror.prototype.promiseValue = function() {
-  return %GetPromiseValue(this.value_);
+  return builtins.GetPromiseValue(this.value_);
 };
 
 
