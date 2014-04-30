@@ -15762,10 +15762,9 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
 
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1, key);
-
-  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
-  // TODO(ishell): Figure out if it is necessary to call AsHandle() here.
-  USE(k);
+#ifdef DEBUG
+  USE(Shape::AsHandle(dictionary->GetIsolate(), key));
+#endif
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
   AddEntry(dictionary, key, value, details, dictionary->Hash(key));
