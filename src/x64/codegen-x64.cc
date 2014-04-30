@@ -233,12 +233,20 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
-  // Check backing store for COW-ness.  For COW arrays we have to
-  // allocate a new backing store.
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
-  __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
-                 Heap::kFixedCOWArrayMapRootIndex);
-  __ j(equal, &new_backing_store);
+  if (kPointerSize == kDoubleSize) {
+    // Check backing store for COW-ness. For COW arrays we have to
+    // allocate a new backing store.
+    __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
+                   Heap::kFixedCOWArrayMapRootIndex);
+    __ j(equal, &new_backing_store);
+  } else {
+    // For x32 port we have to allocate a new backing store as SMI size is
+    // not equal with double size.
+    ASSERT(kDoubleSize == 2 * kPointerSize);
+    __ jmp(&new_backing_store);
+  }
+
   // Check if the backing store is in new-space. If not, we need to allocate
   // a new one since the old one is in pointer-space.
   // If in new space, we can reuse the old backing store because it is
