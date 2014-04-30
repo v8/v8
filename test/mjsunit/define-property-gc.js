@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Tests the handling of GC issues in the defineProperty method.
-// Flags: --max-old-space-size=256 --max-new-space-size=256
 
 function Regular() {
   this[0] = 0;

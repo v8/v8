@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-old-space-size=256 --max-new-space-size=128
 // Flags: --allow-natives-syntax
 
 // Test inlining of Math.floor when assigned to a local.
