@@ -5099,9 +5099,9 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
       Handle<Name> key = Handle<Name>::cast(key_obj);
       if (receiver->HasFastProperties()) {
         // Attempt to use lookup cache.
-        Map* receiver_map = receiver->map();
+        Handle<Map> receiver_map(receiver->map(), isolate);
         KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-        int offset = keyed_lookup_cache->Lookup(receiver_map, *key);
+        int offset = keyed_lookup_cache->Lookup(receiver_map, key);
         if (offset != -1) {
           // Doubles are not cached, so raw read the value.
           Object* value = receiver->RawFastPropertyAt(offset);
@@ -5118,7 +5118,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
           if (!result.representation().IsDouble()) {
-            keyed_lookup_cache->Update(receiver_map, *key, offset);
+            keyed_lookup_cache->Update(receiver_map, key, offset);
           }
           AllowHeapAllocation allow_allocation;
           return *JSObject::FastPropertyAt(

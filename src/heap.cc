@@ -6219,19 +6219,21 @@ const char* GCTracer::CollectorString() {
 }
 
 
-int KeyedLookupCache::Hash(Map* map, Name* name) {
+int KeyedLookupCache::Hash(Handle<Map> map, Handle<Name> name) {
+  DisallowHeapAllocation no_gc;
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(*map)) >> kMapHashShift;
   return static_cast<uint32_t>((addr_hash ^ name->Hash()) & kCapacityMask);
 }
 
 
-int KeyedLookupCache::Lookup(Map* map, Name* name) {
+int KeyedLookupCache::Lookup(Handle<Map> map, Handle<Name> name) {
+  DisallowHeapAllocation no_gc;
   int index = (Hash(map, name) & kHashMask);
   for (int i = 0; i < kEntriesPerBucket; i++) {
     Key& key = keys_[index + i];
-    if ((key.map == map) && key.name->Equals(name)) {
+    if ((key.map == *map) && key.name->Equals(*name)) {
       return field_offsets_[index + i];
     }
   }
@@ -6239,18 +6241,21 @@ int KeyedLookupCache::Lookup(Map* map, Name* name) {
 }
 
 
-void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
+void KeyedLookupCache::Update(Handle<Map> map,
+                              Handle<Name> name,
+                              int field_offset) {
+  DisallowHeapAllocation no_gc;
   if (!name->IsUniqueName()) {
     String* internalized_string;
     if (!map->GetIsolate()->heap()->InternalizeStringIfExists(
-            String::cast(name), &internalized_string)) {
+            String::cast(*name), &internalized_string)) {
       return;
     }
-    name = internalized_string;
+    name = handle(internalized_string);
   }
   // This cache is cleared only between mark compact passes, so we expect the
   // cache to only contain old space names.
-  ASSERT(!map->GetIsolate()->heap()->InNewSpace(name));
+  ASSERT(!map->GetIsolate()->heap()->InNewSpace(*name));
 
   int index = (Hash(map, name) & kHashMask);
   // After a GC there will be free slots, so we use them in order (this may
@@ -6259,8 +6264,8 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
     Key& key = keys_[index];
     Object* free_entry_indicator = NULL;
     if (key.map == free_entry_indicator) {
-      key.map = map;
-      key.name = name;
+      key.map = *map;
+      key.name = *name;
       field_offsets_[index + i] = field_offset;
       return;
     }
@@ -6276,8 +6281,8 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
 
   // Write the new first entry.
   Key& key = keys_[index];
-  key.map = map;
-  key.name = name;
+  key.map = *map;
+  key.name = *name;
   field_offsets_[index] = field_offset;
 }
 

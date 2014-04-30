@@ -2413,10 +2413,10 @@ class HeapIterator BASE_EMBEDDED {
 class KeyedLookupCache {
  public:
   // Lookup field offset for (map, name). If absent, -1 is returned.
-  int Lookup(Map* map, Name* name);
+  int Lookup(Handle<Map> map, Handle<Name> name);
 
   // Update an element in the cache.
-  void Update(Map* map, Name* name, int field_offset);
+  void Update(Handle<Map> map, Handle<Name> name, int field_offset);
 
   // Clear the cache.
   void Clear();
@@ -2441,7 +2441,7 @@ class KeyedLookupCache {
     }
   }
 
-  static inline int Hash(Map* map, Name* name);
+  static inline int Hash(Handle<Map> map, Handle<Name> name);
 
   // Get the address of the keys and field_offsets arrays.  Used in
   // generated code to perform cache lookups.
