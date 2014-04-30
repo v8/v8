@@ -484,30 +484,6 @@ static intptr_t MemoryInUse() {
 }
 
 
-TEST(BootUpMemoryUse) {
-  intptr_t initial_memory = MemoryInUse();
-  // Avoid flakiness.
-  FLAG_crankshaft = false;
-  FLAG_concurrent_osr = false;
-  FLAG_concurrent_recompilation = false;
-
-  // Only Linux has the proc filesystem and only if it is mapped.  If it's not
-  // there we just skip the test.
-  if (initial_memory >= 0) {
-    CcTest::InitializeVM();
-    intptr_t delta = MemoryInUse() - initial_memory;
-    printf("delta: %" V8_PTR_PREFIX "d kB\n", delta / 1024);
-    if (v8::internal::Snapshot::IsEnabled()) {
-      CHECK_LE(delta,
-          3200 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
-    } else {
-      CHECK_LE(delta,
-          3350 * 1024 * FullCodeGenerator::kBootCodeSizeMultiplier / 100);
-    }
-  }
-}
-
-
 intptr_t ShortLivingIsolate() {
   v8::Isolate* isolate = v8::Isolate::New();
   { v8::Isolate::Scope isolate_scope(isolate);
