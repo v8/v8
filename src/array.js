@@ -357,17 +357,18 @@ function ArrayToLocaleString() {
 function ArrayJoin(separator) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
 
-  var length = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var length = TO_UINT32(array.length);
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
     separator = NonStringToString(separator);
   }
 
-  var result = %_FastAsciiArrayJoin(this, separator);
+  var result = %_FastAsciiArrayJoin(array, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  return Join(this, length, separator, ConvertToString);
+  return Join(array, length, separator, ConvertToString);
 }
 
 
@@ -518,33 +519,34 @@ function SparseReverse(array, len) {
 function ArrayReverse() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
 
-  var j = TO_UINT32(this.length) - 1;
+  var array = TO_OBJECT_INLINE(this);
+  var j = TO_UINT32(array.length) - 1;
 
-  if (UseSparseVariant(this, j, IS_ARRAY(this))) {
-    SparseReverse(this, j+1);
-    return this;
+  if (UseSparseVariant(array, j, IS_ARRAY(array))) {
+    SparseReverse(array, j+1);
+    return array;
   }
 
   for (var i = 0; i < j; i++, j--) {
-    var current_i = this[i];
-    if (!IS_UNDEFINED(current_i) || i in this) {
-      var current_j = this[j];
-      if (!IS_UNDEFINED(current_j) || j in this) {
-        this[i] = current_j;
-        this[j] = current_i;
+    var current_i = array[i];
+    if (!IS_UNDEFINED(current_i) || i in array) {
+      var current_j = array[j];
+      if (!IS_UNDEFINED(current_j) || j in array) {
+        array[i] = current_j;
+        array[j] = current_i;
       } else {
-        this[j] = current_i;
-        delete this[i];
+        array[j] = current_i;
+        delete array[i];
       }
     } else {
-      var current_j = this[j];
-      if (!IS_UNDEFINED(current_j) || j in this) {
-        this[i] = current_j;
-        delete this[j];
+      var current_j = array[j];
+      if (!IS_UNDEFINED(current_j) || j in array) {
+        array[i] = current_j;
+        delete array[j];
       }
     }
   }
-  return this;
+  return array;
 }
 
 
@@ -645,7 +647,8 @@ function ArrayUnshift(arg1) {  // length == 1
 function ArraySlice(start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.slice");
 
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
 
@@ -669,13 +672,13 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(this) &&
-      !%IsObserved(this) &&
+  if (IS_ARRAY(array) &&
+      !%IsObserved(array) &&
       (end_i > 1000) &&
-      (%EstimateNumberOfElements(this) < end_i)) {
-    SmartSlice(this, start_i, end_i - start_i, len, result);
+      (%EstimateNumberOfElements(array) < end_i)) {
+    SmartSlice(array, start_i, end_i - start_i, len, result);
   } else {
-    SimpleSlice(this, start_i, end_i - start_i, len, result);
+    SimpleSlice(array, start_i, end_i - start_i, len, result);
   }
 
   result.length = end_i - start_i;
@@ -763,7 +766,8 @@ function ArraySplice(start, delete_count) {
     return ObservedArraySplice.apply(this, arguments);
 
   var num_arguments = %_ArgumentsLength();
-  var len = TO_UINT32(this.length);
+  var array = TO_OBJECT_INLINE(this);
+  var len = TO_UINT32(array.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
@@ -771,32 +775,32 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && ObjectIsSealed(this)) {
+  if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
     throw MakeTypeError("array_functions_change_sealed",
                         ["Array.prototype.splice"]);
-  } else if (del_count > 0 && ObjectIsFrozen(this)) {
+  } else if (del_count > 0 && ObjectIsFrozen(array)) {
     throw MakeTypeError("array_functions_on_frozen",
                         ["Array.prototype.splice"]);
   }
 
   var use_simple_splice = true;
-  if (IS_ARRAY(this) &&
+  if (IS_ARRAY(array) &&
       num_elements_to_add !== del_count) {
     // If we are only deleting/moving a few things near the end of the
     // array then the simple version is going to be faster, because it
     // doesn't touch most of the array.
-    var estimated_non_hole_elements = %EstimateNumberOfElements(this);
+    var estimated_non_hole_elements = %EstimateNumberOfElements(array);
     if (len > 20 && (estimated_non_hole_elements >> 2) < (len - start_i)) {
       use_simple_splice = false;
     }
   }
 
   if (use_simple_splice) {
-    SimpleSlice(this, start_i, del_count, len, deleted_elements);
-    SimpleMove(this, start_i, del_count, len, num_elements_to_add);
+    SimpleSlice(array, start_i, del_count, len, deleted_elements);
+    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
   } else {
-    SmartSlice(this, start_i, del_count, len, deleted_elements);
-    SmartMove(this, start_i, del_count, len, num_elements_to_add);
+    SmartSlice(array, start_i, del_count, len, deleted_elements);
+    SmartMove(array, start_i, del_count, len, num_elements_to_add);
   }
 
   // Insert the arguments into the resulting array in
@@ -805,9 +809,9 @@ function ArraySplice(start, delete_count) {
   var arguments_index = 2;
   var arguments_length = %_ArgumentsLength();
   while (arguments_index < arguments_length) {
-    this[i++] = %_Arguments(arguments_index++);
+    array[i++] = %_Arguments(arguments_index++);
   }
-  this.length = len - del_count + num_elements_to_add;
+  array.length = len - del_count + num_elements_to_add;
 
   // Return the deleted elements.
   return deleted_elements;
