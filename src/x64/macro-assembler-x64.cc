@@ -2685,6 +2685,20 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
+void MacroAssembler::DropUnderReturnAddress(int stack_elements,
+                                            Register scratch) {
+  ASSERT(stack_elements > 0);
+  if (kPointerSize == kInt64Size && stack_elements == 1) {
+    popq(MemOperand(rsp, 0));
+    return;
+  }
+
+  PopReturnAddressTo(scratch);
+  Drop(stack_elements);
+  PushReturnAddressFrom(scratch);
+}
+
+
 void MacroAssembler::Push(Register src) {
   if (kPointerSize == kInt64Size) {
     pushq(src);
