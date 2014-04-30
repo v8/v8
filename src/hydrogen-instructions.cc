@@ -3698,6 +3698,12 @@ HType HChange::CalculateInferredType() {
 
 
 Representation HUnaryMathOperation::RepresentationFromInputs() {
+  if (SupportsFlexibleFloorAndRound() &&
+      (op_ == kMathFloor || op_ == kMathRound)) {
+    // Floor and Round always take a double input. The integral result can be
+    // used as an integer or a double. Infer the representation from the uses.
+    return Representation::None();
+  }
   Representation rep = representation();
   // If any of the actual input representation is more general than what we
   // have so far but not Tagged, use that representation instead.
@@ -4163,6 +4169,43 @@ HInstruction* HUnaryMathOperation::New(
     }
   } while (false);
   return new(zone) HUnaryMathOperation(context, value, op);
+}
+
+
+Representation HUnaryMathOperation::RepresentationFromUses() {
+  if (op_ != kMathFloor && op_ != kMathRound) {
+    return HValue::RepresentationFromUses();
+  }
+
+  // The instruction can have an int32 or double output. Prefer a double
+  // representation if there are double uses.
+  bool use_double = false;
+
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    HValue* use = it.value();
+    int use_index = it.index();
+    Representation rep_observed = use->observed_input_representation(use_index);
+    Representation rep_required = use->RequiredInputRepresentation(use_index);
+    use_double |= (rep_observed.IsDouble() || rep_required.IsDouble());
+    if (use_double && !FLAG_trace_representation) {
+      // Having seen one double is enough.
+      break;
+    }
+    if (FLAG_trace_representation) {
+      if (!rep_required.IsDouble() || rep_observed.IsDouble()) {
+        PrintF("#%d %s is used by #%d %s as %s%s\n",
+               id(), Mnemonic(), use->id(),
+               use->Mnemonic(), rep_observed.Mnemonic(),
+               (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
+      } else {
+        PrintF("#%d %s is required by #%d %s as %s%s\n",
+               id(), Mnemonic(), use->id(),
+               use->Mnemonic(), rep_required.Mnemonic(),
+               (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
+      }
+    }
+  }
+  return use_double ? Representation::Double() : Representation::Integer32();
 }
 
 

@@ -115,11 +115,13 @@ class LCodeGen;
   V(MathAbsTagged)                              \
   V(MathClz32)                                  \
   V(MathExp)                                    \
-  V(MathFloor)                                  \
+  V(MathFloorD)                                 \
+  V(MathFloorI)                                 \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
-  V(MathRound)                                  \
+  V(MathRoundD)                                 \
+  V(MathRoundI)                                 \
   V(MathSqrt)                                   \
   V(ModByConstI)                                \
   V(ModByPowerOf2I)                             \
@@ -1909,10 +1911,19 @@ class LMathExp V8_FINAL : public LUnaryMathOperation<4> {
 };
 
 
-class LMathFloor V8_FINAL : public LUnaryMathOperation<0> {
+// Math.floor with a double result.
+class LMathFloorD V8_FINAL : public LUnaryMathOperation<0> {
  public:
-  explicit LMathFloor(LOperand* value) : LUnaryMathOperation<0>(value) { }
-  DECLARE_CONCRETE_INSTRUCTION(MathFloor, "math-floor")
+  explicit LMathFloorD(LOperand* value) : LUnaryMathOperation<0>(value) { }
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorD, "math-floor-d")
+};
+
+
+// Math.floor with an integer result.
+class LMathFloorI V8_FINAL : public LUnaryMathOperation<0> {
+ public:
+  explicit LMathFloorI(LOperand* value) : LUnaryMathOperation<0>(value) { }
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorI, "math-floor-i")
 };
 
 
@@ -2008,16 +2019,28 @@ class LMathPowHalf V8_FINAL : public LUnaryMathOperation<0> {
 };
 
 
-class LMathRound V8_FINAL : public LUnaryMathOperation<1> {
+// Math.round with an integer result.
+class LMathRoundD V8_FINAL : public LUnaryMathOperation<0> {
  public:
-  LMathRound(LOperand* value, LOperand* temp1)
+  explicit LMathRoundD(LOperand* value)
+      : LUnaryMathOperation<0>(value) {
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundD, "math-round-d")
+};
+
+
+// Math.round with an integer result.
+class LMathRoundI V8_FINAL : public LUnaryMathOperation<1> {
+ public:
+  LMathRoundI(LOperand* value, LOperand* temp1)
       : LUnaryMathOperation<1>(value) {
     temps_[0] = temp1;
   }
 
   LOperand* temp1() { return temps_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
+  DECLARE_CONCRETE_INSTRUCTION(MathRoundI, "math-round-i")
 };
 
 

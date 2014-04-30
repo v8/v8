@@ -949,7 +949,7 @@ class HValue : public ZoneObject {
   virtual Representation RepresentationFromInputs() {
     return representation();
   }
-  Representation RepresentationFromUses();
+  virtual Representation RepresentationFromUses();
   Representation RepresentationFromUseRequirements();
   bool HasNonSmiUse();
   virtual void UpdateRepresentation(Representation new_rep,
@@ -2638,6 +2638,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
 
   virtual HValue* Canonicalize() V8_OVERRIDE;
+  virtual Representation RepresentationFromUses() V8_OVERRIDE;
   virtual Representation RepresentationFromInputs() V8_OVERRIDE;
 
   BuiltinFunctionId op() const { return op_; }
@@ -2652,6 +2653,15 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
   }
 
  private:
+  // Indicates if we support a double (and int32) output for Math.floor and
+  // Math.round.
+  bool SupportsFlexibleFloorAndRound() const {
+#ifdef V8_TARGET_ARCH_ARM64
+    return true;
+#else
+    return false;
+#endif
+  }
   HUnaryMathOperation(HValue* context, HValue* value, BuiltinFunctionId op)
       : HTemplateInstruction<2>(HType::TaggedNumber()), op_(op) {
     SetOperandAt(0, context);
@@ -2659,6 +2669,12 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
     switch (op) {
       case kMathFloor:
       case kMathRound:
+        if (SupportsFlexibleFloorAndRound()) {
+          SetFlag(kFlexibleRepresentation);
+        } else {
+          set_representation(Representation::Integer32());
+        }
+        break;
       case kMathClz32:
         set_representation(Representation::Integer32());
         break;

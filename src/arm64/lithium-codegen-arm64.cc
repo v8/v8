@@ -3761,9 +3761,15 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 }
 
 
-void LCodeGen::DoMathFloor(LMathFloor* instr) {
-  // TODO(jbramley): If we could provide a double result, we could use frintm
-  // and produce a valid double result in a single instruction.
+void LCodeGen::DoMathFloorD(LMathFloorD* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+
+  __ Frintm(result, input);
+}
+
+
+void LCodeGen::DoMathFloorI(LMathFloorI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
 
@@ -3996,8 +4002,37 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoMathRound(LMathRound* instr) {
-  // TODO(jbramley): We could provide a double result here using frint.
+void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  DoubleRegister scratch_d = double_scratch();
+
+  ASSERT(!AreAliased(input, result, scratch_d));
+
+  Label done;
+
+  __ Frinta(result, input);
+  __ Fcmp(input, 0.0);
+  __ Fccmp(result, input, ZFlag, lt);
+  // The result is correct if the input was in [-0, +infinity], or was a
+  // negative integral value.
+  __ B(eq, &done);
+
+  // Here the input is negative, non integral, with an exponent lower than 52.
+  // We do not have to worry about the 0.49999999999999994 (0x3fdfffffffffffff)
+  // case. So we can safely add 0.5.
+  __ Fmov(scratch_d, 0.5);
+  __ Fadd(result, input, scratch_d);
+  __ Frintm(result, result);
+  // The range [-0.5, -0.0[ yielded +0.0. Force the sign to negative.
+  __ Fabs(result, result);
+  __ Fneg(result, result);
+
+  __ Bind(&done);
+}
+
+
+void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister temp1 = ToDoubleRegister(instr->temp1());
   Register result = ToRegister(instr->result());
@@ -4036,7 +4071,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Since we're providing a 32-bit result, we can implement ties-to-infinity by
   // adding 0.5 to the input, then taking the floor of the result. This does not
   // work for very large positive doubles because adding 0.5 would cause an
-  // intermediate rounding stage, so a different approach will be necessary if a
+  // intermediate rounding stage, so a different approach is necessary when a
   // double result is needed.
   __ Fadd(temp1, input, dot_five);
   __ Fcvtms(result, temp1);

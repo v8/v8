@@ -107,6 +107,7 @@ const unsigned kQuadWordSizeInBytes = kQuadWordSize >> 3;
 // AArch64 floating-point specifics. These match IEEE-754.
 const unsigned kDoubleMantissaBits = 52;
 const unsigned kDoubleExponentBits = 11;
+const unsigned kDoubleExponentBias = 1023;
 const unsigned kFloatMantissaBits = 23;
 const unsigned kFloatExponentBits = 8;
 
