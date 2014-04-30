@@ -865,7 +865,10 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8_CLAMPED = 9
+    ARRAY_ID_UINT8_CLAMPED = 9,
+
+    ARRAY_ID_FIRST = ARRAY_ID_UINT8,
+    ARRAY_ID_LAST = ARRAY_ID_UINT8_CLAMPED
   };
 
   static void ArrayIdToTypeAndSize(int array_id,

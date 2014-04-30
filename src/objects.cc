@@ -10213,20 +10213,25 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 }
 
 
-void JSFunction::RemovePrototype() {
+bool JSFunction::RemovePrototype() {
   Context* native_context = context()->native_context();
   Map* no_prototype_map = shared()->strict_mode() == SLOPPY
       ? native_context->sloppy_function_without_prototype_map()
       : native_context->strict_function_without_prototype_map();
 
-  if (map() == no_prototype_map) return;
+  if (map() == no_prototype_map) return true;
 
-  ASSERT(map() == (shared()->strict_mode() == SLOPPY
+#ifdef DEBUG
+  if (map() != (shared()->strict_mode() == SLOPPY
                    ? native_context->sloppy_function_map()
-                   : native_context->strict_function_map()));
+                   : native_context->strict_function_map())) {
+    return false;
+  }
+#endif
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
+  return true;
 }
 
 
