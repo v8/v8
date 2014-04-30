@@ -32,7 +32,8 @@
 // sure that concurrent sweeping, which relies on similar assumptions
 // as lazy sweeping works correctly.
 
-// Flags: --expose-gc --noincremental-marking --max-new-space-size 1000
+// Flags: --expose-gc --noincremental-marking --max-new-space-size=1000
+// Flags: --max-old-space-size=256
 
 (function() {
   var head = new Array(1);
