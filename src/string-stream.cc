@@ -265,14 +265,8 @@ void StringStream::OutputToFile(FILE* out) {
 
 
 Handle<String> StringStream::ToString(Isolate* isolate) {
-  MaybeHandle<String> maybe_result = isolate->factory()->NewStringFromUtf8(
-      Vector<const char>(buffer_, length_));
-
-  // TODO(ishell): Temporarily returning null handle from here. I will proceed
-  // with maybehandlification in next CLs.
-  Handle<String> result;
-  if (!maybe_result.ToHandle(&result)) return Handle<String>();
-  return result;
+  return isolate->factory()->NewStringFromUtf8(
+      Vector<const char>(buffer_, length_)).ToHandleChecked();
 }
 
 

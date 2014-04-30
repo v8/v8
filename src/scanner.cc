@@ -1095,19 +1095,13 @@ bool Scanner::ScanRegExpFlags() {
 
 Handle<String> Scanner::AllocateNextLiteralString(Isolate* isolate,
                                                   PretenureFlag tenured) {
-  MaybeHandle<String> maybe_result;
   if (is_next_literal_one_byte()) {
-    maybe_result = isolate->factory()->NewStringFromOneByte(
-        next_literal_one_byte_string(), tenured);
+    return isolate->factory()->NewStringFromOneByte(
+        next_literal_one_byte_string(), tenured).ToHandleChecked();
   } else {
-    maybe_result = isolate->factory()->NewStringFromTwoByte(
-        next_literal_two_byte_string(), tenured);
+    return isolate->factory()->NewStringFromTwoByte(
+        next_literal_two_byte_string(), tenured).ToHandleChecked();
   }
-  // TODO(ishell): Temporarily returning null handle from here. I will proceed
-  // with maybehandlification in next CLs.
-  Handle<String> result;
-  if (!maybe_result.ToHandle(&result)) return Handle<String>();
-  return result;
 }
 
 
