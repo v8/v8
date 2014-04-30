@@ -364,7 +364,9 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 void FullCodeGenerator::EnsureSlotContainsAllocationSite(int slot) {
   Handle<FixedArray> vector = FeedbackVector();
   if (!vector->get(slot)->IsAllocationSite()) {
-    vector->set(slot, *isolate()->factory()->NewAllocationSite());
+    Handle<AllocationSite> allocation_site =
+        isolate()->factory()->NewAllocationSite();
+    vector->set(slot, *allocation_site);
   }
 }
 
