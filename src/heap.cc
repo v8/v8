@@ -4294,18 +4294,6 @@ MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
 }
 
 
-MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(
-      hash_table_map());
-  ASSERT(result->IsHashTable());
-  return result;
-}
-
-
 MaybeObject* Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);

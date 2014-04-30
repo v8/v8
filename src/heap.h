@@ -698,71 +698,12 @@ class Heap {
   // For use during bootup.
   void RepairFreeListsAfterBoot();
 
-  // Allocates an internalized string in old space based on the character
-  // stream. Returns Failure::RetryAfterGC(requested_bytes, space) if the
-  // allocation failed.
-  // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringFromUtf8(
-      Vector<const char> str,
-      int chars,
-      uint32_t hash_field);
-
-  MUST_USE_RESULT inline MaybeObject* AllocateOneByteInternalizedString(
-        Vector<const uint8_t> str,
-        uint32_t hash_field);
-
-  MUST_USE_RESULT inline MaybeObject* AllocateTwoByteInternalizedString(
-        Vector<const uc16> str,
-        uint32_t hash_field);
-
   template<typename T>
   static inline bool IsOneByte(T t, int chars);
-
-  template<typename T>
-  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringImpl(
-      T t, int chars, uint32_t hash_field);
-
-  // Allocates a fixed array initialized with undefined values
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateFixedArray(
-      int length,
-      PretenureFlag pretenure = NOT_TENURED);
-
-  // Allocates an uninitialized fixed array. It must be filled by the caller.
-  //
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedArray(int length);
 
   // Move len elements within a given array from src_index index to dst_index
   // index.
   void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
-
-  // Make a copy of src and return it. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT inline MaybeObject* CopyFixedArray(FixedArray* src);
-
-  // Make a copy of src, set the map, and return the copy. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT MaybeObject* CopyFixedArrayWithMap(FixedArray* src, Map* map);
-
-  // Make a copy of src and return it. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT inline MaybeObject* CopyFixedDoubleArray(
-      FixedDoubleArray* src);
-
-  // Make a copy of src and return it. Returns
-  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
-  MUST_USE_RESULT inline MaybeObject* CopyConstantPoolArray(
-      ConstantPoolArray* src);
-
-  // AllocateHashTable is identical to AllocateFixedArray except
-  // that the resulting object has hash_table_map as map.
-  MUST_USE_RESULT MaybeObject* AllocateHashTable(
-      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Sloppy mode arguments object size.
   static const int kSloppyArgumentsObjectSize =
@@ -798,7 +739,6 @@ class Heap {
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);
 
   bool InternalizeStringIfExists(String* str, String** result);
-  bool InternalizeTwoCharsStringIfExists(String* str, String** result);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
@@ -1542,6 +1482,11 @@ class Heap {
 
   MUST_USE_RESULT MaybeObject* CopyCode(Code* code);
 
+  // Allocates a fixed array initialized with undefined values
+  MUST_USE_RESULT MaybeObject* AllocateFixedArray(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
  private:
   Heap();
 
@@ -1866,9 +1811,50 @@ class Heap {
   bool CreateInitialMaps();
   void CreateInitialObjects();
 
+  // Allocates an internalized string in old space based on the character
+  // stream.
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringFromUtf8(
+      Vector<const char> str,
+      int chars,
+      uint32_t hash_field);
+
+  MUST_USE_RESULT inline MaybeObject* AllocateOneByteInternalizedString(
+        Vector<const uint8_t> str,
+        uint32_t hash_field);
+
+  MUST_USE_RESULT inline MaybeObject* AllocateTwoByteInternalizedString(
+        Vector<const uc16> str,
+        uint32_t hash_field);
+
   template<bool is_one_byte, typename T>
   MUST_USE_RESULT MaybeObject* AllocateInternalizedStringImpl(
       T t, int chars, uint32_t hash_field);
+
+  template<typename T>
+  MUST_USE_RESULT inline MaybeObject* AllocateInternalizedStringImpl(
+      T t, int chars, uint32_t hash_field);
+
+  // Allocates an uninitialized fixed array. It must be filled by the caller.
+  MUST_USE_RESULT MaybeObject* AllocateUninitializedFixedArray(int length);
+
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT inline MaybeObject* CopyFixedArray(FixedArray* src);
+
+  // Make a copy of src, set the map, and return the copy. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT MaybeObject* CopyFixedArrayWithMap(FixedArray* src, Map* map);
+
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT inline MaybeObject* CopyFixedDoubleArray(
+      FixedDoubleArray* src);
+
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  MUST_USE_RESULT inline MaybeObject* CopyConstantPoolArray(
+      ConstantPoolArray* src);
+
 
   // Computes a single character string where the character has code.
   // A cache is used for ASCII codes.

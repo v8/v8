@@ -76,7 +76,7 @@ TEST(MarkingDeque) {
 
 TEST(Promotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
+  TestHeap* heap = CcTest::test_heap();
   heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
 
   v8::HandleScope sc(CcTest::isolate());
@@ -101,7 +101,7 @@ TEST(Promotion) {
 
 TEST(NoPromotion) {
   CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
+  TestHeap* heap = CcTest::test_heap();
   heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
 
   v8::HandleScope sc(CcTest::isolate());
@@ -253,7 +253,7 @@ TEST(ObjectGroups) {
   FLAG_incremental_marking = false;
   CcTest::InitializeVM();
   GlobalHandles* global_handles = CcTest::i_isolate()->global_handles();
-  Heap* heap = CcTest::heap();
+  TestHeap* heap = CcTest::test_heap();
   NumberOfWeakCalls = 0;
   v8::HandleScope handle_scope(CcTest::isolate());
 
@@ -392,7 +392,7 @@ TEST(EmptyObjectGroups) {
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> object = global_handles->Create(
-      CcTest::heap()->AllocateFixedArray(1)->ToObjectChecked());
+      CcTest::test_heap()->AllocateFixedArray(1)->ToObjectChecked());
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);
