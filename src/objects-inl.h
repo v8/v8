@@ -5099,6 +5099,8 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
+          kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -5357,6 +5359,7 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
   }
 
   ASSERT(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
+
   set_code(value);
 }
 
@@ -6787,10 +6790,6 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
-
-
-ACCESSORS(TypeFeedbackInfo, feedback_vector, FixedArray,
-          kFeedbackVectorOffset)
 
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)

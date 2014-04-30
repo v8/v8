@@ -600,13 +600,16 @@ class Factory V8_FINAL {
     return Handle<String>(&isolate()->heap()->hidden_string_);
   }
 
+  Handle<FixedArray> NewTypeFeedbackVector(int slot_count);
+
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name,
       int number_of_literals,
       bool is_generator,
       Handle<Code> code,
-      Handle<ScopeInfo> scope_info);
+      Handle<ScopeInfo> scope_info,
+      Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   // Allocates a new JSMessageObject object.

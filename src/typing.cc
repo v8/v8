@@ -16,8 +16,9 @@ namespace internal {
 AstTyper::AstTyper(CompilationInfo* info)
     : info_(info),
       oracle_(
-          Handle<Code>(info->closure()->shared()->code()),
-          Handle<Context>(info->closure()->context()->native_context()),
+          handle(info->closure()->shared()->code()),
+          handle(info->closure()->shared()->feedback_vector()),
+          handle(info->closure()->context()->native_context()),
           info->zone()),
       store_(info->zone()) {
   InitializeAstVisitor(info->zone());
@@ -507,7 +508,7 @@ void AstTyper::VisitCall(Call* expr) {
   // Collect type feedback.
   RECURSE(Visit(expr->expression()));
   if (!expr->expression()->IsProperty() &&
-      expr->HasCallFeedbackSlot() &&
+      expr->IsUsingCallFeedbackSlot(isolate()) &&
       oracle()->CallIsMonomorphic(expr->CallFeedbackSlot())) {
     expr->set_target(oracle()->GetCallTarget(expr->CallFeedbackSlot()));
   }

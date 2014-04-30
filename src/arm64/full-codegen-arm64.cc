@@ -129,8 +129,6 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
 
-  InitializeFeedbackVector();
-
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1181,12 +1179,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register x0. Iterate through that.
   __ Bind(&fixed_array);
 
-  Handle<Object> feedback = Handle<Object>(
-      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
-      isolate());
-  StoreFeedbackVectorSlot(slot, feedback);
   __ LoadObject(x1, FeedbackVector());
-  __ Mov(x10, Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker));
+  __ Mov(x10, Operand(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
   __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(slot)));
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
@@ -2429,9 +2423,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
   __ LoadObject(x2, FeedbackVector());
   __ Mov(x3, Smi::FromInt(expr->CallFeedbackSlot()));
 
@@ -2628,12 +2619,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ Peek(x1, arg_count * kXRegSize);
 
   // Record call targets in unoptimized code.
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
   if (FLAG_pretenuring_call_new) {
-    StoreFeedbackVectorSlot(expr->AllocationSiteFeedbackSlot(),
-                            isolate()->factory()->NewAllocationSite());
+    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
     ASSERT(expr->AllocationSiteFeedbackSlot() ==
            expr->CallNewFeedbackSlot() + 1);
   }
