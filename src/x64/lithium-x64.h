@@ -234,7 +234,7 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const {
     return IsCall();
   }
 

@@ -517,6 +517,7 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
     bool serializer_enabled,
     OS::MemCopyUint8Function stub);
 OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
+    bool serializer_enabled,
     OS::MemCopyUint16Uint8Function stub);
 
 #elif defined(V8_HOST_ARCH_MIPS)
@@ -538,7 +539,8 @@ void OS::PostSetUp(bool serializer_enabled) {
   OS::memcopy_uint8_function =
       CreateMemCopyUint8Function(serializer_enabled, &OS::MemCopyUint8Wrapper);
   OS::memcopy_uint16_uint8_function =
-      CreateMemCopyUint16Uint8Function(&OS::MemCopyUint16Uint8Wrapper);
+      CreateMemCopyUint16Uint8Function(serializer_enabled,
+                                       &OS::MemCopyUint16Uint8Wrapper);
 #elif defined(V8_HOST_ARCH_MIPS)
   OS::memcopy_uint8_function =
       CreateMemCopyUint8Function(serializer_enabled, &OS::MemCopyUint8Wrapper);
