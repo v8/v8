@@ -85,7 +85,7 @@ TEST(Promotion) {
   int array_length =
       (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (4 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
+  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
@@ -110,7 +110,7 @@ TEST(NoPromotion) {
   int array_length =
       (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
       (2 * kPointerSize);
-  Object* obj = heap->AllocateFixedArray(array_length)->ToObjectChecked();
+  Object* obj = heap->AllocateFixedArray(array_length).ToObjectChecked();
   Handle<FixedArray> array(FixedArray::cast(obj));
 
   // Array should be in the new space.
@@ -139,22 +139,19 @@ TEST(MarkCompactCollector) {
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
-  Object* array;
-  MaybeObject* maybe_array;
+  AllocationResult allocation;
   do {
-    maybe_array = heap->AllocateFixedArray(ARRAY_SIZE);
-  } while (maybe_array->ToObject(&array));
+    allocation = heap->AllocateFixedArray(ARRAY_SIZE);
+  } while (!allocation.IsRetry());
   heap->CollectGarbage(NEW_SPACE, "trigger 2");
-  heap->AllocateFixedArray(ARRAY_SIZE)->ToObjectChecked();
+  heap->AllocateFixedArray(ARRAY_SIZE).ToObjectChecked();
 
   // keep allocating maps until it fails
-  Object* map;
-  MaybeObject* maybe_map;
   do {
-    maybe_map = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  } while (maybe_map->ToObject(&map));
+    allocation = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  } while (!allocation.IsRetry());
   heap->CollectGarbage(MAP_SPACE, "trigger 3");
-  heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)->ToObjectChecked();
+  heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize).ToObjectChecked();
 
   { HandleScope scope(isolate);
     // allocate a garbage
@@ -258,11 +255,11 @@ TEST(ObjectGroups) {
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> g1s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g1s2 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g1c1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   std::pair<Handle<Object>*, int> g1s1_and_id(&g1s1, 1234);
   GlobalHandles::MakeWeak(g1s1.location(),
                           reinterpret_cast<void*>(&g1s1_and_id),
@@ -277,11 +274,11 @@ TEST(ObjectGroups) {
                           &WeakPointerCallback);
 
   Handle<Object> g2s1 =
-      global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+      global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g2s2 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   Handle<Object> g2c1 =
-    global_handles->Create(heap->AllocateFixedArray(1)->ToObjectChecked());
+    global_handles->Create(heap->AllocateFixedArray(1).ToObjectChecked());
   std::pair<Handle<Object>*, int> g2s1_and_id(&g2s1, 1234);
   GlobalHandles::MakeWeak(g2s1.location(),
                           reinterpret_cast<void*>(&g2s1_and_id),
@@ -392,7 +389,7 @@ TEST(EmptyObjectGroups) {
   v8::HandleScope handle_scope(CcTest::isolate());
 
   Handle<Object> object = global_handles->Create(
-      CcTest::test_heap()->AllocateFixedArray(1)->ToObjectChecked());
+      CcTest::test_heap()->AllocateFixedArray(1).ToObjectChecked());
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);

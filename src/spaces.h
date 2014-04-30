@@ -1497,9 +1497,8 @@ class FreeListNode: public HeapObject {
 
   inline void Zap();
 
-  static inline FreeListNode* cast(MaybeObject* maybe) {
-    ASSERT(!maybe->IsFailure());
-    return reinterpret_cast<FreeListNode*>(maybe);
+  static inline FreeListNode* cast(Object* object) {
+    return reinterpret_cast<FreeListNode*>(object);
   }
 
  private:
@@ -1670,6 +1669,47 @@ class FreeList {
 };
 
 
+class AllocationResult {
+ public:
+  // Implicit constructor from Object*.
+  AllocationResult(Object* object) : object_(object),  // NOLINT
+                                     retry_space_(INVALID_SPACE) { }
+
+  AllocationResult() : object_(NULL),
+                       retry_space_(INVALID_SPACE) { }
+
+  static inline AllocationResult Retry(AllocationSpace space = NEW_SPACE) {
+    return AllocationResult(space);
+  }
+
+  inline bool IsRetry() { return retry_space_ != INVALID_SPACE; }
+
+  template <typename T>
+  bool To(T** obj) {
+    if (IsRetry()) return false;
+    *obj = T::cast(object_);
+    return true;
+  }
+
+  Object* ToObjectChecked() {
+    CHECK(!IsRetry());
+    return object_;
+  }
+
+  AllocationSpace RetrySpace() {
+    ASSERT(IsRetry());
+    return retry_space_;
+  }
+
+ private:
+  explicit AllocationResult(AllocationSpace space) : object_(NULL),
+                                                     retry_space_(space) { }
+
+  Object* object_;
+  AllocationSpace retry_space_;
+};
+
+
 class PagedSpace : public Space {
  public:
   // Creates a space with a maximum capacity, and an id.
@@ -1790,7 +1830,7 @@ class PagedSpace : public Space {
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
-  MUST_USE_RESULT inline MaybeObject* AllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT inline AllocationResult AllocateRaw(int size_in_bytes);
 
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
@@ -2516,7 +2556,7 @@ class NewSpace : public Space {
     return allocation_info_.limit_address();
   }
 
-  MUST_USE_RESULT INLINE(MaybeObject* AllocateRaw(int size_in_bytes));
+  MUST_USE_RESULT INLINE(AllocationResult AllocateRaw(int size_in_bytes));
 
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
@@ -2633,7 +2673,7 @@ class NewSpace : public Space {
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
 
-  MUST_USE_RESULT MaybeObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT AllocationResult SlowAllocateRaw(int size_in_bytes);
 
   friend class SemiSpaceIterator;
 
@@ -2788,8 +2828,8 @@ class LargeObjectSpace : public Space {
 
   // Shared implementation of AllocateRaw, AllocateRawCode and
   // AllocateRawFixedArray.
-  MUST_USE_RESULT MaybeObject* AllocateRaw(int object_size,
-                                           Executability executable);
+  MUST_USE_RESULT AllocationResult AllocateRaw(int object_size,
+                                               Executability executable);
 
   // Available bytes for objects in this space.
   inline intptr_t Available();

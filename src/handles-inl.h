@@ -16,21 +16,18 @@ namespace internal {
 
 template<typename T>
 Handle<T>::Handle(T* obj) {
-  ASSERT(!obj->IsFailure());
   location_ = HandleScope::CreateHandle(obj->GetIsolate(), obj);
 }
 
 
 template<typename T>
 Handle<T>::Handle(T* obj, Isolate* isolate) {
-  ASSERT(!obj->IsFailure());
   location_ = HandleScope::CreateHandle(isolate, obj);
 }
 
 
 template <typename T>
 inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
-  ASSERT(location_ == NULL || !(*location_)->IsFailure());
   // Dereferencing deferred handles to check object equality is safe.
   SLOW_ASSERT(
       (location_ == NULL || IsDereferenceAllowed(NO_DEFERRED_CHECK)) &&
@@ -43,14 +40,12 @@ inline bool Handle<T>::is_identical_to(const Handle<T> o) const {
 
 template <typename T>
 inline T* Handle<T>::operator*() const {
-  ASSERT(location_ != NULL && !(*location_)->IsFailure());
   SLOW_ASSERT(IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return *BitCast<T**>(location_);
 }
 
 template <typename T>
 inline T** Handle<T>::location() const {
-  ASSERT(location_ == NULL || !(*location_)->IsFailure());
   SLOW_ASSERT(location_ == NULL ||
               IsDereferenceAllowed(INCLUDE_DEFERRED_CHECK));
   return location_;

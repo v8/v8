@@ -17,6 +17,7 @@
 #include "mark-compact.h"
 #include "objects-visiting.h"
 #include "objects-visiting-inl.h"
+#include "spaces-inl.h"
 #include "stub-cache.h"
 #include "sweeper-thread.h"
 
@@ -2059,8 +2060,8 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
       }
 
       // Promotion failed. Just migrate object to another semispace.
-      MaybeObject* allocation = new_space->AllocateRaw(size);
-      if (allocation->IsFailure()) {
+      AllocationResult allocation = new_space->AllocateRaw(size);
+      if (allocation.IsRetry()) {
         if (!new_space->AddFreshPage()) {
           // Shouldn't happen. We are sweeping linearly, and to-space
           // has the same number of pages as from-space, so there is
@@ -2068,9 +2069,9 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
           UNREACHABLE();
         }
         allocation = new_space->AllocateRaw(size);
-        ASSERT(!allocation->IsFailure());
+        ASSERT(!allocation.IsRetry());
       }
-      Object* target = allocation->ToObjectUnchecked();
+      Object* target = allocation.ToObjectChecked();
 
       MigrateObject(HeapObject::cast(target),
                     object,
@@ -3074,10 +3075,9 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
 
   ASSERT(target_space == heap()->old_pointer_space() ||
          target_space == heap()->old_data_space());
-  Object* result;
-  MaybeObject* maybe_result = target_space->AllocateRaw(object_size);
-  if (maybe_result->ToObject(&result)) {
-    HeapObject* target = HeapObject::cast(result);
+  HeapObject* target;
+  AllocationResult allocation = target_space->AllocateRaw(object_size);
+  if (allocation.To(&target)) {
     MigrateObject(target,
                   object,
                   object_size,
@@ -3148,19 +3148,15 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
 
       int size = object->Size();
 
-      MaybeObject* target = space->AllocateRaw(size);
-      if (target->IsFailure()) {
+      HeapObject* target_object;
+      AllocationResult allocation = space->AllocateRaw(size);
+      if (!allocation.To(&target_object)) {
         // OS refused to give us memory.
         V8::FatalProcessOutOfMemory("Evacuation");
         return;
       }
 
-      Object* target_object = target->ToObjectUnchecked();
-
-      MigrateObject(HeapObject::cast(target_object),
-                    object,
-                    size,
-                    space->identity());
+      MigrateObject(target_object, object, size, space->identity());
       ASSERT(object->map_word().IsForwardingAddress());
     }
 

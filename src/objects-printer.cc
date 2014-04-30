@@ -14,32 +14,27 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-void MaybeObject::Print() {
+void Object::Print() {
   Print(stdout);
 }
 
 
-void MaybeObject::Print(FILE* out) {
-  Object* this_as_object;
-  if (ToObject(&this_as_object)) {
-    if (this_as_object->IsSmi()) {
-      Smi::cast(this_as_object)->SmiPrint(out);
-    } else {
-      HeapObject::cast(this_as_object)->HeapObjectPrint(out);
-    }
+void Object::Print(FILE* out) {
+  if (IsSmi()) {
+    Smi::cast(this)->SmiPrint(out);
   } else {
-    Failure::cast(this)->FailurePrint(out);
+    HeapObject::cast(this)->HeapObjectPrint(out);
   }
   Flush(out);
 }
 
 
-void MaybeObject::PrintLn() {
+void Object::PrintLn() {
   PrintLn(stdout);
 }
 
 
-void MaybeObject::PrintLn(FILE* out) {
+void Object::PrintLn(FILE* out) {
   Print(out);
   PrintF(out, "\n");
 }

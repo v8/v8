@@ -1069,10 +1069,12 @@ Handle<Object> Factory::NewNumberFromInt(int32_t value,
 
 
 Handle<Object> Factory::NewNumberFromUint(uint32_t value,
-                                         PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->NumberFromUint32(value, pretenure), Object);
+                                          PretenureFlag pretenure) {
+  int32_t int32v = static_cast<int32_t>(value);
+  if (int32v >= 0 && Smi::IsValid(int32v)) {
+    return handle(Smi::FromInt(int32v), isolate());
+  }
+  return NewHeapNumber(FastUI2D(value), pretenure);
 }
 
 
@@ -1416,9 +1418,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->CopyFrom(desc);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    code->Verify();
-  }
+  if (FLAG_verify_heap) code->ObjectVerify();
 #endif
   return code;
 }

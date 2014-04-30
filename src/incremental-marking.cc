@@ -240,7 +240,7 @@ class IncrementalMarkingMarkingVisitor
 
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
-    if (obj->NonFailureIsHeapObject()) {
+    if (obj->IsHeapObject()) {
       heap->mark_compact_collector()->RecordSlot(p, p, obj);
       MarkObject(heap, obj);
     }
@@ -249,7 +249,7 @@ class IncrementalMarkingMarkingVisitor
   INLINE(static void VisitPointers(Heap* heap, Object** start, Object** end)) {
     for (Object** p = start; p < end; p++) {
       Object* obj = *p;
-      if (obj->NonFailureIsHeapObject()) {
+      if (obj->IsHeapObject()) {
         heap->mark_compact_collector()->RecordSlot(start, p, obj);
         MarkObject(heap, obj);
       }
@@ -262,7 +262,7 @@ class IncrementalMarkingMarkingVisitor
                                              Object** end)) {
     for (Object** p = start; p < end; p++) {
       Object* obj = *p;
-      if (obj->NonFailureIsHeapObject()) {
+      if (obj->IsHeapObject()) {
         heap->mark_compact_collector()->RecordSlot(anchor, p, obj);
         MarkObject(heap, obj);
       }

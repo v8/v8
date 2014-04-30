@@ -251,7 +251,7 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
 
 
 // Raw allocation.
-MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
+AllocationResult PagedSpace::AllocateRaw(int size_in_bytes) {
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {
@@ -280,7 +280,7 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
     return object;
   }
 
-  return Failure::RetryAfterGC(identity());
+  return AllocationResult::Retry(identity());
 }
 
 
@@ -288,7 +288,7 @@ MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
 // NewSpace
 
 
-MaybeObject* NewSpace::AllocateRaw(int size_in_bytes) {
+AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
 #ifdef DEBUG
   // If we are stressing compaction we waste some memory in new space
