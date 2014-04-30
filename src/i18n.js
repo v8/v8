@@ -279,7 +279,7 @@ function supportedLocalesOf(service, locales, options) {
   if (options === undefined) {
     options = {};
   } else {
-    options = toObject(options);
+    options = ToObject(options);
   }
 
   var matcher = options.localeMatcher;
@@ -513,18 +513,6 @@ function parseExtension(extension) {
 
 
 /**
- * Converts parameter to an Object if possible.
- */
-function toObject(value) {
-  if (IS_NULL_OR_UNDEFINED(value)) {
-    throw new $TypeError('Value cannot be converted to an Object.');
-  }
-
-  return $Object(value);
-}
-
-
-/**
  * Populates internalOptions object with boolean key-value pairs
  * from extensionMap and options.
  * Returns filtered extension (number and date format constructors use
@@ -752,7 +740,7 @@ function initializeLocaleList(locales) {
       return freezeArray(seen);
     }
 
-    var o = toObject(locales);
+    var o = ToObject(locales);
     // Converts it to UInt32 (>>> is shr on 32bit integers).
     var len = o.length >>> 0;
 
@@ -964,7 +952,7 @@ function initializeCollator(collator, locales, options) {
       return new Intl.Collator(locales, options);
     }
 
-    return initializeCollator(toObject(this), locales, options);
+    return initializeCollator(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1191,7 +1179,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
       return new Intl.NumberFormat(locales, options);
     }
 
-    return initializeNumberFormat(toObject(this), locales, options);
+    return initializeNumberFormat(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1584,7 +1572,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
       return new Intl.DateTimeFormat(locales, options);
     }
 
-    return initializeDateTimeFormat(toObject(this), locales, options);
+    return initializeDateTimeFormat(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
@@ -1790,7 +1778,7 @@ function initializeBreakIterator(iterator, locales, options) {
       return new Intl.v8BreakIterator(locales, options);
     }
 
-    return initializeBreakIterator(toObject(this), locales, options);
+    return initializeBreakIterator(ToObject(this), locales, options);
   },
   DONT_ENUM
 );
