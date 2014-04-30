@@ -979,11 +979,18 @@ bool MacroAssembler::IsUnsafeInt(const int32_t x) {
 
 void MacroAssembler::SafeMove(Register dst, Smi* src) {
   ASSERT(!dst.is(kScratchRegister));
-  ASSERT(SmiValuesAre32Bits());  // JIT cookie can be converted to Smi.
   if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
-    Move(dst, Smi::FromInt(src->value() ^ jit_cookie()));
-    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
-    xorq(dst, kScratchRegister);
+    if (SmiValuesAre32Bits()) {
+      // JIT cookie can be converted to Smi.
+      Move(dst, Smi::FromInt(src->value() ^ jit_cookie()));
+      Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+      xorp(dst, kScratchRegister);
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      int32_t value = static_cast<int32_t>(reinterpret_cast<intptr_t>(src));
+      movp(dst, Immediate(value ^ jit_cookie()));
+      xorp(dst, Immediate(jit_cookie()));
+    }
   } else {
     Move(dst, src);
   }
@@ -991,11 +998,18 @@ void MacroAssembler::SafeMove(Register dst, Smi* src) {
 
 
 void MacroAssembler::SafePush(Smi* src) {
-  ASSERT(SmiValuesAre32Bits());  // JIT cookie can be converted to Smi.
   if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
-    Push(Smi::FromInt(src->value() ^ jit_cookie()));
-    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
-    xorq(Operand(rsp, 0), kScratchRegister);
+    if (SmiValuesAre32Bits()) {
+      // JIT cookie can be converted to Smi.
+      Push(Smi::FromInt(src->value() ^ jit_cookie()));
+      Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+      xorp(Operand(rsp, 0), kScratchRegister);
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      int32_t value = static_cast<int32_t>(reinterpret_cast<intptr_t>(src));
+      Push(Immediate(value ^ jit_cookie()));
+      xorp(Operand(rsp, 0), Immediate(jit_cookie()));
+    }
   } else {
     Push(src);
   }
@@ -2246,35 +2260,66 @@ void MacroAssembler::SelectNonSmi(Register dst,
 SmiIndex MacroAssembler::SmiToIndex(Register dst,
                                     Register src,
                                     int shift) {
-  ASSERT(is_uint6(shift));
-  // There is a possible optimization if shift is in the range 60-63, but that
-  // will (and must) never happen.
-  if (!dst.is(src)) {
-    movq(dst, src);
-  }
-  if (shift < kSmiShift) {
-    sarq(dst, Immediate(kSmiShift - shift));
+  if (SmiValuesAre32Bits()) {
+    ASSERT(is_uint6(shift));
+    // There is a possible optimization if shift is in the range 60-63, but that
+    // will (and must) never happen.
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    if (shift < kSmiShift) {
+      sarp(dst, Immediate(kSmiShift - shift));
+    } else {
+      shlp(dst, Immediate(shift - kSmiShift));
+    }
+    return SmiIndex(dst, times_1);
   } else {
-    shlq(dst, Immediate(shift - kSmiShift));
+    ASSERT(SmiValuesAre31Bits());
+    ASSERT(shift >= times_1 && shift <= (static_cast<int>(times_8) + 1));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    // We have to sign extend the index register to 64-bit as the SMI might
+    // be negative.
+    movsxlq(dst, dst);
+    if (shift == times_1) {
+      sarq(dst, Immediate(kSmiShift));
+      return SmiIndex(dst, times_1);
+    }
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
   }
-  return SmiIndex(dst, times_1);
 }
+
 
 SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
                                             Register src,
                                             int shift) {
-  // Register src holds a positive smi.
-  ASSERT(is_uint6(shift));
-  if (!dst.is(src)) {
-    movq(dst, src);
-  }
-  negq(dst);
-  if (shift < kSmiShift) {
-    sarq(dst, Immediate(kSmiShift - shift));
+  if (SmiValuesAre32Bits()) {
+    // Register src holds a positive smi.
+    ASSERT(is_uint6(shift));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    negp(dst);
+    if (shift < kSmiShift) {
+      sarp(dst, Immediate(kSmiShift - shift));
+    } else {
+      shlp(dst, Immediate(shift - kSmiShift));
+    }
+    return SmiIndex(dst, times_1);
   } else {
-    shlq(dst, Immediate(shift - kSmiShift));
+    ASSERT(SmiValuesAre31Bits());
+    ASSERT(shift >= times_1 && shift <= (static_cast<int>(times_8) + 1));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    negq(dst);
+    if (shift == times_1) {
+      sarq(dst, Immediate(kSmiShift));
+      return SmiIndex(dst, times_1);
+    }
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
   }
-  return SmiIndex(dst, times_1);
 }
 
 
