@@ -6,7 +6,8 @@
 
 // Test debug events when we only listen to uncaught exceptions and
 // there is a catch handler for the exception thrown in a Promise.
-// We expect no debug event to be triggered.
+// Expectation:
+//  - no debug event is triggered.
 
 Debug = debug.Debug;
 
@@ -27,6 +28,7 @@ q.catch(
 function listener(event, exec_state, event_data, data) {
   try {
     assertTrue(event != Debug.DebugEvent.Exception);
+    assertTrue(event != Debug.DebugEvent.PendingExceptionInPromise);
   } catch (e) {
     // Signal a failure with exit code 1.  This is necessary since the
     // debugger swallows exceptions and we expect the chained function

@@ -19,7 +19,8 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     ScriptCollected: 6 };
+                     ScriptCollected: 6,
+                     PendingExceptionInPromise: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,

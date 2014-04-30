@@ -6,7 +6,8 @@
 
 // Test debug events when we only listen to uncaught exceptions and
 // there is a catch handler for the exception thrown in a Promise.
-// We expect an Exception debug event with a promise to be triggered.
+// Expectation:
+//  - only the PendingExceptionInPromise debug event is triggered.
 
 Debug = debug.Debug;
 
@@ -21,7 +22,7 @@ var p = new Promise(function(resolve, reject) {
 var q = p.chain(
   function() {
     log.push("throw");
-    throw new Error("uncaught");  // event
+    throw new Error("uncaught");
   });
 
 function listener(event, exec_state, event_data, data) {
@@ -30,13 +31,12 @@ function listener(event, exec_state, event_data, data) {
     if (step >= 1) return;
     assertEquals(["resolve", "end main", "throw"], log);
     if (event == Debug.DebugEvent.Exception) {
+      assertUnreachable();
+    } else if (event == Debug.DebugEvent.PendingExceptionInPromise) {
       assertEquals(0, step);
       assertEquals("uncaught", event_data.exception().message);
       assertTrue(event_data.promise() instanceof Promise);
-      assertEquals(q, event_data.promise());
       assertTrue(event_data.uncaught());
-      // Assert that the debug event is triggered at the throw site.
-      assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
       step++;
     }
   } catch (e) {

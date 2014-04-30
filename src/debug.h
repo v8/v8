@@ -235,12 +235,6 @@ class Debug {
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
-
-  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
-  void PromiseHandleEpilogue();
-  // Returns a promise if it does not have a reject handler.
-  Handle<Object> GetPromiseForUncaughtException();
-
   void PrepareStep(StepAction step_action,
                    int step_count,
                    StackFrame::Id frame_id);
@@ -544,13 +538,6 @@ class Debug {
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
 
-  // When a promise is being resolved, we may want to trigger a debug event for
-  // the case we catch a throw.  For this purpose we remember the try-catch
-  // handler address that would catch the exception.  We also hold onto a
-  // closure that returns a promise if the exception is considered uncaught.
-  StackHandler* current_promise_catch_handler_;
-  MaybeHandle<JSFunction> current_promise_getter_;
-
   // Per-thread data.
   class ThreadLocal {
    public:
@@ -787,7 +774,9 @@ class Debugger {
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
+  void OnException(Handle<Object> exception,
+                   bool uncaught,
+                   Handle<Object> promise = Handle<Object>::null());
   void OnBeforeCompile(Handle<Script> script);
 
   enum AfterCompileFlags {
