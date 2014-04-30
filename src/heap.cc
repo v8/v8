@@ -4619,7 +4619,7 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
       return property_cell_space_->Contains(addr);
     case LO_SPACE:
       return lo_space_->SlowContains(addr);
-    default:
+    case INVALID_SPACE:
       break;
   }
   UNREACHABLE();

@@ -401,7 +401,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
     case PROPERTY_CELL_SPACE:
     case LO_SPACE:
       return false;
-    default:
+    case INVALID_SPACE:
       break;
   }
   UNREACHABLE();
