@@ -4,42 +4,27 @@
 
 // Flags: --harmony-promises --expose-debug-as debug
 
-// Test debug events when we listen to all exceptions and
-// there is a catch handler for the exception thrown in a Promise.
-// We expect a normal Exception debug event to be triggered.
+// Test debug events when we only listen to uncaught exceptions, the Promise
+// throws, and a catch handler is installed right before throwing.
+// We expect no debug event to be triggered.
 
 Debug = debug.Debug;
 
-var log = [];
-var step = 0;
-
 var p = new Promise(function(resolve, reject) {
-  log.push("resolve");
   resolve();
 });
 
 var q = p.chain(
   function() {
-    log.push("throw");
+    q.catch(function(e) {
+      assertEquals("caught", e.message);
+    });
     throw new Error("caught");
-  });
-
-q.catch(
-  function(e) {
-    assertEquals("caught", e.message);
   });
 
 function listener(event, exec_state, event_data, data) {
   try {
-    // Ignore exceptions during startup in stress runs.
-    if (step >= 1) return;
-    assertEquals(["resolve", "end main", "throw"], log);
-    if (event == Debug.DebugEvent.Exception) {
-      assertEquals("caught", event_data.exception().message);
-      assertEquals(undefined, event_data.promise());
-      assertFalse(event_data.uncaught());
-      step++;
-    }
+    assertTrue(event != Debug.DebugEvent.Exception);
   } catch (e) {
     // Signal a failure with exit code 1.  This is necessary since the
     // debugger swallows exceptions and we expect the chained function
@@ -49,7 +34,5 @@ function listener(event, exec_state, event_data, data) {
   }
 }
 
-Debug.setBreakOnException();
+Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
-
-log.push("end main");

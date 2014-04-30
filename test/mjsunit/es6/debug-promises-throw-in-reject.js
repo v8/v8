@@ -6,7 +6,7 @@
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which throws a new exception in its reject
-// handler.  We expect a PendingExceptionInPromise event to be triggered.
+// handler.  We expect an Exception debug event with a promise to be triggered.
 
 Debug = debug.Debug;
 
@@ -21,7 +21,7 @@ var p = new Promise(function(resolve, reject) {
 function MyPromise(resolver) {
   var reject = function() {
     log.push("throw reject");
-    throw new Error("reject");
+    throw new Error("reject");  // event
   };
   var resolve = function() { };
   log.push("construct");
@@ -39,12 +39,12 @@ var q = p.chain(
 
 function listener(event, exec_state, event_data, data) {
   try {
-    if (event == Debug.DebugEvent.PendingExceptionInPromise) {
+    if (event == Debug.DebugEvent.Exception) {
       assertEquals(["resolve", "construct", "end main",
                     "throw caught", "throw reject"], log);
-      assertEquals("caught", event_data.exception().message);
-    } else if (event == Debug.DebugEvent.Exception) {
-      assertUnreachable();
+      assertEquals("reject", event_data.exception().message);
+      assertEquals(q, event_data.promise());
+      assertTrue(exec_state.frame(0).sourceLineText().indexOf('// event') > 0);
     }
   } catch (e) {
     // Signal a failure with exit code 1.  This is necessary since the
