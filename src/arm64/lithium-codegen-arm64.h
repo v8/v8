@@ -37,8 +37,14 @@ class LCodeGen: public LCodeGenBase {
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
-        expected_safepoint_kind_(Safepoint::kSimple) {
+        expected_safepoint_kind_(Safepoint::kSimple),
+        after_push_argument_(false),
+        inlined_arguments_(false) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
+  }
+
+  ~LCodeGen() {
+    ASSERT(!after_push_argument_ || inlined_arguments_);
   }
 
   // Simple accessors.
@@ -82,7 +88,9 @@ class LCodeGen: public LCodeGenBase {
   Operand ToOperand(LOperand* op);
   Operand ToOperand32I(LOperand* op);
   Operand ToOperand32U(LOperand* op);
-  MemOperand ToMemOperand(LOperand* op) const;
+  enum StackMode { kMustUseFramePointer, kCanUseStackPointer };
+  MemOperand ToMemOperand(LOperand* op,
+                          StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // TODO(jbramley): Examine these helpers and check that they make sense.
@@ -347,6 +355,15 @@ class LCodeGen: public LCodeGenBase {
   LGapResolver resolver_;
 
   Safepoint::Kind expected_safepoint_kind_;
+
+  // This flag is true when we are after a push (but before a call).
+  // In this situation, jssp no longer references the end of the stack slots so,
+  // we can only reference a stack slot via fp.
+  bool after_push_argument_;
+  // If we have inlined arguments, we are no longer able to use jssp because
+  // jssp is modified and we never know if we are in a block after or before
+  // the pop of the arguments (which restores jssp).
+  bool inlined_arguments_;
 
   int old_position_;
 
