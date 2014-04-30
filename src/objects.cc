@@ -15416,35 +15416,45 @@ class TwoCharHashTableKey : public HashTableKey {
 };
 
 
-bool StringTable::LookupStringIfExists(String* string, String** result) {
-  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  DisallowHeapAllocation no_alloc;
-  // TODO(ishell): Handlify all the callers and remove this scope.
-  HandleScope scope(GetIsolate());
-  InternalizedStringKey key(handle(string));
-  int entry = FindEntry(&key);
+MaybeHandle<String> StringTable::InternalizeStringIfExists(
+    Isolate* isolate,
+    Handle<String> string) {
+  if (string->IsInternalizedString()) {
+    return string;
+  }
+  return LookupStringIfExists(isolate, string);
+}
+
+
+MaybeHandle<String> StringTable::LookupStringIfExists(
+    Isolate* isolate,
+    Handle<String> string) {
+  Handle<StringTable> string_table = isolate->factory()->string_table();
+  InternalizedStringKey key(string);
+  int entry = string_table->FindEntry(&key);
   if (entry == kNotFound) {
-    return false;
+    return MaybeHandle<String>();
   } else {
-    *result = String::cast(KeyAt(entry));
+    Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
     ASSERT(StringShape(*result).IsInternalized());
-    return true;
+    return result;
   }
 }
 
 
-bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
-                                               uint16_t c2,
-                                               String** result) {
-  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
-  int entry = FindEntry(&key);
+MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
+    Isolate* isolate,
+    uint16_t c1,
+    uint16_t c2) {
+  Handle<StringTable> string_table = isolate->factory()->string_table();
+  TwoCharHashTableKey key(c1, c2, isolate->heap()->HashSeed());
+  int entry = string_table->FindEntry(&key);
   if (entry == kNotFound) {
-    return false;
+    return MaybeHandle<String>();
   } else {
-    *result = String::cast(KeyAt(entry));
+    Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
     ASSERT(StringShape(*result).IsInternalized());
-    return true;
+    return result;
   }
 }
 

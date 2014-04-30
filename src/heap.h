@@ -730,8 +730,6 @@ class Heap {
   // Maintain marking consistency for IncrementalMarking.
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);
 
-  bool InternalizeStringIfExists(String* str, String** result);
-
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);
 

@@ -376,10 +376,10 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
   // Numeric strings have a different hash algorithm not known by
   // LookupTwoCharsStringIfExists, so we skip this step for such strings.
   if (!Between(c1, '0', '9') || !Between(c2, '0', '9')) {
-    String* result;
-    StringTable* table = isolate->heap()->string_table();
-    if (table->LookupTwoCharsStringIfExists(c1, c2, &result)) {
-      return handle(result);
+    Handle<String> result;
+    if (StringTable::LookupTwoCharsStringIfExists(isolate, c1, c2).
+        ToHandle(&result)) {
+      return result;
     }
   }
 

@@ -4656,15 +4656,6 @@ void Heap::Verify() {
 #endif
 
 
-bool Heap::InternalizeStringIfExists(String* string, String** result) {
-  if (string->IsInternalizedString()) {
-    *result = string;
-    return true;
-  }
-  return string_table()->LookupStringIfExists(string, result);
-}
-
-
 void Heap::ZapFromSpace() {
   NewSpacePageIterator it(new_space_.FromSpaceStart(),
                           new_space_.FromSpaceEnd());
@@ -6246,12 +6237,11 @@ void KeyedLookupCache::Update(Handle<Map> map,
                               int field_offset) {
   DisallowHeapAllocation no_gc;
   if (!name->IsUniqueName()) {
-    String* internalized_string;
-    if (!map->GetIsolate()->heap()->InternalizeStringIfExists(
-            String::cast(*name), &internalized_string)) {
+    if (!StringTable::InternalizeStringIfExists(name->GetIsolate(),
+                                                Handle<String>::cast(name)).
+        ToHandle(&name)) {
       return;
     }
-    name = handle(internalized_string);
   }
   // This cache is cleared only between mark compact passes, so we expect the
   // cache to only contain old space names.

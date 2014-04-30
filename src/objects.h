@@ -3741,8 +3741,6 @@ class SeqOneByteString;
 //
 // No special elements in the prefix and the element size is 1
 // because only the string itself (the key) needs to be stored.
-// TODO(ishell): Make StringTable a singleton class and move
-//   Heap::InternalizeStringXX() methods here.
 class StringTable: public HashTable<StringTable,
                                     StringTableShape,
                                     HashTableKey*> {
@@ -3752,11 +3750,21 @@ class StringTable: public HashTable<StringTable,
   static Handle<String> LookupString(Isolate* isolate, Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, HashTableKey* key);
 
+  // Tries to internalize given string and returns string handle on success
+  // or an empty handle otherwise.
+  MUST_USE_RESULT static MaybeHandle<String> InternalizeStringIfExists(
+      Isolate* isolate,
+      Handle<String> string);
+
   // Looks up a string that is equal to the given string and returns
-  // true if it is found, assigning the string to the given output
-  // parameter.
-  bool LookupStringIfExists(String* str, String** result);
-  bool LookupTwoCharsStringIfExists(uint16_t c1, uint16_t c2, String** result);
+  // string handle if it is found, or an empty handle otherwise.
+  MUST_USE_RESULT static MaybeHandle<String> LookupStringIfExists(
+      Isolate* isolate,
+      Handle<String> str);
+  MUST_USE_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
+      Isolate* isolate,
+      uint16_t c1,
+      uint16_t c2);
 
   // Casting.
   static inline StringTable* cast(Object* obj);

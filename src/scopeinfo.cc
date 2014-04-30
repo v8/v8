@@ -437,14 +437,14 @@ void ContextSlotCache::Update(Handle<Object> data,
                               InitializationFlag init_flag,
                               int slot_index) {
   DisallowHeapAllocation no_gc;
-  String* internalized_name;
+  Handle<String> internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          *name, &internalized_name)) {
-    int index = Hash(*data, internalized_name);
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *internalized_name);
     Key& key = keys_[index];
     key.data = *data;
-    key.name = internalized_name;
+    key.name = *internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
@@ -467,9 +467,9 @@ void ContextSlotCache::ValidateEntry(Handle<Object> data,
                                      InitializationFlag init_flag,
                                      int slot_index) {
   DisallowHeapAllocation no_gc;
-  String* internalized_name;
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          *name, &internalized_name)) {
+  Handle<String> internalized_name;
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
     int index = Hash(*data, *name);
     Key& key = keys_[index];
     ASSERT(key.data == *data);
