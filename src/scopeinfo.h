@@ -26,8 +26,8 @@ class ContextSlotCache {
              InitializationFlag* init_flag);
 
   // Update an element in the cache.
-  void Update(Object* data,
-              String* name,
+  void Update(Handle<Object> data,
+              Handle<String> name,
               VariableMode mode,
               InitializationFlag init_flag,
               int slot_index);
@@ -49,8 +49,8 @@ class ContextSlotCache {
   inline static int Hash(Object* data, String* name);
 
 #ifdef DEBUG
-  void ValidateEntry(Object* data,
-                     String* name,
+  void ValidateEntry(Handle<Object> data,
+                     Handle<String> name,
                      VariableMode mode,
                      InitializationFlag init_flag,
                      int slot_index);

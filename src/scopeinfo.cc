@@ -307,15 +307,14 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
         *mode = scope_info->ContextLocalMode(var);
         *init_flag = scope_info->ContextLocalInitFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(
-            *scope_info, *name, *mode, *init_flag, result);
+        context_slot_cache->Update(scope_info, name, *mode, *init_flag, result);
         ASSERT(result < scope_info->ContextLength());
         return result;
       }
     }
     // Cache as not found. Mode and init flag don't matter.
     context_slot_cache->Update(
-        *scope_info, *name, INTERNAL, kNeedsInitialization, -1);
+        scope_info, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
 }
@@ -432,18 +431,19 @@ int ContextSlotCache::Lookup(Object* data,
 }
 
 
-void ContextSlotCache::Update(Object* data,
-                              String* name,
+void ContextSlotCache::Update(Handle<Object> data,
+                              Handle<String> name,
                               VariableMode mode,
                               InitializationFlag init_flag,
                               int slot_index) {
+  DisallowHeapAllocation no_gc;
   String* internalized_name;
   ASSERT(slot_index > kNotFound);
   if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, internalized_name);
+          *name, &internalized_name)) {
+    int index = Hash(*data, internalized_name);
     Key& key = keys_[index];
-    key.data = data;
+    key.data = *data;
     key.name = internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
@@ -461,18 +461,19 @@ void ContextSlotCache::Clear() {
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Object* data,
-                                     String* name,
+void ContextSlotCache::ValidateEntry(Handle<Object> data,
+                                     Handle<String> name,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
                                      int slot_index) {
+  DisallowHeapAllocation no_gc;
   String* internalized_name;
   if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, name);
+          *name, &internalized_name)) {
+    int index = Hash(*data, *name);
     Key& key = keys_[index];
-    ASSERT(key.data == data);
-    ASSERT(key.name->Equals(name));
+    ASSERT(key.data == *data);
+    ASSERT(key.name->Equals(*name));
     Value result(values_[index]);
     ASSERT(result.mode() == mode);
     ASSERT(result.initialization_flag() == init_flag);
