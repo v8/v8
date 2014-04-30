@@ -819,10 +819,12 @@ class MacroAssembler: public Assembler {
   void Call(Label* target) { call(target); }
   void Push(Register src);
   void Push(const Operand& src);
+  void PushQuad(const Operand& src);
   void Push(Immediate value);
   void PushImm32(int32_t imm32);
   void Pop(Register dst);
   void Pop(const Operand& dst);
+  void PopQuad(const Operand& dst);
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
   void Move(Register dst, ExternalReference ext) {
