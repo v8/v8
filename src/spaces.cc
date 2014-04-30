@@ -1057,7 +1057,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size = 480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100;
+        size = RoundUp(
+            480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100,
+            kPointerSize);
       }
       break;
     default:

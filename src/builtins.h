@@ -180,11 +180,11 @@ enum BuiltinExtraArguments {
                                                DEBUG_BREAK)                   \
   V(CallFunctionStub_DebugBreak,               BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
-  V(CallFunctionStub_Recording_DebugBreak,     BUILTIN, DEBUG_STUB,           \
-                                               DEBUG_BREAK)                   \
   V(CallConstructStub_DebugBreak,              BUILTIN, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
   V(CallConstructStub_Recording_DebugBreak,    BUILTIN, DEBUG_STUB,           \
+                                               DEBUG_BREAK)                   \
+  V(CallICStub_DebugBreak,                     CALL_IC, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \
   V(LoadIC_DebugBreak,                         LOAD_IC, DEBUG_STUB,           \
                                                DEBUG_BREAK)                   \

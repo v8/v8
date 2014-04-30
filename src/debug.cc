@@ -381,6 +381,7 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     if (target_code->kind() == Code::STUB) {
       return target_code->major_key() == CodeStub::CallFunction;
     }
+    return target_code->is_call_stub();
   }
   return false;
 }
@@ -1442,6 +1443,9 @@ void Debug::PrepareStep(StepAction step_action,
       bool is_call_target = false;
       Address target = it.rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
+      if (code->is_call_stub()) {
+        is_call_target = true;
+      }
       if (code->is_inline_cache_stub()) {
         is_inline_cache_stub = true;
         is_load_or_store = !is_call_target;
@@ -1456,8 +1460,9 @@ void Debug::PrepareStep(StepAction step_action,
         maybe_call_function_stub =
             Code::GetCodeFromTargetAddress(original_target);
       }
-      if (maybe_call_function_stub->kind() == Code::STUB &&
-          maybe_call_function_stub->major_key() == CodeStub::CallFunction) {
+      if ((maybe_call_function_stub->kind() == Code::STUB &&
+           maybe_call_function_stub->major_key() == CodeStub::CallFunction) ||
+          maybe_call_function_stub->kind() == Code::CALL_IC) {
         // Save reference to the code as we may need it to find out arguments
         // count for 'step in' later.
         call_function_stub = Handle<Code>(maybe_call_function_stub);
@@ -1513,6 +1518,7 @@ void Debug::PrepareStep(StepAction step_action,
     } else if (!call_function_stub.is_null()) {
       // If it's CallFunction stub ensure target function is compiled and flood
       // it with one shot breakpoints.
+      bool is_call_ic = call_function_stub->kind() == Code::CALL_IC;
 
       // Find out number of arguments from the stub minor key.
       // Reverse lookup required as the minor key cannot be retrieved
@@ -1528,11 +1534,13 @@ void Debug::PrepareStep(StepAction step_action,
       uint32_t key = Smi::cast(*obj)->value();
       // Argc in the stub is the number of arguments passed - not the
       // expected arguments of the called function.
-      int call_function_arg_count =
-          CallFunctionStub::ExtractArgcFromMinorKey(
+      int call_function_arg_count = is_call_ic
+          ? CallICStub::ExtractArgcFromMinorKey(CodeStub::MinorKeyFromKey(key))
+          : CallFunctionStub::ExtractArgcFromMinorKey(
               CodeStub::MinorKeyFromKey(key));
-      ASSERT(call_function_stub->major_key() ==
-             CodeStub::MajorKeyFromKey(key));
+
+      ASSERT(is_call_ic ||
+             call_function_stub->major_key() == CodeStub::MajorKeyFromKey(key));
 
       // Find target function on the expression stack.
       // Expression stack looks like this (top to bottom):
@@ -1660,6 +1668,9 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // used by the call site.
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
+      case Code::CALL_IC:
+        return isolate->builtins()->CallICStub_DebugBreak();
+
       case Code::LOAD_IC:
         return isolate->builtins()->LoadIC_DebugBreak();
 
@@ -1688,11 +1699,7 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   }
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction);
-    if (code->has_function_cache()) {
-      return isolate->builtins()->CallFunctionStub_Recording_DebugBreak();
-    } else {
-      return isolate->builtins()->CallFunctionStub_DebugBreak();
-    }
+    return isolate->builtins()->CallFunctionStub_DebugBreak();
   }
 
   UNREACHABLE();

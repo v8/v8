@@ -412,6 +412,7 @@ class Debug {
 
   // Code generator routines.
   static void GenerateSlot(MacroAssembler* masm);
+  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
@@ -419,7 +420,6 @@ class Debug {
   static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
   static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
@@ -430,9 +430,6 @@ class Debug {
   // There is no calling conventions here, because it never actually gets
   // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
-
-  // Called from stub-cache.cc.
-  static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
   // Describes how exactly a frame has been dropped from stack.
   enum FrameDropMode {
