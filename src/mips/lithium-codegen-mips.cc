@@ -3981,7 +3981,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   __ li(a0, Operand(instr->arity()));
   // No cell in a2 for construct type feedback in optimized code
   __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-  CallConstructStub stub(isolate(), NO_CALL_FUNCTION_FLAGS);
+  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
 }
 

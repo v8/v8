@@ -3017,11 +3017,61 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 }
 
 
+static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
+  __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(t0, FieldMemOperand(a3, SharedFunctionInfo::kCompilerHintsOffset));
+
+  // Do not transform the receiver for strict mode functions.
+  int32_t strict_mode_function_mask =
+      1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
+  // Do not transform the receiver for native (Compilerhints already in a3).
+  int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
+  __ And(at, t0, Operand(strict_mode_function_mask | native_mask));
+  __ Branch(cont, ne, at, Operand(zero_reg));
+}
+
+
+static void EmitSlowCase(MacroAssembler* masm,
+                         int argc,
+                         Label* non_function) {
+  // Check for function proxy.
+  __ Branch(non_function, ne, t0, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ push(a1);  // put proxy as additional argument
+  __ li(a0, Operand(argc + 1, RelocInfo::NONE32));
+  __ mov(a2, zero_reg);
+  __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
+  {
+    Handle<Code> adaptor =
+        masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  }
+
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ bind(non_function);
+  __ sw(a1, MemOperand(sp, argc * kPointerSize));
+  __ li(a0, Operand(argc));  // Set up the number of arguments.
+  __ mov(a2, zero_reg);
+  __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
+  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
+}
+
+
+static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
+  // Wrap the receiver and patch it back onto the stack.
+  { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    __ Push(a1, a3);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ pop(a1);
+  }
+  __ Branch(USE_DELAY_SLOT, cont);
+  __ sw(v0, MemOperand(sp, argc * kPointerSize));
+}
+
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
-  // a2 : feedback vector
-  // a3 : (only if a2 is not the megamorphic symbol) slot in feedback
-  //      vector (Smi)
   Label slow, non_function, wrap, cont;
 
   if (NeedsChecks()) {
@@ -3032,34 +3082,20 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // Goto slow case if we do not have a function.
     __ GetObjectType(a1, t0, t0);
     __ Branch(&slow, ne, t0, Operand(JS_FUNCTION_TYPE));
-
-    if (RecordCallTarget()) {
-      GenerateRecordCallTarget(masm);
-      // Type information was updated. Because we may call Array, which
-      // expects either undefined or an AllocationSite in a2 we need
-      // to set a2 to undefined.
-      __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
-    }
   }
 
   // Fast-case: Invoke the function now.
   // a1: pushed function
-  ParameterCount actual(argc_);
+  int argc = argc_;
+  ParameterCount actual(argc);
 
   if (CallAsMethod()) {
     if (NeedsChecks()) {
-      // Do not transform the receiver for strict mode functions and natives.
-      __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-      __ lw(t0, FieldMemOperand(a3, SharedFunctionInfo::kCompilerHintsOffset));
-      int32_t strict_mode_function_mask =
-          1 <<  (SharedFunctionInfo::kStrictModeFunction + kSmiTagSize);
-      int32_t native_mask = 1 << (SharedFunctionInfo::kNative + kSmiTagSize);
-      __ And(at, t0, Operand(strict_mode_function_mask | native_mask));
-      __ Branch(&cont, ne, at, Operand(zero_reg));
+      EmitContinueIfStrictOrNative(masm, &cont);
     }
 
     // Compute the receiver in sloppy mode.
-    __ lw(a3, MemOperand(sp, argc_ * kPointerSize));
+    __ lw(a3, MemOperand(sp, argc * kPointerSize));
 
     if (NeedsChecks()) {
       __ JumpIfSmi(a3, &wrap);
@@ -3071,56 +3107,19 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
     __ bind(&cont);
   }
+
   __ InvokeFunction(a1, actual, JUMP_FUNCTION, NullCallWrapper());
 
   if (NeedsChecks()) {
     // Slow-case: Non-function called.
     __ bind(&slow);
-    if (RecordCallTarget()) {
-      // If there is a call target cache, mark it megamorphic in the
-      // non-function case.  MegamorphicSentinel is an immortal immovable
-      // object (megamorphic symbol) so no write barrier is needed.
-      ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(isolate()),
-                isolate()->heap()->megamorphic_symbol());
-      __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
-      __ Addu(t1, a2, Operand(t1));
-      __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
-      __ sw(at, FieldMemOperand(t1, FixedArray::kHeaderSize));
-    }
-    // Check for function proxy.
-    __ Branch(&non_function, ne, t0, Operand(JS_FUNCTION_PROXY_TYPE));
-    __ push(a1);  // Put proxy as additional argument.
-    __ li(a0, Operand(argc_ + 1, RelocInfo::NONE32));
-    __ li(a2, Operand(0, RelocInfo::NONE32));
-    __ GetBuiltinFunction(a1, Builtins::CALL_FUNCTION_PROXY);
-    {
-      Handle<Code> adaptor =
-        isolate()->builtins()->ArgumentsAdaptorTrampoline();
-      __ Jump(adaptor, RelocInfo::CODE_TARGET);
-    }
-
-    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-    // of the original receiver from the call site).
-    __ bind(&non_function);
-    __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
-    __ li(a0, Operand(argc_));  // Set up the number of arguments.
-    __ li(a2, Operand(0, RelocInfo::NONE32));
-    __ GetBuiltinFunction(a1, Builtins::CALL_NON_FUNCTION);
-    __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-            RelocInfo::CODE_TARGET);
+    EmitSlowCase(masm, argc, &non_function);
   }
 
   if (CallAsMethod()) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
-    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ Push(a1, a3);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ pop(a1);
-    }
-    __ mov(a0, v0);
-    __ sw(a0, MemOperand(sp, argc_ * kPointerSize));
-    __ jmp(&cont);
+    EmitWrapCase(masm, argc, &cont);
   }
 }
 
@@ -3186,6 +3185,110 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ li(a2, Operand(0, RelocInfo::NONE32));
   __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
+}
+
+
+static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
+  __ lw(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ lw(vector, FieldMemOperand(vector,
+                                JSFunction::kSharedFunctionInfoOffset));
+  __ lw(vector, FieldMemOperand(vector,
+                                SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
+void CallICStub::Generate(MacroAssembler* masm) {
+  // r1 - function
+  // r3 - slot id (Smi)
+  Label extra_checks_or_miss, slow_start;
+  Label slow, non_function, wrap, cont;
+  Label have_js_function;
+  int argc = state_.arg_count();
+  ParameterCount actual(argc);
+
+  EmitLoadTypeFeedbackVector(masm, a2);
+
+  // The checks. First, does r1 match the recorded monomorphic target?
+  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(t0, a2, Operand(t0));
+  __ lw(t0, FieldMemOperand(t0, FixedArray::kHeaderSize));
+  __ Branch(&extra_checks_or_miss, ne, a1, Operand(t0));
+
+  __ bind(&have_js_function);
+  if (state_.CallAsMethod()) {
+    EmitContinueIfStrictOrNative(masm, &cont);
+    // Compute the receiver in sloppy mode.
+    __ lw(a3, MemOperand(sp, argc * kPointerSize));
+
+    __ JumpIfSmi(a3, &wrap);
+    __ GetObjectType(a3, t0, t0);
+    __ Branch(&wrap, lt, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
+
+    __ bind(&cont);
+  }
+
+  __ InvokeFunction(a1, actual, JUMP_FUNCTION, NullCallWrapper());
+
+  __ bind(&slow);
+  EmitSlowCase(masm, argc, &non_function);
+
+  if (state_.CallAsMethod()) {
+    __ bind(&wrap);
+    EmitWrapCase(masm, argc, &cont);
+  }
+
+  __ bind(&extra_checks_or_miss);
+  Label miss;
+
+  __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
+  __ Branch(&slow_start, eq, t0, Operand(at));
+  __ LoadRoot(at, Heap::kUninitializedSymbolRootIndex);
+  __ Branch(&miss, eq, t0, Operand(at));
+
+  if (!FLAG_trace_ic) {
+    // We are going megamorphic, and we don't want to visit the runtime.
+    __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
+    __ Addu(t0, a2, Operand(t0));
+    __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);
+    __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));
+    __ Branch(&slow_start);
+  }
+
+  // We are here because tracing is on or we are going monomorphic.
+  __ bind(&miss);
+  GenerateMiss(masm);
+
+  // the slow case
+  __ bind(&slow_start);
+  // Check that the function is really a JavaScript function.
+  // r1: pushed function (to be verified)
+  __ JumpIfSmi(a1, &non_function);
+
+  // Goto slow case if we do not have a function.
+  __ GetObjectType(a1, t0, t0);
+  __ Branch(&slow, ne, t0, Operand(JS_FUNCTION_TYPE));
+  __ Branch(&have_js_function);
+}
+
+
+void CallICStub::GenerateMiss(MacroAssembler* masm) {
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ lw(t0, MemOperand(sp, (state_.arg_count() + 1) * kPointerSize));
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Push the receiver and the function and feedback info.
+    __ Push(t0, a1, a2, a3);
+
+    // Call the entry.
+    ExternalReference miss = ExternalReference(IC_Utility(IC::kCallIC_Miss),
+                                               masm->isolate());
+    __ CallExternalReference(miss, 4);
+
+    // Move result to a1 and exit the internal frame.
+    __ mov(a1, v0);
+  }
 }
 
 
