@@ -2885,9 +2885,7 @@ private:                                                            \
 
 class AstConstructionVisitor BASE_EMBEDDED {
  public:
-  explicit AstConstructionVisitor(Zone* zone)
-    : dont_optimize_reason_(kNoReason),
-      zone_(zone) { }
+  AstConstructionVisitor() : dont_optimize_reason_(kNoReason) { }
 
   AstProperties* ast_properties() { return &properties_; }
   BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
@@ -2917,14 +2915,11 @@ class AstConstructionVisitor BASE_EMBEDDED {
 
   AstProperties properties_;
   BailoutReason dont_optimize_reason_;
-  Zone* zone_;
 };
 
 
 class AstNullVisitor BASE_EMBEDDED {
  public:
-  explicit AstNullVisitor(Zone* zone) {}
-
   // Node visitors.
 #define DEF_VISIT(type) \
   void Visit##type(type* node) {}
@@ -2940,9 +2935,7 @@ class AstNullVisitor BASE_EMBEDDED {
 template<class Visitor>
 class AstNodeFactory V8_FINAL BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(Zone* zone)
-    : zone_(zone),
-      visitor_(zone) { }
+  explicit AstNodeFactory(Zone* zone) : zone_(zone) { }
 
   Visitor* visitor() { return &visitor_; }
 
