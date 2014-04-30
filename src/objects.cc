@@ -10677,7 +10677,8 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
   set_live_objects_may_exist(true);
 
   // No tracking during the snapshot construction phase.
-  if (Serializer::enabled()) return;
+  Isolate* isolate = GetIsolate();
+  if (Serializer::enabled(isolate)) return;
 
   if (map->unused_property_fields() == 0) return;
 
@@ -10687,7 +10688,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
     set_construction_count(kGenerousAllocationCount);
   }
   set_initial_map(map);
-  Builtins* builtins = map->GetHeap()->isolate()->builtins();
+  Builtins* builtins = isolate->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             construct_stub());
   set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));

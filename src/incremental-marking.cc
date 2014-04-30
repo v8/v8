@@ -459,7 +459,7 @@ bool IncrementalMarking::WorthActivating() {
   return FLAG_incremental_marking &&
       FLAG_incremental_marking_steps &&
       heap_->gc_state() == Heap::NOT_IN_GC &&
-      !Serializer::enabled() &&
+      !Serializer::enabled(heap_->isolate()) &&
       heap_->isolate()->IsInitialized() &&
       heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
@@ -537,7 +537,7 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   ASSERT(FLAG_incremental_marking_steps);
   ASSERT(state_ == STOPPED);
   ASSERT(heap_->gc_state() == Heap::NOT_IN_GC);
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled(heap_->isolate()));
   ASSERT(heap_->isolate()->IsInitialized());
 
   ResetStepCounters();

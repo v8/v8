@@ -1784,7 +1784,7 @@ bool Isolate::Init(Deserializer* des) {
   has_fatal_error_ = false;
 
   use_crankshaft_ = FLAG_crankshaft
-      && !Serializer::enabled()
+      && !Serializer::enabled(this)
       && CpuFeatures::SupportsCrankshaft();
 
   if (function_entry_hook() != NULL) {
@@ -1976,7 +1976,7 @@ bool Isolate::Init(Deserializer* des) {
         kDeoptTableSerializeEntryCount - 1);
   }
 
-  if (!Serializer::enabled()) {
+  if (!Serializer::enabled(this)) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);

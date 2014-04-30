@@ -56,7 +56,7 @@ void MacroAssembler::LogicalMacro(const Register& rd,
                                   LogicalOp op) {
   UseScratchRegisterScope temps(this);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
     Logical(rd, rn, temp, op);
@@ -247,7 +247,7 @@ void MacroAssembler::Mov(const Register& rd,
   UseScratchRegisterScope temps(this);
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     LoadRelocated(dst, operand);
 
   } else if (operand.IsImmediate()) {
@@ -295,7 +295,7 @@ void MacroAssembler::Mov(const Register& rd,
 void MacroAssembler::Mvn(const Register& rd, const Operand& operand) {
   ASSERT(allow_macro_instructions_);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     LoadRelocated(rd, operand);
     mvn(rd, rd);
 
@@ -350,7 +350,7 @@ void MacroAssembler::ConditionalCompareMacro(const Register& rn,
                                              Condition cond,
                                              ConditionalCompareOp op) {
   ASSERT((cond != al) && (cond != nv));
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
@@ -416,12 +416,12 @@ void MacroAssembler::AddSubMacro(const Register& rd,
                                  FlagsUpdate S,
                                  AddSubOp op) {
   if (operand.IsZero() && rd.Is(rn) && rd.Is64Bits() && rn.Is64Bits() &&
-      !operand.NeedsRelocation() && (S == LeaveFlags)) {
+      !operand.NeedsRelocation(isolate()) && (S == LeaveFlags)) {
     // The instruction would be a nop. Avoid generating useless code.
     return;
   }
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
@@ -447,7 +447,7 @@ void MacroAssembler::AddSubWithCarryMacro(const Register& rd,
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
   UseScratchRegisterScope temps(this);
 
-  if (operand.NeedsRelocation()) {
+  if (operand.NeedsRelocation(isolate())) {
     Register temp = temps.AcquireX();
     LoadRelocated(temp, operand);
     AddSubWithCarryMacro(rd, rn, temp, S, op);

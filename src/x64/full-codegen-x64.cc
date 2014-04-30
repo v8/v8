@@ -1634,8 +1634,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       ? ObjectLiteral::kHasFunction
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
-  if (expr->may_store_doubles() || expr->depth() > 1 || Serializer::enabled() ||
-      flags != ObjectLiteral::kFastElements ||
+  if (expr->may_store_doubles() || expr->depth() > 1 ||
+      Serializer::enabled(isolate()) || flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ Push(FieldOperand(rdi, JSFunction::kLiteralsOffset));
@@ -1789,7 +1789,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         allocation_site_mode,
         length);
     __ CallStub(&stub);
-  } else if (expr->depth() > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled(isolate()) ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ movp(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ Push(FieldOperand(rbx, JSFunction::kLiteralsOffset));

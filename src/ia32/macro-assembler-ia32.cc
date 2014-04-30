@@ -391,7 +391,7 @@ void MacroAssembler::TaggedToI(Register result_reg,
       isolate()->factory()->heap_number_map());
   j(not_equal, lost_precision, Label::kNear);
 
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     ASSERT(!temp.is(no_xmm_reg));
     CpuFeatureScope scope(this, SSE2);
 
@@ -1401,7 +1401,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 // Note: r0 will contain hash code
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // Xor original key with a seed.
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate())) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(scratch, Immediate(Heap::kHashSeedRootIndex));

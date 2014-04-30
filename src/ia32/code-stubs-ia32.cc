@@ -2493,7 +2493,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate)) {
     PlatformFeatureScope sse2(isolate, SSE2);
     BinaryOpICStub::GenerateAheadOfTime(isolate);
     BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
@@ -3135,7 +3135,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register character,
                                     Register scratch) {
   // hash = (seed + character) + ((seed + character) << 10);
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(masm->isolate())) {
     __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
     __ SmiUntag(scratch);
     __ add(scratch, character);
@@ -4211,7 +4211,7 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate, SSE2)) {
     StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
     stub2.GetCode();
   }

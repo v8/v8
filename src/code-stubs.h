@@ -1888,8 +1888,9 @@ class DoubleToIStub : public PlatformCodeStub {
       OffsetBits::encode(offset) |
       IsTruncatingBits::encode(is_truncating) |
       SkipFastPathBits::encode(skip_fastpath) |
-      SSEBits::encode(CpuFeatures::IsSafeForSnapshot(SSE2) ?
-                      CpuFeatures::IsSafeForSnapshot(SSE3) ? 2 : 1 : 0);
+      SSEBits::encode(
+          CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ?
+          CpuFeatures::IsSafeForSnapshot(isolate, SSE3) ? 2 : 1 : 0);
   }
 
   Register source() {

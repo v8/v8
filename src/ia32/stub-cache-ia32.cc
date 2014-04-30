@@ -450,7 +450,7 @@ void StubCompiler::GenerateCheckPropertyCell(MacroAssembler* masm,
       JSGlobalObject::EnsurePropertyCell(global, name);
   ASSERT(cell->value()->IsTheHole());
   Handle<Oddball> the_hole = masm->isolate()->factory()->the_hole_value();
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(masm->isolate())) {
     __ mov(scratch, Immediate(cell));
     __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
            Immediate(the_hole));
@@ -1424,7 +1424,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 
   HandlerFrontendHeader(type, receiver(), global, name, &miss);
   // Get the value from the cell.
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate())) {
     __ mov(eax, Immediate(cell));
     __ mov(eax, FieldOperand(eax, PropertyCell::kValueOffset));
   } else {

@@ -514,6 +514,7 @@ OS::MemCopyUint16Uint8Function OS::memcopy_uint16_uint8_function =
     &OS::MemCopyUint16Uint8Wrapper;
 // Defined in codegen-arm.cc.
 OS::MemCopyUint8Function CreateMemCopyUint8Function(
+    bool serializer_enabled,
     OS::MemCopyUint8Function stub);
 OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
     OS::MemCopyUint16Uint8Function stub);
@@ -522,11 +523,12 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 OS::MemCopyUint8Function OS::memcopy_uint8_function = &OS::MemCopyUint8Wrapper;
 // Defined in codegen-mips.cc.
 OS::MemCopyUint8Function CreateMemCopyUint8Function(
+    bool serializer_enabled,
     OS::MemCopyUint8Function stub);
 #endif
 
 
-void OS::PostSetUp() {
+void OS::PostSetUp(bool serializer_enabled) {
 #if V8_TARGET_ARCH_IA32
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
@@ -534,12 +536,12 @@ void OS::PostSetUp() {
   }
 #elif defined(V8_HOST_ARCH_ARM)
   OS::memcopy_uint8_function =
-      CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
+      CreateMemCopyUint8Function(serializer_enabled, &OS::MemCopyUint8Wrapper);
   OS::memcopy_uint16_uint8_function =
       CreateMemCopyUint16Uint8Function(&OS::MemCopyUint16Uint8Wrapper);
 #elif defined(V8_HOST_ARCH_MIPS)
   OS::memcopy_uint8_function =
-      CreateMemCopyUint8Function(&OS::MemCopyUint8Wrapper);
+      CreateMemCopyUint8Function(serializer_enabled, &OS::MemCopyUint8Wrapper);
 #endif
   // fast_exp is initialized lazily.
   init_fast_sqrt_function();

@@ -451,7 +451,7 @@ class Serializer : public SerializerDeserializer {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  static bool enabled() {
+  static bool enabled(Isolate* isolate) {
     SerializationState state = static_cast<SerializationState>(
         NoBarrier_Load(&serialization_state_));
     ASSERT(state != SERIALIZER_STATE_UNINITIALIZED);

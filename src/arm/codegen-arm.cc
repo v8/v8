@@ -79,11 +79,12 @@ UnaryMathFunction CreateExpFunction() {
 
 #if defined(V8_HOST_ARCH_ARM)
 OS::MemCopyUint8Function CreateMemCopyUint8Function(
-      OS::MemCopyUint8Function stub) {
+    bool serializer_enabled,
+    OS::MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (Serializer::enabled() || !CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
+  if (serializer_enabled || !CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) {
     return stub;
   }
   size_t actual_size;

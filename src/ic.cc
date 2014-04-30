@@ -2041,7 +2041,7 @@ BinaryOpIC::State::State(Isolate* isolate, ExtraICState extra_ic_state)
 
 ExtraICState BinaryOpIC::State::GetExtraICState() const {
   bool sse2 = (Max(result_kind_, Max(left_kind_, right_kind_)) > SMI &&
-               CpuFeatures::IsSafeForSnapshot(SSE2));
+               CpuFeatures::IsSafeForSnapshot(isolate(), SSE2));
   ExtraICState extra_ic_state =
       SSE2Field::encode(sse2) |
       OpField::encode(op_ - FIRST_TOKEN) |

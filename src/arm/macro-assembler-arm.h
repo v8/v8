@@ -82,7 +82,8 @@ class MacroAssembler: public Assembler {
   int CallStubSize(CodeStub* stub,
                    TypeFeedbackId ast_id = TypeFeedbackId::None(),
                    Condition cond = al);
-  static int CallSizeNotPredictableCodeSize(Address target,
+  static int CallSizeNotPredictableCodeSize(Isolate* isolate,
+                                            Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,

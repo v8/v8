@@ -1660,8 +1660,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   int properties_count = constant_properties->length() / 2;
   const int max_cloned_properties =
       FastCloneShallowObjectStub::kMaximumClonedProperties;
-  if (expr->may_store_doubles() || expr->depth() > 1 || Serializer::enabled() ||
-      flags != ObjectLiteral::kFastElements ||
+  if (expr->may_store_doubles() || expr->depth() > 1 ||
+      Serializer::enabled(isolate()) || flags != ObjectLiteral::kFastElements ||
       properties_count > max_cloned_properties) {
     __ Push(x3, x2, x1, x0);
     __ CallRuntime(Runtime::kHiddenCreateObjectLiteral, 4);
@@ -1811,7 +1811,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(
         isolate()->counters()->cow_arrays_created_stub(), 1, x10, x11);
-  } else if ((expr->depth() > 1) || Serializer::enabled() ||
+  } else if ((expr->depth() > 1) || Serializer::enabled(isolate()) ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ Mov(x0, Smi::FromInt(flags));
     __ Push(x3, x2, x1, x0);

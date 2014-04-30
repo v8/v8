@@ -515,7 +515,7 @@ char* Win32Time::LocalTimezone(TimezoneCache* cache) {
 }
 
 
-void OS::PostSetUp() {
+void OS::PostSetUp(bool serializer_enabled) {
   // Math functions depend on CPU features therefore they are initialized after
   // CPU.
   MathSetup();
