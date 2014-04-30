@@ -281,35 +281,41 @@ int ScopeInfo::StackSlotIndex(String* name) {
 }
 
 
-int ScopeInfo::ContextSlotIndex(String* name,
+int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
+                                Handle<String> name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag) {
   ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
-  if (length() > 0) {
-    ContextSlotCache* context_slot_cache = GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(this, name, mode, init_flag);
+  if (scope_info->length() > 0) {
+    ContextSlotCache* context_slot_cache =
+        scope_info->GetIsolate()->context_slot_cache();
+    int result =
+        context_slot_cache->Lookup(*scope_info, *name, mode, init_flag);
     if (result != ContextSlotCache::kNotFound) {
-      ASSERT(result < ContextLength());
+      ASSERT(result < scope_info->ContextLength());
       return result;
     }
 
-    int start = ContextLocalNameEntriesIndex();
-    int end = ContextLocalNameEntriesIndex() + ContextLocalCount();
+    int start = scope_info->ContextLocalNameEntriesIndex();
+    int end = scope_info->ContextLocalNameEntriesIndex() +
+        scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
-      if (name == get(i)) {
+      if (*name == scope_info->get(i)) {
         int var = i - start;
-        *mode = ContextLocalMode(var);
-        *init_flag = ContextLocalInitFlag(var);
+        *mode = scope_info->ContextLocalMode(var);
+        *init_flag = scope_info->ContextLocalInitFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(this, name, *mode, *init_flag, result);
-        ASSERT(result < ContextLength());
+        context_slot_cache->Update(
+            *scope_info, *name, *mode, *init_flag, result);
+        ASSERT(result < scope_info->ContextLength());
         return result;
       }
     }
     // Cache as not found. Mode and init flag don't matter.
-    context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
+    context_slot_cache->Update(
+        *scope_info, *name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
 }

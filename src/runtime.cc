@@ -11277,7 +11277,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       InitializationFlag init_flag;
       locals->set(local * 2, *name);
       int context_slot_index =
-          scope_info->ContextSlotIndex(*name, &mode, &init_flag);
+          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
       Object* value = context->get(context_slot_index);
       locals->set(local * 2 + 1, value);
       local++;
@@ -11449,10 +11449,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
 
 static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
-                                              int index) {
+                                              Handle<String> parameter_name) {
   VariableMode mode;
   InitializationFlag flag;
-  return info->ContextSlotIndex(info->ParameterName(index), &mode, &flag) != -1;
+  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &flag) != -1;
 }
 
 
@@ -11470,7 +11470,8 @@ static MaybeHandle<JSObject> MaterializeStackLocalsWithFrameInspector(
   // First fill all parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     // Do not materialize the parameter if it is shadowed by a context local.
-    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
+    Handle<String> name(scope_info->ParameterName(i));
+    if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 
     HandleScope scope(isolate);
     Handle<Object> value(i < frame_inspector->GetParametersCount()
@@ -11478,7 +11479,6 @@ static MaybeHandle<JSObject> MaterializeStackLocalsWithFrameInspector(
                              : isolate->heap()->undefined_value(),
                          isolate);
     ASSERT(!value->IsTheHole());
-    Handle<String> name(scope_info->ParameterName(i));
 
     RETURN_ON_EXCEPTION(
         isolate,
@@ -11521,11 +11521,11 @@ static void UpdateStackLocalsFromMaterializedObject(Isolate* isolate,
   // Parameters.
   for (int i = 0; i < scope_info->ParameterCount(); ++i) {
     // Shadowed parameters were not materialized.
-    if (ParameterIsShadowedByContextLocal(scope_info, i)) continue;
+    Handle<String> name(scope_info->ParameterName(i));
+    if (ParameterIsShadowedByContextLocal(scope_info, name)) continue;
 
     ASSERT(!frame->GetParameter(i)->IsTheHole());
     HandleScope scope(isolate);
-    Handle<String> name(scope_info->ParameterName(i));
     Handle<Object> value =
         Object::GetPropertyOrElement(target, name).ToHandleChecked();
     frame->SetParameterValue(i, *value);
@@ -11626,7 +11626,7 @@ static bool SetContextLocalValue(Isolate* isolate,
       VariableMode mode;
       InitializationFlag init_flag;
       int context_index =
-          scope_info->ContextSlotIndex(*next_name, &mode, &init_flag);
+          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &init_flag);
       context->set(context_index, *new_value);
       return true;
     }

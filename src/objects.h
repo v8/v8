@@ -4489,9 +4489,10 @@ class ScopeInfo : public FixedArray {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(String* name,
-                       VariableMode* mode,
-                       InitializationFlag* init_flag);
+  static int ContextSlotIndex(Handle<ScopeInfo> scope_info,
+                              Handle<String> name,
+                              VariableMode* mode,
+                              InitializationFlag* init_flag);
 
   // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
