@@ -1818,7 +1818,7 @@ extern "C" {
   JITDescriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
 
 #ifdef OBJECT_PRINT
-  void __gdb_print_v8_object(MaybeObject* object) {
+  void __gdb_print_v8_object(Object* object) {
     object->Print();
     PrintF(stdout, "\n");
   }

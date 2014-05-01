@@ -2303,10 +2303,64 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 }
 
 
+static void EmitContinueIfStrictOrNative(MacroAssembler* masm, Label* cont) {
+  // Do not transform the receiver for strict mode functions.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
+            1 << SharedFunctionInfo::kStrictModeBitWithinByte);
+  __ j(not_equal, cont);
+
+  // Do not transform the receiver for natives (shared already in ecx).
+  __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
+            1 << SharedFunctionInfo::kNativeBitWithinByte);
+  __ j(not_equal, cont);
+}
+
+
+static void EmitSlowCase(Isolate* isolate,
+                         MacroAssembler* masm,
+                         int argc,
+                         Label* non_function) {
+  // Check for function proxy.
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, non_function);
+  __ pop(ecx);
+  __ push(edi);  // put proxy as additional argument under return address
+  __ push(ecx);
+  __ Move(eax, Immediate(argc + 1));
+  __ Move(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+  {
+    Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
+    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+  }
+
+  // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
+  // of the original receiver from the call site).
+  __ bind(non_function);
+  __ mov(Operand(esp, (argc + 1) * kPointerSize), edi);
+  __ Move(eax, Immediate(argc));
+  __ Move(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+  Handle<Code> adaptor = isolate->builtins()->ArgumentsAdaptorTrampoline();
+  __ jmp(adaptor, RelocInfo::CODE_TARGET);
+}
+
+
+static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
+  // Wrap the receiver and patch it back onto the stack.
+  { FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    __ push(edi);
+    __ push(eax);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ pop(edi);
+  }
+  __ mov(Operand(esp, (argc + 1) * kPointerSize), eax);
+  __ jmp(cont);
+}
+
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  // ebx : feedback vector
-  // edx : (only if ebx is not the megamorphic symbol) slot in feedback
-  //       vector (Smi)
   // edi : the function to call
   Label slow, non_function, wrap, cont;
 
@@ -2317,14 +2371,6 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     // Goto slow case if we do not have a function.
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(not_equal, &slow);
-
-    if (RecordCallTarget()) {
-      GenerateRecordCallTarget(masm);
-      // Type information was updated. Because we may call Array, which
-      // expects either undefined or an AllocationSite in ebx we need
-      // to set ebx to undefined.
-      __ mov(ebx, Immediate(isolate()->factory()->undefined_value()));
-    }
   }
 
   // Fast-case: Just invoke the function.
@@ -2332,16 +2378,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   if (CallAsMethod()) {
     if (NeedsChecks()) {
-      // Do not transform the receiver for strict mode functions.
-      __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-      __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
-                1 << SharedFunctionInfo::kStrictModeBitWithinByte);
-      __ j(not_equal, &cont);
-
-      // Do not transform the receiver for natives (shared already in ecx).
-      __ test_b(FieldOperand(ecx, SharedFunctionInfo::kNativeByteOffset),
-                1 << SharedFunctionInfo::kNativeBitWithinByte);
-      __ j(not_equal, &cont);
+      EmitContinueIfStrictOrNative(masm, &cont);
     }
 
     // Load the receiver from the stack.
@@ -2364,51 +2401,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   if (NeedsChecks()) {
     // Slow-case: Non-function called.
     __ bind(&slow);
-    if (RecordCallTarget()) {
-      // If there is a call target cache, mark it megamorphic in the
-      // non-function case.  MegamorphicSentinel is an immortal immovable
-      // object (megamorphic symbol) so no write barrier is needed.
-      __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                          FixedArray::kHeaderSize),
-             Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
-    }
-    // Check for function proxy.
-    __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
-    __ j(not_equal, &non_function);
-    __ pop(ecx);
-    __ push(edi);  // put proxy as additional argument under return address
-    __ push(ecx);
-    __ Move(eax, Immediate(argc_ + 1));
-    __ Move(ebx, Immediate(0));
-    __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
-    {
-      Handle<Code> adaptor =
-          isolate()->builtins()->ArgumentsAdaptorTrampoline();
-      __ jmp(adaptor, RelocInfo::CODE_TARGET);
-    }
-
-    // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
-    // of the original receiver from the call site).
-    __ bind(&non_function);
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), edi);
-    __ Move(eax, Immediate(argc_));
-    __ Move(ebx, Immediate(0));
-    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    Handle<Code> adaptor = isolate()->builtins()->ArgumentsAdaptorTrampoline();
-    __ jmp(adaptor, RelocInfo::CODE_TARGET);
+    // (non_function is bound in EmitSlowCase)
+    EmitSlowCase(isolate(), masm, argc_, &non_function);
   }
 
   if (CallAsMethod()) {
     __ bind(&wrap);
-    // Wrap the receiver and patch it back onto the stack.
-    { FrameScope frame_scope(masm, StackFrame::INTERNAL);
-      __ push(edi);
-      __ push(eax);
-      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-      __ pop(edi);
-    }
-    __ mov(Operand(esp, (argc_ + 1) * kPointerSize), eax);
-    __ jmp(&cont);
+    EmitWrapCase(masm, argc_, &cont);
   }
 }
 
@@ -2481,6 +2480,118 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 }
 
 
+static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
+  __ mov(vector, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+  __ mov(vector, FieldOperand(vector, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(vector, FieldOperand(vector,
+                              SharedFunctionInfo::kFeedbackVectorOffset));
+}
+
+
+void CallICStub::Generate(MacroAssembler* masm) {
+  // edi - function
+  // edx - slot id
+  Isolate* isolate = masm->isolate();
+  Label extra_checks_or_miss, slow_start;
+  Label slow, non_function, wrap, cont;
+  Label have_js_function;
+  int argc = state_.arg_count();
+  ParameterCount actual(argc);
+
+  EmitLoadTypeFeedbackVector(masm, ebx);
+
+  // The checks. First, does edi match the recorded monomorphic target?
+  __ cmp(edi, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  __ j(not_equal, &extra_checks_or_miss);
+
+  __ bind(&have_js_function);
+  if (state_.CallAsMethod()) {
+    EmitContinueIfStrictOrNative(masm, &cont);
+
+    // Load the receiver from the stack.
+    __ mov(eax, Operand(esp, (argc + 1) * kPointerSize));
+
+    __ JumpIfSmi(eax, &wrap);
+
+    __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
+    __ j(below, &wrap);
+
+    __ bind(&cont);
+  }
+
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION, NullCallWrapper());
+
+  __ bind(&slow);
+  EmitSlowCase(isolate, masm, argc, &non_function);
+
+  if (state_.CallAsMethod()) {
+    __ bind(&wrap);
+    EmitWrapCase(masm, argc, &cont);
+  }
+
+  __ bind(&extra_checks_or_miss);
+  Label miss;
+
+  __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
+                           FixedArray::kHeaderSize));
+  __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+  __ j(equal, &slow_start);
+  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
+  __ j(equal, &miss);
+
+  if (!FLAG_trace_ic) {
+    // We are going megamorphic, and we don't want to visit the runtime.
+    __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
+                        FixedArray::kHeaderSize),
+           Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+    __ jmp(&slow_start);
+  }
+
+  // We are here because tracing is on or we are going monomorphic.
+  __ bind(&miss);
+  GenerateMiss(masm);
+
+  // the slow case
+  __ bind(&slow_start);
+
+  // Check that the function really is a JavaScript function.
+  __ JumpIfSmi(edi, &non_function);
+
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &slow);
+  __ jmp(&have_js_function);
+
+  // Unreachable
+  __ int3();
+}
+
+
+void CallICStub::GenerateMiss(MacroAssembler* masm) {
+  // Get the receiver of the function from the stack; 1 ~ return address.
+  __ mov(ecx, Operand(esp, (state_.arg_count() + 1) * kPointerSize));
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Push the receiver and the function and feedback info.
+    __ push(ecx);
+    __ push(edi);
+    __ push(ebx);
+    __ push(edx);
+
+    // Call the entry.
+    ExternalReference miss = ExternalReference(IC_Utility(IC::kCallIC_Miss),
+                                               masm->isolate());
+    __ CallExternalReference(miss, 4);
+
+    // Move result to edi and exit the internal frame.
+    __ mov(edi, eax);
+  }
+}
+
+
 bool CEntryStub::NeedsImmovableCode() {
   return false;
 }
@@ -2493,7 +2604,7 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate)) {
     PlatformFeatureScope sse2(isolate, SSE2);
     BinaryOpICStub::GenerateAheadOfTime(isolate);
     BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
@@ -3135,7 +3246,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register character,
                                     Register scratch) {
   // hash = (seed + character) + ((seed + character) << 10);
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(masm->isolate())) {
     __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
     __ SmiUntag(scratch);
     __ add(scratch, character);
@@ -4211,7 +4322,7 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate, SSE2)) {
     StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
     stub2.GetCode();
   }

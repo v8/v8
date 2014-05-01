@@ -80,6 +80,49 @@ function ArrayFindIndex(predicate /* thisArg */) {  // length == 1
 }
 
 
+// ES6, draft 04-05-14, section 22.1.3.6
+function ArrayFill(value /* [, start [, end ] ] */) {  // length == 1
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
+
+  var array = ToObject(this);
+  var length = TO_UINT32(array.length);
+
+  var i = 0;
+  var end = length;
+
+  if (%_ArgumentsLength() > 1) {
+    i = %_Arguments(1);
+    i = IS_UNDEFINED(i) ? 0 : TO_INTEGER(i);
+    if (%_ArgumentsLength() > 2) {
+      end = %_Arguments(2);
+      end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
+    }
+  }
+
+  if (i < 0) {
+    i += length;
+    if (i < 0) i = 0;
+  } else {
+    if (i > length) i = length;
+  }
+
+  if (end < 0) {
+    end += length;
+    if (end < 0) end = 0;
+  } else {
+    if (end > length) end = length;
+  }
+
+  if ((end - i) > 0 && ObjectIsFrozen(array)) {
+    throw MakeTypeError("array_functions_on_frozen",
+                        ["Array.prototype.fill"]);
+  }
+
+  for (; i < end; i++)
+    array[i] = value;
+  return array;
+}
+
 // -------------------------------------------------------------------
 
 function HarmonyArrayExtendArrayPrototype() {
@@ -88,7 +131,8 @@ function HarmonyArrayExtendArrayPrototype() {
   // Set up the non-enumerable functions on the Array prototype object.
   InstallFunctions($Array.prototype, DONT_ENUM, $Array(
     "find", ArrayFind,
-    "findIndex", ArrayFindIndex
+    "findIndex", ArrayFindIndex,
+    "fill", ArrayFill
   ));
 }
 

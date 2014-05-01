@@ -48,30 +48,28 @@ function InstantiateFunction(data, name) {
    (serialNumber in cache) && (cache[serialNumber] != kUninitialized);
   if (!isFunctionCached) {
     try {
-      var fun = %CreateApiFunction(data);
-      if (name) %FunctionSetName(fun, name);
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      var doNotCache = flags & (1 << kDoNotCacheBit);
-      if (!doNotCache) cache[serialNumber] = fun;
-      if (flags & (1 << kRemovePrototypeBit)) {
-        %FunctionRemovePrototype(fun);
-      } else {
-        var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
-        // Note: Do not directly use an object template as a condition, our
-        // internal ToBoolean doesn't handle that!
-        fun.prototype = typeof prototype === 'undefined' ?
-            {} : Instantiate(prototype);
-        if (flags & (1 << kReadOnlyPrototypeBit)) {
-          %FunctionSetReadOnlyPrototype(fun);
-        }
-        %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+      var has_proto = !(flags & (1 << kRemovePrototypeBit));
+      var prototype;
+      if (has_proto) {
+        var template = %GetTemplateField(data, kApiPrototypeTemplateOffset);
+        prototype = typeof template === 'undefined'
+            ?  {} : Instantiate(template);
+
         var parent = %GetTemplateField(data, kApiParentTemplateOffset);
         // Note: Do not directly use a function template as a condition, our
         // internal ToBoolean doesn't handle that!
-        if (!(typeof parent === 'undefined')) {
+        if (typeof parent !== 'undefined') {
           var parent_fun = Instantiate(parent);
-          %SetPrototype(fun.prototype, parent_fun.prototype);
+          %SetPrototype(prototype, parent_fun.prototype);
         }
+      }
+      var fun = %CreateApiFunction(data, prototype);
+      if (name) %FunctionSetName(fun, name);
+      var doNotCache = flags & (1 << kDoNotCacheBit);
+      if (!doNotCache) cache[serialNumber] = fun;
+      if (has_proto && flags & (1 << kReadOnlyPrototypeBit)) {
+        %FunctionSetReadOnlyPrototype(fun);
       }
       ConfigureTemplateInstance(fun, data);
       if (doNotCache) return fun;

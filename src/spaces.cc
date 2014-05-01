@@ -1057,7 +1057,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size = 480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100;
+        size = RoundUp(
+            480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100,
+            kPointerSize);
       }
       break;
     default:
@@ -1397,7 +1399,7 @@ bool NewSpace::AddFreshPage() {
 }
 
 
-MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
+AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes) {
   Address old_top = allocation_info_.top();
   Address high = to_space_.page_high();
   if (allocation_info_.limit() < high) {
@@ -1419,7 +1421,7 @@ MaybeObject* NewSpace::SlowAllocateRaw(int size_in_bytes) {
     top_on_previous_step_ = to_space_.page_low();
     return AllocateRaw(size_in_bytes);
   } else {
-    return Failure::RetryAfterGC();
+    return AllocationResult::Retry();
   }
 }
 
@@ -2842,22 +2844,22 @@ void LargeObjectSpace::TearDown() {
 }
 
 
-MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
-                                           Executability executable) {
+AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
+                                               Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
-    return Failure::RetryAfterGC(identity());
+    return AllocationResult::Retry(identity());
   }
 
   if (Size() + object_size > max_capacity_) {
-    return Failure::RetryAfterGC(identity());
+    return AllocationResult::Retry(identity());
   }
 
   LargePage* page = heap()->isolate()->memory_allocator()->
       AllocateLargePage(object_size, this, executable);
-  if (page == NULL) return Failure::RetryAfterGC(identity());
+  if (page == NULL) return AllocationResult::Retry(identity());
   ASSERT(page->area_size() >= object_size);
 
   size_ += static_cast<int>(page->size());

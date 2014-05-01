@@ -76,7 +76,7 @@ bool inline Heap::IsOneByte(String* str, int chars) {
 }
 
 
-MaybeObject* Heap::AllocateInternalizedStringFromUtf8(
+AllocationResult Heap::AllocateInternalizedStringFromUtf8(
     Vector<const char> str, int chars, uint32_t hash_field) {
   if (IsOneByte(str, chars)) {
     return AllocateOneByteInternalizedString(
@@ -87,7 +87,7 @@ MaybeObject* Heap::AllocateInternalizedStringFromUtf8(
 
 
 template<typename T>
-MaybeObject* Heap::AllocateInternalizedStringImpl(
+AllocationResult Heap::AllocateInternalizedStringImpl(
     T t, int chars, uint32_t hash_field) {
   if (IsOneByte(t, chars)) {
     return AllocateInternalizedStringImpl<true>(t, chars, hash_field);
@@ -96,8 +96,9 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
 }
 
 
-MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
-                                                     uint32_t hash_field) {
+AllocationResult Heap::AllocateOneByteInternalizedString(
+    Vector<const uint8_t> str,
+    uint32_t hash_field) {
   if (str.length() > String::kMaxLength) {
     return isolate()->ThrowInvalidStringLength();
   }
@@ -107,13 +108,13 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
   // String maps are all immortal immovable objects.
-  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(map);
+  result->set_map_no_write_barrier(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -129,8 +130,8 @@ MaybeObject* Heap::AllocateOneByteInternalizedString(Vector<const uint8_t> str,
 }
 
 
-MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
-                                                     uint32_t hash_field) {
+AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
+                                                         uint32_t hash_field) {
   if (str.length() > String::kMaxLength) {
     return isolate()->ThrowInvalidStringLength();
   }
@@ -140,12 +141,12 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  reinterpret_cast<HeapObject*>(result)->set_map(map);
+  result->set_map(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(str.length());
@@ -160,27 +161,27 @@ MaybeObject* Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   return answer;
 }
 
-MaybeObject* Heap::CopyFixedArray(FixedArray* src) {
+AllocationResult Heap::CopyFixedArray(FixedArray* src) {
   if (src->length() == 0) return src;
   return CopyFixedArrayWithMap(src, src->map());
 }
 
 
-MaybeObject* Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
+AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
   if (src->length() == 0) return src;
   return CopyFixedDoubleArrayWithMap(src, src->map());
 }
 
 
-MaybeObject* Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
+AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
   if (src->length() == 0) return src;
   return CopyConstantPoolArrayWithMap(src, src->map());
 }
 
 
-MaybeObject* Heap::AllocateRaw(int size_in_bytes,
-                               AllocationSpace space,
-                               AllocationSpace retry_space) {
+AllocationResult Heap::AllocateRaw(int size_in_bytes,
+                                   AllocationSpace space,
+                                   AllocationSpace retry_space) {
   ASSERT(AllowHandleAllocation::IsAllowed());
   ASSERT(AllowHeapAllocation::IsAllowed());
   ASSERT(gc_state_ == NOT_IN_GC);
@@ -189,58 +190,49 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
   if (FLAG_gc_interval >= 0 &&
       AllowAllocationFailure::IsAllowed(isolate_) &&
       Heap::allocation_timeout_-- <= 0) {
-    return Failure::RetryAfterGC(space);
+    return AllocationResult::Retry(space);
   }
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
   HeapObject* object;
-  MaybeObject* result;
+  AllocationResult allocation;
   if (NEW_SPACE == space) {
-    result = new_space_.AllocateRaw(size_in_bytes);
-    if (always_allocate() && result->IsFailure() && retry_space != NEW_SPACE) {
+    allocation = new_space_.AllocateRaw(size_in_bytes);
+    if (always_allocate() &&
+        allocation.IsRetry() &&
+        retry_space != NEW_SPACE) {
       space = retry_space;
     } else {
-      if (profiler->is_tracking_allocations() && result->To(&object)) {
+      if (profiler->is_tracking_allocations() && allocation.To(&object)) {
         profiler->AllocationEvent(object->address(), size_in_bytes);
       }
-      return result;
+      return allocation;
     }
   }
 
   if (OLD_POINTER_SPACE == space) {
-    result = old_pointer_space_->AllocateRaw(size_in_bytes);
+    allocation = old_pointer_space_->AllocateRaw(size_in_bytes);
   } else if (OLD_DATA_SPACE == space) {
-    result = old_data_space_->AllocateRaw(size_in_bytes);
+    allocation = old_data_space_->AllocateRaw(size_in_bytes);
   } else if (CODE_SPACE == space) {
-    result = code_space_->AllocateRaw(size_in_bytes);
+    allocation = code_space_->AllocateRaw(size_in_bytes);
   } else if (LO_SPACE == space) {
-    result = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (CELL_SPACE == space) {
-    result = cell_space_->AllocateRaw(size_in_bytes);
+    allocation = cell_space_->AllocateRaw(size_in_bytes);
   } else if (PROPERTY_CELL_SPACE == space) {
-    result = property_cell_space_->AllocateRaw(size_in_bytes);
+    allocation = property_cell_space_->AllocateRaw(size_in_bytes);
   } else {
     ASSERT(MAP_SPACE == space);
-    result = map_space_->AllocateRaw(size_in_bytes);
+    allocation = map_space_->AllocateRaw(size_in_bytes);
   }
-  if (result->IsFailure()) old_gen_exhausted_ = true;
-  if (profiler->is_tracking_allocations() && result->To(&object)) {
+  if (allocation.IsRetry()) old_gen_exhausted_ = true;
+  if (profiler->is_tracking_allocations() && allocation.To(&object)) {
     profiler->AllocationEvent(object->address(), size_in_bytes);
   }
-  return result;
-}
-
-
-MaybeObject* Heap::NumberFromUint32(
-    uint32_t value, PretenureFlag pretenure) {
-  if (static_cast<int32_t>(value) >= 0 &&
-      Smi::IsValid(static_cast<int32_t>(value))) {
-    return Smi::FromInt(static_cast<int32_t>(value));
-  }
-  // Bypass NumberFromDouble to avoid various redundant checks.
-  return AllocateHeapNumber(FastUI2D(value), pretenure);
+  return allocation;
 }
 
 
@@ -409,6 +401,8 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
     case PROPERTY_CELL_SPACE:
     case LO_SPACE:
       return false;
+    case INVALID_SPACE:
+      break;
   }
   UNREACHABLE();
   return false;
@@ -590,31 +584,28 @@ Isolate* Heap::isolate() {
 // __scope__ in a call to this macro.
 
 #define RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)    \
-  if (__maybe_object__->ToObject(&__object__)) {                               \
+  if (!__allocation__.IsRetry()) {                                             \
+    __object__ = __allocation__.ToObjectChecked();                             \
     if (__object__ == (ISOLATE)->heap()->exception()) { RETURN_EMPTY; }        \
     RETURN_VALUE;                                                              \
   }
 
 #define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)     \
   do {                                                                         \
-    MaybeObject* __maybe_object__ = FUNCTION_CALL;                             \
+    AllocationResult __allocation__ = FUNCTION_CALL;                           \
     Object* __object__ = NULL;                                                 \
     RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
-    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
-    (ISOLATE)->heap()->CollectGarbage(Failure::cast(__maybe_object__)->        \
-                                    allocation_space(),                        \
-                                    "allocation failure");                     \
-    __maybe_object__ = FUNCTION_CALL;                                          \
+    (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),             \
+                                      "allocation failure");                   \
+    __allocation__ = FUNCTION_CALL;                                            \
     RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
-    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
     {                                                                          \
       AlwaysAllocateScope __scope__(ISOLATE);                                  \
-      __maybe_object__ = FUNCTION_CALL;                                        \
+      __allocation__ = FUNCTION_CALL;                                          \
     }                                                                          \
     RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
-    ASSERT(__maybe_object__->IsRetryAfterGC());                                \
       /* TODO(1181417): Fix this. */                                           \
     v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
     RETURN_EMPTY;                                                              \

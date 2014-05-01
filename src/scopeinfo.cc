@@ -281,35 +281,40 @@ int ScopeInfo::StackSlotIndex(String* name) {
 }
 
 
-int ScopeInfo::ContextSlotIndex(String* name,
+int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
+                                Handle<String> name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag) {
   ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
-  if (length() > 0) {
-    ContextSlotCache* context_slot_cache = GetIsolate()->context_slot_cache();
-    int result = context_slot_cache->Lookup(this, name, mode, init_flag);
+  if (scope_info->length() > 0) {
+    ContextSlotCache* context_slot_cache =
+        scope_info->GetIsolate()->context_slot_cache();
+    int result =
+        context_slot_cache->Lookup(*scope_info, *name, mode, init_flag);
     if (result != ContextSlotCache::kNotFound) {
-      ASSERT(result < ContextLength());
+      ASSERT(result < scope_info->ContextLength());
       return result;
     }
 
-    int start = ContextLocalNameEntriesIndex();
-    int end = ContextLocalNameEntriesIndex() + ContextLocalCount();
+    int start = scope_info->ContextLocalNameEntriesIndex();
+    int end = scope_info->ContextLocalNameEntriesIndex() +
+        scope_info->ContextLocalCount();
     for (int i = start; i < end; ++i) {
-      if (name == get(i)) {
+      if (*name == scope_info->get(i)) {
         int var = i - start;
-        *mode = ContextLocalMode(var);
-        *init_flag = ContextLocalInitFlag(var);
+        *mode = scope_info->ContextLocalMode(var);
+        *init_flag = scope_info->ContextLocalInitFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(this, name, *mode, *init_flag, result);
-        ASSERT(result < ContextLength());
+        context_slot_cache->Update(scope_info, name, *mode, *init_flag, result);
+        ASSERT(result < scope_info->ContextLength());
         return result;
       }
     }
     // Cache as not found. Mode and init flag don't matter.
-    context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
+    context_slot_cache->Update(
+        scope_info, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
 }
@@ -426,19 +431,20 @@ int ContextSlotCache::Lookup(Object* data,
 }
 
 
-void ContextSlotCache::Update(Object* data,
-                              String* name,
+void ContextSlotCache::Update(Handle<Object> data,
+                              Handle<String> name,
                               VariableMode mode,
                               InitializationFlag init_flag,
                               int slot_index) {
-  String* internalized_name;
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, internalized_name);
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *internalized_name);
     Key& key = keys_[index];
-    key.data = data;
-    key.name = internalized_name;
+    key.data = *data;
+    key.name = *internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
@@ -455,18 +461,19 @@ void ContextSlotCache::Clear() {
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Object* data,
-                                     String* name,
+void ContextSlotCache::ValidateEntry(Handle<Object> data,
+                                     Handle<String> name,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
                                      int slot_index) {
-  String* internalized_name;
-  if (name->GetIsolate()->heap()->InternalizeStringIfExists(
-          name, &internalized_name)) {
-    int index = Hash(data, name);
+  DisallowHeapAllocation no_gc;
+  Handle<String> internalized_name;
+  if (StringTable::InternalizeStringIfExists(name->GetIsolate(), name).
+      ToHandle(&internalized_name)) {
+    int index = Hash(*data, *name);
     Key& key = keys_[index];
-    ASSERT(key.data == data);
-    ASSERT(key.name->Equals(name));
+    ASSERT(key.data == *data);
+    ASSERT(key.name->Equals(*name));
     Value result(values_[index]);
     ASSERT(result.mode() == mode);
     ASSERT(result.initialization_flag() == init_flag);

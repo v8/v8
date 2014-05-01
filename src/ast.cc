@@ -571,14 +571,9 @@ void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-int Call::ComputeFeedbackSlotCount(Isolate* isolate) {
+bool Call::IsUsingCallFeedbackSlot(Isolate* isolate) const {
   CallType call_type = GetCallType(isolate);
-  if (call_type == LOOKUP_SLOT_CALL || call_type == OTHER_CALL) {
-    // Call only uses a slot in some cases.
-    return 1;
-  }
-
-  return 0;
+  return (call_type != POSSIBLY_EVAL_CALL);
 }
 
 

@@ -117,8 +117,6 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
 
-  InitializeFeedbackVector();
-
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1112,15 +1110,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  Handle<Object> feedback = Handle<Object>(
-      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
-      isolate());
-  StoreFeedbackVectorSlot(slot, feedback);
-
   // No need for a write barrier, we are storing a Smi in the feedback vector.
   __ LoadHeapObject(ebx, FeedbackVector());
   __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(slot)),
-         Immediate(Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker)));
+         Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
 
   __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check
   __ mov(ecx, Operand(esp, 0 * kPointerSize));  // Get enumerated object
@@ -1596,7 +1589,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       ? ObjectLiteral::kHasFunction
       : ObjectLiteral::kNoFlags;
   int properties_count = constant_properties->length() / 2;
-  if (expr->may_store_doubles() || expr->depth() > 1 || Serializer::enabled() ||
+  if (expr->may_store_doubles() || expr->depth() > 1 ||
+      Serializer::enabled(isolate()) ||
       flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -1751,7 +1745,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
         allocation_site_mode,
         length);
     __ CallStub(&stub);
-  } else if (expr->depth() > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled(isolate()) ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
@@ -2563,17 +2557,15 @@ void FullCodeGenerator::CallIC(Handle<Code> code,
 }
 
 
-
-
 // Code common for calls using the IC.
-void FullCodeGenerator::EmitCallWithIC(Call* expr) {
+void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   Expression* callee = expr->expression();
-  ZoneList<Expression*>* args = expr->arguments();
-  int arg_count = args->length();
 
-  CallFunctionFlags flags;
+  CallIC::CallType call_type = callee->IsVariableProxy()
+      ? CallIC::FUNCTION
+      : CallIC::METHOD;
   // Get the target function.
-  if (callee->IsVariableProxy()) {
+  if (call_type == CallIC::FUNCTION) {
     { StackValueContext context(this);
       EmitVariableLoad(callee->AsVariableProxy());
       PrepareForBailout(callee, NO_REGISTERS);
@@ -2581,7 +2573,6 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr) {
     // Push undefined as receiver. This is patched in the method prologue if it
     // is a sloppy mode method.
     __ push(Immediate(isolate()->factory()->undefined_value()));
-    flags = NO_CALL_FUNCTION_FLAGS;
   } else {
     // Load the function from the receiver.
     ASSERT(callee->IsProperty());
@@ -2591,39 +2582,19 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr) {
     // Push the target function under the receiver.
     __ push(Operand(esp, 0));
     __ mov(Operand(esp, kPointerSize), eax);
-    flags = CALL_AS_METHOD;
   }
 
-  // Load the arguments.
-  { PreservePositionScope scope(masm()->positions_recorder());
-    for (int i = 0; i < arg_count; i++) {
-      VisitForStackValue(args->at(i));
-    }
-  }
-
-  // Record source position of the IC call.
-  SetSourcePosition(expr->position());
-  CallFunctionStub stub(isolate(), arg_count, flags);
-  __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
-  RecordJSReturnSite(expr);
-
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-
-  context()->DropAndPlug(1, eax);
+  EmitCall(expr, call_type);
 }
 
 
 // Code common for calls using the IC.
-void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
-                                            Expression* key) {
+void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
+                                                Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
 
   Expression* callee = expr->expression();
-  ZoneList<Expression*>* args = expr->arguments();
-  int arg_count = args->length();
 
   // Load the function from the receiver.
   ASSERT(callee->IsProperty());
@@ -2637,7 +2608,14 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   __ push(Operand(esp, 0));
   __ mov(Operand(esp, kPointerSize), eax);
 
+  EmitCall(expr, CallIC::METHOD);
+}
+
+
+void FullCodeGenerator::EmitCall(Call* expr, CallIC::CallType call_type) {
   // Load the arguments.
+  ZoneList<Expression*>* args = expr->arguments();
+  int arg_count = args->length();
   { PreservePositionScope scope(masm()->positions_recorder());
     for (int i = 0; i < arg_count; i++) {
       VisitForStackValue(args->at(i));
@@ -2646,44 +2624,19 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
 
   // Record source position of the IC call.
   SetSourcePosition(expr->position());
-  CallFunctionStub stub(isolate(), arg_count, CALL_AS_METHOD);
+  Handle<Code> ic = CallIC::initialize_stub(
+      isolate(), arg_count, call_type);
+  __ Move(edx, Immediate(Smi::FromInt(expr->CallFeedbackSlot())));
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
+  // Don't assign a type feedback id to the IC, since type feedback is provided
+  // by the vector above.
+  CallIC(ic);
+
   RecordJSReturnSite(expr);
 
   // Restore context register.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
-  context()->DropAndPlug(1, eax);
-}
-
-
-void FullCodeGenerator::EmitCallWithStub(Call* expr) {
-  // Code common for calls using the call stub.
-  ZoneList<Expression*>* args = expr->arguments();
-  int arg_count = args->length();
-  { PreservePositionScope scope(masm()->positions_recorder());
-    for (int i = 0; i < arg_count; i++) {
-      VisitForStackValue(args->at(i));
-    }
-  }
-  // Record source position for debugger.
-  SetSourcePosition(expr->position());
-
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
-  __ LoadHeapObject(ebx, FeedbackVector());
-  __ mov(edx, Immediate(Smi::FromInt(expr->CallFeedbackSlot())));
-
-  // Record call targets in unoptimized code.
-  CallFunctionStub stub(isolate(), arg_count, RECORD_CALL_TARGET);
-  __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
-  __ CallStub(&stub);
-
-  RecordJSReturnSite(expr);
-  // Restore context register.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   context()->DropAndPlug(1, eax);
 }
 
@@ -2756,7 +2709,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     context()->DropAndPlug(1, eax);
 
   } else if (call_type == Call::GLOBAL_CALL) {
-    EmitCallWithIC(expr);
+    EmitCallWithLoadIC(expr);
 
   } else if (call_type == Call::LOOKUP_SLOT_CALL) {
     // Call to a lookup slot (dynamically introduced variable).
@@ -2792,7 +2745,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
     // The receiver is either the global receiver or an object found by
     // LoadContextSlot.
-    EmitCallWithStub(expr);
+    EmitCall(expr);
 
   } else if (call_type == Call::PROPERTY_CALL) {
     Property* property = callee->AsProperty();
@@ -2800,9 +2753,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       VisitForStackValue(property->obj());
     }
     if (property->key()->IsPropertyName()) {
-      EmitCallWithIC(expr);
+      EmitCallWithLoadIC(expr);
     } else {
-      EmitKeyedCallWithIC(expr, property->key());
+      EmitKeyedCallWithLoadIC(expr, property->key());
     }
 
   } else {
@@ -2813,7 +2766,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     }
     __ push(Immediate(isolate()->factory()->undefined_value()));
     // Emit function call.
-    EmitCallWithStub(expr);
+    EmitCall(expr);
   }
 
 #ifdef DEBUG
@@ -2850,12 +2803,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ mov(edi, Operand(esp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
   if (FLAG_pretenuring_call_new) {
-    StoreFeedbackVectorSlot(expr->AllocationSiteFeedbackSlot(),
-                            isolate()->factory()->NewAllocationSite());
+    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
     ASSERT(expr->AllocationSiteFeedbackSlot() ==
            expr->CallNewFeedbackSlot() + 1);
   }
@@ -2863,7 +2812,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ LoadHeapObject(ebx, FeedbackVector());
   __ mov(edx, Immediate(Smi::FromInt(expr->CallNewFeedbackSlot())));
 
-  CallConstructStub stub(isolate(), RECORD_CALL_TARGET);
+  CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
   __ call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(eax);

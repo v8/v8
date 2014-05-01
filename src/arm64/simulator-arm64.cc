@@ -570,7 +570,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       break;
 
     case ExternalReference::BUILTIN_CALL: {
-      // MaybeObject* f(v8::internal::Arguments).
+      // Object* f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
       SimulatorRuntimeCall target =
         reinterpret_cast<SimulatorRuntimeCall>(external);

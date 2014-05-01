@@ -155,6 +155,16 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- r1 : function
+  //  -- r3 : slot in feedback array (smi)
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, r1.bit() | r3.bit(), 0);
+}
+
+
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
   // ----------- S t a t e -------------
@@ -211,15 +221,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Calling convention for IC call (from ic-arm.cc)
-  // ----------- S t a t e -------------
-  //  -- r2     : name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r2.bit(), 0);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
@@ -234,17 +235,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- r1 : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, r1.bit(), 0);
-}
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-arm.cc).
-  // ----------- S t a t e -------------
-  //  -- r1 : function
-  //  -- r2 : feedback array
-  //  -- r3 : slot in feedback array
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, r1.bit() | r2.bit() | r3.bit(), 0);
 }
 
 

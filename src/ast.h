@@ -159,15 +159,21 @@ class AstProperties V8_FINAL BASE_EMBEDDED {
  public:
   class Flags : public EnumSet<AstPropertiesFlag, int> {};
 
-  AstProperties() : node_count_(0) {}
+AstProperties() : node_count_(0), feedback_slots_(0) {}
 
   Flags* flags() { return &flags_; }
   int node_count() { return node_count_; }
   void add_node_count(int count) { node_count_ += count; }
 
+  int feedback_slots() const { return feedback_slots_; }
+  void increase_feedback_slots(int count) {
+    feedback_slots_ += count;
+  }
+
  private:
   Flags flags_;
   int node_count_;
+  int feedback_slots_;
 };
 
 
@@ -906,8 +912,7 @@ class ForInStatement V8_FINAL : public ForEachStatement,
   }
 
   // Type feedback information.
-  virtual ComputablePhase GetComputablePhase() { return DURING_PARSE; }
-  virtual int ComputeFeedbackSlotCount(Isolate* isolate) { return 1; }
+  virtual int ComputeFeedbackSlotCount() { return 1; }
   virtual void SetFirstFeedbackSlot(int slot) { for_in_feedback_slot_ = slot; }
 
   int ForInFeedbackSlot() {
@@ -1733,8 +1738,7 @@ class Call V8_FINAL : public Expression, public FeedbackSlotInterface {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual ComputablePhase GetComputablePhase() { return AFTER_SCOPING; }
-  virtual int ComputeFeedbackSlotCount(Isolate* isolate);
+  virtual int ComputeFeedbackSlotCount() { return 1; }
   virtual void SetFirstFeedbackSlot(int slot) {
     call_feedback_slot_ = slot;
   }
@@ -1777,6 +1781,7 @@ class Call V8_FINAL : public Expression, public FeedbackSlotInterface {
 
   // Helpers to determine how to handle the call.
   CallType GetCallType(Isolate* isolate) const;
+  bool IsUsingCallFeedbackSlot(Isolate* isolate) const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1818,8 +1823,7 @@ class CallNew V8_FINAL : public Expression, public FeedbackSlotInterface {
   ZoneList<Expression*>* arguments() const { return arguments_; }
 
   // Type feedback information.
-  virtual ComputablePhase GetComputablePhase() { return DURING_PARSE; }
-  virtual int ComputeFeedbackSlotCount(Isolate* isolate) {
+  virtual int ComputeFeedbackSlotCount() {
     return FLAG_pretenuring_call_new ? 2 : 1;
   }
   virtual void SetFirstFeedbackSlot(int slot) {
@@ -2355,14 +2359,8 @@ class FunctionLiteral V8_FINAL : public Expression {
   void set_ast_properties(AstProperties* ast_properties) {
     ast_properties_ = *ast_properties;
   }
-  void set_slot_processor(DeferredFeedbackSlotProcessor* slot_processor) {
-    slot_processor_ = *slot_processor;
-  }
-  void ProcessFeedbackSlots(Isolate* isolate) {
-    slot_processor_.ProcessFeedbackSlots(isolate);
-  }
   int slot_count() {
-    return slot_processor_.slot_count();
+    return ast_properties_.feedback_slots();
   }
   bool dont_optimize() { return dont_optimize_reason_ != kNoReason; }
   BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
@@ -2413,7 +2411,6 @@ class FunctionLiteral V8_FINAL : public Expression {
   ZoneList<Statement*>* body_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
-  DeferredFeedbackSlotProcessor slot_processor_;
   BailoutReason dont_optimize_reason_;
 
   int materialized_literal_count_;
@@ -2888,13 +2885,10 @@ private:                                                            \
 
 class AstConstructionVisitor BASE_EMBEDDED {
  public:
-  explicit AstConstructionVisitor(Zone* zone)
-    : dont_optimize_reason_(kNoReason),
-      zone_(zone) { }
+  AstConstructionVisitor() : dont_optimize_reason_(kNoReason) { }
 
   AstProperties* ast_properties() { return &properties_; }
   BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
-  DeferredFeedbackSlotProcessor* slot_processor() { return &slot_processor_; }
 
  private:
   template<class> friend class AstNodeFactory;
@@ -2912,20 +2906,20 @@ class AstConstructionVisitor BASE_EMBEDDED {
   }
 
   void add_slot_node(FeedbackSlotInterface* slot_node) {
-    slot_processor_.add_slot_node(zone_, slot_node);
+    int count = slot_node->ComputeFeedbackSlotCount();
+    if (count > 0) {
+      slot_node->SetFirstFeedbackSlot(properties_.feedback_slots());
+      properties_.increase_feedback_slots(count);
+    }
   }
 
   AstProperties properties_;
-  DeferredFeedbackSlotProcessor slot_processor_;
   BailoutReason dont_optimize_reason_;
-  Zone* zone_;
 };
 
 
 class AstNullVisitor BASE_EMBEDDED {
  public:
-  explicit AstNullVisitor(Zone* zone) {}
-
   // Node visitors.
 #define DEF_VISIT(type) \
   void Visit##type(type* node) {}
@@ -2941,9 +2935,7 @@ class AstNullVisitor BASE_EMBEDDED {
 template<class Visitor>
 class AstNodeFactory V8_FINAL BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(Zone* zone)
-    : zone_(zone),
-      visitor_(zone) { }
+  explicit AstNodeFactory(Zone* zone) : zone_(zone) { }
 
   Visitor* visitor() { return &visitor_; }
 

@@ -191,7 +191,7 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
 #ifdef DEBUG
 CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
     : assembler_(assembler) {
-  ASSERT(CpuFeatures::IsSafeForSnapshot(f));
+  ASSERT(CpuFeatures::IsSafeForSnapshot(assembler_->isolate(), f));
   old_enabled_ = assembler_->enabled_cpu_features();
   uint64_t mask = static_cast<uint64_t>(1) << f;
   // TODO(svenpanne) This special case below doesn't belong here!
@@ -218,7 +218,7 @@ PlatformFeatureScope::PlatformFeatureScope(Isolate* isolate, CpuFeature f)
     : isolate_(isolate), old_cross_compile_(CpuFeatures::cross_compile_) {
   // CpuFeatures is a global singleton, therefore this is only safe in
   // single threaded code.
-  ASSERT(Serializer::enabled());
+  ASSERT(Serializer::enabled(isolate));
   uint64_t mask = static_cast<uint64_t>(1) << f;
   CpuFeatures::cross_compile_ |= mask;
   USE(isolate_);

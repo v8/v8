@@ -681,7 +681,8 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     // the it was just a plain use), so it is free to move the split child into
     // the same register that is used for the use-at-start.
     // See https://code.google.com/p/chromium/issues/detail?id=201590
-    if (!(instr->ClobbersRegisters() && instr->ClobbersDoubleRegisters())) {
+    if (!(instr->ClobbersRegisters() &&
+          instr->ClobbersDoubleRegisters(isolate()))) {
       int fixed = 0;
       int used_at_start = 0;
       for (UseIterator it(instr); !it.Done(); it.Advance()) {
@@ -2444,14 +2445,16 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return DefineAsRegister(result);
     }
     case kMathFloor: {
-      ASSERT(instr->representation().IsInteger32());
       ASSERT(instr->value()->representation().IsDouble());
-      // TODO(jbramley): ARM64 can easily handle a double argument with frintm,
-      // but we're never asked for it here. At the moment, we fall back to the
-      // runtime if the result doesn't fit, like the other architectures.
       LOperand* input = UseRegisterAtStart(instr->value());
-      LMathFloor* result = new(zone()) LMathFloor(input);
-      return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+      if (instr->representation().IsInteger32()) {
+        LMathFloorI* result = new(zone()) LMathFloorI(input);
+        return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));
+      } else {
+        ASSERT(instr->representation().IsDouble());
+        LMathFloorD* result = new(zone()) LMathFloorD(input);
+        return DefineAsRegister(result);
+      }
     }
     case kMathLog: {
       ASSERT(instr->representation().IsDouble());
@@ -2467,14 +2470,16 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       return DefineAsRegister(new(zone()) LMathPowHalf(input));
     }
     case kMathRound: {
-      ASSERT(instr->representation().IsInteger32());
       ASSERT(instr->value()->representation().IsDouble());
-      // TODO(jbramley): As with kMathFloor, we can probably handle double
-      // results fairly easily, but we are never asked for them.
       LOperand* input = UseRegister(instr->value());
-      LOperand* temp = FixedTemp(d24);  // Choosen arbitrarily.
-      LMathRound* result = new(zone()) LMathRound(input, temp);
-      return AssignEnvironment(DefineAsRegister(result));
+      if (instr->representation().IsInteger32()) {
+        LMathRoundI* result = new(zone()) LMathRoundI(input, FixedTemp(d24));
+        return AssignEnvironment(DefineAsRegister(result));
+      } else {
+        ASSERT(instr->representation().IsDouble());
+        LMathRoundD* result = new(zone()) LMathRoundD(input);
+        return DefineAsRegister(result);
+      }
     }
     case kMathSqrt: {
       ASSERT(instr->representation().IsDouble());

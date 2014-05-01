@@ -1,3 +1,13 @@
+2014-05-01: Version 3.26.29
+
+        Added a Isolate* parameter to Serializer::enabled() (Chromium issue
+        359977).
+
+        ES6: Add support for Array.prototype.fill() (issue 3273).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-04-29: Version 3.26.28
 
         PromiseThen should ignore non-function parameters (Chromium issue

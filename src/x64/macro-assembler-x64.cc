@@ -60,7 +60,7 @@ int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
 
 Operand MacroAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
-  if (root_array_available_ && !Serializer::enabled()) {
+  if (root_array_available_ && !Serializer::enabled(isolate())) {
     int64_t delta = RootRegisterDelta(target);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       return Operand(kRootRegister, static_cast<int32_t>(delta));
@@ -72,7 +72,7 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
 
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
-  if (root_array_available_ && !Serializer::enabled()) {
+  if (root_array_available_ && !Serializer::enabled(isolate())) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       movp(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -90,7 +90,7 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
-  if (root_array_available_ && !Serializer::enabled()) {
+  if (root_array_available_ && !Serializer::enabled(isolate())) {
     int64_t delta = RootRegisterDelta(destination);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       movp(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
@@ -109,7 +109,7 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
-  if (root_array_available_ && !Serializer::enabled()) {
+  if (root_array_available_ && !Serializer::enabled(isolate())) {
     int64_t delta = RootRegisterDelta(source);
     if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
@@ -122,7 +122,7 @@ void MacroAssembler::LoadAddress(Register destination,
 
 
 int MacroAssembler::LoadAddressSize(ExternalReference source) {
-  if (root_array_available_ && !Serializer::enabled()) {
+  if (root_array_available_ && !Serializer::enabled(isolate())) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
@@ -144,7 +144,7 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
 
 void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
-  if (is_int32(address) && !Serializer::enabled()) {
+  if (is_int32(address) && !Serializer::enabled(isolate())) {
     if (emit_debug_code()) {
       Move(kScratchRegister, kZapValue, Assembler::RelocInfoNone());
     }
@@ -252,7 +252,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cc,
                                 Label* branch,
                                 Label::Distance distance) {
-  if (Serializer::enabled()) {
+  if (Serializer::enabled(isolate())) {
     // Can't do arithmetic on external references if it might get serialized.
     // The mask isn't really an address.  We load it as an external reference in
     // case the size of the new space is different between the snapshot maker
@@ -962,7 +962,6 @@ void MacroAssembler::Set(const Operand& dst, intptr_t x) {
       movp(dst, kScratchRegister);
     }
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(dst, Immediate(static_cast<int32_t>(x)));
   }
 }
@@ -979,11 +978,18 @@ bool MacroAssembler::IsUnsafeInt(const int32_t x) {
 
 void MacroAssembler::SafeMove(Register dst, Smi* src) {
   ASSERT(!dst.is(kScratchRegister));
-  ASSERT(SmiValuesAre32Bits());  // JIT cookie can be converted to Smi.
   if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
-    Move(dst, Smi::FromInt(src->value() ^ jit_cookie()));
-    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
-    xorq(dst, kScratchRegister);
+    if (SmiValuesAre32Bits()) {
+      // JIT cookie can be converted to Smi.
+      Move(dst, Smi::FromInt(src->value() ^ jit_cookie()));
+      Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+      xorp(dst, kScratchRegister);
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      int32_t value = static_cast<int32_t>(reinterpret_cast<intptr_t>(src));
+      movp(dst, Immediate(value ^ jit_cookie()));
+      xorp(dst, Immediate(jit_cookie()));
+    }
   } else {
     Move(dst, src);
   }
@@ -991,11 +997,18 @@ void MacroAssembler::SafeMove(Register dst, Smi* src) {
 
 
 void MacroAssembler::SafePush(Smi* src) {
-  ASSERT(SmiValuesAre32Bits());  // JIT cookie can be converted to Smi.
   if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
-    Push(Smi::FromInt(src->value() ^ jit_cookie()));
-    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
-    xorq(Operand(rsp, 0), kScratchRegister);
+    if (SmiValuesAre32Bits()) {
+      // JIT cookie can be converted to Smi.
+      Push(Smi::FromInt(src->value() ^ jit_cookie()));
+      Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+      xorp(Operand(rsp, 0), kScratchRegister);
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      int32_t value = static_cast<int32_t>(reinterpret_cast<intptr_t>(src));
+      Push(Immediate(value ^ jit_cookie()));
+      xorp(Operand(rsp, 0), Immediate(jit_cookie()));
+    }
   } else {
     Push(src);
   }
@@ -2246,35 +2259,66 @@ void MacroAssembler::SelectNonSmi(Register dst,
 SmiIndex MacroAssembler::SmiToIndex(Register dst,
                                     Register src,
                                     int shift) {
-  ASSERT(is_uint6(shift));
-  // There is a possible optimization if shift is in the range 60-63, but that
-  // will (and must) never happen.
-  if (!dst.is(src)) {
-    movq(dst, src);
-  }
-  if (shift < kSmiShift) {
-    sarq(dst, Immediate(kSmiShift - shift));
+  if (SmiValuesAre32Bits()) {
+    ASSERT(is_uint6(shift));
+    // There is a possible optimization if shift is in the range 60-63, but that
+    // will (and must) never happen.
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    if (shift < kSmiShift) {
+      sarp(dst, Immediate(kSmiShift - shift));
+    } else {
+      shlp(dst, Immediate(shift - kSmiShift));
+    }
+    return SmiIndex(dst, times_1);
   } else {
-    shlq(dst, Immediate(shift - kSmiShift));
+    ASSERT(SmiValuesAre31Bits());
+    ASSERT(shift >= times_1 && shift <= (static_cast<int>(times_8) + 1));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    // We have to sign extend the index register to 64-bit as the SMI might
+    // be negative.
+    movsxlq(dst, dst);
+    if (shift == times_1) {
+      sarq(dst, Immediate(kSmiShift));
+      return SmiIndex(dst, times_1);
+    }
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
   }
-  return SmiIndex(dst, times_1);
 }
+
 
 SmiIndex MacroAssembler::SmiToNegativeIndex(Register dst,
                                             Register src,
                                             int shift) {
-  // Register src holds a positive smi.
-  ASSERT(is_uint6(shift));
-  if (!dst.is(src)) {
-    movq(dst, src);
-  }
-  negq(dst);
-  if (shift < kSmiShift) {
-    sarq(dst, Immediate(kSmiShift - shift));
+  if (SmiValuesAre32Bits()) {
+    // Register src holds a positive smi.
+    ASSERT(is_uint6(shift));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    negp(dst);
+    if (shift < kSmiShift) {
+      sarp(dst, Immediate(kSmiShift - shift));
+    } else {
+      shlp(dst, Immediate(shift - kSmiShift));
+    }
+    return SmiIndex(dst, times_1);
   } else {
-    shlq(dst, Immediate(shift - kSmiShift));
+    ASSERT(SmiValuesAre31Bits());
+    ASSERT(shift >= times_1 && shift <= (static_cast<int>(times_8) + 1));
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    negq(dst);
+    if (shift == times_1) {
+      sarq(dst, Immediate(kSmiShift));
+      return SmiIndex(dst, times_1);
+    }
+    return SmiIndex(dst, static_cast<ScaleFactor>(shift - 1));
   }
-  return SmiIndex(dst, times_1);
 }
 
 
@@ -2641,11 +2685,24 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 
+void MacroAssembler::DropUnderReturnAddress(int stack_elements,
+                                            Register scratch) {
+  ASSERT(stack_elements > 0);
+  if (kPointerSize == kInt64Size && stack_elements == 1) {
+    popq(MemOperand(rsp, 0));
+    return;
+  }
+
+  PopReturnAddressTo(scratch);
+  Drop(stack_elements);
+  PushReturnAddressFrom(scratch);
+}
+
+
 void MacroAssembler::Push(Register src) {
   if (kPointerSize == kInt64Size) {
     pushq(src);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     // x32 uses 64-bit push for rbp in the prologue.
     ASSERT(src.code() != rbp.code());
     leal(rsp, Operand(rsp, -4));
@@ -2658,10 +2715,19 @@ void MacroAssembler::Push(const Operand& src) {
   if (kPointerSize == kInt64Size) {
     pushq(src);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, src);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), kScratchRegister);
+  }
+}
+
+
+void MacroAssembler::PushQuad(const Operand& src) {
+  if (kPointerSize == kInt64Size) {
+    pushq(src);
+  } else {
+    movp(kScratchRegister, src);
+    pushq(kScratchRegister);
   }
 }
 
@@ -2670,7 +2736,6 @@ void MacroAssembler::Push(Immediate value) {
   if (kPointerSize == kInt64Size) {
     pushq(value);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), value);
   }
@@ -2681,7 +2746,6 @@ void MacroAssembler::PushImm32(int32_t imm32) {
   if (kPointerSize == kInt64Size) {
     pushq_imm32(imm32);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     leal(rsp, Operand(rsp, -4));
     movp(Operand(rsp, 0), Immediate(imm32));
   }
@@ -2692,7 +2756,6 @@ void MacroAssembler::Pop(Register dst) {
   if (kPointerSize == kInt64Size) {
     popq(dst);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     // x32 uses 64-bit pop for rbp in the epilogue.
     ASSERT(dst.code() != rbp.code());
     movp(dst, Operand(rsp, 0));
@@ -2705,7 +2768,6 @@ void MacroAssembler::Pop(const Operand& dst) {
   if (kPointerSize == kInt64Size) {
     popq(dst);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     Register scratch = dst.AddressUsesRegister(kScratchRegister)
         ? kSmiConstantRegister : kScratchRegister;
     movp(scratch, Operand(rsp, 0));
@@ -2717,6 +2779,16 @@ void MacroAssembler::Pop(const Operand& dst) {
            reinterpret_cast<void*>(Smi::FromInt(kSmiConstantRegisterValue)),
            Assembler::RelocInfoNone());
     }
+  }
+}
+
+
+void MacroAssembler::PopQuad(const Operand& dst) {
+  if (kPointerSize == kInt64Size) {
+    popq(dst);
+  } else {
+    popq(kScratchRegister);
+    movp(dst, kScratchRegister);
   }
 }
 
@@ -2762,7 +2834,6 @@ void MacroAssembler::Jump(const Operand& op) {
   if (kPointerSize == kInt64Size) {
     jmp(op);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, op);
     jmp(kScratchRegister);
   }
@@ -2804,7 +2875,6 @@ void MacroAssembler::Call(const Operand& op) {
   if (kPointerSize == kInt64Size) {
     call(op);
   } else {
-    ASSERT(kPointerSize == kInt32Size);
     movp(kScratchRegister, op);
     call(kScratchRegister);
   }

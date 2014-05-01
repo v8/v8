@@ -157,12 +157,6 @@ bool Object::IsHeapObject() {
 }
 
 
-bool Object::NonFailureIsHeapObject() {
-  ASSERT(!this->IsFailure());
-  return (reinterpret_cast<intptr_t>(this) & kSmiTagMask) != 0;
-}
-
-
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 
@@ -649,23 +643,6 @@ bool Object::IsFixedTypedArrayBase() {
       HeapObject::cast(this)->map()->instance_type();
   return (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
           instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE);
-}
-
-
-bool MaybeObject::IsFailure() {
-  return HAS_FAILURE_TAG(this);
-}
-
-
-bool MaybeObject::IsRetryAfterGC() {
-  return HAS_FAILURE_TAG(this)
-    && Failure::cast(this)->type() == Failure::RETRY_AFTER_GC;
-}
-
-
-Failure* Failure::cast(MaybeObject* obj) {
-  ASSERT(HAS_FAILURE_TAG(obj));
-  return reinterpret_cast<Failure*>(obj);
 }
 
 
@@ -1279,47 +1256,6 @@ Smi* Smi::FromIntptr(intptr_t value) {
   ASSERT(Smi::IsValid(value));
   int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
   return reinterpret_cast<Smi*>((value << smi_shift_bits) | kSmiTag);
-}
-
-
-Failure::Type Failure::type() const {
-  return static_cast<Type>(value() & kFailureTypeTagMask);
-}
-
-
-AllocationSpace Failure::allocation_space() const {
-  ASSERT_EQ(RETRY_AFTER_GC, type());
-  return static_cast<AllocationSpace>((value() >> kFailureTypeTagSize)
-                                      & kSpaceTagMask);
-}
-
-
-intptr_t Failure::value() const {
-  return static_cast<intptr_t>(
-      reinterpret_cast<uintptr_t>(this) >> kFailureTagSize);
-}
-
-
-Failure* Failure::RetryAfterGC() {
-  return RetryAfterGC(NEW_SPACE);
-}
-
-
-Failure* Failure::RetryAfterGC(AllocationSpace space) {
-  ASSERT((space & ~kSpaceTagMask) == 0);
-  return Construct(RETRY_AFTER_GC, space);
-}
-
-
-Failure* Failure::Construct(Type type, intptr_t value) {
-  uintptr_t info =
-      (static_cast<uintptr_t>(value) << kFailureTypeTagSize) | type;
-  ASSERT(((info << kFailureTagSize) >> kFailureTagSize) == info);
-  // Fill the unused bits with a pattern that's easy to recognize in crash
-  // dumps.
-  static const int kFailureMagicPattern = 0x0BAD0000;
-  return reinterpret_cast<Failure*>(
-      (info << kFailureTagSize) | kFailureTag | kFailureMagicPattern);
 }
 
 
@@ -4400,6 +4336,7 @@ bool Code::has_major_key() {
       kind() == LOAD_IC ||
       kind() == KEYED_LOAD_IC ||
       kind() == STORE_IC ||
+      kind() == CALL_IC ||
       kind() == KEYED_STORE_IC ||
       kind() == TO_BOOLEAN_IC;
 }
@@ -5099,6 +5036,8 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
+ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
+          kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -5357,6 +5296,7 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
   }
 
   ASSERT(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
+
   set_code(value);
 }
 
@@ -5860,7 +5800,7 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 int Code::stub_info() {
   ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
-         kind() == BINARY_OP_IC || kind() == LOAD_IC);
+         kind() == BINARY_OP_IC || kind() == LOAD_IC || kind() == CALL_IC);
   return Smi::cast(raw_type_feedback_info())->value();
 }
 
@@ -5871,6 +5811,7 @@ void Code::set_stub_info(int value) {
          kind() == BINARY_OP_IC ||
          kind() == STUB ||
          kind() == LOAD_IC ||
+         kind() == CALL_IC ||
          kind() == KEYED_LOAD_IC ||
          kind() == STORE_IC ||
          kind() == KEYED_STORE_IC);
@@ -6787,10 +6728,6 @@ bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
   int mask = (1 << kTypeChangeChecksumBits) - 1;
   return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
-
-
-ACCESSORS(TypeFeedbackInfo, feedback_vector, FixedArray,
-          kFeedbackVectorOffset)
 
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)

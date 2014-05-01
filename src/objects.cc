@@ -988,8 +988,6 @@ void Object::ShortPrint(FILE* out) {
 void Object::ShortPrint(StringStream* accumulator) {
   if (IsSmi()) {
     Smi::cast(this)->SmiPrint(accumulator);
-  } else if (IsFailure()) {
-    Failure::cast(this)->FailurePrint(accumulator);
   } else {
     HeapObject::cast(this)->HeapObjectShortPrint(accumulator);
   }
@@ -1003,16 +1001,6 @@ void Smi::SmiPrint(FILE* out) {
 
 void Smi::SmiPrint(StringStream* accumulator) {
   accumulator->Add("%d", value());
-}
-
-
-void Failure::FailurePrint(StringStream* accumulator) {
-  accumulator->Add("Failure(%p)", reinterpret_cast<void*>(value()));
-}
-
-
-void Failure::FailurePrint(FILE* out) {
-  PrintF(out, "Failure(%p)", reinterpret_cast<void*>(value()));
 }
 
 
@@ -10225,20 +10213,25 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 }
 
 
-void JSFunction::RemovePrototype() {
+bool JSFunction::RemovePrototype() {
   Context* native_context = context()->native_context();
   Map* no_prototype_map = shared()->strict_mode() == SLOPPY
       ? native_context->sloppy_function_without_prototype_map()
       : native_context->strict_function_without_prototype_map();
 
-  if (map() == no_prototype_map) return;
+  if (map() == no_prototype_map) return true;
 
-  ASSERT(map() == (shared()->strict_mode() == SLOPPY
+#ifdef DEBUG
+  if (map() != (shared()->strict_mode() == SLOPPY
                    ? native_context->sloppy_function_map()
-                   : native_context->strict_function_map()));
+                   : native_context->strict_function_map())) {
+    return false;
+  }
+#endif
 
   set_map(no_prototype_map);
   set_prototype_or_initial_map(no_prototype_map->GetHeap()->the_hole_value());
+  return true;
 }
 
 
@@ -10677,7 +10670,8 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
   set_live_objects_may_exist(true);
 
   // No tracking during the snapshot construction phase.
-  if (Serializer::enabled()) return;
+  Isolate* isolate = GetIsolate();
+  if (Serializer::enabled(isolate)) return;
 
   if (map->unused_property_fields() == 0) return;
 
@@ -10687,7 +10681,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
     set_construction_count(kGenerousAllocationCount);
   }
   set_initial_map(map);
-  Builtins* builtins = map->GetHeap()->isolate()->builtins();
+  Builtins* builtins = isolate->builtins();
   ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
             construct_stub());
   set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
@@ -10736,6 +10730,9 @@ void SharedFunctionInfo::AttachInitialMap(Map* map) {
 
 void SharedFunctionInfo::ResetForNewContext(int new_ic_age) {
   code()->ClearInlineCaches();
+  // If we clear ICs, we need to clear the type feedback vector too, since
+  // CallICs are synced with a feedback vector slot.
+  ClearTypeFeedbackInfo();
   set_ic_age(new_ic_age);
   if (code()->kind() == Code::FUNCTION) {
     code()->set_profiler_ticks(0);
@@ -11177,19 +11174,16 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 }
 
 
-void Code::ClearTypeFeedbackInfo(Heap* heap) {
-  if (kind() != FUNCTION) return;
-  Object* raw_info = type_feedback_info();
-  if (raw_info->IsTypeFeedbackInfo()) {
-    FixedArray* feedback_vector =
-        TypeFeedbackInfo::cast(raw_info)->feedback_vector();
-    for (int i = 0; i < feedback_vector->length(); i++) {
-      Object* obj = feedback_vector->get(i);
-      if (!obj->IsAllocationSite()) {
-        // TODO(mvstanton): Can't I avoid a write barrier for this sentinel?
-        feedback_vector->set(i,
-                             TypeFeedbackInfo::RawUninitializedSentinel(heap));
-      }
+void SharedFunctionInfo::ClearTypeFeedbackInfo() {
+  FixedArray* vector = feedback_vector();
+  Heap* heap = GetHeap();
+  for (int i = 0; i < vector->length(); i++) {
+    Object* obj = vector->get(i);
+    if (!obj->IsAllocationSite()) {
+      vector->set(
+          i,
+          TypeFeedbackInfo::RawUninitializedSentinel(heap),
+          SKIP_WRITE_BARRIER);
     }
   }
 }
@@ -15422,35 +15416,45 @@ class TwoCharHashTableKey : public HashTableKey {
 };
 
 
-bool StringTable::LookupStringIfExists(String* string, String** result) {
-  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  DisallowHeapAllocation no_alloc;
-  // TODO(ishell): Handlify all the callers and remove this scope.
-  HandleScope scope(GetIsolate());
-  InternalizedStringKey key(handle(string));
-  int entry = FindEntry(&key);
+MaybeHandle<String> StringTable::InternalizeStringIfExists(
+    Isolate* isolate,
+    Handle<String> string) {
+  if (string->IsInternalizedString()) {
+    return string;
+  }
+  return LookupStringIfExists(isolate, string);
+}
+
+
+MaybeHandle<String> StringTable::LookupStringIfExists(
+    Isolate* isolate,
+    Handle<String> string) {
+  Handle<StringTable> string_table = isolate->factory()->string_table();
+  InternalizedStringKey key(string);
+  int entry = string_table->FindEntry(&key);
   if (entry == kNotFound) {
-    return false;
+    return MaybeHandle<String>();
   } else {
-    *result = String::cast(KeyAt(entry));
+    Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
     ASSERT(StringShape(*result).IsInternalized());
-    return true;
+    return result;
   }
 }
 
 
-bool StringTable::LookupTwoCharsStringIfExists(uint16_t c1,
-                                               uint16_t c2,
-                                               String** result) {
-  SLOW_ASSERT(this == HeapObject::cast(this)->GetHeap()->string_table());
-  TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
-  int entry = FindEntry(&key);
+MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
+    Isolate* isolate,
+    uint16_t c1,
+    uint16_t c2) {
+  Handle<StringTable> string_table = isolate->factory()->string_table();
+  TwoCharHashTableKey key(c1, c2, isolate->heap()->HashSeed());
+  int entry = string_table->FindEntry(&key);
   if (entry == kNotFound) {
-    return false;
+    return MaybeHandle<String>();
   } else {
-    *result = String::cast(KeyAt(entry));
+    Handle<String> result(String::cast(string_table->KeyAt(entry)), isolate);
     ASSERT(StringShape(*result).IsInternalized());
-    return true;
+    return result;
   }
 }
 
@@ -15762,10 +15766,9 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::AtPut(
 
   // Check whether the dictionary should be extended.
   dictionary = EnsureCapacity(dictionary, 1, key);
-
-  Handle<Object> k = Shape::AsHandle(dictionary->GetIsolate(), key);
-  // TODO(ishell): Figure out if it is necessary to call AsHandle() here.
-  USE(k);
+#ifdef DEBUG
+  USE(Shape::AsHandle(dictionary->GetIsolate(), key));
+#endif
   PropertyDetails details = PropertyDetails(NONE, NORMAL, 0);
 
   AddEntry(dictionary, key, value, details, dictionary->Hash(key));

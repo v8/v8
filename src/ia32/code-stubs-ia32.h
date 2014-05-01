@@ -21,7 +21,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
       : PlatformCodeStub(isolate), save_doubles_(save_fp) {
-    ASSERT(CpuFeatures::IsSafeForSnapshot(SSE2) || save_fp == kDontSaveFPRegs);
+    ASSERT(CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ||
+           save_fp == kDontSaveFPRegs);
   }
 
   void Generate(MacroAssembler* masm);
@@ -196,7 +197,8 @@ class RecordWriteStub: public PlatformCodeStub {
         regs_(object,   // An input reg.
               address,  // An input reg.
               value) {  // One scratch reg.
-    ASSERT(CpuFeatures::IsSafeForSnapshot(SSE2) || fp_mode == kDontSaveFPRegs);
+    ASSERT(CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ||
+           fp_mode == kDontSaveFPRegs);
   }
 
   enum Mode {

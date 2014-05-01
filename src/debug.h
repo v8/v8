@@ -235,6 +235,12 @@ class Debug {
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
+
+  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
+  void PromiseHandleEpilogue();
+  // Returns a promise if it does not have a reject handler.
+  Handle<Object> GetPromiseForUncaughtException();
+
   void PrepareStep(StepAction step_action,
                    int step_count,
                    StackFrame::Id frame_id);
@@ -406,6 +412,7 @@ class Debug {
 
   // Code generator routines.
   static void GenerateSlot(MacroAssembler* masm);
+  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
   static void GenerateLoadICDebugBreak(MacroAssembler* masm);
   static void GenerateStoreICDebugBreak(MacroAssembler* masm);
   static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
@@ -413,7 +420,6 @@ class Debug {
   static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
   static void GenerateReturnDebugBreak(MacroAssembler* masm);
   static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
   static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
   static void GenerateSlotDebugBreak(MacroAssembler* masm);
@@ -424,9 +430,6 @@ class Debug {
   // There is no calling conventions here, because it never actually gets
   // called, it only gets returned to.
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
-
-  // Called from stub-cache.cc.
-  static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
   // Describes how exactly a frame has been dropped from stack.
   enum FrameDropMode {
@@ -540,6 +543,14 @@ class Debug {
   bool disable_break_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
+
+  // When a promise is being resolved, we may want to trigger a debug event for
+  // the case we catch a throw.  For this purpose we remember the try-catch
+  // handler address that would catch the exception.  We also hold onto a
+  // closure that returns a promise if the exception is considered uncaught.
+  // Due to the possibility of reentry we use a list to form a stack.
+  List<StackHandler*> promise_catch_handlers_;
+  List<Handle<JSFunction> > promise_getters_;
 
   // Per-thread data.
   class ThreadLocal {
@@ -777,9 +788,7 @@ class Debugger {
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception,
-                   bool uncaught,
-                   Handle<Object> promise = Handle<Object>::null());
+  void OnException(Handle<Object> exception, bool uncaught);
   void OnBeforeCompile(Handle<Script> script);
 
   enum AfterCompileFlags {

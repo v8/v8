@@ -286,13 +286,14 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   // Monomorphic ICs are preserved when possible, but need to be flushed
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
+
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
-          Serializer::enabled() || target->ic_age() != heap->global_ic_age() ||
+          Serializer::enabled(heap->isolate()) ||
+          target->ic_age() != heap->global_ic_age() ||
           target->is_invalidated_weak_stub())) {
-    IC::Clear(target->GetIsolate(), rinfo->pc(),
-              rinfo->host()->constant_pool());
+    IC::Clear(heap->isolate(), rinfo->pc(), rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
@@ -405,10 +406,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
-  if (FLAG_cleanup_code_caches_at_gc) {
-    code->ClearTypeFeedbackInfo(heap);
-  }
-  if (FLAG_age_code && !Serializer::enabled()) {
+  if (FLAG_age_code && !Serializer::enabled(heap->isolate())) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
   code->CodeIterateBody<StaticVisitor>(heap);
@@ -422,6 +420,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
+  }
+  if (FLAG_cleanup_code_caches_at_gc) {
+    shared->ClearTypeFeedbackInfo();
   }
   if (FLAG_cache_optimized_code &&
       FLAG_flush_optimized_code_cache &&

@@ -729,6 +729,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         FunctionTemplateInfo::cast(js_global_template->constructor()));
     js_global_function =
         factory()->CreateApiFunction(js_global_constructor,
+                                     factory()->the_hole_value(),
                                      factory()->InnerGlobalObject);
   }
 
@@ -756,6 +757,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
             FunctionTemplateInfo::cast(data->constructor()));
     global_proxy_function =
         factory()->CreateApiFunction(global_constructor,
+                                     factory()->the_hole_value(),
                                      factory()->OuterGlobalObject);
   }
 
@@ -2512,15 +2514,15 @@ class NoTrackDoubleFieldsForSerializerScope {
  public:
   explicit NoTrackDoubleFieldsForSerializerScope(Isolate* isolate)
       : isolate_(isolate), flag_(FLAG_track_double_fields) {
-    if (Serializer::enabled()) {
+    if (Serializer::enabled(isolate)) {
       // Disable tracking double fields because heap numbers treated as
       // immutable by the serializer.
       FLAG_track_double_fields = false;
     }
-    USE(isolate_);
   }
+
   ~NoTrackDoubleFieldsForSerializerScope() {
-    if (Serializer::enabled()) {
+    if (Serializer::enabled(isolate_)) {
       FLAG_track_double_fields = flag_;
     }
   }
@@ -2603,7 +2605,7 @@ Genesis::Genesis(Isolate* isolate,
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot
   // creation time and we don't need trigonometric functions then.
-  if (!Serializer::enabled()) {
+  if (!Serializer::enabled(isolate)) {
     // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
     const int num_elems = 2;

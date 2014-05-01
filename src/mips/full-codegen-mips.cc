@@ -138,8 +138,6 @@ void FullCodeGenerator::Generate() {
   handler_table_ =
       isolate()->factory()->NewFixedArray(function()->handler_count(), TENURED);
 
-  InitializeFeedbackVector();
-
   profiling_counter_ = isolate()->factory()->NewCell(
       Handle<Smi>(Smi::FromInt(FLAG_interrupt_budget), isolate()));
   SetFunctionPosition(function());
@@ -1179,12 +1177,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label non_proxy;
   __ bind(&fixed_array);
 
-  Handle<Object> feedback = Handle<Object>(
-      Smi::FromInt(TypeFeedbackInfo::kForInFastCaseMarker),
-      isolate());
-  StoreFeedbackVectorSlot(slot, feedback);
   __ li(a1, FeedbackVector());
-  __ li(a2, Operand(Smi::FromInt(TypeFeedbackInfo::kForInSlowCaseMarker)));
+  __ li(a2, Operand(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
   __ sw(a2, FieldMemOperand(a1, FixedArray::OffsetOfElementAt(slot)));
 
   __ li(a1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
@@ -1666,8 +1660,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   __ li(a0, Operand(Smi::FromInt(flags)));
   int properties_count = constant_properties->length() / 2;
-  if (expr->may_store_doubles() || expr->depth() > 1 || Serializer::enabled() ||
-      flags != ObjectLiteral::kFastElements ||
+  if (expr->may_store_doubles() || expr->depth() > 1 ||
+      Serializer::enabled(isolate()) || flags != ObjectLiteral::kFastElements ||
       properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ Push(a3, a2, a1, a0);
     __ CallRuntime(Runtime::kHiddenCreateObjectLiteral, 4);
@@ -1821,7 +1815,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ CallStub(&stub);
     __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
         1, a1, a2);
-  } else if (expr->depth() > 1 || Serializer::enabled() ||
+  } else if (expr->depth() > 1 || Serializer::enabled(isolate()) ||
              length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ li(a0, Operand(Smi::FromInt(flags)));
     __ Push(a3, a2, a1, a0);
@@ -2733,9 +2727,6 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
   // Record source position for debugger.
   SetSourcePosition(expr->position());
 
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallFeedbackSlot(), uninitialized);
   __ li(a2, FeedbackVector());
   __ li(a3, Operand(Smi::FromInt(expr->CallFeedbackSlot())));
 
@@ -2920,12 +2911,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ lw(a1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  Handle<Object> uninitialized =
-      TypeFeedbackInfo::UninitializedSentinel(isolate());
-  StoreFeedbackVectorSlot(expr->CallNewFeedbackSlot(), uninitialized);
   if (FLAG_pretenuring_call_new) {
-    StoreFeedbackVectorSlot(expr->AllocationSiteFeedbackSlot(),
-                            isolate()->factory()->NewAllocationSite());
+    EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
     ASSERT(expr->AllocationSiteFeedbackSlot() ==
            expr->CallNewFeedbackSlot() + 1);
   }

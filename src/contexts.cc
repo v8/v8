@@ -137,7 +137,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
       VariableMode mode;
       InitializationFlag init_flag;
-      int slot_index = scope_info->ContextSlotIndex(*name, &mode, &init_flag);
+      int slot_index =
+          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
       ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {

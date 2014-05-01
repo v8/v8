@@ -75,7 +75,8 @@ namespace internal {
   F(SetInlineBuiltinFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
-  F(DebugPendingExceptionInPromise, 2, 1) \
+  F(DebugPromiseHandlePrologue, 1, 1) \
+  F(DebugPromiseHandleEpilogue, 0, 1) \
   F(FlattenString, 1, 1) \
   F(LoadMutableDouble, 2, 1) \
   F(TryMigrateInstance, 1, 1) \
@@ -202,7 +203,7 @@ namespace internal {
   F(SetCode, 2, 1) \
   F(SetExpectedNumberOfProperties, 2, 1) \
   \
-  F(CreateApiFunction, 1, 1) \
+  F(CreateApiFunction, 2, 1) \
   F(IsTemplate, 1, 1) \
   F(GetTemplateField, 2, 1) \
   F(DisableAccessChecks, 1, 1) \
@@ -865,7 +866,10 @@ class Runtime : public AllStatic {
     ARRAY_ID_INT32 = 6,
     ARRAY_ID_FLOAT32 = 7,
     ARRAY_ID_FLOAT64 = 8,
-    ARRAY_ID_UINT8_CLAMPED = 9
+    ARRAY_ID_UINT8_CLAMPED = 9,
+
+    ARRAY_ID_FIRST = ARRAY_ID_UINT8,
+    ARRAY_ID_LAST = ARRAY_ID_UINT8_CLAMPED
   };
 
   static void ArrayIdToTypeAndSize(int array_id,

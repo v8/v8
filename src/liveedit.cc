@@ -610,6 +610,7 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
                                                int end_position,
                                                int param_num,
                                                int literal_count,
+                                               int slot_count,
                                                int parent_index) {
   HandleScope scope(isolate());
   this->SetField(kFunctionNameOffset_, name);
@@ -617,6 +618,7 @@ void FunctionInfoWrapper::SetInitialProperties(Handle<String> name,
   this->SetSmiValueField(kEndPositionOffset_, end_position);
   this->SetSmiValueField(kParamNumOffset_, param_num);
   this->SetSmiValueField(kLiteralNumOffset_, literal_count);
+  this->SetSmiValueField(kSlotNumOffset_, slot_count);
   this->SetSmiValueField(kParentIndexOffset_, parent_index);
 }
 
@@ -644,6 +646,26 @@ Handle<Code> FunctionInfoWrapper::GetFunctionCode() {
   Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
   CHECK(raw_result->IsCode());
   return Handle<Code>::cast(raw_result);
+}
+
+
+Handle<FixedArray> FunctionInfoWrapper::GetFeedbackVector() {
+  Handle<Object> element = this->GetField(kSharedFunctionInfoOffset_);
+  Handle<FixedArray> result;
+  if (element->IsJSValue()) {
+    Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
+    Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
+    Handle<SharedFunctionInfo> shared =
+        Handle<SharedFunctionInfo>::cast(raw_result);
+    result = Handle<FixedArray>(shared->feedback_vector(), isolate());
+    CHECK_EQ(result->length(), GetSlotCount());
+  } else {
+    // Scripts may never have a SharedFunctionInfo created, so
+    // create a type feedback vector here.
+    int slot_count = GetSlotCount();
+    result = isolate()->factory()->NewTypeFeedbackVector(slot_count);
+  }
+  return result;
 }
 
 
@@ -687,6 +709,7 @@ class FunctionInfoListener {
     info.SetInitialProperties(fun->name(), fun->start_position(),
                               fun->end_position(), fun->parameter_count(),
                               fun->materialized_literal_count(),
+                              fun->slot_count(),
                               current_parent_index_);
     current_parent_index_ = len_;
     SetElementSloppy(result_, len_, info.GetJSArray());
@@ -1152,6 +1175,10 @@ void LiveEdit::ReplaceFunctionCode(
       shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
     shared_info->DisableOptimization(kLiveEdit);
+    // Update the type feedback vector
+    Handle<FixedArray> feedback_vector =
+        compile_info_wrapper.GetFeedbackVector();
+    shared_info->set_feedback_vector(*feedback_vector);
   }
 
   if (shared_info->debug_info()->IsDebugInfo()) {

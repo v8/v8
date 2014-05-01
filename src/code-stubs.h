@@ -28,6 +28,7 @@ namespace internal {
   V(CompareIC)                           \
   V(CompareNilIC)                        \
   V(MathPow)                             \
+  V(CallIC)                              \
   V(FunctionPrototype)                   \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
@@ -823,6 +824,48 @@ class ICStub: public PlatformCodeStub {
 };
 
 
+class CallICStub: public PlatformCodeStub {
+ public:
+  CallICStub(Isolate* isolate, const CallIC::State& state)
+      : PlatformCodeStub(isolate), state_(state) {}
+
+  bool CallAsMethod() const { return state_.CallAsMethod(); }
+
+  int arg_count() const { return state_.arg_count(); }
+
+  static int ExtractArgcFromMinorKey(int minor_key) {
+    CallIC::State state((ExtraICState) minor_key);
+    return state.arg_count();
+  }
+
+  virtual void Generate(MacroAssembler* masm);
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::CALL_IC;
+  }
+
+  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetICState();
+  }
+
+  virtual ExtraICState GetExtraICState() V8_FINAL V8_OVERRIDE {
+    return state_.GetExtraICState();
+  }
+
+ protected:
+  virtual int MinorKey() { return GetExtraICState(); }
+  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+
+ private:
+  virtual CodeStub::Major MajorKey() { return CallIC; }
+
+  // Code generation helpers.
+  void GenerateMiss(MacroAssembler* masm);
+
+  CallIC::State state_;
+};
+
+
 class FunctionPrototypeStub: public ICStub {
  public:
   FunctionPrototypeStub(Isolate* isolate, Code::Kind kind)
@@ -1600,10 +1643,6 @@ class CallFunctionStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_has_function_cache(RecordCallTarget());
-  }
-
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
@@ -1624,10 +1663,6 @@ class CallFunctionStub: public PlatformCodeStub {
     return FlagBits::encode(flags_) | ArgcBits::encode(argc_);
   }
 
-  bool RecordCallTarget() {
-    return flags_ == RECORD_CALL_TARGET;
-  }
-
   bool CallAsMethod() {
     return flags_ == CALL_AS_METHOD || flags_ == WRAP_AND_CALL;
   }
@@ -1640,7 +1675,7 @@ class CallFunctionStub: public PlatformCodeStub {
 
 class CallConstructStub: public PlatformCodeStub {
  public:
-  CallConstructStub(Isolate* isolate, CallFunctionFlags flags)
+  CallConstructStub(Isolate* isolate, CallConstructorFlags flags)
       : PlatformCodeStub(isolate), flags_(flags) {}
 
   void Generate(MacroAssembler* masm);
@@ -1650,7 +1685,7 @@ class CallConstructStub: public PlatformCodeStub {
   }
 
  private:
-  CallFunctionFlags flags_;
+  CallConstructorFlags flags_;
 
   virtual void PrintName(StringStream* stream);
 
@@ -1658,11 +1693,7 @@ class CallConstructStub: public PlatformCodeStub {
   int MinorKey() { return flags_; }
 
   bool RecordCallTarget() {
-    return (flags_ & RECORD_CALL_TARGET) != 0;
-  }
-
-  bool CallAsMethod() {
-    return (flags_ & CALL_AS_METHOD) != 0;
+    return (flags_ & RECORD_CONSTRUCTOR_TARGET) != 0;
   }
 };
 
@@ -1888,8 +1919,9 @@ class DoubleToIStub : public PlatformCodeStub {
       OffsetBits::encode(offset) |
       IsTruncatingBits::encode(is_truncating) |
       SkipFastPathBits::encode(skip_fastpath) |
-      SSEBits::encode(CpuFeatures::IsSafeForSnapshot(SSE2) ?
-                      CpuFeatures::IsSafeForSnapshot(SSE3) ? 2 : 1 : 0);
+      SSEBits::encode(
+          CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ?
+          CpuFeatures::IsSafeForSnapshot(isolate, SSE3) ? 2 : 1 : 0);
   }
 
   Register source() {

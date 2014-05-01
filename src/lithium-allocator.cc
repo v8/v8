@@ -963,7 +963,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        if (instr->ClobbersDoubleRegisters()) {
+        if (instr->ClobbersDoubleRegisters(isolate())) {
           for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {

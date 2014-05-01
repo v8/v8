@@ -18,9 +18,10 @@ namespace v8 {
 namespace internal {
 
 
-static SaveFPRegsMode GetSaveFPRegsMode() {
+static SaveFPRegsMode GetSaveFPRegsMode(Isolate* isolate) {
   // We don't need to save floating point regs when generating the snapshot
-  return CpuFeatures::IsSafeForSnapshot(SSE2) ? kSaveFPRegs : kDontSaveFPRegs;
+  return CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ? kSaveFPRegs
+                                                       : kDontSaveFPRegs;
 }
 
 
@@ -383,7 +384,7 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
       x87_stack_.LeavingBlock(current_block_, LGoto::cast(instr));
     } else if (FLAG_debug_code && FLAG_enable_slow_asserts &&
                !instr->IsGap() && !instr->IsReturn()) {
-      if (instr->ClobbersDoubleRegisters()) {
+      if (instr->ClobbersDoubleRegisters(isolate())) {
         if (instr->HasDoubleRegisterResult()) {
           ASSERT_EQ(1, x87_stack_.depth());
         } else {
@@ -682,7 +683,7 @@ void LCodeGen::X87PrepareBinaryOp(
 
 
 void LCodeGen::X87Stack::FlushIfNecessary(LInstruction* instr, LCodeGen* cgen) {
-  if (stack_depth_ > 0 && instr->ClobbersDoubleRegisters()) {
+  if (stack_depth_ > 0 && instr->ClobbersDoubleRegisters(isolate())) {
     bool double_inputs = instr->HasDoubleRegisterInput();
 
     // Flush stack from tos down, since FreeX87() will mess with tos
@@ -1969,7 +1970,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   int32_t upper = static_cast<int32_t>(int_val >> (kBitsPerInt));
   ASSERT(instr->result()->IsDoubleRegister());
 
-  if (!CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (!CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     __ push(Immediate(upper));
     __ push(Immediate(lower));
     X87Register reg = ToX87Register(instr->result());
@@ -2242,7 +2243,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
 
 
 void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister left = ToDoubleRegister(instr->left());
     XMMRegister right = ToDoubleRegister(instr->right());
@@ -2487,7 +2488,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
                factory()->heap_number_map());
         __ j(not_equal, &not_heap_number, Label::kNear);
-        if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+        if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
           CpuFeatureScope scope(masm(), SSE2);
           XMMRegister xmm_scratch = double_scratch0();
           __ xorps(xmm_scratch, xmm_scratch);
@@ -2574,7 +2575,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+      if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
         CpuFeatureScope scope(masm(), SSE2);
         __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
       } else {
@@ -3250,7 +3251,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               offset,
                               value,
                               temp,
-                              GetSaveFPRegsMode(),
+                              GetSaveFPRegsMode(isolate()),
                               EMIT_REMEMBERED_SET,
                               check_needed);
   }
@@ -4264,7 +4265,7 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
 
   // No cell in ebx for construct type feedback in optimized code
   __ mov(ebx, isolate()->factory()->undefined_value());
-  CallConstructStub stub(isolate(), NO_CALL_FUNCTION_FLAGS);
+  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   __ Move(eax, Immediate(instr->arity()));
   CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
 }
@@ -4417,7 +4418,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           HeapObject::kMapOffset,
                           temp_map,
                           temp,
-                          GetSaveFPRegsMode(),
+                          GetSaveFPRegsMode(isolate()),
                           OMIT_REMEMBERED_SET,
                           OMIT_SMI_CHECK);
     }
@@ -4458,7 +4459,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         offset,
                         value,
                         temp,
-                        GetSaveFPRegsMode(),
+                        GetSaveFPRegsMode(isolate()),
                         EMIT_REMEMBERED_SET,
                         check_needed);
   }
@@ -4518,7 +4519,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       instr->additional_index()));
   if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS) {
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister xmm_scratch = double_scratch0();
       __ cvtsd2ss(xmm_scratch, ToDoubleRegister(instr->value()));
@@ -4529,7 +4530,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
     }
   } else if (elements_kind == EXTERNAL_FLOAT64_ELEMENTS ||
              elements_kind == FLOAT64_ELEMENTS) {
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       __ movsd(operand, ToDoubleRegister(instr->value()));
     } else {
@@ -4588,7 +4589,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       FixedDoubleArray::kHeaderSize - kHeapObjectTag,
       instr->additional_index());
 
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister value = ToDoubleRegister(instr->value());
 
@@ -4690,7 +4691,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     __ RecordWrite(elements,
                    key,
                    value,
-                   GetSaveFPRegsMode(),
+                   GetSaveFPRegsMode(isolate()),
                    EMIT_REMEMBERED_SET,
                    check_needed);
   }
@@ -5427,7 +5428,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register result_reg = ToRegister(result);
 
   if (instr->truncating()) {
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(input);
       __ TruncateDoubleToI(result_reg, input_reg);
@@ -5438,7 +5439,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     }
   } else {
     Label bailout, done;
-    if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+    if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
       CpuFeatureScope scope(masm(), SSE2);
       XMMRegister input_reg = ToDoubleRegister(input);
       XMMRegister xmm_scratch = double_scratch0();
@@ -5466,7 +5467,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
   Register result_reg = ToRegister(result);
 
   Label bailout, done;
-  if (CpuFeatures::IsSafeForSnapshot(SSE2)) {
+  if (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2)) {
     CpuFeatureScope scope(masm(), SSE2);
     XMMRegister input_reg = ToDoubleRegister(input);
     XMMRegister xmm_scratch = double_scratch0();

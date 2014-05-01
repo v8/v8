@@ -35,32 +35,33 @@
 using namespace v8::internal;
 
 
-static MaybeObject* AllocateAfterFailures() {
+static AllocationResult AllocateAfterFailures() {
   static int attempts = 0;
-  if (++attempts < 3) return Failure::RetryAfterGC();
+
+  if (++attempts < 3) return AllocationResult::Retry();
   TestHeap* heap = CcTest::test_heap();
 
   // New space.
   SimulateFullSpace(heap->new_space());
-  CHECK(!heap->AllocateByteArray(100)->IsFailure());
-  CHECK(!heap->AllocateFixedArray(100, NOT_TENURED)->IsFailure());
+  heap->AllocateByteArray(100).ToObjectChecked();
+  heap->AllocateFixedArray(100, NOT_TENURED).ToObjectChecked();
 
   // Make sure we can allocate through optimized allocation functions
   // for specific kinds.
-  CHECK(!heap->AllocateFixedArray(100)->IsFailure());
-  CHECK(!heap->AllocateHeapNumber(0.42)->IsFailure());
-  CHECK(!heap->AllocateArgumentsObject(Smi::FromInt(87), 10)->IsFailure());
+  heap->AllocateFixedArray(100).ToObjectChecked();
+  heap->AllocateHeapNumber(0.42).ToObjectChecked();
+  heap->AllocateArgumentsObject(Smi::FromInt(87), 10).ToObjectChecked();
   Object* object = heap->AllocateJSObject(
-      *CcTest::i_isolate()->object_function())->ToObjectChecked();
-  CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
+      *CcTest::i_isolate()->object_function()).ToObjectChecked();
+  heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
 
   // Old data space.
   SimulateFullSpace(heap->old_data_space());
-  CHECK(!heap->AllocateByteArray(100, TENURED)->IsFailure());
+  heap->AllocateByteArray(100, TENURED).ToObjectChecked();
 
   // Old pointer space.
   SimulateFullSpace(heap->old_pointer_space());
-  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
   static const int kLargeObjectSpaceFillerLength = 300000;
@@ -68,22 +69,22 @@ static MaybeObject* AllocateAfterFailures() {
       kLargeObjectSpaceFillerLength);
   ASSERT(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
-    CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
-          IsFailure());
+    heap->AllocateFixedArray(
+        kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
   }
-  CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
-        IsFailure());
+  heap->AllocateFixedArray(
+      kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
 
   // Map space.
   SimulateFullSpace(heap->map_space());
   int instance_size = JSObject::kHeaderSize;
-  CHECK(!heap->AllocateMap(JS_OBJECT_TYPE, instance_size)->IsFailure());
+  heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
 
   // Test that we can allocate in old pointer space and code space.
   SimulateFullSpace(heap->code_space());
-  CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());
-  CHECK(!heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
-      Builtins::kIllegal))->IsFailure());
+  heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
+  heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
+      Builtins::kIllegal)).ToObjectChecked();
 
   // Return success.
   return Smi::FromInt(42);

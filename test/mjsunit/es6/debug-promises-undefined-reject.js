@@ -6,7 +6,7 @@
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which has no reject handler.
-// We expect a PendingExceptionInPromise event to be triggered.
+// We expect an Exception event with a promise to be triggered.
 
 Debug = debug.Debug;
 
@@ -31,16 +31,16 @@ p.constructor = MyPromise;
 var q = p.chain(
   function() {
     log.push("throw caught");
-    throw new Error("caught");
+    throw new Error("caught");  // event
   });
 
 function listener(event, exec_state, event_data, data) {
   try {
-    if (event == Debug.DebugEvent.PendingExceptionInPromise) {
+    if (event == Debug.DebugEvent.Exception) {
       assertEquals(["resolve", "construct", "end main", "throw caught"], log);
-      assertEquals("caught", event_data.exception().message);
-    } else if (event == Debug.DebugEvent.Exception) {
-      assertUnreachable();
+      assertEquals("undefined is not a function",
+                   event_data.exception().message);
+      assertEquals(q, event_data.promise());
     }
   } catch (e) {
     // Signal a failure with exit code 1.  This is necessary since the

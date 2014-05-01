@@ -238,11 +238,11 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  virtual bool ClobbersDoubleRegisters() const {
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const {
     return IsCall() ||
            // We only have rudimentary X87Stack tracking, thus in general
            // cannot handle phi-nodes.
-           (!CpuFeatures::IsSafeForSnapshot(SSE2) && IsControl());
+        (!CpuFeatures::IsSafeForSnapshot(isolate, SSE2) && IsControl());
   }
 
   virtual bool HasResult() const = 0;
@@ -377,9 +377,13 @@ class LInstructionGap V8_FINAL : public LGap {
 
 class LClobberDoubles V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
-  LClobberDoubles() { ASSERT(!CpuFeatures::IsSafeForSnapshot(SSE2)); }
+  explicit LClobberDoubles(Isolate* isolate) {
+    ASSERT(!CpuFeatures::IsSafeForSnapshot(isolate, SSE2));
+  }
 
-  virtual bool ClobbersDoubleRegisters() const { return true; }
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
+    return true;
+  }
 
   DECLARE_CONCRETE_INSTRUCTION(ClobberDoubles, "clobber-d")
 };
@@ -395,7 +399,9 @@ class LGoto V8_FINAL : public LTemplateInstruction<0, 0, 0> {
   virtual bool IsControl() const V8_OVERRIDE { return true; }
 
   int block_id() const { return block_->block_id(); }
-  virtual bool ClobbersDoubleRegisters() const { return false; }
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
+    return false;
+  }
 
   bool jumps_to_join() const { return block_->predecessors()->length() > 1; }
 
@@ -1988,7 +1994,7 @@ class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
     return save_doubles() == kDontSaveFPRegs;
   }
 
@@ -2724,6 +2730,8 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         current_block_(NULL),
         next_block_(NULL),
         allocator_(allocator) { }
+
+  Isolate* isolate() const { return graph_->isolate(); }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();

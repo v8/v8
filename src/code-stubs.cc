@@ -478,6 +478,11 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
+void CallICStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
+}
+
+
 void InstanceofStub::PrintName(StringStream* stream) {
   const char* args = "";
   if (HasArgsInRegisters()) {
@@ -560,7 +565,6 @@ void ArgumentsAccessStub::PrintName(StringStream* stream) {
 
 void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d", argc_);
-  if (RecordCallTarget()) stream->Add("_Recording");
 }
 
 

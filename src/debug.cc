@@ -37,6 +37,8 @@ Debug::Debug(Isolate* isolate)
       disable_break_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
+      promise_catch_handlers_(0),
+      promise_getters_(0),
       debug_break_return_(NULL),
       debug_break_slot_(NULL),
       isolate_(isolate) {
@@ -380,6 +382,7 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     if (target_code->kind() == Code::STUB) {
       return target_code->major_key() == CodeStub::CallFunction;
     }
+    return target_code->is_call_stub();
   }
   return false;
 }
@@ -1317,6 +1320,53 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
+void Debug::PromiseHandlePrologue(Handle<JSFunction> promise_getter) {
+  Handle<JSFunction> promise_getter_global = Handle<JSFunction>::cast(
+      isolate_->global_handles()->Create(*promise_getter));
+  StackHandler* handler =
+      StackHandler::FromAddress(Isolate::handler(isolate_->thread_local_top()));
+  promise_getters_.Add(promise_getter_global);
+  promise_catch_handlers_.Add(handler);
+}
+
+
+void Debug::PromiseHandleEpilogue() {
+  if (promise_catch_handlers_.length() == 0) return;
+  promise_catch_handlers_.RemoveLast();
+  Handle<Object> promise_getter = promise_getters_.RemoveLast();
+  isolate_->global_handles()->Destroy(promise_getter.location());
+}
+
+
+Handle<Object> Debug::GetPromiseForUncaughtException() {
+  Handle<Object> undefined = isolate_->factory()->undefined_value();
+  if (promise_getters_.length() == 0) return undefined;
+  Handle<JSFunction> promise_getter = promise_getters_.last();
+  StackHandler* promise_catch = promise_catch_handlers_.last();
+  // Find the top-most try-catch handler.
+  StackHandler* handler = StackHandler::FromAddress(
+      Isolate::handler(isolate_->thread_local_top()));
+  while (handler != NULL && !handler->is_catch()) {
+    handler = handler->next();
+  }
+#ifdef DEBUG
+  // Make sure that our promise catch handler is in the list of handlers,
+  // even if it's not the top-most try-catch handler.
+  StackHandler* temp = handler;
+  while (temp != promise_catch && !temp->is_catch()) {
+    temp = temp->next();
+    CHECK(temp != NULL);
+  }
+#endif  // DEBUG
+
+  if (handler == promise_catch) {
+    return Execution::Call(
+        isolate_, promise_getter, undefined, 0, NULL).ToHandleChecked();
+  }
+  return undefined;
+}
+
+
 void Debug::PrepareStep(StepAction step_action,
                         int step_count,
                         StackFrame::Id frame_id) {
@@ -1394,6 +1444,9 @@ void Debug::PrepareStep(StepAction step_action,
       bool is_call_target = false;
       Address target = it.rinfo()->target_address();
       Code* code = Code::GetCodeFromTargetAddress(target);
+      if (code->is_call_stub()) {
+        is_call_target = true;
+      }
       if (code->is_inline_cache_stub()) {
         is_inline_cache_stub = true;
         is_load_or_store = !is_call_target;
@@ -1408,8 +1461,9 @@ void Debug::PrepareStep(StepAction step_action,
         maybe_call_function_stub =
             Code::GetCodeFromTargetAddress(original_target);
       }
-      if (maybe_call_function_stub->kind() == Code::STUB &&
-          maybe_call_function_stub->major_key() == CodeStub::CallFunction) {
+      if ((maybe_call_function_stub->kind() == Code::STUB &&
+           maybe_call_function_stub->major_key() == CodeStub::CallFunction) ||
+          maybe_call_function_stub->kind() == Code::CALL_IC) {
         // Save reference to the code as we may need it to find out arguments
         // count for 'step in' later.
         call_function_stub = Handle<Code>(maybe_call_function_stub);
@@ -1465,6 +1519,7 @@ void Debug::PrepareStep(StepAction step_action,
     } else if (!call_function_stub.is_null()) {
       // If it's CallFunction stub ensure target function is compiled and flood
       // it with one shot breakpoints.
+      bool is_call_ic = call_function_stub->kind() == Code::CALL_IC;
 
       // Find out number of arguments from the stub minor key.
       // Reverse lookup required as the minor key cannot be retrieved
@@ -1480,11 +1535,13 @@ void Debug::PrepareStep(StepAction step_action,
       uint32_t key = Smi::cast(*obj)->value();
       // Argc in the stub is the number of arguments passed - not the
       // expected arguments of the called function.
-      int call_function_arg_count =
-          CallFunctionStub::ExtractArgcFromMinorKey(
+      int call_function_arg_count = is_call_ic
+          ? CallICStub::ExtractArgcFromMinorKey(CodeStub::MinorKeyFromKey(key))
+          : CallFunctionStub::ExtractArgcFromMinorKey(
               CodeStub::MinorKeyFromKey(key));
-      ASSERT(call_function_stub->major_key() ==
-             CodeStub::MajorKeyFromKey(key));
+
+      ASSERT(is_call_ic ||
+             call_function_stub->major_key() == CodeStub::MajorKeyFromKey(key));
 
       // Find target function on the expression stack.
       // Expression stack looks like this (top to bottom):
@@ -1612,6 +1669,9 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   // used by the call site.
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
+      case Code::CALL_IC:
+        return isolate->builtins()->CallICStub_DebugBreak();
+
       case Code::LOAD_IC:
         return isolate->builtins()->LoadIC_DebugBreak();
 
@@ -1640,11 +1700,7 @@ Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
   }
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction);
-    if (code->has_function_cache()) {
-      return isolate->builtins()->CallFunctionStub_Recording_DebugBreak();
-    } else {
-      return isolate->builtins()->CallFunctionStub_DebugBreak();
-    }
+    return isolate->builtins()->CallFunctionStub_DebugBreak();
   }
 
   UNREACHABLE();
@@ -2640,15 +2696,16 @@ MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
 }
 
 
-void Debugger::OnException(Handle<Object> exception,
-                           bool uncaught,
-                           Handle<Object> promise) {
+void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   HandleScope scope(isolate_);
   Debug* debug = isolate_->debug();
 
   // Bail out based on state or if there is no listener for this event
   if (debug->InDebugger()) return;
   if (!Debugger::EventActive(v8::Exception)) return;
+
+  Handle<Object> promise = debug->GetPromiseForUncaughtException();
+  uncaught |= !promise->IsUndefined();
 
   // Bail out if exception breaks are not active
   if (uncaught) {
@@ -2667,10 +2724,6 @@ void Debugger::OnException(Handle<Object> exception,
   // Clear all current stepping setup.
   debug->ClearStepping();
 
-  // Determine event;
-  DebugEvent event = promise->IsUndefined()
-      ? v8::Exception : v8::PendingExceptionInPromise;
-
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
@@ -2680,7 +2733,7 @@ void Debugger::OnException(Handle<Object> exception,
   }
 
   // Process debug event.
-  ProcessDebugEvent(event, Handle<JSObject>::cast(event_data), false);
+  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
   // Return to continue execution from where the exception was thrown.
 }
 
@@ -3162,7 +3215,8 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
 
 
 void Debugger::ListenersChanged() {
-  if (IsDebuggerActive()) {
+  bool active = IsDebuggerActive();
+  if (active) {
     // Disable the compilation cache when the debugger is active.
     isolate_->compilation_cache()->Disable();
     debugger_unload_pending_ = false;

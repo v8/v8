@@ -99,20 +99,20 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code size multiplier.
 #if V8_TARGET_ARCH_IA32
-  static const int kCodeSizeMultiplier = 100;
+  static const int kCodeSizeMultiplier = 105;
   static const int kBootCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64
-  static const int kCodeSizeMultiplier = 162;
+  static const int kCodeSizeMultiplier = 170;
   static const int kBootCodeSizeMultiplier = 140;
 #elif V8_TARGET_ARCH_ARM
-  static const int kCodeSizeMultiplier = 142;
+  static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 110;
 #elif V8_TARGET_ARCH_ARM64
 // TODO(all): Copied ARM value. Check this is sensible for ARM64.
-  static const int kCodeSizeMultiplier = 142;
+  static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 110;
 #elif V8_TARGET_ARCH_MIPS
-  static const int kCodeSizeMultiplier = 142;
+  static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 120;
 #else
 #error Unsupported target architecture.
@@ -419,12 +419,9 @@ class FullCodeGenerator: public AstVisitor {
   // Feedback slot support. The feedback vector will be cleared during gc and
   // collected by the type-feedback oracle.
   Handle<FixedArray> FeedbackVector() {
-    return feedback_vector_;
+    return info_->feedback_vector();
   }
-  void StoreFeedbackVectorSlot(int slot, Handle<Object> object) {
-    feedback_vector_->set(slot, *object);
-  }
-  void InitializeFeedbackVector();
+  void EnsureSlotContainsAllocationSite(int slot);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -467,9 +464,9 @@ class FullCodeGenerator: public AstVisitor {
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr);
-  void EmitCallWithIC(Call* expr);
-  void EmitKeyedCallWithIC(Call* expr, Expression* key);
+  void EmitCall(Call* expr, CallIC::CallType = CallIC::FUNCTION);
+  void EmitCallWithLoadIC(Call* expr);
+  void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
@@ -826,7 +823,6 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BackEdgeEntry> back_edges_;
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
-  Handle<FixedArray> feedback_vector_;
   Handle<Cell> profiling_counter_;
   bool generate_debug_code_;
 

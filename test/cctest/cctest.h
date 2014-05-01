@@ -83,12 +83,13 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
 // Use this to expose protected methods in i::Heap.
 class TestHeap : public i::Heap {
  public:
+  using i::Heap::AllocateArgumentsObject;
+  using i::Heap::AllocateByteArray;
+  using i::Heap::AllocateFixedArray;
   using i::Heap::AllocateHeapNumber;
-  using i::Heap::AllocateMap;
   using i::Heap::AllocateJSObject;
   using i::Heap::AllocateJSObjectFromMap;
-  using i::Heap::AllocateByteArray;
-  using i::Heap::AllocateArgumentsObject;
+  using i::Heap::AllocateMap;
   using i::Heap::CopyCode;
 };
 
@@ -414,8 +415,10 @@ static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
   int new_linear_size = static_cast<int>(
       *space->allocation_limit_address() - *space->allocation_top_address());
   if (new_linear_size == 0) return;
-  v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
+  v8::internal::AllocationResult allocation =
+      space->AllocateRaw(new_linear_size);
+  v8::internal::FreeListNode* node =
+      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
   node->set_size(space->heap(), new_linear_size);
 }
 

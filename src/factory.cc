@@ -155,7 +155,6 @@ Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
   Handle<TypeFeedbackInfo> info =
       Handle<TypeFeedbackInfo>::cast(NewStruct(TYPE_FEEDBACK_INFO_TYPE));
   info->initialize_storage();
-  info->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   return info;
 }
 
@@ -377,10 +376,10 @@ static inline Handle<String> MakeOrFindTwoCharacterString(Isolate* isolate,
   // Numeric strings have a different hash algorithm not known by
   // LookupTwoCharsStringIfExists, so we skip this step for such strings.
   if (!Between(c1, '0', '9') || !Between(c2, '0', '9')) {
-    String* result;
-    StringTable* table = isolate->heap()->string_table();
-    if (table->LookupTwoCharsStringIfExists(c1, c2, &result)) {
-      return handle(result);
+    Handle<String> result;
+    if (StringTable::LookupTwoCharsStringIfExists(isolate, c1, c2).
+        ToHandle(&result)) {
+      return result;
     }
   }
 
@@ -1070,10 +1069,12 @@ Handle<Object> Factory::NewNumberFromInt(int32_t value,
 
 
 Handle<Object> Factory::NewNumberFromUint(uint32_t value,
-                                         PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->NumberFromUint32(value, pretenure), Object);
+                                          PretenureFlag pretenure) {
+  int32_t int32v = static_cast<int32_t>(value);
+  if (int32v >= 0 && Smi::IsValid(int32v)) {
+    return handle(Smi::FromInt(int32v), isolate());
+  }
+  return NewHeapNumber(FastUI2D(value), pretenure);
 }
 
 
@@ -1255,19 +1256,30 @@ Handle<Object> Factory::NewError(const char* constructor,
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
+                                        Handle<String> name,
                                         InstanceType type,
                                         int instance_size,
                                         Handle<Code> code,
                                         bool force_initial_map) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, code, the_hole_value());
+  Handle<JSFunction> function = NewFunction(name, code, maybe_prototype);
 
-  if (force_initial_map ||
-      type != JS_OBJECT_TYPE ||
-      instance_size != JSObject::kHeaderSize) {
+  Handle<Object> prototype;
+  if (maybe_prototype.ToHandle(&prototype) &&
+      (force_initial_map ||
+       type != JS_OBJECT_TYPE ||
+       instance_size != JSObject::kHeaderSize)) {
     Handle<Map> initial_map = NewMap(type, instance_size);
-    Handle<JSObject> prototype = NewFunctionPrototype(function);
+    if (prototype->IsJSObject()) {
+      JSObject::SetLocalPropertyIgnoreAttributes(
+          Handle<JSObject>::cast(prototype),
+          constructor_string(),
+          function,
+          DONT_ENUM).Assert();
+    } else if (!function->shared()->is_generator()) {
+      prototype = NewFunctionPrototype(function);
+    }
     initial_map->set_prototype(*prototype);
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
@@ -1277,6 +1289,16 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
   }
 
   return function;
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        InstanceType type,
+                                        int instance_size,
+                                        Handle<Code> code,
+                                        bool force_initial_map) {
+  return NewFunction(
+      the_hole_value(), name, type, instance_size, code, force_initial_map);
 }
 
 
@@ -1396,9 +1418,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->CopyFrom(desc);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    code->Verify();
-  }
+  if (FLAG_verify_heap) code->ObjectVerify();
 #endif
   return code;
 }
@@ -1788,15 +1808,32 @@ void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
 }
 
 
+Handle<FixedArray> Factory::NewTypeFeedbackVector(int slot_count) {
+  // Ensure we can skip the write barrier
+  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(),
+            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFixedArrayWithFiller(
+          slot_count,
+          TENURED,
+          *TypeFeedbackInfo::UninitializedSentinel(isolate())),
+      FixedArray);
+}
+
+
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,
     bool is_generator,
     Handle<Code> code,
-    Handle<ScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info,
+    Handle<FixedArray> feedback_vector) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
   shared->set_scope_info(*scope_info);
+  shared->set_feedback_vector(*feedback_vector);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the
@@ -1854,6 +1891,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
+  share->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   share->set_initial_map(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
@@ -1912,7 +1950,7 @@ void Factory::SetNumberStringCache(Handle<Object> number,
       // cache in the snapshot to keep  boot-time memory usage down.
       // If we expand the number string cache already while creating
       // the snapshot then that didn't work out.
-      ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
+      ASSERT(!Serializer::enabled(isolate()) || FLAG_extra_code != NULL);
       Handle<FixedArray> new_cache = NewFixedArray(full_size, TENURED);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;
@@ -2057,7 +2095,9 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 
 Handle<JSFunction> Factory::CreateApiFunction(
-    Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
+    Handle<FunctionTemplateInfo> obj,
+    Handle<Object> prototype,
+    ApiInstanceType instance_type) {
   Handle<Code> code = isolate()->builtins()->HandleApiCall();
   Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
@@ -2093,20 +2133,31 @@ Handle<JSFunction> Factory::CreateApiFunction(
       break;
   }
 
+  MaybeHandle<Object> maybe_prototype = prototype;
+  if (obj->remove_prototype()) maybe_prototype = MaybeHandle<Object>();
+
   Handle<JSFunction> result = NewFunction(
-      Factory::empty_string(), type, instance_size, code, true);
+      maybe_prototype, Factory::empty_string(), type,
+      instance_size, code, true);
 
-  // Set length.
   result->shared()->set_length(obj->length());
-
-  // Set class name.
-  Handle<Object> class_name = Handle<Object>(obj->class_name(), isolate());
+  Handle<Object> class_name(obj->class_name(), isolate());
   if (class_name->IsString()) {
     result->shared()->set_instance_class_name(*class_name);
     result->shared()->set_name(*class_name);
   }
+  result->shared()->set_function_data(*obj);
+  result->shared()->set_construct_stub(*construct_stub);
+  result->shared()->DontAdaptArguments();
 
-  Handle<Map> map = Handle<Map>(result->initial_map());
+  if (obj->remove_prototype()) {
+    ASSERT(result->shared()->IsApiFunction());
+    return result;
+  }
+  // Down from here is only valid for API functions that can be used as a
+  // constructor (don't set the "remove prototype" flag).
+
+  Handle<Map> map(result->initial_map());
 
   // Mark as undetectable if needed.
   if (obj->undetectable()) {
@@ -2135,10 +2186,6 @@ Handle<JSFunction> Factory::CreateApiFunction(
   if (!obj->instance_call_handler()->IsUndefined()) {
     map->set_has_instance_call_handler();
   }
-
-  result->shared()->set_function_data(*obj);
-  result->shared()->set_construct_stub(*construct_stub);
-  result->shared()->DontAdaptArguments();
 
   // Recursively copy parent instance templates' accessors,
   // 'data' may be modified.

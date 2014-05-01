@@ -64,7 +64,8 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     // We need calls to have a predictable size in the unoptimized code, but
     // this is optimized code, so we don't have to have a predictable size.
     int call_size_in_bytes =
-        MacroAssembler::CallSizeNotPredictableCodeSize(deopt_entry,
+        MacroAssembler::CallSizeNotPredictableCodeSize(isolate,
+                                                       deopt_entry,
                                                        RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);

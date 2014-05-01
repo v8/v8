@@ -464,6 +464,12 @@ class Factory V8_FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
+  Handle<JSFunction> NewFunction(MaybeHandle<Object> maybe_prototype,
+                                 Handle<String> name,
+                                 InstanceType type,
+                                 int instance_size,
+                                 Handle<Code> code,
+                                 bool force_initial_map);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  InstanceType type,
                                  int instance_size,
@@ -551,6 +557,7 @@ class Factory V8_FINAL {
 
   Handle<JSFunction> CreateApiFunction(
       Handle<FunctionTemplateInfo> data,
+      Handle<Object> prototype,
       ApiInstanceType type = JavaScriptObject);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
@@ -599,8 +606,12 @@ class Factory V8_FINAL {
       int number_of_literals,
       bool is_generator,
       Handle<Code> code,
-      Handle<ScopeInfo> scope_info);
+      Handle<ScopeInfo> scope_info,
+      Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
+
+  // Allocate a new type feedback vector
+  Handle<FixedArray> NewTypeFeedbackVector(int slot_count);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

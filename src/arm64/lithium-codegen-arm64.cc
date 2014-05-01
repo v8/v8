@@ -409,6 +409,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   int arity = instr->arity();
   CallFunctionStub stub(isolate(), arity, instr->hydrogen()->function_flags());
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  after_push_argument_ = false;
 }
 
 
@@ -421,8 +422,9 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   // No cell in x2 for construct type feedback in optimized code.
   __ LoadRoot(x2, Heap::kUndefinedValueRootIndex);
 
-  CallConstructStub stub(isolate(), NO_CALL_FUNCTION_FLAGS);
+  CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
+  after_push_argument_ = false;
 
   ASSERT(ToRegister(instr->result()).is(x0));
 }
@@ -470,6 +472,7 @@ void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
     ArrayNArgumentsConstructorStub stub(isolate(), kind, override_mode);
     CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
   }
+  after_push_argument_ = false;
 
   ASSERT(ToRegister(instr->result()).is(x0));
 }
@@ -491,7 +494,7 @@ void LCodeGen::LoadContextFromDeferred(LOperand* context) {
   if (context->IsRegister()) {
     __ Mov(cp, ToRegister(context));
   } else if (context->IsStackSlot()) {
-    __ Ldr(cp, ToMemOperand(context));
+    __ Ldr(cp, ToMemOperand(context, kMustUseFramePointer));
   } else if (context->IsConstantOperand()) {
     HConstant* constant =
         chunk_->LookupConstant(LConstantOperand::cast(context));
@@ -1232,13 +1235,38 @@ static ptrdiff_t ArgumentsOffsetWithoutFrame(ptrdiff_t index) {
 }
 
 
-MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
+MemOperand LCodeGen::ToMemOperand(LOperand* op, StackMode stack_mode) const {
   ASSERT(op != NULL);
   ASSERT(!op->IsRegister());
   ASSERT(!op->IsDoubleRegister());
   ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    return MemOperand(fp, StackSlotOffset(op->index()));
+    int fp_offset = StackSlotOffset(op->index());
+    if (op->index() >= 0) {
+      // Loads and stores have a bigger reach in positive offset than negative.
+      // When the load or the store can't be done in one instruction via fp
+      // (too big negative offset), we try to access via jssp (positive offset).
+      // We can reference a stack slot from jssp only if jssp references the end
+      // of the stack slots. It's not the case when:
+      //  - stack_mode != kCanUseStackPointer: this is the case when a deferred
+      //     code saved the registers.
+      //  - after_push_argument_: arguments has been pushed for a call.
+      //  - inlined_arguments_: inlined arguments have been pushed once. All the
+      //     remainder of the function cannot trust jssp any longer.
+      //  - saves_caller_doubles: some double registers have been pushed, jssp
+      //     references the end of the double registers and not the end of the
+      //     stack slots.
+      // Also, if the offset from fp is small enough to make a load/store in
+      // one instruction, we use a fp access.
+      if ((stack_mode == kCanUseStackPointer) && !after_push_argument_ &&
+          !inlined_arguments_ && !is_int9(fp_offset) &&
+          !info()->saves_caller_doubles()) {
+        int jssp_offset =
+            (GetStackSlotCount() - op->index() - 1) * kPointerSize;
+        return MemOperand(masm()->StackPointer(), jssp_offset);
+      }
+    }
+    return MemOperand(fp, fp_offset);
   } else {
     // Retrieve parameter without eager stack-frame relative to the
     // stack-pointer.
@@ -1628,6 +1656,10 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
 
 
 void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
+  // We push some arguments and they will be pop in an other block. We can't
+  // trust that jssp references the end of the stack slots until the end of
+  // the function.
+  inlined_arguments_ = true;
   Register result = ToRegister(instr->result());
 
   if (instr->hydrogen()->from_inlined()) {
@@ -1996,6 +2028,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     __ Call(target);
   }
   generator.AfterCall();
+  after_push_argument_ = false;
 }
 
 
@@ -2015,11 +2048,13 @@ void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
   __ Call(x10);
 
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  after_push_argument_ = false;
 }
 
 
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
   CallRuntime(instr->function(), instr->arity(), instr);
+  after_push_argument_ = false;
 }
 
 
@@ -2045,6 +2080,7 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
     default:
       UNREACHABLE();
   }
+  after_push_argument_ = false;
 }
 
 
@@ -3102,6 +3138,7 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
                       instr,
                       x1);
   }
+  after_push_argument_ = false;
 }
 
 
@@ -3761,9 +3798,15 @@ void LCodeGen::DoMathExp(LMathExp* instr) {
 }
 
 
-void LCodeGen::DoMathFloor(LMathFloor* instr) {
-  // TODO(jbramley): If we could provide a double result, we could use frintm
-  // and produce a valid double result in a single instruction.
+void LCodeGen::DoMathFloorD(LMathFloorD* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+
+  __ Frintm(result, input);
+}
+
+
+void LCodeGen::DoMathFloorI(LMathFloorI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   Register result = ToRegister(instr->result());
 
@@ -3996,8 +4039,37 @@ void LCodeGen::DoPower(LPower* instr) {
 }
 
 
-void LCodeGen::DoMathRound(LMathRound* instr) {
-  // TODO(jbramley): We could provide a double result here using frint.
+void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  DoubleRegister scratch_d = double_scratch();
+
+  ASSERT(!AreAliased(input, result, scratch_d));
+
+  Label done;
+
+  __ Frinta(result, input);
+  __ Fcmp(input, 0.0);
+  __ Fccmp(result, input, ZFlag, lt);
+  // The result is correct if the input was in [-0, +infinity], or was a
+  // negative integral value.
+  __ B(eq, &done);
+
+  // Here the input is negative, non integral, with an exponent lower than 52.
+  // We do not have to worry about the 0.49999999999999994 (0x3fdfffffffffffff)
+  // case. So we can safely add 0.5.
+  __ Fmov(scratch_d, 0.5);
+  __ Fadd(result, input, scratch_d);
+  __ Frintm(result, result);
+  // The range [-0.5, -0.0[ yielded +0.0. Force the sign to negative.
+  __ Fabs(result, result);
+  __ Fneg(result, result);
+
+  __ Bind(&done);
+}
+
+
+void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister temp1 = ToDoubleRegister(instr->temp1());
   Register result = ToRegister(instr->result());
@@ -4036,7 +4108,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   // Since we're providing a 32-bit result, we can implement ties-to-infinity by
   // adding 0.5 to the input, then taking the floor of the result. This does not
   // work for very large positive doubles because adding 0.5 would cause an
-  // intermediate rounding stage, so a different approach will be necessary if a
+  // intermediate rounding stage, so a different approach is necessary when a
   // double result is needed.
   __ Fadd(temp1, input, dot_five);
   __ Fcvtms(result, temp1);
@@ -4575,6 +4647,7 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     Abort(kDoPushArgumentNotImplementedForDoubleType);
   } else {
     __ Push(ToRegister(argument));
+    after_push_argument_ = true;
   }
 }
 

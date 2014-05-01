@@ -649,7 +649,7 @@ class Operand {
   // Relocation information.
   RelocInfo::Mode rmode() const { return rmode_; }
   void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
-  bool NeedsRelocation() const;
+  bool NeedsRelocation(Isolate* isolate) const;
 
   // Helpers
   inline static Operand UntagSmi(Register smi);

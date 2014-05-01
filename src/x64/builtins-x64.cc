@@ -575,7 +575,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
       // No type feedback cell is available
       __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
       // Expects rdi to hold function pointer.
-      CallConstructStub stub(masm->isolate(), NO_CALL_FUNCTION_FLAGS);
+      CallConstructStub stub(masm->isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
       __ CallStub(&stub);
     } else {
       ParameterCount actual(rax);
@@ -724,7 +724,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
-  __ Pop(MemOperand(rsp, 0));  // Ignore state offset
+  __ DropUnderReturnAddress(1);  // Ignore state offset
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -901,12 +901,13 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&shift_arguments);
   { Label loop;
     __ movp(rcx, rax);
+    StackArgumentsAccessor args(rsp, rcx);
     __ bind(&loop);
-    __ movp(rbx, Operand(rsp, rcx, times_pointer_size, 0));
-    __ movp(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
+    __ movp(rbx, args.GetArgumentOperand(1));
+    __ movp(args.GetArgumentOperand(0), rbx);
     __ decp(rcx);
-    __ j(not_sign, &loop);  // While non-negative (to copy return address).
-    __ popq(rbx);  // Discard copy of return address.
+    __ j(not_zero, &loop);  // While non-zero.
+    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
     __ decp(rax);  // One fewer argument (first argument is new receiver).
   }
 

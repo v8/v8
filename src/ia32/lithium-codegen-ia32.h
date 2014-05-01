@@ -436,6 +436,7 @@ class LCodeGen: public LCodeGenBase {
     }
 
     MacroAssembler* masm() const { return masm_; }
+    Isolate* isolate() const { return masm_->isolate(); }
 
    private:
     int ArrayIndex(X87Register reg);

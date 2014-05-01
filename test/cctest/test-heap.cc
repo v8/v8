@@ -235,11 +235,6 @@ TEST(Tagging) {
   int request = 24;
   CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
   CHECK(Smi::FromInt(42)->IsSmi());
-  CHECK(Failure::RetryAfterGC(NEW_SPACE)->IsFailure());
-  CHECK_EQ(NEW_SPACE,
-           Failure::RetryAfterGC(NEW_SPACE)->allocation_space());
-  CHECK_EQ(OLD_POINTER_SPACE,
-           Failure::RetryAfterGC(OLD_POINTER_SPACE)->allocation_space());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
 }
@@ -1017,8 +1012,7 @@ TEST(Regression39128) {
   Address* limit_addr = new_space->allocation_limit_address();
   while ((*limit_addr - *top_addr) > allocation_amount) {
     CHECK(!heap->always_allocate());
-    Object* array = heap->AllocateFixedArray(allocation_len)->ToObjectChecked();
-    CHECK(!array->IsFailure());
+    Object* array = heap->AllocateFixedArray(allocation_len).ToObjectChecked();
     CHECK(new_space->Contains(array));
   }
 
@@ -1028,11 +1022,10 @@ TEST(Regression39128) {
   CHECK(fixed_array_len < FixedArray::kMaxLength);
 
   CHECK(!heap->always_allocate());
-  Object* array = heap->AllocateFixedArray(fixed_array_len)->ToObjectChecked();
-  CHECK(!array->IsFailure());
+  Object* array = heap->AllocateFixedArray(fixed_array_len).ToObjectChecked();
   CHECK(new_space->Contains(array));
 
-  Object* object = heap->AllocateJSObjectFromMap(*my_map)->ToObjectChecked();
+  Object* object = heap->AllocateJSObjectFromMap(*my_map).ToObjectChecked();
   CHECK(new_space->Contains(object));
   JSObject* jsobject = JSObject::cast(object);
   CHECK_EQ(0, FixedArray::cast(jsobject->elements())->length());
@@ -1046,7 +1039,7 @@ TEST(Regression39128) {
   // in old pointer space.
   Address old_pointer_space_top = heap->old_pointer_space()->top();
   AlwaysAllocateScope aa_scope(isolate);
-  Object* clone_obj = heap->CopyJSObject(jsobject)->ToObjectChecked();
+  Object* clone_obj = heap->CopyJSObject(jsobject).ToObjectChecked();
   JSObject* clone = JSObject::cast(clone_obj);
   if (clone->address() != old_pointer_space_top) {
     // Alas, got allocated from free list, we cannot do checks.
@@ -1624,7 +1617,7 @@ TEST(TestSizeOfObjects) {
     AlwaysAllocateScope always_allocate(CcTest::i_isolate());
     int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
     for (int i = 1; i <= 100; i++) {
-      CcTest::heap()->AllocateFixedArray(8192, TENURED)->ToObjectChecked();
+      CcTest::test_heap()->AllocateFixedArray(8192, TENURED).ToObjectChecked();
       CHECK_EQ(initial_size + i * filler_size,
                static_cast<int>(CcTest::heap()->SizeOfObjects()));
     }
@@ -3064,8 +3057,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
 
-  Handle<FixedArray> feedback_vector(TypeFeedbackInfo::cast(
-      f->shared()->code()->type_feedback_info())->feedback_vector());
+  Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
 
   CHECK_EQ(2, feedback_vector->length());
   CHECK(feedback_vector->get(0)->IsJSFunction());
@@ -3488,8 +3480,10 @@ static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
       *space->allocation_limit_address() - *space->allocation_top_address());
   CHECK(space_remaining >= extra_bytes);
   int new_linear_size = space_remaining - extra_bytes;
-  v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
+  v8::internal::AllocationResult allocation =
+      space->AllocateRaw(new_linear_size);
+  v8::internal::FreeListNode* node =
+      v8::internal::FreeListNode::cast(allocation.ToObjectChecked());
   node->set_size(space->heap(), new_linear_size);
 }
 
@@ -3547,14 +3541,13 @@ TEST(Regress169928) {
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
-  MaybeObject* maybe_object = CcTest::heap()->new_space()->AllocateRaw(
+  HeapObject* obj = NULL;
+  AllocationResult allocation = CcTest::heap()->new_space()->AllocateRaw(
       AllocationMemento::kSize + kPointerSize);
-  Object* obj = NULL;
-  CHECK(maybe_object->ToObject(&obj));
-  Address addr_obj = reinterpret_cast<Address>(
-      reinterpret_cast<byte*>(obj - kHeapObjectTag));
-  CcTest::heap()->CreateFillerObjectAt(addr_obj,
-                             AllocationMemento::kSize + kPointerSize);
+  CHECK(allocation.To(&obj));
+  Address addr_obj = obj->address();
+  CcTest::heap()->CreateFillerObjectAt(
+      addr_obj, AllocationMemento::kSize + kPointerSize);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Handle<v8::Object> array_obj = v8::Utils::ToLocal(array);

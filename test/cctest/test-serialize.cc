@@ -297,8 +297,7 @@ static void SanityCheck() {
   CHECK(isolate->global_object()->IsJSObject());
   CHECK(isolate->native_context()->IsContext());
   CHECK(CcTest::heap()->string_table()->IsStringTable());
-  CHECK(!isolate->factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("Empty"))->IsFailure());
+  isolate->factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
 }
 
 

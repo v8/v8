@@ -14,32 +14,27 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-void MaybeObject::Print() {
+void Object::Print() {
   Print(stdout);
 }
 
 
-void MaybeObject::Print(FILE* out) {
-  Object* this_as_object;
-  if (ToObject(&this_as_object)) {
-    if (this_as_object->IsSmi()) {
-      Smi::cast(this_as_object)->SmiPrint(out);
-    } else {
-      HeapObject::cast(this_as_object)->HeapObjectPrint(out);
-    }
+void Object::Print(FILE* out) {
+  if (IsSmi()) {
+    Smi::cast(this)->SmiPrint(out);
   } else {
-    Failure::cast(this)->FailurePrint(out);
+    HeapObject::cast(this)->HeapObjectPrint(out);
   }
   Flush(out);
 }
 
 
-void MaybeObject::PrintLn() {
+void Object::PrintLn() {
   PrintLn(stdout);
 }
 
 
-void MaybeObject::PrintLn(FILE* out) {
+void Object::PrintLn(FILE* out) {
   Print(out);
   PrintF(out, "\n");
 }
@@ -547,8 +542,6 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
   PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, " - feedback_vector: ");
-  feedback_vector()->FixedArrayPrint(out);
 }
 
 
@@ -877,6 +870,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, " - name: ");
   name()->ShortPrint(out);
   PrintF(out, "\n - expected_nof_properties: %d", expected_nof_properties());
+  PrintF(out, "\n - ast_node_count: %d", ast_node_count());
   PrintF(out, "\n - instance class name = ");
   instance_class_name()->Print(out);
   PrintF(out, "\n - code = ");
@@ -904,6 +898,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   PrintF(out, "\n - length = %d", length());
   PrintF(out, "\n - optimized_code_map = ");
   optimized_code_map()->ShortPrint(out);
+  PrintF(out, "\n - feedback_vector = ");
+  feedback_vector()->FixedArrayPrint(out);
   PrintF(out, "\n");
 }
 

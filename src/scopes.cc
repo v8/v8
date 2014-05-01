@@ -379,7 +379,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
   VariableMode mode;
   Variable::Location location = Variable::CONTEXT;
   InitializationFlag init_flag;
-  int index = scope_info_->ContextSlotIndex(*name, &mode, &init_flag);
+  int index = ScopeInfo::ContextSlotIndex(scope_info_, name, &mode, &init_flag);
   if (index < 0) {
     // Check parameters.
     index = scope_info_->ParameterIndex(*name);

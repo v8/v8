@@ -1853,6 +1853,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A load IC from the snapshot";
       tag = Logger::LOAD_IC_TAG;
       break;
+    case Code::CALL_IC:
+      description = "A call IC from the snapshot";
+      tag = Logger::CALL_IC_TAG;
+      break;
     case Code::STORE_IC:
       description = "A store IC from the snapshot";
       tag = Logger::STORE_IC_TAG;

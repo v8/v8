@@ -218,6 +218,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
                             int end_position,
                             int param_num,
                             int literal_count,
+                            int slot_count,
                             int parent_index);
 
   void SetFunctionCode(Handle<Code> function_code,
@@ -239,6 +240,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 
   Handle<Code> GetFunctionCode();
 
+  Handle<FixedArray> GetFeedbackVector();
+
   Handle<Object> GetCodeScopeInfo();
 
   int GetStartPosition() {
@@ -246,6 +249,10 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   }
 
   int GetEndPosition() { return this->GetSmiValueField(kEndPositionOffset_); }
+
+  int GetSlotCount() {
+    return this->GetSmiValueField(kSlotNumOffset_);
+  }
 
  private:
   static const int kFunctionNameOffset_ = 0;
@@ -258,7 +265,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kParentIndexOffset_ = 7;
   static const int kSharedFunctionInfoOffset_ = 8;
   static const int kLiteralNumOffset_ = 9;
-  static const int kSize_ = 10;
+  static const int kSlotNumOffset_ = 10;
+  static const int kSize_ = 11;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };

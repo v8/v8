@@ -234,7 +234,9 @@ class LInstruction : public ZoneObject {
   // Interface to the register allocator and iterators.
   bool ClobbersTemps() const { return IsCall(); }
   bool ClobbersRegisters() const { return IsCall(); }
-  virtual bool ClobbersDoubleRegisters() const { return IsCall(); }
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const {
+    return IsCall();
+  }
 
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
@@ -1942,7 +1944,7 @@ class LCallRuntime V8_FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
-  virtual bool ClobbersDoubleRegisters() const V8_OVERRIDE {
+  virtual bool ClobbersDoubleRegisters(Isolate* isolate) const V8_OVERRIDE {
     return save_doubles() == kDontSaveFPRegs;
   }
 
@@ -2658,6 +2660,8 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
         current_block_(NULL),
         next_block_(NULL),
         allocator_(allocator) { }
+
+  Isolate* isolate() const { return graph_->isolate(); }
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();

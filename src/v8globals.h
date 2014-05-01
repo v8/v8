@@ -36,6 +36,7 @@ const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
 // Tag information for Failure.
+// TODO(yangguo): remove this from space owner calculation.
 const int kFailureTag = 3;
 const int kFailureTagSize = 2;
 const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
@@ -124,7 +125,6 @@ class MapSpace;
 class MarkCompactCollector;
 class NewSpace;
 class Object;
-class MaybeObject;
 class OldSpace;
 class Foreign;
 class Scope;
@@ -162,6 +162,7 @@ enum AllocationSpace {
   CELL_SPACE,           // Only and all cell objects.
   PROPERTY_CELL_SPACE,  // Only and all global property cell objects.
   LO_SPACE,             // Promoted large objects.
+  INVALID_SPACE,        // Only used in AllocationResult to signal success.
 
   FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE,
@@ -260,12 +261,17 @@ enum InlineCacheState {
 
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS,
-  // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET,
   CALL_AS_METHOD,
   // Always wrap the receiver and call to the JSFunction. Only use this flag
   // both the receiver type and the target method are statically known.
   WRAP_AND_CALL
+};
+
+
+enum CallConstructorFlags {
+  NO_CALL_CONSTRUCTOR_FLAGS,
+  // The call target is cached in the instruction stream.
+  RECORD_CONSTRUCTOR_TARGET
 };
 
 

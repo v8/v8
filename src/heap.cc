@@ -914,14 +914,14 @@ void Heap::ReserveSpace(int *sizes, Address *locations_out) {
     ASSERT(NEW_SPACE == FIRST_PAGED_SPACE - 1);
     for (int space = NEW_SPACE; space <= LAST_PAGED_SPACE; space++) {
       if (sizes[space] != 0) {
-        MaybeObject* allocation;
+        AllocationResult allocation;
         if (space == NEW_SPACE) {
           allocation = new_space()->AllocateRaw(sizes[space]);
         } else {
           allocation = paged_space(space)->AllocateRaw(sizes[space]);
         }
         FreeListNode* node;
-        if (!allocation->To<FreeListNode>(&node)) {
+        if (!allocation.To(&node)) {
           if (space == NEW_SPACE) {
             Heap::CollectGarbage(NEW_SPACE,
                                  "failed to reserve space in the new space");
@@ -2045,20 +2045,18 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     Heap* heap = map->GetHeap();
     if (heap->ShouldBePromoted(object->address(), object_size)) {
-      MaybeObject* maybe_result;
+      AllocationResult allocation;
 
       if (object_contents == DATA_OBJECT) {
         ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
-        maybe_result = heap->old_data_space()->AllocateRaw(allocation_size);
+        allocation = heap->old_data_space()->AllocateRaw(allocation_size);
       } else {
         ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
-        maybe_result = heap->old_pointer_space()->AllocateRaw(allocation_size);
+        allocation = heap->old_pointer_space()->AllocateRaw(allocation_size);
       }
 
-      Object* result = NULL;  // Initialization to please compiler.
-      if (maybe_result->ToObject(&result)) {
-        HeapObject* target = HeapObject::cast(result);
-
+      HeapObject* target = NULL;  // Initialization to please compiler.
+      if (allocation.To(&target)) {
         if (alignment != kObjectAlignment) {
           target = EnsureDoubleAligned(heap, target, allocation_size);
         }
@@ -2083,10 +2081,10 @@ class ScavengingVisitor : public StaticVisitorBase {
       }
     }
     ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
-    MaybeObject* allocation = heap->new_space()->AllocateRaw(allocation_size);
+    AllocationResult allocation =
+        heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
-    Object* result = allocation->ToObjectUnchecked();
-    HeapObject* target = HeapObject::cast(result);
+    HeapObject* target = HeapObject::cast(allocation.ToObjectChecked());
 
     if (alignment != kObjectAlignment) {
       target = EnsureDoubleAligned(heap, target, allocation_size);
@@ -2323,11 +2321,11 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 }
 
 
-MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
-                                      int instance_size) {
+AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
+                                          int instance_size) {
   Object* result;
-  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
+  if (!allocation.To(&result)) return allocation;
 
   // Map::cast cannot be used due to uninitialized map field.
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
@@ -2347,15 +2345,15 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
 }
 
 
-MaybeObject* Heap::AllocateMap(InstanceType instance_type,
-                               int instance_size,
-                               ElementsKind elements_kind) {
-  Object* result;
-  MaybeObject* maybe_result = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
-  if (!maybe_result->To(&result)) return maybe_result;
+AllocationResult Heap::AllocateMap(InstanceType instance_type,
+                                   int instance_size,
+                                   ElementsKind elements_kind) {
+  HeapObject* result;
+  AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE, MAP_SPACE);
+  if (!allocation.To(&result)) return allocation;
 
-  Map* map = reinterpret_cast<Map*>(result);
-  map->set_map_no_write_barrier(meta_map());
+  result->set_map_no_write_barrier(meta_map());
+  Map* map = Map::cast(result);
   map->set_instance_type(instance_type);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
@@ -2381,19 +2379,19 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 }
 
 
-MaybeObject* Heap::AllocateFillerObject(int size,
-                                        bool double_align,
-                                        AllocationSpace space) {
-  HeapObject* allocation;
-  { MaybeObject* maybe_allocation = AllocateRaw(size, space, space);
-    if (!maybe_allocation->To(&allocation)) return maybe_allocation;
+AllocationResult Heap::AllocateFillerObject(int size,
+                                            bool double_align,
+                                            AllocationSpace space) {
+  HeapObject* obj;
+  { AllocationResult allocation = AllocateRaw(size, space, space);
+    if (!allocation.To(&obj)) return allocation;
   }
 #ifdef DEBUG
-  MemoryChunk* chunk = MemoryChunk::FromAddress(allocation->address());
+  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   ASSERT(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(allocation->address(), size);
-  return allocation;
+  CreateFillerObjectAt(obj->address(), size);
+  return obj;
 }
 
 
@@ -2422,9 +2420,9 @@ const Heap::StructTable Heap::struct_table[] = {
 
 
 bool Heap::CreateInitialMaps() {
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocatePartialMap(MAP_TYPE, Map::kSize);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  HeapObject* obj;
+  { AllocationResult allocation = AllocatePartialMap(MAP_TYPE, Map::kSize);
+    if (!allocation.To(&obj)) return false;
   }
   // Map::cast cannot be used due to uninitialized map field.
   Map* new_meta_map = reinterpret_cast<Map*>(obj);
@@ -2434,7 +2432,7 @@ bool Heap::CreateInitialMaps() {
   { // Partial map allocation
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                  \
     { Map* map;                                                                \
-      if (!AllocatePartialMap((instance_type), (size))->To(&map)) return false;\
+      if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
       set_##field_name##_map(map);                                             \
     }
 
@@ -2448,19 +2446,19 @@ bool Heap::CreateInitialMaps() {
   }
 
   // Allocate the empty array.
-  { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
-    if (!maybe_obj->ToObject(&obj)) return false;
+  { AllocationResult allocation = AllocateEmptyFixedArray();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_fixed_array(FixedArray::cast(obj));
 
-  { MaybeObject* maybe_obj = Allocate(null_map(), OLD_POINTER_SPACE);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  { AllocationResult allocation = Allocate(null_map(), OLD_POINTER_SPACE);
+    if (!allocation.To(&obj)) return false;
   }
   set_null_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kNull);
 
-  { MaybeObject* maybe_obj = Allocate(undefined_map(), OLD_POINTER_SPACE);
-    if (!maybe_obj->ToObject(&obj)) return false;
+  { AllocationResult allocation = Allocate(undefined_map(), OLD_POINTER_SPACE);
+    if (!allocation.To(&obj)) return false;
   }
   set_undefined_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kUndefined);
@@ -2470,14 +2468,14 @@ bool Heap::CreateInitialMaps() {
   set_exception(null_value());
 
   // Allocate the empty descriptor array.
-  { MaybeObject* maybe_obj = AllocateEmptyFixedArray();
-    if (!maybe_obj->ToObject(&obj)) return false;
+  { AllocationResult allocation = AllocateEmptyFixedArray();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Allocate the constant pool array.
-  { MaybeObject* maybe_obj = AllocateEmptyConstantPoolArray();
-    if (!maybe_obj->ToObject(&obj)) return false;
+  { AllocationResult allocation = AllocateEmptyConstantPoolArray();
+    if (!allocation.To(&obj)) return false;
   }
   set_empty_constant_pool_array(ConstantPoolArray::cast(obj));
 
@@ -2528,7 +2526,7 @@ bool Heap::CreateInitialMaps() {
   { // Map allocation
 #define ALLOCATE_MAP(instance_type, size, field_name)                          \
     { Map* map;                                                                \
-      if (!AllocateMap((instance_type), size)->To(&map)) return false;         \
+      if (!AllocateMap((instance_type), size).To(&map)) return false;          \
       set_##field_name##_map(map);                                             \
     }
 
@@ -2553,8 +2551,8 @@ bool Heap::CreateInitialMaps() {
 
     for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
-      { MaybeObject* maybe_obj = AllocateMap(entry.type, entry.size);
-        if (!maybe_obj->ToObject(&obj)) return false;
+      { AllocationResult allocation = AllocateMap(entry.type, entry.size);
+        if (!allocation.To(&obj)) return false;
       }
       // Mark cons string maps as unstable, because their objects can change
       // maps during GC.
@@ -2600,7 +2598,7 @@ bool Heap::CreateInitialMaps() {
     for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
       const StructTable& entry = struct_table[i];
       Map* map;
-      if (!AllocateMap(entry.type, entry.size)->To(&map))
+      if (!AllocateMap(entry.type, entry.size).To(&map))
         return false;
       roots_[entry.index] = map;
     }
@@ -2634,13 +2632,13 @@ bool Heap::CreateInitialMaps() {
 
   { // Empty arrays
     { ByteArray* byte_array;
-      if (!AllocateByteArray(0, TENURED)->To(&byte_array)) return false;
+      if (!AllocateByteArray(0, TENURED).To(&byte_array)) return false;
       set_empty_byte_array(byte_array);
     }
 
 #define ALLOCATE_EMPTY_EXTERNAL_ARRAY(Type, type, TYPE, ctype, size)           \
     { ExternalArray* obj;                                                      \
-      if (!AllocateEmptyExternalArray(kExternal##Type##Array)->To(&obj))       \
+      if (!AllocateEmptyExternalArray(kExternal##Type##Array).To(&obj))        \
           return false;                                                        \
       set_empty_external_##type##_array(obj);                                  \
     }
@@ -2650,7 +2648,7 @@ bool Heap::CreateInitialMaps() {
 
 #define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size)        \
     { FixedTypedArrayBase* obj;                                                \
-      if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array)->To(&obj))     \
+      if (!AllocateEmptyFixedTypedArray(kExternal##Type##Array).To(&obj))      \
           return false;                                                        \
       set_empty_fixed_##type##_array(obj);                                     \
     }
@@ -2663,7 +2661,8 @@ bool Heap::CreateInitialMaps() {
 }
 
 
-MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
+AllocationResult Heap::AllocateHeapNumber(double value,
+                                          PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
   int size = HeapNumber::kSize;
@@ -2671,42 +2670,41 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  HeapObject::cast(result)->set_map_no_write_barrier(heap_number_map());
+  result->set_map_no_write_barrier(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
 
 
-MaybeObject* Heap::AllocateCell(Object* value) {
+AllocationResult Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
   STATIC_ASSERT(Cell::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, CELL_SPACE, CELL_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
-  HeapObject::cast(result)->set_map_no_write_barrier(cell_map());
+  result->set_map_no_write_barrier(cell_map());
   Cell::cast(result)->set_value(value);
   return result;
 }
 
 
-MaybeObject* Heap::AllocatePropertyCell() {
+AllocationResult Heap::AllocatePropertyCell() {
   int size = PropertyCell::kSize;
   STATIC_ASSERT(PropertyCell::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  Object* result;
-  MaybeObject* maybe_result =
+  HeapObject* result;
+  AllocationResult allocation =
       AllocateRaw(size, PROPERTY_CELL_SPACE, PROPERTY_CELL_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  if (!allocation.To(&result)) return allocation;
 
-  HeapObject::cast(result)->set_map_no_write_barrier(
-      global_property_cell_map());
+  result->set_map_no_write_barrier(global_property_cell_map());
   PropertyCell* cell = PropertyCell::cast(result);
   cell->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                            SKIP_WRITE_BARRIER);
@@ -3240,32 +3238,32 @@ FixedTypedArrayBase* Heap::EmptyFixedTypedArrayForMap(Map* map) {
 }
 
 
-MaybeObject* Heap::AllocateForeign(Address address, PretenureFlag pretenure) {
+AllocationResult Heap::AllocateForeign(Address address,
+                                       PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   STATIC_ASSERT(Foreign::kSize <= Page::kMaxRegularHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Foreign* result;
-  MaybeObject* maybe_result = Allocate(foreign_map(), space);
-  if (!maybe_result->To(&result)) return maybe_result;
+  AllocationResult allocation = Allocate(foreign_map(), space);
+  if (!allocation.To(&result)) return allocation;
   result->set_foreign_address(address);
   return result;
 }
 
 
-MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
+AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  reinterpret_cast<ByteArray*>(result)->set_map_no_write_barrier(
-      byte_array_map());
-  reinterpret_cast<ByteArray*>(result)->set_length(length);
+  result->set_map_no_write_barrier(byte_array_map());
+  ByteArray::cast(result)->set_length(length);
   return result;
 }
 
@@ -3318,23 +3316,21 @@ void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
 }
 
 
-MaybeObject* Heap::AllocateExternalArray(int length,
+AllocationResult Heap::AllocateExternalArray(int length,
                                          ExternalArrayType array_type,
                                          void* external_pointer,
                                          PretenureFlag pretenure) {
   int size = ExternalArray::kAlignedSize;
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  reinterpret_cast<ExternalArray*>(result)->set_map_no_write_barrier(
+  result->set_map_no_write_barrier(
       MapForExternalArrayType(array_type));
-  reinterpret_cast<ExternalArray*>(result)->set_length(length);
-  reinterpret_cast<ExternalArray*>(result)->set_external_pointer(
-      external_pointer);
-
+  ExternalArray::cast(result)->set_length(length);
+  ExternalArray::cast(result)->set_external_pointer(external_pointer);
   return result;
 }
 
@@ -3359,9 +3355,9 @@ static void ForFixedTypedArray(ExternalArrayType array_type,
 }
 
 
-MaybeObject* Heap::AllocateFixedTypedArray(int length,
-                                           ExternalArrayType array_type,
-                                           PretenureFlag pretenure) {
+AllocationResult Heap::AllocateFixedTypedArray(int length,
+                                               ExternalArrayType array_type,
+                                               PretenureFlag pretenure) {
   int element_size;
   ElementsKind elements_kind;
   ForFixedTypedArray(array_type, &element_size, &elements_kind);
@@ -3375,36 +3371,35 @@ MaybeObject* Heap::AllocateFixedTypedArray(int length,
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   HeapObject* object;
-  MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
-  if (!maybe_object->To(&object)) return maybe_object;
+  AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+  if (!allocation.To(&object)) return allocation;
 
   if (array_type == kExternalFloat64Array) {
     object = EnsureDoubleAligned(this, object, size);
   }
 
-  FixedTypedArrayBase* elements =
-      reinterpret_cast<FixedTypedArrayBase*>(object);
-  elements->set_map(MapForFixedTypedArray(array_type));
+  object->set_map(MapForFixedTypedArray(array_type));
+  FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_length(length);
   memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;
 }
 
 
-MaybeObject* Heap::AllocateCode(int object_size,
+AllocationResult Heap::AllocateCode(int object_size,
                                 bool immovable) {
   ASSERT(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
-  MaybeObject* maybe_result;
+  AllocationResult allocation;
   // Large code objects and code objects which should stay at a fixed address
   // are allocated in large object space.
   HeapObject* result;
   bool force_lo_space = object_size > code_space()->AreaSize();
   if (force_lo_space) {
-    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
   } else {
-    maybe_result = AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
+    allocation = AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
   }
-  if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
+  if (!allocation.To(&result)) return allocation;
 
   if (immovable && !force_lo_space &&
      // Objects on the first page of each space are never moved.
@@ -3412,8 +3407,8 @@ MaybeObject* Heap::AllocateCode(int object_size,
     // Discard the first code allocation, which was on a page where it could be
     // moved.
     CreateFillerObjectAt(result->address(), object_size);
-    maybe_result = lo_space_->AllocateRaw(object_size, EXECUTABLE);
-    if (!maybe_result->To<HeapObject>(&result)) return maybe_result;
+    allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
+    if (!allocation.To(&result)) return allocation;
   }
 
   result->set_map_no_write_barrier(code_map());
@@ -3426,15 +3421,15 @@ MaybeObject* Heap::AllocateCode(int object_size,
 }
 
 
-MaybeObject* Heap::CopyCode(Code* code) {
-  MaybeObject* maybe_result;
-  Object* new_constant_pool;
+AllocationResult Heap::CopyCode(Code* code) {
+  AllocationResult allocation;
+  HeapObject* new_constant_pool;
   if (FLAG_enable_ool_constant_pool &&
       code->constant_pool() != empty_constant_pool_array()) {
     // Copy the constant pool, since edits to the copied code may modify
     // the constant pool.
-    maybe_result = CopyConstantPoolArray(code->constant_pool());
-    if (!maybe_result->ToObject(&new_constant_pool)) return maybe_result;
+    allocation = CopyConstantPoolArray(code->constant_pool());
+    if (!allocation.To(&new_constant_pool)) return allocation;
   } else {
     new_constant_pool = empty_constant_pool_array();
   }
@@ -3442,17 +3437,17 @@ MaybeObject* Heap::CopyCode(Code* code) {
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
   if (obj_size > code_space()->AreaSize()) {
-    maybe_result = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
   } else {
-    maybe_result = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
+    allocation = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   }
 
-  Object* result;
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  if (!allocation.To(&result)) return allocation;
 
   // Copy code object.
   Address old_addr = code->address();
-  Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
+  Address new_addr = result->address();
   CopyBlock(new_addr, old_addr, obj_size);
   Code* new_code = Code::cast(result);
 
@@ -3467,25 +3462,22 @@ MaybeObject* Heap::CopyCode(Code* code) {
 }
 
 
-MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
+AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Allocate ByteArray and ConstantPoolArray before the Code object, so that we
   // do not risk leaving uninitialized Code object (and breaking the heap).
-  Object* reloc_info_array;
-  { MaybeObject* maybe_reloc_info_array =
+  ByteArray* reloc_info_array;
+  { AllocationResult allocation =
         AllocateByteArray(reloc_info.length(), TENURED);
-    if (!maybe_reloc_info_array->ToObject(&reloc_info_array)) {
-      return maybe_reloc_info_array;
-    }
+    if (!allocation.To(&reloc_info_array)) return allocation;
   }
-  Object* new_constant_pool;
+  HeapObject* new_constant_pool;
   if (FLAG_enable_ool_constant_pool &&
       code->constant_pool() != empty_constant_pool_array()) {
     // Copy the constant pool, since edits to the copied code may modify
     // the constant pool.
-    MaybeObject* maybe_constant_pool =
+    AllocationResult allocation =
         CopyConstantPoolArray(code->constant_pool());
-    if (!maybe_constant_pool->ToObject(&new_constant_pool))
-      return maybe_constant_pool;
+    if (!allocation.To(&new_constant_pool)) return allocation;
   } else {
     new_constant_pool = empty_constant_pool_array();
   }
@@ -3499,24 +3491,24 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   size_t relocation_offset =
       static_cast<size_t>(code->instruction_end() - old_addr);
 
-  MaybeObject* maybe_result;
+  AllocationResult allocation;
   if (new_obj_size > code_space()->AreaSize()) {
-    maybe_result = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
+    allocation = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
   } else {
-    maybe_result = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
+    allocation = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   }
 
-  Object* result;
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  if (!allocation.To(&result)) return allocation;
 
   // Copy code object.
-  Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
+  Address new_addr = result->address();
 
   // Copy header and instructions.
   CopyBytes(new_addr, old_addr, relocation_offset);
 
   Code* new_code = Code::cast(result);
-  new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
+  new_code->set_relocation_info(reloc_info_array);
 
   // Update constant pool.
   new_code->set_constant_pool(new_constant_pool);
@@ -3532,9 +3524,7 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   new_code->Relocate(new_addr - old_addr);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    code->Verify();
-  }
+  if (FLAG_verify_heap) code->ObjectVerify();
 #endif
   return new_code;
 }
@@ -3551,7 +3541,7 @@ void Heap::InitializeAllocationMemento(AllocationMemento* memento,
 }
 
 
-MaybeObject* Heap::Allocate(Map* map, AllocationSpace space,
+AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
                             AllocationSite* allocation_site) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
@@ -3563,11 +3553,11 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space,
   if (allocation_site != NULL) {
     size += AllocationMemento::kSize;
   }
-  Object* result;
-  MaybeObject* maybe_result = AllocateRaw(size, space, retry_space);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  AllocationResult allocation = AllocateRaw(size, space, retry_space);
+  if (!allocation.To(&result)) return allocation;
   // No need for write barrier since object is white and map is in old space.
-  HeapObject::cast(result)->set_map_no_write_barrier(map);
+  result->set_map_no_write_barrier(map);
   if (allocation_site != NULL) {
     AllocationMemento* alloc_memento = reinterpret_cast<AllocationMemento*>(
         reinterpret_cast<Address>(result) + map->instance_size());
@@ -3577,7 +3567,7 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space,
 }
 
 
-MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
+AllocationResult Heap::AllocateArgumentsObject(Object* callee, int length) {
   // To get fast allocation and map sharing for arguments objects we
   // allocate them based on an arguments boilerplate.
 
@@ -3601,34 +3591,31 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
   ASSERT(arguments_object_size == boilerplate->map()->instance_size());
 
   // Do the allocation.
-  Object* result;
-  { MaybeObject* maybe_result =
+  HeapObject* result;
+  { AllocationResult allocation =
         AllocateRaw(arguments_object_size, NEW_SPACE, OLD_POINTER_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!allocation.To(&result)) return allocation;
   }
 
   // Copy the content. The arguments boilerplate doesn't have any
   // fields that point to new space so it's safe to skip the write
   // barrier here.
-  CopyBlock(HeapObject::cast(result)->address(),
-            boilerplate->address(),
-            JSObject::kHeaderSize);
+  CopyBlock(result->address(), boilerplate->address(), JSObject::kHeaderSize);
 
   // Set the length property.
-  JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsLengthIndex,
-                                                Smi::FromInt(length),
-                                                SKIP_WRITE_BARRIER);
+  JSObject* js_obj = JSObject::cast(result);
+  js_obj->InObjectPropertyAtPut(
+      kArgumentsLengthIndex, Smi::FromInt(length), SKIP_WRITE_BARRIER);
   // Set the callee property for sloppy mode arguments object only.
   if (!strict_mode_callee) {
-    JSObject::cast(result)->InObjectPropertyAtPut(kArgumentsCalleeIndex,
-                                                  callee);
+    js_obj->InObjectPropertyAtPut(kArgumentsCalleeIndex, callee);
   }
 
   // Check the state of the object
-  ASSERT(JSObject::cast(result)->HasFastProperties());
-  ASSERT(JSObject::cast(result)->HasFastObjectElements());
+  ASSERT(js_obj->HasFastProperties());
+  ASSERT(js_obj->HasFastObjectElements());
 
-  return result;
+  return js_obj;
 }
 
 
@@ -3664,7 +3651,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
 }
 
 
-MaybeObject* Heap::AllocateJSObjectFromMap(
+AllocationResult Heap::AllocateJSObjectFromMap(
     Map* map,
     PretenureFlag pretenure,
     bool allocate_properties,
@@ -3683,8 +3670,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   if (allocate_properties) {
     int prop_size = map->InitialPropertiesLength();
     ASSERT(prop_size >= 0);
-    { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, pretenure);
-      if (!maybe_properties->To(&properties)) return maybe_properties;
+    { AllocationResult allocation = AllocateFixedArray(prop_size, pretenure);
+      if (!allocation.To(&properties)) return allocation;
     }
   } else {
     properties = empty_fixed_array();
@@ -3693,39 +3680,37 @@ MaybeObject* Heap::AllocateJSObjectFromMap(
   // Allocate the JSObject.
   int size = map->instance_size();
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, pretenure);
-  Object* obj;
-  MaybeObject* maybe_obj = Allocate(map, space, allocation_site);
-  if (!maybe_obj->To(&obj)) return maybe_obj;
+  JSObject* js_obj;
+  AllocationResult allocation = Allocate(map, space, allocation_site);
+  if (!allocation.To(&js_obj)) return allocation;
 
   // Initialize the JSObject.
-  InitializeJSObjectFromMap(JSObject::cast(obj), properties, map);
-  ASSERT(JSObject::cast(obj)->HasFastElements() ||
-         JSObject::cast(obj)->HasExternalArrayElements() ||
-         JSObject::cast(obj)->HasFixedTypedArrayElements());
-  return obj;
+  InitializeJSObjectFromMap(js_obj, properties, map);
+  ASSERT(js_obj->HasFastElements() ||
+         js_obj->HasExternalArrayElements() ||
+         js_obj->HasFixedTypedArrayElements());
+  return js_obj;
 }
 
 
-MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
-                                    PretenureFlag pretenure,
-                                    AllocationSite* allocation_site) {
+AllocationResult Heap::AllocateJSObject(JSFunction* constructor,
+                                        PretenureFlag pretenure,
+                                        AllocationSite* allocation_site) {
   ASSERT(constructor->has_initial_map());
 
   // Allocate the object based on the constructors initial map.
-  MaybeObject* result = AllocateJSObjectFromMap(constructor->initial_map(),
-                                                pretenure,
-                                                true,
-                                                allocation_site);
+  AllocationResult allocation = AllocateJSObjectFromMap(
+      constructor->initial_map(), pretenure, true, allocation_site);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
-  Object* non_failure;
-  ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
+  HeapObject* obj;
+  ASSERT(!allocation.To(&obj) || !obj->IsGlobalObject());
 #endif
-  return result;
+  return allocation;
 }
 
 
-MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
+AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
   SLOW_ASSERT(!source->IsJSFunction());
@@ -3733,7 +3718,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Make the clone.
   Map* map = source->map();
   int object_size = map->instance_size();
-  Object* clone;
+  HeapObject* clone;
 
   ASSERT(site == NULL || AllocationSite::CanTrack(map->instance_type()));
 
@@ -3742,11 +3727,11 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // If we're forced to always allocate, we use the general allocation
   // functions which may leave us with an object in old space.
   if (always_allocate()) {
-    { MaybeObject* maybe_clone =
+    { AllocationResult allocation =
           AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
+      if (!allocation.To(&clone)) return allocation;
     }
-    Address clone_address = HeapObject::cast(clone)->address();
+    Address clone_address = clone->address();
     CopyBlock(clone_address,
               source->address(),
               object_size);
@@ -3760,14 +3745,14 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
     { int adjusted_object_size = site != NULL
           ? object_size + AllocationMemento::kSize
           : object_size;
-      MaybeObject* maybe_clone =
+    AllocationResult allocation =
           AllocateRaw(adjusted_object_size, NEW_SPACE, NEW_SPACE);
-      if (!maybe_clone->ToObject(&clone)) return maybe_clone;
+      if (!allocation.To(&clone)) return allocation;
     }
     SLOW_ASSERT(InNewSpace(clone));
     // Since we know the clone is allocated in new space, we can copy
     // the contents without worrying about updating the write barrier.
-    CopyBlock(HeapObject::cast(clone)->address(),
+    CopyBlock(clone->address(),
               source->address(),
               object_size);
 
@@ -3784,35 +3769,35 @@ MaybeObject* Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
-    Object* elem;
-    { MaybeObject* maybe_elem;
+    FixedArrayBase* elem;
+    { AllocationResult allocation;
       if (elements->map() == fixed_cow_array_map()) {
-        maybe_elem = FixedArray::cast(elements);
+        allocation = FixedArray::cast(elements);
       } else if (source->HasFastDoubleElements()) {
-        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
+        allocation = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
       } else {
-        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
+        allocation = CopyFixedArray(FixedArray::cast(elements));
       }
-      if (!maybe_elem->ToObject(&elem)) return maybe_elem;
+      if (!allocation.To(&elem)) return allocation;
     }
-    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
+    JSObject::cast(clone)->set_elements(elem, wb_mode);
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
-    Object* prop;
-    { MaybeObject* maybe_prop = CopyFixedArray(properties);
-      if (!maybe_prop->ToObject(&prop)) return maybe_prop;
+    FixedArray* prop;
+    { AllocationResult allocation = CopyFixedArray(properties);
+      if (!allocation.To(&prop)) return allocation;
     }
-    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
+    JSObject::cast(clone)->set_properties(prop, wb_mode);
   }
   // Return the new clone.
   return clone;
 }
 
 
-MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
-                                              int non_ascii_start,
-                                              PretenureFlag pretenure) {
+AllocationResult Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
+                                                  int non_ascii_start,
+                                                  PretenureFlag pretenure) {
   // Continue counting the number of characters in the UTF-8 string, starting
   // from the first non-ascii character or word.
   Access<UnicodeCache::Utf8Decoder>
@@ -3822,18 +3807,16 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
   int utf16_length = decoder->Utf16Length();
   ASSERT(utf16_length > 0);
   // Allocate string.
-  Object* result;
+  HeapObject* result;
   {
     int chars = non_ascii_start + utf16_length;
-    MaybeObject* maybe_result = AllocateRawTwoByteString(chars, pretenure);
-    if (!maybe_result->ToObject(&result) || result->IsException()) {
-      return maybe_result;
+    AllocationResult allocation = AllocateRawTwoByteString(chars, pretenure);
+    if (!allocation.To(&result) || result->IsException()) {
+      return allocation;
     }
   }
-  // Convert and copy the characters into the new object.
-  SeqTwoByteString* twobyte = SeqTwoByteString::cast(result);
   // Copy ascii portion.
-  uint16_t* data = twobyte->GetChars();
+  uint16_t* data = SeqTwoByteString::cast(result)->GetChars();
   if (non_ascii_start != 0) {
     const char* ascii_data = string.start();
     for (int i = 0; i < non_ascii_start; i++) {
@@ -3846,23 +3829,23 @@ MaybeObject* Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
 }
 
 
-MaybeObject* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
-                                             PretenureFlag pretenure) {
+AllocationResult Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
+                                                 PretenureFlag pretenure) {
   // Check if the string is an ASCII string.
-  Object* result;
+  HeapObject* result;
   int length = string.length();
   const uc16* start = string.start();
 
   if (String::IsOneByte(start, length)) {
-    MaybeObject* maybe_result = AllocateRawOneByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result) || result->IsException()) {
-      return maybe_result;
+    AllocationResult allocation = AllocateRawOneByteString(length, pretenure);
+    if (!allocation.To(&result) || result->IsException()) {
+      return allocation;
     }
     CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);
   } else {  // It's not a one byte string.
-    MaybeObject* maybe_result = AllocateRawTwoByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result) || result->IsException()) {
-      return maybe_result;
+    AllocationResult allocation = AllocateRawTwoByteString(length, pretenure);
+    if (!allocation.To(&result) || result->IsException()) {
+      return allocation;
     }
     CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
   }
@@ -3919,7 +3902,7 @@ static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
 
 
 template<bool is_one_byte, typename T>
-MaybeObject* Heap::AllocateInternalizedStringImpl(
+AllocationResult Heap::AllocateInternalizedStringImpl(
     T t, int chars, uint32_t hash_field) {
   ASSERT(chars >= 0);
   // Compute map and object size.
@@ -3939,12 +3922,12 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(map);
+  result->set_map_no_write_barrier(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(chars);
@@ -3963,17 +3946,18 @@ MaybeObject* Heap::AllocateInternalizedStringImpl(
 
 // Need explicit instantiations.
 template
-MaybeObject* Heap::AllocateInternalizedStringImpl<true>(String*, int, uint32_t);
-template
-MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
+AllocationResult Heap::AllocateInternalizedStringImpl<true>(
     String*, int, uint32_t);
 template
-MaybeObject* Heap::AllocateInternalizedStringImpl<false>(
+AllocationResult Heap::AllocateInternalizedStringImpl<false>(
+    String*, int, uint32_t);
+template
+AllocationResult Heap::AllocateInternalizedStringImpl<false>(
     Vector<const char>, int, uint32_t);
 
 
-MaybeObject* Heap::AllocateRawOneByteString(int length,
-                                            PretenureFlag pretenure) {
+AllocationResult Heap::AllocateRawOneByteString(int length,
+                                                PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
     return isolate()->ThrowInvalidStringLength();
   }
@@ -3981,13 +3965,13 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
   ASSERT(size <= SeqOneByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map_no_write_barrier(ascii_string_map());
+  result->set_map_no_write_barrier(ascii_string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -3996,8 +3980,8 @@ MaybeObject* Heap::AllocateRawOneByteString(int length,
 }
 
 
-MaybeObject* Heap::AllocateRawTwoByteString(int length,
-                                            PretenureFlag pretenure) {
+AllocationResult Heap::AllocateRawTwoByteString(int length,
+                                                PretenureFlag pretenure) {
   if (length < 0 || length > String::kMaxLength) {
     return isolate()->ThrowInvalidStringLength();
   }
@@ -4005,13 +3989,13 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   ASSERT(size <= SeqTwoByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&result)) return allocation;
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map_no_write_barrier(string_map());
+  result->set_map_no_write_barrier(string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -4019,37 +4003,37 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 }
 
 
-MaybeObject* Heap::AllocateEmptyFixedArray() {
+AllocationResult Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
-  Object* result;
-  { MaybeObject* maybe_result =
+  HeapObject* result;
+  { AllocationResult allocation =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!allocation.To(&result)) return allocation;
   }
   // Initialize the object.
-  reinterpret_cast<FixedArray*>(result)->set_map_no_write_barrier(
-      fixed_array_map());
-  reinterpret_cast<FixedArray*>(result)->set_length(0);
+  result->set_map_no_write_barrier(fixed_array_map());
+  FixedArray::cast(result)->set_length(0);
   return result;
 }
 
 
-MaybeObject* Heap::AllocateEmptyExternalArray(ExternalArrayType array_type) {
+AllocationResult Heap::AllocateEmptyExternalArray(
+    ExternalArrayType array_type) {
   return AllocateExternalArray(0, array_type, NULL, TENURED);
 }
 
 
-MaybeObject* Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
+AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   if (!InNewSpace(src)) {
     return src;
   }
 
   int len = src->length();
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedArray(len, TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  HeapObject* obj;
+  { AllocationResult allocation = AllocateRawFixedArray(len, TENURED);
+    if (!allocation.To(&obj)) return allocation;
   }
-  HeapObject::cast(obj)->set_map_no_write_barrier(fixed_array_map());
+  obj->set_map_no_write_barrier(fixed_array_map());
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -4066,26 +4050,26 @@ MaybeObject* Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
 }
 
 
-MaybeObject* Heap::AllocateEmptyFixedTypedArray(ExternalArrayType array_type) {
+AllocationResult Heap::AllocateEmptyFixedTypedArray(
+    ExternalArrayType array_type) {
   return AllocateFixedTypedArray(0, array_type, TENURED);
 }
 
 
-MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
+AllocationResult Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   int len = src->length();
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedArray(len, NOT_TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  HeapObject* obj;
+  { AllocationResult allocation = AllocateRawFixedArray(len, NOT_TENURED);
+    if (!allocation.To(&obj)) return allocation;
   }
   if (InNewSpace(obj)) {
-    HeapObject* dst = HeapObject::cast(obj);
-    dst->set_map_no_write_barrier(map);
-    CopyBlock(dst->address() + kPointerSize,
+    obj->set_map_no_write_barrier(map);
+    CopyBlock(obj->address() + kPointerSize,
               src->address() + kPointerSize,
               FixedArray::SizeFor(len) - kPointerSize);
     return obj;
   }
-  HeapObject::cast(obj)->set_map_no_write_barrier(map);
+  obj->set_map_no_write_barrier(map);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -4097,48 +4081,47 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
 }
 
 
-MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
-                                               Map* map) {
+AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
+                                                   Map* map) {
   int len = src->length();
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(len, NOT_TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  HeapObject* obj;
+  { AllocationResult allocation = AllocateRawFixedDoubleArray(len, NOT_TENURED);
+    if (!allocation.To(&obj)) return allocation;
   }
-  HeapObject* dst = HeapObject::cast(obj);
-  dst->set_map_no_write_barrier(map);
+  obj->set_map_no_write_barrier(map);
   CopyBlock(
-      dst->address() + FixedDoubleArray::kLengthOffset,
+      obj->address() + FixedDoubleArray::kLengthOffset,
       src->address() + FixedDoubleArray::kLengthOffset,
       FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
   return obj;
 }
 
 
-MaybeObject* Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
-                                                Map* map) {
+AllocationResult Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
+                                                    Map* map) {
   int int64_entries = src->count_of_int64_entries();
   int code_ptr_entries = src->count_of_code_ptr_entries();
   int heap_ptr_entries = src->count_of_heap_ptr_entries();
   int int32_entries = src->count_of_int32_entries();
-  Object* obj;
-  { MaybeObject* maybe_obj =
+  HeapObject* obj;
+  { AllocationResult allocation =
         AllocateConstantPoolArray(int64_entries, code_ptr_entries,
                                   heap_ptr_entries, int32_entries);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+    if (!allocation.To(&obj)) return allocation;
   }
-  HeapObject* dst = HeapObject::cast(obj);
-  dst->set_map_no_write_barrier(map);
+  obj->set_map_no_write_barrier(map);
   int size = ConstantPoolArray::SizeFor(
         int64_entries, code_ptr_entries, heap_ptr_entries, int32_entries);
   CopyBlock(
-      dst->address() + ConstantPoolArray::kLengthOffset,
+      obj->address() + ConstantPoolArray::kLengthOffset,
       src->address() + ConstantPoolArray::kLengthOffset,
       size - ConstantPoolArray::kLengthOffset);
   return obj;
 }
 
 
-MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
+AllocationResult Heap::AllocateRawFixedArray(int length,
+                                             PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
@@ -4149,20 +4132,20 @@ MaybeObject* Heap::AllocateRawFixedArray(int length, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateFixedArrayWithFiller(int length,
-                                                PretenureFlag pretenure,
-                                                Object* filler) {
+AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
+                                                    PretenureFlag pretenure,
+                                                    Object* filler) {
   ASSERT(length >= 0);
   ASSERT(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
 
   ASSERT(!InNewSpace(filler));
-  Object* result;
-  { MaybeObject* maybe_result = AllocateRawFixedArray(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  HeapObject* result;
+  { AllocationResult allocation = AllocateRawFixedArray(length, pretenure);
+    if (!allocation.To(&result)) return allocation;
   }
 
-  HeapObject::cast(result)->set_map_no_write_barrier(fixed_array_map());
+  result->set_map_no_write_barrier(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -4170,45 +4153,42 @@ MaybeObject* Heap::AllocateFixedArrayWithFiller(int length,
 }
 
 
-MaybeObject* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
+AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   return AllocateFixedArrayWithFiller(length, pretenure, undefined_value());
 }
 
 
-MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
+AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
   if (length == 0) return empty_fixed_array();
 
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedArray(length, NOT_TENURED);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  HeapObject* obj;
+  { AllocationResult allocation = AllocateRawFixedArray(length, NOT_TENURED);
+    if (!allocation.To(&obj)) return allocation;
   }
 
-  reinterpret_cast<FixedArray*>(obj)->set_map_no_write_barrier(
-      fixed_array_map());
+  obj->set_map_no_write_barrier(fixed_array_map());
   FixedArray::cast(obj)->set_length(length);
   return obj;
 }
 
 
-MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
+AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
     int length,
     PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_array();
 
-  Object* elements_object;
-  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
-  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
-  FixedDoubleArray* elements =
-      reinterpret_cast<FixedDoubleArray*>(elements_object);
+  HeapObject* elements;
+  AllocationResult allocation = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!allocation.To(&elements)) return allocation;
 
   elements->set_map_no_write_barrier(fixed_double_array_map());
-  elements->set_length(length);
+  FixedDoubleArray::cast(elements)->set_length(length);
   return elements;
 }
 
 
-MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
-                                               PretenureFlag pretenure) {
+AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
+                                                   PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
   }
@@ -4219,18 +4199,18 @@ MaybeObject* Heap::AllocateRawFixedDoubleArray(int length,
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
 
   HeapObject* object;
-  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_DATA_SPACE);
-    if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    if (!allocation.To(&object)) return allocation;
   }
 
   return EnsureDoubleAligned(this, object, size);
 }
 
 
-MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
-                                             int number_of_code_ptr_entries,
-                                             int number_of_heap_ptr_entries,
-                                             int number_of_int32_entries) {
+AllocationResult Heap::AllocateConstantPoolArray(int number_of_int64_entries,
+                                                 int number_of_code_ptr_entries,
+                                                 int number_of_heap_ptr_entries,
+                                                 int number_of_int32_entries) {
   CHECK(number_of_int64_entries >= 0 &&
         number_of_int64_entries <= ConstantPoolArray::kMaxEntriesPerType &&
         number_of_code_ptr_entries >= 0 &&
@@ -4249,14 +4229,13 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
 
   HeapObject* object;
-  { MaybeObject* maybe_object = AllocateRaw(size, space, OLD_POINTER_SPACE);
-    if (!maybe_object->To<HeapObject>(&object)) return maybe_object;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_POINTER_SPACE);
+    if (!allocation.To(&object)) return allocation;
   }
   object = EnsureDoubleAligned(this, object, size);
-  HeapObject::cast(object)->set_map_no_write_barrier(constant_pool_array_map());
+  object->set_map_no_write_barrier(constant_pool_array_map());
 
-  ConstantPoolArray* constant_pool =
-      reinterpret_cast<ConstantPoolArray*>(object);
+  ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
   constant_pool->Init(number_of_int64_entries,
                       number_of_code_ptr_entries,
                       number_of_heap_ptr_entries,
@@ -4281,41 +4260,29 @@ MaybeObject* Heap::AllocateConstantPoolArray(int number_of_int64_entries,
 }
 
 
-MaybeObject* Heap::AllocateEmptyConstantPoolArray() {
+AllocationResult Heap::AllocateEmptyConstantPoolArray() {
   int size = ConstantPoolArray::SizeFor(0, 0, 0, 0);
-  Object* result;
-  { MaybeObject* maybe_result =
+  HeapObject* result;
+  { AllocationResult allocation =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+    if (!allocation.To(&result)) return allocation;
   }
-  HeapObject::cast(result)->set_map_no_write_barrier(constant_pool_array_map());
+  result->set_map_no_write_barrier(constant_pool_array_map());
   ConstantPoolArray::cast(result)->Init(0, 0, 0, 0);
   return result;
 }
 
 
-MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(
-      hash_table_map());
-  ASSERT(result->IsHashTable());
-  return result;
-}
-
-
-MaybeObject* Heap::AllocateSymbol() {
+AllocationResult Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kMaxRegularHeapObjectSize);
 
-  Object* result;
-  MaybeObject* maybe =
+  HeapObject* result;
+  AllocationResult allocation =
       AllocateRaw(Symbol::kSize, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
-  if (!maybe->ToObject(&result)) return maybe;
+  if (!allocation.To(&result)) return allocation;
 
-  HeapObject::cast(result)->set_map_no_write_barrier(symbol_map());
+  result->set_map_no_write_barrier(symbol_map());
 
   // Generate a random hash value.
   int hash;
@@ -4336,7 +4303,7 @@ MaybeObject* Heap::AllocateSymbol() {
 }
 
 
-MaybeObject* Heap::AllocateStruct(InstanceType type) {
+AllocationResult Heap::AllocateStruct(InstanceType type) {
   Map* map;
   switch (type) {
 #define MAKE_CASE(NAME, Name, name) \
@@ -4349,11 +4316,11 @@ STRUCT_LIST(MAKE_CASE)
   }
   int size = map->instance_size();
   AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
-  Object* result;
-  { MaybeObject* maybe_result = Allocate(map, space);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  Struct* result;
+  { AllocationResult allocation = Allocate(map, space);
+    if (!allocation.To(&result)) return allocation;
   }
-  Struct::cast(result)->InitializeBody(size);
+  result->InitializeBody(size);
   return result;
 }
 
@@ -4428,7 +4395,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || Serializer::enabled()) {
+  if (!FLAG_incremental_marking || Serializer::enabled(isolate_)) {
     return IdleGlobalGC();
   }
 
@@ -4473,6 +4440,13 @@ bool Heap::IdleNotification(int hint) {
   if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
     FinishIdleRound();
     return true;
+  }
+
+  // If the IdleNotifcation is called with a large hint we will wait for
+  // the sweepter threads here.
+  if (hint >= kMinHintForFullGC &&
+      mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+    mark_compact_collector()->WaitUntilSweepingCompleted();
   }
 
   return false;
@@ -4645,8 +4619,10 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
       return property_cell_space_->Contains(addr);
     case LO_SPACE:
       return lo_space_->SlowContains(addr);
+    case INVALID_SPACE:
+      break;
   }
-
+  UNREACHABLE();
   return false;
 }
 
@@ -4678,15 +4654,6 @@ void Heap::Verify() {
   lo_space_->Verify();
 }
 #endif
-
-
-bool Heap::InternalizeStringIfExists(String* string, String** result) {
-  if (string->IsInternalizedString()) {
-    *result = string;
-    return true;
-  }
-  return string_table()->LookupStringIfExists(string, result);
-}
 
 
 void Heap::ZapFromSpace() {
@@ -6243,19 +6210,21 @@ const char* GCTracer::CollectorString() {
 }
 
 
-int KeyedLookupCache::Hash(Map* map, Name* name) {
+int KeyedLookupCache::Hash(Handle<Map> map, Handle<Name> name) {
+  DisallowHeapAllocation no_gc;
   // Uses only lower 32 bits if pointers are larger.
   uintptr_t addr_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map)) >> kMapHashShift;
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(*map)) >> kMapHashShift;
   return static_cast<uint32_t>((addr_hash ^ name->Hash()) & kCapacityMask);
 }
 
 
-int KeyedLookupCache::Lookup(Map* map, Name* name) {
+int KeyedLookupCache::Lookup(Handle<Map> map, Handle<Name> name) {
+  DisallowHeapAllocation no_gc;
   int index = (Hash(map, name) & kHashMask);
   for (int i = 0; i < kEntriesPerBucket; i++) {
     Key& key = keys_[index + i];
-    if ((key.map == map) && key.name->Equals(name)) {
+    if ((key.map == *map) && key.name->Equals(*name)) {
       return field_offsets_[index + i];
     }
   }
@@ -6263,18 +6232,20 @@ int KeyedLookupCache::Lookup(Map* map, Name* name) {
 }
 
 
-void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
+void KeyedLookupCache::Update(Handle<Map> map,
+                              Handle<Name> name,
+                              int field_offset) {
+  DisallowHeapAllocation no_gc;
   if (!name->IsUniqueName()) {
-    String* internalized_string;
-    if (!map->GetIsolate()->heap()->InternalizeStringIfExists(
-            String::cast(name), &internalized_string)) {
+    if (!StringTable::InternalizeStringIfExists(name->GetIsolate(),
+                                                Handle<String>::cast(name)).
+        ToHandle(&name)) {
       return;
     }
-    name = internalized_string;
   }
   // This cache is cleared only between mark compact passes, so we expect the
   // cache to only contain old space names.
-  ASSERT(!map->GetIsolate()->heap()->InNewSpace(name));
+  ASSERT(!map->GetIsolate()->heap()->InNewSpace(*name));
 
   int index = (Hash(map, name) & kHashMask);
   // After a GC there will be free slots, so we use them in order (this may
@@ -6283,8 +6254,8 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
     Key& key = keys_[index];
     Object* free_entry_indicator = NULL;
     if (key.map == free_entry_indicator) {
-      key.map = map;
-      key.name = name;
+      key.map = *map;
+      key.name = *name;
       field_offsets_[index + i] = field_offset;
       return;
     }
@@ -6300,8 +6271,8 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
 
   // Write the new first entry.
   Key& key = keys_[index];
-  key.map = map;
-  key.name = name;
+  key.map = *map;
+  key.name = *name;
   field_offsets_[index] = field_offset;
 }
 

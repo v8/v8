@@ -121,8 +121,10 @@ void V8::InitializeOncePerProcessImpl() {
   platform_ = new DefaultPlatform;
 #endif
   Sampler::SetUp();
-  CpuFeatures::Probe(Serializer::enabled());
-  OS::PostSetUp();
+  // TODO(svenpanne) Clean this up when Serializer is a real object.
+  bool serializer_enabled = Serializer::enabled(NULL);
+  CpuFeatures::Probe(serializer_enabled);
+  OS::PostSetUp(serializer_enabled);
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();

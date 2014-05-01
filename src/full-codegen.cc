@@ -361,14 +361,12 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::InitializeFeedbackVector() {
-  int length = info_->function()->slot_count();
-  feedback_vector_ = isolate()->factory()->NewFixedArray(length, TENURED);
-  Handle<Object> sentinel = TypeFeedbackInfo::UninitializedSentinel(isolate());
-  // Ensure that it's safe to set without using a write barrier.
-  ASSERT_EQ(isolate()->heap()->uninitialized_symbol(), *sentinel);
-  for (int i = 0; i < length; i++) {
-    feedback_vector_->set(i, *sentinel, SKIP_WRITE_BARRIER);
+void FullCodeGenerator::EnsureSlotContainsAllocationSite(int slot) {
+  Handle<FixedArray> vector = FeedbackVector();
+  if (!vector->get(slot)->IsAllocationSite()) {
+    Handle<AllocationSite> allocation_site =
+        isolate()->factory()->NewAllocationSite();
+    vector->set(slot, *allocation_site);
   }
 }
 
@@ -391,24 +389,23 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
 void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
   Handle<TypeFeedbackInfo> info = isolate()->factory()->NewTypeFeedbackInfo();
   info->set_ic_total_count(ic_total_count_);
-  info->set_feedback_vector(*FeedbackVector());
   ASSERT(!isolate()->heap()->InNewSpace(*info));
   code->set_type_feedback_info(*info);
 }
 
 
 void FullCodeGenerator::Initialize() {
+  InitializeAstVisitor(info_->zone());
   // The generation of debug code must match between the snapshot code and the
   // code that is generated later.  This is assumed by the debugger when it is
   // calculating PC offsets after generating a debug version of code.  Therefore
   // we disable the production of debug code in the full compiler if we are
   // either generating a snapshot or we booted from a snapshot.
   generate_debug_code_ = FLAG_debug_code &&
-                         !Serializer::enabled() &&
+                         !Serializer::enabled(isolate()) &&
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);
-  InitializeAstVisitor(info_->zone());
 }
 
 
@@ -1554,8 +1551,10 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   bool is_generator = false;
   Handle<SharedFunctionInfo> shared =
-      isolate()->factory()->NewSharedFunctionInfo(name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()));
+      isolate()->factory()->NewSharedFunctionInfo(
+          name, literals, is_generator,
+          code, Handle<ScopeInfo>(fun->shared()->scope_info()),
+          Handle<FixedArray>(fun->shared()->feedback_vector()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.

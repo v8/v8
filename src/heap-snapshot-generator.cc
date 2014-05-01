@@ -1056,23 +1056,30 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   static void MarkVisitedField(HeapObject* obj, int offset) {
     if (offset < 0) return;
     Address field = obj->address() + offset;
-    ASSERT(!Memory::Object_at(field)->IsFailure());
     ASSERT(Memory::Object_at(field)->IsHeapObject());
-    Object* untagged = *reinterpret_cast<Object**>(field);
-    intptr_t tagged  = reinterpret_cast<intptr_t>(untagged) | kFailureTag;
-    *reinterpret_cast<Object**>(field) = reinterpret_cast<Object*>(tagged);
+    intptr_t p = reinterpret_cast<intptr_t>(Memory::Object_at(field));
+    ASSERT(!IsMarked(p));
+    intptr_t p_tagged = p | kTag;
+    Memory::Object_at(field) = reinterpret_cast<Object*>(p_tagged);
   }
 
  private:
   bool CheckVisitedAndUnmark(Object** field) {
-    if ((*field)->IsFailure()) {
-      intptr_t untagged = reinterpret_cast<intptr_t>(*field) & ~kFailureTagMask;
-      *field = reinterpret_cast<Object*>(untagged | kHeapObjectTag);
+    intptr_t p = reinterpret_cast<intptr_t>(*field);
+    if (IsMarked(p)) {
+      intptr_t p_untagged = (p & ~kTaggingMask) | kHeapObjectTag;
+      *field = reinterpret_cast<Object*>(p_untagged);
       ASSERT((*field)->IsHeapObject());
       return true;
     }
     return false;
   }
+
+  static const intptr_t kTaggingMask = 3;
+  static const intptr_t kTag = 3;
+
+  static bool IsMarked(intptr_t p) { return (p & kTaggingMask) == kTag; }
+
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
   int parent_;
@@ -1399,6 +1406,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "optimized_code_map", shared->optimized_code_map(),
                        SharedFunctionInfo::kOptimizedCodeMapOffset);
+  SetInternalReference(obj, entry,
+                       "feedback_vector", shared->feedback_vector(),
+                       SharedFunctionInfo::kFeedbackVectorOffset);
   SetWeakReference(obj, entry,
                    "initial_map", shared->initial_map(),
                    SharedFunctionInfo::kInitialMapOffset);

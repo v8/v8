@@ -37,6 +37,15 @@ function testFloor(expect, input) {
   assertEquals(expect, test(input));
   %OptimizeFunctionOnNextCall(test);
   assertEquals(expect, test(input));
+
+  var test_double_output = new Function(
+      'n',
+      '"' + (test_id++) + '";return Math.floor(n) + -0.0');
+  assertEquals(expect, test_double_output(input));
+  assertEquals(expect, test_double_output(input));
+  assertEquals(expect, test_double_output(input));
+  %OptimizeFunctionOnNextCall(test_double_output);
+  assertEquals(expect, test_double_output(input));
 }
 
 function zero() {

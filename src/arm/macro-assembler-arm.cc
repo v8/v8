@@ -77,7 +77,9 @@ int MacroAssembler::CallSize(
   int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
   intptr_t immediate = reinterpret_cast<intptr_t>(target);
-  if (!Operand(immediate, rmode).is_single_instruction(this, mov_instr)) {
+  if (!Operand(immediate, rmode).is_single_instruction(isolate(),
+                                                       this,
+                                                       mov_instr)) {
     size += kInstrSize;
   }
   return size;
@@ -90,12 +92,16 @@ int MacroAssembler::CallStubSize(
 }
 
 
-int MacroAssembler::CallSizeNotPredictableCodeSize(
-    Address target, RelocInfo::Mode rmode, Condition cond) {
+int MacroAssembler::CallSizeNotPredictableCodeSize(Isolate* isolate,
+                                                   Address target,
+                                                   RelocInfo::Mode rmode,
+                                                   Condition cond) {
   int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
   intptr_t immediate = reinterpret_cast<intptr_t>(target);
-  if (!Operand(immediate, rmode).is_single_instruction(NULL, mov_instr)) {
+  if (!Operand(immediate, rmode).is_single_instruction(isolate,
+                                                       NULL,
+                                                       mov_instr)) {
     size += kInstrSize;
   }
   return size;
@@ -255,11 +261,11 @@ void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
 void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
                          Condition cond) {
   if (!src2.is_reg() &&
-      !src2.must_output_reloc_info(this) &&
+      !src2.must_output_reloc_info(isolate(), this) &&
       src2.immediate() == 0) {
     mov(dst, Operand::Zero(), LeaveCC, cond);
-  } else if (!src2.is_single_instruction(this) &&
-             !src2.must_output_reloc_info(this) &&
+  } else if (!src2.is_single_instruction(isolate(), this) &&
+             !src2.must_output_reloc_info(isolate(), this) &&
              CpuFeatures::IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
     ubfx(dst, src1, 0,
@@ -634,7 +640,7 @@ void MacroAssembler::PopSafepointRegisters() {
 
 void MacroAssembler::PushSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled(isolate()));
   PushSafepointRegisters();
   // Only save allocatable registers.
   ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
@@ -648,7 +654,7 @@ void MacroAssembler::PushSafepointRegistersAndDoubles() {
 
 void MacroAssembler::PopSafepointRegistersAndDoubles() {
   // Number of d-regs not known at snapshot time.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled(isolate()));
   // Only save allocatable registers.
   ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
   ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
@@ -690,7 +696,7 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
   // Number of d-regs not known at snapshot time.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled(isolate()));
   // General purpose registers are pushed last on the stack.
   int doubles_size = DwVfpRegister::NumAllocatableRegisters() * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
@@ -1744,7 +1750,7 @@ void MacroAssembler::Allocate(int object_size,
       object_size -= bits;
       shift += 8;
       Operand bits_operand(bits);
-      ASSERT(bits_operand.is_single_instruction(this));
+      ASSERT(bits_operand.is_single_instruction(isolate(), this));
       add(scratch2, source, bits_operand, SetCC, cond);
       source = scratch2;
       cond = cc;
