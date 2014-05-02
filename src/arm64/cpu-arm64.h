@@ -61,20 +61,11 @@ class CpuFeatures : public AllStatic {
   static bool SupportsCrankshaft() { return true; }
 
  private:
-  // Return the content of the cache type register.
-  static uint32_t GetCacheType();
-
-  // I and D cache line size in bytes.
-  static unsigned icache_line_size_;
-  static unsigned dcache_line_size_;
-
 #ifdef DEBUG
   static bool initialized_;
 #endif
 
   // This isn't used (and is always 0), but it is required by V8.
-  static unsigned found_by_runtime_probing_only_;
-
   static unsigned cross_compile_;
 
   friend class PlatformFeatureScope;
