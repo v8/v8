@@ -1015,7 +1015,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
   FixedArray::cast(this)->FixedArrayVerify();
   if (FLAG_enable_slow_asserts) {
     for (int i = 0; i < length(); i++) {
-      Object* e = get(i);
+      Object* e = FixedArray::get(i);
       if (e->IsMap()) {
         Map::cast(e)->SharedMapVerify();
       } else {

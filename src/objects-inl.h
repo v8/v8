@@ -850,13 +850,23 @@ bool Object::IsJSFunctionResultCache() {
 
 
 bool Object::IsNormalizedMapCache() {
-  if (!IsFixedArray()) return false;
-  if (FixedArray::cast(this)->length() != NormalizedMapCache::kEntries) {
+  return NormalizedMapCache::IsNormalizedMapCache(this);
+}
+
+
+int NormalizedMapCache::GetIndex(Handle<Map> map) {
+  return map->Hash() % NormalizedMapCache::kEntries;
+}
+
+
+bool NormalizedMapCache::IsNormalizedMapCache(Object* obj) {
+  if (!obj->IsFixedArray()) return false;
+  if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
+    reinterpret_cast<NormalizedMapCache*>(obj)->NormalizedMapCacheVerify();
   }
 #endif
   return true;

@@ -2108,9 +2108,8 @@ void Genesis::InstallJSFunctionResultCaches() {
 
 
 void Genesis::InitializeNormalizedMapCaches() {
-  Handle<FixedArray> array(
-      factory()->NewFixedArray(NormalizedMapCache::kEntries, TENURED));
-  native_context()->set_normalized_map_cache(NormalizedMapCache::cast(*array));
+  native_context()->set_normalized_map_cache(
+      *NormalizedMapCache::New(isolate()));
 }
 
 
