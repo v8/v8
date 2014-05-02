@@ -820,7 +820,9 @@ class Runtime : public AllStatic {
       Handle<JSObject> object,
       Handle<Object> key,
       Handle<Object> value,
-      PropertyAttributes attr);
+      PropertyAttributes attr,
+      JSReceiver::StoreFromKeyed store_from_keyed
+        = JSReceiver::MAY_BE_STORE_FROM_KEYED);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate,

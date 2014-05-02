@@ -4306,7 +4306,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ValueType value_type,
     StoreMode mode,
-    ExtensibilityCheck extensibility_check) {
+    ExtensibilityCheck extensibility_check,
+    StoreFromKeyed store_from_keyed) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4347,7 +4348,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
     return AddProperty(object, name, value, attributes, SLOPPY,
-        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
+        store_from_keyed, extensibility_check, value_type, mode, flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();

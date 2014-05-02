@@ -5290,7 +5290,9 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::ForceSetObjectProperty(js_object, name, obj_value, attr));
+      Runtime::ForceSetObjectProperty(
+          js_object, name, obj_value, attr,
+          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED));
   return *result;
 }
 
@@ -5402,10 +5404,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
-                                                    Handle<Object> key,
-                                                    Handle<Object> value,
-                                                    PropertyAttributes attr) {
+MaybeHandle<Object> Runtime::ForceSetObjectProperty(
+    Handle<JSObject> js_object,
+    Handle<Object> key,
+    Handle<Object> value,
+    PropertyAttributes attr,
+    JSReceiver::StoreFromKeyed store_from_keyed) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index;
@@ -5433,7 +5437,9 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetLocalPropertyIgnoreAttributes(
-          js_object, name, value, attr);
+          js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
+          ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+          store_from_keyed);
     }
   }
 
@@ -5447,8 +5453,10 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
     return JSObject::SetElement(js_object, index, value, attr,
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
-    return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name, value,
-                                                      attr);
+    return JSObject::SetLocalPropertyIgnoreAttributes(
+        js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
+        ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+        store_from_keyed);
   }
 }
 
