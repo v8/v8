@@ -118,6 +118,15 @@
   # BUG(v8:2989). PASS/FAIL on linux32 because crankshaft is turned off for
   # nosse2. Also for arm novfp3.
   'regress/regress-2989': [FAIL, NO_VARIANTS, ['system == linux and arch == ia32 or arch == arm and simulator == True', PASS]],
+
+  # Object.observe is disabled.
+  'es6/promises': [SKIP],
+  'array-push7': [SKIP],
+  'harmony/microtask-delivery': [SKIP],
+  'es7/object-observe': [SKIP],
+  'harmony/regress/regress-observe-empty-double-array': [SKIP],
+  'regress/regress-356589': [SKIP],
+  'regress/regress-observe-map-cache': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
