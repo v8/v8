@@ -151,7 +151,7 @@ class OS {
  public:
   // Initializes the platform OS support that depend on CPU features. This is
   // called after CPU initialization.
-  static void PostSetUp(bool serializer_enabled);
+  static void PostSetUp();
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should

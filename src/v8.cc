@@ -124,7 +124,7 @@ void V8::InitializeOncePerProcessImpl() {
   // TODO(svenpanne) Clean this up when Serializer is a real object.
   bool serializer_enabled = Serializer::enabled(NULL);
   CpuFeatures::Probe(serializer_enabled);
-  OS::PostSetUp(serializer_enabled);
+  OS::PostSetUp();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();
