@@ -2108,8 +2108,8 @@ void Genesis::InstallJSFunctionResultCaches() {
 
 
 void Genesis::InitializeNormalizedMapCaches() {
-  native_context()->set_normalized_map_cache(
-      *NormalizedMapCache::New(isolate()));
+  Handle<NormalizedMapCache> cache = NormalizedMapCache::New(isolate());
+  native_context()->set_normalized_map_cache(*cache);
 }
 
 
