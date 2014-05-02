@@ -411,8 +411,7 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
   var callbackInfo = CallbackInfoNormalize(callback);
   if (IS_NULL(GetPendingObservers())) {
     SetPendingObservers(nullProtoObject())
-    GetMicrotaskQueue().push(ObserveMicrotaskRunner);
-    %SetMicrotaskPending(true);
+    EnqueueMicrotask(ObserveMicrotaskRunner);
   }
   GetPendingObservers()[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);
