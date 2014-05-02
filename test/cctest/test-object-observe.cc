@@ -613,3 +613,95 @@ TEST(GetNotifierFromSameOrigin) {
     CHECK(CompileRun("Object.getNotifier(obj)")->IsObject());
   }
 }
+
+
+static int GetGlobalObjectsCount() {
+  CcTest::heap()->EnsureHeapIsIterable();
+  int count = 0;
+  i::HeapIterator it(CcTest::heap());
+  for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
+    if (object->IsJSGlobalObject()) count++;
+  return count;
+}
+
+
+static void CheckSurvivingGlobalObjectsCount(int expected) {
+  // We need to collect all garbage twice to be sure that everything
+  // has been collected.  This is because inline caches are cleared in
+  // the first garbage collection but some of the maps have already
+  // been marked at that point.  Therefore some of the maps are not
+  // collected until the second garbage collection.
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  int count = GetGlobalObjectsCount();
+#ifdef DEBUG
+  if (count != expected) CcTest::heap()->TracePathToGlobal();
+#endif
+  CHECK_EQ(expected, count);
+}
+
+
+TEST(DontLeakContextOnObserve) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    CompileRun("function observer() {};"
+               "Object.observe(obj, observer, ['foo', 'bar', 'baz']);"
+               "Object.unobserve(obj, observer);");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
+}
+
+
+TEST(DontLeakContextOnGetNotifier) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    CompileRun("Object.getNotifier(obj);");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
+}
+
+
+TEST(DontLeakContextOnNotifierPerformChange) {
+  HandleScope scope(CcTest::isolate());
+  Handle<Value> foo = String::NewFromUtf8(CcTest::isolate(), "foo");
+  LocalContext context(CcTest::isolate());
+  context->SetSecurityToken(foo);
+  CompileRun("var obj = {};");
+  Handle<Value> object = CompileRun("obj");
+  {
+    HandleScope scope(CcTest::isolate());
+    LocalContext context2(CcTest::isolate());
+    context2->SetSecurityToken(foo);
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
+                            object);
+    CompileRun("var n = Object.getNotifier(obj);"
+               "n.performChange('foo', function() {});");
+  }
+
+  v8::V8::ContextDisposedNotification();
+  CheckSurvivingGlobalObjectsCount(1);
+}

@@ -56,6 +56,7 @@ function GetWeakMapWrapper() {
   };
 
   MapWrapper.prototype = {
+    __proto__: null,
     get: function(key) {
       return %WeakCollectionGet(this.map_, key);
     },
@@ -364,6 +365,10 @@ function ObjectObserve(object, callback, acceptList) {
   if (!AcceptArgIsValid(acceptList))
     throw MakeTypeError("observe_accept_invalid");
 
+  return %NativeObjectObserve(object, callback, acceptList);
+}
+
+function NativeObjectObserve(object, callback, acceptList) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   ObjectInfoAddObserver(objectInfo, callback, acceptList);
   return object;
@@ -527,7 +532,6 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
     throw MakeTypeError("called_on_non_object", ["performChange"]);
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
-
   if (IS_UNDEFINED(objectInfo))
     throw MakeTypeError("observe_notify_non_notifier");
   if (!IS_STRING(changeType))
@@ -535,6 +539,10 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_FUNCTION(changeFn))
     throw MakeTypeError("observe_perform_non_function");
 
+  return %NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn)
+}
+
+function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
   ObjectInfoAddPerformingType(objectInfo, changeType);
 
   var changeRecord;
@@ -558,6 +566,10 @@ function ObjectGetNotifier(object) {
 
   if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 
+  return %NativeObjectGetNotifier(object);
+}
+
+function NativeObjectGetNotifier(object) {
   var objectInfo = ObjectInfoGetOrCreate(object);
   return ObjectInfoGetNotifier(objectInfo);
 }

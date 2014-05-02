@@ -174,6 +174,12 @@ enum BindingFlags {
     observers_begin_perform_splice) \
   V(OBSERVERS_END_SPLICE_INDEX, JSFunction, \
     observers_end_perform_splice) \
+  V(NATIVE_OBJECT_OBSERVE_INDEX, JSFunction, \
+    native_object_observe) \
+  V(NATIVE_OBJECT_GET_NOTIFIER_INDEX, JSFunction, \
+    native_object_get_notifier) \
+  V(NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE, JSFunction, \
+    native_object_notifier_perform_change) \
   V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map) \
   V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map) \
   V(GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX, Map, \
@@ -342,6 +348,9 @@ class Context: public FixedArray {
     OBSERVERS_ENQUEUE_SPLICE_INDEX,
     OBSERVERS_BEGIN_SPLICE_INDEX,
     OBSERVERS_END_SPLICE_INDEX,
+    NATIVE_OBJECT_OBSERVE_INDEX,
+    NATIVE_OBJECT_GET_NOTIFIER_INDEX,
+    NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE,
     SLOPPY_GENERATOR_FUNCTION_MAP_INDEX,
     STRICT_GENERATOR_FUNCTION_MAP_INDEX,
     GENERATOR_OBJECT_PROTOTYPE_MAP_INDEX,

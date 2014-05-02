@@ -1556,6 +1556,12 @@ void Genesis::InstallNativeFunctions() {
                  observers_begin_perform_splice);
   INSTALL_NATIVE(JSFunction, "EndPerformSplice",
                  observers_end_perform_splice);
+  INSTALL_NATIVE(JSFunction, "NativeObjectObserve",
+                 native_object_observe);
+  INSTALL_NATIVE(JSFunction, "NativeObjectGetNotifier",
+                 native_object_get_notifier);
+  INSTALL_NATIVE(JSFunction, "NativeObjectNotifierPerformChange",
+                 native_object_notifier_perform_change);
 }
 
 

@@ -14996,6 +14996,65 @@ RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_NativeObjectObserve) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, callback, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_observe(), isolate);
+  Handle<Object> call_args[] = { object, callback, accept };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function,
+          handle(context->object_function(), isolate), 3, call_args, true));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_NativeObjectGetNotifier) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_get_notifier(), isolate);
+  Handle<Object> call_args[] = { object };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function,
+          handle(context->object_function(), isolate), 1, call_args, true));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_NativeObjectNotifierPerformChange) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object_info, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, change_type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, change_fn, 2);
+
+  Handle<Context> context(object_info->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_notifier_perform_change(),
+      isolate);
+  Handle<Object> call_args[] = { change_type, change_fn };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
+                      2, call_args, true));
+  return *result;
+}
+
+
 static Object* ArrayConstructorCommon(Isolate* isolate,
                                            Handle<JSFunction> constructor,
                                            Handle<AllocationSite> site,
