@@ -163,6 +163,16 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
+void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallICStub
+  // ----------- S t a t e -------------
+  //  -- a1 : function
+  //  -- a3 : slot in feedback array (smi)
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a3.bit(), 0);
+}
+
+
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-mips.cc).
   // ----------- S t a t e -------------
@@ -219,15 +229,6 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
-  // Calling convention for IC call (from ic-mips.cc).
-  // ----------- S t a t e -------------
-  //  -- a2: name
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, a2.bit(), 0);
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that v0 is TOS which
   // is an object - this is not generally the case so this should be used with
@@ -242,17 +243,6 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   //  -- a1 : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, a1.bit(), 0);
-}
-
-
-void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
-  // Register state for CallFunctionStub (from code-stubs-mips.cc).
-  // ----------- S t a t e -------------
-  //  -- a1 : function
-  //  -- a2 : feedback array
-  //  -- a3 : slot in feedback array
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit() | a3.bit(), 0);
 }
 
 
