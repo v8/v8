@@ -87,21 +87,6 @@ void V8::SetReturnAddressLocationResolver(
 }
 
 
-void V8::RunMicrotasks(Isolate* isolate) {
-  if (!isolate->microtask_pending())
-    return;
-
-  HandleScopeImplementer* handle_scope_implementer =
-      isolate->handle_scope_implementer();
-  ASSERT(handle_scope_implementer->CallDepthIsZero());
-
-  // Increase call depth to prevent recursive callbacks.
-  handle_scope_implementer->IncrementCallDepth();
-  Execution::RunMicrotasks(isolate);
-  handle_scope_implementer->DecrementCallDepth();
-}
-
-
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
   Serializer::InitializeOncePerProcess();

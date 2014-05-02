@@ -75,8 +75,6 @@ class V8 : public AllStatic {
   // Support for entry hooking JITed code.
   static void SetFunctionEntryHook(FunctionEntryHook entry_hook);
 
-  static void RunMicrotasks(Isolate* isolate);
-
   static v8::ArrayBuffer::Allocator* ArrayBufferAllocator() {
     return array_buffer_allocator_;
   }

@@ -2252,4 +2252,17 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 
+void Isolate::RunMicrotasks() {
+  if (!microtask_pending())
+    return;
+
+  ASSERT(handle_scope_implementer()->CallDepthIsZero());
+
+  // Increase call depth to prevent recursive callbacks.
+  handle_scope_implementer()->IncrementCallDepth();
+  Execution::RunMicrotasks(this);
+  handle_scope_implementer()->DecrementCallDepth();
+}
+
+
 } }  // namespace v8::internal

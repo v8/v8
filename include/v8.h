@@ -4113,6 +4113,24 @@ class V8_EXPORT Isolate {
   };
 
   /**
+   * Do not run microtasks while this scope is active, even if microtasks are
+   * automatically executed otherwise.
+   */
+  class V8_EXPORT SuppressMicrotaskExecutionScope {
+   public:
+    explicit SuppressMicrotaskExecutionScope(Isolate* isolate);
+    ~SuppressMicrotaskExecutionScope();
+
+   private:
+    internal::Isolate* isolate_;
+
+    // Prevent copying of Scope objects.
+    SuppressMicrotaskExecutionScope(const SuppressMicrotaskExecutionScope&);
+    SuppressMicrotaskExecutionScope& operator=(
+        const SuppressMicrotaskExecutionScope&);
+  };
+
+  /**
    * Types of garbage collections that can be requested via
    * RequestGarbageCollectionForTesting.
    */
@@ -4360,6 +4378,22 @@ class V8_EXPORT Isolate {
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
+
+  /**
+   * Experimental: Runs the Microtask Work Queue until empty
+   */
+  void RunMicrotasks();
+
+  /**
+   * Experimental: Enqueues the callback to the Microtask Work Queue
+   */
+  void EnqueueMicrotask(Handle<Function> microtask);
+
+   /**
+   * Experimental: Controls whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  void SetAutorunMicrotasks(bool autorun);
 
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
@@ -4724,17 +4758,23 @@ class V8_EXPORT V8 {
 
   /**
    * Experimental: Runs the Microtask Work Queue until empty
+   *
+   * Deprecated: Use methods on Isolate instead.
    */
   static void RunMicrotasks(Isolate* isolate);
 
   /**
    * Experimental: Enqueues the callback to the Microtask Work Queue
+   *
+   * Deprecated: Use methods on Isolate instead.
    */
   static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
 
    /**
    * Experimental: Controls whether the Microtask Work Queue is automatically
    * run when the script call depth decrements to zero.
+   *
+   * Deprecated: Use methods on Isolate instead.
    */
   static void SetAutorunMicrotasks(Isolate *source, bool autorun);
 
