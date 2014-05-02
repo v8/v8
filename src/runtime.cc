@@ -14996,12 +14996,13 @@ RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NativeObjectObserve) {
+RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, callback, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
+  RUNTIME_ASSERT(accept->IsUndefined() || accept->IsJSObject());
 
   Handle<Context> context(object->GetCreationContext(), isolate);
   Handle<JSFunction> function(context->native_object_observe(), isolate);
@@ -15011,12 +15012,13 @@ RUNTIME_FUNCTION(Runtime_NativeObjectObserve) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Execution::Call(isolate, function,
-          handle(context->object_function(), isolate), 3, call_args, true));
+          handle(context->object_function(), isolate),
+          ARRAY_SIZE(call_args), call_args, true));
   return *result;
 }
 
 
-RUNTIME_FUNCTION(Runtime_NativeObjectGetNotifier) {
+RUNTIME_FUNCTION(Runtime_ObjectGetNotifierInObjectContext) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
@@ -15029,28 +15031,29 @@ RUNTIME_FUNCTION(Runtime_NativeObjectGetNotifier) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Execution::Call(isolate, function,
-          handle(context->object_function(), isolate), 1, call_args, true));
+          handle(context->object_function(), isolate),
+          ARRAY_SIZE(call_args), call_args, true));
   return *result;
 }
 
 
-RUNTIME_FUNCTION(Runtime_NativeObjectNotifierPerformChange) {
+RUNTIME_FUNCTION(Runtime_ObjectNotifierPerformChangeInObjectContext) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, change_type, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, change_fn, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, change_type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, change_fn, 2);
 
   Handle<Context> context(object_info->GetCreationContext(), isolate);
   Handle<JSFunction> function(context->native_object_notifier_perform_change(),
       isolate);
-  Handle<Object> call_args[] = { change_type, change_fn };
+  Handle<Object> call_args[] = { object_info, change_type, change_fn };
   Handle<Object> result;
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Execution::Call(isolate, function, isolate->factory()->undefined_value(),
-                      2, call_args, true));
+                      ARRAY_SIZE(call_args), call_args, true));
   return *result;
 }
 

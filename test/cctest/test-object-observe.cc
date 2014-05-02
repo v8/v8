@@ -692,14 +692,19 @@ TEST(DontLeakContextOnNotifierPerformChange) {
   context->SetSecurityToken(foo);
   CompileRun("var obj = {};");
   Handle<Value> object = CompileRun("obj");
+  Handle<Value> notifier = CompileRun("Object.getNotifier(obj)");
   {
     HandleScope scope(CcTest::isolate());
     LocalContext context2(CcTest::isolate());
     context2->SetSecurityToken(foo);
     context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "obj"),
                             object);
-    CompileRun("var n = Object.getNotifier(obj);"
-               "n.performChange('foo', function() {});");
+    context2->Global()->Set(String::NewFromUtf8(CcTest::isolate(), "notifier"),
+                            notifier);
+    CompileRun("var obj2 = {};"
+               "var notifier2 = Object.getNotifier(obj2);"
+               "notifier2.performChange.call("
+                   "notifier, 'foo', function(){})");
   }
 
   v8::V8::ContextDisposedNotification();

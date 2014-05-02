@@ -188,11 +188,6 @@ var knownProblems = {
 
   // Only applicable to DataViews.
   "_DataViewInitialize": true,
-
-  // Internal calls from the Object.observe API
-  "NativeObjectObserve": true,
-  "NativeObjectNotifierPerformChange": true,
-  "NativeObjectGetNotifier": true
 };
 
 var currentlyUncallable = {

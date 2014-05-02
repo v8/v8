@@ -365,7 +365,7 @@ function ObjectObserve(object, callback, acceptList) {
   if (!AcceptArgIsValid(acceptList))
     throw MakeTypeError("observe_accept_invalid");
 
-  return %NativeObjectObserve(object, callback, acceptList);
+  return %ObjectObserveInObjectContext(object, callback, acceptList);
 }
 
 function NativeObjectObserve(object, callback, acceptList) {
@@ -539,7 +539,8 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
   if (!IS_SPEC_FUNCTION(changeFn))
     throw MakeTypeError("observe_perform_non_function");
 
-  return %NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn)
+  return %ObjectNotifierPerformChangeInObjectContext(
+      objectInfo, changeType, changeFn);
 }
 
 function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
@@ -566,7 +567,7 @@ function ObjectGetNotifier(object) {
 
   if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 
-  return %NativeObjectGetNotifier(object);
+  return %ObjectGetNotifierInObjectContext(object);
 }
 
 function NativeObjectGetNotifier(object) {
