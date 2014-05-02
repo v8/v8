@@ -5,9 +5,12 @@
 #ifndef V8_LITHIUM_H_
 #define V8_LITHIUM_H_
 
+#include <set>
+
 #include "allocation.h"
 #include "hydrogen.h"
 #include "safepoint-table.h"
+#include "zone-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -642,6 +645,13 @@ class LChunk : public ZoneObject {
     inlined_closures_.Add(closure, zone());
   }
 
+  void AddDeprecationDependency(Handle<Map> map) {
+    ASSERT(!map->is_deprecated());
+    if (!map->CanBeDeprecated()) return;
+    ASSERT(!info_->IsStub());
+    deprecation_dependencies_.insert(map);
+  }
+
   Zone* zone() const { return info_->zone(); }
 
   Handle<Code> Codegen();
@@ -657,12 +667,19 @@ class LChunk : public ZoneObject {
   int spill_slot_count_;
 
  private:
+  typedef std::less<Handle<Map> > MapLess;
+  typedef zone_allocator<Handle<Map> > MapAllocator;
+  typedef std::set<Handle<Map>, MapLess, MapAllocator> MapSet;
+
+  void CommitDependencies(Handle<Code> code) const;
+
   CompilationInfo* info_;
   HGraph* const graph_;
   BitVector* allocated_double_registers_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
+  MapSet deprecation_dependencies_;
 };
 
 

@@ -2191,11 +2191,6 @@ class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 2> {
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  Handle<Map> transition() const { return hydrogen()->transition_map(); }
-  Representation representation() const {
-    return hydrogen()->field_representation();
-  }
 };
 
 
@@ -2779,6 +2774,9 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   bool is_aborted() const { return status_ == ABORTED; }
 
   void Abort(BailoutReason reason);
+
+  // Methods for code dependencies.
+  void AddDeprecationDependency(Handle<Map> map);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

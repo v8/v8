@@ -1156,6 +1156,7 @@ template <class C> inline bool Is(Object* obj);
   V(kLiveEdit, "LiveEdit")                                                    \
   V(kLookupVariableInCountOperation,                                          \
     "Lookup variable in count operation")                                     \
+  V(kMapBecameDeprecated, "Map became deprecated")                            \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                           \
   V(kModuleDeclaration, "Module declaration")                                 \
   V(kModuleLiteral, "Module literal")                                         \

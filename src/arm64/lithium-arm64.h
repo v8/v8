@@ -2999,6 +2999,9 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   void Abort(BailoutReason reason);
 
+  // Methods for code dependencies.
+  void AddDeprecationDependency(Handle<Map> map);
+
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(DoubleRegister reg);

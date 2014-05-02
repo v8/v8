@@ -478,6 +478,12 @@ void LChunkBuilder::Abort(BailoutReason reason) {
 }
 
 
+void LChunkBuilder::AddDeprecationDependency(Handle<Map> map) {
+  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
+  chunk_->AddDeprecationDependency(map);
+}
+
+
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
   return new(zone()) LUnallocated(LUnallocated::FIXED_REGISTER,
                                   Register::ToAllocationIndex(reg));
@@ -2421,6 +2427,11 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   // We need a temporary register for write barrier of the map field.
   LOperand* temp_map = needs_write_barrier_for_map ? TempRegister() : NULL;
+
+  // Add a deprecation dependency on the transition target map.
+  if (instr->has_transition()) {
+    AddDeprecationDependency(instr->transition_map());
+  }
 
   LInstruction* result =
       new(zone()) LStoreNamedField(obj, val, temp, temp_map);

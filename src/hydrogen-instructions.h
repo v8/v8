@@ -6611,14 +6611,9 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
   }
 
-  void SetTransition(HConstant* map_constant, CompilationInfo* info) {
+  void SetTransition(HConstant* transition) {
     ASSERT(!has_transition());  // Only set once.
-    Handle<Map> map = Handle<Map>::cast(map_constant->handle(info->isolate()));
-    if (map->CanBeDeprecated()) {
-      Map::AddDependentCompilationInfo(
-          map, DependentCode::kTransitionGroup, info);
-    }
-    SetOperandAt(2, map_constant);
+    SetOperandAt(2, transition);
     has_transition_ = true;
   }
 
