@@ -355,6 +355,8 @@ function CallbackInfoNormalize(callback) {
 function ObjectObserve(object, callback, acceptList) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["observe"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["observe"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["observe"]);
   if (ObjectIsFrozen(callback))
@@ -370,6 +372,8 @@ function ObjectObserve(object, callback, acceptList) {
 function ObjectUnobserve(object, callback) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["unobserve"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["unobserve"]);
   if (!IS_SPEC_FUNCTION(callback))
     throw MakeTypeError("observe_non_function", ["unobserve"]);
 
@@ -392,19 +396,15 @@ function ArrayUnobserve(object, callback) {
   return ObjectUnobserve(object, callback);
 }
 
-function ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                                 needsAccessCheck) {
+function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   if (!ObserverIsActive(observer, objectInfo) ||
       !TypeMapHasType(ObserverGetAcceptTypes(observer), changeRecord.type)) {
     return;
   }
 
   var callback = ObserverGetCallback(observer);
-  if (needsAccessCheck &&
-      // Drop all splice records on the floor for access-checked objects
-      (changeRecord.type == 'splice' ||
-       !%IsAccessAllowedForObserver(
-           callback, changeRecord.object, changeRecord.name))) {
+  if (!%ObserverObjectAndRecordHaveSameOrigin(callback, changeRecord.object,
+                                              changeRecord)) {
     return;
   }
 
@@ -433,22 +433,16 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
   }
   ObjectFreeze(newRecord);
 
-  ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord,
-                                        true /* skip access check */);
+  ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
 
-function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord,
-                                               skipAccessCheck) {
+function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(changeRecord.name)) return;
 
-  var needsAccessCheck = !skipAccessCheck &&
-      %IsAccessCheckNeeded(changeRecord.object);
-
   if (ChangeObserversIsOptimized(objectInfo.changeObservers)) {
     var observer = objectInfo.changeObservers;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                            needsAccessCheck);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
     return;
   }
 
@@ -456,8 +450,7 @@ function ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord,
     var observer = objectInfo.changeObservers[priority];
     if (IS_NULL(observer))
       continue;
-    ObserverEnqueueIfActive(observer, objectInfo, changeRecord,
-                            needsAccessCheck);
+    ObserverEnqueueIfActive(observer, objectInfo, changeRecord);
   }
 }
 
@@ -558,8 +551,12 @@ function ObjectNotifierPerformChange(changeType, changeFn) {
 function ObjectGetNotifier(object) {
   if (!IS_SPEC_OBJECT(object))
     throw MakeTypeError("observe_non_object", ["getNotifier"]);
+  if (%IsJSGlobalProxy(object))
+    throw MakeTypeError("observe_global_proxy", ["getNotifier"]);
 
   if (ObjectIsFrozen(object)) return null;
+
+  if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 
   var objectInfo = ObjectInfoGetOrCreate(object);
   return ObjectInfoGetNotifier(objectInfo);
@@ -622,5 +619,4 @@ function SetupObjectObserve() {
   ));
 }
 
-// Disable Object.observe API for M35.
-// SetupObjectObserve();
+SetupObjectObserve();

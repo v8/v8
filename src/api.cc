@@ -3567,28 +3567,13 @@ Local<v8::Object> v8::Object::Clone() {
 }
 
 
-static i::Context* GetCreationContext(i::JSObject* object) {
-  i::Object* constructor = object->map()->constructor();
-  i::JSFunction* function;
-  if (!constructor->IsJSFunction()) {
-    // Functions have null as a constructor,
-    // but any JSFunction knows its context immediately.
-    ASSERT(object->IsJSFunction());
-    function = i::JSFunction::cast(object);
-  } else {
-    function = i::JSFunction::cast(constructor);
-  }
-  return function->context()->native_context();
-}
-
-
 Local<v8::Context> v8::Object::CreationContext() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate,
              "v8::Object::CreationContext()", return Local<v8::Context>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Context* context = GetCreationContext(*self);
+  i::Context* context = self->GetCreationContext();
   return Utils::ToLocal(i::Handle<i::Context>(context));
 }
 

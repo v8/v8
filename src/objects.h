@@ -2654,6 +2654,8 @@ class JSObject: public JSReceiver {
     static inline int SizeOf(Map* map, HeapObject* object);
   };
 
+  Context* GetCreationContext();
+
   // Enqueue change record for Object.observe. May cause GC.
   static void EnqueueChangeRecord(Handle<JSObject> object,
                                   const char* type,

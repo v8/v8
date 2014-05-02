@@ -14872,11 +14872,11 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
+RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsAccessCheckNeeded());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSGlobalProxy());
 }
 
 
@@ -14961,32 +14961,38 @@ RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsAccessAllowedForObserver) {
+static bool ContextsHaveSameOrigin(Handle<Context> context1,
+                                   Handle<Context> context2) {
+  return context1->security_token() == context2->security_token();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObserverObjectAndRecordHaveSameOrigin) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
-  RUNTIME_ASSERT(object->map()->is_access_check_needed());
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
-  SaveContext save(isolate);
-  isolate->set_context(observer->context());
-  if (!isolate->MayNamedAccess(
-          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-    return isolate->heap()->false_value();
-  }
-  bool access_allowed = false;
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index) ||
-      (key->IsString() && String::cast(*key)->AsArrayIndex(&index))) {
-    access_allowed =
-        isolate->MayIndexedAccess(object, index, v8::ACCESS_GET) &&
-        isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS);
-  } else {
-    access_allowed =
-        isolate->MayNamedAccess(object, key, v8::ACCESS_GET) &&
-        isolate->MayNamedAccess(object, key, v8::ACCESS_HAS);
-  }
-  return isolate->heap()->ToBoolean(access_allowed);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, record, 2);
+
+  Handle<Context> observer_context(observer->context()->native_context(),
+      isolate);
+  Handle<Context> object_context(object->GetCreationContext());
+  Handle<Context> record_context(record->GetCreationContext());
+
+  return isolate->heap()->ToBoolean(
+      ContextsHaveSameOrigin(object_context, observer_context) &&
+      ContextsHaveSameOrigin(object_context, record_context));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> creation_context(object->GetCreationContext(), isolate);
+  return isolate->heap()->ToBoolean(
+      ContextsHaveSameOrigin(creation_context, isolate->native_context()));
 }
 
 

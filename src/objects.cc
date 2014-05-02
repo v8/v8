@@ -1957,6 +1957,21 @@ MaybeHandle<Object> JSObject::AddProperty(
 }
 
 
+Context* JSObject::GetCreationContext() {
+  Object* constructor = this->map()->constructor();
+  JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // Functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    function = JSFunction::cast(this);
+  } else {
+    function = JSFunction::cast(constructor);
+  }
+
+  return function->context()->native_context();
+}
+
+
 void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    const char* type_str,
                                    Handle<Name> name,

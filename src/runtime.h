@@ -311,7 +311,8 @@ namespace internal {
   F(SetIsObserved, 1, 1) \
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
-  F(IsAccessAllowedForObserver, 3, 1) \
+  F(ObserverObjectAndRecordHaveSameOrigin, 3, 1) \
+  F(ObjectWasCreatedInCurrentOrigin, 1, 1) \
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
@@ -397,7 +398,7 @@ namespace internal {
   F(HasFastProperties, 1, 1) \
   F(TransitionElementsKind, 2, 1) \
   F(HaveSameMap, 2, 1) \
-  F(IsAccessCheckNeeded, 1, 1)
+  F(IsJSGlobalProxy, 1, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
