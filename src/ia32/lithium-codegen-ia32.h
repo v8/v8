@@ -174,8 +174,6 @@ class LCodeGen: public LCodeGenBase {
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
 
-  void Abort(BailoutReason reason);
-
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
   void SaveCallerDoubles();

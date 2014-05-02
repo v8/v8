@@ -66,12 +66,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
-  info()->set_bailout_reason(reason);
-  status_ = ABORTED;
-}
-
-
 void LCodeGen::SaveCallerDoubles() {
   ASSERT(info()->saves_caller_doubles());
   ASSERT(NeedsEagerFrame());
@@ -4075,7 +4069,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     return;
   }
 
-  Handle<Map> transition = instr->transition();
   SmiCheck check_needed =
       instr->hydrogen()->value()->IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
@@ -4093,15 +4086,17 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       check_needed = OMIT_SMI_CHECK;
     }
   } else if (representation.IsDouble()) {
-    ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
+    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     DwVfpRegister value = ToDoubleRegister(instr->value());
     __ vstr(value, FieldMemOperand(object, offset));
     return;
   }
 
-  if (!transition.is_null()) {
+  if (instr->hydrogen()->has_transition()) {
+    Handle<Map> transition = instr->hydrogen()->transition_map();
+    AddDeprecationDependency(transition);
     __ mov(scratch, Operand(transition));
     __ str(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     if (instr->hydrogen()->NeedsWriteBarrierForMap()) {

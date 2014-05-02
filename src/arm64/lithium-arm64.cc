@@ -360,12 +360,6 @@ void LChunkBuilder::Abort(BailoutReason reason) {
 }
 
 
-void LChunkBuilder::AddDeprecationDependency(Handle<Map> map) {
-  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
-  chunk_->AddDeprecationDependency(map);
-}
-
-
 LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
   return new(zone()) LUnallocated(LUnallocated::FIXED_REGISTER,
                                   Register::ToAllocationIndex(reg));
@@ -2254,11 +2248,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   } else {
     value = UseRegister(instr->value());
     temp0 = TempRegister();
-  }
-
-  // Add a deprecation dependency on the transition target map.
-  if (instr->has_transition()) {
-    AddDeprecationDependency(instr->transition_map());
   }
 
   LStoreNamedField* result =

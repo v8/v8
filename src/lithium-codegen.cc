@@ -210,4 +210,15 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 }
 
 
+void LCodeGenBase::Abort(BailoutReason reason) {
+  info()->set_bailout_reason(reason);
+  status_ = ABORTED;
+}
+
+
+void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
+  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
+  chunk_->AddDeprecationDependency(map);
+}
+
 } }  // namespace v8::internal

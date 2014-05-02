@@ -2502,7 +2502,6 @@ class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 2> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  Handle<Map> transition() const { return hydrogen()->transition_map(); }
   Representation representation() const {
     return hydrogen()->field_representation();
   }
@@ -2998,9 +2997,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   Heap* heap() const { return isolate()->heap(); }
 
   void Abort(BailoutReason reason);
-
-  // Methods for code dependencies.
-  void AddDeprecationDependency(Handle<Map> map);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);

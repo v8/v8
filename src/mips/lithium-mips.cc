@@ -428,15 +428,9 @@ LPlatformChunk* LChunkBuilder::Build() {
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
+void LChunkBuilder::Abort(BailoutReason reason) {
   info()->set_bailout_reason(reason);
   status_ = ABORTED;
-}
-
-
-void LChunkBuilder::AddDeprecationDependency(Handle<Map> map) {
-  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
-  chunk_->AddDeprecationDependency(map);
 }
 
 
@@ -2256,11 +2250,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   // We need a temporary register for write barrier of the map field.
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
-
-  // Add a deprecation dependency on the transition target map.
-  if (instr->has_transition()) {
-    AddDeprecationDependency(instr->transition_map());
-  }
 
   LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
   if (!instr->access().IsExternalMemory() &&

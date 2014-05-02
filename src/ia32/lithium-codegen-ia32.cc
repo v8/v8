@@ -89,12 +89,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 }
 
 
-void LCodeGen::Abort(BailoutReason reason) {
-  info()->set_bailout_reason(reason);
-  status_ = ABORTED;
-}
-
-
 #ifdef _MSC_VER
 void LCodeGen::MakeSureStackPagesMapped(int offset) {
   const int kPageSize = 4 * KB;
@@ -4405,6 +4399,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   if (instr->hydrogen()->has_transition()) {
     Handle<Map> transition = instr->hydrogen()->transition_map();
+    AddDeprecationDependency(transition);
     if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
       __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
     } else {
