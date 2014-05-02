@@ -5,6 +5,8 @@
 #ifndef V8_ZONE_ALLOCATOR_H_
 #define V8_ZONE_ALLOCATOR_H_
 
+#include <limits>
+
 #include "zone.h"
 
 namespace v8 {
@@ -34,16 +36,14 @@ class zone_allocator {
   pointer address(reference x) const {return &x;}
   const_pointer address(const_reference x) const {return &x;}
 
-  pointer allocate(size_type count, const void* hint = 0) {
-    size_t size = count * sizeof(value_type);
-    size = RoundUp(size, kPointerSize);
-    return static_cast<pointer>(zone_->New(size));
+  pointer allocate(size_type n, const void* hint = 0) {
+    return static_cast<pointer>(zone_->NewArray<value_type>(
+            static_cast<int>(n)));
   }
   void deallocate(pointer p, size_type) { /* noop for Zones */ }
 
   size_type max_size() const throw() {
-    size_type max = static_cast<size_type>(-1) / sizeof(T);
-    return (max > 0 ? max : 1);
+    return std::numeric_limits<int>::max() / sizeof(value_type);
   }
   void construct(pointer p, const T& val) {
     new(static_cast<void*>(p)) T(val);
