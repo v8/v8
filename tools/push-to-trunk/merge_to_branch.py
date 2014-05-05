@@ -41,7 +41,6 @@ CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
   ALREADY_MERGING_SENTINEL_FILE:
       "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  TEMP_BRANCH: "prepare-merge-temporary-branch-created-by-script",
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",

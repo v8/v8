@@ -53,7 +53,6 @@ TEST_CONFIG = {
   BRANCHNAME: "test-prepare-push",
   TRUNKBRANCH: "test-trunk-push",
   PERSISTFILE_BASENAME: "/tmp/test-v8-push-to-trunk-tempfile",
-  TEMP_BRANCH: "test-prepare-push-temporary-branch-created-by-script",
   DOT_GIT_LOCATION: None,
   VERSION_FILE: None,
   CHANGELOG_FILE: None,
@@ -435,10 +434,8 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("branch", ""),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
     self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
@@ -450,7 +447,7 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
     ])
     self.ExpectReadline([RL("n")])
     self.MakeStep().CommonPrepare()
@@ -462,8 +459,8 @@ class ScriptTest(unittest.TestCase):
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* %s" % TEST_CONFIG[TEMP_BRANCH]),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], None),
+      Git("branch", "  branch1\n* %s" % TEST_CONFIG[BRANCHNAME]),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], None),
     ])
     self.ExpectReadline([RL("Y")])
     self.MakeStep().CommonPrepare()
@@ -727,8 +724,6 @@ Performance and stability improvements on all platforms.""", commit)
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
       Git("branch", "  branch1\n* branch2\n"),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("branch", "  branch1\n* branch2\n"),
       Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s svn/bleeding_edge" % TEST_CONFIG[BRANCHNAME], ""),
       Git("svn find-rev r123455", "push_hash\n"),
@@ -761,7 +756,6 @@ Performance and stability improvements on all platforms.""", commit)
       Git("svn dcommit 2>&1", "Some output\nCommitted r123456\nSome output\n"),
       Git("svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
       Git("checkout -f some_branch", ""),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
       Git("branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""),
     ])
@@ -1063,8 +1057,6 @@ LOG=N
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
       Git("branch", "  branch1\n* branch2\n"),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
-      Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s svn/trunk" % TEST_CONFIG[BRANCHNAME], ""),
       Git("log --format=%H --grep=\"Port r12345\" --reverse svn/bleeding_edge",
           "hash1\nhash2"),
@@ -1126,7 +1118,6 @@ LOG=N
            "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
            "\"Tagging version 3.22.5.1\""), ""),
       Git("checkout -f some_branch", ""),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
 
@@ -1176,8 +1167,6 @@ LOG=N
       Git("status -s -uno", ""),
       Git("status -s -b -uno", "## some_branch\n"),
       Git("svn fetch", ""),
-      Git("branch", "  branch1\n* branch2\n"),
-      Git("checkout -b %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch", "  branch1\n* branch2\n"),
       Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], ""),
       Git("branch -r", "  svn/3.21\n  svn/3.3\n"),
@@ -1236,7 +1225,6 @@ LOG=N
       Git("checkout -f master", ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
       Git("checkout -f some_branch", ""),
-      Git("branch -D %s" % TEST_CONFIG[TEMP_BRANCH], ""),
       Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
     ])
 
