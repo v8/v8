@@ -1131,12 +1131,6 @@ class V8_EXPORT Message {
   Handle<Value> GetScriptResourceName() const;
 
   /**
-   * Returns the resource data for the script from where the function causing
-   * the error originates.
-   */
-  Handle<Value> GetScriptData() const;
-
-  /**
    * Exception stack trace. By default stack traces are not captured for
    * uncaught exceptions. SetCaptureStackTraceForUncaughtExceptions allows
    * to change this option.
