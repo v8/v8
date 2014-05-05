@@ -14,15 +14,14 @@ struct PreparseDataConstants {
  public:
   // Layout and constants of the preparse data exchange format.
   static const unsigned kMagicNumber = 0xBadDead;
-  static const unsigned kCurrentVersion = 8;
+  static const unsigned kCurrentVersion = 9;
 
   static const int kMagicOffset = 0;
   static const int kVersionOffset = 1;
   static const int kHasErrorOffset = 2;
   static const int kFunctionsSizeOffset = 3;
-  static const int kSymbolCountOffset = 4;
-  static const int kSizeOffset = 5;
-  static const int kHeaderSize = 6;
+  static const int kSizeOffset = 4;
+  static const int kHeaderSize = 5;
 
   // If encoding a message, the following positions are fixed.
   static const int kMessageStartPos = 0;
