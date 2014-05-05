@@ -1,7 +1,159 @@
-2014-04-15: Sentinel
+2014-05-05: Version 3.26.30
 
-        The ChangeLog file is no longer maintained on bleeding_edge. This
-        sentinel should stay on top of this list.
+        Introduce a microtask suppression scope and move microtask methods to
+        isolate (Chromium issue 369503).
+
+        Re-enable Object.observe and add enforcement for security invariants.
+
+        Move cache line size calculation directly into CPU::FlushICache
+        (Chromium issue 359977).
+
+        Generation of our home-grown memmove doesn't depend on serializer state
+        anymore (Chromium issue 359977).
+
+        Fix |RunMicrotasks()| leaking reference to the last context being run
+        on.
+
+        Object.defineProperty shouldn't be a hint that we're constructing a
+        dictionary (Chromium issue 362870).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-05-01: Version 3.26.29
+
+        Added a Isolate* parameter to Serializer::enabled() (Chromium issue
+        359977).
+
+        ES6: Add support for Array.prototype.fill() (issue 3273).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.28
+
+        PromiseThen should ignore non-function parameters (Chromium issue
+        347455).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-29: Version 3.26.27
+
+        Error stack getter should not overwrite itself with a data property
+        (issue 3294).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.26
+
+        Expose promise value through promise mirror (issue 3093).
+
+        Simplified CPU/CpuFeatures a bit (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-28: Version 3.26.25
+
+        Add timestamps to CPU profile samples (Chromium issue 363976).
+
+        Expose promise status through promise mirror (issue 3093).
+
+        Remove static CallCompletedCallback handlers.
+
+        Added an Isolate* field to NoTrackDoubleFieldsForSerializerScope,
+        PlatformFeatureScope and BinaryOpIC::State (Chromium issue 359977).
+
+        Trigger debug event on not yet caught exception in promises (issue
+        3093).
+
+        Unbreak vtunejit=on (issue 3288).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-25: Version 3.26.24
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 2)
+        (Chromium issue 359977).
+
+        MIPS: CodeStubs contain their corresponding Isolate* now. (part 1)
+        (Chromium issue 359977).
+
+        CodeStubs contain their corresponding Isolate* now. (part 2) (Chromium
+        issue 359977).
+
+        Make DescriptorArray::IsMoreGeneralThan() and DescriptorArray::Merge()
+        compatible again (Chromium issue 365172).
+
+        CodeStubs contain their corresponding Isolate* now. (part 1) (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-24: Version 3.26.23
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.22
+
+        Disable field type tracking by default (Chromium issue 365172).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-23: Version 3.26.21
+
+        Context-allocate all parameters in generators (issue 3280).
+
+        Simplify v8/Isolate teardown (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-21: Version 3.26.20
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-18: Version 3.26.19
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-17: Version 3.26.18
+
+        Removed Isolate::EnterDefaultIsolate (Chromium issue 359977).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.17
+
+        Clear invalid field maps in PropertyAccessInfo (Chromium issue 363956).
+
+        ES6: Add support for Map/Set forEach (Chromium issues 1793, 2323).
+
+        Performance and stability improvements on all platforms.
+
+
+2014-04-16: Version 3.26.16
+
+        Removed EnterIsolateIfNeeded and a soon-to-be-useless assertion
+        (Chromium issue 359977).
+
+        Removed GetDefaultIsolate{Debugger,ForLocking,StackGuard} (Chromium
+        issue 359977).
+
+        Performance and stability improvements on all platforms.
 
 
 2014-04-15: Version 3.26.15
