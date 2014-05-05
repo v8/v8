@@ -77,7 +77,7 @@
   # BUG(3287).
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [PASS, FLAKY],
   # BUG(3308).
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [PASS, FLAKY]
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.
