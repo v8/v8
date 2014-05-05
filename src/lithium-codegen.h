@@ -77,6 +77,7 @@ class LCodeGenBase BASE_EMBEDDED {
 
   // Methods for code dependencies.
   void AddDeprecationDependency(Handle<Map> map);
+  void AddStabilityDependency(Handle<Map> map);
 };
 
 

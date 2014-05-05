@@ -2115,9 +2115,11 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
     Register object_;
   };
 
-  if (instr->hydrogen()->CanOmitMapChecks()) {
-    ASSERT(instr->value() == NULL);
-    ASSERT(instr->temp() == NULL);
+  if (instr->hydrogen()->IsStabilityCheck()) {
+    const UniqueSet<Map>* maps = instr->hydrogen()->maps();
+    for (int i = 0; i < maps->size(); ++i) {
+      AddStabilityDependency(maps->at(i).handle());
+    }
     return;
   }
 
@@ -2127,7 +2129,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   __ Ldr(map_reg, FieldMemOperand(object, HeapObject::kMapOffset));
 
   DeferredCheckMaps* deferred = NULL;
-  if (instr->hydrogen()->has_migration_target()) {
+  if (instr->hydrogen()->HasMigrationTarget()) {
     deferred = new(zone()) DeferredCheckMaps(this, instr, object);
     __ Bind(deferred->check_maps());
   }
@@ -2143,7 +2145,7 @@ void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
   __ CompareMap(map_reg, map);
 
   // We didn't match a map.
-  if (instr->hydrogen()->has_migration_target()) {
+  if (instr->hydrogen()->HasMigrationTarget()) {
     __ B(ne, deferred->entry());
   } else {
     DeoptimizeIf(ne, instr->environment());

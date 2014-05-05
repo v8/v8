@@ -234,7 +234,8 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
       instructions_(32, graph->zone()),
       pointer_maps_(8, graph->zone()),
       inlined_closures_(1, graph->zone()),
-      deprecation_dependencies_(MapLess(), MapAllocator(graph->zone())) {
+      deprecation_dependencies_(MapLess(), MapAllocator(graph->zone())),
+      stability_dependencies_(MapLess(), MapAllocator(graph->zone())) {
 }
 
 
@@ -380,6 +381,14 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
     ASSERT(!map->is_deprecated());
     ASSERT(map->CanBeDeprecated());
     Map::AddDependentCode(map, DependentCode::kTransitionGroup, code);
+  }
+
+  for (MapSet::const_iterator it = stability_dependencies_.begin(),
+       iend = stability_dependencies_.end(); it != iend; ++it) {
+    Handle<Map> map = *it;
+    ASSERT(map->is_stable());
+    ASSERT(map->CanTransition());
+    Map::AddDependentCode(map, DependentCode::kPrototypeCheckGroup, code);
   }
 
   info_->CommitDependencies(code);

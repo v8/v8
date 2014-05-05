@@ -652,6 +652,13 @@ class LChunk : public ZoneObject {
     deprecation_dependencies_.insert(map);
   }
 
+  void AddStabilityDependency(Handle<Map> map) {
+    ASSERT(map->is_stable());
+    if (!map->CanTransition()) return;
+    ASSERT(!info_->IsStub());
+    stability_dependencies_.insert(map);
+  }
+
   Zone* zone() const { return info_->zone(); }
 
   Handle<Code> Codegen();
@@ -680,6 +687,7 @@ class LChunk : public ZoneObject {
   ZoneList<LPointerMap*> pointer_maps_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
   MapSet deprecation_dependencies_;
+  MapSet stability_dependencies_;
 };
 
 

@@ -2744,8 +2744,10 @@ class HLoadRoot V8_FINAL : public HTemplateInstruction<0> {
 class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
  public:
   static HCheckMaps* New(Zone* zone, HValue* context, HValue* value,
-                         Handle<Map> map, CompilationInfo* info,
-                         HValue* typecheck = NULL);
+                         Handle<Map> map, HValue* typecheck = NULL) {
+    return new(zone) HCheckMaps(value, new(zone) UniqueSet<Map>(
+            Unique<Map>::CreateImmovable(map), zone), typecheck);
+  }
   static HCheckMaps* New(Zone* zone, HValue* context,
                          HValue* value, SmallMapList* map_list,
                          HValue* typecheck = NULL) {
@@ -2756,7 +2758,14 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     return new(zone) HCheckMaps(value, maps, typecheck);
   }
 
-  bool CanOmitMapChecks() { return omit_; }
+  bool IsStabilityCheck() const { return is_stability_check_; }
+  void MarkAsStabilityCheck() {
+    has_migration_target_ = false;
+    is_stability_check_ = true;
+    ClearChangesFlag(kNewSpacePromotion);
+    ClearDependsOnFlag(kElementsKind);
+    ClearDependsOnFlag(kMaps);
+  }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
@@ -2770,9 +2779,11 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   const UniqueSet<Map>* maps() const { return maps_; }
   void set_maps(const UniqueSet<Map>* maps) { maps_ = maps; }
 
-  bool has_migration_target() const {
-    return has_migration_target_;
-  }
+  bool maps_are_stable() const { return maps_are_stable_; }
+
+  bool HasMigrationTarget() const { return has_migration_target_; }
+
+  virtual HValue* Canonicalize() V8_OVERRIDE;
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
@@ -2787,7 +2798,8 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   // Clients should use one of the static New* methods above.
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, HValue* typecheck)
       : HTemplateInstruction<2>(value->type()), maps_(maps),
-        omit_(false), has_migration_target_(false) {
+        has_migration_target_(false), is_stability_check_(false),
+        maps_are_stable_(true) {
     ASSERT_NE(0, maps->size());
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
@@ -2797,17 +2809,17 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     SetDependsOnFlag(kMaps);
     SetDependsOnFlag(kElementsKind);
     for (int i = 0; i < maps->size(); ++i) {
-      if (maps->at(i).handle()->is_migration_target()) {
-        SetChangesFlag(kNewSpacePromotion);
-        has_migration_target_ = true;
-        break;
-      }
+      Handle<Map> map = maps->at(i).handle();
+      if (map->is_migration_target()) has_migration_target_ = true;
+      if (!map->is_stable()) maps_are_stable_ = false;
     }
+    if (has_migration_target_) SetChangesFlag(kNewSpacePromotion);
   }
 
   const UniqueSet<Map>* maps_;
-  bool omit_ : 1;
   bool has_migration_target_ : 1;
+  bool is_stability_check_ : 1;
+  bool maps_are_stable_ : 1;
 };
 
 
@@ -3459,6 +3471,14 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
         is_not_in_new_space, false, false, kUnknownInstanceType));
   }
 
+  static HConstant* CreateAndInsertAfter(Zone* zone,
+                                         Unique<Map> unique,
+                                         HInstruction* instruction) {
+    return instruction->Append(new(zone) HConstant(
+            unique, Representation::Tagged(), HType::Tagged(),
+            true, false, false, MAP_TYPE));
+  }
+
   Handle<Object> handle(Isolate* isolate) {
     if (object_.handle().is_null()) {
       // Default arguments to is_not_in_new_space depend on this heap number
@@ -3469,12 +3489,6 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     AllowDeferredHandleDereference smi_check;
     ASSERT(has_int32_value_ || !object_.handle()->IsSmi());
     return object_.handle();
-  }
-
-  bool HasMap(Handle<Map> map) {
-    Handle<Object> constant_object = handle(map->GetIsolate());
-    return constant_object->IsHeapObject() &&
-        Handle<HeapObject>::cast(constant_object)->map() == *map;
   }
 
   bool IsSpecialDouble() const {
@@ -3560,6 +3574,16 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   bool BooleanValue() const { return boolean_value_; }
   bool IsUndetectable() const { return is_undetectable_; }
   InstanceType GetInstanceType() const { return instance_type_; }
+
+  bool HasObjectMap() const { return !object_map_.IsNull(); }
+  Unique<Map> ObjectMap() const {
+    ASSERT(HasObjectMap());
+    return object_map_;
+  }
+  bool ObjectMapIsStable() const {
+    ASSERT(HasObjectMap());
+    return object_map_is_stable_;
+  }
 
   virtual intptr_t Hashcode() V8_OVERRIDE {
     if (has_int32_value_) {
@@ -3652,6 +3676,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   // constant is non-numeric, object_ always points to a valid
   // constant HeapObject.
   Unique<Object> object_;
+
+  // If this is a heap object, this points to the Map of the object.
+  Unique<Map> object_map_;
+  bool object_map_is_stable_ : 1;
 
   // We store the HConstant in the most specific form safely possible.
   // The two flags, has_int32_value_ and has_double_value_ tell us if

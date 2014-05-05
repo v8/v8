@@ -1169,17 +1169,13 @@ LInstruction* LChunkBuilder::DoCheckInstanceType(HCheckInstanceType* instr) {
 
 
 LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
-  LOperand* value = NULL;
-  LOperand* temp = NULL;
-  if (!instr->CanOmitMapChecks()) {
-    value = UseRegisterAtStart(instr->value());
-    temp = TempRegister();
-    if (instr->has_migration_target()) info()->MarkAsDeferredCalling();
-  }
-  LInstruction* result = new(zone()) LCheckMaps(value, temp);
-  if (!instr->CanOmitMapChecks()) {
-    result = AssignEnvironment(result);
-    if (instr->has_migration_target()) result = AssignPointerMap(result);
+  if (instr->IsStabilityCheck()) return new(zone()) LCheckMaps;
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* temp = TempRegister();
+  LInstruction* result = AssignEnvironment(new(zone()) LCheckMaps(value, temp));
+  if (instr->HasMigrationTarget()) {
+    info()->MarkAsDeferredCalling();
+    result = AssignPointerMap(result);
   }
   return result;
 }

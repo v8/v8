@@ -1157,6 +1157,7 @@ template <class C> inline bool Is(Object* obj);
   V(kLookupVariableInCountOperation,                                          \
     "Lookup variable in count operation")                                     \
   V(kMapBecameDeprecated, "Map became deprecated")                            \
+  V(kMapBecameUnstable, "Map became unstable")                                \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                           \
   V(kModuleDeclaration, "Module declaration")                                 \
   V(kModuleLiteral, "Module literal")                                         \
