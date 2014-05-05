@@ -2461,9 +2461,6 @@ class JSObject: public JSReceiver {
   // map and the ElementsKind set.
   static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
                                               ElementsKind to_kind);
-  static Handle<Map> GetElementsTransitionMapSlow(Handle<JSObject> object,
-                                                  ElementsKind elements_kind);
-
   static void TransitionElementsKind(Handle<JSObject> object,
                                      ElementsKind to_kind);
 
@@ -6330,6 +6327,11 @@ class Map: public HeapObject {
       PropertyAttributes attributes,
       TransitionFlag flag);
 
+  // Returns a new map with all transitions dropped from the given map and
+  // the ElementsKind set.
+  static Handle<Map> TransitionElementsTo(Handle<Map> map,
+                                          ElementsKind to_kind);
+
   static Handle<Map> AsElementsKind(Handle<Map> map, ElementsKind kind);
 
   static Handle<Map> CopyAsElementsKind(Handle<Map> map,
@@ -6590,6 +6592,9 @@ class Map: public HeapObject {
   // This includes adding transitions to the leaf map or changing
   // the descriptor array.
   inline void NotifyLeafMapLayoutChange();
+
+  static Handle<Map> TransitionElementsToSlow(Handle<Map> object,
+                                              ElementsKind to_kind);
 
   // Zaps the contents of backing data structures. Note that the
   // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects

@@ -3430,19 +3430,18 @@ static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
 }
 
 
-Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
-                                               ElementsKind to_kind) {
-  Isolate* isolate = object->GetIsolate();
-  Handle<Map> current_map(object->map());
-  ElementsKind from_kind = current_map->elements_kind();
-  if (from_kind == to_kind) return current_map;
+Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
+                                      ElementsKind to_kind) {
+  ElementsKind from_kind = map->elements_kind();
+  if (from_kind == to_kind) return map;
 
+  Isolate* isolate = map->GetIsolate();
   Context* native_context = isolate->context()->native_context();
   Object* maybe_array_maps = native_context->js_array_maps();
   if (maybe_array_maps->IsFixedArray()) {
     DisallowHeapAllocation no_gc;
     FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
-    if (array_maps->get(from_kind) == *current_map) {
+    if (array_maps->get(from_kind) == *map) {
       Object* maybe_transitioned_map = array_maps->get(to_kind);
       if (maybe_transitioned_map->IsMap()) {
         return handle(Map::cast(maybe_transitioned_map));
@@ -3450,23 +3449,22 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
     }
   }
 
-  return GetElementsTransitionMapSlow(object, to_kind);
+  return TransitionElementsToSlow(map, to_kind);
 }
 
 
-Handle<Map> JSObject::GetElementsTransitionMapSlow(Handle<JSObject> object,
-                                                   ElementsKind to_kind) {
-  Handle<Map> start_map(object->map());
-  ElementsKind from_kind = start_map->elements_kind();
+Handle<Map> Map::TransitionElementsToSlow(Handle<Map> map,
+                                          ElementsKind to_kind) {
+  ElementsKind from_kind = map->elements_kind();
 
   if (from_kind == to_kind) {
-    return start_map;
+    return map;
   }
 
   bool allow_store_transition =
       // Only remember the map transition if there is not an already existing
       // non-matching element transition.
-      !start_map->IsUndefined() && !start_map->is_shared() &&
+      !map->IsUndefined() && !map->is_shared() &&
       IsTransitionElementsKind(from_kind);
 
   // Only store fast element maps in ascending generality.
@@ -3477,10 +3475,10 @@ Handle<Map> JSObject::GetElementsTransitionMapSlow(Handle<JSObject> object,
   }
 
   if (!allow_store_transition) {
-    return Map::CopyAsElementsKind(start_map, to_kind, OMIT_TRANSITION);
+    return Map::CopyAsElementsKind(map, to_kind, OMIT_TRANSITION);
   }
 
-  return Map::AsElementsKind(start_map, to_kind);
+  return Map::AsElementsKind(map, to_kind);
 }
 
 
@@ -3493,6 +3491,13 @@ Handle<Map> Map::AsElementsKind(Handle<Map> map, ElementsKind kind) {
   }
 
   return AddMissingElementsTransitions(closest_map, kind);
+}
+
+
+Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
+                                               ElementsKind to_kind) {
+  Handle<Map> map(object->map());
+  return Map::TransitionElementsTo(map, to_kind);
 }
 
 
@@ -17159,6 +17164,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   ASSERT(IsFixedTypedArrayElementsKind(map->elements_kind()));
 
+  Handle<Map> new_map = Map::TransitionElementsTo(
+          map,
+          FixedToExternalElementsKind(map->elements_kind()));
+
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
   Handle<FixedTypedArrayBase> fixed_typed_array(
       FixedTypedArrayBase::cast(typed_array->elements()));
@@ -17171,9 +17180,6 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
       isolate->factory()->NewExternalArray(
           fixed_typed_array->length(), typed_array->type(),
           static_cast<uint8_t*>(buffer->backing_store()));
-  Handle<Map> new_map = JSObject::GetElementsTransitionMap(
-          typed_array,
-          FixedToExternalElementsKind(map->elements_kind()));
 
   buffer->set_weak_first_view(*typed_array);
   ASSERT(typed_array->weak_next() == isolate->heap()->undefined_value());

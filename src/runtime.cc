@@ -10057,12 +10057,9 @@ class ArrayConcatVisitor {
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
-    Handle<Map> map;
-    if (fast_elements_) {
-      map = JSObject::GetElementsTransitionMap(array, FAST_HOLEY_ELEMENTS);
-    } else {
-      map = JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
-    }
+    Handle<Map> map = JSObject::GetElementsTransitionMap(
+        array,
+        fast_elements_ ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_map(*map);
     array->set_length(*length);
     array->set_elements(*storage_);
