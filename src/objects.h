@@ -7461,6 +7461,7 @@ class JSGeneratorObject: public JSObject {
   // cannot be resumed.
   inline int continuation();
   inline void set_continuation(int continuation);
+  inline bool is_suspended();
 
   // [operand_stack]: Saved operand stack.
   DECL_ACCESSORS(operand_stack, FixedArray)
