@@ -5420,9 +5420,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   }
 
   if (transition_to_field) {
-    HConstant* transition_constant = Add<HConstant>(info->transition());
-    instr->SetTransition(transition_constant, top_info());
-    instr->SetChangesFlag(kMaps);
+    Handle<Map> transition(info->transition());
+    ASSERT(!transition->is_deprecated());
+    instr->SetTransition(Add<HConstant>(transition));
   }
   return instr;
 }

@@ -72,6 +72,11 @@ class LCodeGenBase BASE_EMBEDDED {
   bool is_generating() const { return status_ == GENERATING; }
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
+
+  void Abort(BailoutReason reason);
+
+  // Methods for code dependencies.
+  void AddDeprecationDependency(Handle<Map> map);
 };
 
 

@@ -127,14 +127,6 @@
   # array buffer.
   'nans': [PASS, ['arch == mips', SKIP]],
 
-  # Object.observe is disabled.
-  'es6/promises': [SKIP],
-  'array-push7': [SKIP],
-  'harmony/microtask-delivery': [SKIP],
-  'es7/object-observe': [SKIP],
-  'harmony/regress/regress-observe-empty-double-array': [SKIP],
-  'regress/regress-356589': [SKIP],
-  'regress/regress-observe-map-cache': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

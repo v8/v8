@@ -3567,28 +3567,13 @@ Local<v8::Object> v8::Object::Clone() {
 }
 
 
-static i::Context* GetCreationContext(i::JSObject* object) {
-  i::Object* constructor = object->map()->constructor();
-  i::JSFunction* function;
-  if (!constructor->IsJSFunction()) {
-    // Functions have null as a constructor,
-    // but any JSFunction knows its context immediately.
-    ASSERT(object->IsJSFunction());
-    function = i::JSFunction::cast(object);
-  } else {
-    function = i::JSFunction::cast(constructor);
-  }
-  return function->context()->native_context();
-}
-
-
 Local<v8::Context> v8::Object::CreationContext() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate,
              "v8::Object::CreationContext()", return Local<v8::Context>());
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Context* context = GetCreationContext(*self);
+  i::Context* context = self->GetCreationContext();
   return Utils::ToLocal(i::Handle<i::Context>(context));
 }
 
@@ -6470,21 +6455,17 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 
 void V8::RunMicrotasks(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::HandleScope scope(i_isolate);
-  i::V8::RunMicrotasks(i_isolate);
+  isolate->RunMicrotasks();
 }
 
 
 void V8::EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  i::Execution::EnqueueMicrotask(i_isolate, Utils::OpenHandle(*microtask));
+  isolate->EnqueueMicrotask(microtask);
 }
 
 
 void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
-  reinterpret_cast<i::Isolate*>(isolate)->set_autorun_microtasks(autorun);
+  isolate->SetAutorunMicrotasks(autorun);
 }
 
 
@@ -6608,6 +6589,18 @@ Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
 }
 
 
+Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
+    Isolate* isolate)
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
+  isolate_->handle_scope_implementer()->IncrementCallDepth();
+}
+
+
+Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
+  isolate_->handle_scope_implementer()->DecrementCallDepth();
+}
+
+
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (!isolate->IsInitialized()) {
@@ -6644,6 +6637,25 @@ void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
 void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->RemoveCallCompletedCallback(callback);
+}
+
+
+void Isolate::RunMicrotasks() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::HandleScope scope(i_isolate);
+  i_isolate->RunMicrotasks();
+}
+
+
+void Isolate::EnqueueMicrotask(Handle<Function> microtask) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8(i_isolate);
+  i::Execution::EnqueueMicrotask(i_isolate, Utils::OpenHandle(*microtask));
+}
+
+
+void Isolate::SetAutorunMicrotasks(bool autorun) {
+  reinterpret_cast<i::Isolate*>(this)->set_autorun_microtasks(autorun);
 }
 
 

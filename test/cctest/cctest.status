@@ -30,6 +30,9 @@
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
 
+  # BUG(3303). Crashes on mac builds, known race condition.
+  'test-lockers/MultithreadedParallelIsolates': [SKIP],
+
   ##############################################################################
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
@@ -81,10 +84,6 @@
   'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
   'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
-
-  # Object.observe is disabled.
-  'test-object-observe/*': [SKIP],
-  'test-microtask-delivery/*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

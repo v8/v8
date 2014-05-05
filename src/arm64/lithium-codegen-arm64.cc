@@ -892,13 +892,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   if (code->is_optimized_code()) RegisterWeakObjectsInOptimizedCode(code);
   PopulateDeoptimizationData(code);
-  info()->CommitDependencies(code);
-}
-
-
-void LCodeGen::Abort(BailoutReason reason) {
-  info()->set_bailout_reason(reason);
-  status_ = ABORTED;
 }
 
 
@@ -5254,18 +5247,17 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
   Register object = ToRegister(instr->object());
   HObjectAccess access = instr->hydrogen()->access();
-  Handle<Map> transition = instr->transition();
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
-    ASSERT(transition.is_null());
+    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     __ Store(value, MemOperand(object, offset), representation);
     return;
   } else if (representation.IsDouble()) {
-    ASSERT(transition.is_null());
     ASSERT(access.IsInobject());
+    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     FPRegister value = ToDoubleRegister(instr->value());
     __ Str(value, FieldMemOperand(object, offset));
@@ -5288,7 +5280,9 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     check_needed = OMIT_SMI_CHECK;
   }
 
-  if (!transition.is_null()) {
+  if (instr->hydrogen()->has_transition()) {
+    Handle<Map> transition = instr->hydrogen()->transition_map();
+    AddDeprecationDependency(transition);
     // Store the new map value.
     Register new_map_value = ToRegister(instr->temp0());
     __ Mov(new_map_value, Operand(transition));

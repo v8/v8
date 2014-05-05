@@ -1,3 +1,25 @@
+2014-05-05: Version 3.26.30
+
+        Introduce a microtask suppression scope and move microtask methods to
+        isolate (Chromium issue 369503).
+
+        Re-enable Object.observe and add enforcement for security invariants.
+
+        Move cache line size calculation directly into CPU::FlushICache
+        (Chromium issue 359977).
+
+        Generation of our home-grown memmove doesn't depend on serializer state
+        anymore (Chromium issue 359977).
+
+        Fix |RunMicrotasks()| leaking reference to the last context being run
+        on.
+
+        Object.defineProperty shouldn't be a hint that we're constructing a
+        dictionary (Chromium issue 362870).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-01: Version 3.26.29
 
         Added a Isolate* parameter to Serializer::enabled() (Chromium issue

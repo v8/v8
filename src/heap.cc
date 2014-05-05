@@ -4986,6 +4986,17 @@ bool Heap::ConfigureHeap(int max_semispace_size,
                          intptr_t code_range_size) {
   if (HasBeenSetUp()) return false;
 
+  // If max space size flags are specified overwrite the configuration.
+  if (FLAG_max_new_space_size > 0) {
+    max_semispace_size = FLAG_max_new_space_size * kLumpOfMemory;
+  }
+  if (FLAG_max_old_space_size > 0) {
+    max_old_gen_size = FLAG_max_old_space_size * kLumpOfMemory;
+  }
+  if (FLAG_max_executable_size > 0) {
+    max_executable_size = FLAG_max_executable_size * kLumpOfMemory;
+  }
+
   if (FLAG_stress_compaction) {
     // This will cause more frequent GCs when stressing.
     max_semispace_size_ = Page::kPageSize;

@@ -1669,25 +1669,6 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-bool HCheckMaps::HandleSideEffectDominator(GVNFlag side_effect,
-                                           HValue* dominator) {
-  ASSERT(side_effect == kMaps);
-  // TODO(mstarzinger): For now we specialize on HStoreNamedField, but once
-  // type information is rich enough we should generalize this to any HType
-  // for which the map is known.
-  if (HasNoUses() && dominator->IsStoreNamedField()) {
-    HStoreNamedField* store = HStoreNamedField::cast(dominator);
-    if (!store->has_transition() || store->object() != value()) return false;
-    HConstant* transition = HConstant::cast(store->transition());
-    if (map_set_.Contains(Unique<Map>::cast(transition->GetUnique()))) {
-      DeleteAndReplaceWith(NULL);
-      return true;
-    }
-  }
-  return false;
-}
-
-
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" [%p", *map_set_.at(0).handle());

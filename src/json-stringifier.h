@@ -560,6 +560,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSArray(
       break;
     }
     case FAST_DOUBLE_ELEMENTS: {
+      // Empty array is FixedArray but not FixedDoubleArray.
+      if (length == 0) break;
       Handle<FixedDoubleArray> elements(
           FixedDoubleArray::cast(object->elements()), isolate_);
       for (uint32_t i = 0; i < length; i++) {

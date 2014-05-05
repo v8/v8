@@ -1957,6 +1957,21 @@ MaybeHandle<Object> JSObject::AddProperty(
 }
 
 
+Context* JSObject::GetCreationContext() {
+  Object* constructor = this->map()->constructor();
+  JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // Functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    function = JSFunction::cast(this);
+  } else {
+    function = JSFunction::cast(constructor);
+  }
+
+  return function->context()->native_context();
+}
+
+
 void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    const char* type_str,
                                    Handle<Name> name,
@@ -4306,7 +4321,8 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ValueType value_type,
     StoreMode mode,
-    ExtensibilityCheck extensibility_check) {
+    ExtensibilityCheck extensibility_check,
+    StoreFromKeyed store_from_keyed) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4347,7 +4363,7 @@ MaybeHandle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
     return AddProperty(object, name, value, attributes, SLOPPY,
-        MAY_BE_STORE_FROM_KEYED, extensibility_check, value_type, mode, flag);
+        store_from_keyed, extensibility_check, value_type, mode, flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
@@ -4658,48 +4674,30 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 }
 
 
-Handle<Map> NormalizedMapCache::Get(Handle<NormalizedMapCache> cache,
-                                    Handle<Map> fast_map,
-                                    PropertyNormalizationMode mode) {
-  int index = fast_map->Hash() % kEntries;
-  Handle<Object> result = handle(cache->get(index), cache->GetIsolate());
-  if (result->IsMap() &&
-      Handle<Map>::cast(result)->EquivalentToForNormalization(
-          *fast_map, mode)) {
-#ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      Handle<Map>::cast(result)->SharedMapVerify();
-    }
-#endif
-#ifdef ENABLE_SLOW_ASSERTS
-    if (FLAG_enable_slow_asserts) {
-      // The cached map should match newly created normalized map bit-by-bit,
-      // except for the code cache, which can contain some ics which can be
-      // applied to the shared map.
-      Handle<Map> fresh = Map::CopyNormalized(
-          fast_map, mode, SHARED_NORMALIZED_MAP);
+Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
+  Handle<FixedArray> array(
+      isolate->factory()->NewFixedArray(kEntries, TENURED));
+  return Handle<NormalizedMapCache>::cast(array);
+}
 
-      ASSERT(memcmp(fresh->address(),
-                    Handle<Map>::cast(result)->address(),
-                    Map::kCodeCacheOffset) == 0);
-      STATIC_ASSERT(Map::kDependentCodeOffset ==
-                    Map::kCodeCacheOffset + kPointerSize);
-      int offset = Map::kDependentCodeOffset + kPointerSize;
-      ASSERT(memcmp(fresh->address() + offset,
-                    Handle<Map>::cast(result)->address() + offset,
-                    Map::kSize - offset) == 0);
-    }
-#endif
-    return Handle<Map>::cast(result);
+
+MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
+                                         PropertyNormalizationMode mode) {
+  DisallowHeapAllocation no_gc;
+  Object* value = FixedArray::get(GetIndex(fast_map));
+  if (!value->IsMap() ||
+      !Map::cast(value)->EquivalentToForNormalization(*fast_map, mode)) {
+    return MaybeHandle<Map>();
   }
+  return handle(Map::cast(value));
+}
 
-  Isolate* isolate = cache->GetIsolate();
-  Handle<Map> map = Map::CopyNormalized(fast_map, mode, SHARED_NORMALIZED_MAP);
-  ASSERT(map->is_dictionary_map());
-  cache->set(index, *map);
-  isolate->counters()->normalized_maps()->Increment();
 
-  return map;
+void NormalizedMapCache::Set(Handle<Map> fast_map,
+                             Handle<Map> normalized_map) {
+  DisallowHeapAllocation no_gc;
+  ASSERT(normalized_map->is_dictionary_map());
+  FixedArray::set(GetIndex(fast_map), *normalized_map);
 }
 
 
@@ -4732,6 +4730,7 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Map> map(object->map());
+  Handle<Map> new_map = Map::Normalize(map, mode);
 
   // Allocate new content.
   int real_size = map->NumberOfOwnDescriptors();
@@ -4786,12 +4785,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   // Copy the next enumeration index from instance descriptor.
   dictionary->SetNextEnumerationIndex(real_size + 1);
 
-  Handle<NormalizedMapCache> cache(
-      isolate->context()->native_context()->normalized_map_cache());
-  Handle<Map> new_map = NormalizedMapCache::Get(
-      cache, handle(object->map()), mode);
-  ASSERT(new_map->is_dictionary_map());
-
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
 
@@ -4809,8 +4802,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
   object->synchronized_set_map(*new_map);
-
-  map->NotifyLeafMapLayoutChange();
 
   object->set_properties(*dictionary);
 
@@ -7235,6 +7226,50 @@ Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
   }
   result->set_bit_field3(new_bit_field3);
   return result;
+}
+
+
+Handle<Map> Map::Normalize(Handle<Map> fast_map,
+                           PropertyNormalizationMode mode) {
+  ASSERT(!fast_map->is_dictionary_map());
+
+  Isolate* isolate = fast_map->GetIsolate();
+  Handle<NormalizedMapCache> cache(
+      isolate->context()->native_context()->normalized_map_cache());
+
+  Handle<Map> new_map;
+  if (cache->Get(fast_map, mode).ToHandle(&new_map)) {
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      new_map->SharedMapVerify();
+    }
+#endif
+#ifdef ENABLE_SLOW_ASSERTS
+    if (FLAG_enable_slow_asserts) {
+      // The cached map should match newly created normalized map bit-by-bit,
+      // except for the code cache, which can contain some ics which can be
+      // applied to the shared map.
+      Handle<Map> fresh = Map::CopyNormalized(
+          fast_map, mode, SHARED_NORMALIZED_MAP);
+
+      ASSERT(memcmp(fresh->address(),
+                    new_map->address(),
+                    Map::kCodeCacheOffset) == 0);
+      STATIC_ASSERT(Map::kDependentCodeOffset ==
+                    Map::kCodeCacheOffset + kPointerSize);
+      int offset = Map::kDependentCodeOffset + kPointerSize;
+      ASSERT(memcmp(fresh->address() + offset,
+                    new_map->address() + offset,
+                    Map::kSize - offset) == 0);
+    }
+#endif
+  } else {
+    new_map = Map::CopyNormalized(fast_map, mode, SHARED_NORMALIZED_MAP);
+    cache->Set(fast_map, new_map);
+    isolate->counters()->normalized_maps()->Increment();
+  }
+  fast_map->NotifyLeafMapLayoutChange();
+  return new_map;
 }
 
 

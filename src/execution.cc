@@ -322,7 +322,7 @@ void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
   Handle<Object> args[] = { microtask };
   Execution::Call(
       isolate,
-      isolate->enqueue_external_microtask(),
+      isolate->enqueue_microtask(),
       isolate->factory()->undefined_value(),
       1,
       args).Check();

@@ -161,7 +161,6 @@ class LChunkBuilder;
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
-  V(Maps)                                      \
   V(NewSpacePromotion)
 
 #define GVN_UNTRACKED_FLAG_LIST(V)             \
@@ -177,6 +176,7 @@ class LChunkBuilder;
   V(ElementsPointer)                           \
   V(GlobalVars)                                \
   V(InobjectFields)                            \
+  V(Maps)                                      \
   V(OsrEntries)                                \
   V(ExternalMemory)                            \
   V(StringChars)                               \
@@ -2762,8 +2762,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
-  virtual bool HandleSideEffectDominator(GVNFlag side_effect,
-                                         HValue* dominator) V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   HValue* value() { return OperandAt(0); }
@@ -2813,7 +2811,6 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kTrackSideEffectDominators);
   }
 
   bool omit_;
@@ -6614,14 +6611,9 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     }
   }
 
-  void SetTransition(HConstant* map_constant, CompilationInfo* info) {
+  void SetTransition(HConstant* transition) {
     ASSERT(!has_transition());  // Only set once.
-    Handle<Map> map = Handle<Map>::cast(map_constant->handle(info->isolate()));
-    if (map->CanBeDeprecated()) {
-      Map::AddDependentCompilationInfo(
-          map, DependentCode::kTransitionGroup, info);
-    }
-    SetOperandAt(2, map_constant);
+    SetOperandAt(2, transition);
     has_transition_ = true;
   }
 

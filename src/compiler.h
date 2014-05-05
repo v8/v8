@@ -538,6 +538,8 @@ class OptimizedCompileJob: public ZoneObject {
   MUST_USE_RESULT Status AbortAndDisableOptimization(
       BailoutReason reason = kNoReason) {
     if (reason != kNoReason) info_->set_bailout_reason(reason);
+    // Reference to shared function info does not change between phases.
+    AllowDeferredHandleDereference allow_handle_dereference;
     info_->shared_info()->DisableOptimization(info_->bailout_reason());
     return SetLastStatus(BAILED_OUT);
   }

@@ -5290,7 +5290,9 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::ForceSetObjectProperty(js_object, name, obj_value, attr));
+      Runtime::ForceSetObjectProperty(
+          js_object, name, obj_value, attr,
+          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED));
   return *result;
 }
 
@@ -5402,10 +5404,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
-                                                    Handle<Object> key,
-                                                    Handle<Object> value,
-                                                    PropertyAttributes attr) {
+MaybeHandle<Object> Runtime::ForceSetObjectProperty(
+    Handle<JSObject> js_object,
+    Handle<Object> key,
+    Handle<Object> value,
+    PropertyAttributes attr,
+    JSReceiver::StoreFromKeyed store_from_keyed) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index;
@@ -5433,7 +5437,9 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetLocalPropertyIgnoreAttributes(
-          js_object, name, value, attr);
+          js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
+          ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+          store_from_keyed);
     }
   }
 
@@ -5447,8 +5453,10 @@ MaybeHandle<Object> Runtime::ForceSetObjectProperty(Handle<JSObject> js_object,
     return JSObject::SetElement(js_object, index, value, attr,
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
-    return JSObject::SetLocalPropertyIgnoreAttributes(js_object, name, value,
-                                                      attr);
+    return JSObject::SetLocalPropertyIgnoreAttributes(
+        js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
+        ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+        store_from_keyed);
   }
 }
 
@@ -10347,6 +10355,8 @@ static bool IterateElements(Isolate* isolate,
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
+      // Empty array is FixedArray but not FixedDoubleArray.
+      if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedDoubleArray> elements(
@@ -10551,8 +10561,8 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
           switch (array->map()->elements_kind()) {
             case FAST_HOLEY_DOUBLE_ELEMENTS:
             case FAST_DOUBLE_ELEMENTS: {
-              // Empty fixed array indicates that there are no elements.
-              if (array->elements()->IsFixedArray()) break;
+              // Empty array is FixedArray but not FixedDoubleArray.
+              if (length == 0) break;
               FixedDoubleArray* elements =
                   FixedDoubleArray::cast(array->elements());
               for (uint32_t i = 0; i < length; i++) {
@@ -14862,11 +14872,11 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsAccessCheckNeeded) {
+RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(HeapObject, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsAccessCheckNeeded());
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSGlobalProxy());
 }
 
 
@@ -14951,32 +14961,100 @@ RUNTIME_FUNCTION(Runtime_ObservationWeakMapCreate) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsAccessAllowedForObserver) {
+static bool ContextsHaveSameOrigin(Handle<Context> context1,
+                                   Handle<Context> context2) {
+  return context1->security_token() == context2->security_token();
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObserverObjectAndRecordHaveSameOrigin) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, observer, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
-  RUNTIME_ASSERT(object->map()->is_access_check_needed());
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
-  SaveContext save(isolate);
-  isolate->set_context(observer->context());
-  if (!isolate->MayNamedAccess(
-          object, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-    return isolate->heap()->false_value();
-  }
-  bool access_allowed = false;
-  uint32_t index = 0;
-  if (key->ToArrayIndex(&index) ||
-      (key->IsString() && String::cast(*key)->AsArrayIndex(&index))) {
-    access_allowed =
-        isolate->MayIndexedAccess(object, index, v8::ACCESS_GET) &&
-        isolate->MayIndexedAccess(object, index, v8::ACCESS_HAS);
-  } else {
-    access_allowed =
-        isolate->MayNamedAccess(object, key, v8::ACCESS_GET) &&
-        isolate->MayNamedAccess(object, key, v8::ACCESS_HAS);
-  }
-  return isolate->heap()->ToBoolean(access_allowed);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, record, 2);
+
+  Handle<Context> observer_context(observer->context()->native_context(),
+      isolate);
+  Handle<Context> object_context(object->GetCreationContext());
+  Handle<Context> record_context(record->GetCreationContext());
+
+  return isolate->heap()->ToBoolean(
+      ContextsHaveSameOrigin(object_context, observer_context) &&
+      ContextsHaveSameOrigin(object_context, record_context));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> creation_context(object->GetCreationContext(), isolate);
+  return isolate->heap()->ToBoolean(
+      ContextsHaveSameOrigin(creation_context, isolate->native_context()));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
+  RUNTIME_ASSERT(accept->IsUndefined() || accept->IsJSObject());
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_observe(), isolate);
+  Handle<Object> call_args[] = { object, callback, accept };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function,
+          handle(context->object_function(), isolate),
+          ARRAY_SIZE(call_args), call_args, true));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectGetNotifierInObjectContext) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_get_notifier(), isolate);
+  Handle<Object> call_args[] = { object };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function,
+          handle(context->object_function(), isolate),
+          ARRAY_SIZE(call_args), call_args, true));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectNotifierPerformChangeInObjectContext) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object_info, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, change_type, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, change_fn, 2);
+
+  Handle<Context> context(object_info->GetCreationContext(), isolate);
+  Handle<JSFunction> function(context->native_object_notifier_perform_change(),
+      isolate);
+  Handle<Object> call_args[] = { object_info, change_type, change_fn };
+  Handle<Object> result;
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
+                      ARRAY_SIZE(call_args), call_args, true));
+  return *result;
 }
 
 
