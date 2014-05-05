@@ -928,14 +928,8 @@ class Isolate {
 
   inline bool IsCodePreAgingActive();
 
-  Debugger* debugger() {
-    if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
-    return debugger_;
-  }
-  Debug* debug() {
-    if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
-    return debug_;
-  }
+  Debugger* debugger() {  return debugger_; }
+  Debug* debug() { return debug_; }
 
   inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
@@ -1181,8 +1175,6 @@ class Isolate {
   void FillCache();
 
   void PropagatePendingExceptionToExternalTryCatch();
-
-  void InitializeDebugger();
 
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.

@@ -39,10 +39,9 @@ Debug::Debug(Isolate* isolate)
       break_on_uncaught_exception_(false),
       promise_catch_handlers_(0),
       promise_getters_(0),
-      debug_break_return_(NULL),
-      debug_break_slot_(NULL),
       isolate_(isolate) {
   memset(registers_, 0, sizeof(JSCallerSavedBuffer));
+  ThreadInit();
 }
 
 
@@ -665,21 +664,6 @@ void ScriptCache::HandleWeakScript(
 }
 
 
-void Debug::SetUp(bool create_heap_objects) {
-  ThreadInit();
-  if (create_heap_objects) {
-    // Get code to handle debug break on return.
-    debug_break_return_ =
-        isolate_->builtins()->builtin(Builtins::kReturn_DebugBreak);
-    ASSERT(debug_break_return_->IsCode());
-    // Get code to handle debug break in debug break slots.
-    debug_break_slot_ =
-        isolate_->builtins()->builtin(Builtins::kSlot_DebugBreak);
-    ASSERT(debug_break_slot_->IsCode());
-  }
-}
-
-
 void Debug::HandleWeakDebugInfo(
     const v8::WeakCallbackData<v8::Value, void>& data) {
   Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
@@ -880,12 +864,6 @@ void Debug::Unload() {
 void Debug::PreemptionWhileInDebugger() {
   ASSERT(InDebugger());
   Debug::set_interrupts_pending(PREEMPT);
-}
-
-
-void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(BitCast<Object**>(&(debug_break_return_)));
-  v->VisitPointer(BitCast<Object**>(&(debug_break_slot_)));
 }
 
 

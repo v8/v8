@@ -31,7 +31,6 @@ bool Isolate::IsCodePreAgingActive() {
 
 
 bool Isolate::IsDebuggerActive() {
-  if (!NoBarrier_Load(&debugger_initialized_)) return false;
   return debugger()->IsDebuggerActive();
 }
 

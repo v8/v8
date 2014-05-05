@@ -1422,7 +1422,6 @@ Isolate::Isolate()
       compilation_cache_(NULL),
       counters_(NULL),
       code_range_(NULL),
-      debugger_initialized_(false),
       logger_(NULL),
       stats_table_(NULL),
       stub_cache_(NULL),
@@ -1483,9 +1482,6 @@ Isolate::Isolate()
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
 #endif
 
-  debug_ = NULL;
-  debugger_ = NULL;
-
   handle_scope_data_.Initialize();
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value)                        \
@@ -1497,6 +1493,10 @@ Isolate::Isolate()
   memset(name##_, 0, sizeof(type) * length);
   ISOLATE_INIT_ARRAY_LIST(ISOLATE_INIT_ARRAY_EXECUTE)
 #undef ISOLATE_INIT_ARRAY_EXECUTE
+
+  InitializeLoggingAndCounters();
+  debug_ = new Debug(this);
+  debugger_ = new Debugger(this);
 }
 
 
@@ -1764,16 +1764,6 @@ void Isolate::InitializeLoggingAndCounters() {
 }
 
 
-void Isolate::InitializeDebugger() {
-  LockGuard<RecursiveMutex> lock_guard(debugger_access());
-  if (NoBarrier_Load(&debugger_initialized_)) return;
-  InitializeLoggingAndCounters();
-  debug_ = new Debug(this);
-  debugger_ = new Debugger(this);
-  Release_Store(&debugger_initialized_, true);
-}
-
-
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
   TRACE_ISOLATE(init);
@@ -1796,10 +1786,6 @@ bool Isolate::Init(Deserializer* des) {
 
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure(this);
-
-  InitializeLoggingAndCounters();
-
-  InitializeDebugger();
 
   memory_allocator_ = new MemoryAllocator(this);
   code_range_ = new CodeRange(this);
@@ -1914,8 +1900,6 @@ bool Isolate::Init(Deserializer* des) {
       sweeper_thread_[i]->Start();
     }
   }
-
-  debug_->SetUp(create_heap_objects);
 
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
