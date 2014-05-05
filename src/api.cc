@@ -474,15 +474,15 @@ bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   int new_space_size = constraints->max_new_space_size();
-  int old_gen_size = constraints->max_old_space_size();
+  int old_space_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   int code_range_size = constraints->code_range_size();
-  if (new_space_size != 0 || old_gen_size != 0 || max_executable_size != 0 ||
+  if (new_space_size != 0 || old_space_size != 0 || max_executable_size != 0 ||
       code_range_size != 0) {
     // After initialization it's too late to change Heap constraints.
     ASSERT(!isolate->IsInitialized());
     bool result = isolate->heap()->ConfigureHeap(new_space_size / 2,
-                                                 old_gen_size,
+                                                 old_space_size,
                                                  max_executable_size,
                                                  code_range_size);
     if (!result) return false;
