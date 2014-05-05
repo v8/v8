@@ -57,8 +57,8 @@ class HLoadEliminationTable : public ZoneObject {
             result->type().Equals(instr->type()) &&
             result->representation().Equals(instr->representation()) &&
             (!result->IsLoadNamedField() ||
-             HLoadNamedField::cast(instr)->map_set()->IsSubset(
-                 HLoadNamedField::cast(result)->map_set()))) {
+             HLoadNamedField::cast(instr)->maps()->IsSubset(
+                 HLoadNamedField::cast(result)->maps()))) {
           // The load can be replaced with a previous load or a value.
           TRACE(("  replace L%d -> v%d\n", instr->id(), result->id()));
           instr->DeleteAndReplaceWith(result);

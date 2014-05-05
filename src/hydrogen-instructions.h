@@ -2747,13 +2747,13 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
                          Handle<Map> map, CompilationInfo* info,
                          HValue* typecheck = NULL);
   static HCheckMaps* New(Zone* zone, HValue* context,
-                         HValue* value, SmallMapList* maps,
+                         HValue* value, SmallMapList* map_list,
                          HValue* typecheck = NULL) {
-    HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-    for (int i = 0; i < maps->length(); i++) {
-      check_map->Add(maps->at(i), zone);
+    UniqueSet<Map>* maps = new(zone) UniqueSet<Map>(map_list->length(), zone);
+    for (int i = 0; i < map_list->length(); ++i) {
+      maps->Add(Unique<Map>::CreateImmovable(map_list->at(i)), zone);
     }
-    return check_map;
+    return new(zone) HCheckMaps(value, maps, typecheck);
   }
 
   bool CanOmitMapChecks() { return omit_; }
@@ -2767,15 +2767,8 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   HValue* value() { return OperandAt(0); }
   HValue* typecheck() { return OperandAt(1); }
 
-  Unique<Map> first_map() const { return map_set_.at(0); }
-  const UniqueSet<Map>* map_set() const { return &map_set_; }
-
-  void set_map_set(UniqueSet<Map>* maps, Zone *zone) {
-    map_set_.Clear();
-    for (int i = 0; i < maps->size(); i++) {
-      map_set_.Add(maps->at(i), zone);
-    }
-  }
+  const UniqueSet<Map>* maps() const { return maps_; }
+  void set_maps(const UniqueSet<Map>* maps) { maps_ = maps; }
 
   bool has_migration_target() const {
     return has_migration_target_;
@@ -2785,37 +2778,36 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    return this->map_set_.Equals(&HCheckMaps::cast(other)->map_set_);
+    return this->maps()->Equals(HCheckMaps::cast(other)->maps());
   }
 
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
-  void Add(Handle<Map> map, Zone* zone) {
-    map_set_.Add(Unique<Map>(map), zone);
+  // Clients should use one of the static New* methods above.
+  HCheckMaps(HValue* value, const UniqueSet<Map>* maps, HValue* typecheck)
+      : HTemplateInstruction<2>(value->type()), maps_(maps),
+        omit_(false), has_migration_target_(false) {
+    ASSERT_NE(0, maps->size());
+    SetOperandAt(0, value);
+    // Use the object value for the dependency if NULL is passed.
+    SetOperandAt(1, typecheck ? typecheck : value);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
     SetDependsOnFlag(kMaps);
     SetDependsOnFlag(kElementsKind);
-
-    if (!has_migration_target_ && map->is_migration_target()) {
-      has_migration_target_ = true;
-      SetChangesFlag(kNewSpacePromotion);
+    for (int i = 0; i < maps->size(); ++i) {
+      if (maps->at(i).handle()->is_migration_target()) {
+        SetChangesFlag(kNewSpacePromotion);
+        has_migration_target_ = true;
+        break;
+      }
     }
   }
 
-  // Clients should use one of the static New* methods above.
-  HCheckMaps(HValue* value, Zone *zone, HValue* typecheck)
-      : HTemplateInstruction<2>(value->type()),
-        omit_(false), has_migration_target_(false) {
-    SetOperandAt(0, value);
-    // Use the object value for the dependency if NULL is passed.
-    SetOperandAt(1, typecheck != NULL ? typecheck : value);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-  }
-
-  bool omit_;
-  bool has_migration_target_;
-  UniqueSet<Map> map_set_;
+  const UniqueSet<Map>* maps_;
+  bool omit_ : 1;
+  bool has_migration_target_ : 1;
 };
 
 
@@ -5830,6 +5822,10 @@ class HObjectAccess V8_FINAL {
     return portion() == kStringLengths;
   }
 
+  inline bool IsMap() const {
+    return portion() == kMaps;
+  }
+
   inline int offset() const {
     return OffsetField::decode(value_);
   }
@@ -6142,23 +6138,27 @@ class HObjectAccess V8_FINAL {
 
 class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*, HValue*,
-                                 HObjectAccess);
   static HLoadNamedField* New(Zone* zone, HValue* context,
                               HValue* object, HValue* dependency,
-                              HObjectAccess access, SmallMapList* maps,
+                              HObjectAccess access) {
+    return new(zone) HLoadNamedField(
+        object, dependency, access, new(zone) UniqueSet<Map>());
+  }
+  static HLoadNamedField* New(Zone* zone, HValue* context,
+                              HValue* object, HValue* dependency,
+                              HObjectAccess access, SmallMapList* map_list,
                               CompilationInfo* info) {
-    HLoadNamedField* load_named_field = HLoadNamedField::New(
-        zone, context, object, dependency, access);
-    for (int i = 0; i < maps->length(); ++i) {
-      Handle<Map> map(maps->at(i));
-      load_named_field->map_set_.Add(Unique<Map>(map), zone);
+    UniqueSet<Map>* maps = new(zone) UniqueSet<Map>(map_list->length(), zone);
+    for (int i = 0; i < map_list->length(); ++i) {
+      Handle<Map> map = map_list->at(i);
+      maps->Add(Unique<Map>::CreateImmovable(map), zone);
+      // TODO(bmeurer): Get rid of this shit!
       if (map->CanTransition()) {
         Map::AddDependentCompilationInfo(
             map, DependentCode::kPrototypeCheckGroup, info);
       }
     }
-    return load_named_field;
+    return new(zone) HLoadNamedField(object, dependency, access, maps);
   }
 
   HValue* object() { return OperandAt(0); }
@@ -6172,7 +6172,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
       return access_.representation();
   }
 
-  const UniqueSet<Map>* map_set() const { return &map_set_; }
+  const UniqueSet<Map>* maps() const { return maps_; }
 
   virtual bool HasEscapingOperandAt(int index) V8_OVERRIDE { return false; }
   virtual bool HasOutOfBoundsAccess(int size) V8_OVERRIDE {
@@ -6193,15 +6193,15 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
     HLoadNamedField* b = HLoadNamedField::cast(other);
-    return access_.Equals(b->access_) && this->map_set_.Equals(&b->map_set_);
+    return access_.Equals(b->access_) && this->maps()->Equals(b->maps());
   }
 
  private:
   HLoadNamedField(HValue* object,
                   HValue* dependency,
                   HObjectAccess access,
-                  Handle<Map> map = Handle<Map>::null())
-      : access_(access) {
+                  const UniqueSet<Map>* maps)
+      : access_(access), maps_(maps) {
     ASSERT(object != NULL);
     SetOperandAt(0, object);
     SetOperandAt(1, dependency != NULL ? dependency : object);
@@ -6235,7 +6235,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 
   HObjectAccess access_;
-  UniqueSet<Map> map_set_;
+  const UniqueSet<Map>* maps_;
 };
 
 

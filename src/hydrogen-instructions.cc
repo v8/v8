@@ -1671,9 +1671,9 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" [%p", *map_set_.at(0).handle());
-  for (int i = 1; i < map_set_.size(); ++i) {
-    stream->Add(",%p", *map_set_.at(i).handle());
+  stream->Add(" [%p", *maps()->at(0).handle());
+  for (int i = 1; i < maps()->size(); ++i) {
+    stream->Add(",%p", *maps()->at(i).handle());
   }
   stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
 }
@@ -3362,10 +3362,10 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
-  if (map_set_.size() != 0) {
-    stream->Add(" [%p", *map_set_.at(0).handle());
-    for (int i = 1; i < map_set_.size(); ++i) {
-      stream->Add(",%p", *map_set_.at(i).handle());
+  if (maps()->size() != 0) {
+    stream->Add(" [%p", *maps()->at(0).handle());
+    for (int i = 1; i < maps()->size(); ++i) {
+      stream->Add(",%p", *maps()->at(i).handle());
     }
     stream->Add("]");
   }
@@ -3383,8 +3383,9 @@ HCheckMaps* HCheckMaps::New(Zone* zone,
                             Handle<Map> map,
                             CompilationInfo* info,
                             HValue* typecheck) {
-  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-  check_map->Add(map, zone);
+  HCheckMaps* check_map = new(zone) HCheckMaps(value, new(zone) UniqueSet<Map>(
+          Unique<Map>::CreateImmovable(map), zone), typecheck);
+  // TODO(bmeurer): Get rid of this shit!
   if (map->CanOmitMapChecks() &&
       value->IsConstant() &&
       HConstant::cast(value)->HasMap(map)) {
