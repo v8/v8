@@ -4921,6 +4921,7 @@ ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
 ACCESSORS(GlobalObject, global_receiver, JSObject, kGlobalReceiverOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
+ACCESSORS(JSGlobalProxy, hash, Object, kHashOffset)
 
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)

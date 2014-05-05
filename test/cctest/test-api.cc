@@ -2748,6 +2748,25 @@ THREADED_TEST(IdentityHash) {
 }
 
 
+THREADED_TEST(GlobalProxyIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global_proxy = env->Global();
+  int hash1 = global_proxy->GetIdentityHash();
+  // Hash should be retained after being detached.
+  env->DetachGlobal();
+  int hash2 = global_proxy->GetIdentityHash();
+  CHECK_EQ(hash1, hash2);
+  {
+    // Re-attach global proxy to a new context, hash should stay the same.
+    LocalContext env2(NULL, Handle<ObjectTemplate>(), global_proxy);
+    int hash3 = global_proxy->GetIdentityHash();
+    CHECK_EQ(hash1, hash3);
+  }
+}
+
+
 THREADED_TEST(SymbolProperties) {
   i::FLAG_harmony_symbols = true;
 

@@ -769,16 +769,17 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
   // Return the global proxy.
 
+  Handle<JSGlobalProxy> global_proxy;
   if (global_object.location() != NULL) {
     ASSERT(global_object->IsJSGlobalProxy());
-    Handle<JSGlobalProxy> global_proxy =
-        Handle<JSGlobalProxy>::cast(global_object);
+    global_proxy = Handle<JSGlobalProxy>::cast(global_object);
     factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
-    return global_proxy;
   } else {
-    return Handle<JSGlobalProxy>::cast(
+    global_proxy = Handle<JSGlobalProxy>::cast(
         factory()->NewJSObject(global_proxy_function, TENURED));
+    global_proxy->set_hash(heap()->undefined_value());
   }
+  return global_proxy;
 }
 
 
