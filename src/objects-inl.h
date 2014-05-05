@@ -5711,6 +5711,11 @@ SMI_ACCESSORS(JSGeneratorObject, continuation, kContinuationOffset)
 ACCESSORS(JSGeneratorObject, operand_stack, FixedArray, kOperandStackOffset)
 SMI_ACCESSORS(JSGeneratorObject, stack_handler_index, kStackHandlerIndexOffset)
 
+bool JSGeneratorObject::is_suspended() {
+  ASSERT_LT(kGeneratorExecuting, kGeneratorClosed);
+  ASSERT_EQ(kGeneratorClosed, 0);
+  return continuation() > 0;
+}
 
 JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {
   ASSERT(obj->IsJSGeneratorObject());
