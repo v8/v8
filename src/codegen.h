@@ -97,6 +97,18 @@ UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 
 
+double modulo(double x, double y);
+
+// Custom implementation of math functions.
+double fast_exp(double input);
+double fast_sqrt(double input);
+#ifdef _WIN64
+void init_modulo_function();
+#endif
+void lazily_initialize_fast_exp();
+void init_fast_sqrt_function();
+
+
 class ElementsTransitionGenerator : public AllStatic {
  public:
   // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,

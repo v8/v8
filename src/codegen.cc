@@ -17,6 +17,65 @@
 namespace v8 {
 namespace internal {
 
+
+#if defined(_WIN64)
+typedef double (*ModuloFunction)(double, double);
+static ModuloFunction modulo_function = NULL;
+// Defined in codegen-x64.cc.
+ModuloFunction CreateModuloFunction();
+
+void init_modulo_function() {
+  modulo_function = CreateModuloFunction();
+}
+
+
+double modulo(double x, double y) {
+  // Note: here we rely on dependent reads being ordered. This is true
+  // on all architectures we currently support.
+  return (*modulo_function)(x, y);
+}
+#elif defined(_WIN32)
+
+double modulo(double x, double y) {
+  // Workaround MS fmod bugs. ECMA-262 says:
+  // dividend is finite and divisor is an infinity => result equals dividend
+  // dividend is a zero and divisor is nonzero finite => result equals dividend
+  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
+      !(x == 0 && (y != 0 && std::isfinite(y)))) {
+    x = fmod(x, y);
+  }
+  return x;
+}
+#else  // POSIX
+
+double modulo(double x, double y) {
+  return std::fmod(x, y);
+}
+#endif  // defined(_WIN64)
+
+
+#define UNARY_MATH_FUNCTION(name, generator)             \
+static UnaryMathFunction fast_##name##_function = NULL;  \
+void init_fast_##name##_function() {                     \
+  fast_##name##_function = generator;                    \
+}                                                        \
+double fast_##name(double x) {                           \
+  return (*fast_##name##_function)(x);                   \
+}
+
+UNARY_MATH_FUNCTION(exp, CreateExpFunction())
+UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
+
+#undef UNARY_MATH_FUNCTION
+
+
+void lazily_initialize_fast_exp() {
+  if (fast_exp_function == NULL) {
+    init_fast_exp_function();
+  }
+}
+
+
 #define __ ACCESS_MASM(masm_)
 
 #ifdef DEBUG
