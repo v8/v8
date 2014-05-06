@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-promises --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 var asyncAssertsExpected = 0;
 
@@ -391,6 +391,30 @@ function assertAsyncDone(iteration) {
   p3.then(
     assertUnreachable,
     function(x) { assertAsync(x === 5, "then/reject") }
+  )
+  deferred.reject(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var p1 = deferred.promise
+  var p2 = p1.then(1, 2)
+  p2.then(
+    function(x) { assertAsync(x === 5, "then/resolve-non-function") },
+    assertUnreachable
+  )
+  deferred.resolve(5)
+  assertAsyncRan()
+})();
+
+(function() {
+  var deferred = Promise.defer()
+  var p1 = deferred.promise
+  var p2 = p1.then(1, 2)
+  p2.then(
+    assertUnreachable,
+    function(x) { assertAsync(x === 5, "then/reject-non-function") }
   )
   deferred.reject(5)
   assertAsyncRan()
