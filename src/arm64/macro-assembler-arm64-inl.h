@@ -977,7 +977,6 @@ void MacroAssembler::Mrs(const Register& rt, SystemRegister sysreg) {
 
 void MacroAssembler::Msr(SystemRegister sysreg, const Register& rt) {
   ASSERT(allow_macro_instructions_);
-  ASSERT(!rt.IsZero());
   msr(sysreg, rt);
 }
 

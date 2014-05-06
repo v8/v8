@@ -2386,6 +2386,10 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
   }
 
   bool NeedsCanonicalization() {
+    if (hydrogen()->value()->IsAdd() || hydrogen()->value()->IsSub() ||
+        hydrogen()->value()->IsMul() || hydrogen()->value()->IsDiv()) {
+      return false;
+    }
     return this->hydrogen()->NeedsCanonicalization();
   }
   uint32_t additional_index() const { return this->hydrogen()->index_offset(); }

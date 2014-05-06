@@ -5174,11 +5174,8 @@ void LCodeGen::DoStoreKeyedFixedDouble(LStoreKeyedFixedDouble* instr) {
   }
 
   if (instr->NeedsCanonicalization()) {
-    DoubleRegister dbl_scratch = double_scratch();
-    __ Fmov(dbl_scratch,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-    __ Fmaxnm(dbl_scratch, dbl_scratch, value);
-    __ Str(dbl_scratch, FieldMemOperand(store_base, offset));
+    __ CanonicalizeNaN(double_scratch(), value);
+    __ Str(double_scratch(), FieldMemOperand(store_base, offset));
   } else {
     __ Str(value, FieldMemOperand(store_base, offset));
   }

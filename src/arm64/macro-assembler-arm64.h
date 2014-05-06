@@ -788,6 +788,13 @@ class MacroAssembler : public Assembler {
   // Root register.
   inline void InitializeRootRegister();
 
+  void AssertFPCRState(Register fpcr = NoReg);
+  void ConfigureFPCR();
+  void CanonicalizeNaN(const FPRegister& dst, const FPRegister& src);
+  void CanonicalizeNaN(const FPRegister& reg) {
+    CanonicalizeNaN(reg, reg);
+  }
+
   // Load an object from the root table.
   void LoadRoot(CPURegister destination,
                 Heap::RootListIndex index);
@@ -1533,7 +1540,6 @@ class MacroAssembler : public Assembler {
                                    Register elements_reg,
                                    Register scratch1,
                                    FPRegister fpscratch1,
-                                   FPRegister fpscratch2,
                                    Label* fail,
                                    int elements_offset = 0);
 
