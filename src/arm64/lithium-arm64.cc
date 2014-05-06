@@ -520,6 +520,19 @@ LUnallocated* LChunkBuilder::TempRegister() {
 }
 
 
+LUnallocated* LChunkBuilder::TempDoubleRegister() {
+  LUnallocated* operand =
+      new(zone()) LUnallocated(LUnallocated::MUST_HAVE_DOUBLE_REGISTER);
+  int vreg = allocator_->GetVirtualRegister();
+  if (!allocator_->AllocationOk()) {
+    Abort(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister);
+    vreg = 0;
+  }
+  operand->set_virtual_register(vreg);
+  return operand;
+}
+
+
 int LPlatformChunk::GetNextSpillIndex() {
   return spill_slot_count_++;
 }
@@ -1102,7 +1115,8 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         LOperand* value = UseRegister(val);
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 = instr->CanTruncateToInt32() ? NULL : FixedTemp(d24);
+        LOperand* temp2 = instr->CanTruncateToInt32()
+            ? NULL : TempDoubleRegister();
         LInstruction* result =
             DefineAsRegister(new(zone()) LTaggedToI(value, temp1, temp2));
         if (!val->representation().IsSmi()) result = AssignEnvironment(result);
@@ -1219,7 +1233,7 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     return AssignEnvironment(
         DefineAsRegister(new(zone()) LClampTToUint8(reg,
                                                     TempRegister(),
-                                                    FixedTemp(d24))));
+                                                    TempDoubleRegister())));
   }
 }
 
@@ -2562,8 +2576,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       ASSERT(instr->representation().IsDouble());
       ASSERT(instr->value()->representation().IsDouble());
       LOperand* input = UseRegister(instr->value());
-      // TODO(all): Implement TempFPRegister.
-      LOperand* double_temp1 = FixedTemp(d24);   // This was chosen arbitrarily.
+      LOperand* double_temp1 = TempDoubleRegister();
       LOperand* temp1 = TempRegister();
       LOperand* temp2 = TempRegister();
       LOperand* temp3 = TempRegister();
@@ -2600,7 +2613,8 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       ASSERT(instr->value()->representation().IsDouble());
       LOperand* input = UseRegister(instr->value());
       if (instr->representation().IsInteger32()) {
-        LMathRoundI* result = new(zone()) LMathRoundI(input, FixedTemp(d24));
+        LOperand* temp = TempDoubleRegister();
+        LMathRoundI* result = new(zone()) LMathRoundI(input, temp);
         return AssignEnvironment(DefineAsRegister(result));
       } else {
         ASSERT(instr->representation().IsDouble());

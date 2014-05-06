@@ -62,6 +62,9 @@ void LOperand::PrintTo(StringStream* stream) {
         case LUnallocated::MUST_HAVE_REGISTER:
           stream->Add("(R)");
           break;
+        case LUnallocated::MUST_HAVE_DOUBLE_REGISTER:
+          stream->Add("(D)");
+          break;
         case LUnallocated::WRITABLE_REGISTER:
           stream->Add("(WR)");
           break;

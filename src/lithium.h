@@ -81,6 +81,7 @@ class LUnallocated : public LOperand {
     FIXED_REGISTER,
     FIXED_DOUBLE_REGISTER,
     MUST_HAVE_REGISTER,
+    MUST_HAVE_DOUBLE_REGISTER,
     WRITABLE_REGISTER,
     SAME_AS_FIRST_INPUT
   };
@@ -189,6 +190,10 @@ class LUnallocated : public LOperand {
     return basic_policy() == EXTENDED_POLICY && (
         extended_policy() == WRITABLE_REGISTER ||
         extended_policy() == MUST_HAVE_REGISTER);
+  }
+  bool HasDoubleRegisterPolicy() const {
+    return basic_policy() == EXTENDED_POLICY &&
+        extended_policy() == MUST_HAVE_DOUBLE_REGISTER;
   }
   bool HasSameAsInputPolicy() const {
     return basic_policy() == EXTENDED_POLICY &&

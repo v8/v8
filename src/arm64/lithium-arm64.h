@@ -3089,6 +3089,9 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
 
+  // Temporary operand that must be in a double register.
+  MUST_USE_RESULT LUnallocated* TempDoubleRegister();
+
   // Temporary operand that must be in a fixed double register.
   MUST_USE_RESULT LOperand* FixedTemp(DoubleRegister reg);
 
