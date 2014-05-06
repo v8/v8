@@ -655,6 +655,10 @@ class HValue : public ZoneObject {
     HYDROGEN_ABSTRACT_INSTRUCTION_LIST(DECLARE_PREDICATE)
   #undef DECLARE_PREDICATE
 
+  bool IsBitwiseBinaryShift() {
+    return IsShl() || IsShr() || IsSar();
+  }
+
   HValue(HType type = HType::Tagged())
       : block_(NULL),
         id_(kNoNumber),

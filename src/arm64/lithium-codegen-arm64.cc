@@ -1276,6 +1276,21 @@ Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
 }
 
 
+template<class LI>
+Operand LCodeGen::ToShiftedRightOperand32(LOperand* right, LI* shift_info,
+                                          IntegerSignedness signedness) {
+  if (shift_info->shift() == NO_SHIFT) {
+    return (signedness == SIGNED_INT32) ? ToOperand32I(right)
+                                        : ToOperand32U(right);
+  } else {
+    return Operand(
+        ToRegister32(right),
+        shift_info->shift(),
+        JSShiftAmountFromLConstant(shift_info->shift_amount()));
+  }
+}
+
+
 bool LCodeGen::IsSmi(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsSmi();
 }
@@ -1472,7 +1487,8 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32I(instr->right());
+  Operand right = ToShiftedRightOperand32I(instr->right(), instr);
+
   if (can_overflow) {
     __ Adds(result, left, right);
     DeoptimizeIf(vs, instr->environment());
@@ -1750,7 +1766,7 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
 void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32U(instr->right());
+  Operand right = ToShiftedRightOperand32U(instr->right(), instr);
 
   switch (instr->op()) {
     case Token::BIT_AND: __ And(result, left, right); break;
@@ -4827,7 +4843,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     }
   } else {
     ASSERT(right_op->IsConstantOperand());
-    int shift_count = ToInteger32(LConstantOperand::cast(right_op)) & 0x1f;
+    int shift_count = JSShiftAmountFromLConstant(right_op);
     if (shift_count == 0) {
       if ((instr->op() == Token::SHR) && instr->can_deopt()) {
         DeoptimizeIfNegative(left, instr->environment());
@@ -4890,7 +4906,7 @@ void LCodeGen::DoShiftS(LShiftS* instr) {
     }
   } else {
     ASSERT(right_op->IsConstantOperand());
-    int shift_count = ToInteger32(LConstantOperand::cast(right_op)) & 0x1f;
+    int shift_count = JSShiftAmountFromLConstant(right_op);
     if (shift_count == 0) {
       if ((instr->op() == Token::SHR) && instr->can_deopt()) {
         DeoptimizeIfNegative(left, instr->environment());
@@ -5483,7 +5499,8 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   Register result = ToRegister32(instr->result());
   Register left = ToRegister32(instr->left());
-  Operand right = ToOperand32I(instr->right());
+  Operand right = ToShiftedRightOperand32I(instr->right(), instr);
+
   if (can_overflow) {
     __ Subs(result, left, right);
     DeoptimizeIf(vs, instr->environment());

@@ -1748,6 +1748,13 @@ class Assembler : public AssemblerBase {
   inline static Instr ImmCondCmp(unsigned imm);
   inline static Instr Nzcv(StatusFlags nzcv);
 
+  static bool IsImmAddSub(int64_t immediate);
+  static bool IsImmLogical(uint64_t value,
+                           unsigned width,
+                           unsigned* n,
+                           unsigned* imm_s,
+                           unsigned* imm_r);
+
   // MemOperand offset encoding.
   inline static Instr ImmLSUnsigned(int imm12);
   inline static Instr ImmLS(int imm9);
@@ -1861,11 +1868,6 @@ class Assembler : public AssemblerBase {
                         unsigned imm_s,
                         unsigned imm_r,
                         LogicalOp op);
-  static bool IsImmLogical(uint64_t value,
-                           unsigned width,
-                           unsigned* n,
-                           unsigned* imm_s,
-                           unsigned* imm_r);
 
   void ConditionalCompare(const Register& rn,
                           const Operand& operand,
@@ -1896,7 +1898,6 @@ class Assembler : public AssemblerBase {
               const Operand& operand,
               FlagsUpdate S,
               AddSubOp op);
-  static bool IsImmAddSub(int64_t immediate);
 
   static bool IsImmFP32(float imm);
   static bool IsImmFP64(double imm);

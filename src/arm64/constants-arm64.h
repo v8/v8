@@ -89,6 +89,8 @@ const unsigned kZeroRegCode = 31;
 const unsigned kJSSPCode = 28;
 const unsigned kSPRegInternalCode = 63;
 const unsigned kRegCodeMask = 0x1f;
+const unsigned kShiftAmountWRegMask = 0x1f;
+const unsigned kShiftAmountXRegMask = 0x3f;
 // Standard machine types defined by AAPCS64.
 const unsigned kByteSize = 8;
 const unsigned kByteSizeInBytes = kByteSize >> 3;
