@@ -854,8 +854,10 @@ FunctionLiteral* Parser::ParseProgram() {
     PrintF(" - took %0.3f ms]\n", ms);
   }
   if (cached_data_mode_ == PRODUCE_CACHED_DATA) {
-    Vector<unsigned> store = recorder.ExtractData();
-    *cached_data_ = new ScriptData(store);
+    if (result != NULL) {
+      Vector<unsigned> store = recorder.ExtractData();
+      *cached_data_ = new ScriptData(store);
+    }
     log_ = NULL;
   }
   return result;
