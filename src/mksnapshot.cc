@@ -393,6 +393,10 @@ int main(int argc, char** argv) {
 
   isolate->Exit();
   isolate->Dispose();
-  V8::Dispose();
+  // TODO(svenpanne) Alas, we can't cleanly dispose V8 here, because
+  // Serializer::code_address_map_ is static (a.k.a. a global variable), and
+  // disposing that would involve accessing the Isolate just disposed.
+  // code_address_map_ really has to be an instance variable...
+  // V8::Dispose();
   return 0;
 }

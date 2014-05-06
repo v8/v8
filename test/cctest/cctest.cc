@@ -152,6 +152,7 @@ int main(int argc, char* argv[]) {
   i::TraceExtension trace_extension;
   v8::RegisterExtension(&trace_extension);
 
+  v8::V8::Initialize();
   int tests_run = 0;
   bool print_run_count = true;
   for (int i = 1; i < argc; i++) {
