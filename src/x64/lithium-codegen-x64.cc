@@ -1692,6 +1692,7 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> object = instr->value(isolate());
+  AllowDeferredHandleDereference smi_check;
   if (instr->hydrogen()->HasObjectMap()) {
     Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
     CHECK(object->IsHeapObject());
