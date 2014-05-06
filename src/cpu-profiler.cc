@@ -418,30 +418,32 @@ void CpuProfiler::StartProfiling(String* title, bool record_samples) {
 
 
 void CpuProfiler::StartProcessorIfNotStarted() {
-  if (processor_ == NULL) {
-    Logger* logger = isolate_->logger();
-    // Disable logging when using the new implementation.
-    saved_is_logging_ = logger->is_logging_;
-    logger->is_logging_ = false;
-    generator_ = new ProfileGenerator(profiles_);
-    Sampler* sampler = logger->sampler();
-    processor_ = new ProfilerEventsProcessor(
-        generator_, sampler, sampling_interval_);
-    is_profiling_ = true;
-    // Enumerate stuff we already have in the heap.
-    ASSERT(isolate_->heap()->HasBeenSetUp());
-    if (!FLAG_prof_browser_mode) {
-      logger->LogCodeObjects();
-    }
-    logger->LogCompiledFunctions();
-    logger->LogAccessorCallbacks();
-    LogBuiltins();
-    // Enable stack sampling.
-    sampler->SetHasProcessingThread(true);
-    sampler->IncreaseProfilingDepth();
+  if (processor_ != NULL) {
     processor_->AddCurrentStack(isolate_);
-    processor_->StartSynchronously();
+    return;
   }
+  Logger* logger = isolate_->logger();
+  // Disable logging when using the new implementation.
+  saved_is_logging_ = logger->is_logging_;
+  logger->is_logging_ = false;
+  generator_ = new ProfileGenerator(profiles_);
+  Sampler* sampler = logger->sampler();
+  processor_ = new ProfilerEventsProcessor(
+      generator_, sampler, sampling_interval_);
+  is_profiling_ = true;
+  // Enumerate stuff we already have in the heap.
+  ASSERT(isolate_->heap()->HasBeenSetUp());
+  if (!FLAG_prof_browser_mode) {
+    logger->LogCodeObjects();
+  }
+  logger->LogCompiledFunctions();
+  logger->LogAccessorCallbacks();
+  LogBuiltins();
+  // Enable stack sampling.
+  sampler->SetHasProcessingThread(true);
+  sampler->IncreaseProfilingDepth();
+  processor_->AddCurrentStack(isolate_);
+  processor_->StartSynchronously();
 }
 
 
