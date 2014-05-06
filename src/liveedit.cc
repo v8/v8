@@ -1682,6 +1682,11 @@ static const char* DropFrames(Vector<StackFrame*> frames,
 }
 
 
+static bool IsDropableFrame(StackFrame* frame) {
+  return !frame->is_exit();
+}
+
+
 // Describes a set of call frames that execute any of listed functions.
 // Finding no such frames does not mean error.
 class MultipleFunctionTarget {
@@ -1735,20 +1740,12 @@ static const char* DropActivationsInActiveThreadImpl(
 
   bool target_frame_found = false;
   int bottom_js_frame_index = top_frame_index;
-  bool non_droppable_frame_found = false;
-  LiveEdit::FunctionPatchabilityStatus non_droppable_reason;
+  bool c_code_found = false;
 
   for (; frame_index < frames.length(); frame_index++) {
     StackFrame* frame = frames[frame_index];
-    if (frame->is_exit()) {
-      non_droppable_frame_found = true;
-      non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE;
-      break;
-    }
-    if (!frame->is_java_script()) continue;
-    if (JavaScriptFrame::cast(frame)->function()->shared()->is_generator()) {
-      non_droppable_frame_found = true;
-      non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR;
+    if (!IsDropableFrame(frame)) {
+      c_code_found = true;
       break;
     }
     if (target.MatchActivation(
@@ -1758,15 +1755,15 @@ static const char* DropActivationsInActiveThreadImpl(
     }
   }
 
-  if (non_droppable_frame_found) {
-    // There is a C or generator frame on stack.  We can't drop C frames, and we
-    // can't restart generators.  Check that there are no target frames below
-    // them.
+  if (c_code_found) {
+    // There is a C frames on stack. Check that there are no target frames
+    // below them.
     for (; frame_index < frames.length(); frame_index++) {
       StackFrame* frame = frames[frame_index];
       if (frame->is_java_script()) {
-        if (target.MatchActivation(frame, non_droppable_reason)) {
-          // Fail.
+        if (target.MatchActivation(
+                frame, LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE)) {
+          // Cannot drop frame under C frames.
           return NULL;
         }
       }
@@ -1836,47 +1833,6 @@ static const char* DropActivationsInActiveThread(
 }
 
 
-bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
-                                    Handle<FixedArray> result,
-                                    int len) {
-  Isolate* isolate = shared_info_array->GetIsolate();
-  Heap* heap = isolate->heap();
-  heap->EnsureHeapIsIterable();
-  bool found_suspended_activations = false;
-
-  ASSERT_LE(len, result->length());
-
-  DisallowHeapAllocation no_allocation;
-
-  FunctionPatchabilityStatus active = FUNCTION_BLOCKED_ACTIVE_GENERATOR;
-
-  HeapIterator iterator(heap);
-  HeapObject* obj = NULL;
-  while ((obj = iterator.next()) != NULL) {
-    if (!obj->IsJSGeneratorObject()) continue;
-
-    JSGeneratorObject* gen = JSGeneratorObject::cast(obj);
-    if (gen->is_closed()) continue;
-
-    HandleScope scope(isolate);
-
-    for (int i = 0; i < len; i++) {
-      Handle<JSValue> jsvalue =
-          Handle<JSValue>::cast(FixedArray::get(shared_info_array, i));
-      Handle<SharedFunctionInfo> shared =
-          UnwrapSharedFunctionInfoFromJSValue(jsvalue);
-
-      if (gen->function()->shared() == *shared) {
-        result->set(i, Smi::FromInt(active));
-        found_suspended_activations = true;
-      }
-    }
-  }
-
-  return found_suspended_activations;
-}
-
-
 class InactiveThreadActivationsChecker : public ThreadVisitor {
  public:
   InactiveThreadActivationsChecker(Handle<JSArray> shared_info_array,
@@ -1907,29 +1863,18 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
 
-  CHECK(shared_info_array->HasFastElements());
-  Handle<FixedArray> shared_info_array_elements(
-      FixedArray::cast(shared_info_array->elements()));
-
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
-  Handle<FixedArray> result_elements =
-      JSObject::EnsureWritableFastElements(result);
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {
-    FunctionPatchabilityStatus status = FUNCTION_AVAILABLE_FOR_PATCH;
-    result_elements->set(i, Smi::FromInt(status));
+    SetElementSloppy(
+        result,
+        i,
+        Handle<Smi>(Smi::FromInt(FUNCTION_AVAILABLE_FOR_PATCH), isolate));
   }
 
-  // Scan the heap for active generators -- those that are either currently
-  // running (as we wouldn't want to restart them, because we don't know where
-  // to restart them from) or suspended.  Fail if any one corresponds to the set
-  // of functions being edited.
-  if (FindActiveGenerators(shared_info_array_elements, result_elements, len)) {
-    return result;
-  }
 
-  // Check inactive threads. Fail if some functions are blocked there.
+  // First check inactive threads. Fail if some functions are blocked there.
   InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
                                                             result);
   isolate->thread_manager()->IterateArchivedThreads(
@@ -1991,9 +1936,6 @@ const char* LiveEdit::RestartFrame(JavaScriptFrame* frame) {
   }
   if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE) {
     return "Function is blocked under native code";
-  }
-  if (target.saved_status() == LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR) {
-    return "Function is blocked under a generator activation";
   }
   return NULL;
 }

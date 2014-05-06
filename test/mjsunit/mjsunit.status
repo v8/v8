@@ -183,7 +183,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # BUG(v8:3147). It works on other architectures by accident.
   'regress/regress-conditional-position': [FAIL],
@@ -280,7 +279,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
@@ -332,7 +330,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
@@ -353,7 +350,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # This test dumps core for arm.debug, so no reason to expect it to work
   # for NaCl. The other three fuzz-natives tests seem to run fine.

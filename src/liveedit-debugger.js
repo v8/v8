@@ -946,9 +946,7 @@ Debug.LiveEdit = new function() {
       BLOCKED_ON_ACTIVE_STACK: 2,
       BLOCKED_ON_OTHER_STACK: 3,
       BLOCKED_UNDER_NATIVE_CODE: 4,
-      REPLACED_ON_ACTIVE_STACK: 5,
-      BLOCKED_UNDER_GENERATOR: 6,
-      BLOCKED_ACTIVE_GENERATOR: 7
+      REPLACED_ON_ACTIVE_STACK: 5
   };
 
   FunctionPatchabilityStatus.SymbolName = function(code) {
