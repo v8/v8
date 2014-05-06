@@ -865,7 +865,7 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
 
   // Set a0 to point to the head of the PlatformCodeAge sequence.
   __ Subu(a0, a0,
-      Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
+      Operand(kNoCodeAgeSequenceLength - Assembler::kInstrSize));
 
   // The following registers must be saved and restored when calling through to
   // the runtime:
@@ -904,7 +904,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
 
   // Set a0 to point to the head of the PlatformCodeAge sequence.
   __ Subu(a0, a0,
-      Operand((kNoCodeAgeSequenceLength - 1) * Assembler::kInstrSize));
+      Operand(kNoCodeAgeSequenceLength - Assembler::kInstrSize));
 
   // The following registers must be saved and restored when calling through to
   // the runtime:
@@ -926,7 +926,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
   // Jump to point after the code-age stub.
-  __ Addu(a0, a0, Operand((kNoCodeAgeSequenceLength) * Assembler::kInstrSize));
+  __ Addu(a0, a0, Operand(kNoCodeAgeSequenceLength));
   __ Jump(a0);
 }
 
