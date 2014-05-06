@@ -28,7 +28,6 @@ void Log::Initialize(const char* log_file_name) {
 
   // --log-all enables all the log flags.
   if (FLAG_log_all) {
-    FLAG_log_runtime = true;
     FLAG_log_api = true;
     FLAG_log_code = true;
     FLAG_log_gc = true;

@@ -162,7 +162,6 @@ function RegExpExec(string) {
     i = 0;
   }
 
-  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
   // matchIndices is either null or the lastMatchInfo array.
   var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
 
@@ -206,7 +205,6 @@ function RegExpTest(string) {
       this.lastIndex = 0;
       return false;
     }
-    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
     if (IS_NULL(matchIndices)) {
@@ -227,7 +225,6 @@ function RegExpTest(string) {
         %_StringCharCodeAt(regexp.source, 2) != 63) {  // '?'
       regexp = TrimRegExp(regexp);
     }
-    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [regexp, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(regexp, string, 0, lastMatchInfo);
     if (IS_NULL(matchIndices)) {

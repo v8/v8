@@ -4015,14 +4015,6 @@ bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
 }
 
 
-void MacroAssembler::IllegalOperation(int num_arguments) {
-  if (num_arguments > 0) {
-    addiu(sp, sp, num_arguments * kPointerSize);
-  }
-  LoadRoot(v0, Heap::kUndefinedValueRootIndex);
-}
-
-
 void MacroAssembler::IndexFromHash(Register hash,
                                    Register index) {
   // If the hash field contains an array index pick it out. The assert checks
@@ -4177,10 +4169,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    IllegalOperation(num_arguments);
-    return;
-  }
+  CHECK(f->nargs < 0 || f->nargs == num_arguments);
 
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we

@@ -1673,14 +1673,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
   // Check that the number of arguments matches what the function expects.
   // If f->nargs is -1, the function can accept a variable number of arguments.
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    // Illegal operation: drop the stack arguments and return undefined.
-    if (num_arguments > 0) {
-      Drop(num_arguments);
-    }
-    LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-    return;
-  }
+  CHECK(f->nargs < 0 || f->nargs == num_arguments);
 
   // Place the necessary arguments.
   Mov(x0, num_arguments);

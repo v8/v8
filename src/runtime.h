@@ -544,7 +544,6 @@ namespace internal {
   F(SubString, 3, 1) \
   F(StringCompare, 2, 1) \
   F(StringCharCodeAt, 2, 1) \
-  F(Log, 3, 1) \
   F(GetFromCache, 2, 1) \
   \
   /* Compilation */ \
@@ -657,7 +656,6 @@ namespace internal {
   F(DebugBreakInOptimizedCode, 0, 1)                                         \
   F(ClassOf, 1, 1)                                                           \
   F(StringCharCodeAt, 2, 1)                                                  \
-  F(Log, 3, 1)                                                               \
   F(StringAdd, 2, 1)                                                         \
   F(SubString, 3, 1)                                                         \
   F(StringCompare, 2, 1)                                                     \

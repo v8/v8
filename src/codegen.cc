@@ -165,21 +165,6 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 }
 
 
-bool CodeGenerator::ShouldGenerateLog(Isolate* isolate, Expression* type) {
-  ASSERT(type != NULL);
-  if (!isolate->logger()->is_logging() &&
-      !isolate->cpu_profiler()->is_profiling()) {
-    return false;
-  }
-  Handle<String> name = Handle<String>::cast(type->AsLiteral()->value());
-  if (FLAG_log_regexp) {
-    if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
-      return true;
-  }
-  return false;
-}
-
-
 bool CodeGenerator::RecordPositions(MacroAssembler* masm,
                                     int pos,
                                     bool right_here) {

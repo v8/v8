@@ -14799,19 +14799,6 @@ RUNTIME_FUNCTION(Runtime_ListNatives) {
 #endif
 
 
-RUNTIME_FUNCTION(RuntimeHidden_Log) {
-  HandleScope handle_scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, format, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, elms, 1);
-
-  SmartArrayPointer<char> format_chars = format->ToCString();
-  isolate->logger()->LogRuntime(
-      Vector<const char>(format_chars.get(), format->length()), elms);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_IS_VAR) {
   UNREACHABLE();  // implemented as macro in the parser
   return NULL;
