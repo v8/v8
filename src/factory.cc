@@ -1242,11 +1242,10 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, code, maybe_prototype);
 
-  Handle<Object> prototype;
-  if (maybe_prototype.ToHandle(&prototype) &&
-      (force_initial_map ||
-       type != JS_OBJECT_TYPE ||
-       instance_size != JSObject::kHeaderSize)) {
+  if (force_initial_map ||
+      type != JS_OBJECT_TYPE ||
+      instance_size != JSObject::kHeaderSize) {
+    Handle<Object> prototype = maybe_prototype.ToHandleChecked();
     Handle<Map> initial_map = NewMap(type, instance_size);
     if (prototype->IsJSObject()) {
       JSObject::SetLocalPropertyIgnoreAttributes(
@@ -2134,7 +2133,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   Handle<JSFunction> result = NewFunction(
       maybe_prototype, Factory::empty_string(), type,
-      instance_size, code, true);
+      instance_size, code, !obj->remove_prototype());
 
   result->shared()->set_length(obj->length());
   Handle<Object> class_name(obj->class_name(), isolate());
@@ -2148,6 +2147,8 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   if (obj->remove_prototype()) {
     ASSERT(result->shared()->IsApiFunction());
+    ASSERT(!result->has_initial_map());
+    ASSERT(!result->has_prototype());
     return result;
   }
   // Down from here is only valid for API functions that can be used as a
