@@ -715,7 +715,7 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kCodeAgeSequenceSize = 5 * kInstructionSize;
+static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 static const int kCodeAgeStubEntryOffset = 3 * kInstructionSize;
 
 
@@ -727,7 +727,6 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  ASSERT(!Code::IsYoungSequence(pc_));
   // Read the stub entry point from the code age sequence.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
   return Code::GetCodeFromTargetAddress(Memory::Address_at(stub_entry_address));
@@ -736,7 +735,7 @@ Code* RelocInfo::code_age_stub() {
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  ASSERT(!Code::IsYoungSequence(pc_));
+  ASSERT(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
   // Overwrite the stub entry point in the code age sequence. This is loaded as
   // a literal so there is no need to call FlushICache here.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;

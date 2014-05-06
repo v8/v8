@@ -5625,7 +5625,7 @@ class Code: public HeapObject {
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
   void MakeOlder(MarkingParity);
-  static bool IsYoungSequence(byte* sequence);
+  static bool IsYoungSequence(Isolate* isolate, byte* sequence);
   bool IsOld();
   Age GetAge();
   // Gets the raw code age, including psuedo code-age values such as
@@ -5787,7 +5787,7 @@ class Code: public HeapObject {
   byte* FindCodeAgeSequence();
   static void GetCodeAgeAndParity(Code* code, Age* age,
                                   MarkingParity* parity);
-  static void GetCodeAgeAndParity(byte* sequence, Age* age,
+  static void GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                   MarkingParity* parity);
   static Code* GetCodeAgeStub(Isolate* isolate, Age age, MarkingParity parity);
 

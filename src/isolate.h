@@ -54,6 +54,7 @@ class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class MaterializedObjectStore;
 class NoAllocationStringAllocator;
+class CodeAgingHelper;
 class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
@@ -836,6 +837,7 @@ class Isolate {
   Heap* heap() { return &heap_; }
   StatsTable* stats_table();
   StubCache* stub_cache() { return stub_cache_; }
+  CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
@@ -1197,6 +1199,7 @@ class Isolate {
   StackGuard stack_guard_;
   StatsTable* stats_table_;
   StubCache* stub_cache_;
+  CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
   MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;

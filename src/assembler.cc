@@ -724,7 +724,10 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   last_id_ = 0;
   last_position_ = 0;
   byte* sequence = code->FindCodeAgeSequence();
-  if (sequence != NULL && !Code::IsYoungSequence(sequence)) {
+  // We get the isolate from the map, because at serialization time
+  // the code pointer has been cloned and isn't really in heap space.
+  Isolate* isolate = code->map()->GetIsolate();
+  if (sequence != NULL && !Code::IsYoungSequence(isolate, sequence)) {
     code_age_sequence_ = sequence;
   } else {
     code_age_sequence_ = NULL;
@@ -856,7 +859,7 @@ void RelocInfo::Print(Isolate* isolate, FILE* out) {
 
 
 #ifdef VERIFY_HEAP
-void RelocInfo::Verify() {
+void RelocInfo::Verify(Isolate* isolate) {
   switch (rmode_) {
     case EMBEDDED_OBJECT:
       Object::VerifyPointer(target_object());
@@ -873,7 +876,7 @@ void RelocInfo::Verify() {
       CHECK(addr != NULL);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = code->GetIsolate()->FindCodeObject(addr);
+      Object* found = isolate->FindCodeObject(addr);
       CHECK(found->IsCode());
       CHECK(code->address() == HeapObject::cast(found)->address());
       break;
@@ -895,7 +898,7 @@ void RelocInfo::Verify() {
       UNREACHABLE();
       break;
     case CODE_AGE_SEQUENCE:
-      ASSERT(Code::IsYoungSequence(pc_) || code_age_stub()->IsCode());
+      ASSERT(Code::IsYoungSequence(isolate, pc_) || code_age_stub()->IsCode());
       break;
   }
 }

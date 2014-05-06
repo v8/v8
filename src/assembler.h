@@ -520,7 +520,7 @@ class RelocInfo {
   void Print(Isolate* isolate, FILE* out);
 #endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
-  void Verify();
+  void Verify(Isolate* isolate);
 #endif
 
   static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;

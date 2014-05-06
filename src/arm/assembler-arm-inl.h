@@ -222,7 +222,7 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kNoCodeAgeSequenceLength = 3;
+static const int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
 
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
@@ -234,15 +234,15 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 Code* RelocInfo::code_age_stub() {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   return Code::GetCodeFromTargetAddress(
-      Memory::Address_at(pc_ + Assembler::kInstrSize *
-                         (kNoCodeAgeSequenceLength - 1)));
+      Memory::Address_at(pc_ +
+                         (kNoCodeAgeSequenceLength - Assembler::kInstrSize)));
 }
 
 
 void RelocInfo::set_code_age_stub(Code* stub) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Memory::Address_at(pc_ + Assembler::kInstrSize *
-                     (kNoCodeAgeSequenceLength - 1)) =
+  Memory::Address_at(pc_ +
+                     (kNoCodeAgeSequenceLength - Assembler::kInstrSize)) =
       stub->instruction_start();
 }
 

@@ -616,37 +616,36 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  static bool initialized = false;
-  static byte sequence[kNoCodeAgeSequenceLength];
-  *length = kNoCodeAgeSequenceLength;
-  if (!initialized) {
-    // The sequence of instructions that is patched out for aging code is the
-    // following boilerplate stack-building prologue that is found both in
-    // FUNCTION and OPTIMIZED_FUNCTION code:
-    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->pushq(rbp);
-    patcher.masm()->movp(rbp, rsp);
-    patcher.masm()->Push(rsi);
-    patcher.masm()->Push(rdi);
-    initialized = true;
-  }
-  return sequence;
+CodeAgingHelper::CodeAgingHelper() {
+  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found both in
+  // FUNCTION and OPTIMIZED_FUNCTION code:
+  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  patcher.masm()->pushq(rbp);
+  patcher.masm()->movp(rbp, rsp);
+  patcher.masm()->Push(rsi);
+  patcher.masm()->Push(rdi);
 }
 
 
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = (!memcmp(sequence, young_sequence, young_length));
-  ASSERT(result || *sequence == kCallOpcode);
+#ifdef DEBUG
+bool CodeAgingHelper::IsOld(byte* candidate) const {
+  return *candidate == kCallOpcode;
+}
+#endif
+
+
+bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
+  bool result = isolate->code_aging_helper()->IsYoung(sequence);
+  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
 
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+void Code::GetCodeAgeAndParity(Isolate* isolate, byte* sequence, Age* age,
                                MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
+  if (IsYoungSequence(isolate, sequence)) {
     *age = kNoAgeCodeAge;
     *parity = NO_MARKING_PARITY;
   } else {
@@ -663,10 +662,9 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
-    CopyBytes(sequence, young_sequence, young_length);
+    isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);

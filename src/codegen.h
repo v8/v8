@@ -130,6 +130,33 @@ class ElementsTransitionGenerator : public AllStatic {
 static const int kNumberDictionaryProbes = 4;
 
 
+class CodeAgingHelper {
+ public:
+  CodeAgingHelper();
+
+  uint32_t young_sequence_length() const { return young_sequence_.length(); }
+  bool IsYoung(byte* candidate) const {
+    return memcmp(candidate,
+                  young_sequence_.start(),
+                  young_sequence_.length()) == 0;
+  }
+  void CopyYoungSequenceTo(byte* new_buffer) const {
+    CopyBytes(new_buffer, young_sequence_.start(), young_sequence_.length());
+  }
+
+#ifdef DEBUG
+  bool IsOld(byte* candidate) const;
+#endif
+
+ protected:
+  const EmbeddedVector<byte, kNoCodeAgeSequenceLength> young_sequence_;
+#ifdef DEBUG
+#ifdef V8_TARGET_ARCH_ARM64
+  const EmbeddedVector<byte, kNoCodeAgeSequenceLength> old_sequence_;
+#endif
+#endif
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_CODEGEN_H_
