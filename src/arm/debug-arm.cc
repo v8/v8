@@ -32,7 +32,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   patcher.masm()->ldr(v8::internal::ip, MemOperand(v8::internal::pc, 0));
   patcher.masm()->blx(v8::internal::ip);
   patcher.Emit(
-      debug_info_->GetIsolate()->debug()->debug_break_return()->entry());
+      debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry());
   patcher.masm()->bkpt(0);
 }
 
@@ -73,7 +73,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   patcher.masm()->ldr(v8::internal::ip, MemOperand(v8::internal::pc, 0));
   patcher.masm()->blx(v8::internal::ip);
   patcher.Emit(
-      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry());
+      debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry());
 }
 
 

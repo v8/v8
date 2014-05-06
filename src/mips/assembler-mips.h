@@ -436,15 +436,11 @@ class CpuFeatures : public AllStatic {
     return Check(f, supported_);
   }
 
-  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
-    ASSERT(initialized_);
-    return Check(f, found_by_runtime_probing_only_);
-  }
-
   static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return Check(f, cross_compile_) ||
            (IsSupported(f) &&
-            (!Serializer::enabled(isolate) || !IsFoundByRuntimeProbingOnly(f)));
+            !(Serializer::enabled(isolate) &&
+              Check(f, found_by_runtime_probing_only_)));
   }
 
   static bool VerifyCrossCompiling() {

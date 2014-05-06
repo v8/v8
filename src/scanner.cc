@@ -1138,15 +1138,6 @@ int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
 }
 
 
-void Scanner::LogSymbol(ParserRecorder* log, int position) {
-  if (is_literal_one_byte()) {
-    log->LogOneByteSymbol(position, literal_one_byte_string());
-  } else {
-    log->LogTwoByteSymbol(position, literal_two_byte_string());
-  }
-}
-
-
 int DuplicateFinder::AddOneByteSymbol(Vector<const uint8_t> key, int value) {
   return AddSymbol(key, true, value);
 }

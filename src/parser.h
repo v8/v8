@@ -91,11 +91,6 @@ class ScriptData {
   const char* BuildMessage() const;
   Vector<const char*> BuildArgs() const;
 
-  int symbol_count() {
-    return (store_.length() > PreparseDataConstants::kHeaderSize)
-        ? store_[PreparseDataConstants::kSymbolCountOffset]
-        : 0;
-  }
   int function_count() {
     int functions_size =
         static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
@@ -658,7 +653,6 @@ class Parser : public ParserBase<ParserTraits> {
     } else {
       ASSERT(data != NULL);
       cached_data_ = data;
-      symbol_cache_.Initialize(*data ? (*data)->symbol_count() : 0, zone());
     }
   }
 
@@ -769,8 +763,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   Scope* NewScope(Scope* parent, ScopeType type);
 
-  Handle<String> LookupCachedSymbol(int symbol_id);
-
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
   void SkipLazyFunctionBody(Handle<String> function_name,
@@ -790,7 +782,6 @@ class Parser : public ParserBase<ParserTraits> {
                                                bool* ok);
 
   Isolate* isolate_;
-  ZoneList<Handle<String> > symbol_cache_;
 
   Handle<Script> script_;
   Scanner scanner_;

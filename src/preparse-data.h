@@ -34,16 +34,6 @@ class ParserRecorder {
                           const char* message,
                           const char* argument_opt,
                           bool is_reference_error) = 0;
-
-  // The following functions are only callable on CompleteParserRecorder
-  // and are guarded by calls to ShouldLogSymbols.
-  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal) {
-    UNREACHABLE();
-  }
-  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal) {
-    UNREACHABLE();
-  }
-
  private:
   DISALLOW_COPY_AND_ASSIGN(ParserRecorder);
 };
@@ -158,9 +148,6 @@ class CompleteParserRecorder : public ParserRecorder {
                           const char* message,
                           const char* argument_opt,
                           bool is_reference_error_);
-
-  virtual void LogOneByteSymbol(int start, Vector<const uint8_t> literal);
-  virtual void LogTwoByteSymbol(int start, Vector<const uint16_t> literal);
   Vector<unsigned> ExtractData();
 
  private:
@@ -169,14 +156,6 @@ class CompleteParserRecorder : public ParserRecorder {
   }
 
   void WriteString(Vector<const char> str);
-
-  // For testing. Defined in test-parsing.cc.
-  friend struct CompleteParserRecorderFriend;
-
-  void LogSymbol(int start,
-                 int hash,
-                 bool is_one_byte,
-                 Vector<const byte> literal);
 
   // Write a non-negative number to the symbol store.
   void WriteNumber(int number);
@@ -187,12 +166,6 @@ class CompleteParserRecorder : public ParserRecorder {
 #ifdef DEBUG
   int prev_start_;
 #endif
-
-  Collector<byte> literal_chars_;
-  Collector<byte> symbol_store_;
-  Collector<Key> symbol_keys_;
-  HashMap string_table_;
-  int symbol_id_;
 };
 
 

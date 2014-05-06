@@ -1,3 +1,10 @@
+2014-05-06: Version 3.26.31
+
+        Add a basic gn file for V8.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-05: Version 3.26.30
 
         Introduce a microtask suppression scope and move microtask methods to

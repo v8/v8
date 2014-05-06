@@ -39,10 +39,9 @@ Debug::Debug(Isolate* isolate)
       break_on_uncaught_exception_(false),
       promise_catch_handlers_(0),
       promise_getters_(0),
-      debug_break_return_(NULL),
-      debug_break_slot_(NULL),
       isolate_(isolate) {
   memset(registers_, 0, sizeof(JSCallerSavedBuffer));
+  ThreadInit();
 }
 
 
@@ -665,21 +664,6 @@ void ScriptCache::HandleWeakScript(
 }
 
 
-void Debug::SetUp(bool create_heap_objects) {
-  ThreadInit();
-  if (create_heap_objects) {
-    // Get code to handle debug break on return.
-    debug_break_return_ =
-        isolate_->builtins()->builtin(Builtins::kReturn_DebugBreak);
-    ASSERT(debug_break_return_->IsCode());
-    // Get code to handle debug break in debug break slots.
-    debug_break_slot_ =
-        isolate_->builtins()->builtin(Builtins::kSlot_DebugBreak);
-    ASSERT(debug_break_slot_->IsCode());
-  }
-}
-
-
 void Debug::HandleWeakDebugInfo(
     const v8::WeakCallbackData<v8::Value, void>& data) {
   Debug* debug = reinterpret_cast<Isolate*>(data.GetIsolate())->debug();
@@ -880,12 +864,6 @@ void Debug::Unload() {
 void Debug::PreemptionWhileInDebugger() {
   ASSERT(InDebugger());
   Debug::set_interrupts_pending(PREEMPT);
-}
-
-
-void Debug::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(BitCast<Object**>(&(debug_break_return_)));
-  v->VisitPointer(BitCast<Object**>(&(debug_break_slot_)));
 }
 
 
@@ -1903,6 +1881,59 @@ static void CollectActiveFunctionsFromThread(
 }
 
 
+// Figure out how many bytes of "pc_offset" correspond to actual code by
+// subtracting off the bytes that correspond to constant/veneer pools.  See
+// Assembler::CheckConstPool() and Assembler::CheckVeneerPool(). Note that this
+// is only useful for architectures using constant pools or veneer pools.
+static int ComputeCodeOffsetFromPcOffset(Code *code, int pc_offset) {
+  ASSERT_EQ(code->kind(), Code::FUNCTION);
+  ASSERT(!code->has_debug_break_slots());
+  ASSERT_LE(0, pc_offset);
+  ASSERT_LT(pc_offset, code->instruction_end() - code->instruction_start());
+
+  int mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+             RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  byte *pc = code->instruction_start() + pc_offset;
+  int code_offset = pc_offset;
+  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (info->pc() >= pc) break;
+    ASSERT(RelocInfo::IsConstPool(info->rmode()));
+    code_offset -= static_cast<int>(info->data());
+    ASSERT_LE(0, code_offset);
+  }
+
+  return code_offset;
+}
+
+
+// The inverse of ComputeCodeOffsetFromPcOffset.
+static int ComputePcOffsetFromCodeOffset(Code *code, int code_offset) {
+  ASSERT_EQ(code->kind(), Code::FUNCTION);
+
+  int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
+             RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
+             RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+  int reloc = 0;
+  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (info->pc() - code->instruction_start() - reloc >= code_offset) break;
+    if (RelocInfo::IsDebugBreakSlot(info->rmode())) {
+      reloc += Assembler::kDebugBreakSlotLength;
+    } else {
+      ASSERT(RelocInfo::IsConstPool(info->rmode()));
+      reloc += static_cast<int>(info->data());
+    }
+  }
+
+  int pc_offset = code_offset + reloc;
+
+  ASSERT_LT(code->instruction_start() + pc_offset, code->instruction_end());
+
+  return pc_offset;
+}
+
+
 static void RedirectActivationsToRecompiledCodeOnThread(
     Isolate* isolate,
     ThreadLocalTop* top) {
@@ -1924,51 +1955,13 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       continue;
     }
 
-    // Iterate over the RelocInfo in the original code to compute the sum of the
-    // constant pools and veneer pools sizes. (See Assembler::CheckConstPool()
-    // and Assembler::CheckVeneerPool())
-    // Note that this is only useful for architectures using constant pools or
-    // veneer pools.
-    int pool_mask = RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
-                    RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-    int frame_pool_size = 0;
-    for (RelocIterator it(*frame_code, pool_mask); !it.done(); it.next()) {
-      RelocInfo* info = it.rinfo();
-      if (info->pc() >= frame->pc()) break;
-      frame_pool_size += static_cast<int>(info->data());
-    }
-    intptr_t frame_offset =
-      frame->pc() - frame_code->instruction_start() - frame_pool_size;
-
-    // Iterate over the RelocInfo for new code to find the number of bytes
-    // generated for debug slots and constant pools.
-    int debug_break_slot_bytes = 0;
-    int new_code_pool_size = 0;
-    int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT) |
-               RelocInfo::ModeMask(RelocInfo::CONST_POOL) |
-               RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-    for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
-      // Check if the pc in the new code with debug break
-      // slots is before this slot.
-      RelocInfo* info = it.rinfo();
-      intptr_t new_offset = info->pc() - new_code->instruction_start() -
-                            new_code_pool_size - debug_break_slot_bytes;
-      if (new_offset >= frame_offset) {
-        break;
-      }
-
-      if (RelocInfo::IsDebugBreakSlot(info->rmode())) {
-        debug_break_slot_bytes += Assembler::kDebugBreakSlotLength;
-      } else {
-        ASSERT(RelocInfo::IsConstPool(info->rmode()));
-        // The size of the pools is encoded in the data.
-        new_code_pool_size += static_cast<int>(info->data());
-      }
-    }
+    int old_pc_offset =
+        static_cast<int>(frame->pc() - frame_code->instruction_start());
+    int code_offset = ComputeCodeOffsetFromPcOffset(*frame_code, old_pc_offset);
+    int new_pc_offset = ComputePcOffsetFromCodeOffset(*new_code, code_offset);
 
     // Compute the equivalent pc in the new code.
-    byte* new_pc = new_code->instruction_start() + frame_offset +
-                   debug_break_slot_bytes + new_code_pool_size;
+    byte* new_pc = new_code->instruction_start() + new_pc_offset;
 
     if (FLAG_trace_deopt) {
       PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
@@ -2024,6 +2017,55 @@ class ActiveFunctionsRedirector : public ThreadVisitor {
 };
 
 
+class ForceDebuggerActive {
+ public:
+  explicit ForceDebuggerActive(Isolate *isolate) {
+    isolate_ = isolate;
+    old_state_ = isolate->debugger()->force_debugger_active();
+    isolate_->debugger()->set_force_debugger_active(true);
+  }
+
+  ~ForceDebuggerActive() {
+    isolate_->debugger()->set_force_debugger_active(old_state_);
+  }
+
+ private:
+  Isolate *isolate_;
+  bool old_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(ForceDebuggerActive);
+};
+
+
+void Debug::MaybeRecompileFunctionForDebugging(Handle<JSFunction> function) {
+  ASSERT_EQ(Code::FUNCTION, function->code()->kind());
+  ASSERT_EQ(function->code(), function->shared()->code());
+
+  if (function->code()->has_debug_break_slots()) return;
+
+  ForceDebuggerActive force_debugger_active(isolate_);
+  MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
+  // Recompilation can fail.  In that case leave the code as it was.
+  if (!code.is_null())
+    function->ReplaceCode(*code.ToHandleChecked());
+  ASSERT_EQ(function->code(), function->shared()->code());
+}
+
+
+void Debug::RecompileAndRelocateSuspendedGenerators(
+    const List<Handle<JSGeneratorObject> > &generators) {
+  for (int i = 0; i < generators.length(); i++) {
+    Handle<JSFunction> fun(generators[i]->function());
+
+    MaybeRecompileFunctionForDebugging(fun);
+
+    int code_offset = generators[i]->continuation();
+    int pc_offset = ComputePcOffsetFromCodeOffset(fun->code(), code_offset);
+    generators[i]->set_continuation(pc_offset);
+  }
+}
+
+
 void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
@@ -2042,6 +2084,21 @@ void Debug::PrepareForBreakPoints() {
     // Keep the list of activated functions in a handlified list as it
     // is used both in GC and non-GC code.
     List<Handle<JSFunction> > active_functions(100);
+
+    // A list of all suspended generators.
+    List<Handle<JSGeneratorObject> > suspended_generators;
+
+    // A list of all generator functions.  We need to recompile all functions,
+    // but we don't know until after visiting the whole heap which generator
+    // functions have suspended activations and which do not.  As in the case of
+    // functions with activations on the stack, we need to be careful with
+    // generator functions with suspended activations because although they
+    // should be recompiled, recompilation can fail, and we need to avoid
+    // leaving the heap in an inconsistent state.
+    //
+    // We could perhaps avoid this list and instead re-use the GC metadata
+    // links.
+    List<Handle<JSFunction> > generator_functions;
 
     {
       // We are going to iterate heap to find all functions without
@@ -2080,6 +2137,11 @@ void Debug::PrepareForBreakPoints() {
           if (function->IsBuiltin()) continue;
           if (shared->code()->gc_metadata() == active_code_marker) continue;
 
+          if (shared->is_generator()) {
+            generator_functions.Add(Handle<JSFunction>(function, isolate_));
+            continue;
+          }
+
           Code::Kind kind = function->code()->kind();
           if (kind == Code::FUNCTION &&
               !function->code()->has_debug_break_slots()) {
@@ -2099,6 +2161,24 @@ void Debug::PrepareForBreakPoints() {
               function->shared()->set_code(*lazy_compile);
             }
           }
+        } else if (obj->IsJSGeneratorObject()) {
+          JSGeneratorObject* gen = JSGeneratorObject::cast(obj);
+          if (!gen->is_suspended()) continue;
+
+          JSFunction* fun = gen->function();
+          ASSERT_EQ(fun->code()->kind(), Code::FUNCTION);
+          if (fun->code()->has_debug_break_slots()) continue;
+
+          int pc_offset = gen->continuation();
+          ASSERT_LT(0, pc_offset);
+
+          int code_offset =
+              ComputeCodeOffsetFromPcOffset(fun->code(), pc_offset);
+
+          // This will be fixed after we recompile the functions.
+          gen->set_continuation(code_offset);
+
+          suspended_generators.Add(Handle<JSGeneratorObject>(gen, isolate_));
         }
       }
 
@@ -2109,42 +2189,35 @@ void Debug::PrepareForBreakPoints() {
       }
     }
 
+    // Recompile generator functions that have suspended activations, and
+    // relocate those activations.
+    RecompileAndRelocateSuspendedGenerators(suspended_generators);
+
+    // Mark generator functions that didn't have suspended activations for lazy
+    // recompilation.  Note that this set does not include any active functions.
+    for (int i = 0; i < generator_functions.length(); i++) {
+      Handle<JSFunction> &function = generator_functions[i];
+      if (function->code()->kind() != Code::FUNCTION) continue;
+      if (function->code()->has_debug_break_slots()) continue;
+      function->set_code(*lazy_compile);
+      function->shared()->set_code(*lazy_compile);
+    }
+
     // Now recompile all functions with activation frames and and
-    // patch the return address to run in the new compiled code.
+    // patch the return address to run in the new compiled code.  It could be
+    // that some active functions were recompiled already by the suspended
+    // generator recompilation pass above; a generator with suspended
+    // activations could also have active activations.  That's fine.
     for (int i = 0; i < active_functions.length(); i++) {
       Handle<JSFunction> function = active_functions[i];
       Handle<SharedFunctionInfo> shared(function->shared());
 
-      if (function->code()->kind() == Code::FUNCTION &&
-          function->code()->has_debug_break_slots()) {
-        // Nothing to do. Function code already had debug break slots.
-        continue;
-      }
-
       // If recompilation is not possible just skip it.
-      if (shared->is_toplevel() ||
-          !shared->allows_lazy_compilation() ||
-          shared->code()->kind() == Code::BUILTIN) {
-        continue;
-      }
+      if (shared->is_toplevel()) continue;
+      if (!shared->allows_lazy_compilation()) continue;
+      if (shared->code()->kind() == Code::BUILTIN) continue;
 
-      // Make sure that the shared full code is compiled with debug
-      // break slots.
-      if (!shared->code()->has_debug_break_slots()) {
-        // Try to compile the full code with debug break slots. If it
-        // fails just keep the current code.
-        bool prev_force_debugger_active =
-            isolate_->debugger()->force_debugger_active();
-        isolate_->debugger()->set_force_debugger_active(true);
-        Handle<Code> code = Compiler::GetCodeForDebugging(
-            function).ToHandleChecked();
-        function->ReplaceCode(*code);
-        isolate_->debugger()->set_force_debugger_active(
-            prev_force_debugger_active);
-      }
-
-      // Keep function code in sync with shared function info.
-      function->set_code(shared->code());
+      MaybeRecompileFunctionForDebugging(function);
     }
 
     RedirectActivationsToRecompiledCodeOnThread(isolate_,

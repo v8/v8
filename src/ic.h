@@ -780,7 +780,7 @@ class KeyedStoreIC: public StoreIC {
                                     Handle<Object> key,
                                     Handle<Object> value);
 
-  Handle<Map> ComputeTransitionedMap(Handle<JSObject> receiver,
+  Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 
   friend class IC;

@@ -212,13 +212,11 @@ class DebugInfoListNode {
 // DebugInfo.
 class Debug {
  public:
-  void SetUp(bool create_heap_objects);
   bool Load();
   void Unload();
   bool IsLoaded() { return !debug_context_.is_null(); }
   bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
   void PreemptionWhileInDebugger();
-  void Iterate(ObjectVisitor* v);
 
   Object* Break(Arguments args);
   void SetBreakPoint(Handle<JSFunction> function,
@@ -347,8 +345,6 @@ class Debug {
 
   enum AddressId {
     k_after_break_target_address,
-    k_debug_break_return_address,
-    k_debug_break_slot_address,
     k_restarter_frame_function_pointer
   };
 
@@ -364,18 +360,6 @@ class Debug {
   // Support for saving/restoring registers when handling debug break calls.
   Object** register_address(int r) {
     return &registers_[r];
-  }
-
-  // Access to the debug break on return code.
-  Code* debug_break_return() { return debug_break_return_; }
-  Code** debug_break_return_address() {
-    return &debug_break_return_;
-  }
-
-  // Access to the debug break in debug break slot code.
-  Code* debug_break_slot() { return debug_break_slot_; }
-  Code** debug_break_slot_address() {
-    return &debug_break_slot_;
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;
@@ -527,6 +511,10 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
+  void MaybeRecompileFunctionForDebugging(Handle<JSFunction> function);
+  void RecompileAndRelocateSuspendedGenerators(
+      const List<Handle<JSGeneratorObject> > &suspended_generators);
+
   // Global handle to debug context where all the debugger JavaScript code is
   // loaded.
   Handle<Context> debug_context_;
@@ -609,12 +597,6 @@ class Debug {
   JSCallerSavedBuffer registers_;
   ThreadLocal thread_local_;
   void ThreadInit();
-
-  // Code to call for handling debug break on return.
-  Code* debug_break_return_;
-
-  // Code to call for handling debug break in debug break slots.
-  Code* debug_break_slot_;
 
   Isolate* isolate_;
 
@@ -996,10 +978,6 @@ class Debug_Address {
     return Debug_Address(Debug::k_after_break_target_address);
   }
 
-  static Debug_Address DebugBreakReturn() {
-    return Debug_Address(Debug::k_debug_break_return_address);
-  }
-
   static Debug_Address RestarterFrameFunctionPointer() {
     return Debug_Address(Debug::k_restarter_frame_function_pointer);
   }
@@ -1009,10 +987,6 @@ class Debug_Address {
     switch (id_) {
       case Debug::k_after_break_target_address:
         return reinterpret_cast<Address>(debug->after_break_target_address());
-      case Debug::k_debug_break_return_address:
-        return reinterpret_cast<Address>(debug->debug_break_return_address());
-      case Debug::k_debug_break_slot_address:
-        return reinterpret_cast<Address>(debug->debug_break_slot_address());
       case Debug::k_restarter_frame_function_pointer:
         return reinterpret_cast<Address>(
             debug->restarter_frame_function_pointer_address());

@@ -182,25 +182,6 @@ void RegExpBuilder::AddQuantifierToAtom(
 }
 
 
-Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
-  // Make sure the cache is large enough to hold the symbol identifier.
-  if (symbol_cache_.length() <= symbol_id) {
-    // Increase length to index + 1.
-    symbol_cache_.AddBlock(Handle<String>::null(),
-                           symbol_id + 1 - symbol_cache_.length(), zone());
-  }
-  Handle<String> result = symbol_cache_.at(symbol_id);
-  if (result.is_null()) {
-    result = scanner()->AllocateInternalizedString(isolate_);
-    ASSERT(!result.is_null());
-    symbol_cache_.at(symbol_id) = result;
-    return result;
-  }
-  isolate()->counters()->total_preparse_symbols_skipped()->Increment();
-  return result;
-}
-
-
 ScriptData* ScriptData::New(const char* data, int length) {
   // The length is obviously invalid.
   if (length % sizeof(unsigned) != 0) {
@@ -280,10 +261,6 @@ bool ScriptData::SanityCheck() {
       static_cast<int>(store_[PreparseDataConstants::kFunctionsSizeOffset]);
   if (functions_size < 0) return false;
   if (functions_size % FunctionEntry::kSize != 0) return false;
-  // Check that the count of symbols is non-negative.
-  int symbol_count =
-      static_cast<int>(store_[PreparseDataConstants::kSymbolCountOffset]);
-  if (symbol_count < 0) return false;
   // Check that the total size has room for header and function entries.
   int minimum_size =
       PreparseDataConstants::kHeaderSize + functions_size;
@@ -707,18 +684,6 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 
 
 Handle<String> ParserTraits::GetSymbol(Scanner* scanner) {
-  if (parser_->cached_data_mode() == CONSUME_CACHED_DATA) {
-    int symbol_id = (*parser_->cached_data())->GetSymbolIdentifier();
-    // If there is no symbol data, -1 will be returned.
-    if (symbol_id >= 0 &&
-        symbol_id < (*parser_->cached_data())->symbol_count()) {
-      return parser_->LookupCachedSymbol(symbol_id);
-    }
-  } else if (parser_->cached_data_mode() == PRODUCE_CACHED_DATA) {
-    // Parser is never used inside lazy functions (it falls back to PreParser
-    // instead), so we can produce the symbol data unconditionally.
-    parser_->scanner()->LogSymbol(parser_->log_, parser_->position());
-  }
   Handle<String> result =
       parser_->scanner()->AllocateInternalizedString(parser_->isolate());
   ASSERT(!result.is_null());
@@ -819,7 +784,6 @@ Parser::Parser(CompilationInfo* info)
                                info->zone(),
                                this),
       isolate_(info->isolate()),
-      symbol_cache_(0, info->zone()),
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
       reusable_preparser_(NULL),

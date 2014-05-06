@@ -1569,7 +1569,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
     frame_has_padding = Debug::FramePaddingLayout::kIsSupported;
   } else if (pre_top_frame_code ==
-             isolate->debug()->debug_break_slot()) {
+             isolate->builtins()->builtin(Builtins::kSlot_DebugBreak)) {
     // OK, we can drop debug break slot.
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
     frame_has_padding = Debug::FramePaddingLayout::kIsSupported;

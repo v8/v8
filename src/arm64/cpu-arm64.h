@@ -28,15 +28,9 @@ class CpuFeatures : public AllStatic {
     return false;
   };
 
-  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
-    ASSERT(initialized_);
-    // There are no optional features for ARM64.
-    return false;
-  }
-
+  // There are no optional features for ARM64.
   static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
-    return (IsSupported(f) &&
-            (!Serializer::enabled(isolate) || !IsFoundByRuntimeProbingOnly(f)));
+    return IsSupported(f);
   }
 
   // I and D cache line size in bytes.

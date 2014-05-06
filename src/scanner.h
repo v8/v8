@@ -405,8 +405,6 @@ class Scanner {
   int FindNumber(DuplicateFinder* finder, int value);
   int FindSymbol(DuplicateFinder* finder, int value);
 
-  void LogSymbol(ParserRecorder* log, int position);
-
   UnicodeCache* unicode_cache() { return unicode_cache_; }
 
   // Returns the location of the last seen octal literal.

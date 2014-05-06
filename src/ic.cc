@@ -1498,7 +1498,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   MapHandleList target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.length() == 0) {
-    Handle<Map> monomorphic_map = ComputeTransitionedMap(receiver, store_mode);
+    Handle<Map> monomorphic_map =
+        ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
     return isolate()->stub_cache()->ComputeKeyedStoreElement(
         monomorphic_map, strict_mode(), store_mode);
@@ -1514,7 +1515,8 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (state() == MONOMORPHIC) {
     Handle<Map> transitioned_receiver_map = receiver_map;
     if (IsTransitionStoreMode(store_mode)) {
-      transitioned_receiver_map = ComputeTransitionedMap(receiver, store_mode);
+      transitioned_receiver_map =
+          ComputeTransitionedMap(receiver_map, store_mode);
     }
     if ((receiver_map.is_identical_to(previous_receiver_map) &&
          IsTransitionStoreMode(store_mode)) ||
@@ -1546,7 +1548,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
 
   if (IsTransitionStoreMode(store_mode)) {
     Handle<Map> transitioned_receiver_map =
-        ComputeTransitionedMap(receiver, store_mode);
+        ComputeTransitionedMap(receiver_map, store_mode);
     map_added |= AddOneReceiverMapIfMissing(&target_receiver_maps,
                                             transitioned_receiver_map);
   }
@@ -1602,36 +1604,35 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
 
 
 Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
-    Handle<JSObject> receiver,
+    Handle<Map> map,
     KeyedAccessStoreMode store_mode) {
   switch (store_mode) {
     case STORE_TRANSITION_SMI_TO_OBJECT:
     case STORE_TRANSITION_DOUBLE_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
-      return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
+      return Map::TransitionElementsTo(map, FAST_ELEMENTS);
     case STORE_TRANSITION_SMI_TO_DOUBLE:
     case STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
-      return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
+      return Map::TransitionElementsTo(map, FAST_DOUBLE_ELEMENTS);
     case STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
     case STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
     case STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
-      return JSObject::GetElementsTransitionMap(receiver,
-                                                FAST_HOLEY_ELEMENTS);
+      return Map::TransitionElementsTo(map, FAST_HOLEY_ELEMENTS);
     case STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
     case STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
-      return JSObject::GetElementsTransitionMap(receiver,
-                                                FAST_HOLEY_DOUBLE_ELEMENTS);
+      return Map::TransitionElementsTo(map, FAST_HOLEY_DOUBLE_ELEMENTS);
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
-      ASSERT(receiver->map()->has_external_array_elements());
+      ASSERT(map->has_external_array_elements());
       // Fall through
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
     case STORE_AND_GROW_NO_TRANSITION:
-      return Handle<Map>(receiver->map(), isolate());
+      return map;
   }
-  return Handle<Map>::null();
+  UNREACHABLE();
+  return MaybeHandle<Map>().ToHandleChecked();
 }
 
 

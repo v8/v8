@@ -2375,7 +2375,7 @@ class LCheckInstanceType V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
 class LCheckMaps V8_FINAL : public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LCheckMaps(LOperand* value) {
+  explicit LCheckMaps(LOperand* value = NULL) {
     inputs_[0] = value;
   }
 

@@ -190,14 +190,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       DEBUG_ADDRESS,
       Debug::k_after_break_target_address << kDebugIdShift,
       "Debug::after_break_target_address()");
-  Add(Debug_Address(Debug::k_debug_break_slot_address).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_debug_break_slot_address << kDebugIdShift,
-      "Debug::debug_break_slot_address()");
-  Add(Debug_Address(Debug::k_debug_break_return_address).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_debug_break_return_address << kDebugIdShift,
-      "Debug::debug_break_return_address()");
   Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_restarter_frame_function_pointer << kDebugIdShift,

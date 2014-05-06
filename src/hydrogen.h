@@ -1298,7 +1298,6 @@ class HGraphBuilder {
   HBasicBlock* CreateLoopHeaderBlock();
 
   HValue* BuildCheckHeapObject(HValue* object);
-  HValue* BuildCheckMap(HValue* obj, Handle<Map> map);
   HValue* BuildCheckString(HValue* string);
   HValue* BuildWrapReceiver(HValue* object, HValue* function);
 
@@ -1781,8 +1780,7 @@ class HGraphBuilder {
                                     HValue* previous_object_size,
                                     HValue* payload);
 
-  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant,
-                                      CompilationInfo* info);
+  HInstruction* BuildConstantMapCheck(Handle<JSObject> constant);
   HInstruction* BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                         Handle<JSObject> holder);
 

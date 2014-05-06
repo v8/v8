@@ -1042,7 +1042,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     Handle<Map> placeholder_map = isolate()->factory()->meta_map();
     HValue* global = Add<HConstant>(
         StoreGlobalStub::global_placeholder(isolate()));
-    Add<HCheckMaps>(global, placeholder_map, top_info());
+    Add<HCheckMaps>(global, placeholder_map);
   }
 
   HValue* cell = Add<HConstant>(placeholder_cell);

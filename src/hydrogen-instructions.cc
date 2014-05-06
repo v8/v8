@@ -1671,11 +1671,31 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 
 void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" [%p", *map_set_.at(0).handle());
-  for (int i = 1; i < map_set_.size(); ++i) {
-    stream->Add(",%p", *map_set_.at(i).handle());
+  stream->Add(" [%p", *maps()->at(0).handle());
+  for (int i = 1; i < maps()->size(); ++i) {
+    stream->Add(",%p", *maps()->at(i).handle());
   }
-  stream->Add("]%s", CanOmitMapChecks() ? "(omitted)" : "");
+  stream->Add("]%s", IsStabilityCheck() ? "(stability-check)" : "");
+}
+
+
+HValue* HCheckMaps::Canonicalize() {
+  if (!IsStabilityCheck() && maps_are_stable() && value()->IsConstant()) {
+    HConstant* c_value = HConstant::cast(value());
+    if (c_value->HasObjectMap() && c_value->ObjectMapIsStable()) {
+      for (int i = 0; i < maps()->size(); ++i) {
+        if (c_value->ObjectMap() == maps()->at(i)) {
+          if (maps()->size() > 1) {
+            set_maps(new(block()->graph()->zone()) UniqueSet<Map>(
+                    maps()->at(i), block()->graph()->zone()));
+          }
+          MarkAsStabilityCheck();
+          break;
+        }
+      }
+    }
+  }
+  return this;
 }
 
 
@@ -2661,26 +2681,30 @@ static bool IsInteger32(double value) {
 }
 
 
-HConstant::HConstant(Handle<Object> handle, Representation r)
-  : HTemplateInstruction<0>(HType::TypeFromValue(handle)),
-    object_(Unique<Object>::CreateUninitialized(handle)),
+HConstant::HConstant(Handle<Object> object, Representation r)
+  : HTemplateInstruction<0>(HType::TypeFromValue(object)),
+    object_(Unique<Object>::CreateUninitialized(object)),
+    object_map_(Handle<Map>::null()),
+    object_map_is_stable_(false),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
     has_external_reference_value_(false),
     is_not_in_new_space_(true),
-    boolean_value_(handle->BooleanValue()),
+    boolean_value_(object->BooleanValue()),
     is_undetectable_(false),
     instance_type_(kUnknownInstanceType) {
-  if (handle->IsHeapObject()) {
-    Handle<HeapObject> heap_obj = Handle<HeapObject>::cast(handle);
-    Heap* heap = heap_obj->GetHeap();
-    is_not_in_new_space_ = !heap->InNewSpace(*handle);
-    instance_type_ = heap_obj->map()->instance_type();
-    is_undetectable_ = heap_obj->map()->is_undetectable();
+  if (object->IsHeapObject()) {
+    Isolate* isolate = Handle<HeapObject>::cast(object)->GetIsolate();
+    Handle<Map> map(Handle<HeapObject>::cast(object)->map(), isolate);
+    is_not_in_new_space_ = !isolate->heap()->InNewSpace(*object);
+    instance_type_ = map->instance_type();
+    is_undetectable_ = map->is_undetectable();
+    object_map_ = Unique<Map>::CreateImmovable(map);
+    object_map_is_stable_ = map->is_stable();
   }
-  if (handle->IsNumber()) {
-    double n = handle->Number();
+  if (object->IsNumber()) {
+    double n = object->Number();
     has_int32_value_ = IsInteger32(n);
     int32_value_ = DoubleToInt32(n);
     has_smi_value_ = has_int32_value_ && Smi::IsValid(int32_value_);
@@ -2702,6 +2726,8 @@ HConstant::HConstant(Unique<Object> unique,
                      InstanceType instance_type)
   : HTemplateInstruction<0>(type),
     object_(unique),
+    object_map_(Handle<Map>::null()),
+    object_map_is_stable_(false),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -2721,6 +2747,8 @@ HConstant::HConstant(int32_t integer_value,
                      bool is_not_in_new_space,
                      Unique<Object> object)
   : object_(object),
+    object_map_(Handle<Map>::null()),
+    object_map_is_stable_(false),
     has_smi_value_(Smi::IsValid(integer_value)),
     has_int32_value_(true),
     has_double_value_(true),
@@ -2745,6 +2773,8 @@ HConstant::HConstant(double double_value,
                      bool is_not_in_new_space,
                      Unique<Object> object)
   : object_(object),
+    object_map_(Handle<Map>::null()),
+    object_map_is_stable_(false),
     has_int32_value_(IsInteger32(double_value)),
     has_double_value_(true),
     has_external_reference_value_(false),
@@ -2767,6 +2797,8 @@ HConstant::HConstant(double double_value,
 HConstant::HConstant(ExternalReference reference)
   : HTemplateInstruction<0>(HType::None()),
     object_(Unique<Object>(Handle<Object>::null())),
+    object_map_(Handle<Map>::null()),
+    object_map_is_stable_(false),
     has_smi_value_(false),
     has_int32_value_(false),
     has_double_value_(false),
@@ -3362,10 +3394,10 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
-  if (map_set_.size() != 0) {
-    stream->Add(" [%p", *map_set_.at(0).handle());
-    for (int i = 1; i < map_set_.size(); ++i) {
-      stream->Add(",%p", *map_set_.at(i).handle());
+  if (maps()->size() != 0) {
+    stream->Add(" [%p", *maps()->at(0).handle());
+    for (int i = 1; i < maps()->size(); ++i) {
+      stream->Add(",%p", *maps()->at(i).handle());
     }
     stream->Add("]");
   }
@@ -3374,28 +3406,6 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
     stream->Add(" ");
     dependency()->PrintNameTo(stream);
   }
-}
-
-
-HCheckMaps* HCheckMaps::New(Zone* zone,
-                            HValue* context,
-                            HValue* value,
-                            Handle<Map> map,
-                            CompilationInfo* info,
-                            HValue* typecheck) {
-  HCheckMaps* check_map = new(zone) HCheckMaps(value, zone, typecheck);
-  check_map->Add(map, zone);
-  if (map->CanOmitMapChecks() &&
-      value->IsConstant() &&
-      HConstant::cast(value)->HasMap(map)) {
-    // TODO(titzer): collect dependent map checks into a list.
-    check_map->omit_ = true;
-    if (map->CanTransition()) {
-      Map::AddDependentCompilationInfo(
-          map, DependentCode::kPrototypeCheckGroup, info);
-    }
-  }
-  return check_map;
 }
 
 
@@ -3913,12 +3923,9 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
       HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
       dominating_allocate_->size(), type());
   free_space_instr->InsertBefore(this);
-  HConstant* filler_map = HConstant::New(
-      zone,
-      context(),
-      isolate()->factory()->free_space_map());
-  filler_map->FinalizeUniqueness();  // TODO(titzer): should be init'd a'ready
-  filler_map->InsertAfter(free_space_instr);
+  HConstant* filler_map = HConstant::CreateAndInsertAfter(
+      zone, Unique<Map>::CreateImmovable(
+          isolate()->factory()->free_space_map()), free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);

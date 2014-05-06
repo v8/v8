@@ -42,7 +42,6 @@ from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
-TEMP_BRANCH = "TEMP_BRANCH"
 BRANCHNAME = "BRANCHNAME"
 DOT_GIT_LOCATION = "DOT_GIT_LOCATION"
 VERSION_FILE = "VERSION_FILE"
@@ -176,6 +175,7 @@ def Command(cmd, args="", prefix="", pipe=True):
   # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
   print "Command: %s" % cmd_line
+  sys.stdout.flush()
   try:
     if pipe:
       return subprocess.check_output(cmd_line, shell=True)
@@ -183,6 +183,9 @@ def Command(cmd, args="", prefix="", pipe=True):
       return subprocess.check_call(cmd_line, shell=True)
   except subprocess.CalledProcessError:
     return None
+  finally:
+    sys.stdout.flush()
+    sys.stderr.flush()
 
 
 # Wrapper for side effects.
@@ -376,18 +379,11 @@ class Step(GitRecipesMixin):
     self.GitSVNFetch()
 
   def PrepareBranch(self):
-    # Get ahold of a safe temporary branch and check it out.
-    if self["current_branch"] != self._config[TEMP_BRANCH]:
-      self.DeleteBranch(self._config[TEMP_BRANCH])
-      self.GitCreateBranch(self._config[TEMP_BRANCH])
-
     # Delete the branch that will be created later if it exists already.
     self.DeleteBranch(self._config[BRANCHNAME])
 
   def CommonCleanup(self):
     self.GitCheckout(self["current_branch"])
-    if self._config[TEMP_BRANCH] != self["current_branch"]:
-      self.GitDeleteBranch(self._config[TEMP_BRANCH])
     if self._config[BRANCHNAME] != self["current_branch"]:
       self.GitDeleteBranch(self._config[BRANCHNAME])
 

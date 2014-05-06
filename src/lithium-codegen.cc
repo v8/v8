@@ -221,4 +221,10 @@ void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
   chunk_->AddDeprecationDependency(map);
 }
 
+
+void LCodeGenBase::AddStabilityDependency(Handle<Map> map) {
+  if (!map->is_stable()) return Abort(kMapBecameUnstable);
+  chunk_->AddStabilityDependency(map);
+}
+
 } }  // namespace v8::internal

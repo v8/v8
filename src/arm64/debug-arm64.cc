@@ -42,7 +42,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   STATIC_ASSERT(Assembler::kJSRetSequenceInstructions >= 5);
   PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 5);
   byte* entry =
-      debug_info_->GetIsolate()->debug()->debug_break_return()->entry();
+      debug_info_->GetIsolate()->builtins()->Return_DebugBreak()->entry();
 
   // The first instruction of a patched return sequence must be a load literal
   // loading the address of the debug break return code.
@@ -101,7 +101,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   STATIC_ASSERT(Assembler::kDebugBreakSlotInstructions >= 4);
   PatchingAssembler patcher(reinterpret_cast<Instruction*>(rinfo()->pc()), 4);
   byte* entry =
-      debug_info_->GetIsolate()->debug()->debug_break_slot()->entry();
+      debug_info_->GetIsolate()->builtins()->Slot_DebugBreak()->entry();
 
   // The first instruction of a patched debug break slot must be a load literal
   // loading the address of the debug break slot code.

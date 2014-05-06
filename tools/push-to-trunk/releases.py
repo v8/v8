@@ -25,7 +25,6 @@ CHROMIUM = "CHROMIUM"
 
 CONFIG = {
   BRANCHNAME: "retrieve-v8-releases",
-  TEMP_BRANCH: "unused-branch", # TODO(machenbach): Remove from infrastructure.
   PERSISTFILE_BASENAME: "/tmp/v8-releases-tempfile",
   DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
