@@ -103,6 +103,7 @@ v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
 }
 
 
+Isolate* Isolate::default_isolate_ = NULL;
 Thread::LocalStorageKey Isolate::isolate_key_;
 Thread::LocalStorageKey Isolate::thread_id_key_;
 Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
@@ -165,7 +166,7 @@ void Isolate::SetCrashIfDefaultIsolateInitialized() {
 void Isolate::EnsureDefaultIsolate() {
   LockGuard<Mutex> lock_guard(&process_wide_mutex_);
   CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
-  if (thread_data_table_ == NULL) {
+  if (default_isolate_ == NULL) {
     isolate_key_ = Thread::CreateThreadLocalKey();
     thread_id_key_ = Thread::CreateThreadLocalKey();
     per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
@@ -173,6 +174,12 @@ void Isolate::EnsureDefaultIsolate() {
     PerThreadAssertScopeBase::thread_local_key = Thread::CreateThreadLocalKey();
 #endif  // DEBUG
     thread_data_table_ = new Isolate::ThreadDataTable();
+    default_isolate_ = new Isolate();
+  }
+  // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
+  // because a non-null thread data may be already set.
+  if (Thread::GetThreadLocal(isolate_key_) == NULL) {
+    Thread::SetThreadLocal(isolate_key_, default_isolate_);
   }
 }
 
@@ -1516,7 +1523,9 @@ void Isolate::TearDown() {
     serialize_partial_snapshot_cache_ = NULL;
   }
 
-  delete this;
+  if (!IsDefaultIsolate()) {
+    delete this;
+  }
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);

@@ -1936,48 +1936,58 @@ void Logger::LogAccessorCallbacks() {
 
 
 static void AddIsolateIdIfNeeded(Isolate* isolate, StringStream* stream) {
-  if (FLAG_logfile_per_isolate) stream->Add("isolate-%p-", isolate);
+  if (isolate->IsDefaultIsolate() || !FLAG_logfile_per_isolate) return;
+  stream->Add("isolate-%p-", isolate);
 }
 
 
 static SmartArrayPointer<const char> PrepareLogFileName(
     Isolate* isolate, const char* file_name) {
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
-  AddIsolateIdIfNeeded(isolate, &stream);
-  for (const char* p = file_name; *p; p++) {
-    if (*p == '%') {
-      p++;
-      switch (*p) {
-        case '\0':
-          // If there's a % at the end of the string we back up
-          // one character so we can escape the loop properly.
-          p--;
-          break;
-        case 'p':
-          stream.Add("%d", OS::GetCurrentProcessId());
-          break;
-        case 't': {
-          // %t expands to the current time in milliseconds.
-          double time = OS::TimeCurrentMillis();
-          stream.Add("%.0f", FmtElm(time));
-          break;
+  if (strchr(file_name, '%') != NULL || !isolate->IsDefaultIsolate()) {
+    // If there's a '%' in the log file name we have to expand
+    // placeholders.
+    HeapStringAllocator allocator;
+    StringStream stream(&allocator);
+    AddIsolateIdIfNeeded(isolate, &stream);
+    for (const char* p = file_name; *p; p++) {
+      if (*p == '%') {
+        p++;
+        switch (*p) {
+          case '\0':
+            // If there's a % at the end of the string we back up
+            // one character so we can escape the loop properly.
+            p--;
+            break;
+          case 'p':
+            stream.Add("%d", OS::GetCurrentProcessId());
+            break;
+          case 't': {
+            // %t expands to the current time in milliseconds.
+            double time = OS::TimeCurrentMillis();
+            stream.Add("%.0f", FmtElm(time));
+            break;
+          }
+          case '%':
+            // %% expands (contracts really) to %.
+            stream.Put('%');
+            break;
+          default:
+            // All other %'s expand to themselves.
+            stream.Put('%');
+            stream.Put(*p);
+            break;
         }
-        case '%':
-          // %% expands (contracts really) to %.
-          stream.Put('%');
-          break;
-        default:
-          // All other %'s expand to themselves.
-          stream.Put('%');
-          stream.Put(*p);
-          break;
+      } else {
+        stream.Put(*p);
       }
-    } else {
-      stream.Put(*p);
     }
+    return SmartArrayPointer<const char>(stream.ToCString());
   }
-  return SmartArrayPointer<const char>(stream.ToCString());
+  int length = StrLength(file_name);
+  char* str = NewArray<char>(length + 1);
+  OS::MemCopy(str, file_name, length);
+  str[length] = '\0';
+  return SmartArrayPointer<const char>(str);
 }
 
 

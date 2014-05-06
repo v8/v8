@@ -19269,6 +19269,7 @@ TEST(IsolateNewDispose) {
   v8::Isolate* current_isolate = CcTest::isolate();
   v8::Isolate* isolate = v8::Isolate::New();
   CHECK(isolate != NULL);
+  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
   CHECK(current_isolate != isolate);
   CHECK(current_isolate == CcTest::isolate());
 
@@ -22338,7 +22339,6 @@ TEST(EventLogging) {
 
 TEST(Promises) {
   i::FLAG_harmony_promises = true;
-  i::FLAG_harmony_weak_collections = true;  // Implied
 
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();

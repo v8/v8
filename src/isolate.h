@@ -478,6 +478,8 @@ class Isolate {
 
   static void GlobalTearDown();
 
+  bool IsDefaultIsolate() const { return this == default_isolate_; }
+
   static void SetCrashIfDefaultIsolateInitialized();
   // Ensures that process-wide resources and the default isolate have been
   // allocated. It is only necessary to call this method in rare cases, for
@@ -1132,12 +1134,14 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  // This mutex protects highest_thread_id_ and thread_data_table_.
+  // This mutex protects highest_thread_id_, thread_data_table_ and
+  // default_isolate_.
   static Mutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
   static Thread::LocalStorageKey thread_id_key_;
+  static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
