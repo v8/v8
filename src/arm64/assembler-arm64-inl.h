@@ -411,6 +411,12 @@ Operand Operand::UntagSmiAndScale(Register smi, int scale) {
 }
 
 
+MemOperand::MemOperand()
+  : base_(NoReg), regoffset_(NoReg), offset_(0), addrmode_(Offset),
+    shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {
+}
+
+
 MemOperand::MemOperand(Register base, ptrdiff_t offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), offset_(offset), addrmode_(addrmode),
     shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {

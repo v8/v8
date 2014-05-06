@@ -669,6 +669,7 @@ class Operand {
 // MemOperand represents a memory operand in a load or store instruction.
 class MemOperand {
  public:
+  inline explicit MemOperand();
   inline explicit MemOperand(Register base,
                              ptrdiff_t offset = 0,
                              AddrMode addrmode = Offset);

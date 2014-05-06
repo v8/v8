@@ -256,11 +256,13 @@ class LCodeGen: public LCodeGenBase {
                                               int constant_key,
                                               ElementsKind elements_kind,
                                               int additional_index);
-  void CalcKeyedArrayBaseRegister(Register base,
-                                  Register elements,
-                                  Register key,
-                                  bool key_is_tagged,
-                                  ElementsKind elements_kind);
+  MemOperand PrepareKeyedArrayOperand(Register base,
+                                      Register elements,
+                                      Register key,
+                                      bool key_is_tagged,
+                                      ElementsKind elements_kind,
+                                      Representation representation,
+                                      int additional_index);
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
