@@ -2011,9 +2011,15 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Register reg = ToRegister(instr->result());
-  Handle<Object> handle = instr->value(isolate());
+  Handle<Object> object = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
-  __ LoadObject(reg, handle);
+  if (instr->hydrogen()->HasObjectMap()) {
+    Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
+    CHECK(object->IsHeapObject());
+    CHECK(!object_map->is_stable() ||
+          *object_map == Handle<HeapObject>::cast(object)->map());
+  }
+  __ LoadObject(reg, object);
 }
 
 
