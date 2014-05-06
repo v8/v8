@@ -2145,7 +2145,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* length = NULL;
   if (is_js_array) {
     length = Add<HLoadNamedField>(
-        checked_object, static_cast<HValue*>(NULL),
+        checked_object->ActualValue(), checked_object,
         HObjectAccess::ForArrayLength(elements_kind));
   } else {
     length = AddLoadFixedArrayLength(elements);
