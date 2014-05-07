@@ -1158,17 +1158,6 @@ void LoadStubCompiler::GenerateLoadInterceptor(
 }
 
 
-void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
-  Label success;
-  // Check that the object is a boolean.
-  __ LoadRoot(at, Heap::kTrueValueRootIndex);
-  __ Branch(&success, eq, object, Operand(at));
-  __ LoadRoot(at, Heap::kFalseValueRootIndex);
-  __ Branch(miss, ne, object, Operand(at));
-  __ bind(&success);
-}
-
-
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,

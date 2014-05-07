@@ -376,8 +376,6 @@ class StubCompiler BASE_EMBEDDED {
                            Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
-  void GenerateBooleanCheck(Register object, Label* miss);
-
   static void GenerateFastApiCall(MacroAssembler* masm,
                                   const CallOptimization& optimization,
                                   Handle<Map> receiver_map,
