@@ -3617,7 +3617,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return Unique<Map>::cast(GetUnique());
   }
   bool HasStableMapValue() const {
-    ASSERT(HasMapValue());
+    ASSERT(HasMapValue() || !has_stable_map_value_);
     return has_stable_map_value_;
   }
 
