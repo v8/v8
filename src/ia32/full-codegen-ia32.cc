@@ -3279,27 +3279,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitLog(CallRuntime* expr) {
-  // Conditionally generate a log call.
-  // Args:
-  //   0 (literal string): The type of logging (corresponds to the flags).
-  //     This is used to determine whether or not to generate the log call.
-  //   1 (string): Format string.  Access the string at argument index 2
-  //     with '%2s' (see Logger::LogRuntime for all the formats).
-  //   2 (array): Arguments to the format string.
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT_EQ(args->length(), 3);
-  if (CodeGenerator::ShouldGenerateLog(isolate(), args->at(0))) {
-    VisitForStackValue(args->at(1));
-    VisitForStackValue(args->at(2));
-    __ CallRuntime(Runtime::kHiddenLog, 2);
-  }
-  // Finally, we're expected to leave a value on the top of the stack.
-  __ mov(eax, isolate()->factory()->undefined_value());
-  context()->Plug(eax);
-}
-
-
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
   SubStringStub stub(isolate());

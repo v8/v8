@@ -1222,6 +1222,64 @@ void MacroAssembler::AssertStackConsistency() {
 }
 
 
+void MacroAssembler::AssertFPCRState(Register fpcr) {
+  if (emit_debug_code()) {
+    Label unexpected_mode, done;
+    UseScratchRegisterScope temps(this);
+    if (fpcr.IsNone()) {
+      fpcr = temps.AcquireX();
+      Mrs(fpcr, FPCR);
+    }
+
+    // Settings overridden by ConfiugreFPCR():
+    //   - Assert that default-NaN mode is set.
+    Tbz(fpcr, DN_offset, &unexpected_mode);
+
+    // Settings left to their default values:
+    //   - Assert that flush-to-zero is not set.
+    Tbnz(fpcr, FZ_offset, &unexpected_mode);
+    //   - Assert that the rounding mode is nearest-with-ties-to-even.
+    STATIC_ASSERT(FPTieEven == 0);
+    Tst(fpcr, RMode_mask);
+    B(eq, &done);
+
+    Bind(&unexpected_mode);
+    Abort(kUnexpectedFPCRMode);
+
+    Bind(&done);
+  }
+}
+
+
+void MacroAssembler::ConfigureFPCR() {
+  UseScratchRegisterScope temps(this);
+  Register fpcr = temps.AcquireX();
+  Mrs(fpcr, FPCR);
+
+  // If necessary, enable default-NaN mode. The default values of the other FPCR
+  // options should be suitable, and AssertFPCRState will verify that.
+  Label no_write_required;
+  Tbnz(fpcr, DN_offset, &no_write_required);
+
+  Orr(fpcr, fpcr, DN_mask);
+  Msr(FPCR, fpcr);
+
+  Bind(&no_write_required);
+  AssertFPCRState(fpcr);
+}
+
+
+void MacroAssembler::CanonicalizeNaN(const FPRegister& dst,
+                                     const FPRegister& src) {
+  AssertFPCRState();
+
+  // With DN=1 and RMode=FPTieEven, subtracting 0.0 preserves all inputs except
+  // for NaNs, which become the default NaN. We use fsub rather than fadd
+  // because sub preserves -0.0 inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  Fsub(dst, src, fp_zero);
+}
+
+
 void MacroAssembler::LoadRoot(CPURegister destination,
                               Heap::RootListIndex index) {
   // TODO(jbramley): Most root values are constants, and can be synthesized
@@ -1615,14 +1673,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
 
   // Check that the number of arguments matches what the function expects.
   // If f->nargs is -1, the function can accept a variable number of arguments.
-  if (f->nargs >= 0 && f->nargs != num_arguments) {
-    // Illegal operation: drop the stack arguments and return undefined.
-    if (num_arguments > 0) {
-      Drop(num_arguments);
-    }
-    LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-    return;
-  }
+  CHECK(f->nargs < 0 || f->nargs == num_arguments);
 
   // Place the necessary arguments.
   Mov(x0, num_arguments);
@@ -3888,7 +3939,6 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register elements_reg,
                                                  Register scratch1,
                                                  FPRegister fpscratch1,
-                                                 FPRegister fpscratch2,
                                                  Label* fail,
                                                  int elements_offset) {
   ASSERT(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
@@ -3906,12 +3956,9 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
            fail, DONT_DO_SMI_CHECK);
 
   Ldr(fpscratch1, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
-  Fmov(fpscratch2, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
 
-  // Check for NaN by comparing the number to itself: NaN comparison will
-  // report unordered, indicated by the overflow flag being set.
-  Fcmp(fpscratch1, fpscratch1);
-  Fcsel(fpscratch1, fpscratch2, fpscratch1, vs);
+  // Canonicalize NaNs.
+  CanonicalizeNaN(fpscratch1);
 
   // Store the result.
   Bind(&store_num);

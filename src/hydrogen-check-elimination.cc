@@ -70,10 +70,6 @@ class HCheckTable : public ZoneObject {
             HTransitionElementsKind::cast(instr));
         break;
       }
-      case HValue::kCheckMapValue: {
-        ReduceCheckMapValue(HCheckMapValue::cast(instr));
-        break;
-      }
       case HValue::kCheckHeapObject: {
         ReduceCheckHeapObject(HCheckHeapObject::cast(instr));
         break;
@@ -361,39 +357,6 @@ class HCheckTable : public ZoneObject {
     INC_STAT(loads_);
   }
 
-  void ReduceCheckMapValue(HCheckMapValue* instr) {
-    if (!instr->map()->IsConstant()) return;  // Nothing to learn.
-
-    HValue* object = instr->value()->ActualValue();
-    // Match a HCheckMapValue(object, HConstant(map))
-    Unique<Map> map = MapConstant(instr->map());
-
-    HCheckTableEntry* entry = Find(object);
-    if (entry != NULL) {
-      if (entry->maps_->Contains(map)) {
-        if (entry->maps_->size() == 1) {
-          // Object is known to have exactly this map.
-          if (entry->check_ != NULL) {
-            instr->DeleteAndReplaceWith(entry->check_);
-          } else {
-            // Mark check as dead but leave it in the graph as a checkpoint for
-            // subsequent checks.
-            instr->SetFlag(HValue::kIsDead);
-            entry->check_ = instr;
-          }
-          INC_STAT(removed_);
-        } else {
-          // Only one map survives the check.
-          entry->maps_ = new(zone()) UniqueSet<Map>(map, zone());
-          entry->check_ = instr;
-        }
-      }
-    } else {
-      // No prior information.
-      Insert(object, instr, map);
-    }
-  }
-
   void ReduceCheckHeapObject(HCheckHeapObject* instr) {
     if (FindMaps(instr->value()->ActualValue()) != NULL) {
       // If the object has known maps, it's definitely a heap object.
@@ -407,12 +370,12 @@ class HCheckTable : public ZoneObject {
     if (instr->has_transition()) {
       // This store transitions the object to a new map.
       Kill(object);
-      Insert(object, NULL, MapConstant(instr->transition()));
+      Insert(object, NULL, HConstant::cast(instr->transition())->MapValue());
     } else if (instr->access().IsMap()) {
       // This is a store directly to the map field of the object.
       Kill(object);
       if (!instr->value()->IsConstant()) return;
-      Insert(object, NULL, MapConstant(instr->value()));
+      Insert(object, NULL, HConstant::cast(instr->value())->MapValue());
     } else {
       // If the instruction changes maps, it should be handled above.
       CHECK(!instr->CheckChangesFlag(kMaps));
@@ -585,10 +548,6 @@ class HCheckTable : public ZoneObject {
     // If the table becomes full, wrap around and overwrite older entries.
     if (cursor_ == kMaxTrackedObjects) cursor_ = 0;
     if (size_ < kMaxTrackedObjects) size_++;
-  }
-
-  Unique<Map> MapConstant(HValue* value) {
-    return Unique<Map>::cast(HConstant::cast(value)->GetUnique());
   }
 
   Zone* zone() const { return phase_->zone(); }

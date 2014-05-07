@@ -1976,12 +1976,11 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                                    const char* type_str,
                                    Handle<Name> name,
                                    Handle<Object> old_value) {
+  ASSERT(!object->IsJSGlobalProxy());
+  ASSERT(!object->IsJSGlobalObject());
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<String> type = isolate->factory()->InternalizeUtf8String(type_str);
-  if (object->IsJSGlobalObject()) {
-    object = handle(JSGlobalObject::cast(*object)->global_receiver(), isolate);
-  }
   Handle<Object> args[] = { type, object, name, old_value };
   int argc = name.is_null() ? 2 : old_value->IsTheHole() ? 3 : 4;
 
@@ -3148,9 +3147,12 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
       }
       case CALLBACKS: {
         *done = true;
-        Handle<Object> callback_object(result.GetCallbackObject(), isolate);
-        return SetPropertyWithCallback(object, callback_object, name, value,
-                                       handle(result.holder()), strict_mode);
+        if (!result.IsReadOnly()) {
+          Handle<Object> callback_object(result.GetCallbackObject(), isolate);
+          return SetPropertyWithCallback(object, callback_object, name, value,
+                                         handle(result.holder()), strict_mode);
+        }
+        break;
       }
       case HANDLER: {
         Handle<JSProxy> proxy(result.proxy());
@@ -5073,9 +5075,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
 }
 
 
-Smi* JSReceiver::GenerateIdentityHash() {
-  Isolate* isolate = GetIsolate();
-
+static Smi* GenerateIdentityHash(Isolate* isolate) {
   int hash_value;
   int attempts = 0;
   do {
@@ -5091,14 +5091,31 @@ Smi* JSReceiver::GenerateIdentityHash() {
 
 
 void JSObject::SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash) {
+  ASSERT(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
   SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
+}
+
+
+template<typename ProxyType>
+static Handle<Object> GetOrCreateIdentityHashHelper(Handle<ProxyType> proxy) {
+  Isolate* isolate = proxy->GetIsolate();
+
+  Handle<Object> hash(proxy->hash(), isolate);
+  if (hash->IsSmi()) return hash;
+
+  hash = handle(GenerateIdentityHash(isolate), isolate);
+  proxy->set_hash(*hash);
+  return hash;
 }
 
 
 Object* JSObject::GetIdentityHash() {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
+  if (IsJSGlobalProxy()) {
+    return JSGlobalProxy::cast(this)->hash();
+  }
   Object* stored_value =
       GetHiddenProperty(isolate->factory()->identity_hash_string());
   return stored_value->IsSmi()
@@ -5108,21 +5125,17 @@ Object* JSObject::GetIdentityHash() {
 
 
 Handle<Object> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
-  Handle<Object> hash(object->GetIdentityHash(), object->GetIsolate());
-  if (hash->IsSmi())
-    return hash;
+  if (object->IsJSGlobalProxy()) {
+    return GetOrCreateIdentityHashHelper(Handle<JSGlobalProxy>::cast(object));
+  }
 
   Isolate* isolate = object->GetIsolate();
 
-  hash = handle(object->GenerateIdentityHash(), isolate);
-  Handle<Object> result = SetHiddenProperty(object,
-      isolate->factory()->identity_hash_string(), hash);
+  Handle<Object> hash(object->GetIdentityHash(), isolate);
+  if (hash->IsSmi()) return hash;
 
-  if (result->IsUndefined()) {
-    // Trying to get hash of detached proxy.
-    return handle(Smi::FromInt(0), isolate);
-  }
-
+  hash = handle(GenerateIdentityHash(isolate), isolate);
+  SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
   return hash;
 }
 
@@ -5133,15 +5146,7 @@ Object* JSProxy::GetIdentityHash() {
 
 
 Handle<Object> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
-  Isolate* isolate = proxy->GetIsolate();
-
-  Handle<Object> hash(proxy->GetIdentityHash(), isolate);
-  if (hash->IsSmi())
-    return hash;
-
-  hash = handle(proxy->GenerateIdentityHash(), isolate);
-  proxy->set_hash(*hash);
-  return hash;
+  return GetOrCreateIdentityHashHelper(proxy);
 }
 
 
@@ -5149,6 +5154,8 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
   DisallowHeapAllocation no_gc;
   ASSERT(key->IsUniqueName());
   if (IsJSGlobalProxy()) {
+    // JSGlobalProxies store their hash internally.
+    ASSERT(*key != GetHeap()->identity_hash_string());
     // For a proxy, use the prototype as target object.
     Object* proxy_parent = GetPrototype();
     // If the proxy is detached, return undefined.
@@ -5183,6 +5190,8 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
 
   ASSERT(key->IsUniqueName());
   if (object->IsJSGlobalProxy()) {
+    // JSGlobalProxies store their hash internally.
+    ASSERT(*key != *isolate->factory()->identity_hash_string());
     // For a proxy, use the prototype as target object.
     Handle<Object> proxy_parent(object->GetPrototype(), isolate);
     // If the proxy is detached, return undefined.
@@ -5920,6 +5929,8 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
 
 
 void JSObject::SetObserved(Handle<JSObject> object) {
+  ASSERT(!object->IsJSGlobalProxy());
+  ASSERT(!object->IsJSGlobalObject());
   Isolate* isolate = object->GetIsolate();
   Handle<Map> new_map;
   Handle<Map> old_map(object->map(), isolate);

@@ -1577,6 +1577,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //         jssp[8]:     Preserved x22 (used for argc).
   //         jssp[0]:     Preserved x21 (used for argv).
   __ Drop(x11);
+  __ AssertFPCRState();
   __ Ret();
 
   // The stack pointer is still csp if we aren't returning, and the frame
@@ -1659,6 +1660,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PushCalleeSavedRegisters();
   __ Mov(jssp, csp);
   __ SetStackPointer(jssp);
+
+  // Configure the FPCR. We don't restore it, so this is technically not allowed
+  // according to AAPCS64. However, we only set default-NaN mode and this will
+  // be harmless for most C code. Also, it works for ARM.
+  __ ConfigureFPCR();
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -4633,7 +4639,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
   __ Bind(&double_elements);
   __ Ldr(x10, FieldMemOperand(array, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(value, index_smi, x10, x11, d0, d1,
+  __ StoreNumberToDoubleElements(value, index_smi, x10, x11, d0,
                                  &slow_elements);
   __ Ret();
 }
@@ -4735,6 +4741,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   __ Blr(x10);
   // Return to calling code.
   __ Peek(lr, 0);
+  __ AssertFPCRState();
   __ Ret();
 
   __ SetStackPointer(old_stack_pointer);

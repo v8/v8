@@ -4980,17 +4980,17 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
 bool Heap::ConfigureHeap(int max_semispace_size,
-                         intptr_t max_old_gen_size,
+                         intptr_t max_old_space_size,
                          intptr_t max_executable_size,
                          intptr_t code_range_size) {
   if (HasBeenSetUp()) return false;
 
   // If max space size flags are specified overwrite the configuration.
   if (FLAG_max_new_space_size > 0) {
-    max_semispace_size = FLAG_max_new_space_size * kLumpOfMemory;
+    max_semispace_size = (FLAG_max_new_space_size / 2) * kLumpOfMemory;
   }
   if (FLAG_max_old_space_size > 0) {
-    max_old_gen_size = FLAG_max_old_space_size * kLumpOfMemory;
+    max_old_space_size = FLAG_max_old_space_size * kLumpOfMemory;
   }
   if (FLAG_max_executable_size > 0) {
     max_executable_size = FLAG_max_executable_size * kLumpOfMemory;
@@ -5031,7 +5031,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     reserved_semispace_size_ = max_semispace_size_;
   }
 
-  if (max_old_gen_size > 0) max_old_generation_size_ = max_old_gen_size;
+  if (max_old_space_size > 0) max_old_generation_size_ = max_old_space_size;
   if (max_executable_size > 0) {
     max_executable_size_ = RoundUp(max_executable_size, Page::kPageSize);
   }

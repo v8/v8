@@ -1048,10 +1048,6 @@ class MacroAssembler: public Assembler {
                    Handle<Code> success,
                    SmiCheckType smi_check_type);
 
-  // Generates code for reporting that an illegal operation has
-  // occurred.
-  void IllegalOperation(int num_arguments);
-
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.

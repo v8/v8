@@ -1291,6 +1291,7 @@ template <class C> inline bool Is(Object* obj);
   V(kUnexpectedNegativeValue, "Unexpected negative value")                    \
   V(kUnexpectedNumberOfPreAllocatedPropertyFields,                            \
     "Unexpected number of pre-allocated property fields")                     \
+  V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                             \
   V(kUnexpectedSmi, "Unexpected smi value")                                   \
   V(kUnexpectedStringFunction, "Unexpected String function")                  \
   V(kUnexpectedStringType, "Unexpected string type")                          \
@@ -1989,8 +1990,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  protected:
-  Smi* GenerateIdentityHash();
-
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithDefinedSetter(
       Handle<JSReceiver> object,
       Handle<JSReceiver> setter,
@@ -7716,6 +7715,9 @@ class JSGlobalProxy : public JSObject {
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(native_context, Object)
 
+  // [hash]: The hash code property (undefined if not initialized yet).
+  DECL_ACCESSORS(hash, Object)
+
   // Casting.
   static inline JSGlobalProxy* cast(Object* obj);
 
@@ -7727,7 +7729,8 @@ class JSGlobalProxy : public JSObject {
 
   // Layout description.
   static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kNativeContextOffset + kPointerSize;
+  static const int kHashOffset = kNativeContextOffset + kPointerSize;
+  static const int kSize = kHashOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);

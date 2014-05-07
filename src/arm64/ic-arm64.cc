@@ -1021,7 +1021,6 @@ static void KeyedStoreGenerateGenericHelper(
                                  elements,
                                  x10,
                                  d0,
-                                 d1,
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.

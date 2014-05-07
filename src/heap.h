@@ -549,7 +549,7 @@ class Heap {
   // Configure heap size before setup. Return false if the heap has been
   // set up already.
   bool ConfigureHeap(int max_semispace_size,
-                     intptr_t max_old_gen_size,
+                     intptr_t max_old_space_size,
                      intptr_t max_executable_size,
                      intptr_t code_range_size);
   bool ConfigureHeapDefault();

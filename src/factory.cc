@@ -1776,6 +1776,9 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   ASSERT(constructor->has_initial_map());
   Handle<Map> map(constructor->initial_map(), isolate());
 
+  // The proxy's hash should be retained across reinitialization.
+  Handle<Object> hash(object->hash(), isolate());
+
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
   ASSERT(map->instance_size() == object->map()->instance_size());
@@ -1795,6 +1798,9 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   Heap* heap = isolate()->heap();
   // Reinitialize the object from the constructor map.
   heap->InitializeJSObjectFromMap(*object, *properties, *map);
+
+  // Restore the saved hash.
+  object->set_hash(*hash);
 }
 
 

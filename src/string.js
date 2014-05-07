@@ -150,7 +150,6 @@ function StringMatch(regexp) {
     var lastIndex = regexp.lastIndex;
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
-    %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
     var result = %StringMatch(subject, regexp, lastMatchInfo);
     if (result !== null) lastMatchInfoOverride = null;
@@ -221,7 +220,6 @@ function StringReplace(search, replace) {
     // value is discarded.
     var lastIndex = search.lastIndex;
     TO_INTEGER_FOR_SIDE_EFFECT(lastIndex);
-    %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
 
     if (!IS_SPEC_FUNCTION(replace)) {
       replace = TO_STRING_INLINE(replace);
@@ -623,8 +621,6 @@ function StringSplit(separator, limit) {
 var ArrayPushBuiltin = $Array.prototype.push;
 
 function StringSplitOnRegExp(subject, separator, limit, length) {
-  %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
-
   if (length === 0) {
     if (DoRegExpExec(separator, subject, 0, 0) != null) {
       return [];

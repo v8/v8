@@ -678,11 +678,13 @@ HConstant* HGraph::GetConstantMinus1() {
 }
 
 
-#define DEFINE_GET_CONSTANT(Name, name, htype, boolean_value)                  \
+#define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value)            \
 HConstant* HGraph::GetConstant##Name() {                                       \
   if (!constant_##name##_.is_set()) {                                          \
     HConstant* constant = new(zone()) HConstant(                               \
         Unique<Object>::CreateImmovable(isolate()->factory()->name##_value()), \
+        Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()),      \
+        false,                                                                 \
         Representation::Tagged(),                                              \
         htype,                                                                 \
         true,                                                                  \
@@ -696,11 +698,11 @@ HConstant* HGraph::GetConstant##Name() {                                       \
 }
 
 
-DEFINE_GET_CONSTANT(Undefined, undefined, HType::Tagged(), false)
-DEFINE_GET_CONSTANT(True, true, HType::Boolean(), true)
-DEFINE_GET_CONSTANT(False, false, HType::Boolean(), false)
-DEFINE_GET_CONSTANT(Hole, the_hole, HType::Tagged(), false)
-DEFINE_GET_CONSTANT(Null, null, HType::Tagged(), false)
+DEFINE_GET_CONSTANT(Undefined, undefined, undefined, HType::Tagged(), false)
+DEFINE_GET_CONSTANT(True, true, boolean, HType::Boolean(), true)
+DEFINE_GET_CONSTANT(False, false, boolean, HType::Boolean(), false)
+DEFINE_GET_CONSTANT(Hole, the_hole, the_hole, HType::Tagged(), false)
+DEFINE_GET_CONSTANT(Null, null, null, HType::Tagged(), false)
 
 
 #undef DEFINE_GET_CONSTANT
@@ -10791,12 +10793,6 @@ void HOptimizedGraphBuilder::GenerateObjectEquals(CallRuntime* call) {
   HCompareObjectEqAndBranch* result =
       New<HCompareObjectEqAndBranch>(left, right);
   return ast_context()->ReturnControl(result, call->id());
-}
-
-
-void HOptimizedGraphBuilder::GenerateLog(CallRuntime* call) {
-  // %_Log is ignored in optimized code.
-  return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 
 

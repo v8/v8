@@ -1203,7 +1203,7 @@ TEST(AsciiArrayJoin) {
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
-  constraints.set_max_new_space_size(256 * K);
+  constraints.set_max_new_space_size(2 * K * K);
   constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 

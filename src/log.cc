@@ -1178,47 +1178,6 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 }
 
 
-void Logger::LogRuntime(Vector<const char> format,
-                        Handle<JSArray> args) {
-  if (!log_->IsEnabled() || !FLAG_log_runtime) return;
-  Log::MessageBuilder msg(log_);
-  for (int i = 0; i < format.length(); i++) {
-    char c = format[i];
-    if (c == '%' && i <= format.length() - 2) {
-      i++;
-      ASSERT('0' <= format[i] && format[i] <= '9');
-      // No exception expected when getting an element from an array literal.
-      Handle<Object> obj = Object::GetElement(
-          isolate_, args, format[i] - '0').ToHandleChecked();
-      i++;
-      switch (format[i]) {
-        case 's':
-          msg.AppendDetailed(String::cast(*obj), false);
-          break;
-        case 'S':
-          msg.AppendDetailed(String::cast(*obj), true);
-          break;
-        case 'r':
-          Logger::LogRegExpSource(Handle<JSRegExp>::cast(obj));
-          break;
-        case 'x':
-          msg.Append("0x%x", Smi::cast(*obj)->value());
-          break;
-        case 'i':
-          msg.Append("%i", Smi::cast(*obj)->value());
-          break;
-        default:
-          UNREACHABLE();
-      }
-    } else {
-      msg.Append(c);
-    }
-  }
-  msg.Append('\n');
-  msg.WriteToLogFile();
-}
-
-
 void Logger::ApiIndexedSecurityCheck(uint32_t index) {
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   ApiEvent("api,check-security,%u\n", index);

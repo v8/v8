@@ -2531,9 +2531,15 @@ void LCodeGen::DoConstantS(LConstantS* instr) {
 
 
 void LCodeGen::DoConstantT(LConstantT* instr) {
-  Handle<Object> value = instr->value(isolate());
+  Handle<Object> object = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
-  __ LoadObject(ToRegister(instr->result()), value);
+  if (instr->hydrogen()->HasObjectMap()) {
+    Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
+    CHECK(object->IsHeapObject());
+    CHECK(!object_map->is_stable() ||
+          *object_map == Handle<HeapObject>::cast(object)->map());
+  }
+  __ LoadObject(ToRegister(instr->result()), object);
 }
 
 
@@ -5168,11 +5174,8 @@ void LCodeGen::DoStoreKeyedFixedDouble(LStoreKeyedFixedDouble* instr) {
   }
 
   if (instr->NeedsCanonicalization()) {
-    DoubleRegister dbl_scratch = double_scratch();
-    __ Fmov(dbl_scratch,
-            FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-    __ Fmaxnm(dbl_scratch, dbl_scratch, value);
-    __ Str(dbl_scratch, FieldMemOperand(store_base, offset));
+    __ CanonicalizeNaN(double_scratch(), value);
+    __ Str(double_scratch(), FieldMemOperand(store_base, offset));
   } else {
     __ Str(value, FieldMemOperand(store_base, offset));
   }

@@ -2748,6 +2748,25 @@ THREADED_TEST(IdentityHash) {
 }
 
 
+THREADED_TEST(GlobalProxyIdentityHash) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global_proxy = env->Global();
+  int hash1 = global_proxy->GetIdentityHash();
+  // Hash should be retained after being detached.
+  env->DetachGlobal();
+  int hash2 = global_proxy->GetIdentityHash();
+  CHECK_EQ(hash1, hash2);
+  {
+    // Re-attach global proxy to a new context, hash should stay the same.
+    LocalContext env2(NULL, Handle<ObjectTemplate>(), global_proxy);
+    int hash3 = global_proxy->GetIdentityHash();
+    CHECK_EQ(hash1, hash3);
+  }
+}
+
+
 THREADED_TEST(SymbolProperties) {
   i::FLAG_harmony_symbols = true;
 
@@ -19517,7 +19536,7 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
       case SetResourceConstraints: {
         static const int K = 1024;
         v8::ResourceConstraints constraints;
-        constraints.set_max_new_space_size(256 * K);
+        constraints.set_max_new_space_size(2 * K * K);
         constraints.set_max_old_space_size(4 * K * K);
         v8::SetResourceConstraints(CcTest::isolate(), &constraints);
         break;
