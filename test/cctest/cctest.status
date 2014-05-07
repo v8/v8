@@ -94,7 +94,7 @@
   'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
 
   # BUG(v8:3154).
-  'test-heap/ReleaseOverReservedPages': [PASS, ['mode == debug', FAIL]],
+  'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
   # BUG(v8:3155).
   'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
