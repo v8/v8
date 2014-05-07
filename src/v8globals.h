@@ -413,8 +413,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   VFP32DREGS = 6,  // ARM
                   NEON = 7,    // ARM
                   SAHF = 0,    // x86
-                  FPU = 1,     // MIPS
-                  ALWAYS_ALIGN_CSP = 1 };    // ARM64
+                  FPU = 1};    // MIPS
 
 
 // Used to specify if a macro instruction must perform a smi check on tagged

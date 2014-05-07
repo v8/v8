@@ -1246,56 +1246,29 @@ void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
 
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
   ASSERT(!csp.Is(sp_));
-  { InstructionAccurateScope scope(this);
-    if (!TmpList()->IsEmpty()) {
-      if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-        UseScratchRegisterScope temps(this);
-        Register temp = temps.AcquireX();
-        sub(temp, StackPointer(), space);
-        bic(csp, temp, 0xf);
-      } else {
-        sub(csp, StackPointer(), space);
-      }
-    } else {
-      // TODO(jbramley): Several callers rely on this not using scratch
-      // registers, so we use the assembler directly here. However, this means
-      // that large immediate values of 'space' cannot be handled cleanly. (Only
-      // 24-bits immediates or values of 'space' that can be encoded in one
-      // instruction are accepted.) Once we implement our flexible scratch
-      // register idea, we could greatly simplify this function.
-      ASSERT(space.IsImmediate());
-      // Align to 16 bytes.
-      uint64_t imm = RoundUp(space.immediate(), 0x10);
-      ASSERT(is_uint24(imm));
+  // TODO(jbramley): Several callers rely on this not using scratch registers,
+  // so we use the assembler directly here. However, this means that large
+  // immediate values of 'space' cannot be handled cleanly. (Only 24-bits
+  // immediates or values of 'space' that can be encoded in one instruction are
+  // accepted.) Once we implement our flexible scratch register idea, we could
+  // greatly simplify this function.
+  InstructionAccurateScope scope(this);
+  if ((space.IsImmediate()) && !is_uint12(space.immediate())) {
+    // The subtract instruction supports a 12-bit immediate, shifted left by
+    // zero or 12 bits. So, in two instructions, we can subtract any immediate
+    // between zero and (1 << 24) - 1.
+    int64_t imm = space.immediate();
+    ASSERT(is_uint24(imm));
 
-      Register source = StackPointer();
-      if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-        bic(csp, source, 0xf);
-        source = csp;
-      }
-      if (!is_uint12(imm)) {
-        int64_t imm_top_12_bits = imm >> 12;
-        sub(csp, source, imm_top_12_bits << 12);
-        source = csp;
-        imm -= imm_top_12_bits << 12;
-      }
-      if (imm > 0) {
-        sub(csp, source, imm);
-      }
+    int64_t imm_top_12_bits = imm >> 12;
+    sub(csp, StackPointer(), imm_top_12_bits << 12);
+    imm -= imm_top_12_bits << 12;
+    if (imm > 0) {
+      sub(csp, csp, imm);
     }
+  } else {
+    sub(csp, StackPointer(), space);
   }
-  AssertStackConsistency();
-}
-
-
-void MacroAssembler::SyncSystemStackPointer() {
-  ASSERT(emit_debug_code());
-  ASSERT(!csp.Is(sp_));
-  if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-    InstructionAccurateScope scope(this);
-    bic(csp, StackPointer(), 0xf);
-  }
-  AssertStackConsistency();
 }
 
 
@@ -1567,7 +1540,7 @@ void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    SyncSystemStackPointer();
+    Mov(csp, StackPointer());
   }
 }
 
@@ -1589,7 +1562,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    SyncSystemStackPointer();
+    Mov(csp, StackPointer());
   }
 }
 
@@ -1611,7 +1584,7 @@ void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
     // accesses in the now-free part of the stack.
-    SyncSystemStackPointer();
+    Mov(csp, StackPointer());
   }
 }
 

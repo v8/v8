@@ -976,7 +976,6 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Set stack pointer back to first register to retain
   ASSERT(csp.Is(__ StackPointer()));
   __ Mov(csp, fp);
-  __ AssertStackConsistency();
 
   // Restore registers.
   __ PopCPURegList(registers_to_retain);

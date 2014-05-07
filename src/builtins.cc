@@ -1604,13 +1604,9 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // For now we generate builtin adaptor code into a stack-allocated
   // buffer, before copying it into individual code objects. Be careful
   // with alignment, some platforms don't like unaligned code.
-#ifdef DEBUG
-  // We can generate a lot of debug code on Arm64.
-  const size_t buffer_size = 32*KB;
-#else
-  const size_t buffer_size = 8*KB;
-#endif
-  union { int force_alignment; byte buffer[buffer_size]; } u;
+  // TODO(jbramley): I had to increase the size of this buffer from 8KB because
+  // we can generate a lot of debug code on ARM64.
+  union { int force_alignment; byte buffer[16*KB]; } u;
 
   // Traverse the list of builtins and generate an adaptor in a
   // separate code object for each one.

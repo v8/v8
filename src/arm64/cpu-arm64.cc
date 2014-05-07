@@ -18,7 +18,6 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
 
 
@@ -127,24 +126,8 @@ void CPU::FlushICache(void* address, size_t length) {
 
 
 void CpuFeatures::Probe(bool serializer_enabled) {
-  ASSERT(supported_ == 0);
-
-  if (serializer_enabled && FLAG_enable_always_align_csp) {
-    // Always align csp in snapshot code - this is safe and ensures that csp
-    // will always be aligned if it is enabled by probing at runtime.
-    supported_ |= static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
-  }
-
-  if (!serializer_enabled) {
-    CPU cpu;
-    // Always align csp on Nvidia cores.
-    if (cpu.implementer() == CPU::NVIDIA && FLAG_enable_always_align_csp) {
-      found_by_runtime_probing_only_ |=
-          static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
-    }
-
-    supported_ |= found_by_runtime_probing_only_;
-  }
+  // AArch64 has no configuration options, no further probing is required.
+  supported_ = 0;
 
 #ifdef DEBUG
   initialized_ = true;

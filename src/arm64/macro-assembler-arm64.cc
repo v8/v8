@@ -124,7 +124,6 @@ void MacroAssembler::LogicalMacro(const Register& rd,
         // register so we use the temp register as an intermediate again.
         Logical(temp, rn, temp, op);
         Mov(csp, temp);
-        AssertStackConsistency();
       } else {
         Logical(rd, rn, temp, op);
       }
@@ -232,7 +231,6 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
     // pointer.
     if (rd.IsSP()) {
       mov(rd, temp);
-      AssertStackConsistency();
     }
   }
 }
@@ -769,7 +767,7 @@ void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
   int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
   int size = src0.SizeInBytes();
 
-  PushPreamble(count, size);
+  PrepareForPush(count, size);
   PushHelper(count, size, src0, src1, src2, src3);
 }
 
@@ -783,7 +781,7 @@ void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
   int count = 5 + src5.IsValid() + src6.IsValid() + src6.IsValid();
   int size = src0.SizeInBytes();
 
-  PushPreamble(count, size);
+  PrepareForPush(count, size);
   PushHelper(4, size, src0, src1, src2, src3);
   PushHelper(count - 4, size, src4, src5, src6, src7);
 }
@@ -800,15 +798,22 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
   int count = 1 + dst1.IsValid() + dst2.IsValid() + dst3.IsValid();
   int size = dst0.SizeInBytes();
 
+  PrepareForPop(count, size);
   PopHelper(count, size, dst0, dst1, dst2, dst3);
-  PopPostamble(count, size);
+
+  if (!csp.Is(StackPointer()) && emit_debug_code()) {
+    // It is safe to leave csp where it is when unwinding the JavaScript stack,
+    // but if we keep it matching StackPointer, the simulator can detect memory
+    // accesses in the now-free part of the stack.
+    Mov(csp, StackPointer());
+  }
 }
 
 
 void MacroAssembler::PushPopQueue::PushQueued() {
   if (queued_.empty()) return;
 
-  masm_->PushPreamble(size_);
+  masm_->PrepareForPush(size_);
 
   int count = queued_.size();
   int index = 0;
@@ -833,6 +838,8 @@ void MacroAssembler::PushPopQueue::PushQueued() {
 void MacroAssembler::PushPopQueue::PopQueued() {
   if (queued_.empty()) return;
 
+  masm_->PrepareForPop(size_);
+
   int count = queued_.size();
   int index = 0;
   while (index < count) {
@@ -849,7 +856,6 @@ void MacroAssembler::PushPopQueue::PopQueued() {
                      batch[0], batch[1], batch[2], batch[3]);
   }
 
-  masm_->PopPostamble(size_);
   queued_.clear();
 }
 
@@ -857,7 +863,7 @@ void MacroAssembler::PushPopQueue::PopQueued() {
 void MacroAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
-  PushPreamble(registers.Count(), size);
+  PrepareForPush(registers.Count(), size);
   // Push up to four registers at a time because if the current stack pointer is
   // csp and reg_size is 32, registers must be pushed in blocks of four in order
   // to maintain the 16-byte alignment for csp.
@@ -876,6 +882,7 @@ void MacroAssembler::PushCPURegList(CPURegList registers) {
 void MacroAssembler::PopCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
+  PrepareForPop(registers.Count(), size);
   // Pop up to four registers at a time because if the current stack pointer is
   // csp and reg_size is 32, registers must be pushed in blocks of four in
   // order to maintain the 16-byte alignment for csp.
@@ -888,14 +895,20 @@ void MacroAssembler::PopCPURegList(CPURegList registers) {
     int count = count_before - registers.Count();
     PopHelper(count, size, dst0, dst1, dst2, dst3);
   }
-  PopPostamble(registers.Count(), size);
+
+  if (!csp.Is(StackPointer()) && emit_debug_code()) {
+    // It is safe to leave csp where it is when unwinding the JavaScript stack,
+    // but if we keep it matching StackPointer, the simulator can detect memory
+    // accesses in the now-free part of the stack.
+    Mov(csp, StackPointer());
+  }
 }
 
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
   int size = src.SizeInBytes();
 
-  PushPreamble(count, size);
+  PrepareForPush(count, size);
 
   if (FLAG_optimize_for_size && count > 8) {
     UseScratchRegisterScope temps(this);
@@ -931,7 +944,7 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
 
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
-  PushPreamble(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
+  PrepareForPush(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
 
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireSameSizeAs(count);
@@ -1057,7 +1070,7 @@ void MacroAssembler::PopHelper(int count, int size,
 }
 
 
-void MacroAssembler::PushPreamble(Operand total_size) {
+void MacroAssembler::PrepareForPush(Operand total_size) {
   // TODO(jbramley): This assertion generates too much code in some debug tests.
   // AssertStackConsistency();
   if (csp.Is(StackPointer())) {
@@ -1079,7 +1092,7 @@ void MacroAssembler::PushPreamble(Operand total_size) {
 }
 
 
-void MacroAssembler::PopPostamble(Operand total_size) {
+void MacroAssembler::PrepareForPop(Operand total_size) {
   AssertStackConsistency();
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
@@ -1091,11 +1104,6 @@ void MacroAssembler::PopPostamble(Operand total_size) {
 
     // Don't check access size for non-immediate sizes. It's difficult to do
     // well, and it will be caught by hardware (or the simulator) anyway.
-  } else if (emit_debug_code()) {
-    // It is safe to leave csp where it is when unwinding the JavaScript stack,
-    // but if we keep it matching StackPointer, the simulator can detect memory
-    // accesses in the now-free part of the stack.
-    SyncSystemStackPointer();
   }
 }
 
@@ -1192,14 +1200,12 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 
 void MacroAssembler::AssertStackConsistency() {
   if (emit_debug_code()) {
-    if (csp.Is(StackPointer()) || CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-      // Always check the alignment of csp if ALWAYS_ALIGN_CSP is true, since it
-      // could have been bumped even if it is not the stack pointer.  We can't
-      // check the alignment of csp without using a scratch register (or
-      // clobbering the flags), but the processor (or simulator) will abort if
-      // it is not properly aligned during a load.
+    if (csp.Is(StackPointer())) {
+      // We can't check the alignment of csp without using a scratch register
+      // (or clobbering the flags), but the processor (or simulator) will abort
+      // if it is not properly aligned during a load.
       ldr(xzr, MemOperand(csp, 0));
-    } else if (FLAG_enable_slow_asserts && !csp.Is(StackPointer())) {
+    } else if (FLAG_enable_slow_asserts) {
       Label ok;
       // Check that csp <= StackPointer(), preserving all registers and NZCV.
       sub(StackPointer(), csp, StackPointer());
