@@ -68,10 +68,6 @@
   'd8-performance-now': [PASS, NO_VARIANTS],
 
   ##############################################################################
-  # These use a built-in that's only present in debug mode. They take
-  # too long to run in debug mode on ARM and MIPS.
-  'fuzz-natives-part*': [PASS, ['mode == release or arch == arm or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips', SKIP]],
-
   'big-object-literal': [PASS, ['arch == arm or arch == android_arm or arch == android_arm64', SKIP]],
 
   # Issue 488: this test sometimes times out.
@@ -350,11 +346,6 @@
   'debug-liveedit-stack-padding': [SKIP],
   'debug-liveedit-restart-frame': [SKIP],
   'debug-liveedit-double-call': [SKIP],
-
-  # This test dumps core for arm.debug, so no reason to expect it to work
-  # for NaCl. The other three fuzz-natives tests seem to run fine.
-  # As noted above none of them are run in the arm.debug case.
-  'fuzz-natives-part4': [SKIP],
 
   # NaCl builds have problems with this test since Pepper_28.
   # V8 Issue 2786
