@@ -590,8 +590,6 @@
         '../../src/utils.h',
         '../../src/utils/random-number-generator.cc',
         '../../src/utils/random-number-generator.h',
-        '../../src/v8-counters.cc',
-        '../../src/v8-counters.h',
         '../../src/v8.cc',
         '../../src/v8.h',
         '../../src/v8checks.h',
