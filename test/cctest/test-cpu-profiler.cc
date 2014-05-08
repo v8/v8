@@ -1158,9 +1158,12 @@ TEST(FunctionApplySample) {
     const v8::CpuProfileNode* testNode =
         FindChild(env->GetIsolate(), startNode, "test");
     if (testNode) {
-      ScopedVector<v8::Handle<v8::String> > names(2);
+      ScopedVector<v8::Handle<v8::String> > names(3);
       names[0] = v8::String::NewFromUtf8(env->GetIsolate(), "bar");
       names[1] = v8::String::NewFromUtf8(env->GetIsolate(), "apply");
+      // apply calls "get length" before invoking the function itself
+      // and we may get hit into it.
+      names[2] = v8::String::NewFromUtf8(env->GetIsolate(), "get length");
       CheckChildrenNames(testNode, names);
     }
 
@@ -1343,7 +1346,11 @@ TEST(JsNativeJsRuntimeJsSample) {
   const v8::CpuProfileNode* barNode =
       GetChild(env->GetIsolate(), nativeFunctionNode, "bar");
 
-  CHECK_EQ(1, barNode->GetChildrenCount());
+  // The child is in fact a bound foo.
+  // A bound function has a wrapper that may make calls to
+  // other functions e.g. "get length".
+  CHECK_LE(1, barNode->GetChildrenCount());
+  CHECK_GE(2, barNode->GetChildrenCount());
   GetChild(env->GetIsolate(), barNode, "foo");
 
   profile->Delete();
