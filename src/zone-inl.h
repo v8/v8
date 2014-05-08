@@ -16,7 +16,6 @@
 #include "counters.h"
 #include "isolate.h"
 #include "utils.h"
-#include "v8-counters.h"
 
 namespace v8 {
 namespace internal {

@@ -7,8 +7,8 @@
 #include <algorithm>
 
 #include "v8.h"
+#include "counters.h"
 #include "store-buffer-inl.h"
-#include "v8-counters.h"
 
 namespace v8 {
 namespace internal {

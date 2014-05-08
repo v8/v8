@@ -565,7 +565,14 @@ class LAddE V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
 class LAddI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LAddI(LOperand* left, LOperand* right) {
+  LAddI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LAddI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -573,8 +580,15 @@ class LAddI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -734,7 +748,14 @@ class LBoundsCheck V8_FINAL : public LTemplateInstruction<0, 2, 0> {
 
 class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LBitI(LOperand* left, LOperand* right) {
+  LBitI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LBitI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -742,10 +763,17 @@ class LBitI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   Token::Value op() const { return hydrogen()->op(); }
 
   DECLARE_CONCRETE_INSTRUCTION(BitI, "bit-i")
   DECLARE_HYDROGEN_ACCESSOR(Bitwise)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -2730,7 +2758,14 @@ class LStoreGlobalCell V8_FINAL : public LTemplateInstruction<0, 1, 2> {
 
 class LSubI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
  public:
-  LSubI(LOperand* left, LOperand* right) {
+  LSubI(LOperand* left, LOperand* right)
+      : shift_(NO_SHIFT), shift_amount_(0)  {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  LSubI(LOperand* left, LOperand* right, Shift shift, LOperand* shift_amount)
+      : shift_(shift), shift_amount_(shift_amount)  {
     inputs_[0] = left;
     inputs_[1] = right;
   }
@@ -2738,8 +2773,15 @@ class LSubI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
 
+  Shift shift() const { return shift_; }
+  LOperand* shift_amount() const { return shift_amount_; }
+
   DECLARE_CONCRETE_INSTRUCTION(SubI, "sub-i")
   DECLARE_HYDROGEN_ACCESSOR(Sub)
+
+ protected:
+  Shift shift_;
+  LOperand* shift_amount_;
 };
 
 
@@ -3047,6 +3089,9 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
 
+  // Temporary operand that must be in a double register.
+  MUST_USE_RESULT LUnallocated* TempDoubleRegister();
+
   // Temporary operand that must be in a fixed double register.
   MUST_USE_RESULT LOperand* FixedTemp(DoubleRegister reg);
 
@@ -3079,6 +3124,39 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   void VisitInstruction(HInstruction* current);
   void DoBasicBlock(HBasicBlock* block);
+
+  int JSShiftAmountFromHConstant(HValue* constant) {
+    return HConstant::cast(constant)->Integer32Value() & 0x1f;
+  }
+  bool LikelyFitsImmField(HInstruction* instr, int imm) {
+    if (instr->IsAdd() || instr->IsSub()) {
+      return Assembler::IsImmAddSub(imm) || Assembler::IsImmAddSub(-imm);
+    } else {
+      ASSERT(instr->IsBitwise());
+      unsigned unused_n, unused_imm_s, unused_imm_r;
+      return Assembler::IsImmLogical(imm, kWRegSizeInBits,
+                                     &unused_n, &unused_imm_s, &unused_imm_r);
+    }
+  }
+
+  // Indicates if a sequence of the form
+  //   lsl x8, x9, #imm
+  //   add x0, x1, x8
+  // can be replaced with:
+  //   add x0, x1, x9 LSL #imm
+  // If this is not possible, the function returns NULL. Otherwise it returns a
+  // pointer to the shift instruction that would be optimized away.
+  HBitwiseBinaryOperation* CanTransformToShiftedOp(HValue* val,
+                                                   HValue** left = NULL);
+  // Checks if all uses of the shift operation can optimize it away.
+  bool ShiftCanBeOptimizedAway(HBitwiseBinaryOperation* shift);
+  // Attempts to merge the binary operation and an eventual previous shift
+  // operation into a single operation. Returns the merged instruction on
+  // success, and NULL otherwise.
+  LInstruction* TryDoOpWithShiftedRightOperand(HBinaryOperation* op);
+  LInstruction* DoShiftedBinaryOp(HBinaryOperation* instr,
+                                  HValue* left,
+                                  HBitwiseBinaryOperation* shift);
 
   LInstruction* DoShift(Token::Value op, HBitwiseBinaryOperation* instr);
   LInstruction* DoArithmeticD(Token::Value op,

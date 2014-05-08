@@ -2326,6 +2326,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
           access_type_(access_type),
           type_(type),
           name_(name),
+          field_type_(HType::Tagged()),
           access_(HObjectAccess::ForMap()) { }
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
@@ -2392,6 +2393,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<Object> constant() { return constant_; }
     Handle<Map> transition() { return handle(lookup_.GetTransitionTarget()); }
     SmallMapList* field_maps() { return &field_maps_; }
+    HType field_type() const { return field_type_; }
     HObjectAccess access() { return access_; }
 
    private:
@@ -2422,6 +2424,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
     SmallMapList field_maps_;
+    HType field_type_;
     HObjectAccess access_;
   };
 

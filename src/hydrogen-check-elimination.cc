@@ -340,8 +340,10 @@ class HCheckTable : public ZoneObject {
     // Reduce a load of the map field when it is known to be a constant.
     if (!instr->access().IsMap()) {
       // Check if we introduce field maps here.
-      if (instr->maps()->size() != 0) {
-        Insert(instr, instr, instr->maps());
+      MapSet maps = instr->maps();
+      if (maps != NULL) {
+        ASSERT_NE(0, maps->size());
+        Insert(instr, NULL, maps);
       }
       return;
     }

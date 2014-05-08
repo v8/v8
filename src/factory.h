@@ -676,13 +676,12 @@ class Factory V8_FINAL {
   // type JS_FUNCTION_TYPE benefit from the use of this function.
   inline void InitializeFunction(Handle<JSFunction> function,
                                  Handle<SharedFunctionInfo> info,
-                                 Handle<Context> context,
-                                 MaybeHandle<Object> maybe_prototype);
+                                 Handle<Context> context);
 
   // Creates a function initialized with a shared part.
-  inline Handle<JSFunction> NewFunction(Handle<SharedFunctionInfo> info,
+  inline Handle<JSFunction> NewFunction(Handle<Map> map,
+                                        Handle<SharedFunctionInfo> info,
                                         Handle<Context> context,
-                                        MaybeHandle<Object> maybe_prototype,
                                         PretenureFlag pretenure = TENURED);
 
   // Create a new map cache.

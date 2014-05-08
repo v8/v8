@@ -13,7 +13,6 @@
 #include "list-inl.h"
 #include "objects.h"
 #include "platform.h"
-#include "v8-counters.h"
 #include "store-buffer.h"
 #include "store-buffer-inl.h"
 

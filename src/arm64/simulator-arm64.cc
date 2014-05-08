@@ -1979,7 +1979,8 @@ void Simulator::VisitDataProcessing2Source(Instruction* instr) {
   if (shift_op != NO_SHIFT) {
     // Shift distance encoded in the least-significant five/six bits of the
     // register.
-    int mask = (instr->SixtyFourBits() == 1) ? 0x3f : 0x1f;
+    int mask = (instr->SixtyFourBits() == 1) ? kShiftAmountXRegMask
+                                             : kShiftAmountWRegMask;
     unsigned shift = wreg(instr->Rm()) & mask;
     result = ShiftOperand(reg_size, reg(reg_size, instr->Rn()), shift_op,
                           shift);

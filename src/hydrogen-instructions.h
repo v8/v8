@@ -655,6 +655,10 @@ class HValue : public ZoneObject {
     HYDROGEN_ABSTRACT_INSTRUCTION_LIST(DECLARE_PREDICATE)
   #undef DECLARE_PREDICATE
 
+  bool IsBitwiseBinaryShift() {
+    return IsShl() || IsShr() || IsSar();
+  }
+
   HValue(HType type = HType::Tagged())
       : block_(NULL),
         id_(kNoNumber),
@@ -3613,7 +3617,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return Unique<Map>::cast(GetUnique());
   }
   bool HasStableMapValue() const {
-    ASSERT(HasMapValue());
+    ASSERT(HasMapValue() || !has_stable_map_value_);
     return has_stable_map_value_;
   }
 
@@ -6208,28 +6212,10 @@ class HObjectAccess V8_FINAL {
 
 class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
-  static HLoadNamedField* New(Zone* zone, HValue* context,
-                              HValue* object, HValue* dependency,
-                              HObjectAccess access) {
-    return new(zone) HLoadNamedField(
-        object, dependency, access, new(zone) UniqueSet<Map>());
-  }
-  static HLoadNamedField* New(Zone* zone, HValue* context,
-                              HValue* object, HValue* dependency,
-                              HObjectAccess access, SmallMapList* map_list,
-                              CompilationInfo* info) {
-    UniqueSet<Map>* maps = new(zone) UniqueSet<Map>(map_list->length(), zone);
-    for (int i = 0; i < map_list->length(); ++i) {
-      Handle<Map> map = map_list->at(i);
-      maps->Add(Unique<Map>::CreateImmovable(map), zone);
-      // TODO(bmeurer): Get rid of this shit!
-      if (map->CanTransition()) {
-        Map::AddDependentCompilationInfo(
-            map, DependentCode::kPrototypeCheckGroup, info);
-      }
-    }
-    return new(zone) HLoadNamedField(object, dependency, access, maps);
-  }
+  DECLARE_INSTRUCTION_FACTORY_P3(HLoadNamedField, HValue*,
+                                 HValue*, HObjectAccess);
+  DECLARE_INSTRUCTION_FACTORY_P5(HLoadNamedField, HValue*, HValue*,
+                                 HObjectAccess, const UniqueSet<Map>*, HType);
 
   HValue* object() { return OperandAt(0); }
   HValue* dependency() {
@@ -6258,23 +6244,36 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   virtual Range* InferRange(Zone* zone) V8_OVERRIDE;
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
+  bool CanBeReplacedWith(HValue* other) const {
+    if (!type().Equals(other->type())) return false;
+    if (!representation().Equals(other->representation())) return false;
+    if (!other->IsLoadNamedField()) return true;
+    HLoadNamedField* that = HLoadNamedField::cast(other);
+    if (this->maps_ == that->maps_) return true;
+    if (this->maps_ == NULL || that->maps_ == NULL) return false;
+    return this->maps_->IsSubset(that->maps_);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedField)
 
  protected:
   virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HLoadNamedField* b = HLoadNamedField::cast(other);
-    return access_.Equals(b->access_) && this->maps()->Equals(b->maps());
+    HLoadNamedField* that = HLoadNamedField::cast(other);
+    if (!this->access_.Equals(that->access_)) return false;
+    if (this->maps_ == that->maps_) return true;
+    return (this->maps_ != NULL &&
+            that->maps_ != NULL &&
+            this->maps_->Equals(that->maps_));
   }
 
  private:
   HLoadNamedField(HValue* object,
                   HValue* dependency,
-                  HObjectAccess access,
-                  const UniqueSet<Map>* maps)
-      : access_(access), maps_(maps) {
-    ASSERT(object != NULL);
+                  HObjectAccess access)
+      : access_(access), maps_(NULL) {
+    ASSERT_NOT_NULL(object);
     SetOperandAt(0, object);
-    SetOperandAt(1, dependency != NULL ? dependency : object);
+    SetOperandAt(1, dependency ? dependency : object);
 
     Representation representation = access.representation();
     if (representation.IsInteger8() ||
@@ -6294,11 +6293,35 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
                representation.IsInteger32()) {
       set_representation(representation);
     } else if (representation.IsHeapObject()) {
+      // TODO(bmeurer): This is probably broken. What we actually want to to
+      // instead is set_representation(Representation::HeapObject()).
       set_type(HType::NonPrimitive());
       set_representation(Representation::Tagged());
     } else {
       set_representation(Representation::Tagged());
     }
+    access.SetGVNFlags(this, LOAD);
+  }
+
+  HLoadNamedField(HValue* object,
+                  HValue* dependency,
+                  HObjectAccess access,
+                  const UniqueSet<Map>* maps,
+                  HType type)
+      : HTemplateInstruction<2>(type), access_(access), maps_(maps) {
+    ASSERT_NOT_NULL(maps);
+    ASSERT_NE(0, maps->size());
+
+    ASSERT_NOT_NULL(object);
+    SetOperandAt(0, object);
+    SetOperandAt(1, dependency ? dependency : object);
+
+    ASSERT(access.representation().IsHeapObject());
+    // TODO(bmeurer): This is probably broken. What we actually want to to
+    // instead is set_representation(Representation::HeapObject()).
+    if (!type.IsHeapObject()) set_type(HType::NonPrimitive());
+    set_representation(Representation::Tagged());
+
     access.SetGVNFlags(this, LOAD);
   }
 

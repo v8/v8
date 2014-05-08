@@ -9,6 +9,7 @@
 
 #include "allocation.h"
 #include "assert-scope.h"
+#include "counters.h"
 #include "globals.h"
 #include "incremental-marking.h"
 #include "list.h"
@@ -17,7 +18,6 @@
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "store-buffer.h"
-#include "v8-counters.h"
 #include "v8globals.h"
 
 namespace v8 {

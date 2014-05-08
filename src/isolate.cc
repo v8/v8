@@ -133,8 +133,8 @@ Isolate::PerIsolateThreadData*
       per_thread = new PerIsolateThreadData(this, thread_id);
       thread_data_table_->Insert(per_thread);
     }
+    ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
   }
-  ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
   return per_thread;
 }
 
@@ -1425,6 +1425,7 @@ Isolate::Isolate()
       logger_(NULL),
       stats_table_(NULL),
       stub_cache_(NULL),
+      code_aging_helper_(NULL),
       deoptimizer_data_(NULL),
       materialized_object_store_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
@@ -1660,6 +1661,8 @@ Isolate::~Isolate() {
 
   delete stub_cache_;
   stub_cache_ = NULL;
+  delete code_aging_helper_;
+  code_aging_helper_ = NULL;
   delete stats_table_;
   stats_table_ = NULL;
 
@@ -1833,6 +1836,8 @@ bool Isolate::Init(Deserializer* des) {
   Simulator::Initialize(this);
 #endif
 #endif
+
+  code_aging_helper_ = new CodeAgingHelper();
 
   { // NOLINT
     // Ensure that the thread has a valid stack guard.  The v8::Locker object

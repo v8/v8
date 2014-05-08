@@ -81,6 +81,7 @@ class LCodeGen: public LCodeGenBase {
   // information on it.
   void FinishCode(Handle<Code> code);
 
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
   Register ToRegister(LOperand* op) const;
@@ -92,6 +93,25 @@ class LCodeGen: public LCodeGenBase {
   MemOperand ToMemOperand(LOperand* op,
                           StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
+
+  template<class LI>
+  Operand ToShiftedRightOperand32I(LOperand* right,
+                                   LI* shift_info) {
+    return ToShiftedRightOperand32(right, shift_info, SIGNED_INT32);
+  }
+  template<class LI>
+  Operand ToShiftedRightOperand32U(LOperand* right,
+                                   LI* shift_info) {
+    return ToShiftedRightOperand32(right, shift_info, UNSIGNED_INT32);
+  }
+  template<class LI>
+  Operand ToShiftedRightOperand32(LOperand* right,
+                                  LI* shift_info,
+                                  IntegerSignedness signedness);
+
+  int JSShiftAmountFromLConstant(LOperand* constant) {
+    return ToInteger32(LConstantOperand::cast(constant)) & 0x1f;
+  }
 
   // TODO(jbramley): Examine these helpers and check that they make sense.
   // IsInteger32Constant returns true for smi constants, for example.
@@ -122,7 +142,6 @@ class LCodeGen: public LCodeGenBase {
                                Label* exit,
                                Label* allocation_entry);
 
-  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   void DoDeferredNumberTagU(LInstruction* instr,
                             LOperand* value,
                             LOperand* temp1,
@@ -237,11 +256,13 @@ class LCodeGen: public LCodeGenBase {
                                               int constant_key,
                                               ElementsKind elements_kind,
                                               int additional_index);
-  void CalcKeyedArrayBaseRegister(Register base,
-                                  Register elements,
-                                  Register key,
-                                  bool key_is_tagged,
-                                  ElementsKind elements_kind);
+  MemOperand PrepareKeyedArrayOperand(Register base,
+                                      Register elements,
+                                      Register key,
+                                      bool key_is_tagged,
+                                      ElementsKind elements_kind,
+                                      Representation representation,
+                                      int additional_index);
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);

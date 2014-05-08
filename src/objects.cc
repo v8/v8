@@ -11291,10 +11291,11 @@ void Code::MakeOlder(MarkingParity current_parity) {
   if (sequence != NULL) {
     Age age;
     MarkingParity code_parity;
-    GetCodeAgeAndParity(sequence, &age, &code_parity);
+    Isolate* isolate = GetIsolate();
+    GetCodeAgeAndParity(isolate, sequence, &age, &code_parity);
     age = EffectiveAge(age);
     if (age != kLastCodeAge && code_parity != current_parity) {
-      PatchPlatformCodeAge(GetIsolate(),
+      PatchPlatformCodeAge(isolate,
                            sequence,
                            static_cast<Age>(age + 1),
                            current_parity);
@@ -11330,7 +11331,7 @@ Code::Age Code::GetRawAge() {
   }
   Age age;
   MarkingParity parity;
-  GetCodeAgeAndParity(sequence, &age, &parity);
+  GetCodeAgeAndParity(GetIsolate(), sequence, &age, &parity);
   return age;
 }
 

@@ -1695,9 +1695,10 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
   AllowDeferredHandleDereference smi_check;
   if (instr->hydrogen()->HasObjectMap()) {
     Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
-    CHECK(object->IsHeapObject());
-    CHECK(!object_map->is_stable() ||
-          *object_map == Handle<HeapObject>::cast(object)->map());
+    ASSERT(object->IsHeapObject());
+    ASSERT(!object_map->is_stable() ||
+           *object_map == Handle<HeapObject>::cast(object)->map());
+    USE(object_map);
   }
   __ Move(ToRegister(instr->result()), object);
 }
@@ -3639,7 +3640,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
       __ testq(output_reg, Immediate(1));
       DeoptimizeIf(not_zero, instr->environment());
       __ Set(output_reg, 0);
-      __ jmp(&done, Label::kNear);
+      __ jmp(&done);
       __ bind(&positive_sign);
     }
 

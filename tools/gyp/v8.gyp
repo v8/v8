@@ -590,8 +590,6 @@
         '../../src/utils.h',
         '../../src/utils/random-number-generator.cc',
         '../../src/utils/random-number-generator.h',
-        '../../src/v8-counters.cc',
-        '../../src/v8-counters.h',
         '../../src/v8.cc',
         '../../src/v8.h',
         '../../src/v8checks.h',
@@ -696,7 +694,7 @@
             '../../src/arm64/utils-arm64.h',
           ],
         }],
-        ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
             '../../src/ia32/assembler-ia32-inl.h',
             '../../src/ia32/assembler-ia32.cc',
@@ -761,7 +759,7 @@
             '../../src/mips/stub-cache-mips.cc',
           ],
         }],
-        ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
+        ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',
@@ -1096,6 +1094,8 @@
           '../../src/regexp.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
+          '../../src/weak_collection.js',
+          '../../src/promise.js',
           '../../src/object-observe.js',
           '../../src/macros.py',
         ],
@@ -1104,8 +1104,6 @@
           '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
-          '../../src/weak_collection.js',
-          '../../src/promise.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',

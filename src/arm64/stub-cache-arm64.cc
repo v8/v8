@@ -1136,19 +1136,6 @@ void LoadStubCompiler::GenerateLoadInterceptor(
 }
 
 
-void StubCompiler::GenerateBooleanCheck(Register object, Label* miss) {
-  UseScratchRegisterScope temps(masm());
-  // Check that the object is a boolean.
-  Register true_root = temps.AcquireX();
-  Register false_root = temps.AcquireX();
-  ASSERT(!AreAliased(object, true_root, false_root));
-  __ LoadTrueFalseRoots(true_root, false_root);
-  __ Cmp(object, true_root);
-  __ Ccmp(object, false_root, ZFlag, ne);
-  __ B(ne, miss);
-}
-
-
 Handle<Code> StoreStubCompiler::CompileStoreCallback(
     Handle<JSObject> object,
     Handle<JSObject> holder,

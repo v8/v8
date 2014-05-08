@@ -627,8 +627,9 @@ void Code::CodeVerify() {
                   kCodeAlignment));
   relocation_info()->ObjectVerify();
   Address last_gc_pc = NULL;
+  Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
-    it.rinfo()->Verify();
+    it.rinfo()->Verify(isolate);
     // Ensure that GC will not iterate twice over the same pointer.
     if (RelocInfo::IsGCRelocMode(it.rinfo()->rmode())) {
       CHECK(it.rinfo()->pc() != last_gc_pc);

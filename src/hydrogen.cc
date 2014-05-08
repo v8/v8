@@ -2145,7 +2145,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
   HInstruction* length = NULL;
   if (is_js_array) {
     length = Add<HLoadNamedField>(
-        checked_object, static_cast<HValue*>(NULL),
+        checked_object->ActualValue(), checked_object,
         HObjectAccess::ForArrayLength(elements_kind));
   } else {
     length = AddLoadFixedArrayLength(elements);
@@ -5348,8 +5348,24 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     // Load the double value from it.
     access = HObjectAccess::ForHeapNumberValue();
   }
+
+  SmallMapList* map_list = info->field_maps();
+  if (map_list->length() == 0) {
+    return New<HLoadNamedField>(checked_object, checked_object, access);
+  }
+
+  UniqueSet<Map>* maps = new(zone()) UniqueSet<Map>(map_list->length(), zone());
+  for (int i = 0; i < map_list->length(); ++i) {
+    Handle<Map> map = map_list->at(i);
+    maps->Add(Unique<Map>::CreateImmovable(map), zone());
+    // TODO(bmeurer): Get rid of this shit!
+    if (map->CanTransition()) {
+      Map::AddDependentCompilationInfo(
+          map, DependentCode::kPrototypeCheckGroup, top_info());
+    }
+  }
   return New<HLoadNamedField>(
-      checked_object, checked_object, access, info->field_maps(), top_info());
+      checked_object, checked_object, access, maps, info->field_type());
 }
 
 
@@ -5488,6 +5504,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
     }
   }
   info->GeneralizeRepresentation(r);
+  info->field_type_ = info->field_type_.Combine(field_type_);
   return true;
 }
 
@@ -5539,8 +5556,9 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
 void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
     Handle<Map> map) {
-  // Clear any previously collected field maps.
+  // Clear any previously collected field maps/type.
   field_maps_.Clear();
+  field_type_ = HType::Tagged();
 
   // Figure out the field type from the accessor map.
   Handle<HeapType> field_type(lookup_.GetFieldTypeFromMap(*map), isolate());
@@ -5562,6 +5580,22 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   }
   field_maps_.Sort();
   ASSERT_EQ(num_field_maps, field_maps_.length());
+
+  // Determine field HType from field HeapType.
+  if (field_type->Is(HeapType::Number())) {
+    field_type_ = HType::HeapNumber();
+  } else if (field_type->Is(HeapType::String())) {
+    field_type_ = HType::String();
+  } else if (field_type->Is(HeapType::Boolean())) {
+    field_type_ = HType::Boolean();
+  } else if (field_type->Is(HeapType::Array())) {
+    field_type_ = HType::JSArray();
+  } else if (field_type->Is(HeapType::Object())) {
+    field_type_ = HType::JSObject();
+  } else if (field_type->Is(HeapType::Null()) ||
+             field_type->Is(HeapType::Undefined())) {
+    field_type_ = HType::NonPrimitive();
+  }
 
   // Add dependency on the map that introduced the field.
   Map::AddDependentCompilationInfo(

@@ -887,7 +887,7 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   }
 
   // Jump to point after the code-age stub.
-  __ Add(x0, x0, kCodeAgeSequenceSize);
+  __ Add(x0, x0, kNoCodeAgeSequenceLength);
   __ Br(x0);
 }
 

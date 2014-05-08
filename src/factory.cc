@@ -906,36 +906,6 @@ Handle<Map> Factory::NewMap(InstanceType type,
 }
 
 
-Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
-  // Make sure to use globals from the function's context, since the function
-  // can be from a different context.
-  Handle<Context> native_context(function->context()->native_context());
-  Handle<Map> new_map;
-  if (function->shared()->is_generator()) {
-    // Generator prototypes can share maps since they don't have "constructor"
-    // properties.
-    new_map = handle(native_context->generator_object_prototype_map());
-  } else {
-    // Each function prototype gets a fresh map to avoid unwanted sharing of
-    // maps between prototypes of different constructors.
-    Handle<JSFunction> object_function(native_context->object_function());
-    ASSERT(object_function->has_initial_map());
-    new_map = Map::Copy(handle(object_function->initial_map()));
-  }
-
-  Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
-
-  if (!function->shared()->is_generator()) {
-    JSObject::SetLocalPropertyIgnoreAttributes(prototype,
-                                               constructor_string(),
-                                               function,
-                                               DONT_ENUM).Assert();
-  }
-
-  return prototype;
-}
-
-
 Handle<JSObject> Factory::CopyJSObject(Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->CopyJSObject(*object, NULL),
@@ -991,55 +961,6 @@ Handle<ConstantPoolArray> Factory::CopyConstantPoolArray(
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->CopyConstantPoolArray(*array),
                      ConstantPoolArray);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
-    Handle<SharedFunctionInfo> info,
-    Handle<Context> context,
-    PretenureFlag pretenure) {
-  Handle<JSFunction> result = NewFunction(
-      info, context, the_hole_value(), pretenure);
-
-  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
-    info->ResetForNewContext(isolate()->heap()->global_ic_age());
-  }
-
-  int index = info->SearchOptimizedCodeMap(context->native_context(),
-                                           BailoutId::None());
-  if (!info->bound() && index < 0) {
-    int number_of_literals = info->num_literals();
-    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
-    if (number_of_literals > 0) {
-      // Store the native context in the literals array prefix. This
-      // context will be used when creating object, regexp and array
-      // literals in this function.
-      literals->set(JSFunction::kLiteralNativeContextIndex,
-                    context->native_context());
-    }
-    result->set_literals(*literals);
-  }
-
-  if (index > 0) {
-    // Caching of optimized code enabled and optimized code found.
-    FixedArray* literals = info->GetLiteralsFromOptimizedCodeMap(index);
-    if (literals != NULL) result->set_literals(literals);
-    Code* code = info->GetCodeFromOptimizedCodeMap(index);
-    ASSERT(!code->marked_for_deoptimization());
-    result->ReplaceCode(code);
-    return result;
-  }
-
-  if (isolate()->use_crankshaft() &&
-      FLAG_always_opt &&
-      result->is_compiled() &&
-      !info->is_toplevel() &&
-      info->allows_lazy_compilation() &&
-      !info->optimization_disabled() &&
-      !isolate()->DebuggerHasBreakPoints()) {
-    result->MarkForOptimization();
-  }
-  return result;
 }
 
 
@@ -1256,6 +1177,62 @@ Handle<Object> Factory::NewError(const char* constructor,
 }
 
 
+void Factory::InitializeFunction(Handle<JSFunction> function,
+                                 Handle<SharedFunctionInfo> info,
+                                 Handle<Context> context) {
+  function->initialize_properties();
+  function->initialize_elements();
+  function->set_shared(*info);
+  function->set_code(info->code());
+  function->set_context(*context);
+  function->set_prototype_or_initial_map(*the_hole_value());
+  function->set_literals_or_bindings(*empty_fixed_array());
+  function->set_next_function_link(*undefined_value());
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
+                                        Handle<SharedFunctionInfo> info,
+                                        Handle<Context> context,
+                                        PretenureFlag pretenure) {
+  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
+  Handle<JSFunction> result = New<JSFunction>(map, space);
+  InitializeFunction(result, info, context);
+  return result;
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        Handle<Code> code,
+                                        MaybeHandle<Object> maybe_prototype) {
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  ASSERT(info->strict_mode() == SLOPPY);
+  info->set_code(*code);
+  Handle<Context> context(isolate()->context()->native_context());
+  Handle<Map> map = maybe_prototype.is_null()
+      ? isolate()->sloppy_function_without_prototype_map()
+      : isolate()->sloppy_function_map();
+  Handle<JSFunction> result = NewFunction(map, info, context);
+  Handle<Object> prototype;
+  if (maybe_prototype.ToHandle(&prototype)) {
+    result->set_prototype_or_initial_map(*prototype);
+  }
+  return result;
+}
+
+
+Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
+                                                     Handle<Object> prototype) {
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
+  ASSERT(info->strict_mode() == SLOPPY);
+  Handle<Context> context(isolate()->context()->native_context());
+  Handle<Map> map = isolate()->sloppy_function_map();
+  Handle<JSFunction> result = NewFunction(map, info, context);
+  result->set_prototype_or_initial_map(*prototype);
+  return result;
+}
+
+
 Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
                                         Handle<String> name,
                                         InstanceType type,
@@ -1265,11 +1242,10 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, code, maybe_prototype);
 
-  Handle<Object> prototype;
-  if (maybe_prototype.ToHandle(&prototype) &&
-      (force_initial_map ||
-       type != JS_OBJECT_TYPE ||
-       instance_size != JSObject::kHeaderSize)) {
+  if (force_initial_map ||
+      type != JS_OBJECT_TYPE ||
+      instance_size != JSObject::kHeaderSize) {
+    Handle<Object> prototype = maybe_prototype.ToHandleChecked();
     Handle<Map> initial_map = NewMap(type, instance_size);
     if (prototype->IsJSObject()) {
       JSObject::SetLocalPropertyIgnoreAttributes(
@@ -1323,6 +1299,87 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 
   JSFunction::SetPrototype(function, prototype);
   return function;
+}
+
+
+Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
+  // Make sure to use globals from the function's context, since the function
+  // can be from a different context.
+  Handle<Context> native_context(function->context()->native_context());
+  Handle<Map> new_map;
+  if (function->shared()->is_generator()) {
+    // Generator prototypes can share maps since they don't have "constructor"
+    // properties.
+    new_map = handle(native_context->generator_object_prototype_map());
+  } else {
+    // Each function prototype gets a fresh map to avoid unwanted sharing of
+    // maps between prototypes of different constructors.
+    Handle<JSFunction> object_function(native_context->object_function());
+    ASSERT(object_function->has_initial_map());
+    new_map = Map::Copy(handle(object_function->initial_map()));
+  }
+
+  Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
+
+  if (!function->shared()->is_generator()) {
+    JSObject::SetLocalPropertyIgnoreAttributes(prototype,
+                                               constructor_string(),
+                                               function,
+                                               DONT_ENUM).Assert();
+  }
+
+  return prototype;
+}
+
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info,
+    Handle<Context> context,
+    PretenureFlag pretenure) {
+  int map_index = Context::FunctionMapIndex(info->strict_mode(),
+                                            info->is_generator());
+  Handle<Map> map(Map::cast(context->native_context()->get(map_index)));
+  Handle<JSFunction> result = NewFunction(map, info, context, pretenure);
+
+  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
+    info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
+  int index = info->SearchOptimizedCodeMap(context->native_context(),
+                                           BailoutId::None());
+  if (!info->bound() && index < 0) {
+    int number_of_literals = info->num_literals();
+    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+    if (number_of_literals > 0) {
+      // Store the native context in the literals array prefix. This
+      // context will be used when creating object, regexp and array
+      // literals in this function.
+      literals->set(JSFunction::kLiteralNativeContextIndex,
+                    context->native_context());
+    }
+    result->set_literals(*literals);
+  }
+
+  if (index > 0) {
+    // Caching of optimized code enabled and optimized code found.
+    FixedArray* literals = info->GetLiteralsFromOptimizedCodeMap(index);
+    if (literals != NULL) result->set_literals(literals);
+    Code* code = info->GetCodeFromOptimizedCodeMap(index);
+    ASSERT(!code->marked_for_deoptimization());
+    result->ReplaceCode(code);
+    return result;
+  }
+
+  if (isolate()->use_crankshaft() &&
+      FLAG_always_opt &&
+      result->is_compiled() &&
+      !info->is_toplevel() &&
+      info->allows_lazy_compilation() &&
+      !info->optimization_disabled() &&
+      !isolate()->DebuggerHasBreakPoints()) {
+    result->MarkForOptimization();
+  }
+  return result;
 }
 
 
@@ -1759,8 +1816,7 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
     map->set_function_with_prototype(true);
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(object);
     Handle<Context> context(isolate()->context()->native_context());
-    InitializeFunction(js_function, shared.ToHandleChecked(),
-                       context, null_value());
+    InitializeFunction(js_function, shared.ToHandleChecked(), context);
   }
 
   // Put in filler if the new object is smaller than the old.
@@ -1994,73 +2050,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
 }
 
 
-void Factory::InitializeFunction(Handle<JSFunction> function,
-                                 Handle<SharedFunctionInfo> info,
-                                 Handle<Context> context,
-                                 MaybeHandle<Object> maybe_prototype) {
-  function->initialize_properties();
-  function->initialize_elements();
-  function->set_shared(*info);
-  function->set_code(info->code());
-  function->set_context(*context);
-  Handle<Object> prototype;
-  if (maybe_prototype.ToHandle(&prototype)) {
-    ASSERT(!prototype->IsMap());
-  } else {
-    prototype = the_hole_value();
-  }
-  function->set_prototype_or_initial_map(*prototype);
-  function->set_literals_or_bindings(*empty_fixed_array());
-  function->set_next_function_link(*undefined_value());
-}
-
-
-static Handle<Map> MapForNewFunction(Isolate* isolate,
-                                     Handle<SharedFunctionInfo> function_info,
-                                     MaybeHandle<Object> maybe_prototype) {
-  if (maybe_prototype.is_null()) {
-    return function_info->strict_mode() == SLOPPY
-        ? isolate->sloppy_function_without_prototype_map()
-        : isolate->strict_function_without_prototype_map();
-  }
-
-  Context* context = isolate->context()->native_context();
-  int map_index = Context::FunctionMapIndex(function_info->strict_mode(),
-                                            function_info->is_generator());
-  return Handle<Map>(Map::cast(context->get(map_index)));
-}
-
-
-Handle<JSFunction> Factory::NewFunction(Handle<SharedFunctionInfo> info,
-                                        Handle<Context> context,
-                                        MaybeHandle<Object> maybe_prototype,
-                                        PretenureFlag pretenure) {
-  Handle<Map> map = MapForNewFunction(isolate(), info, maybe_prototype);
-  AllocationSpace space = pretenure == TENURED ? OLD_POINTER_SPACE : NEW_SPACE;
-  Handle<JSFunction> result = New<JSFunction>(map, space);
-  InitializeFunction(result, info, context, maybe_prototype);
-  return result;
-}
-
-
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Code> code,
-                                        MaybeHandle<Object> maybe_prototype) {
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
-  info->set_code(*code);
-  Handle<Context> context(isolate()->context()->native_context());
-  return NewFunction(info, context, maybe_prototype);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
-                                                     Handle<Object> prototype) {
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
-  Handle<Context> context(isolate()->context()->native_context());
-  return NewFunction(info, context, prototype);
-}
-
-
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Get the original code of the function.
   Handle<Code> code(shared->code());
@@ -2144,7 +2133,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   Handle<JSFunction> result = NewFunction(
       maybe_prototype, Factory::empty_string(), type,
-      instance_size, code, true);
+      instance_size, code, !obj->remove_prototype());
 
   result->shared()->set_length(obj->length());
   Handle<Object> class_name(obj->class_name(), isolate());
@@ -2158,6 +2147,8 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   if (obj->remove_prototype()) {
     ASSERT(result->shared()->IsApiFunction());
+    ASSERT(!result->has_initial_map());
+    ASSERT(!result->has_prototype());
     return result;
   }
   // Down from here is only valid for API functions that can be used as a

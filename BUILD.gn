@@ -5,11 +5,26 @@
 # TODO(jochen): These will need to be user-settable to support standalone V8
 # builds.
 v8_compress_startup_data = "off"
+v8_deprecation_warnings = false
+v8_enable_disassembler = false
+v8_enable_gdbjit = false
+v8_enable_handle_zapping = true
 v8_enable_i18n_support = true
+v8_enable_verify_heap = false
+v8_interpreted_regexp = false
+v8_object_print = false
+v8_postmortem_support = false
+v8_use_default_platform = true
+v8_use_snapshot = true
+
+if (is_debug) {
+  v8_enable_extra_checks = true
+} else {
+  v8_enable_extra_checks = false
+}
 
 # TODO(jochen): Add support for want_seperate_host_toolset.
-# TODO(jochen): Add support for v8_target_arch.
-# TODO(jochen): Add features.gypi and toolchain.gypi support.
+# TODO(jochen): Add toolchain.gypi support.
 
 
 ###############################################################################
@@ -28,12 +43,76 @@ config("internal_config") {
   }
 }
 
+config("features") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
+  defines = []
+
+  if (v8_enable_disassembler == true) {
+    defines += [
+      "ENABLE_DISASSEMBLER",
+    ]
+  }
+  if (v8_enable_gdbjit == true) {
+    defines += [
+      "ENABLE_GDB_JIT_INTERFACE",
+    ]
+  }
+  if (v8_object_print == true) {
+    defines += [
+      "OBJECT_PRINT",
+    ]
+  }
+  if (v8_enable_verify_heap == true) {
+    defines += [
+      "VERIFY_HEAP",
+    ]
+  }
+  if (v8_interpreted_regexp == true) {
+    defines += [
+      "V8_INTERPRETED_REGEXP",
+    ]
+  }
+  if (v8_deprecation_warnings == true) {
+    defines += [
+      "V8_DEPRECATION_WARNINGS",
+    ]
+  }
+  if (v8_enable_i18n_support == true) {
+    defines += [
+      "V8_I18N_SUPPORT",
+    ]
+  }
+  if (v8_use_default_platform == true) {
+    defines += [
+      "V8_USE_DEFAULT_PLATFORM",
+    ]
+  }
+  if (v8_compress_startup_data == "bz2") {
+    defines += [
+      "COMPRESS_STARTUP_DATA_BZ2",
+    ]
+  }
+  if (v8_enable_extra_checks == true) {
+    defines += [
+      "ENABLE_EXTRA_CHECKS",
+    ]
+  }
+  if (v8_enable_handle_zapping == true) {
+    defines += [
+      "ENABLE_HANDLE_ZAPPING",
+    ]
+  }
+}
+
 ###############################################################################
 # Actions
 #
 
 # TODO(jochen): Do actions need visibility settings as well?
 action("generate_trig_table") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
   script = "tools/generate-trig-table.py"
 
   outputs = [
@@ -44,6 +123,8 @@ action("generate_trig_table") {
 }
 
 action("js2c") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
   script = "tools/js2c.py"
 
   # The script depends on this other script, this rule causes a rebuild if it
@@ -86,6 +167,8 @@ action("js2c") {
 }
 
 action("js2c_experimental") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
   script = "tools/js2c.py"
 
   # The script depends on this other script, this rule causes a rebuild if it
@@ -117,6 +200,8 @@ action("js2c_experimental") {
 }
 
 action("postmortem-metadata") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
   script = "tools/gen-postmortem-metadata.py"
 
   sources = [
@@ -154,7 +239,7 @@ source_set("v8_nosnapshot") {
     "src/snapshot-empty.cc",
   ]
 
-  configs += [ ":internal_config" ]
+  configs += [ ":internal_config", ":features" ]
 }
 
 source_set("v8_base") {
@@ -504,8 +589,6 @@ source_set("v8_base") {
     "src/utils.h",
     "src/utils/random-number-generator.cc",
     "src/utils/random-number-generator.h",
-    "src/v8-counters.cc",
-    "src/v8-counters.h",
     "src/v8.cc",
     "src/v8.h",
     "src/v8checks.h",
@@ -525,9 +608,6 @@ source_set("v8_base") {
   ]
 
   if (cpu_arch == "x86") {
-    # TODO(brettw) the GYP file has
-    #   or v8_target_arch=="mac" or OS=="mac"
-    # which I don't understand.
     sources += [
       "src/ia32/assembler-ia32-inl.h",
       "src/ia32/assembler-ia32.cc",
@@ -700,7 +780,7 @@ source_set("v8_base") {
     ]
   }
 
-  configs += [ ":internal_config" ]
+  configs += [ ":internal_config", ":features" ]
 
   defines = []
   deps = []
@@ -778,7 +858,7 @@ executable("mksnapshot") {
     "src/mksnapshot.cc",
   ]
 
-  configs += [ ":internal_config" ]
+  configs += [ ":internal_config", ":features" ]
 
   deps = [
     ":v8_base",

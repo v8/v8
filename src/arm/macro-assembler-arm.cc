@@ -910,7 +910,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength * Assembler::kInstrSize);
+        this, kNoCodeAgeSequenceLength);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
     if (isolate()->IsCodePreAgingActive()) {

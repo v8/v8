@@ -255,7 +255,7 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
 }
 
 
-static const int kNoCodeAgeSequenceLength = 7;
+static const int kNoCodeAgeSequenceLength = 7 * Assembler::kInstrSize;
 
 
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {

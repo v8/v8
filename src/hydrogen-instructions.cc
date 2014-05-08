@@ -3418,7 +3418,7 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   access_.PrintTo(stream);
 
-  if (maps()->size() != 0) {
+  if (maps() != NULL) {
     stream->Add(" [%p", *maps()->at(0).handle());
     for (int i = 1; i < maps()->size(); ++i) {
       stream->Add(",%p", *maps()->at(i).handle());
