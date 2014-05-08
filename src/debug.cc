@@ -2037,18 +2037,25 @@ class ForceDebuggerActive {
 };
 
 
-void Debug::MaybeRecompileFunctionForDebugging(Handle<JSFunction> function) {
-  ASSERT_EQ(Code::FUNCTION, function->code()->kind());
-  ASSERT_EQ(function->code(), function->shared()->code());
+void Debug::EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function) {
+  if (function->code()->kind() == Code::FUNCTION &&
+      function->code()->has_debug_break_slots()) {
+    // Nothing to do. Function code already had debug break slots.
+    return;
+  }
 
-  if (function->code()->has_debug_break_slots()) return;
+  // Make sure that the shared full code is compiled with debug
+  // break slots.
+  if (!function->shared()->code()->has_debug_break_slots()) {
+    ForceDebuggerActive force_debugger_active(isolate_);
+    MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
+    // Recompilation can fail.  In that case leave the code as it was.
+    if (!code.is_null())
+      function->ReplaceCode(*code.ToHandleChecked());
+  }
 
-  ForceDebuggerActive force_debugger_active(isolate_);
-  MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
-  // Recompilation can fail.  In that case leave the code as it was.
-  if (!code.is_null())
-    function->ReplaceCode(*code.ToHandleChecked());
-  ASSERT_EQ(function->code(), function->shared()->code());
+  // Keep function code in sync with shared function info.
+  function->ReplaceCode(function->shared()->code());
 }
 
 
@@ -2057,7 +2064,7 @@ void Debug::RecompileAndRelocateSuspendedGenerators(
   for (int i = 0; i < generators.length(); i++) {
     Handle<JSFunction> fun(generators[i]->function());
 
-    MaybeRecompileFunctionForDebugging(fun);
+    EnsureFunctionHasDebugBreakSlots(fun);
 
     int code_offset = generators[i]->continuation();
     int pc_offset = ComputePcOffsetFromCodeOffset(fun->code(), code_offset);
@@ -2217,7 +2224,7 @@ void Debug::PrepareForBreakPoints() {
       if (!shared->allows_lazy_compilation()) continue;
       if (shared->code()->kind() == Code::BUILTIN) continue;
 
-      MaybeRecompileFunctionForDebugging(function);
+      EnsureFunctionHasDebugBreakSlots(function);
     }
 
     RedirectActivationsToRecompiledCodeOnThread(isolate_,

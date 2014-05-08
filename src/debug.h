@@ -511,7 +511,7 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
-  void MaybeRecompileFunctionForDebugging(Handle<JSFunction> function);
+  void EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function);
   void RecompileAndRelocateSuspendedGenerators(
       const List<Handle<JSGeneratorObject> > &suspended_generators);
 
