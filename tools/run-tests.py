@@ -339,6 +339,10 @@ def Main():
     code = subprocess.call(
         [sys.executable, join(workspace, "tools", "presubmit.py")])
     exit_code = code
+    code = subprocess.call(
+        [sys.executable, join(workspace, "tools", "generate-runtime-tests.py"),
+         "check"])
+    exit_code = exit_code or code
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 
