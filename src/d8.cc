@@ -1612,20 +1612,10 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
-    void* result = malloc(length);
-    memset(result, 0, length);
-    return result;
+    return memset(AllocateUninitialized(length), 0, length);
   }
-  virtual void* AllocateUninitialized(size_t length) {
-    return malloc(length);
-  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
   virtual void Free(void* data, size_t) { free(data); }
-  // TODO(dslomov): Remove when v8:2823 is fixed.
-  virtual void Free(void* data) {
-#ifndef V8_SHARED
-    UNREACHABLE();
-#endif
-  }
 };
 
 
