@@ -278,9 +278,13 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
  public:
   static bool IsInstance(Handle<JSArray> array) {
-    return array->length() == Smi::FromInt(kSize_) &&
-        Object::GetElement(array->GetIsolate(), array, kSharedInfoOffset_)
-            .ToHandleChecked()->IsJSValue();
+    if (array->length() != Smi::FromInt(kSize_)) return false;
+    Handle<Object> element(
+        Object::GetElement(array->GetIsolate(),
+                           array,
+                           kSharedInfoOffset_).ToHandleChecked());
+    if (!element->IsJSValue()) return false;
+    return Handle<JSValue>::cast(element)->value()->IsSharedFunctionInfo();
   }
 
   explicit SharedInfoWrapper(Handle<JSArray> array)

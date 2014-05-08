@@ -219,7 +219,7 @@ class Debug {
   void PreemptionWhileInDebugger();
 
   Object* Break(Arguments args);
-  void SetBreakPoint(Handle<JSFunction> function,
+  bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<Object> break_point_object,
                      int* source_position);
   bool SetBreakPointForScript(Handle<Script> script,

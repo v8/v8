@@ -1108,7 +1108,7 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 }
 
 
-void Debug::SetBreakPoint(Handle<JSFunction> function,
+bool Debug::SetBreakPoint(Handle<JSFunction> function,
                           Handle<Object> break_point_object,
                           int* source_position) {
   HandleScope scope(isolate_);
@@ -1119,7 +1119,7 @@ void Debug::SetBreakPoint(Handle<JSFunction> function,
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
     // Return if retrieving debug info failed.
-    return;
+    return true;
   }
 
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
@@ -1134,7 +1134,7 @@ void Debug::SetBreakPoint(Handle<JSFunction> function,
   *source_position = it.position();
 
   // At least one active break point now.
-  ASSERT(debug_info->GetBreakPointCount() > 0);
+  return debug_info->GetBreakPointCount() > 0;
 }
 
 
