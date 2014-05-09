@@ -4033,12 +4033,12 @@ bool Map::has_non_instance_prototype() {
 
 
 void Map::set_function_with_prototype(bool value) {
-  set_bit_field3(FunctionWithPrototype::update(bit_field3(), value));
+  set_bit_field(FunctionWithPrototype::update(bit_field(), value));
 }
 
 
 bool Map::function_with_prototype() {
-  return FunctionWithPrototype::decode(bit_field3());
+  return FunctionWithPrototype::decode(bit_field());
 }
 
 
