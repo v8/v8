@@ -192,7 +192,7 @@ class PrintablePrinter {
       buffer_[0] = '\0';
     }
     return &buffer_[0];
-  };
+  }
 
  private:
   uc16 character_;

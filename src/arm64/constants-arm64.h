@@ -293,7 +293,7 @@ inline Condition ReverseConditionForCmp(Condition cond) {
       // 'mi' for instance).
       UNREACHABLE();
       return nv;
-  };
+  }
 }
 
 enum FlagsUpdate {

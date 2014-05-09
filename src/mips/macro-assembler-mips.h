@@ -734,7 +734,7 @@ class MacroAssembler: public Assembler {
                       FPURegister cmp1,
                       FPURegister cmp2) {
     BranchF(target, nan, cc, cmp1, cmp2, bd);
-  };
+  }
 
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.

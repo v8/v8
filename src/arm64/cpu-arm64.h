@@ -25,7 +25,7 @@ class CpuFeatures : public AllStatic {
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
     return Check(f, supported_);
-  };
+  }
 
   static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return IsSupported(f);

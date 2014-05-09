@@ -1194,7 +1194,7 @@ void MacroAssembler::BranchF(Label* target,
         break;
       default:
         CHECK(0);
-    };
+    }
   }
 
   if (bd == PROTECT) {

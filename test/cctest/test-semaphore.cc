@@ -37,7 +37,7 @@ using namespace ::v8::internal;
 
 
 class WaitAndSignalThread V8_FINAL : public Thread {
-  public:
+ public:
   explicit WaitAndSignalThread(Semaphore* semaphore)
       : Thread("WaitAndSignalThread"), semaphore_(semaphore) {}
   virtual ~WaitAndSignalThread() {}
@@ -52,7 +52,7 @@ class WaitAndSignalThread V8_FINAL : public Thread {
     }
   }
 
-  private:
+ private:
   Semaphore* semaphore_;
 };
 
@@ -115,7 +115,7 @@ static Semaphore used_space(0);
 
 
 class ProducerThread V8_FINAL : public Thread {
-  public:
+ public:
   ProducerThread() : Thread("ProducerThread") {}
   virtual ~ProducerThread() {}
 
@@ -130,7 +130,7 @@ class ProducerThread V8_FINAL : public Thread {
 
 
 class ConsumerThread V8_FINAL : public Thread {
-  public:
+ public:
   ConsumerThread() : Thread("ConsumerThread") {}
   virtual ~ConsumerThread() {}
 

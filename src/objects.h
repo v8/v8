@@ -5086,13 +5086,13 @@ class FixedTypedArray: public FixedTypedArrayBase {
 
 #define FIXED_TYPED_ARRAY_TRAITS(Type, type, TYPE, elementType, size)         \
   class Type##ArrayTraits {                                                   \
-    public:                                                                   \
-      typedef elementType ElementType;                                        \
-      static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;    \
-      static const char* Designator() { return #type " array"; }              \
-      static inline Handle<Object> ToHandle(Isolate* isolate,                 \
-                                            elementType scalar);              \
-      static inline elementType defaultValue();                               \
+   public:   /* NOLINT */                                                     \
+    typedef elementType ElementType;                                          \
+    static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
+    static const char* Designator() { return #type " array"; }                \
+    static inline Handle<Object> ToHandle(Isolate* isolate,                   \
+                                          elementType scalar);                \
+    static inline elementType defaultValue();                                 \
   };                                                                          \
                                                                               \
   typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;

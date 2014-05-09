@@ -347,7 +347,7 @@ inline Condition ReverseCondition(Condition cc) {
       return greater_equal;
     default:
       return cc;
-  };
+  }
 }
 
 

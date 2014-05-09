@@ -6406,7 +6406,7 @@ class ArrayInstructionInterface {
   virtual int MaxIndexOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
-  virtual ~ArrayInstructionInterface() { };
+  virtual ~ArrayInstructionInterface() { }
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
     return r.IsInteger32() || SmiValuesAre32Bits()

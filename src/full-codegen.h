@@ -216,7 +216,7 @@ class FullCodeGenerator: public AstVisitor {
         ++(*context_length);
       }
       return previous_;
-    };
+    }
   };
 
   // The try block of a try/catch statement.

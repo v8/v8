@@ -32,7 +32,7 @@ class CacheLineSizes {
     __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
                           : [ctr] "=r" (cache_type_register_));
 #endif
-  };
+  }
 
   uint32_t icache_line_size() const { return ExtractCacheLineSize(0); }
   uint32_t dcache_line_size() const { return ExtractCacheLineSize(16); }

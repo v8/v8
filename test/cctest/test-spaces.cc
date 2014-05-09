@@ -393,7 +393,7 @@ TEST(LargeObjectSpace) {
       if (allocation.IsRetry()) break;
     }
     CHECK(lo->Available() < available);
-  };
+  }
 
   CHECK(!lo->IsEmpty());
 

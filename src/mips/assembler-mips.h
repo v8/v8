@@ -896,10 +896,10 @@ class Assembler : public AssemblerBase {
       assem_->EndBlockGrowBuffer();
     }
 
-    private:
-     Assembler* assem_;
+   private:
+    Assembler* assem_;
 
-     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
+    DISALLOW_IMPLICIT_CONSTRUCTORS(BlockGrowBufferScope);
   };
 
   // Debugging.

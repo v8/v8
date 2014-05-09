@@ -422,7 +422,7 @@ class PersistentValueVector {
    */
   void Append(UniquePersistent<V> persistent) {
     Traits::Append(&impl_, ClearAndLeak(&persistent));
-  };
+  }
 
   /**
    * Are there any values in the vector?

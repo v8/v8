@@ -265,11 +265,12 @@ class HistogramTimerScope BASE_EMBEDDED {
     } else {
       timer_->Start();
     }
+  }
 #else
       : timer_(timer) {
     timer_->Start();
-#endif
   }
+#endif
   ~HistogramTimerScope() {
 #ifdef DEBUG
     if (!skipped_timer_start_) {
@@ -279,6 +280,7 @@ class HistogramTimerScope BASE_EMBEDDED {
     timer_->Stop();
 #endif
   }
+
  private:
   HistogramTimer* timer_;
 #ifdef DEBUG

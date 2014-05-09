@@ -110,7 +110,7 @@ inline Condition ReverseCondition(Condition cond) {
       return ge;
     default:
       return cond;
-  };
+  }
 }
 
 

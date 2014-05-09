@@ -2452,7 +2452,7 @@ class LStoreKeyedExternal V8_FINAL : public LStoreKeyed<1> {
                       LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 
@@ -2466,7 +2466,7 @@ class LStoreKeyedFixed V8_FINAL : public LStoreKeyed<1> {
                    LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 
@@ -2480,7 +2480,7 @@ class LStoreKeyedFixedDouble V8_FINAL : public LStoreKeyed<1> {
                          LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 

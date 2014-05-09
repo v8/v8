@@ -1039,7 +1039,7 @@ class V8_EXPORT ScriptCompiler {
     int length;
     BufferPolicy buffer_policy;
 
-  private:
+   private:
      // Prevent copying. Not implemented.
      CachedData(const CachedData&);
      CachedData& operator=(const CachedData&);

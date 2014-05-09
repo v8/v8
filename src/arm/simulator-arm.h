@@ -265,7 +265,7 @@ class Simulator {
 
   inline int GetCarry() {
     return c_flag_ ? 1 : 0;
-  };
+  }
 
   // Support for VFP.
   void Compute_FPSCR_Flags(double val1, double val2);

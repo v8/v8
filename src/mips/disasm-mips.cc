@@ -277,7 +277,7 @@ void Decoder::PrintCode(Instruction* instr) {
     }
     default:  // Not a break or trap instruction.
     break;
-  };
+  }
 }
 
 
@@ -407,7 +407,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       PrintCc(instr);
       return 2;
     }
-  };
+  }
   UNREACHABLE();
   return -1;
 }
@@ -603,7 +603,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
           break;
         default:
           UNREACHABLE();
-      };
+      }
       break;
     case SPECIAL:
       switch (instr->FunctionFieldRaw()) {
@@ -796,7 +796,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
           break;
         default:
           UNREACHABLE();
-      };
+      }
       break;  // Case COP1.
     case REGIMM:
       switch (instr->RtFieldRaw()) {
@@ -909,7 +909,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     default:
       UNREACHABLE();
       break;
-  };
+  }
 }
 
 
