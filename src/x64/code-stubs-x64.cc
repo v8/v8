@@ -4197,11 +4197,6 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
 }
 
 
-bool CodeStub::CanUseFPRegisters() {
-  return true;  // Always have SSE2 on x64.
-}
-
-
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
 // we keep the GC informed.  The word in the object where the value has been
@@ -4476,7 +4471,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(isolate(), 1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

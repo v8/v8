@@ -51,7 +51,6 @@ void CpuFeatures::Probe(bool serializer_enabled) {
 
   // SSE2 must be available on every x64 CPU.
   ASSERT(cpu.has_sse2());
-  probed_features |= static_cast<uint64_t>(1) << SSE2;
 
   // CMOV must be available on every x64 CPU.
   ASSERT(cpu.has_cmov());

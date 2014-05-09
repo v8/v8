@@ -350,8 +350,6 @@ DEFINE_implication(trace_opt_verbose, trace_opt)
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")
-DEFINE_bool(enable_sse2, true,
-            "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
             "enable use of SSE3 instructions if available")
 DEFINE_bool(enable_sse4_1, true,

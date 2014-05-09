@@ -893,14 +893,13 @@ class BinaryOpIC: public IC {
     STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
     class OpField:                 public BitField<int, 0, 4> {};
     class OverwriteModeField:      public BitField<OverwriteMode, 4, 2> {};
-    class SSE2Field:               public BitField<bool, 6, 1> {};
-    class ResultKindField:         public BitField<Kind, 7, 3> {};
-    class LeftKindField:           public BitField<Kind, 10,  3> {};
+    class ResultKindField:         public BitField<Kind, 6, 3> {};
+    class LeftKindField:           public BitField<Kind, 9,  3> {};
     // When fixed right arg is set, we don't need to store the right kind.
     // Thus the two fields can overlap.
-    class HasFixedRightArgField:   public BitField<bool, 13, 1> {};
-    class FixedRightArgValueField: public BitField<int,  14, 4> {};
-    class RightKindField:          public BitField<Kind, 14, 3> {};
+    class HasFixedRightArgField:   public BitField<bool, 12, 1> {};
+    class FixedRightArgValueField: public BitField<int,  13, 4> {};
+    class RightKindField:          public BitField<Kind, 13, 3> {};
 
     Token::Value op_;
     OverwriteMode mode_;

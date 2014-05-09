@@ -3446,12 +3446,8 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  if (CpuFeatures::IsSupported(SSE2)) {
-    MathPowStub stub(isolate(), MathPowStub::ON_STACK);
-    __ CallStub(&stub);
-  } else {
-    __ CallRuntime(Runtime::kHiddenMathPowSlow, 2);
-  }
+  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
+  __ CallStub(&stub);
   context()->Plug(eax);
 }
 

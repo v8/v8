@@ -7907,7 +7907,7 @@ RUNTIME_FUNCTION(Runtime_MathFloor) {
 
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
-// Used if SSE2/VFP3 is not available.
+// Used if VFP3 is not available.
 RUNTIME_FUNCTION(RuntimeHidden_MathPowSlow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);

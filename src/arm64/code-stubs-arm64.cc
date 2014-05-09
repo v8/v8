@@ -4403,12 +4403,6 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
-bool CodeStub::CanUseFPRegisters() {
-  // FP registers always available on ARM64.
-  return true;
-}
-
-
 void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   // We need some extra registers for this stub, they have been allocated
   // but we need to save them before using them.
@@ -4657,7 +4651,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(isolate(), 1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

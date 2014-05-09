@@ -268,7 +268,7 @@ class OS {
   static void SignalCodeMovingGC();
 
   // The return value indicates the CPU features we are sure of because of the
-  // OS.  For example MacOSX doesn't run on any x86 CPUs that don't have SSE2
+  // OS.  For example MacOSX doesn't run on any x86 CPUs that don't have CMOV
   // instructions.
   // This is a little messy because the interpretation is subject to the cross
   // of the CPU and the OS.  The bits in the answer correspond to the bit

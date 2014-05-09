@@ -2107,9 +2107,6 @@ RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
 
 BinaryOpIC::State::State(Isolate* isolate, ExtraICState extra_ic_state)
     : isolate_(isolate) {
-  // We don't deserialize the SSE2 Field, since this is only used to be able
-  // to include SSE2 as well as non-SSE2 versions in the snapshot. For code
-  // generation we always want it to reflect the current state.
   op_ = static_cast<Token::Value>(
       FIRST_TOKEN + OpField::decode(extra_ic_state));
   mode_ = OverwriteModeField::decode(extra_ic_state);
@@ -2129,10 +2126,7 @@ BinaryOpIC::State::State(Isolate* isolate, ExtraICState extra_ic_state)
 
 
 ExtraICState BinaryOpIC::State::GetExtraICState() const {
-  bool sse2 = (Max(result_kind_, Max(left_kind_, right_kind_)) > SMI &&
-               CpuFeatures::IsSafeForSnapshot(isolate(), SSE2));
   ExtraICState extra_ic_state =
-      SSE2Field::encode(sse2) |
       OpField::encode(op_ - FIRST_TOKEN) |
       OverwriteModeField::encode(mode_) |
       LeftKindField::encode(left_kind_) |
@@ -2453,14 +2447,9 @@ void BinaryOpIC::State::Update(Handle<Object> left,
     // Tagged operations can lead to non-truncating HChanges
     if (left->IsUndefined() || left->IsBoolean()) {
       left_kind_ = GENERIC;
-    } else if (right->IsUndefined() || right->IsBoolean()) {
-      right_kind_ = GENERIC;
     } else {
-      // Since the X87 is too precise, we might bail out on numbers which
-      // actually would truncate with 64 bit precision.
-      ASSERT(!CpuFeatures::IsSupported(SSE2));
-      ASSERT(result_kind_ < NUMBER);
-      result_kind_ = NUMBER;
+      ASSERT(right->IsUndefined() || right->IsBoolean());
+      right_kind_ = GENERIC;
     }
   }
 }
