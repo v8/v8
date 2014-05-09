@@ -5959,14 +5959,13 @@ class Map: public HeapObject {
       kDescriptorIndexBitCount, kDescriptorIndexBitCount> {};  // NOLINT
   STATIC_ASSERT(kDescriptorIndexBitCount + kDescriptorIndexBitCount == 20);
   class IsShared:                   public BitField<bool, 20,  1> {};
-  class FunctionWithPrototype:      public BitField<bool, 21,  1> {};
-  class DictionaryMap:              public BitField<bool, 22,  1> {};
-  class OwnsDescriptors:            public BitField<bool, 23,  1> {};
-  class HasInstanceCallHandler:     public BitField<bool, 24,  1> {};
-  class Deprecated:                 public BitField<bool, 25,  1> {};
-  class IsFrozen:                   public BitField<bool, 26,  1> {};
-  class IsUnstable:                 public BitField<bool, 27,  1> {};
-  class IsMigrationTarget:          public BitField<bool, 28,  1> {};
+  class DictionaryMap:              public BitField<bool, 21,  1> {};
+  class OwnsDescriptors:            public BitField<bool, 22,  1> {};
+  class HasInstanceCallHandler:     public BitField<bool, 23,  1> {};
+  class Deprecated:                 public BitField<bool, 24,  1> {};
+  class IsFrozen:                   public BitField<bool, 25,  1> {};
+  class IsUnstable:                 public BitField<bool, 26,  1> {};
+  class IsMigrationTarget:          public BitField<bool, 27,  1> {};
 
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
@@ -6481,7 +6480,8 @@ class Map: public HeapObject {
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
-  static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
+  static const int kBitField3Offset = kInstanceAttributesOffset + kIntSize;
+  static const int kPrototypeOffset = kBitField3Offset + kPointerSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
   // Storage for the transition array is overloaded to directly contain a back
   // pointer if unused. When the map has transitions, the back pointer is
@@ -6493,13 +6493,12 @@ class Map: public HeapObject {
       kTransitionsOrBackPointerOffset + kPointerSize;
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
   static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
-  static const int kBitField3Offset = kDependentCodeOffset + kPointerSize;
-  static const int kSize = kBitField3Offset + kPointerSize;
+  static const int kSize = kDependentCodeOffset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset = kBitField3Offset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -6521,14 +6520,14 @@ class Map: public HeapObject {
   STATIC_CHECK(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   // Bit positions for bit field.
-  static const int kUnused = 0;  // To be used for marking recently used maps.
-  static const int kHasNonInstancePrototype = 1;
-  static const int kIsHiddenPrototype = 2;
-  static const int kHasNamedInterceptor = 3;
-  static const int kHasIndexedInterceptor = 4;
-  static const int kIsUndetectable = 5;
-  static const int kIsObserved = 6;
-  static const int kIsAccessCheckNeeded = 7;
+  static const int kHasNonInstancePrototype = 0;
+  static const int kIsHiddenPrototype = 1;
+  static const int kHasNamedInterceptor = 2;
+  static const int kHasIndexedInterceptor = 3;
+  static const int kIsUndetectable = 4;
+  static const int kIsObserved = 5;
+  static const int kIsAccessCheckNeeded = 6;
+  class FunctionWithPrototype: public BitField<bool, 7,  1> {};
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
