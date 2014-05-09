@@ -1486,7 +1486,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   template<typename Field>
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
-    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
+    static const int mask = Field::kMask >> shift;
     srl(reg, reg, shift);
     And(reg, reg, Operand(mask));
   }
