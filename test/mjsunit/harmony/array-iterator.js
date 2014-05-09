@@ -27,6 +27,7 @@
 
 // Flags: --harmony-iteration --allow-natives-syntax
 
+
 function TestArrayPrototype() {
   assertTrue(Array.prototype.hasOwnProperty('entries'));
   assertTrue(Array.prototype.hasOwnProperty('values'));
@@ -38,9 +39,11 @@ function TestArrayPrototype() {
 }
 TestArrayPrototype();
 
+
 function assertIteratorResult(value, done, result) {
   assertEquals({value: value, done: done}, result);
 }
+
 
 function TestValues() {
   var array = ['a', 'b', 'c'];
@@ -55,6 +58,7 @@ function TestValues() {
 }
 TestValues();
 
+
 function TestValuesMutate() {
   var array = ['a', 'b', 'c'];
   var iterator = array.values();
@@ -66,6 +70,7 @@ function TestValuesMutate() {
   assertIteratorResult(void 0, true, iterator.next());
 }
 TestValuesMutate();
+
 
 function TestKeys() {
   var array = ['a', 'b', 'c'];
@@ -80,6 +85,7 @@ function TestKeys() {
 }
 TestKeys();
 
+
 function TestKeysMutate() {
   var array = ['a', 'b', 'c'];
   var iterator = array.keys();
@@ -91,6 +97,7 @@ function TestKeysMutate() {
   assertIteratorResult(void 0, true, iterator.next());
 }
 TestKeysMutate();
+
 
 function TestEntries() {
   var array = ['a', 'b', 'c'];
@@ -105,6 +112,7 @@ function TestEntries() {
 }
 TestEntries();
 
+
 function TestEntriesMutate() {
   var array = ['a', 'b', 'c'];
   var iterator = array.entries();
@@ -117,28 +125,39 @@ function TestEntriesMutate() {
 }
 TestEntriesMutate();
 
+
+function TestArrayIteratorPrototype() {
+  var ArrayIteratorPrototype = [].values().__proto__;
+  assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
+  assertEquals(ArrayIteratorPrototype.__proto__, Object.prototype);
+  assertArrayEquals(['next'],
+      Object.getOwnPropertyNames(ArrayIteratorPrototype));
+}
+TestArrayIteratorPrototype();
+
+
 function TestArrayIteratorPrototype() {
   var array = [];
   var iterator = array.values();
 
-  var ArrayIterator = iterator.constructor;
-  assertEquals(ArrayIterator.prototype, array.values().__proto__);
-  assertEquals(ArrayIterator.prototype, array.keys().__proto__);
-  assertEquals(ArrayIterator.prototype, array.entries().__proto__);
+  var ArrayIteratorPrototype = iterator.__proto__;
 
-  assertEquals(Object.prototype, ArrayIterator.prototype.__proto__);
+  assertEquals(ArrayIteratorPrototype, array.values().__proto__);
+  assertEquals(ArrayIteratorPrototype, array.keys().__proto__);
+  assertEquals(ArrayIteratorPrototype, array.entries().__proto__);
+
+  assertEquals(Object.prototype, ArrayIteratorPrototype.__proto__);
 
   assertEquals('Array Iterator', %_ClassOf(array.values()));
   assertEquals('Array Iterator', %_ClassOf(array.keys()));
   assertEquals('Array Iterator', %_ClassOf(array.entries()));
 
-  var prototypeDescriptor =
-      Object.getOwnPropertyDescriptor(ArrayIterator, 'prototype');
-  assertFalse(prototypeDescriptor.configurable);
-  assertFalse(prototypeDescriptor.enumerable);
-  assertFalse(prototypeDescriptor.writable);
+  assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
+  assertArrayEquals(['next'],
+      Object.getOwnPropertyNames(ArrayIteratorPrototype));
 }
 TestArrayIteratorPrototype();
+
 
 function TestForArrayValues() {
   var buffer = [];
@@ -157,6 +176,7 @@ function TestForArrayValues() {
 }
 TestForArrayValues();
 
+
 function TestForArrayKeys() {
   var buffer = [];
   var array = [0, 'a', true, false, null, /* hole */, undefined, NaN];
@@ -172,6 +192,7 @@ function TestForArrayKeys() {
   }
 }
 TestForArrayKeys();
+
 
 function TestForArrayEntries() {
   var buffer = [];
