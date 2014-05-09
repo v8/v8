@@ -2416,23 +2416,15 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* old_capacity) {
 }
 
 
-void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
-  int element_size = IsFastDoubleElementsKind(kind) ? kDoubleSize
-                                                    : kPointerSize;
-  int max_size = Page::kMaxRegularHeapObjectSize / element_size;
-  max_size -= JSArray::kSize / element_size;
-  HConstant* max_size_constant = Add<HConstant>(max_size);
-  Add<HBoundsCheck>(length, max_size_constant);
-}
-
-
 HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  HValue* elements,
                                                  ElementsKind kind,
                                                  ElementsKind new_kind,
                                                  HValue* length,
                                                  HValue* new_capacity) {
-  BuildNewSpaceArrayCheck(new_capacity, new_kind);
+  Add<HBoundsCheck>(new_capacity, Add<HConstant>(
+          (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
+          ElementsKindToShiftSize(kind)));
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);

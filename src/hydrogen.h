@@ -1665,9 +1665,6 @@ class HGraphBuilder {
 
   HValue* BuildNewElementsCapacity(HValue* old_capacity);
 
-  void BuildNewSpaceArrayCheck(HValue* length,
-                               ElementsKind kind);
-
   class JSArrayBuilder V8_FINAL {
    public:
     JSArrayBuilder(HGraphBuilder* builder,
