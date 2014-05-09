@@ -451,6 +451,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // Later the map is replaced with writable prototype map, allocated below.
   Handle<Map> function_map = CreateFunctionMap(ADD_READONLY_PROTOTYPE);
   native_context()->set_sloppy_function_map(*function_map);
+  native_context()->set_sloppy_function_with_readonly_prototype_map(
+      *function_map);
 
   // The final map for functions. Writeable prototype.
   // This map is installed in MakeFunctionInstancePrototypeWritable.

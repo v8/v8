@@ -3042,49 +3042,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionSetReadOnlyPrototype) {
-  HandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  Handle<String> name = isolate->factory()->prototype_string();
-
-  if (function->HasFastProperties()) {
-    // Construct a new field descriptor with updated attributes.
-    Handle<DescriptorArray> instance_desc =
-        handle(function->map()->instance_descriptors());
-
-    int index = instance_desc->SearchWithCache(*name, function->map());
-    ASSERT(index != DescriptorArray::kNotFound);
-    PropertyDetails details = instance_desc->GetDetails(index);
-
-    CallbacksDescriptor new_desc(
-        name,
-        handle(instance_desc->GetValue(index), isolate),
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY));
-
-    // Create a new map featuring the new field descriptors array.
-    Handle<Map> map = handle(function->map());
-    Handle<Map> new_map = Map::CopyReplaceDescriptor(
-        map, instance_desc, &new_desc, index, OMIT_TRANSITION);
-
-    JSObject::MigrateToMap(function, new_map);
-  } else {  // Dictionary properties.
-    // Directly manipulate the property details.
-    DisallowHeapAllocation no_gc;
-    int entry = function->property_dictionary()->FindEntry(name);
-    ASSERT(entry != NameDictionary::kNotFound);
-    PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
-    PropertyDetails new_details(
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
-        details.type(),
-        details.dictionary_index());
-    function->property_dictionary()->DetailsAtPut(entry, new_details);
-  }
-  return *function;
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);

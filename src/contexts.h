@@ -123,6 +123,8 @@ enum BindingFlags {
       uint8_clamped_array_external_map) \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun) \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map) \
+  V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map, \
+    sloppy_function_with_readonly_prototype_map) \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map) \
   V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
     sloppy_function_without_prototype_map) \
@@ -265,6 +267,7 @@ class Context: public FixedArray {
     STRICT_ARGUMENTS_BOILERPLATE_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     SLOPPY_FUNCTION_MAP_INDEX,
+    SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX,
     STRICT_FUNCTION_MAP_INDEX,
     SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,

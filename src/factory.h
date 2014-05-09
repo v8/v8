@@ -453,7 +453,8 @@ class Factory V8_FINAL {
 
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
-                                 Handle<Object> prototype);
+                                 Handle<Object> prototype,
+                                 bool read_only_prototype = false);
   Handle<JSFunction> NewFunction(Handle<String> name);
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code);
@@ -467,7 +468,8 @@ class Factory V8_FINAL {
                                  Handle<Code> code,
                                  Handle<Object> prototype,
                                  InstanceType type,
-                                 int instance_size);
+                                 int instance_size,
+                                 bool read_only_prototype = false);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,

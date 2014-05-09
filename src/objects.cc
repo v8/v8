@@ -7562,7 +7562,7 @@ Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
-  Handle<Map> new_map = Map::CopyReplaceDescriptors(
+  Handle<Map> new_map = CopyReplaceDescriptors(
       map, new_desc, INSERT_TRANSITION, isolate->factory()->frozen_symbol());
   new_map->freeze();
   new_map->set_is_extensible(false);

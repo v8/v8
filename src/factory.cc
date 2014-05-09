@@ -1210,7 +1210,9 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   ASSERT((info->strict_mode() == SLOPPY) &&
          (map.is_identical_to(isolate()->sloppy_function_map()) ||
           map.is_identical_to(
-              isolate()->sloppy_function_without_prototype_map())));
+              isolate()->sloppy_function_without_prototype_map()) ||
+          map.is_identical_to(
+              isolate()->sloppy_function_with_readonly_prototype_map())));
   return NewFunction(map, info, context);
 }
 
@@ -1230,9 +1232,12 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Code> code,
-                                        Handle<Object> prototype) {
-  Handle<JSFunction> result = NewFunction(
-      isolate()->sloppy_function_map(), name, code);
+                                        Handle<Object> prototype,
+                                        bool read_only_prototype) {
+  Handle<Map> map = read_only_prototype
+      ? isolate()->sloppy_function_with_readonly_prototype_map()
+      : isolate()->sloppy_function_map();
+  Handle<JSFunction> result = NewFunction(map, name, code);
   result->set_prototype_or_initial_map(*prototype);
   return result;
 }
@@ -1242,9 +1247,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Code> code,
                                         Handle<Object> prototype,
                                         InstanceType type,
-                                        int instance_size) {
+                                        int instance_size,
+                                        bool read_only_prototype) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, code, prototype);
+  Handle<JSFunction> function = NewFunction(
+      name, code, prototype, read_only_prototype);
 
   Handle<Map> initial_map = NewMap(
       type, instance_size, GetInitialFastElementsKind());
@@ -2101,7 +2108,8 @@ Handle<JSFunction> Factory::CreateApiFunction(
         break;
     }
 
-    result = NewFunction(empty_string(), code, prototype, type, instance_size);
+    result = NewFunction(empty_string(), code, prototype, type,
+                         instance_size, obj->read_only_prototype());
   }
 
   result->shared()->set_length(obj->length());
