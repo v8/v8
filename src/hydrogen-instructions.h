@@ -3545,6 +3545,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return instance_type_ == CELL_TYPE || instance_type_ == PROPERTY_CELL_TYPE;
   }
 
+  bool IsMap() const {
+    return instance_type_ == MAP_TYPE;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
@@ -5706,6 +5710,13 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     // Stores to new space allocations require no write barriers if the object
     // is the new space dominator.
     if (HAllocate::cast(object)->IsNewSpaceAllocation()) {
+      return false;
+    }
+    // Storing a map or an immortal immovable object requires no write barriers
+    // if the object is the new space dominator.
+    if (value->IsConstant() &&
+        (HConstant::cast(value)->IsMap() ||
+         HConstant::cast(value)->ImmortalImmovable())) {
       return false;
     }
     // Likewise we don't need a write barrier if we store a value that
