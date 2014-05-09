@@ -1233,12 +1233,11 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
                                         Handle<String> name,
                                         InstanceType type,
                                         int instance_size,
-                                        Handle<Code> code,
-                                        bool force_initial_map) {
+                                        Handle<Code> code) {
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, maybe_prototype, code);
 
-  if (force_initial_map ||
+  if (!maybe_prototype.is_null() ||
       type != JS_OBJECT_TYPE ||
       instance_size != JSObject::kHeaderSize) {
     Handle<Object> prototype = maybe_prototype.ToHandleChecked();
@@ -1262,10 +1261,8 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         InstanceType type,
                                         int instance_size,
-                                        Handle<Code> code,
-                                        bool force_initial_map) {
-  return NewFunction(
-      the_hole_value(), name, type, instance_size, code, force_initial_map);
+                                        Handle<Code> code) {
+  return NewFunction(the_hole_value(), name, type, instance_size, code);
 }
 
 
@@ -2099,8 +2096,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   if (obj->remove_prototype()) maybe_prototype = MaybeHandle<Object>();
 
   Handle<JSFunction> result = NewFunction(
-      maybe_prototype, Factory::empty_string(), type,
-      instance_size, code, !obj->remove_prototype());
+      maybe_prototype, Factory::empty_string(), type, instance_size, code);
 
   result->shared()->set_length(obj->length());
   Handle<Object> class_name(obj->class_name(), isolate());

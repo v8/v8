@@ -358,8 +358,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   Handle<String> internalized_name = factory->InternalizeUtf8String(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
   Handle<JSFunction> function = factory->NewFunction(
-      maybe_prototype, internalized_name, type, instance_size, call_code,
-      !maybe_prototype.is_null());
+      maybe_prototype, internalized_name, type, instance_size, call_code);
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -708,9 +707,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
         Builtins::kIllegal));
-    js_global_function =
-        factory()->NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
-                               JSGlobalObject::kSize, code, true);
+    js_global_function = factory()->NewFunction(
+        name, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize, code);
     // Change the constructor property of the prototype of the
     // hidden global function to refer to the Object function.
     Handle<JSObject> prototype =
@@ -742,9 +740,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
         Builtins::kIllegal));
-    global_proxy_function =
-        factory()->NewFunction(name, JS_GLOBAL_PROXY_TYPE,
-                               JSGlobalProxy::kSize, code, true);
+    global_proxy_function = factory()->NewFunction(
+        name, JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize, code);
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_template);
@@ -1091,7 +1088,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     Handle<JSFunction> function = factory->NewFunction(
         MaybeHandle<Object>(), arguments_string, JS_OBJECT_TYPE,
-        JSObject::kHeaderSize, code, false);
+        JSObject::kHeaderSize, code);
     ASSERT(!function->has_initial_map());
     function->shared()->set_instance_class_name(*arguments_string);
     function->shared()->set_expected_nof_properties(2);
@@ -1230,12 +1227,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     // Create a function for the context extension objects.
     Handle<Code> code = Handle<Code>(
         isolate->builtins()->builtin(Builtins::kIllegal));
-    Handle<JSFunction> context_extension_fun =
-        factory->NewFunction(factory->empty_string(),
-                             JS_CONTEXT_EXTENSION_OBJECT_TYPE,
-                             JSObject::kHeaderSize,
-                             code,
-                             true);
+    Handle<JSFunction> context_extension_fun = factory->NewFunction(
+        factory->empty_string(), JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+        JSObject::kHeaderSize, code);
 
     Handle<String> name = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("context_extension"));
@@ -1249,9 +1243,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<Code> code =
         Handle<Code>(isolate->builtins()->builtin(
             Builtins::kHandleApiCallAsFunction));
-    Handle<JSFunction> delegate =
-        factory->NewFunction(factory->empty_string(), JS_OBJECT_TYPE,
-                             JSObject::kHeaderSize, code, true);
+    Handle<JSFunction> delegate = factory->NewFunction(
+        factory->empty_string(), JS_OBJECT_TYPE, JSObject::kHeaderSize, code);
     native_context()->set_call_as_function_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
@@ -1261,9 +1254,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<Code> code =
         Handle<Code>(isolate->builtins()->builtin(
             Builtins::kHandleApiCallAsConstructor));
-    Handle<JSFunction> delegate =
-        factory->NewFunction(factory->empty_string(), JS_OBJECT_TYPE,
-                             JSObject::kHeaderSize, code, true);
+    Handle<JSFunction> delegate = factory->NewFunction(
+        factory->empty_string(), JS_OBJECT_TYPE, JSObject::kHeaderSize, code);
     native_context()->set_call_as_constructor_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
@@ -1627,10 +1619,9 @@ bool Genesis::InstallNatives() {
   // (itself) and a reference to the native_context directly in the object.
   Handle<Code> code = Handle<Code>(
       isolate()->builtins()->builtin(Builtins::kIllegal));
-  Handle<JSFunction> builtins_fun =
-      factory()->NewFunction(factory()->empty_string(),
-                             JS_BUILTINS_OBJECT_TYPE,
-                             JSBuiltinsObject::kSize, code, true);
+  Handle<JSFunction> builtins_fun = factory()->NewFunction(
+      factory()->empty_string(), JS_BUILTINS_OBJECT_TYPE,
+      JSBuiltinsObject::kSize, code);
 
   Handle<String> name =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));

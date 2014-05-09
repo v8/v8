@@ -465,13 +465,11 @@ class Factory V8_FINAL {
                                  Handle<String> name,
                                  InstanceType type,
                                  int instance_size,
-                                 Handle<Code> code,
-                                 bool force_initial_map);
+                                 Handle<Code> code);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  InstanceType type,
                                  int instance_size,
-                                 Handle<Code> code,
-                                 bool force_initial_map);
+                                 Handle<Code> code);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
