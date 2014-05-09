@@ -1357,7 +1357,7 @@ class MacroAssembler: public Assembler {
   template<typename Field>
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
-    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
+    static const int mask = Field::kMask >> shift;
     mov(reg, Operand(reg, LSR, shift));
     and_(reg, reg, Operand(mask));
   }

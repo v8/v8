@@ -2976,11 +2976,8 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   // rbx: descriptor array.
   // rcx: valid entries in the descriptor array.
   // Calculate the end of the descriptor array.
-  __ imulp(rcx, rcx, Immediate(DescriptorArray::kDescriptorSize));
-  SmiIndex index = masm_->SmiToIndex(rdx, rcx, kPointerSizeLog2);
-  __ leap(rcx,
-         Operand(
-             r8, index.reg, index.scale, DescriptorArray::kFirstOffset));
+  __ imull(rcx, rcx, Immediate(DescriptorArray::kDescriptorSize));
+  __ leal(rcx, Operand(r8, rcx, times_4, DescriptorArray::kFirstOffset));
   // Calculate location of the first key name.
   __ addp(r8, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the

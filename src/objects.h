@@ -6481,7 +6481,8 @@ class Map: public HeapObject {
   // Layout description.
   static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
   static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
-  static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
+  static const int kBitField3Offset = kInstanceAttributesOffset + kIntSize;
+  static const int kPrototypeOffset = kBitField3Offset + kPointerSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
   // Storage for the transition array is overloaded to directly contain a back
   // pointer if unused. When the map has transitions, the back pointer is
@@ -6493,13 +6494,12 @@ class Map: public HeapObject {
       kTransitionsOrBackPointerOffset + kPointerSize;
   static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
   static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
-  static const int kBitField3Offset = kDependentCodeOffset + kPointerSize;
-  static const int kSize = kBitField3Offset + kPointerSize;
+  static const int kSize = kDependentCodeOffset + kPointerSize;
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
-  static const int kPointerFieldsEndOffset = kBitField3Offset + kPointerSize;
+  static const int kPointerFieldsEndOffset = kSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;

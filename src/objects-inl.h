@@ -4753,16 +4753,15 @@ ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 
 
 void Map::set_bit_field3(uint32_t bits) {
-  // Ensure the upper 2 bits have the same value by sign extending it. This is
-  // necessary to be able to use the 31st bit.
-  int value = bits << 1;
-  WRITE_FIELD(this, kBitField3Offset, Smi::FromInt(value >> 1));
+  if (kInt32Size != kPointerSize) {
+    WRITE_UINT32_FIELD(this, kBitField3Offset + kInt32Size, 0);
+  }
+  WRITE_UINT32_FIELD(this, kBitField3Offset, bits);
 }
 
 
 uint32_t Map::bit_field3() {
-  Object* value = READ_FIELD(this, kBitField3Offset);
-  return Smi::cast(value)->value();
+  return READ_UINT32_FIELD(this, kBitField3Offset);
 }
 
 
