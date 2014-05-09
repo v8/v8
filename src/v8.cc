@@ -53,16 +53,6 @@ bool V8::Initialize(Deserializer* des) {
 
 
 void V8::TearDown() {
-  Isolate* isolate = Isolate::Current();
-  ASSERT(isolate->IsDefaultIsolate());
-  if (!isolate->IsInitialized()) return;
-
-  // The isolate has to be torn down before clearing the LOperand
-  // caches so that the optimizing compiler thread (if running)
-  // doesn't see an inconsistent view of the lithium instructions.
-  isolate->TearDown();
-  delete isolate;
-
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
