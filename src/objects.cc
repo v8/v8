@@ -9918,8 +9918,8 @@ static bool CheckEquivalent(Map* first, Map* second) {
     first->instance_type() == second->instance_type() &&
     first->bit_field() == second->bit_field() &&
     first->bit_field2() == second->bit_field2() &&
-    first->is_frozen() == second->is_frozen() &&
-    first->has_instance_call_handler() == second->has_instance_call_handler();
+    first->is_observed() == second->is_observed() &&
+    first->function_with_prototype() == second->function_with_prototype();
 }
 
 

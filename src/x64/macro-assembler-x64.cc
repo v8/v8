@@ -3484,16 +3484,16 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
 
 
 void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
-  movl(dst, FieldOperand(map, Map::kBitField3Offset));
+  movp(dst, FieldOperand(map, Map::kBitField3Offset));
   DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
 }
 
 
 void MacroAssembler::EnumLength(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
-  movl(dst, FieldOperand(map, Map::kBitField3Offset));
-  andl(dst, Immediate(Map::EnumLengthBits::kMask));
-  Integer32ToSmi(dst, dst);
+  movp(dst, FieldOperand(map, Map::kBitField3Offset));
+  Move(kScratchRegister, Smi::FromInt(Map::EnumLengthBits::kMask));
+  andp(dst, kScratchRegister);
 }
 
 
@@ -4959,8 +4959,9 @@ void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
                                         Label* if_deprecated) {
   if (map->CanBeDeprecated()) {
     Move(scratch, map);
-    movl(scratch, FieldOperand(scratch, Map::kBitField3Offset));
-    andl(scratch, Immediate(Map::Deprecated::kMask));
+    movp(scratch, FieldOperand(scratch, Map::kBitField3Offset));
+    SmiToInteger32(scratch, scratch);
+    andp(scratch, Immediate(Map::Deprecated::kMask));
     j(not_zero, if_deprecated);
   }
 }

@@ -2986,7 +2986,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
   __ imul(ecx, ecx, DescriptorArray::kDescriptorSize);
-  __ lea(ecx, Operand(ebx, ecx, times_4, DescriptorArray::kFirstOffset));
+  __ lea(ecx, Operand(ebx, ecx, times_2, DescriptorArray::kFirstOffset));
   // Calculate location of the first key name.
   __ add(ebx, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the

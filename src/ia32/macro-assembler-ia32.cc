@@ -3182,7 +3182,7 @@ void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
   if (map->CanBeDeprecated()) {
     mov(scratch, map);
     mov(scratch, FieldOperand(scratch, Map::kBitField3Offset));
-    and_(scratch, Immediate(Map::Deprecated::kMask));
+    and_(scratch, Immediate(Smi::FromInt(Map::Deprecated::kMask)));
     j(not_zero, if_deprecated);
   }
 }
@@ -3360,8 +3360,7 @@ void MacroAssembler::EnsureNotWhite(
 void MacroAssembler::EnumLength(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
   mov(dst, FieldOperand(map, Map::kBitField3Offset));
-  and_(dst, Immediate(Map::EnumLengthBits::kMask));
-  SmiTag(dst);
+  and_(dst, Immediate(Smi::FromInt(Map::EnumLengthBits::kMask)));
 }
 
 

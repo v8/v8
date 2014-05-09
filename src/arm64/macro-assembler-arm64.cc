@@ -1325,14 +1325,15 @@ void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
 
 void MacroAssembler::EnumLengthUntagged(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
-  Ldrsw(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  Ldrsw(dst, UntagSmiFieldMemOperand(map, Map::kBitField3Offset));
   And(dst, dst, Map::EnumLengthBits::kMask);
 }
 
 
 void MacroAssembler::EnumLengthSmi(Register dst, Register map) {
-  EnumLengthUntagged(dst, map);
-  SmiTag(dst, dst);
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  Ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
+  And(dst, dst, Smi::FromInt(Map::EnumLengthBits::kMask));
 }
 
 
@@ -4514,7 +4515,7 @@ void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
                                         Label* if_deprecated) {
   if (map->CanBeDeprecated()) {
     Mov(scratch, Operand(map));
-    Ldrsw(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
+    Ldrsw(scratch, UntagSmiFieldMemOperand(scratch, Map::kBitField3Offset));
     TestAndBranchIfAnySet(scratch, Map::Deprecated::kMask, if_deprecated);
   }
 }
