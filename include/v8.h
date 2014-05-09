@@ -2429,6 +2429,9 @@ class ReturnValue {
   // Convenience getter for Isolate
   V8_INLINE Isolate* GetIsolate();
 
+  // Pointer setter: Uncompilable to prevent inadvertent misuse.
+  void Set(void* whatever);
+
  private:
   template<class F> friend class ReturnValue;
   template<class F> friend class FunctionCallbackInfo;
@@ -5971,6 +5974,12 @@ template<typename T>
 Isolate* ReturnValue<T>::GetIsolate() {
   // Isolate is always the pointer below the default value on the stack.
   return *reinterpret_cast<Isolate**>(&value_[-2]);
+}
+
+template<typename T>
+void ReturnValue<T>::Set(void* whatever) {
+  // Uncompilable to prevent inadvertent misuse.
+  TYPE_CHECK(void*, Primitive);
 }
 
 template<typename T>
