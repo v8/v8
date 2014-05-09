@@ -65,23 +65,35 @@ void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 static bool run_shell;
 
 
+class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+ public:
+  virtual void* Allocate(size_t length) {
+    return memset(AllocateUninitialized(length), 0, length);
+  }
+  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+  virtual void Free(void* data, size_t) { free(data); }
+};
+
+
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  ShellArrayBufferAllocator array_buffer_allocator;
+  v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
+  v8::Isolate* isolate = v8::Isolate::New();
   run_shell = (argc == 1);
   int result;
   {
+    v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Handle<v8::Context> context = CreateShellContext(isolate);
     if (context.IsEmpty()) {
       fprintf(stderr, "Error creating context\n");
       return 1;
     }
-    context->Enter();
+    v8::Context::Scope context_scope(context);
     result = RunMain(isolate, argc, argv);
     if (run_shell) RunShell(context);
-    context->Exit();
   }
   v8::V8::Dispose();
   return result;

@@ -133,7 +133,9 @@ void DispatchDebugMessages() {
 
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = v8::Isolate::New();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::Locker locker(isolate);
   v8::HandleScope handle_scope(isolate);
 
   v8::Handle<v8::String> script_source;
@@ -211,8 +213,6 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
   debug_message_context.Reset(isolate, context);
-
-  v8::Locker locker(isolate);
 
   if (support_callback) {
     v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);

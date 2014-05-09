@@ -1,3 +1,10 @@
+2014-05-09: Version 3.27.0
+
+        Unbreak samples and tools.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-08: Version 3.26.33
 
         Removed default Isolate (Chromium issue 359977).

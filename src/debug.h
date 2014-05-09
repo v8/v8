@@ -219,7 +219,7 @@ class Debug {
   void PreemptionWhileInDebugger();
 
   Object* Break(Arguments args);
-  void SetBreakPoint(Handle<JSFunction> function,
+  bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<Object> break_point_object,
                      int* source_position);
   bool SetBreakPointForScript(Handle<Script> script,
@@ -511,7 +511,7 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
-  void MaybeRecompileFunctionForDebugging(Handle<JSFunction> function);
+  void EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function);
   void RecompileAndRelocateSuspendedGenerators(
       const List<Handle<JSGeneratorObject> > &suspended_generators);
 

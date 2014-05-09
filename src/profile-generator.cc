@@ -208,9 +208,9 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %*c %s%s %d #%d %s",
+  OS::Print("%5u %*s %s%s %d #%d %s",
             self_ticks_,
-            indent, ' ',
+            indent, "",
             entry_->name_prefix(),
             entry_->name(),
             entry_->script_id(),

@@ -651,7 +651,8 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = Isolate::New();
+  Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);
   Handle<String> source = ReadFile(isolate, file);
   if (source.IsEmpty()) {

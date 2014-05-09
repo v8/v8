@@ -143,6 +143,33 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
+['no_i18n', {
+  # Don't call runtime functions that don't exist without i18n support.
+  'runtime-gen/availablelocalesof': [SKIP],
+  'runtime-gen/breakiteratoradopttext': [SKIP],
+  'runtime-gen/breakiteratorbreaktype': [SKIP],
+  'runtime-gen/breakiteratorbreaktype': [SKIP],
+  'runtime-gen/breakiteratorcurrent': [SKIP],
+  'runtime-gen/breakiteratorfirst': [SKIP],
+  'runtime-gen/breakiteratornext': [SKIP],
+  'runtime-gen/canonicalizelanguagetag': [SKIP],
+  'runtime-gen/createbreakiterator': [SKIP],
+  'runtime-gen/createcollator': [SKIP],
+  'runtime-gen/getdefaulticulocale': [SKIP],
+  'runtime-gen/getimplfrominitializedintlobject': [SKIP],
+  'runtime-gen/getlanguagetagvariants': [SKIP],
+  'runtime-gen/internalcompare': [SKIP],
+  'runtime-gen/internaldateformat': [SKIP],
+  'runtime-gen/internaldateparse': [SKIP],
+  'runtime-gen/internalnumberformat': [SKIP],
+  'runtime-gen/internalnumberparse': [SKIP],
+  'runtime-gen/isinitializedintlobject': [SKIP],
+  'runtime-gen/isinitializedintlobjectoftype': [SKIP],
+  'runtime-gen/markasinitializedintlobjectoftype': [SKIP],
+  'runtime-gen/stringnormalize': [SKIP],
+}],
+
+##############################################################################
 ['arch == arm64 or arch == android_arm64', {
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
