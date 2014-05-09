@@ -144,9 +144,9 @@ Heap::Heap()
   ASSERT(MB >= Page::kPageSize);
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
-  native_contexts_list_ = NULL;
-  array_buffers_list_ = Smi::FromInt(0);
-  allocation_sites_list_ = Smi::FromInt(0);
+  set_native_contexts_list(NULL);
+  set_array_buffers_list(Smi::FromInt(0));
+  set_allocation_sites_list(Smi::FromInt(0));
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -962,7 +962,7 @@ void Heap::EnsureFromSpaceIsCommitted() {
 void Heap::ClearJSFunctionResultCaches() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
-  Object* context = native_contexts_list_;
+  Object* context = native_contexts_list();
   while (!context->IsUndefined()) {
     // Get the caches for this context. GC can happen when the context
     // is not fully initialized, so the caches can be undefined.
@@ -988,7 +988,7 @@ void Heap::ClearNormalizedMapCaches() {
     return;
   }
 
-  Object* context = native_contexts_list_;
+  Object* context = native_contexts_list();
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
@@ -1569,9 +1569,6 @@ void Heap::Scavenge() {
     collector->code_flusher()->IteratePointersToFromSpace(&scavenge_visitor);
   }
 
-  // Scavenge object reachable from the native contexts list directly.
-  scavenge_visitor.VisitPointer(BitCast<Object**>(&native_contexts_list_));
-
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   while (isolate()->global_handles()->IterateObjectGroups(
@@ -1704,7 +1701,7 @@ void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
       VisitWeakList<Context>(
           this, native_contexts_list(), retainer, record_slots);
   // Update the head of the list of contexts.
-  native_contexts_list_ = head;
+  set_native_contexts_list(head);
 }
 
 
@@ -1725,7 +1722,7 @@ void Heap::TearDownArrayBuffers() {
     Runtime::FreeArrayBuffer(isolate(), buffer);
     o = buffer->weak_next();
   }
-  array_buffers_list_ = undefined;
+  set_array_buffers_list(undefined);
 }
 
 
@@ -5283,9 +5280,9 @@ bool Heap::CreateHeapObjects() {
   CreateInitialObjects();
   CHECK_EQ(0, gc_count_);
 
-  native_contexts_list_ = undefined_value();
-  array_buffers_list_ = undefined_value();
-  allocation_sites_list_ = undefined_value();
+  set_native_contexts_list(undefined_value());
+  set_array_buffers_list(undefined_value());
+  set_allocation_sites_list(undefined_value());
   weak_object_to_code_table_ = undefined_value();
   return true;
 }

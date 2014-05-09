@@ -833,17 +833,19 @@ class Heap {
   void set_native_contexts_list(Object* object) {
     native_contexts_list_ = object;
   }
-  Object* native_contexts_list() { return native_contexts_list_; }
+  Object* native_contexts_list() const { return native_contexts_list_; }
 
   void set_array_buffers_list(Object* object) {
     array_buffers_list_ = object;
   }
-  Object* array_buffers_list() { return array_buffers_list_; }
+  Object* array_buffers_list() const { return array_buffers_list_; }
 
   void set_allocation_sites_list(Object* object) {
     allocation_sites_list_ = object;
   }
   Object* allocation_sites_list() { return allocation_sites_list_; }
+
+  // Used in CreateAllocationSiteStub and the (de)serializer.
   Object** allocation_sites_list_address() { return &allocation_sites_list_; }
 
   Object* weak_object_to_code_table() { return weak_object_to_code_table_; }
@@ -934,11 +936,6 @@ class Heap {
 
   Address* store_buffer_top_address() {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
-  }
-
-  // Get address of native contexts list for serialization support.
-  Object** native_contexts_list_address() {
-    return &native_contexts_list_;
   }
 
 #ifdef VERIFY_HEAP
