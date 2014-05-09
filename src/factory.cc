@@ -1202,38 +1202,47 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        MaybeHandle<Code> maybe_code,
-                                        MaybeHandle<Object> maybe_prototype) {
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
-  ASSERT(info->strict_mode() == SLOPPY);
-  Handle<Code> code;
-  if (maybe_code.ToHandle(&code)) {
-    info->set_code(*code);
-  }
+Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
+                                        Handle<String> name,
+                                        MaybeHandle<Code> code) {
   Handle<Context> context(isolate()->context()->native_context());
-  Handle<Map> map = maybe_prototype.is_null()
-      ? isolate()->sloppy_function_without_prototype_map()
-      : isolate()->sloppy_function_map();
-  Handle<JSFunction> result = NewFunction(map, info, context);
-  Handle<Object> prototype;
-  if (maybe_prototype.ToHandle(&prototype)) {
-    result->set_prototype_or_initial_map(*prototype);
-  }
-  return result;
+  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name, code);
+  ASSERT((info->strict_mode() == SLOPPY) &&
+         (map.is_identical_to(isolate()->sloppy_function_map()) ||
+          map.is_identical_to(
+              isolate()->sloppy_function_without_prototype_map())));
+  return NewFunction(map, info, context);
 }
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
-  return NewFunction(name, MaybeHandle<Code>(), the_hole_value());
+  return NewFunction(
+      isolate()->sloppy_function_map(), name, MaybeHandle<Code>());
 }
 
 
-Handle<JSFunction> Factory::NewFunction(Handle<Object> prototype,
-                                        Handle<String> name,
+Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
+                                                        Handle<Code> code) {
+  return NewFunction(
+      isolate()->sloppy_function_without_prototype_map(), name, code);
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        Handle<Code> code,
+                                        Handle<Object> prototype) {
+  Handle<JSFunction> result = NewFunction(
+      isolate()->sloppy_function_map(), name, code);
+  result->set_prototype_or_initial_map(*prototype);
+  return result;
+}
+
+
+Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        Handle<Code> code,
+                                        Handle<Object> prototype,
                                         InstanceType type,
-                                        int instance_size,
-                                        Handle<Code> code) {
+                                        int instance_size) {
   // Allocate the function
   Handle<JSFunction> function = NewFunction(name, code, prototype);
 
@@ -1251,10 +1260,10 @@ Handle<JSFunction> Factory::NewFunction(Handle<Object> prototype,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
+                                        Handle<Code> code,
                                         InstanceType type,
-                                        int instance_size,
-                                        Handle<Code> code) {
-  return NewFunction(the_hole_value(), name, type, instance_size, code);
+                                        int instance_size) {
+  return NewFunction(name, code, the_hole_value(), type, instance_size);
 }
 
 
@@ -1753,7 +1762,7 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
     OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
                          heap->HashSeed());
     Handle<String> name = InternalizeStringWithKey(&key);
-    shared = NewSharedFunctionInfo(name);
+    shared = NewSharedFunctionInfo(name, MaybeHandle<Code>());
   }
 
   // In order to keep heap in consistent state there must be no allocations
@@ -1848,8 +1857,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<Code> code,
     Handle<ScopeInfo> scope_info,
     Handle<FixedArray> feedback_vector) {
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
-  shared->set_code(*code);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
   shared->set_scope_info(*scope_info);
   shared->set_feedback_vector(*feedback_vector);
   int literals_array_size = number_of_literals;
@@ -1890,15 +1898,20 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 }
 
 
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(Handle<String> name) {
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
+    Handle<String> name,
+    MaybeHandle<Code> maybe_code) {
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map,
                                                              OLD_POINTER_SPACE);
 
   // Set pointer fields.
   share->set_name(*name);
-  Code* illegal = isolate()->builtins()->builtin(Builtins::kIllegal);
-  share->set_code(illegal);
+  Handle<Code> code;
+  if (!maybe_code.ToHandle(&code)) {
+    code = handle(isolate()->builtins()->builtin(Builtins::kIllegal));
+  }
+  share->set_code(*code);
   share->set_optimized_code_map(Smi::FromInt(0));
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   Code* construct_stub =
@@ -2054,7 +2067,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   Handle<JSFunction> result;
   if (obj->remove_prototype()) {
-    result = NewFunction(empty_string(), code);
+    result = NewFunctionWithoutPrototype(empty_string(), code);
   } else {
     int internal_field_count = 0;
     if (!obj->instance_template()->IsUndefined()) {
@@ -2088,7 +2101,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
         break;
     }
 
-    result = NewFunction(prototype, empty_string(), type, instance_size, code);
+    result = NewFunction(empty_string(), code, prototype, type, instance_size);
   }
 
   result->shared()->set_length(obj->length());
