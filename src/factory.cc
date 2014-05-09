@@ -1246,14 +1246,9 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
       type != JS_OBJECT_TYPE ||
       instance_size != JSObject::kHeaderSize) {
     Handle<Object> prototype = maybe_prototype.ToHandleChecked();
-    Handle<Map> initial_map = NewMap(type, instance_size);
-    if (prototype->IsJSObject()) {
-      JSObject::SetLocalPropertyIgnoreAttributes(
-          Handle<JSObject>::cast(prototype),
-          constructor_string(),
-          function,
-          DONT_ENUM).Assert();
-    } else if (!function->shared()->is_generator()) {
+    Handle<Map> initial_map = NewMap(
+        type, instance_size, GetInitialFastElementsKind());
+    if (prototype->IsTheHole() && !function->shared()->is_generator()) {
       prototype = NewFunctionPrototype(function);
     }
     initial_map->set_prototype(*prototype);
@@ -1275,30 +1270,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         bool force_initial_map) {
   return NewFunction(
       the_hole_value(), name, type, instance_size, code, force_initial_map);
-}
-
-
-Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
-                                                     InstanceType type,
-                                                     int instance_size,
-                                                     Handle<JSObject> prototype,
-                                                     Handle<Code> code,
-                                                     bool force_initial_map) {
-  // Allocate the function.
-  Handle<JSFunction> function = NewFunction(name, code, prototype);
-
-  if (force_initial_map ||
-      type != JS_OBJECT_TYPE ||
-      instance_size != JSObject::kHeaderSize) {
-    Handle<Map> initial_map = NewMap(type,
-                                     instance_size,
-                                     GetInitialFastElementsKind());
-    function->set_initial_map(*initial_map);
-    initial_map->set_constructor(*function);
-  }
-
-  JSFunction::SetPrototype(function, prototype);
-  return function;
 }
 
 
@@ -2151,6 +2122,13 @@ Handle<JSFunction> Factory::CreateApiFunction(
     ASSERT(!result->has_prototype());
     return result;
   }
+
+  JSObject::SetLocalPropertyIgnoreAttributes(
+      handle(JSObject::cast(result->prototype())),
+      constructor_string(),
+      result,
+      DONT_ENUM).Assert();
+
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).
 

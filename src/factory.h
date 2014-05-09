@@ -476,13 +476,6 @@ class Factory V8_FINAL {
                                  Handle<Code> code,
                                  bool force_initial_map);
 
-  Handle<JSFunction> NewFunctionWithPrototype(Handle<String> name,
-                                              InstanceType type,
-                                              int instance_size,
-                                              Handle<JSObject> prototype,
-                                              Handle<Code> code,
-                                              bool force_initial_map);
-
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
 

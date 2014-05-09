@@ -350,22 +350,16 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           const char* name,
                                           InstanceType type,
                                           int instance_size,
-                                          Handle<JSObject> prototype,
+                                          MaybeHandle<JSObject> maybe_prototype,
                                           Builtins::Name call,
-                                          bool install_initial_map,
                                           bool set_instance_class_name) {
   Isolate* isolate = target->GetIsolate();
   Factory* factory = isolate->factory();
   Handle<String> internalized_name = factory->InternalizeUtf8String(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
-  Handle<JSFunction> function = prototype.is_null()
-      ? factory->NewFunction(internalized_name, call_code)
-      : factory->NewFunctionWithPrototype(internalized_name,
-                                          type,
-                                          instance_size,
-                                          prototype,
-                                          call_code,
-                                          install_initial_map);
+  Handle<JSFunction> function = factory->NewFunction(
+      maybe_prototype, internalized_name, type, instance_size, call_code,
+      !maybe_prototype.is_null());
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -845,13 +839,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   // Install global Function object
   InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                  empty_function, Builtins::kIllegal, true, true);
+                  empty_function, Builtins::kIllegal, true);
 
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kArrayCode, true, true);
+                        Builtins::kArrayCode, true);
     array_function->shared()->DontAdaptArguments();
     array_function->shared()->set_function_data(Smi::FromInt(kArrayCode));
 
@@ -895,7 +889,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> number_fun =
         InstallFunction(global, "Number", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
     native_context()->set_number_function(*number_fun);
   }
 
@@ -903,7 +897,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> boolean_fun =
         InstallFunction(global, "Boolean", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
     native_context()->set_boolean_function(*boolean_fun);
   }
 
@@ -911,7 +905,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> string_fun =
         InstallFunction(global, "String", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
     string_fun->shared()->set_construct_stub(
         isolate->builtins()->builtin(Builtins::kStringConstructCode));
     native_context()->set_string_function(*string_fun);
@@ -936,7 +930,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> date_fun =
         InstallFunction(global, "Date", JS_DATE_TYPE, JSDate::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
 
     native_context()->set_date_function(*date_fun);
   }
@@ -947,7 +941,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSFunction> regexp_fun =
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
     native_context()->set_regexp_function(*regexp_fun);
 
     ASSERT(regexp_fun->has_initial_map());
@@ -1050,7 +1044,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
             global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
             JSArrayBuffer::kSizeWithInternalFields,
             isolate->initial_object_prototype(),
-            Builtins::kIllegal, true, true);
+            Builtins::kIllegal, true);
     native_context()->set_array_buffer_fun(*array_buffer_fun);
   }
 
@@ -1074,21 +1068,18 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
             global, "DataView", JS_DATA_VIEW_TYPE,
             JSDataView::kSizeWithInternalFields,
             isolate->initial_object_prototype(),
-            Builtins::kIllegal, true, true);
+            Builtins::kIllegal, true);
     native_context()->set_data_view_fun(*data_view_fun);
   }
 
-  {  // -- W e a k M a p
-    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
-
-  {  // -- W e a k S e t
-    InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                    isolate->initial_object_prototype(),
-                    Builtins::kIllegal, true, true);
-  }
+  // -- W e a k M a p
+  InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                  isolate->initial_object_prototype(),
+                  Builtins::kIllegal, true);
+  // -- W e a k S e t
+  InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+                  isolate->initial_object_prototype(),
+                  Builtins::kIllegal, true);
 
   {  // --- arguments_boilerplate_
     // Make sure we can recognize argument objects at runtime.
@@ -1097,19 +1088,15 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<String> arguments_string = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("Arguments"));
     Handle<Code> code(isolate->builtins()->builtin(Builtins::kIllegal));
-    Handle<JSObject> prototype(
-        JSObject::cast(native_context()->object_function()->prototype()));
 
-    Handle<JSFunction> function =
-        factory->NewFunctionWithPrototype(arguments_string,
-                                          JS_OBJECT_TYPE,
-                                          JSObject::kHeaderSize,
-                                          prototype,
-                                          code,
-                                          false);
+    Handle<JSFunction> function = factory->NewFunction(
+        MaybeHandle<Object>(), arguments_string, JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, code, false);
     ASSERT(!function->has_initial_map());
     function->shared()->set_instance_class_name(*arguments_string);
     function->shared()->set_expected_nof_properties(2);
+    function->set_prototype_or_initial_map(
+        native_context()->object_function()->prototype());
     Handle<JSObject> result = factory->NewJSObject(function);
 
     native_context()->set_sloppy_arguments_boilerplate(*result);
@@ -1295,7 +1282,7 @@ void Genesis::InstallTypedArray(
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
   Handle<JSFunction> result = InstallFunction(global, name, JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSize, isolate()->initial_object_prototype(),
-      Builtins::kIllegal, false, true);
+      Builtins::kIllegal, true);
 
   Handle<Map> initial_map = isolate()->factory()->NewMap(
       JS_TYPED_ARRAY_TYPE,
@@ -1321,21 +1308,19 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> symbol_fun =
         InstallFunction(global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
                         isolate()->initial_object_prototype(),
-                        Builtins::kIllegal, true, true);
+                        Builtins::kIllegal, true);
     native_context()->set_symbol_function(*symbol_fun);
   }
 
   if (FLAG_harmony_collections) {
-    {  // -- M a p
-      InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
-                      isolate()->initial_object_prototype(),
-                      Builtins::kIllegal, true, true);
-    }
-    {  // -- S e t
-      InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
-                      isolate()->initial_object_prototype(),
-                      Builtins::kIllegal, true, true);
-    }
+    // -- M a p
+    InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
+                    isolate()->initial_object_prototype(),
+                    Builtins::kIllegal, true);
+    // -- S e t
+    InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
+                    isolate()->initial_object_prototype(),
+                    Builtins::kIllegal, true);
     {   // -- S e t I t e r a t o r
       Handle<Map> map = isolate()->factory()->NewMap(
           JS_SET_ITERATOR_TYPE, JSSetIterator::kSize);
@@ -1356,12 +1341,10 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<JSFunction> generator_function_prototype =
         InstallFunction(builtins, "GeneratorFunctionPrototype",
                         JS_FUNCTION_TYPE, JSFunction::kHeaderSize,
-                        generator_object_prototype, Builtins::kIllegal,
-                        false, false);
+                        generator_object_prototype, Builtins::kIllegal, false);
     InstallFunction(builtins, "GeneratorFunction",
                     JS_FUNCTION_TYPE, JSFunction::kSize,
-                    generator_function_prototype, Builtins::kIllegal,
-                    false, false);
+                    generator_function_prototype, Builtins::kIllegal, false);
 
     // Create maps for generator functions and their prototypes.  Store those
     // maps in the native context.
@@ -1600,14 +1583,10 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   // doesn't inherit from Object.prototype.
   // To be used only for internal work by builtins. Instances
   // must not be leaked to user code.
-  Handle<JSFunction> array_function =
-      InstallFunction(builtins,
-                      name,
-                      JS_ARRAY_TYPE,
-                      JSArray::kSize,
-                      isolate()->initial_object_prototype(),
-                      Builtins::kInternalArrayCode,
-                      true, true);
+  Handle<JSFunction> array_function = InstallFunction(
+      builtins, name, JS_ARRAY_TYPE, JSArray::kSize,
+      isolate()->initial_object_prototype(), Builtins::kInternalArrayCode,
+      true);
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
   Accessors::FunctionSetPrototype(array_function, prototype);
@@ -1703,10 +1682,9 @@ bool Genesis::InstallNatives() {
 
   {  // -- S c r i p t
     // Builtin functions for Script.
-    Handle<JSFunction> script_fun =
-        InstallFunction(builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
-                        isolate()->initial_object_prototype(),
-                        Builtins::kIllegal, false, false);
+    Handle<JSFunction> script_fun = InstallFunction(
+        builtins, "Script", JS_VALUE_TYPE, JSValue::kSize,
+        isolate()->initial_object_prototype(), Builtins::kIllegal, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
     Accessors::FunctionSetPrototype(script_fun, prototype);
@@ -1829,11 +1807,9 @@ bool Genesis::InstallNatives() {
     // Builtin function for OpaqueReference -- a JSValue-based object,
     // that keeps its field isolated from JavaScript code. It may store
     // objects, that JavaScript code may not access.
-    Handle<JSFunction> opaque_reference_fun =
-        InstallFunction(builtins, "OpaqueReference", JS_VALUE_TYPE,
-                        JSValue::kSize,
-                        isolate()->initial_object_prototype(),
-                        Builtins::kIllegal, false, false);
+    Handle<JSFunction> opaque_reference_fun = InstallFunction(
+        builtins, "OpaqueReference", JS_VALUE_TYPE, JSValue::kSize,
+        isolate()->initial_object_prototype(), Builtins::kIllegal, false);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
     Accessors::FunctionSetPrototype(opaque_reference_fun, prototype);
@@ -1892,14 +1868,12 @@ bool Genesis::InstallNatives() {
     // Install the call and the apply functions.
     Handle<JSFunction> call =
         InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        Handle<JSObject>::null(),
-                        Builtins::kFunctionCall,
-                        false, false);
+                        MaybeHandle<JSObject>(),
+                        Builtins::kFunctionCall, false);
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        Handle<JSObject>::null(),
-                        Builtins::kFunctionApply,
-                        false, false);
+                        MaybeHandle<JSObject>(),
+                        Builtins::kFunctionApply, false);
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will
