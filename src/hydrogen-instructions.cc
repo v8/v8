@@ -3825,19 +3825,18 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       dominator_allocate);
   dominator_allocate->UpdateSize(new_dominator_size_constant);
 
+  bool keep_new_space_iterable = FLAG_log_gc || FLAG_heap_stats;
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && dominator_allocate->IsNewSpaceAllocation()) {
+  keep_new_space_iterable = keep_new_space_iterable || FLAG_verify_heap;
+#endif
+
+  if (keep_new_space_iterable && dominator_allocate->IsNewSpaceAllocation()) {
     dominator_allocate->MakePrefillWithFiller();
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos
     // work again in new space.
     dominator_allocate->ClearNextMapWord(original_object_size);
   }
-#else
-  // TODO(hpayer): This is a short-term hack to make allocation mementos
-  // work again in new space.
-  dominator_allocate->ClearNextMapWord(original_object_size);
-#endif
 
   dominator_allocate->UpdateClearNextMapWord(MustClearNextMapWord());
 
