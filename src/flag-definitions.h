@@ -463,6 +463,9 @@ DEFINE_bool(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
+DEFINE_int(min_semi_space_size, 0,
+    "min size of a semi-space (in MBytes), the new space consists of two"
+    "semi-spaces")
 DEFINE_int(max_semi_space_size, 0,
     "max size of a semi-space (in MBytes), the new space consists of two"
     "semi-spaces")

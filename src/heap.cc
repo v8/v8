@@ -5018,7 +5018,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
     if (max_semi_space_size_ > reserved_semispace_size_) {
       max_semi_space_size_ = reserved_semispace_size_;
       if (FLAG_trace_gc) {
-        PrintPID("Max semispace size cannot be more than %dkbytes\n",
+        PrintPID("Max semi-space size cannot be more than %d kbytes\n",
                  reserved_semispace_size_ >> 10);
       }
     }
@@ -5038,6 +5038,20 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
   // for containment.
   max_semi_space_size_ = RoundUpToPowerOf2(max_semi_space_size_);
   reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
+
+  if (FLAG_min_semi_space_size > 0) {
+    int initial_semispace_size = FLAG_min_semi_space_size * MB;
+    if (initial_semispace_size > max_semi_space_size_) {
+      initial_semispace_size_ = max_semi_space_size_;
+      if (FLAG_trace_gc) {
+        PrintPID("Min semi-space size cannot be more than the maximum"
+                 "semi-space size of %d MB\n", max_semi_space_size_);
+      }
+    } else {
+      initial_semispace_size_ = initial_semispace_size;
+    }
+  }
+
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
 
   // The external allocation limit should be below 256 MB on all architectures
