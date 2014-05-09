@@ -341,6 +341,8 @@ HType HType::TypeFromValue(Handle<Object> value) {
     result = HType::JSObject();
   } else if (value->IsJSArray()) {
     result = HType::JSArray();
+  } else if (value->IsHeapObject()) {
+    result = HType::NonPrimitive();
   }
   return result;
 }
