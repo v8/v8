@@ -546,12 +546,12 @@ enum ArrayStorageAllocationMode {
 
 class Heap {
  public:
-  // Configure heap size before setup. Return false if the heap has been
+  // Configure heap size in MB before setup. Return false if the heap has been
   // set up already.
-  bool ConfigureHeap(int max_semispace_size,
-                     intptr_t max_old_space_size,
-                     intptr_t max_executable_size,
-                     intptr_t code_range_size);
+  bool ConfigureHeap(int max_semi_space_size,
+                     int max_old_space_size,
+                     int max_executable_size,
+                     int code_range_size);
   bool ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
@@ -581,7 +581,7 @@ class Heap {
   intptr_t MaxReserved() {
     return 4 * reserved_semispace_size_ + max_old_generation_size_;
   }
-  int MaxSemiSpaceSize() { return max_semispace_size_; }
+  int MaxSemiSpaceSize() { return max_semi_space_size_; }
   int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
@@ -1072,25 +1072,39 @@ class Heap {
   static const intptr_t kMinimumOldGenerationAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
 
-  static const int kLumpOfMemory = (i::kPointerSize / 4) * i::MB;
+  static const int kPointerMultiplier = i::kPointerSize / 4;
 
-  // The new space size has to be a power of 2.
-  static const int kMaxNewSpaceSizeLowMemoryDevice = 2 * kLumpOfMemory;
-  static const int kMaxNewSpaceSizeMediumMemoryDevice = 8 * kLumpOfMemory;
-  static const int kMaxNewSpaceSizeHighMemoryDevice = 16 * kLumpOfMemory;
-  static const int kMaxNewSpaceSizeHugeMemoryDevice = 16 * kLumpOfMemory;
+  // The new space size has to be a power of 2. Sizes are in MB.
+  static const int kMaxSemiSpaceSizeLowMemoryDevice =
+      1 * kPointerMultiplier;
+  static const int kMaxSemiSpaceSizeMediumMemoryDevice =
+      4 * kPointerMultiplier;
+  static const int kMaxSemiSpaceSizeHighMemoryDevice =
+      8 * kPointerMultiplier;
+  static const int kMaxSemiSpaceSizeHugeMemoryDevice =
+      8 * kPointerMultiplier;
 
   // The old space size has to be a multiple of Page::kPageSize.
-  static const int kMaxOldSpaceSizeLowMemoryDevice = 128 * kLumpOfMemory;
-  static const int kMaxOldSpaceSizeMediumMemoryDevice = 256 * kLumpOfMemory;
-  static const int kMaxOldSpaceSizeHighMemoryDevice = 512 * kLumpOfMemory;
-  static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+  // Sizes are in MB.
+  static const int kMaxOldSpaceSizeLowMemoryDevice =
+      128 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeMediumMemoryDevice =
+      256 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeHighMemoryDevice =
+      512 * kPointerMultiplier;
+  static const int kMaxOldSpaceSizeHugeMemoryDevice =
+      700 * kPointerMultiplier;
 
   // The executable size has to be a multiple of Page::kPageSize.
-  static const int kMaxExecutableSizeLowMemoryDevice = 128 * kLumpOfMemory;
-  static const int kMaxExecutableSizeMediumMemoryDevice = 256 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHighMemoryDevice = 512 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+  // Sizes are in MB.
+  static const int kMaxExecutableSizeLowMemoryDevice =
+      128 * kPointerMultiplier;
+  static const int kMaxExecutableSizeMediumMemoryDevice =
+      256 * kPointerMultiplier;
+  static const int kMaxExecutableSizeHighMemoryDevice =
+      512 * kPointerMultiplier;
+  static const int kMaxExecutableSizeHugeMemoryDevice =
+      700 * kPointerMultiplier;
 
   intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size) {
     intptr_t limit = FLAG_stress_compaction
@@ -1489,7 +1503,7 @@ class Heap {
 
   intptr_t code_range_size_;
   int reserved_semispace_size_;
-  int max_semispace_size_;
+  int max_semi_space_size_;
   int initial_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;

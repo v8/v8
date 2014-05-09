@@ -77,7 +77,7 @@ TEST(MarkingDeque) {
 TEST(Promotion) {
   CcTest::InitializeVM();
   TestHeap* heap = CcTest::test_heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
+  heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 
@@ -102,7 +102,7 @@ TEST(Promotion) {
 TEST(NoPromotion) {
   CcTest::InitializeVM();
   TestHeap* heap = CcTest::test_heap();
-  heap->ConfigureHeap(2*256*KB, 1*MB, 1*MB, 0);
+  heap->ConfigureHeap(1, 1, 1, 0);
 
   v8::HandleScope sc(CcTest::isolate());
 

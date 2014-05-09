@@ -49,7 +49,7 @@ Heap::Heap()
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
-      max_semispace_size_(8 * (kPointerSize / 4)  * MB),
+      max_semi_space_size_(8 * (kPointerSize / 4)  * MB),
       initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
@@ -137,7 +137,7 @@ Heap::Heap()
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
 #if defined(V8_MAX_SEMISPACE_SIZE)
-  max_semispace_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
+  max_semi_space_size_ = reserved_semispace_size_ = V8_MAX_SEMISPACE_SIZE;
 #endif
 
   // Ensure old_generation_size_ is a multiple of kPageSize.
@@ -3090,7 +3090,7 @@ int Heap::FullSizeNumberStringCacheLength() {
   // Compute the size of the number string cache based on the max newspace size.
   // The number string cache has a minimum size based on twice the initial cache
   // size to ensure that it is bigger after being made 'full size'.
-  int number_string_cache_size = max_semispace_size_ / 512;
+  int number_string_cache_size = max_semi_space_size_ / 512;
   number_string_cache_size = Max(kInitialNumberStringCacheSize * 2,
                                  Min(0x4000, number_string_cache_size));
   // There is a string and a number per entry so the length is twice the number
@@ -4979,37 +4979,37 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap
 // size is not big enough to fit all the initial objects.
-bool Heap::ConfigureHeap(int max_semispace_size,
-                         intptr_t max_old_space_size,
-                         intptr_t max_executable_size,
-                         intptr_t code_range_size) {
+bool Heap::ConfigureHeap(int max_semi_space_size,
+                         int max_old_space_size,
+                         int max_executable_size,
+                         int code_range_size) {
   if (HasBeenSetUp()) return false;
 
+  // Overwrite default configuration.
+  if (max_semi_space_size > 0) {
+    max_semi_space_size_ = max_semi_space_size * MB;
+  }
+  if (max_old_space_size > 0) {
+    max_old_generation_size_ = max_old_space_size * MB;
+  }
+  if (max_executable_size > 0) {
+    max_executable_size_ = max_executable_size * MB;
+  }
+
   // If max space size flags are specified overwrite the configuration.
-  if (FLAG_max_new_space_size > 0) {
-    max_semispace_size = (FLAG_max_new_space_size / 2) * kLumpOfMemory;
+  if (FLAG_max_semi_space_size > 0) {
+    max_semi_space_size_ = FLAG_max_semi_space_size * MB;
   }
   if (FLAG_max_old_space_size > 0) {
-    max_old_space_size = FLAG_max_old_space_size * kLumpOfMemory;
+    max_old_generation_size_ = FLAG_max_old_space_size * MB;
   }
   if (FLAG_max_executable_size > 0) {
-    max_executable_size = FLAG_max_executable_size * kLumpOfMemory;
+    max_executable_size_ = FLAG_max_executable_size * MB;
   }
 
   if (FLAG_stress_compaction) {
     // This will cause more frequent GCs when stressing.
-    max_semispace_size_ = Page::kPageSize;
-  }
-
-  if (max_semispace_size > 0) {
-    if (max_semispace_size < Page::kPageSize) {
-      max_semispace_size = Page::kPageSize;
-      if (FLAG_trace_gc) {
-        PrintPID("Max semispace size cannot be less than %dkbytes\n",
-                 Page::kPageSize >> 10);
-      }
-    }
-    max_semispace_size_ = max_semispace_size;
+    max_semi_space_size_ = Page::kPageSize;
   }
 
   if (Snapshot::IsEnabled()) {
@@ -5018,8 +5018,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     // write-barrier code that relies on the size and alignment of new
     // space.  We therefore cannot use a larger max semispace size
     // than the default reserved semispace size.
-    if (max_semispace_size_ > reserved_semispace_size_) {
-      max_semispace_size_ = reserved_semispace_size_;
+    if (max_semi_space_size_ > reserved_semispace_size_) {
+      max_semi_space_size_ = reserved_semispace_size_;
       if (FLAG_trace_gc) {
         PrintPID("Max semispace size cannot be more than %dkbytes\n",
                  reserved_semispace_size_ >> 10);
@@ -5028,12 +5028,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
   } else {
     // If we are not using snapshots we reserve space for the actual
     // max semispace size.
-    reserved_semispace_size_ = max_semispace_size_;
-  }
-
-  if (max_old_space_size > 0) max_old_generation_size_ = max_old_space_size;
-  if (max_executable_size > 0) {
-    max_executable_size_ = RoundUp(max_executable_size, Page::kPageSize);
+    reserved_semispace_size_ = max_semi_space_size_;
   }
 
   // The max executable size must be less than or equal to the max old
@@ -5044,22 +5039,21 @@ bool Heap::ConfigureHeap(int max_semispace_size,
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
-  max_semispace_size_ = RoundUpToPowerOf2(max_semispace_size_);
+  max_semi_space_size_ = RoundUpToPowerOf2(max_semi_space_size_);
   reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
-  initial_semispace_size_ = Min(initial_semispace_size_, max_semispace_size_);
+  initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid unnecessary low memory notifications, as that is the threshold
   // for some embedders.
-  external_allocation_limit_ = 12 * max_semispace_size_;
+  external_allocation_limit_ = 12 * max_semi_space_size_;
   ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
-  max_old_generation_size_ = Max(static_cast<intptr_t>(paged_space_count *
-                                                       Page::kPageSize),
-                                 RoundUp(max_old_generation_size_,
-                                         Page::kPageSize));
+  max_old_generation_size_ =
+      Max(static_cast<intptr_t>(paged_space_count * Page::kPageSize),
+          max_old_generation_size_);
 
   // We rely on being able to allocate new arrays in paged spaces.
   ASSERT(Page::kMaxRegularHeapObjectSize >=
@@ -5067,7 +5061,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
           FixedArray::SizeFor(JSObject::kInitialMaxFastElementArray) +
           AllocationMemento::kSize));
 
-  code_range_size_ = code_range_size;
+  code_range_size_ = code_range_size * MB;
 
   // We set the old generation growing factor to 2 to grow the heap slower on
   // memory-constrained devices.
@@ -5081,10 +5075,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
 
 
 bool Heap::ConfigureHeapDefault() {
-  return ConfigureHeap(static_cast<intptr_t>(FLAG_max_new_space_size / 2) * KB,
-                       static_cast<intptr_t>(FLAG_max_old_space_size) * MB,
-                       static_cast<intptr_t>(FLAG_max_executable_size) * MB,
-                       static_cast<intptr_t>(0));
+  return ConfigureHeap(0, 0, 0, 0);
 }
 
 
@@ -5207,7 +5198,7 @@ bool Heap::SetUp() {
       return false;
 
   // Set up new space.
-  if (!new_space_.SetUp(reserved_semispace_size_, max_semispace_size_)) {
+  if (!new_space_.SetUp(reserved_semispace_size_, max_semi_space_size_)) {
     return false;
   }
 

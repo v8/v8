@@ -419,7 +419,7 @@ Extension::Extension(const char* name,
 
 
 ResourceConstraints::ResourceConstraints()
-    : max_new_space_size_(0),
+    : max_semi_space_size_(0),
       max_old_space_size_(0),
       max_executable_size_(0),
       stack_limit_(NULL),
@@ -442,19 +442,19 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 #endif
 
   if (physical_memory <= low_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeLowMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeLowMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeLowMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeLowMemoryDevice);
   } else if (physical_memory <= medium_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeMediumMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeMediumMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeMediumMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeMediumMemoryDevice);
   } else if (physical_memory <= high_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHighMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHighMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHighMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeHighMemoryDevice);
   } else {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHugeMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHugeMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHugeMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeHugeMemoryDevice);
   }
@@ -465,7 +465,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
     // Reserve no more than 1/8 of the memory for the code range, but at most
     // 512 MB.
     set_code_range_size(
-        i::Min(512 * i::MB, static_cast<int>(virtual_memory_limit >> 3)));
+        i::Min(512, static_cast<int>((virtual_memory_limit >> 3) / i::MB)));
   }
 }
 
@@ -473,15 +473,15 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  int new_space_size = constraints->max_new_space_size();
+  int semi_space_size = constraints->max_semi_space_size();
   int old_space_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   int code_range_size = constraints->code_range_size();
-  if (new_space_size != 0 || old_space_size != 0 || max_executable_size != 0 ||
-      code_range_size != 0) {
+  if (semi_space_size != 0 || old_space_size != 0 ||
+      max_executable_size != 0 || code_range_size != 0) {
     // After initialization it's too late to change Heap constraints.
     ASSERT(!isolate->IsInitialized());
-    bool result = isolate->heap()->ConfigureHeap(new_space_size / 2,
+    bool result = isolate->heap()->ConfigureHeap(semi_space_size,
                                                  old_space_size,
                                                  max_executable_size,
                                                  code_range_size);
