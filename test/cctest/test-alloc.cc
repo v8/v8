@@ -137,8 +137,8 @@ TEST(StressJS) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Handle<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      factory->function_string(), factory->null_value());
+  Handle<JSFunction> function = factory->NewFunction(
+      factory->function_string());
   // Force the creation of an initial map and set the code to
   // something empty.
   factory->NewJSObject(function);

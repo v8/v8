@@ -1203,11 +1203,14 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Code> code,
-                                        MaybeHandle<Object> maybe_prototype) {
+                                        MaybeHandle<Object> maybe_prototype,
+                                        MaybeHandle<Code> maybe_code) {
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
   ASSERT(info->strict_mode() == SLOPPY);
-  info->set_code(*code);
+  Handle<Code> code;
+  if (maybe_code.ToHandle(&code)) {
+    info->set_code(*code);
+  }
   Handle<Context> context(isolate()->context()->native_context());
   Handle<Map> map = maybe_prototype.is_null()
       ? isolate()->sloppy_function_without_prototype_map()
@@ -1221,15 +1224,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 }
 
 
-Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
-                                                     Handle<Object> prototype) {
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
-  ASSERT(info->strict_mode() == SLOPPY);
-  Handle<Context> context(isolate()->context()->native_context());
-  Handle<Map> map = isolate()->sloppy_function_map();
-  Handle<JSFunction> result = NewFunction(map, info, context);
-  result->set_prototype_or_initial_map(*prototype);
-  return result;
+Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
+  return NewFunction(name, the_hole_value(), MaybeHandle<Code>());
 }
 
 
@@ -1240,7 +1236,7 @@ Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
                                         Handle<Code> code,
                                         bool force_initial_map) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, code, maybe_prototype);
+  Handle<JSFunction> function = NewFunction(name, maybe_prototype, code);
 
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||

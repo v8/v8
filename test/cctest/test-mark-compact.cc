@@ -156,11 +156,7 @@ TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-        func_name, factory->undefined_value());
-    Handle<Map> initial_map = factory->NewMap(
-        JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    function->set_initial_map(*initial_map);
+    Handle<JSFunction> function = factory->NewFunction(func_name);
     JSReceiver::SetProperty(global, func_name, function, NONE, SLOPPY).Check();
 
     factory->NewJSObject(function);

@@ -261,11 +261,7 @@ TEST(GarbageCollection) {
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-        name, factory->undefined_value());
-    Handle<Map> initial_map =
-        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    function->set_initial_map(*initial_map);
+    Handle<JSFunction> function = factory->NewFunction(name);
     JSReceiver::SetProperty(global, name, function, NONE, SLOPPY).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
@@ -624,11 +620,7 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      name, factory->undefined_value());
-  Handle<Map> initial_map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  function->set_initial_map(*initial_map);
+  Handle<JSFunction> function = factory->NewFunction(name);
 
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
@@ -723,14 +715,11 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      name, factory->undefined_value());
-  Handle<Map> initial_map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  function->set_initial_map(*initial_map);
+  Handle<JSFunction> function = factory->NewFunction(name);
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
+  Handle<Map> initial_map(function->initial_map());
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);

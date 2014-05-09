@@ -452,12 +452,9 @@ class Factory V8_FINAL {
   void BecomeJSFunction(Handle<JSReceiver> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
-                                 MaybeHandle<Object> maybe_prototype =
-                                     MaybeHandle<Object>());
-
-  Handle<JSFunction> NewFunctionWithPrototype(Handle<String> name,
-                                              Handle<Object> prototype);
+                                 MaybeHandle<Object> maybe_prototype,
+                                 MaybeHandle<Code> maybe_code);
+  Handle<JSFunction> NewFunction(Handle<String> name);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info,

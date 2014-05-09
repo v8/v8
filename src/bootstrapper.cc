@@ -461,8 +461,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> object_name = factory->Object_string();
 
   {  // --- O b j e c t ---
-    Handle<JSFunction> object_fun = factory->NewFunctionWithPrototype(
-        object_name, factory->null_value());
+    Handle<JSFunction> object_fun = factory->NewFunction(object_name);
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     object_fun->set_initial_map(*object_function_map);
@@ -488,7 +487,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> empty_string =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
   Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
-  Handle<JSFunction> empty_function = factory->NewFunction(empty_string, code);
+  Handle<JSFunction> empty_function = factory->NewFunction(
+      empty_string, MaybeHandle<Object>(), code);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticAscii("() {}");
@@ -569,7 +569,8 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
         STATIC_ASCII_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
-    throw_type_error_function = factory()->NewFunction(name, code);
+    throw_type_error_function = factory()->NewFunction(
+        name, MaybeHandle<Object>(), code);
     throw_type_error_function->set_map(native_context()->sloppy_function_map());
     throw_type_error_function->shared()->DontAdaptArguments();
 
@@ -1026,8 +1027,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
-    Handle<JSFunction> cons = factory->NewFunctionWithPrototype(
-        name, factory->the_hole_value());
+    Handle<JSFunction> cons = factory->NewFunction(name);
     JSFunction::SetInstancePrototype(cons,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->SetInstanceClassName(*name);
@@ -1669,8 +1669,7 @@ bool Genesis::InstallNatives() {
       set_builtins(*builtins);
 
   // Create a bridge function that has context in the native context.
-  Handle<JSFunction> bridge = factory()->NewFunctionWithPrototype(
-      factory()->empty_string(), factory()->undefined_value());
+  Handle<JSFunction> bridge = factory()->NewFunction(factory()->empty_string());
   ASSERT(bridge->context() == *isolate()->native_context());
 
   // Allocate the builtins context.
