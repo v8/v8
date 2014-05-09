@@ -6810,6 +6810,7 @@ class Script: public Struct {
 #define FUNCTIONS_WITH_ID_LIST(V)                   \
   V(Array.prototype, push, ArrayPush)               \
   V(Array.prototype, pop, ArrayPop)                 \
+  V(Array.prototype, shift, ArrayShift)             \
   V(Function.prototype, apply, FunctionApply)       \
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \

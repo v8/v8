@@ -2355,6 +2355,14 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
 }
 
 
+LInstruction* LChunkBuilder::DoArrayShift(HArrayShift* instr) {
+  LOperand* object = UseFixed(instr->object(), eax);
+  LOperand* context = UseFixed(instr->context(), esi);
+  LArrayShift* result = new(zone()) LArrayShift(context, object);
+  return MarkAsCall(DefineFixed(result, eax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
+}
+
+
 LInstruction* LChunkBuilder::DoTrapAllocationMemento(
     HTrapAllocationMemento* instr) {
   LOperand* object = UseRegister(instr->object());

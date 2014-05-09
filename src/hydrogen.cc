@@ -7835,6 +7835,36 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ast_context()->ReturnValue(new_size);
       return true;
     }
+    case kArrayShift: {
+      if (receiver_map.is_null()) return false;
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
+
+      // If there may be elements accessors in the prototype chain, the fast
+      // inlined version can't be used.
+      if (receiver_map->DictionaryElementsInPrototypeChainOnly()) return false;
+
+      // If there currently can be no elements accessors on the prototype chain,
+      // it doesn't mean that there won't be any later. Install a full prototype
+      // chain check to trap element accessors being installed on the prototype
+      // chain, which would cause elements to go to dictionary mode and result
+      // in a map change.
+      BuildCheckPrototypeMaps(
+          handle(JSObject::cast(receiver_map->prototype()), isolate()),
+          Handle<JSObject>::null());
+
+      Drop(expr->arguments()->length());
+      HValue* receiver = Pop();
+      Drop(1);  // function
+
+      receiver = AddCheckMap(receiver, receiver_map);
+      HInstruction* result = NewUncasted<HArrayShift>(receiver, kind);
+      ast_context()->ReturnInstruction(result, expr->id());
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
