@@ -56,7 +56,7 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_MIPS
 
 #if V8_OS_LINUX
 
@@ -463,6 +463,32 @@ CPU::CPU() : stepping_(0),
   char* cpu_model = cpu_info.ExtractField("cpu model");
   has_fpu_ = HasListItem(cpu_model, "FPU");
   delete[] cpu_model;
+
+#elif V8_HOST_ARCH_ARM64
+
+  CPUInfo cpu_info;
+
+  // Extract implementor from the "CPU implementer" field.
+  char* implementer = cpu_info.ExtractField("CPU implementer");
+  if (implementer != NULL) {
+    char* end ;
+    implementer_ = strtol(implementer, &end, 0);
+    if (end == implementer) {
+      implementer_ = 0;
+    }
+    delete[] implementer;
+  }
+
+  // Extract part number from the "CPU part" field.
+  char* part = cpu_info.ExtractField("CPU part");
+  if (part != NULL) {
+    char* end ;
+    part_ = strtol(part, &end, 0);
+    if (end == part) {
+      part_ = 0;
+    }
+    delete[] part;
+  }
 
 #endif
 }

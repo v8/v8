@@ -380,6 +380,11 @@ DEFINE_bool(enable_vldr_imm, false,
 DEFINE_bool(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS only)")
 
+// cpu-arm64.cc
+DEFINE_bool(enable_always_align_csp, true,
+            "enable alignment of csp to 16 bytes on platforms which prefer "
+            "the register to always be aligned (ARM64 only)")
+
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
 DEFINE_string(expose_debug_as, NULL, "expose debug in global object")
