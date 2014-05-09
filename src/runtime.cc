@@ -14952,7 +14952,6 @@ RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
-  RUNTIME_ASSERT(accept->IsUndefined() || accept->IsJSObject());
 
   Handle<Context> context(object->GetCreationContext(), isolate);
   Handle<JSFunction> function(context->native_object_observe(), isolate);
