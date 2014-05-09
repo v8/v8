@@ -127,9 +127,9 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   bool runtime_stack_params = descriptor_->stack_parameter_count_.is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r = descriptor_->IsParameterCountRegister(i)
-        ? Representation::Integer32()
-        : Representation::Tagged();
+    Representation r = descriptor_->register_param_representations_ == NULL
+        ? Representation::Tagged()
+        : descriptor_->register_param_representations_[i];
     HParameter* param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);
     parameters_[i] = param;
@@ -330,8 +330,10 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
   AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
-  FastCloneShallowArrayStub::Mode mode = casted_stub()->mode();
-  int length = casted_stub()->length();
+
+  // This stub is very performance sensitive, the generated code must be tuned
+  // so that it doesn't build and eager frame.
+  info()->MarkMustNotHaveEagerFrame();
 
   HInstruction* allocation_site = Add<HLoadKeyed>(GetParameter(0),
                                                   GetParameter(1),
@@ -346,46 +348,40 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
       AllocationSite::kTransitionInfoOffset);
   HInstruction* boilerplate = Add<HLoadNamedField>(
       allocation_site, static_cast<HValue*>(NULL), access);
-  HValue* push_value;
-  if (mode == FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS) {
-    HValue* elements = AddLoadElements(boilerplate);
+  HValue* elements = AddLoadElements(boilerplate);
+  HValue* capacity = AddLoadFixedArrayLength(elements);
+  IfBuilder zero_capacity(this);
+  zero_capacity.If<HCompareNumericAndBranch>(capacity, graph()->GetConstant0(),
+                                           Token::EQ);
+  zero_capacity.Then();
+  Push(BuildCloneShallowArrayEmpty(boilerplate,
+                                   allocation_site,
+                                   alloc_site_mode));
+  zero_capacity.Else();
+  IfBuilder if_fixed_cow(this);
+  if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
+  if_fixed_cow.Then();
+  Push(BuildCloneShallowArrayCow(boilerplate,
+                                 allocation_site,
+                                 alloc_site_mode,
+                                 FAST_ELEMENTS));
+  if_fixed_cow.Else();
+  IfBuilder if_fixed(this);
+  if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
+  if_fixed.Then();
+  Push(BuildCloneShallowArrayNonEmpty(boilerplate,
+                                      allocation_site,
+                                      alloc_site_mode,
+                                      FAST_ELEMENTS));
 
-    IfBuilder if_fixed_cow(this);
-    if_fixed_cow.If<HCompareMap>(elements, factory->fixed_cow_array_map());
-    if_fixed_cow.Then();
-    push_value = BuildCloneShallowArray(boilerplate,
-                                        allocation_site,
-                                        alloc_site_mode,
-                                        FAST_ELEMENTS,
-                                        0/*copy-on-write*/);
-    environment()->Push(push_value);
-    if_fixed_cow.Else();
-
-    IfBuilder if_fixed(this);
-    if_fixed.If<HCompareMap>(elements, factory->fixed_array_map());
-    if_fixed.Then();
-    push_value = BuildCloneShallowArray(boilerplate,
-                                        allocation_site,
-                                        alloc_site_mode,
-                                        FAST_ELEMENTS,
-                                        length);
-    environment()->Push(push_value);
-    if_fixed.Else();
-    push_value = BuildCloneShallowArray(boilerplate,
-                                        allocation_site,
-                                        alloc_site_mode,
-                                        FAST_DOUBLE_ELEMENTS,
-                                        length);
-    environment()->Push(push_value);
-  } else {
-    ElementsKind elements_kind = casted_stub()->ComputeElementsKind();
-    push_value = BuildCloneShallowArray(boilerplate,
-                                        allocation_site,
-                                        alloc_site_mode,
-                                        elements_kind,
-                                        length);
-    environment()->Push(push_value);
-  }
+  if_fixed.Else();
+  Push(BuildCloneShallowArrayNonEmpty(boilerplate,
+                                      allocation_site,
+                                      alloc_site_mode,
+                                      FAST_DOUBLE_ELEMENTS));
+  if_fixed.End();
+  if_fixed_cow.End();
+  zero_capacity.End();
 
   checker.ElseDeopt("Uninitialized boilerplate literals");
   checker.End();
@@ -644,6 +640,9 @@ HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
   HValue* result = NULL;
   switch (argument_class) {
     case NONE:
+      // This stub is very performance sensitive, the generated code must be
+      // tuned so that it doesn't build and eager frame.
+      info()->MarkMustNotHaveEagerFrame();
       result = array_builder.AllocateEmptyArray();
       break;
     case SINGLE:
@@ -667,6 +666,9 @@ HValue* CodeStubGraphBuilderBase::BuildInternalArrayConstructor(
   HValue* result = NULL;
   switch (argument_class) {
     case NONE:
+      // This stub is very performance sensitive, the generated code must be
+      // tuned so that it doesn't build and eager frame.
+      info()->MarkMustNotHaveEagerFrame();
       result = array_builder.AllocateEmptyArray();
       break;
     case SINGLE:

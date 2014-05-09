@@ -449,6 +449,8 @@ Handle<Code> LChunk::Codegen() {
                    CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
+    ASSERT(!(info()->GetMustNotHaveEagerFrame() &&
+             generator.NeedsEagerFrame()));
     return code;
   }
   assembler.AbortedCodeGeneration();

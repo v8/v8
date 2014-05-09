@@ -65,6 +65,11 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   static Register registers[] = { x3, x2, x1 };
   descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
   descriptor->register_params_ = registers;
+  static Representation representations[] = {
+    Representation::Tagged(),
+    Representation::Smi(),
+    Representation::Tagged() };
+  descriptor->register_param_representations_ = representations;
   descriptor->deoptimization_handler_ =
       Runtime::FunctionForId(
           Runtime::kHiddenCreateArrayLiteralStubBailout)->entry;
@@ -230,6 +235,11 @@ static void InitializeArrayConstructorDescriptor(
     descriptor->register_param_count_ =
         sizeof(registers_variable_args) / sizeof(registers_variable_args[0]);
     descriptor->register_params_ = registers_variable_args;
+    static Representation representations[] = {
+        Representation::Tagged(),
+        Representation::Tagged(),
+        Representation::Integer32() };
+    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
@@ -276,6 +286,10 @@ static void InitializeInternalArrayConstructorDescriptor(
     descriptor->register_param_count_ =
         sizeof(registers_variable_args) / sizeof(registers_variable_args[0]);
     descriptor->register_params_ = registers_variable_args;
+    static Representation representations[] = {
+        Representation::Tagged(),
+        Representation::Integer32() };
+    descriptor->register_param_representations_ = representations;
   }
 
   descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;

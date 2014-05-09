@@ -143,6 +143,14 @@ class CompilationInfo {
     return RequiresFrame::decode(flags_);
   }
 
+  void MarkMustNotHaveEagerFrame() {
+    flags_ |= MustNotHaveEagerFrame::encode(true);
+  }
+
+  bool GetMustNotHaveEagerFrame() const {
+    return MustNotHaveEagerFrame::decode(flags_);
+  }
+
   void SetParseRestriction(ParseRestriction restriction) {
     flags_ = ParseRestricitonField::update(flags_, restriction);
   }
@@ -368,6 +376,8 @@ class CompilationInfo {
   class ParseRestricitonField: public BitField<ParseRestriction, 12, 1> {};
   // If the function requires a frame (for unspecified reasons)
   class RequiresFrame: public BitField<bool, 13, 1> {};
+  // If the function cannot build a frame (for unspecified reasons)
+  class MustNotHaveEagerFrame: public BitField<bool, 14, 1> {};
 
   unsigned flags_;
 
