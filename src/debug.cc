@@ -2050,12 +2050,11 @@ void Debug::EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function) {
     ForceDebuggerActive force_debugger_active(isolate_);
     MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
     // Recompilation can fail.  In that case leave the code as it was.
-    if (!code.is_null())
-      function->ReplaceCode(*code.ToHandleChecked());
+    if (!code.is_null()) function->ReplaceCode(*code.ToHandleChecked());
+  } else {
+    // Simply use shared code if it has debug break slots.
+    function->ReplaceCode(function->shared()->code());
   }
-
-  // Keep function code in sync with shared function info.
-  function->ReplaceCode(function->shared()->code());
 }
 
 
@@ -2152,8 +2151,8 @@ void Debug::PrepareForBreakPoints() {
           Code::Kind kind = function->code()->kind();
           if (kind == Code::FUNCTION &&
               !function->code()->has_debug_break_slots()) {
-            function->set_code(*lazy_compile);
-            function->shared()->set_code(*lazy_compile);
+            function->ReplaceCode(*lazy_compile);
+            function->shared()->ReplaceCode(*lazy_compile);
           } else if (kind == Code::BUILTIN &&
               (function->IsInOptimizationQueue() ||
                function->IsMarkedForOptimization() ||
@@ -2162,10 +2161,10 @@ void Debug::PrepareForBreakPoints() {
             Code* shared_code = function->shared()->code();
             if (shared_code->kind() == Code::FUNCTION &&
                 shared_code->has_debug_break_slots()) {
-              function->set_code(shared_code);
+              function->ReplaceCode(shared_code);
             } else {
-              function->set_code(*lazy_compile);
-              function->shared()->set_code(*lazy_compile);
+              function->ReplaceCode(*lazy_compile);
+              function->shared()->ReplaceCode(*lazy_compile);
             }
           }
         } else if (obj->IsJSGeneratorObject()) {
@@ -2206,8 +2205,8 @@ void Debug::PrepareForBreakPoints() {
       Handle<JSFunction> &function = generator_functions[i];
       if (function->code()->kind() != Code::FUNCTION) continue;
       if (function->code()->has_debug_break_slots()) continue;
-      function->set_code(*lazy_compile);
-      function->shared()->set_code(*lazy_compile);
+      function->ReplaceCode(*lazy_compile);
+      function->shared()->ReplaceCode(*lazy_compile);
     }
 
     // Now recompile all functions with activation frames and and
