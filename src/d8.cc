@@ -1723,6 +1723,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  isolate->Dispose();
   V8::Dispose();
 
   OnExit();
