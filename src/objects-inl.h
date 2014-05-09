@@ -6319,7 +6319,7 @@ bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) {
 }
 
 
-Handle<Object> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
+Handle<Smi> JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver> object) {
   return object->IsJSProxy()
       ? JSProxy::GetOrCreateIdentityHash(Handle<JSProxy>::cast(object))
       : JSObject::GetOrCreateIdentityHash(Handle<JSObject>::cast(object));
