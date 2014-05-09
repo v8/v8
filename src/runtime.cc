@@ -9601,7 +9601,7 @@ RUNTIME_FUNCTION(RuntimeHidden_StackGuard) {
     return isolate->StackOverflow();
   }
 
-  return Execution::HandleStackGuardInterrupt(isolate);
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 
@@ -9625,7 +9625,7 @@ RUNTIME_FUNCTION(RuntimeHidden_TryInstallOptimizedCode) {
 RUNTIME_FUNCTION(RuntimeHidden_Interrupt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::HandleStackGuardInterrupt(isolate);
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 
@@ -10804,7 +10804,8 @@ RUNTIME_FUNCTION(Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper(isolate);
+  Execution::DebugBreakHelper(isolate);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -10841,7 +10842,7 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
 RUNTIME_FUNCTION(Runtime_Break) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  isolate->stack_guard()->DebugBreak();
+  isolate->stack_guard()->RequestDebugBreak();
   return isolate->heap()->undefined_value();
 }
 

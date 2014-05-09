@@ -359,6 +359,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(DebuggerAgent*, debugger_agent_instance, NULL)                             \
+  V(InterruptCallback, api_interrupt_callback, NULL)                           \
+  V(void*, api_interrupt_callback_data, NULL)                                  \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -757,6 +759,8 @@ class Isolate {
   Object* StackOverflow();
   Object* TerminateExecution();
   void CancelTerminateExecution();
+
+  void InvokeApiInterruptCallback();
 
   // Administration
   void Iterate(ObjectVisitor* v);

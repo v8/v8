@@ -835,6 +835,20 @@ void Isolate::CancelTerminateExecution() {
 }
 
 
+void Isolate::InvokeApiInterruptCallback() {
+  InterruptCallback callback = api_interrupt_callback_;
+  void* data = api_interrupt_callback_data_;
+  api_interrupt_callback_ = NULL;
+  api_interrupt_callback_data_ = NULL;
+
+  if (callback != NULL) {
+    VMState<EXTERNAL> state(this);
+    HandleScope handle_scope(this);
+    callback(reinterpret_cast<v8::Isolate*>(this), data);
+  }
+}
+
+
 Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   DoThrow(exception, location);
   return heap()->exception();

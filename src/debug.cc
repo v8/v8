@@ -526,7 +526,7 @@ void Debug::ThreadInit() {
   thread_local_.after_break_target_ = 0;
   // TODO(isolates): frames_are_dropped_?
   thread_local_.debugger_entry_ = NULL;
-  thread_local_.pending_interrupts_ = 0;
+  thread_local_.has_pending_interrupt_ = false;
   thread_local_.restarter_frame_function_pointer_ = NULL;
 }
 
@@ -857,13 +857,6 @@ void Debug::Unload() {
   // Clear debugger context global handle.
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
-}
-
-
-// Set the flag indicating that preemption happened during debugging.
-void Debug::PreemptionWhileInDebugger() {
-  ASSERT(InDebugger());
-  Debug::set_interrupts_pending(PREEMPT);
 }
 
 
@@ -2961,7 +2954,7 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 
   // Clear any pending debug break if this is a real break.
   if (!auto_continue) {
-    isolate_->debug()->clear_interrupt_pending(DEBUGBREAK);
+    isolate_->debug()->set_has_pending_interrupt(false);
   }
 
   // Create the execution state.
@@ -3107,7 +3100,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // added. It should be enough to clear the flag only once while we are in the
   // debugger.
   ASSERT(isolate_->debug()->InDebugger());
-  isolate_->stack_guard()->Continue(DEBUGCOMMAND);
+  isolate_->stack_guard()->ClearDebugCommand();
 
   // Notify the debugger that a debug event has occurred unless auto continue is
   // active in which case no event is send.
@@ -3355,7 +3348,7 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
 
   // Set the debug command break flag to have the command processed.
   if (!isolate_->debug()->InDebugger()) {
-    isolate_->stack_guard()->DebugCommand();
+    isolate_->stack_guard()->RequestDebugCommand();
   }
 
   MessageDispatchHelperThread* dispatch_thread;
@@ -3383,7 +3376,7 @@ void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
 
   // Set the debug command break flag to have the command processed.
   if (!isolate_->debug()->InDebugger()) {
-    isolate_->stack_guard()->DebugCommand();
+    isolate_->stack_guard()->RequestDebugCommand();
   }
 }
 
@@ -3486,9 +3479,6 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
       has_js_frames_(!it_.done()),
       save_(isolate_) {
   Debug* debug = isolate_->debug();
-  ASSERT(prev_ != NULL || !debug->is_interrupt_pending(PREEMPT));
-  ASSERT(prev_ != NULL || !debug->is_interrupt_pending(DEBUGBREAK));
-
   // Link recursive debugger entry.
   debug->set_debugger_entry(this);
 
@@ -3529,30 +3519,24 @@ EnterDebugger::~EnterDebugger() {
     if (!isolate_->has_pending_exception()) {
       // Try to avoid any pending debug break breaking in the clear mirror
       // cache JavaScript code.
-      if (isolate_->stack_guard()->IsDebugBreak()) {
-        debug->set_interrupts_pending(DEBUGBREAK);
-        isolate_->stack_guard()->Continue(DEBUGBREAK);
+      if (isolate_->stack_guard()->CheckDebugBreak()) {
+        debug->set_has_pending_interrupt(true);
+        isolate_->stack_guard()->ClearDebugBreak();
       }
       debug->ClearMirrorCache();
     }
 
-    // Request preemption and debug break when leaving the last debugger entry
-    // if any of these where recorded while debugging.
-    if (debug->is_interrupt_pending(PREEMPT)) {
-      // This re-scheduling of preemption is to avoid starvation in some
-      // debugging scenarios.
-      debug->clear_interrupt_pending(PREEMPT);
-      isolate_->stack_guard()->Preempt();
-    }
-    if (debug->is_interrupt_pending(DEBUGBREAK)) {
-      debug->clear_interrupt_pending(DEBUGBREAK);
-      isolate_->stack_guard()->DebugBreak();
+    // Request debug break when leaving the last debugger entry
+    // if one was recorded while debugging.
+    if (debug->has_pending_interrupt()) {
+      debug->set_has_pending_interrupt(false);
+      isolate_->stack_guard()->RequestDebugBreak();
     }
 
     // If there are commands in the queue when leaving the debugger request
     // that these commands are processed.
     if (isolate_->debugger()->HasCommands()) {
-      isolate_->stack_guard()->DebugCommand();
+      isolate_->stack_guard()->RequestDebugCommand();
     }
 
     // If leaving the debugger with the debugger no longer active unload it.

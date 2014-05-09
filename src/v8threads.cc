@@ -145,7 +145,7 @@ bool ThreadManager::RestoreThread() {
   from = isolate_->bootstrapper()->RestoreState(from);
   per_thread->set_thread_state(NULL);
   if (state->terminate_on_restore()) {
-    isolate_->stack_guard()->TerminateExecution();
+    isolate_->stack_guard()->RequestTerminateExecution();
     state->set_terminate_on_restore(false);
   }
   state->set_id(ThreadId::Invalid());

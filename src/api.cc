@@ -6464,7 +6464,8 @@ void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
 
 
 void V8::TerminateExecution(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->stack_guard()->RequestTerminateExecution();
 }
 
 
@@ -6477,18 +6478,24 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
 
 void V8::CancelTerminateExecution(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->stack_guard()->CancelTerminateExecution();
+  i_isolate->stack_guard()->ClearTerminateExecution();
+  i_isolate->CancelTerminateExecution();
 }
 
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->RequestInterrupt(
-      callback, data);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->set_api_interrupt_callback(callback);
+  i_isolate->set_api_interrupt_callback_data(data);
+  i_isolate->stack_guard()->RequestApiInterrupt();
 }
 
 
 void Isolate::ClearInterrupt() {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->ClearInterrupt();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->stack_guard()->ClearApiInterrupt();
+  i_isolate->set_api_interrupt_callback(NULL);
+  i_isolate->set_api_interrupt_callback_data(NULL);
 }
 
 
@@ -6810,13 +6817,13 @@ bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
 
 
 void Debug::DebugBreak(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
 }
 
 
 void Debug::CancelDebugBreak(Isolate* isolate) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
+  internal_isolate->stack_guard()->ClearDebugBreak();
 }
 
 

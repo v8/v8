@@ -797,7 +797,7 @@ void IncrementalMarking::Abort() {
       }
     }
   }
-  heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
+  heap_->isolate()->stack_guard()->ClearGC();
   state_ = STOPPED;
   is_compacting_ = false;
 }
@@ -814,7 +814,7 @@ void IncrementalMarking::Finalize() {
                                           RecordWriteStub::STORE_BUFFER_ONLY);
   DeactivateIncrementalWriteBarrier();
   ASSERT(marking_deque_.IsEmpty());
-  heap_->isolate()->stack_guard()->Continue(GC_REQUEST);
+  heap_->isolate()->stack_guard()->ClearGC();
 }
 
 

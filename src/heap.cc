@@ -514,7 +514,7 @@ void Heap::ProcessPretenuringFeedback() {
     }
 
     if (trigger_deoptimization) {
-      isolate_->stack_guard()->DeoptMarkedAllocationSites();
+      isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
     }
 
     FlushAllocationSitesScratchpad();
@@ -1113,7 +1113,7 @@ bool Heap::PerformGarbageCollection(
     // code which should be tenured in local pretenuring mode.
     if (FLAG_pretenuring) {
       if (!FLAG_allocation_site_pretenuring) {
-        isolate_->stack_guard()->FullDeopt();
+        isolate_->stack_guard()->RequestFullDeopt();
       }
     }
   } else if (new_space_high_promotion_mode_active_ &&
@@ -1130,7 +1130,7 @@ bool Heap::PerformGarbageCollection(
     // Trigger deoptimization here to turn off global pretenuring as soon as
     // possible.
     if (FLAG_pretenuring && !FLAG_allocation_site_pretenuring) {
-      isolate_->stack_guard()->FullDeopt();
+      isolate_->stack_guard()->RequestFullDeopt();
     }
   }
 
@@ -1749,7 +1749,7 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
     }
     cur = casted->weak_next();
   }
-  if (marked) isolate_->stack_guard()->DeoptMarkedAllocationSites();
+  if (marked) isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
 }
 
 
