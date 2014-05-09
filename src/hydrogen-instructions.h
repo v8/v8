@@ -619,10 +619,6 @@ class HValue : public ZoneObject {
     // flag.
     kUint32,
     kHasNoObservableSideEffects,
-    // Indicates an instruction shouldn't be replaced by optimization, this flag
-    // is useful to set in cases where recomputing a value is cheaper than
-    // extending the value's live range and spilling it.
-    kCantBeReplaced,
     // Indicates the instruction is live during dead code elimination.
     kIsLive,
 
@@ -6261,7 +6257,6 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   bool CanBeReplacedWith(HValue* other) const {
-    if (!CheckFlag(HValue::kCantBeReplaced)) return false;
     if (!type().Equals(other->type())) return false;
     if (!representation().Equals(other->representation())) return false;
     if (!other->IsLoadNamedField()) return true;

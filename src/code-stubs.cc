@@ -22,7 +22,6 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       register_params_(NULL),
-      register_param_representations_(NULL),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
@@ -734,7 +733,9 @@ void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
 
 // static
 void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
-  FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);
+  FastCloneShallowArrayStub stub(isolate,
+                                 FastCloneShallowArrayStub::CLONE_ELEMENTS,
+                                 DONT_TRACK_ALLOCATION_SITE, 0);
   InstallDescriptor(isolate, &stub);
 }
 

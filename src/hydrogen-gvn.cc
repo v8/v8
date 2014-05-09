@@ -863,8 +863,7 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
           stream.OutputToStdOut();
         }
       }
-      if (instr->CheckFlag(HValue::kUseGVN) &&
-          !instr->CheckFlag(HValue::kCantBeReplaced)) {
+      if (instr->CheckFlag(HValue::kUseGVN)) {
         ASSERT(!instr->HasObservableSideEffects());
         HInstruction* other = map->Lookup(instr);
         if (other != NULL) {
