@@ -49,18 +49,6 @@ Debug::~Debug() {
 }
 
 
-static void PrintLn(v8::Local<v8::Value> value) {
-  v8::Local<v8::String> s = value->ToString();
-  ScopedVector<char> data(s->Utf8Length() + 1);
-  if (data.start() == NULL) {
-    V8::FatalProcessOutOfMemory("PrintLn");
-    return;
-  }
-  s->WriteUtf8(data.start());
-  PrintF("%s\n", data.start());
-}
-
-
 static v8::Handle<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
   // Isolate::context() may have been NULL when "script collected" event
@@ -2674,10 +2662,8 @@ Debugger::Debugger(Isolate* isolate)
       force_debugger_active_(false),
       message_handler_(NULL),
       debugger_unload_pending_(false),
-      host_dispatch_handler_(NULL),
       debug_message_dispatch_handler_(NULL),
       message_dispatch_helper_thread_(NULL),
-      host_dispatch_period_(TimeDelta::FromMilliseconds(100)),
       agent_(NULL),
       command_queue_(isolate->logger(), kQueueInitialSize),
       command_received_(0),
@@ -3067,7 +3053,6 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
                                     Handle<JSObject> exec_state,
                                     Handle<JSObject> event_data,
                                     bool auto_continue) {
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   HandleScope scope(isolate_);
 
   if (!isolate_->debug()->Load()) return;
@@ -3121,45 +3106,24 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     return;
   }
 
-  v8::TryCatch try_catch;
-
   // DebugCommandProcessor goes here.
-  v8::Local<v8::Object> cmd_processor;
-  {
-    v8::Local<v8::Object> api_exec_state =
-        v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state));
-    v8::Local<v8::String> fun_name = v8::String::NewFromUtf8(
-        isolate, "debugCommandProcessor");
-    v8::Local<v8::Function> fun =
-        v8::Local<v8::Function>::Cast(api_exec_state->Get(fun_name));
-
-    v8::Handle<v8::Boolean> running = v8::Boolean::New(isolate, auto_continue);
-    static const int kArgc = 1;
-    v8::Handle<Value> argv[kArgc] = { running };
-    cmd_processor = v8::Local<v8::Object>::Cast(
-        fun->Call(api_exec_state, kArgc, argv));
-    if (try_catch.HasCaught()) {
-      PrintLn(try_catch.Exception());
-      return;
-    }
-  }
-
   bool running = auto_continue;
 
+  Handle<Object> cmd_processor_ctor = Object::GetProperty(
+      isolate_, exec_state, "debugCommandProcessor").ToHandleChecked();
+  Handle<Object> ctor_args[] = { isolate_->factory()->ToBoolean(running) };
+  Handle<Object> cmd_processor = Execution::Call(
+      isolate_, cmd_processor_ctor, exec_state, 1, ctor_args).ToHandleChecked();
+  Handle<JSFunction> process_debug_request = Handle<JSFunction>::cast(
+      Object::GetProperty(
+          isolate_, cmd_processor, "processDebugRequest").ToHandleChecked());
+  Handle<Object> is_running = Object::GetProperty(
+      isolate_, cmd_processor, "isRunning").ToHandleChecked();
+
   // Process requests from the debugger.
-  while (true) {
+  do {
     // Wait for new command in the queue.
-    if (Debugger::host_dispatch_handler_) {
-      // In case there is a host dispatch - do periodic dispatches.
-      if (!command_received_.WaitFor(host_dispatch_period_)) {
-        // Timout expired, do the dispatch.
-        Debugger::host_dispatch_handler_();
-        continue;
-      }
-    } else {
-      // In case there is no host dispatch - just wait.
-      command_received_.Wait();
-    }
+    command_received_.Wait();
 
     // Get the command from the queue.
     CommandMessage command = command_queue_.Get();
@@ -3171,69 +3135,50 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
       return;
     }
 
-    // Invoke JavaScript to process the debug request.
-    v8::Local<v8::String> fun_name;
-    v8::Local<v8::Function> fun;
-    v8::Local<v8::Value> request;
-    v8::TryCatch try_catch;
-    fun_name = v8::String::NewFromUtf8(isolate, "processDebugRequest");
-    fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
+    Vector<const uc16> command_text(
+        const_cast<const uc16*>(command.text().start()),
+        command.text().length());
+    Handle<String> request_text = isolate_->factory()->NewStringFromTwoByte(
+        command_text).ToHandleChecked();
+    Handle<Object> request_args[] = { request_text };
+    Handle<Object> exception;
+    Handle<Object> answer_value;
+    Handle<String> answer;
+    MaybeHandle<Object> maybe_result = Execution::TryCall(
+        process_debug_request, cmd_processor, 1, request_args, &exception);
 
-    request = v8::String::NewFromTwoByte(isolate, command.text().start(),
-                                         v8::String::kNormalString,
-                                         command.text().length());
-    static const int kArgc = 1;
-    v8::Handle<Value> argv[kArgc] = { request };
-    v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
-
-    // Get the response.
-    v8::Local<v8::String> response;
-    if (!try_catch.HasCaught()) {
-      // Get response string.
-      if (!response_val->IsUndefined()) {
-        response = v8::Local<v8::String>::Cast(response_val);
+    if (maybe_result.ToHandle(&answer_value)) {
+      if (answer_value->IsUndefined()) {
+        answer = isolate_->factory()->empty_string();
       } else {
-        response = v8::String::NewFromUtf8(isolate, "");
+        answer = Handle<String>::cast(answer_value);
       }
 
       // Log the JSON request/response.
       if (FLAG_trace_debug_json) {
-        PrintLn(request);
-        PrintLn(response);
+        PrintF("%s\n", request_text->ToCString().get());
+        PrintF("%s\n", answer->ToCString().get());
       }
 
-      // Get the running state.
-      fun_name = v8::String::NewFromUtf8(isolate, "isRunning");
-      fun = v8::Local<v8::Function>::Cast(cmd_processor->Get(fun_name));
-      static const int kArgc = 1;
-      v8::Handle<Value> argv[kArgc] = { response };
-      v8::Local<v8::Value> running_val = fun->Call(cmd_processor, kArgc, argv);
-      if (!try_catch.HasCaught()) {
-        running = running_val->ToBoolean()->Value();
-      }
+      Handle<Object> is_running_args[] = { answer };
+      maybe_result = Execution::Call(
+          isolate_, is_running, cmd_processor, 1, is_running_args);
+      running = maybe_result.ToHandleChecked()->IsTrue();
     } else {
-      // In case of failure the result text is the exception text.
-      response = try_catch.Exception()->ToString();
+      answer = Handle<String>::cast(
+          Execution::ToString(isolate_, exception).ToHandleChecked());
     }
 
     // Return the result.
     MessageImpl message = MessageImpl::NewResponse(
-        event,
-        running,
-        Handle<JSObject>::cast(exec_state),
-        Handle<JSObject>::cast(event_data),
-        Handle<String>(Utils::OpenHandle(*response)),
-        command.client_data());
+        event, running, exec_state, event_data, answer, command.client_data());
     InvokeMessageHandler(message);
     command.Dispose();
 
     // Return from debug event processing if either the VM is put into the
     // running state (through a continue command) or auto continue is active
     // and there are no more commands queued.
-    if (running && !HasCommands()) {
-      return;
-    }
-  }
+  } while (!running || HasCommands());
 }
 
 
@@ -3298,13 +3243,6 @@ void Debugger::ListenersChanged() {
     // Schedule this for later, because we may be in non-V8 thread.
     debugger_unload_pending_ = true;
   }
-}
-
-
-void Debugger::SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                                      TimeDelta period) {
-  host_dispatch_handler_ = handler;
-  host_dispatch_period_ = period;
 }
 
 

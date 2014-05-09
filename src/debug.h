@@ -783,8 +783,6 @@ class Debugger {
                             bool auto_continue);
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler2 handler);
-  void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                              TimeDelta period);
   void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
@@ -890,11 +888,10 @@ class Debugger {
   bool force_debugger_active_;  // Activate debugger without event listeners.
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
-  v8::Debug::HostDispatchHandler host_dispatch_handler_;
+
   Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
   v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   MessageDispatchHelperThread* message_dispatch_helper_thread_;
-  TimeDelta host_dispatch_period_;
 
   DebuggerAgent* agent_;
 
