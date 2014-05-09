@@ -1203,8 +1203,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        MaybeHandle<Object> maybe_prototype,
-                                        MaybeHandle<Code> maybe_code) {
+                                        MaybeHandle<Code> maybe_code,
+                                        MaybeHandle<Object> maybe_prototype) {
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name);
   ASSERT(info->strict_mode() == SLOPPY);
   Handle<Code> code;
@@ -1225,34 +1225,26 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 
 Handle<JSFunction> Factory::NewFunction(Handle<String> name) {
-  return NewFunction(name, the_hole_value(), MaybeHandle<Code>());
+  return NewFunction(name, MaybeHandle<Code>(), the_hole_value());
 }
 
 
-Handle<JSFunction> Factory::NewFunction(MaybeHandle<Object> maybe_prototype,
+Handle<JSFunction> Factory::NewFunction(Handle<Object> prototype,
                                         Handle<String> name,
                                         InstanceType type,
                                         int instance_size,
                                         Handle<Code> code) {
   // Allocate the function
-  Handle<JSFunction> function = NewFunction(name, maybe_prototype, code);
+  Handle<JSFunction> function = NewFunction(name, code, prototype);
 
-  if (!maybe_prototype.is_null() ||
-      type != JS_OBJECT_TYPE ||
-      instance_size != JSObject::kHeaderSize) {
-    Handle<Object> prototype = maybe_prototype.ToHandleChecked();
-    Handle<Map> initial_map = NewMap(
-        type, instance_size, GetInitialFastElementsKind());
-    if (prototype->IsTheHole() && !function->shared()->is_generator()) {
-      prototype = NewFunctionPrototype(function);
-    }
-    initial_map->set_prototype(*prototype);
-    function->set_initial_map(*initial_map);
-    initial_map->set_constructor(*function);
-  } else {
-    ASSERT(!function->has_initial_map());
-    ASSERT(!function->has_prototype());
+  Handle<Map> initial_map = NewMap(
+      type, instance_size, GetInitialFastElementsKind());
+  if (prototype->IsTheHole() && !function->shared()->is_generator()) {
+    prototype = NewFunctionPrototype(function);
   }
+  initial_map->set_prototype(*prototype);
+  function->set_initial_map(*initial_map);
+  initial_map->set_constructor(*function);
 
   return function;
 }
@@ -2060,43 +2052,44 @@ Handle<JSFunction> Factory::CreateApiFunction(
   Handle<Code> code = isolate()->builtins()->HandleApiCall();
   Handle<Code> construct_stub = isolate()->builtins()->JSConstructStubApi();
 
-  int internal_field_count = 0;
-  if (!obj->instance_template()->IsUndefined()) {
-    Handle<ObjectTemplateInfo> instance_template =
-        Handle<ObjectTemplateInfo>(
-            ObjectTemplateInfo::cast(obj->instance_template()));
-    internal_field_count =
-        Smi::cast(instance_template->internal_field_count())->value();
+  Handle<JSFunction> result;
+  if (obj->remove_prototype()) {
+    result = NewFunction(empty_string(), code);
+  } else {
+    int internal_field_count = 0;
+    if (!obj->instance_template()->IsUndefined()) {
+      Handle<ObjectTemplateInfo> instance_template =
+          Handle<ObjectTemplateInfo>(
+              ObjectTemplateInfo::cast(obj->instance_template()));
+      internal_field_count =
+          Smi::cast(instance_template->internal_field_count())->value();
+    }
+
+    // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
+    // JSObject::GetHeaderSize.
+    int instance_size = kPointerSize * internal_field_count;
+    InstanceType type;
+    switch (instance_type) {
+      case JavaScriptObject:
+        type = JS_OBJECT_TYPE;
+        instance_size += JSObject::kHeaderSize;
+        break;
+      case InnerGlobalObject:
+        type = JS_GLOBAL_OBJECT_TYPE;
+        instance_size += JSGlobalObject::kSize;
+        break;
+      case OuterGlobalObject:
+        type = JS_GLOBAL_PROXY_TYPE;
+        instance_size += JSGlobalProxy::kSize;
+        break;
+      default:
+        UNREACHABLE();
+        type = JS_OBJECT_TYPE;  // Keep the compiler happy.
+        break;
+    }
+
+    result = NewFunction(prototype, empty_string(), type, instance_size, code);
   }
-
-  // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
-  // JSObject::GetHeaderSize.
-  int instance_size = kPointerSize * internal_field_count;
-  InstanceType type;
-  switch (instance_type) {
-    case JavaScriptObject:
-      type = JS_OBJECT_TYPE;
-      instance_size += JSObject::kHeaderSize;
-      break;
-    case InnerGlobalObject:
-      type = JS_GLOBAL_OBJECT_TYPE;
-      instance_size += JSGlobalObject::kSize;
-      break;
-    case OuterGlobalObject:
-      type = JS_GLOBAL_PROXY_TYPE;
-      instance_size += JSGlobalProxy::kSize;
-      break;
-    default:
-      UNREACHABLE();
-      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
-      break;
-  }
-
-  MaybeHandle<Object> maybe_prototype = prototype;
-  if (obj->remove_prototype()) maybe_prototype = MaybeHandle<Object>();
-
-  Handle<JSFunction> result = NewFunction(
-      maybe_prototype, Factory::empty_string(), type, instance_size, code);
 
   result->shared()->set_length(obj->length());
   Handle<Object> class_name(obj->class_name(), isolate());

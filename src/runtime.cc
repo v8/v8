@@ -2806,8 +2806,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
                                          Builtins::Name builtin_name) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
-  Handle<JSFunction> optimized = isolate->factory()->NewFunction(
-      key, MaybeHandle<Object>(), code);
+  Handle<JSFunction> optimized = isolate->factory()->NewFunction(key, code);
   optimized->shared()->DontAdaptArguments();
   JSReceiver::SetProperty(holder, key, optimized, NONE, STRICT).Assert();
   return optimized;

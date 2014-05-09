@@ -452,8 +452,9 @@ class Factory V8_FINAL {
   void BecomeJSFunction(Handle<JSReceiver> object);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
-                                 MaybeHandle<Object> maybe_prototype,
-                                 MaybeHandle<Code> maybe_code);
+                                 MaybeHandle<Code> maybe_code,
+                                 MaybeHandle<Object> maybe_prototype =
+                                     MaybeHandle<Object>());
   Handle<JSFunction> NewFunction(Handle<String> name);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
@@ -461,7 +462,7 @@ class Factory V8_FINAL {
       Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<JSFunction> NewFunction(MaybeHandle<Object> maybe_prototype,
+  Handle<JSFunction> NewFunction(Handle<Object> maybe_prototype,
                                  Handle<String> name,
                                  InstanceType type,
                                  int instance_size,

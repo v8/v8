@@ -357,8 +357,11 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   Factory* factory = isolate->factory();
   Handle<String> internalized_name = factory->InternalizeUtf8String(name);
   Handle<Code> call_code = Handle<Code>(isolate->builtins()->builtin(call));
-  Handle<JSFunction> function = factory->NewFunction(
-      maybe_prototype, internalized_name, type, instance_size, call_code);
+  Handle<JSObject> prototype;
+  Handle<JSFunction> function = maybe_prototype.ToHandle(&prototype)
+      ? factory->NewFunction(prototype, internalized_name, type,
+                             instance_size, call_code)
+      : factory->NewFunction(internalized_name, call_code);
   PropertyAttributes attributes;
   if (target->IsJSBuiltinsObject()) {
     attributes =
@@ -486,8 +489,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<String> empty_string =
       factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
   Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
-  Handle<JSFunction> empty_function = factory->NewFunction(
-      empty_string, MaybeHandle<Object>(), code);
+  Handle<JSFunction> empty_function = factory->NewFunction(empty_string, code);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticAscii("() {}");
@@ -568,8 +570,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
         STATIC_ASCII_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
-    throw_type_error_function = factory()->NewFunction(
-        name, MaybeHandle<Object>(), code);
+    throw_type_error_function = factory()->NewFunction(name, code);
     throw_type_error_function->set_map(native_context()->sloppy_function_map());
     throw_type_error_function->shared()->DontAdaptArguments();
 
@@ -1086,9 +1087,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         STATIC_ASCII_VECTOR("Arguments"));
     Handle<Code> code(isolate->builtins()->builtin(Builtins::kIllegal));
 
-    Handle<JSFunction> function = factory->NewFunction(
-        MaybeHandle<Object>(), arguments_string, JS_OBJECT_TYPE,
-        JSObject::kHeaderSize, code);
+    Handle<JSFunction> function = factory->NewFunction(arguments_string, code);
     ASSERT(!function->has_initial_map());
     function->shared()->set_instance_class_name(*arguments_string);
     function->shared()->set_expected_nof_properties(2);
