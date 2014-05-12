@@ -5450,13 +5450,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
 
   UniqueSet<Map>* maps = new(zone()) UniqueSet<Map>(map_list->length(), zone());
   for (int i = 0; i < map_list->length(); ++i) {
-    Handle<Map> map = map_list->at(i);
-    maps->Add(Unique<Map>::CreateImmovable(map), zone());
-    // TODO(bmeurer): Get rid of this shit!
-    if (map->CanTransition()) {
-      Map::AddDependentCompilationInfo(
-          map, DependentCode::kPrototypeCheckGroup, top_info());
-    }
+    maps->Add(Unique<Map>::CreateImmovable(map_list->at(i)), zone());
   }
   return New<HLoadNamedField>(
       checked_object, checked_object, access, maps, info->field_type());

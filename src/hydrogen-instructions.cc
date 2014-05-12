@@ -3957,7 +3957,7 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
   free_space_instr->InsertBefore(this);
   HConstant* filler_map = HConstant::CreateAndInsertAfter(
       zone, Unique<Map>::CreateImmovable(
-          isolate()->factory()->free_space_map()), free_space_instr);
+          isolate()->factory()->free_space_map()), true, free_space_instr);
   HInstruction* store_map = HStoreNamedField::New(zone, context(),
       free_space_instr, HObjectAccess::ForMap(), filler_map);
   store_map->SetFlag(HValue::kHasNoObservableSideEffects);
