@@ -124,7 +124,6 @@
     ],
     # Default ARM variable settings.
     'arm_version%': 'default',
-    'arm_neon%': 0,
     'arm_fpu%': 'vfpv3',
     'arm_float_abi%': 'default',
     'arm_thumb': 'default',

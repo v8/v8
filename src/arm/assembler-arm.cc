@@ -81,6 +81,11 @@ static unsigned CpuFeaturesImpliedByCompiler() {
     answer |= 1u << VFP32DREGS;
   }
 #endif  // CAN_USE_VFP32DREGS
+#ifdef CAN_USE_NEON
+  if (FLAG_enable_neon) {
+    answer |= 1u << NEON;
+  }
+#endif  // CAN_USE_VFP32DREGS
   if ((answer & (1u << ARMv7)) && FLAG_enable_unaligned_accesses) {
     answer |= 1u << UNALIGNED_ACCESSES;
   }
@@ -120,33 +125,26 @@ void CpuFeatures::Probe(bool serializer_enabled) {
   }
 
 #ifndef __arm__
-  // For the simulator=arm build, use VFP when FLAG_enable_vfp3 is
-  // enabled. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
-  if (FLAG_enable_vfp3) {
-    supported_ |=
-        static_cast<uint64_t>(1) << VFP3 |
-        static_cast<uint64_t>(1) << ARMv7;
-  }
-  if (FLAG_enable_neon) {
-    supported_ |= 1u << NEON;
-  }
   // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
   if (FLAG_enable_armv7) {
     supported_ |= static_cast<uint64_t>(1) << ARMv7;
+    if (FLAG_enable_vfp3) {
+      supported_ |= static_cast<uint64_t>(1) << VFP3;
+    }
+    if (FLAG_enable_neon) {
+      supported_ |= 1u << NEON;
+      supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
+    }
+    if (FLAG_enable_sudiv) {
+      supported_ |= static_cast<uint64_t>(1) << SUDIV;
+    }
+    if (FLAG_enable_movw_movt) {
+      supported_ |= static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
+    }
+    if (FLAG_enable_32dregs) {
+      supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
+    }
   }
-
-  if (FLAG_enable_sudiv) {
-    supported_ |= static_cast<uint64_t>(1) << SUDIV;
-  }
-
-  if (FLAG_enable_movw_movt) {
-    supported_ |= static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
-  }
-
-  if (FLAG_enable_32dregs) {
-    supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
-  }
-
   if (FLAG_enable_unaligned_accesses) {
     supported_ |= static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
   }
