@@ -4393,6 +4393,12 @@ class V8_EXPORT Isolate {
    */
   void SetAutorunMicrotasks(bool autorun);
 
+  /**
+   * Experimental: Returns whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  bool WillAutorunMicrotasks() const;
+
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
 

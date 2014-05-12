@@ -6659,6 +6659,11 @@ void Isolate::SetAutorunMicrotasks(bool autorun) {
 }
 
 
+bool Isolate::WillAutorunMicrotasks() const {
+  return reinterpret_cast<const i::Isolate*>(this)->autorun_microtasks();
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
