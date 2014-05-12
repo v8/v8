@@ -1742,6 +1742,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionGet) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
@@ -1755,6 +1756,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionHas) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
@@ -1768,6 +1770,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   Handle<ObjectHashTable> table(ObjectHashTable::cast(
       weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
@@ -1784,6 +1787,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  RUNTIME_ASSERT(key->IsJSReceiver() || key->IsSymbol());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
