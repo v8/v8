@@ -1353,7 +1353,7 @@ void SourceGroup::WaitForThread() {
 
 
 void SetFlagsFromString(const char* flags) {
-  v8::V8::SetFlagsFromString(flags, strlen(flags));
+  v8::V8::SetFlagsFromString(flags, static_cast<int>(strlen(flags)));
 }
 
 
