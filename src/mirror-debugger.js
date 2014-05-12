@@ -798,8 +798,7 @@ ObjectMirror.prototype.toText = function() {
 
 /**
  * Return the internal properties of the value, such as [[PrimitiveValue]] of
- * scalar wrapper objects, properties of the bound function and properties of
- * the promise.
+ * scalar wrapper objects and properties of the bound function.
  * This method is done static to be accessible from Debug API with the bare
  * values without mirrors.
  * @return {Array} array (possibly empty) of InternalProperty instances
@@ -822,14 +821,6 @@ ObjectMirror.GetInternalProperties = function(value) {
       }
       result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
     }
-    return result;
-  } else if (ObjectIsPromise(value)) {
-    var mirror = new PromiseMirror(value);
-    var result = [];
-    result.push(new InternalPropertyMirror("[[PromiseStatus]]",
-                                           mirror.status()));
-    result.push(new InternalPropertyMirror("[[PromiseValue]]",
-                                           mirror.promiseValue()));
     return result;
   }
   return [];

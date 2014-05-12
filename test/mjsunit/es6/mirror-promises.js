@@ -67,23 +67,3 @@ var thrownv = new Promise(function(resolve, reject) { throw 'throw' });
 testPromiseMirror(resolvedv, "resolved", 'resolve');
 testPromiseMirror(rejectedv, "rejected", 'reject');
 testPromiseMirror(thrownv, "rejected", 'throw');
-
-// Test internal properties of different promises.
-var m1 = debug.MakeMirror(new Promise(
-    function(resolve, reject) { resolve(1) }));
-var ip = m1.internalProperties();
-assertEquals(2, ip.length);
-assertEquals("[[PromiseStatus]]", ip[0].name());
-assertEquals("[[PromiseValue]]", ip[1].name());
-assertEquals("resolved", ip[0].value().value());
-assertEquals(1, ip[1].value().value());
-
-var m2 = debug.MakeMirror(new Promise(function(resolve, reject) { reject(2) }));
-ip = m2.internalProperties();
-assertEquals("rejected", ip[0].value().value());
-assertEquals(2, ip[1].value().value());
-
-var m3 = debug.MakeMirror(new Promise(function(resolve, reject) { }));
-ip = m3.internalProperties();
-assertEquals("pending", ip[0].value().value());
-assertEquals("undefined", typeof(ip[1].value().value()));
