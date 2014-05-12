@@ -25,7 +25,7 @@ THIS_SCRIPT = os.path.relpath(sys.argv[0])
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
 EXPECTED_FUNCTION_COUNT = 338
-EXPECTED_FUZZABLE_COUNT = 315
+EXPECTED_FUZZABLE_COUNT = 305
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 5
 
@@ -45,8 +45,19 @@ BLACKLISTED = [
   "DisableAccessChecks",
   "EnableAccessChecks",
 
-  # Seems to be incompatible with --stress-runs.
+  # The current LiveEdit implementation relies on and messes with internals
+  # in ways that makes it fundamentally unfuzzable :-(
+  "DebugGetLoadedScripts",
+  "DebugSetScriptSource",
+  "LiveEditFindSharedFunctionInfosForScript",
+  "LiveEditFunctionSourceUpdated",
+  "LiveEditGatherCompileInfo",
+  "LiveEditPatchFunctionPositions",
+  "LiveEditReplaceFunctionCode",
+  "LiveEditReplaceRefToNestedFunction",
   "LiveEditReplaceScript",
+  "LiveEditRestartFrame",
+  "SetScriptBreakPoint",
 
   # TODO(jkummerow): Fix these and un-blacklist them!
   "CreateDateTimeFormat",
@@ -74,11 +85,6 @@ THROWS = [
   "GetThreadCount",  # Needs to hit a break point.
   "GetThreadDetails",  # Needs to hit a break point.
   "IsAccessAllowedForObserver",  # Needs access-check-required object.
-  "LiveEditFunctionSourceUpdated",  # Needs a SharedFunctionInfo.
-  "LiveEditPatchFunctionPositions",  # Needs a SharedFunctionInfo.
-  "LiveEditReplaceFunctionCode",  # Needs a SharedFunctionInfo.
-  "LiveEditReplaceRefToNestedFunction",  # Needs a SharedFunctionInfo.
-  "LiveEditRestartFrame",  # Needs to hit a break point.
   "UnblockConcurrentRecompilation"  # Needs --block-concurrent-recompilation.
 ]
 
@@ -91,7 +97,6 @@ _DATETIME_FORMAT = (
     "%GetImplFromInitializedIntlObject(new Intl.DateTimeFormat('en-US'))")
 _NUMBER_FORMAT = (
     "%GetImplFromInitializedIntlObject(new Intl.NumberFormat('en-US'))")
-_SCRIPT = "%DebugGetLoadedScripts()[1]"
 
 
 # Custom definitions for function input that does not throw.
@@ -112,7 +117,6 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "CreatePrivateSymbol": ["\"foo\"", None],
   "CreateSymbol": ["\"foo\"", None],
   "DateParseString": [None, "new Array(8)", None],
-  "DebugSetScriptSource": [_SCRIPT, None, None],
   "DefineOrRedefineAccessorProperty": [None, None, "function() {}",
                                        "function() {}", 2, None],
   "GetBreakLocations": [None, 0, None],
@@ -124,8 +128,6 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "InternalNumberFormat": [_NUMBER_FORMAT, None, None],
   "InternalNumberParse": [_NUMBER_FORMAT, None, None],
   "IsSloppyModeFunction": ["function() {}", None],
-  "LiveEditFindSharedFunctionInfosForScript": [_SCRIPT, None],
-  "LiveEditGatherCompileInfo": [_SCRIPT, None, None],
   "LoadMutableDouble": ["{foo: 1.2}", None, None],
   "NewObjectFromBound": ["(function() {}).bind({})", None],
   "NumberToRadixString": [None, "2", None],
@@ -136,7 +138,6 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "SetCreateIterator": [None, "2", None],
   "SetDebugEventListener": ["undefined", None, None],
   "SetFunctionBreakPoint": [None, 200, None, None],
-  "SetScriptBreakPoint": [_SCRIPT, None, 0, None, None],
   "StringBuilderConcat": ["[1, 2, 3]", 3, None, None],
   "StringBuilderJoin": ["['a', 'b']", 4, None, None],
   "StringMatch": [None, None, "['a', 'b']", None],
@@ -497,6 +498,8 @@ if __name__ == "__main__":
         for f in unexpected_files:
           print("Unexpected testcase: %s" % os.path.join(BASEPATH, f))
           error = True
+        print("Run '%s generate' to automatically clean these up."
+              % THIS_SCRIPT)
     CheckTestcasesExisting(js_fuzzable_functions)
 
     if error:

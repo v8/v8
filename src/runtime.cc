@@ -882,6 +882,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
+  RUNTIME_ASSERT(!source.is_identical_to(target));
   size_t start = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
   size_t target_length = NumberToSize(isolate, target->byte_length());
@@ -2800,24 +2801,24 @@ RUNTIME_FUNCTION(Runtime_FinishArrayPrototypeSetup) {
 }
 
 
-static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
-                                         Handle<JSObject> holder,
-                                         const char* name,
-                                         Builtins::Name builtin_name) {
+static void InstallBuiltin(Isolate* isolate,
+                           Handle<JSObject> holder,
+                           const char* name,
+                           Builtins::Name builtin_name) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
   optimized->shared()->DontAdaptArguments();
   JSReceiver::SetProperty(holder, key, optimized, NONE, STRICT).Assert();
-  return optimized;
 }
 
 
 RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, holder, 0);
+  ASSERT(args.length() == 0);
+  Handle<JSObject> holder =
+      isolate->factory()->NewJSObject(isolate->object_function());
 
   InstallBuiltin(isolate, holder, "pop", Builtins::kArrayPop);
   InstallBuiltin(isolate, holder, "push", Builtins::kArrayPush);

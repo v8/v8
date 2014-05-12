@@ -40,7 +40,7 @@ namespace internal {
   F(GetArgumentsProperty, 1, 1) \
   F(ToFastProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
-  F(SpecialArrayFunctions, 1, 1) \
+  F(SpecialArrayFunctions, 0, 1) \
   F(IsSloppyModeFunction, 1, 1) \
   F(GetDefaultReceiver, 1, 1) \
   \

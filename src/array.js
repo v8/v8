@@ -1469,7 +1469,7 @@ function SetUpArray() {
     "isArray", ArrayIsArray
   ));
 
-  var specialFunctions = %SpecialArrayFunctions({});
+  var specialFunctions = %SpecialArrayFunctions();
 
   var getFunction = function(name, jsBuiltin, len) {
     var f = jsBuiltin;
