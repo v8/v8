@@ -5,6 +5,7 @@
 #include "v8.h"
 #include "lithium.h"
 #include "scopes.h"
+#include "serialize.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/lithium-ia32.h"
@@ -449,6 +450,9 @@ Handle<Code> LChunk::Codegen() {
                    CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
+    ASSERT(!(Serializer::enabled(info()->isolate()) &&
+             info()->GetMustNotHaveEagerFrame() &&
+             generator.NeedsEagerFrame()));
     return code;
   }
   assembler.AbortedCodeGeneration();
