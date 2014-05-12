@@ -109,8 +109,13 @@ inline bool CPURegister::IsNone() const {
 
 inline bool CPURegister::Is(const CPURegister& other) const {
   ASSERT(IsValidOrNone() && other.IsValidOrNone());
-  return (reg_code == other.reg_code) && (reg_size == other.reg_size) &&
-         (reg_type == other.reg_type);
+  return Aliases(other) && (reg_size == other.reg_size);
+}
+
+
+inline bool CPURegister::Aliases(const CPURegister& other) const {
+  ASSERT(IsValidOrNone() && other.IsValidOrNone());
+  return (reg_code == other.reg_code) && (reg_type == other.reg_type);
 }
 
 
@@ -195,16 +200,22 @@ inline void CPURegList::Remove(int code) {
 
 
 inline Register Register::XRegFromCode(unsigned code) {
-  // This function returns the zero register when code = 31. The stack pointer
-  // can not be returned.
-  ASSERT(code < kNumberOfRegisters);
-  return Register::Create(code, kXRegSizeInBits);
+  if (code == kSPRegInternalCode) {
+    return csp;
+  } else {
+    ASSERT(code < kNumberOfRegisters);
+    return Register::Create(code, kXRegSizeInBits);
+  }
 }
 
 
 inline Register Register::WRegFromCode(unsigned code) {
-  ASSERT(code < kNumberOfRegisters);
-  return Register::Create(code, kWRegSizeInBits);
+  if (code == kSPRegInternalCode) {
+    return wcsp;
+  } else {
+    ASSERT(code < kNumberOfRegisters);
+    return Register::Create(code, kWRegSizeInBits);
+  }
 }
 
 
