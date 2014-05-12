@@ -4295,7 +4295,10 @@ MaybeHandle<String> StringReplaceOneCharWithString(Isolate* isolate,
                                                    Handle<String> replace,
                                                    bool* found,
                                                    int recursion_limit) {
-  if (recursion_limit == 0) return MaybeHandle<String>();
+  StackLimitCheck stackLimitCheck(isolate);
+  if (stackLimitCheck.HasOverflowed() || (recursion_limit == 0)) {
+    return MaybeHandle<String>();
+  }
   recursion_limit--;
   if (subject->IsConsString()) {
     ConsString* cons = ConsString::cast(*subject);
