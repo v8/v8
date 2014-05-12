@@ -54,17 +54,15 @@
 #define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
 
 
-// Define V8_USE_ADDRESS_SANITIZER macros.
+// Define DISABLE_ASAN macros.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
-#define V8_USE_ADDRESS_SANITIZER 1
+#define DISABLE_ASAN __attribute__((no_sanitize_address))
 #endif
 #endif
 
-// Define DISABLE_ASAN macros.
-#ifdef V8_USE_ADDRESS_SANITIZER
-#define DISABLE_ASAN __attribute__((no_sanitize_address))
-#else
+
+#ifndef DISABLE_ASAN
 #define DISABLE_ASAN
 #endif
 

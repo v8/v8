@@ -5076,8 +5076,6 @@ class V8_EXPORT TryCatch {
   void SetCaptureMessage(bool value);
 
  private:
-  TryCatch* DesanitizedThis();
-
   // Make it hard to create heap-allocated TryCatch blocks.
   TryCatch(const TryCatch&);
   void operator=(const TryCatch&);
@@ -5089,7 +5087,6 @@ class V8_EXPORT TryCatch {
   void* exception_;
   void* message_obj_;
   void* message_script_;
-  void* asan_fake_stack_handle_;
   int message_start_pos_;
   int message_end_pos_;
   bool is_verbose_ : 1;
