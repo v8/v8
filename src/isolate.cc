@@ -272,13 +272,14 @@ void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
   // JS stack.  When running without the simulator, the address
   // returned will be the address of the C++ try catch handler itself.
   Address address = reinterpret_cast<Address>(
-      SimulatorStack::RegisterCTryCatch(reinterpret_cast<uintptr_t>(that)));
+      SimulatorStack::RegisterCTryCatch(reinterpret_cast<uintptr_t>(
+          that->DesanitizedThis())));
   thread_local_top()->set_try_catch_handler_address(address);
 }
 
 
 void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  ASSERT(thread_local_top()->TryCatchHandler() == that);
+  ASSERT(thread_local_top()->TryCatchHandler() == that->DesanitizedThis());
   thread_local_top()->set_try_catch_handler_address(
       reinterpret_cast<Address>(that->next_));
   thread_local_top()->catcher_ = NULL;

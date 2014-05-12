@@ -15,11 +15,6 @@
 namespace v8 {
 namespace internal {
 
-#if defined(__has_feature)
-  #if __has_feature(address_sanitizer)
-    #define V8_USE_ADDRESS_SANITIZER
-  #endif
-#endif
 
 class Segment;
 class Isolate;

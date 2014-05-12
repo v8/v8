@@ -6,6 +6,9 @@
 
 #include <string.h>  // For memcpy, strlen.
 #include <cmath>  // For isnan.
+#ifdef V8_USE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif  // V8_USE_ADDRESS_SANITIZER
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
@@ -1819,6 +1822,16 @@ v8::TryCatch::~TryCatch() {
 }
 
 
+v8::TryCatch* v8::TryCatch::DesanitizedThis() {
+#ifdef V8_USE_ADDRESS_SANITIZER
+  return TRY_CATCH_FROM_ADDRESS(
+      __asan_addr_is_in_fake_stack(asan_fake_stack_handle_, this, NULL, NULL));
+#else
+  return this;
+#endif
+}
+
+
 bool v8::TryCatch::HasCaught() const {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole();
 }
@@ -1893,6 +1906,11 @@ void v8::TryCatch::Reset() {
   message_script_ = the_hole;
   message_start_pos_ = 0;
   message_end_pos_ = 0;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  asan_fake_stack_handle_ = __asan_get_current_fake_stack();
+#else
+  asan_fake_stack_handle_ = NULL;
+#endif
 }
 
 
