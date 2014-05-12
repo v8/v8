@@ -388,6 +388,18 @@ void StackGuard::ClearInterrupt(int flagbit) {
 }
 
 
+bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag,
+                                        const ExecutionAccess& lock) {
+  int flagbit = 1 << flag;
+  bool result = (thread_local_.interrupt_flags_ & flagbit);
+  thread_local_.interrupt_flags_ &= ~flagbit;
+  if (!should_postpone_interrupts(lock) && !has_pending_interrupts(lock)) {
+    reset_limits(lock);
+  }
+  return result;
+}
+
+
 char* StackGuard::ArchiveStackGuard(char* to) {
   ExecutionAccess access(isolate_);
   OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
@@ -720,44 +732,37 @@ void Execution::ProcessDebugMessages(Isolate* isolate,
 
 
 Object* StackGuard::HandleInterrupts() {
-  { ExecutionAccess access(isolate_);
-    if (should_postpone_interrupts(access)) {
-      return isolate_->heap()->undefined_value();
-    }
+  ExecutionAccess access(isolate_);
+  if (should_postpone_interrupts(access)) {
+    return isolate_->heap()->undefined_value();
   }
 
-  if (CheckApiInterrupt()) {
-    ClearApiInterrupt();
+  if (CheckAndClearInterrupt(API_INTERRUPT, access)) {
     isolate_->InvokeApiInterruptCallback();
   }
 
-  if (CheckGC()) {
+  if (CheckAndClearInterrupt(GC_REQUEST, access)) {
     isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
-    ClearGC();
   }
 
   if (CheckDebugBreak() || CheckDebugCommand()) {
     Execution::DebugBreakHelper(isolate_);
   }
 
-  if (CheckTerminateExecution()) {
-    ClearTerminateExecution();
+  if (CheckAndClearInterrupt(TERMINATE_EXECUTION, access)) {
     return isolate_->TerminateExecution();
   }
 
-  if (CheckFullDeopt()) {
-    ClearFullDeopt();
+  if (CheckAndClearInterrupt(FULL_DEOPT, access)) {
     Deoptimizer::DeoptimizeAll(isolate_);
   }
 
-  if (CheckDeoptMarkedAllocationSites()) {
-    ClearDeoptMarkedAllocationSites();
+  if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES, access)) {
     isolate_->heap()->DeoptMarkedAllocationSites();
   }
 
-  if (CheckInstallCode()) {
+  if (CheckAndClearInterrupt(INSTALL_CODE, access)) {
     ASSERT(isolate_->concurrent_recompilation_enabled());
-    ClearInstallCode();
     isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
 
