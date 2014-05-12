@@ -2982,8 +2982,8 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  if (frame_mode == BUILD_STUB_FRAME) {
+void MacroAssembler::Prologue(CompilationInfo* info) {
+  if (info->IsStub()) {
     ASSERT(StackPointer().Is(jssp));
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
@@ -2993,7 +2993,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
     __ Push(lr, fp, cp, temp);
     __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
   } else {
-    if (isolate()->IsCodePreAgingActive()) {
+    if (info->IsCodePreAgingActive()) {
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       __ EmitCodeAgeSequence(stub);
     } else {

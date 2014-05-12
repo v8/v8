@@ -1648,7 +1648,7 @@ class MacroAssembler : public Assembler {
   void ExitFrameRestoreFPRegs();
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void Prologue(CompilationInfo* info);
 
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.

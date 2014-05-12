@@ -188,7 +188,7 @@ bool LCodeGen::GeneratePrologue() {
   if (NeedsEagerFrame()) {
     ASSERT(!frame_is_built_);
     frame_is_built_ = true;
-    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
+    __ Prologue(info());
     info()->AddNoFrameRange(0, masm_->pc_offset());
   }
 

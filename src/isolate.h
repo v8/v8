@@ -512,9 +512,6 @@ class Isolate {
   // Mutex for serializing access to break control structures.
   RecursiveMutex* break_access() { return &break_access_; }
 
-  // Mutex for serializing access to debugger.
-  RecursiveMutex* debugger_access() { return &debugger_access_; }
-
   Address get_address_from_id(AddressId id);
 
   // Access to top context (where the current function object was created).
@@ -930,12 +927,9 @@ class Isolate {
     return &interp_canonicalize_mapping_;
   }
 
-  inline bool IsCodePreAgingActive();
-
   Debugger* debugger() {  return debugger_; }
   Debug* debug() { return debug_; }
 
-  inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
 
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
@@ -1194,7 +1188,6 @@ class Isolate {
   CodeRange* code_range_;
   RecursiveMutex break_access_;
   Atomic32 debugger_initialized_;
-  RecursiveMutex debugger_access_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;

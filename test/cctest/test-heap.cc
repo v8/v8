@@ -3947,7 +3947,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kMinimalBufferSize];
   MacroAssembler masm(isolate, buffer, sizeof(buffer));
   CodeDesc desc;
-  masm.Prologue(BUILD_FUNCTION_FRAME);
+  masm.Push(isolate->factory()->undefined_value());
+  masm.Drop(1);
   masm.GetCode(&desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code = isolate->factory()->NewCode(

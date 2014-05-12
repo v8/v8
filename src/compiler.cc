@@ -110,9 +110,9 @@ void CompilationInfo::Initialize(Isolate* isolate,
   }
   mode_ = mode;
   abort_due_to_dependency_ = false;
-  if (script_->type()->value() == Script::TYPE_NATIVE) {
-    MarkAsNative();
-  }
+  if (script_->type()->value() == Script::TYPE_NATIVE) MarkAsNative();
+  if (isolate_->debugger()->is_active()) MarkAsDebug();
+
   if (!shared_info_.is_null()) {
     ASSERT(strict_mode() == SLOPPY);
     SetStrictMode(shared_info_->strict_mode());
@@ -279,21 +279,6 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 };
 
 
-// Determine whether to use the full compiler for all code. If the flag
-// --always-full-compiler is specified this is the case. For the virtual frame
-// based compiler the full compiler is also used if a debugger is connected, as
-// the code from the full compiler supports mode precise break points. For the
-// crankshaft adaptive compiler debugging the optimized code is not possible at
-// all. However crankshaft support recompilation of functions, so in this case
-// the full compiler need not be be used if a debugger is attached, but only if
-// break points has actually been set.
-static bool IsDebuggerActive(Isolate* isolate) {
-  return isolate->use_crankshaft() ?
-    isolate->debug()->has_break_points() :
-    isolate->debugger()->IsDebuggerActive();
-}
-
-
 OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   ASSERT(isolate()->use_crankshaft());
   ASSERT(info()->IsOptimizing());
@@ -311,7 +296,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
   if (FLAG_always_full_compiler) return AbortOptimization();
-  if (IsDebuggerActive(isolate())) return AbortOptimization(kDebuggerIsActive);
+
+  // Do not use crankshaft if compiling for debugging.
+  if (info()->is_debug()) return AbortOptimization(kDebuggerIsActive);
 
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
@@ -710,6 +697,8 @@ MaybeHandle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
   CompilationInfoWithZone info(function);
   Isolate* isolate = info.isolate();
   VMState<COMPILER> state(isolate);
+
+  info.MarkAsDebug();
 
   ASSERT(!isolate->has_pending_exception());
   Handle<Code> old_code(function->shared()->code());

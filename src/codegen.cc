@@ -150,7 +150,8 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   Handle<Code> code =
       isolate->factory()->NewCode(desc, flags, masm->CodeObject(),
                                   false, is_crankshafted,
-                                  info->prologue_offset());
+                                  info->prologue_offset(),
+                                  info->is_debug());
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,

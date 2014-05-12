@@ -902,8 +902,8 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  if (frame_mode == BUILD_STUB_FRAME) {
+void MacroAssembler::Prologue(CompilationInfo* info) {
+  if (info->IsStub()) {
     PushFixedFrame();
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
@@ -913,7 +913,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
         this, kNoCodeAgeSequenceLength);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (isolate()->IsCodePreAgingActive()) {
+    if (info->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       add(r0, pc, Operand(-8));

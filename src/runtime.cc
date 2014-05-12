@@ -5609,7 +5609,7 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
 // to a built-in function such as Array.forEach.
 RUNTIME_FUNCTION(Runtime_DebugCallbackSupportsStepping) {
   ASSERT(args.length() == 1);
-  if (!isolate->IsDebuggerActive() || !isolate->debug()->StepInActive()) {
+  if (!isolate->debugger()->is_active() || !isolate->debug()->StepInActive()) {
     return isolate->heap()->false_value();
   }
   CONVERT_ARG_CHECKED(Object, callback, 0);

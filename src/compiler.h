@@ -50,7 +50,6 @@ class CompilationInfo {
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
   StrictMode strict_mode() const { return StrictModeField::decode(flags_); }
-  bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
   Scope* global_scope() const { return global_scope_; }
@@ -94,10 +93,6 @@ class CompilationInfo {
   void SetStrictMode(StrictMode strict_mode) {
     ASSERT(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
     flags_ = StrictModeField::update(flags_, strict_mode);
-  }
-  void MarkAsInLoop() {
-    ASSERT(is_lazy());
-    flags_ |= IsInLoop::encode(true);
   }
   void MarkAsNative() {
     flags_ |= IsNative::encode(true);
@@ -149,6 +144,18 @@ class CompilationInfo {
 
   bool GetMustNotHaveEagerFrame() const {
     return MustNotHaveEagerFrame::decode(flags_);
+  }
+
+  void MarkAsDebug() {
+    flags_ |= IsDebug::encode(true);
+  }
+
+  bool is_debug() const {
+    return IsDebug::decode(flags_);
+  }
+
+  bool IsCodePreAgingActive() const {
+    return FLAG_optimize_for_size && FLAG_age_code && !is_debug();
   }
 
   void SetParseRestriction(ParseRestriction restriction) {
@@ -353,8 +360,8 @@ class CompilationInfo {
   // Flags that can be set for eager compilation.
   class IsEval:   public BitField<bool, 1, 1> {};
   class IsGlobal: public BitField<bool, 2, 1> {};
-  // Flags that can be set for lazy compilation.
-  class IsInLoop: public BitField<bool, 3, 1> {};
+  // If the function is being compiled for the debugger.
+  class IsDebug: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
   class StrictModeField: public BitField<StrictMode, 4, 1> {};
   // Is this a function from our natives.

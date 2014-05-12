@@ -4452,8 +4452,8 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  if (frame_mode == BUILD_STUB_FRAME) {
+void MacroAssembler::Prologue(CompilationInfo* info) {
+  if (info->IsStub()) {
     Push(ra, fp, cp);
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
@@ -4463,7 +4463,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
       this, kNoCodeAgeSequenceLength);
     // The following three instructions must remain together and unmodified
     // for code aging to work properly.
-    if (isolate()->IsCodePreAgingActive()) {
+    if (info->IsCodePreAgingActive()) {
       // Pre-age the code.
       Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
       nop(Assembler::CODE_AGE_MARKER_NOP);
