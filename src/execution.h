@@ -210,7 +210,6 @@ enum InterruptFlag {
   bool CheckInterrupt(int flagbit);
   void RequestInterrupt(int flagbit);
   void ClearInterrupt(int flagbit);
-  bool CheckAndClearInterrupt(InterruptFlag flag, const ExecutionAccess& lock);
 
   void InvokeApiInterruptCallback();
 
