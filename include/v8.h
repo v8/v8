@@ -4761,28 +4761,6 @@ class V8_EXPORT V8 {
   static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
 
   /**
-   * Experimental: Runs the Microtask Work Queue until empty
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void RunMicrotasks(Isolate* isolate);
-
-  /**
-   * Experimental: Enqueues the callback to the Microtask Work Queue
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
-
-   /**
-   * Experimental: Controls whether the Microtask Work Queue is automatically
-   * run when the script call depth decrements to zero.
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
-
-  /**
    * Initializes from snapshot if possible. Otherwise, attempts to
    * initialize from scratch.  This function is called implicitly if
    * you use the API without calling it first.
