@@ -1,7 +1,8 @@
 // Copyright 2013 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-// limitations under the License.
+
+"use strict";
 
 // ECMAScript 402 API implementation.
 
@@ -10,8 +11,6 @@
  * all of which are constructors.
  */
 $Object.defineProperty(global, "Intl", { enumerable: false, value: (function() {
-
-'use strict';
 
 var Intl = {};
 
