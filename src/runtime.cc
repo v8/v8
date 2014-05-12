@@ -14855,9 +14855,9 @@ RUNTIME_FUNCTION(Runtime_SetIsObserved) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  ASSERT(!obj->IsJSGlobalProxy());
-  if (obj->IsJSProxy())
-    return isolate->heap()->undefined_value();
+  RUNTIME_ASSERT(!obj->IsJSGlobalProxy());
+  if (obj->IsJSProxy()) return isolate->heap()->undefined_value();
+  RUNTIME_ASSERT(!obj->map()->is_observed());
 
   ASSERT(obj->IsJSObject());
   JSObject::SetObserved(Handle<JSObject>::cast(obj));
