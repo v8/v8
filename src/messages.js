@@ -177,10 +177,6 @@ function FormatString(format, args) {
         // str is one of %0, %1, %2 or %3.
         try {
           str = NoSideEffectToString(args[arg_num]);
-          if (str.length > 256) {
-            str = %_SubString(str, 0, 239) + "...<omitted>..." +
-                  %_SubString(str, str.length - 2, str.length);
-          }
         } catch (e) {
           if (%IsJSModule(args[arg_num]))
             str = "module";
@@ -200,10 +196,17 @@ function FormatString(format, args) {
 function NoSideEffectToString(obj) {
   if (IS_STRING(obj)) return obj;
   if (IS_NUMBER(obj)) return %_NumberToString(obj);
-  if (IS_BOOLEAN(obj)) return x ? 'true' : 'false';
+  if (IS_BOOLEAN(obj)) return obj ? 'true' : 'false';
   if (IS_UNDEFINED(obj)) return 'undefined';
   if (IS_NULL(obj)) return 'null';
-  if (IS_FUNCTION(obj)) return  %_CallFunction(obj, FunctionToString);
+  if (IS_FUNCTION(obj)) {
+    var str = %_CallFunction(obj, FunctionToString);
+    if (str.length > 128) {
+      str = %_SubString(str, 0, 111) + "...<omitted>..." +
+            %_SubString(str, str.length - 2, str.length);
+    }
+    return str;
+  }
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {

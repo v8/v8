@@ -124,6 +124,7 @@ void MacroAssembler::LogicalMacro(const Register& rd,
         // register so we use the temp register as an intermediate again.
         Logical(temp, rn, temp, op);
         Mov(csp, temp);
+        AssertStackConsistency();
       } else {
         Logical(rd, rn, temp, op);
       }
@@ -231,6 +232,7 @@ void MacroAssembler::Mov(const Register& rd, uint64_t imm) {
     // pointer.
     if (rd.IsSP()) {
       mov(rd, temp);
+      AssertStackConsistency();
     }
   }
 }
@@ -767,7 +769,7 @@ void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
   int count = 1 + src1.IsValid() + src2.IsValid() + src3.IsValid();
   int size = src0.SizeInBytes();
 
-  PrepareForPush(count, size);
+  PushPreamble(count, size);
   PushHelper(count, size, src0, src1, src2, src3);
 }
 
@@ -781,7 +783,7 @@ void MacroAssembler::Push(const CPURegister& src0, const CPURegister& src1,
   int count = 5 + src5.IsValid() + src6.IsValid() + src6.IsValid();
   int size = src0.SizeInBytes();
 
-  PrepareForPush(count, size);
+  PushPreamble(count, size);
   PushHelper(4, size, src0, src1, src2, src3);
   PushHelper(count - 4, size, src4, src5, src6, src7);
 }
@@ -798,22 +800,15 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
   int count = 1 + dst1.IsValid() + dst2.IsValid() + dst3.IsValid();
   int size = dst0.SizeInBytes();
 
-  PrepareForPop(count, size);
   PopHelper(count, size, dst0, dst1, dst2, dst3);
-
-  if (!csp.Is(StackPointer()) && emit_debug_code()) {
-    // It is safe to leave csp where it is when unwinding the JavaScript stack,
-    // but if we keep it matching StackPointer, the simulator can detect memory
-    // accesses in the now-free part of the stack.
-    Mov(csp, StackPointer());
-  }
+  PopPostamble(count, size);
 }
 
 
 void MacroAssembler::PushPopQueue::PushQueued() {
   if (queued_.empty()) return;
 
-  masm_->PrepareForPush(size_);
+  masm_->PushPreamble(size_);
 
   int count = queued_.size();
   int index = 0;
@@ -838,8 +833,6 @@ void MacroAssembler::PushPopQueue::PushQueued() {
 void MacroAssembler::PushPopQueue::PopQueued() {
   if (queued_.empty()) return;
 
-  masm_->PrepareForPop(size_);
-
   int count = queued_.size();
   int index = 0;
   while (index < count) {
@@ -856,6 +849,7 @@ void MacroAssembler::PushPopQueue::PopQueued() {
                      batch[0], batch[1], batch[2], batch[3]);
   }
 
+  masm_->PopPostamble(size_);
   queued_.clear();
 }
 
@@ -863,7 +857,7 @@ void MacroAssembler::PushPopQueue::PopQueued() {
 void MacroAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
-  PrepareForPush(registers.Count(), size);
+  PushPreamble(registers.Count(), size);
   // Push up to four registers at a time because if the current stack pointer is
   // csp and reg_size is 32, registers must be pushed in blocks of four in order
   // to maintain the 16-byte alignment for csp.
@@ -882,7 +876,6 @@ void MacroAssembler::PushCPURegList(CPURegList registers) {
 void MacroAssembler::PopCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
-  PrepareForPop(registers.Count(), size);
   // Pop up to four registers at a time because if the current stack pointer is
   // csp and reg_size is 32, registers must be pushed in blocks of four in
   // order to maintain the 16-byte alignment for csp.
@@ -895,20 +888,14 @@ void MacroAssembler::PopCPURegList(CPURegList registers) {
     int count = count_before - registers.Count();
     PopHelper(count, size, dst0, dst1, dst2, dst3);
   }
-
-  if (!csp.Is(StackPointer()) && emit_debug_code()) {
-    // It is safe to leave csp where it is when unwinding the JavaScript stack,
-    // but if we keep it matching StackPointer, the simulator can detect memory
-    // accesses in the now-free part of the stack.
-    Mov(csp, StackPointer());
-  }
+  PopPostamble(registers.Count(), size);
 }
 
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
   int size = src.SizeInBytes();
 
-  PrepareForPush(count, size);
+  PushPreamble(count, size);
 
   if (FLAG_optimize_for_size && count > 8) {
     UseScratchRegisterScope temps(this);
@@ -944,7 +931,7 @@ void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
 
 
 void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
-  PrepareForPush(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
+  PushPreamble(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
 
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireSameSizeAs(count);
@@ -1070,9 +1057,7 @@ void MacroAssembler::PopHelper(int count, int size,
 }
 
 
-void MacroAssembler::PrepareForPush(Operand total_size) {
-  // TODO(jbramley): This assertion generates too much code in some debug tests.
-  // AssertStackConsistency();
+void MacroAssembler::PushPreamble(Operand total_size) {
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
@@ -1092,8 +1077,7 @@ void MacroAssembler::PrepareForPush(Operand total_size) {
 }
 
 
-void MacroAssembler::PrepareForPop(Operand total_size) {
-  AssertStackConsistency();
+void MacroAssembler::PopPostamble(Operand total_size) {
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
@@ -1104,6 +1088,11 @@ void MacroAssembler::PrepareForPop(Operand total_size) {
 
     // Don't check access size for non-immediate sizes. It's difficult to do
     // well, and it will be caught by hardware (or the simulator) anyway.
+  } else if (emit_debug_code()) {
+    // It is safe to leave csp where it is when unwinding the JavaScript stack,
+    // but if we keep it matching StackPointer, the simulator can detect memory
+    // accesses in the now-free part of the stack.
+    SyncSystemStackPointer();
   }
 }
 
@@ -1199,20 +1188,27 @@ void MacroAssembler::PopCalleeSavedRegisters() {
 
 
 void MacroAssembler::AssertStackConsistency() {
-  if (emit_debug_code()) {
-    if (csp.Is(StackPointer())) {
-      // We can't check the alignment of csp without using a scratch register
-      // (or clobbering the flags), but the processor (or simulator) will abort
-      // if it is not properly aligned during a load.
+  // Avoid emitting code when !use_real_abort() since non-real aborts cause too
+  // much code to be generated.
+  if (emit_debug_code() && use_real_aborts()) {
+    if (csp.Is(StackPointer()) || CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
+      // Always check the alignment of csp if ALWAYS_ALIGN_CSP is true.  We
+      // can't check the alignment of csp without using a scratch register (or
+      // clobbering the flags), but the processor (or simulator) will abort if
+      // it is not properly aligned during a load.
       ldr(xzr, MemOperand(csp, 0));
-    } else if (FLAG_enable_slow_asserts) {
+    }
+    if (FLAG_enable_slow_asserts && !csp.Is(StackPointer())) {
       Label ok;
       // Check that csp <= StackPointer(), preserving all registers and NZCV.
       sub(StackPointer(), csp, StackPointer());
       cbz(StackPointer(), &ok);                 // Ok if csp == StackPointer().
       tbnz(StackPointer(), kXSignBit, &ok);     // Ok if csp < StackPointer().
 
-      Abort(kTheCurrentStackPointerIsBelowCsp);
+      // Avoid generating AssertStackConsistency checks for the Push in Abort.
+      { DontEmitDebugCodeScope dont_emit_debug_code_scope(this);
+        Abort(kTheCurrentStackPointerIsBelowCsp);
+      }
 
       bind(&ok);
       // Restore StackPointer().
@@ -1329,15 +1325,14 @@ void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
 
 void MacroAssembler::EnumLengthUntagged(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
-  Ldrsw(dst, UntagSmiFieldMemOperand(map, Map::kBitField3Offset));
+  Ldrsw(dst, FieldMemOperand(map, Map::kBitField3Offset));
   And(dst, dst, Map::EnumLengthBits::kMask);
 }
 
 
 void MacroAssembler::EnumLengthSmi(Register dst, Register map) {
-  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
-  Ldr(dst, FieldMemOperand(map, Map::kBitField3Offset));
-  And(dst, dst, Smi::FromInt(Map::EnumLengthBits::kMask));
+  EnumLengthUntagged(dst, map);
+  SmiTag(dst, dst);
 }
 
 
@@ -4519,7 +4514,7 @@ void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
                                         Label* if_deprecated) {
   if (map->CanBeDeprecated()) {
     Mov(scratch, Operand(map));
-    Ldrsw(scratch, UntagSmiFieldMemOperand(scratch, Map::kBitField3Offset));
+    Ldrsw(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
     TestAndBranchIfAnySet(scratch, Map::Deprecated::kMask, if_deprecated);
   }
 }

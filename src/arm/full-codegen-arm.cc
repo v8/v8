@@ -3047,7 +3047,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ add(r4, r4, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
   __ mov(r2, r4);
-  __ add(r2, r2, Operand::PointerOffsetFromSmiKey(r3));
+  __ add(r2, r2, Operand(r3, LSL, kPointerSizeLog2));
 
   // Loop through all the keys in the descriptor array. If one of these is the
   // string "valueOf" the result is false.

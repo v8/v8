@@ -20,7 +20,7 @@ class AllocationSiteContext {
  public:
   explicit AllocationSiteContext(Isolate* isolate) {
     isolate_ = isolate;
-  };
+  }
 
   Handle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }

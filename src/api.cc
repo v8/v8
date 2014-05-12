@@ -419,7 +419,7 @@ Extension::Extension(const char* name,
 
 
 ResourceConstraints::ResourceConstraints()
-    : max_new_space_size_(0),
+    : max_semi_space_size_(0),
       max_old_space_size_(0),
       max_executable_size_(0),
       stack_limit_(NULL),
@@ -442,19 +442,19 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 #endif
 
   if (physical_memory <= low_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeLowMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeLowMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeLowMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeLowMemoryDevice);
   } else if (physical_memory <= medium_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeMediumMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeMediumMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeMediumMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeMediumMemoryDevice);
   } else if (physical_memory <= high_limit) {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHighMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHighMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHighMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeHighMemoryDevice);
   } else {
-    set_max_new_space_size(i::Heap::kMaxNewSpaceSizeHugeMemoryDevice);
+    set_max_semi_space_size(i::Heap::kMaxSemiSpaceSizeHugeMemoryDevice);
     set_max_old_space_size(i::Heap::kMaxOldSpaceSizeHugeMemoryDevice);
     set_max_executable_size(i::Heap::kMaxExecutableSizeHugeMemoryDevice);
   }
@@ -465,7 +465,7 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
     // Reserve no more than 1/8 of the memory for the code range, but at most
     // 512 MB.
     set_code_range_size(
-        i::Min(512 * i::MB, static_cast<int>(virtual_memory_limit >> 3)));
+        i::Min(512, static_cast<int>((virtual_memory_limit >> 3) / i::MB)));
   }
 }
 
@@ -473,15 +473,15 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 bool SetResourceConstraints(Isolate* v8_isolate,
                             ResourceConstraints* constraints) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  int new_space_size = constraints->max_new_space_size();
+  int semi_space_size = constraints->max_semi_space_size();
   int old_space_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   int code_range_size = constraints->code_range_size();
-  if (new_space_size != 0 || old_space_size != 0 || max_executable_size != 0 ||
-      code_range_size != 0) {
+  if (semi_space_size != 0 || old_space_size != 0 ||
+      max_executable_size != 0 || code_range_size != 0) {
     // After initialization it's too late to change Heap constraints.
     ASSERT(!isolate->IsInitialized());
-    bool result = isolate->heap()->ConfigureHeap(new_space_size / 2,
+    bool result = isolate->heap()->ConfigureHeap(semi_space_size,
                                                  old_space_size,
                                                  max_executable_size,
                                                  code_range_size);
@@ -3584,8 +3584,7 @@ int v8::Object::GetIdentityHash() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::Handle<i::Smi>::cast(
-      i::JSReceiver::GetOrCreateIdentityHash(self))->value();
+  return i::JSReceiver::GetOrCreateIdentityHash(self)->value();
 }
 
 
@@ -4958,12 +4957,6 @@ void v8::V8::SetArrayBufferAllocator(
 
 
 bool v8::V8::Dispose() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!Utils::ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
-                       "v8::V8::Dispose()",
-                       "Use v8::Isolate::Dispose() for non-default isolate.")) {
-    return false;
-  }
   i::V8::TearDown();
   return true;
 }
@@ -6470,7 +6463,8 @@ void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
 
 
 void V8::TerminateExecution(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->stack_guard()->RequestTerminateExecution();
 }
 
 
@@ -6483,18 +6477,24 @@ bool V8::IsExecutionTerminating(Isolate* isolate) {
 
 void V8::CancelTerminateExecution(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i_isolate->stack_guard()->CancelTerminateExecution();
+  i_isolate->stack_guard()->ClearTerminateExecution();
+  i_isolate->CancelTerminateExecution();
 }
 
 
 void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->RequestInterrupt(
-      callback, data);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->set_api_interrupt_callback(callback);
+  i_isolate->set_api_interrupt_callback_data(data);
+  i_isolate->stack_guard()->RequestApiInterrupt();
 }
 
 
 void Isolate::ClearInterrupt() {
-  reinterpret_cast<i::Isolate*>(this)->stack_guard()->ClearInterrupt();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i_isolate->stack_guard()->ClearApiInterrupt();
+  i_isolate->set_api_interrupt_callback(NULL);
+  i_isolate->set_api_interrupt_callback_data(NULL);
 }
 
 
@@ -6804,25 +6804,14 @@ bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
 }
 
 
-bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
-                                  Handle<Value> data) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
-  ENTER_V8(isolate);
-  isolate->debugger()->SetEventListener(Utils::OpenHandle(*that),
-                                        Utils::OpenHandle(*data, true));
-  return true;
-}
-
-
 void Debug::DebugBreak(Isolate* isolate) {
-  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
+  reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
 }
 
 
 void Debug::CancelDebugBreak(Isolate* isolate) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
+  internal_isolate->stack_guard()->ClearDebugBreak();
 }
 
 
@@ -6847,16 +6836,6 @@ void Debug::SendCommand(Isolate* isolate,
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debugger()->ProcessCommand(
       i::Vector<const uint16_t>(command, length), client_data);
-}
-
-
-void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
-                                   int period) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetHostDispatchHandler");
-  ENTER_V8(isolate);
-  isolate->debugger()->SetHostDispatchHandler(
-      handler, i::TimeDelta::FromMilliseconds(period));
 }
 
 

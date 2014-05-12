@@ -53,16 +53,6 @@ bool V8::Initialize(Deserializer* des) {
 
 
 void V8::TearDown() {
-  Isolate* isolate = Isolate::Current();
-  ASSERT(isolate->IsDefaultIsolate());
-  if (!isolate->IsInitialized()) return;
-
-  // The isolate has to be torn down before clearing the LOperand
-  // caches so that the optimizing compiler thread (if running)
-  // doesn't see an inconsistent view of the lithium instructions.
-  isolate->TearDown();
-  delete isolate;
-
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
@@ -99,7 +89,7 @@ void V8::InitializeOncePerProcessImpl() {
   if (FLAG_stress_compaction) {
     FLAG_force_marking_deque_overflows = true;
     FLAG_gc_global = true;
-    FLAG_max_new_space_size = 2 * Page::kPageSize;
+    FLAG_max_semi_space_size = 1;
   }
 
 #ifdef V8_USE_DEFAULT_PLATFORM

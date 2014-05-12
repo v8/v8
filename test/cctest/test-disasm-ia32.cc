@@ -364,58 +364,52 @@ TEST(DisasmIa320) {
 
   // SSE instruction
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope fscope(&assm, SSE2);
-      // Move operation
-      __ movaps(xmm0, xmm1);
-      __ shufps(xmm0, xmm0, 0x0);
+    // Move operation
+    __ movaps(xmm0, xmm1);
+    __ shufps(xmm0, xmm0, 0x0);
 
-      // logic operation
-      __ andps(xmm0, xmm1);
-      __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ orps(xmm0, xmm1);
-      __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ xorps(xmm0, xmm1);
-      __ xorps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    // logic operation
+    __ andps(xmm0, xmm1);
+    __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ orps(xmm0, xmm1);
+    __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ xorps(xmm0, xmm1);
+    __ xorps(xmm0, Operand(ebx, ecx, times_4, 10000));
 
-      // Arithmetic operation
-      __ addps(xmm1, xmm0);
-      __ addps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ subps(xmm1, xmm0);
-      __ subps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ mulps(xmm1, xmm0);
-      __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ divps(xmm1, xmm0);
-      __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
-    }
+    // Arithmetic operation
+    __ addps(xmm1, xmm0);
+    __ addps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ subps(xmm1, xmm0);
+    __ subps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ mulps(xmm1, xmm0);
+    __ mulps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ divps(xmm1, xmm0);
+    __ divps(xmm1, Operand(ebx, ecx, times_4, 10000));
   }
   {
-    if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatureScope fscope(&assm, SSE2);
-      __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
-      __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
-      __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
-      // 128 bit move instructions.
-      __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
-      __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
-      __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
+    __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
+    // 128 bit move instructions.
+    __ movdqa(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movdqa(Operand(ebx, ecx, times_4, 10000), xmm0);
+    __ movdqu(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ movdqu(Operand(ebx, ecx, times_4, 10000), xmm0);
 
-      __ addsd(xmm1, xmm0);
-      __ mulsd(xmm1, xmm0);
-      __ subsd(xmm1, xmm0);
-      __ divsd(xmm1, xmm0);
-      __ ucomisd(xmm0, xmm1);
-      __ cmpltsd(xmm0, xmm1);
+    __ addsd(xmm1, xmm0);
+    __ mulsd(xmm1, xmm0);
+    __ subsd(xmm1, xmm0);
+    __ divsd(xmm1, xmm0);
+    __ ucomisd(xmm0, xmm1);
+    __ cmpltsd(xmm0, xmm1);
 
-      __ andpd(xmm0, xmm1);
-      __ psllq(xmm0, 17);
-      __ psllq(xmm0, xmm1);
-      __ psrlq(xmm0, 17);
-      __ psrlq(xmm0, xmm1);
-      __ por(xmm0, xmm1);
-    }
+    __ andpd(xmm0, xmm1);
+    __ psllq(xmm0, 17);
+    __ psllq(xmm0, xmm1);
+    __ psrlq(xmm0, 17);
+    __ psrlq(xmm0, xmm1);
+    __ por(xmm0, xmm1);
   }
 
   // cmov.
@@ -442,8 +436,7 @@ TEST(DisasmIa320) {
   }
 
   {
-    if (CpuFeatures::IsSupported(SSE2) &&
-        CpuFeatures::IsSupported(SSE4_1)) {
+    if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);

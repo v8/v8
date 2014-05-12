@@ -8384,10 +8384,10 @@ static void PushPopJsspSimpleHelper(int reg_count,
 
   START();
 
-  // Registers x8 and x9 are used by the macro assembler for debug code (for
-  // example in 'Pop'), so we can't use them here. We can't use jssp because it
-  // will be the stack pointer for this test.
-  static RegList const allowed = ~(x8.Bit() | x9.Bit() | jssp.Bit());
+  // Registers in the TmpList can be used by the macro assembler for debug code
+  // (for example in 'Pop'), so we can't use them here. We can't use jssp
+  // because it will be the stack pointer for this test.
+  static RegList const allowed = ~(masm.TmpList()->list() | jssp.Bit());
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }

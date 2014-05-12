@@ -542,7 +542,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
-  CHECK(HasFastObjectElements());
+  CHECK(HasFastSmiElements());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 

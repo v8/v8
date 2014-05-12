@@ -1764,7 +1764,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
   }
   output_frame->SetState(Smi::FromInt(FullCodeGenerator::NO_REGISTERS));
-  Code* notify_failure = NotifyStubFailureBuiltin();
+  Code* notify_failure =
+      isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
   output_frame->SetContinuation(
       reinterpret_cast<intptr_t>(notify_failure->entry()));
 }

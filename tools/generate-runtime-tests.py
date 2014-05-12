@@ -24,8 +24,8 @@ THIS_SCRIPT = os.path.relpath(sys.argv[0])
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 339
-EXPECTED_FUZZABLE_COUNT = 316
+EXPECTED_FUNCTION_COUNT = 338
+EXPECTED_FUZZABLE_COUNT = 315
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 5
 

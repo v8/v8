@@ -50,6 +50,7 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
+  V(ArrayShift)                                \
   V(Bitwise)                                   \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
@@ -3544,6 +3545,10 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     return instance_type_ == CELL_TYPE || instance_type_ == PROPERTY_CELL_TYPE;
   }
 
+  bool IsMap() const {
+    return instance_type_ == MAP_TYPE;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::None();
   }
@@ -5707,6 +5712,13 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     if (HAllocate::cast(object)->IsNewSpaceAllocation()) {
       return false;
     }
+    // Storing a map or an immortal immovable object requires no write barriers
+    // if the object is the new space dominator.
+    if (value->IsConstant() &&
+        (HConstant::cast(value)->IsMap() ||
+         HConstant::cast(value)->ImmortalImmovable())) {
+      return false;
+    }
     // Likewise we don't need a write barrier if we store a value that
     // originates from the same allocation (via allocation folding).
     while (value->IsInnerAllocatedObject()) {
@@ -6394,7 +6406,7 @@ class ArrayInstructionInterface {
   virtual int MaxIndexOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
-  virtual ~ArrayInstructionInterface() { };
+  virtual ~ArrayInstructionInterface() { }
 
   static Representation KeyedAccessIndexRequirement(Representation r) {
     return r.IsInteger32() || SmiValuesAre32Bits()
@@ -7074,6 +7086,51 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
   Unique<Map> transitioned_map_;
   ElementsKind from_kind_;
   ElementsKind to_kind_;
+};
+
+
+class HArrayShift V8_FINAL : public HTemplateInstruction<2> {
+ public:
+  static HArrayShift* New(Zone* zone,
+                          HValue* context,
+                          HValue* object,
+                          ElementsKind kind) {
+    return new(zone) HArrayShift(context, object, kind);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
+    return Representation::Tagged();
+  }
+
+  HValue* context() const { return OperandAt(0); }
+  HValue* object() const { return OperandAt(1); }
+  ElementsKind kind() const { return kind_; }
+
+  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
+
+  DECLARE_CONCRETE_INSTRUCTION(ArrayShift);
+
+ protected:
+  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
+    HArrayShift* that = HArrayShift::cast(other);
+    return this->kind_ == that->kind_;
+  }
+
+ private:
+  HArrayShift(HValue* context, HValue* object, ElementsKind kind)
+      : kind_(kind) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, object);
+    SetChangesFlag(kNewSpacePromotion);
+    set_representation(Representation::Tagged());
+    if (IsFastSmiOrObjectElementsKind(kind)) {
+      SetChangesFlag(kArrayElements);
+    } else {
+      SetChangesFlag(kDoubleArrayElements);
+    }
+  }
+
+  ElementsKind kind_;
 };
 
 

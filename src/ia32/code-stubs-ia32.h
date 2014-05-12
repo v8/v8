@@ -20,10 +20,7 @@ void ArrayNativeCode(MacroAssembler* masm,
 class StoreBufferOverflowStub: public PlatformCodeStub {
  public:
   StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
-      : PlatformCodeStub(isolate), save_doubles_(save_fp) {
-    ASSERT(CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ||
-           save_fp == kDontSaveFPRegs);
-  }
+      : PlatformCodeStub(isolate), save_doubles_(save_fp) { }
 
   void Generate(MacroAssembler* masm);
 
@@ -197,8 +194,6 @@ class RecordWriteStub: public PlatformCodeStub {
         regs_(object,   // An input reg.
               address,  // An input reg.
               value) {  // One scratch reg.
-    ASSERT(CpuFeatures::IsSafeForSnapshot(isolate, SSE2) ||
-           fp_mode == kDontSaveFPRegs);
   }
 
   enum Mode {
@@ -340,7 +335,6 @@ class RecordWriteStub: public PlatformCodeStub {
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
       if (mode == kSaveFPRegs) {
-        CpuFeatureScope scope(masm, SSE2);
         masm->sub(esp,
                   Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
         // Save all XMM registers except XMM0.
@@ -354,7 +348,6 @@ class RecordWriteStub: public PlatformCodeStub {
     inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
-        CpuFeatureScope scope(masm, SSE2);
         // Restore all XMM registers except XMM0.
         for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);

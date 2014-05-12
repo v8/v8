@@ -123,20 +123,17 @@ TEST(LoadAndStoreWithRepresentation) {
   __ j(not_equal, &exit);
 
   // Test 5.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm, SSE2);
-    __ mov(eax, Immediate(5));  // Test XMM move immediate.
-    __ Move(xmm0, 0.0);
-    __ Move(xmm1, 0.0);
-    __ ucomisd(xmm0, xmm1);
-    __ j(not_equal, &exit);
-    __ Move(xmm2, 991.01);
-    __ ucomisd(xmm0, xmm2);
-    __ j(equal, &exit);
-    __ Move(xmm0, 991.01);
-    __ ucomisd(xmm0, xmm2);
-    __ j(not_equal, &exit);
-  }
+  __ mov(eax, Immediate(5));  // Test XMM move immediate.
+  __ Move(xmm0, 0.0);
+  __ Move(xmm1, 0.0);
+  __ ucomisd(xmm0, xmm1);
+  __ j(not_equal, &exit);
+  __ Move(xmm2, 991.01);
+  __ ucomisd(xmm0, xmm2);
+  __ j(equal, &exit);
+  __ Move(xmm0, 991.01);
+  __ ucomisd(xmm0, xmm2);
+  __ j(not_equal, &exit);
 
   // Test 6.
   __ mov(eax, Immediate(6));

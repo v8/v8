@@ -3060,7 +3060,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   __ Addu(t0, t0, Operand(DescriptorArray::kFirstOffset - kHeapObjectTag));
   // Calculate the end of the descriptor array.
   __ mov(a2, t0);
-  __ sll(t1, a3, kPointerSizeLog2 - kSmiTagSize);
+  __ sll(t1, a3, kPointerSizeLog2);
   __ Addu(a2, a2, t1);
 
   // Loop through all the keys in the descriptor array. If one of these is the

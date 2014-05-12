@@ -976,6 +976,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Set stack pointer back to first register to retain
   ASSERT(csp.Is(__ StackPointer()));
   __ Mov(csp, fp);
+  __ AssertStackConsistency();
 
   // Restore registers.
   __ PopCPURegList(registers_to_retain);
@@ -1315,7 +1316,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(Address* return_address,
   ASSERT(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
-  Object* result = Execution::HandleStackGuardInterrupt(isolate);
+  Object* result = isolate->stack_guard()->HandleInterrupts();
 
   if (*code_handle != re_code) {  // Return address no longer valid
     int delta = code_handle->address() - re_code->address();

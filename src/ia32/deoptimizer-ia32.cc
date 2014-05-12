@@ -209,7 +209,6 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  if (!CpuFeatures::IsSupported(SSE2)) return;
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
@@ -231,13 +230,6 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
 }
 
 
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  Builtins::Name name = CpuFeatures::IsSupported(SSE2) ?
-      Builtins::kNotifyStubFailureSaveDoubles : Builtins::kNotifyStubFailure;
-  return isolate_->builtins()->builtin(name);
-}
-
-
 #define __ masm()->
 
 void Deoptimizer::EntryGenerator::Generate() {
@@ -249,13 +241,10 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kDoubleRegsSize = kDoubleSize *
                               XMMRegister::kNumAllocatableRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-      XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-      int offset = i * kDoubleSize;
-      __ movsd(Operand(esp, offset), xmm_reg);
-    }
+  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+    int offset = i * kDoubleSize;
+    __ movsd(Operand(esp, offset), xmm_reg);
   }
 
   __ pushad();
@@ -300,15 +289,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   int double_regs_offset = FrameDescription::double_registers_offset();
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-    // Fill in the double input registers.
-    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-      int dst_offset = i * kDoubleSize + double_regs_offset;
-      int src_offset = i * kDoubleSize;
-      __ movsd(xmm0, Operand(esp, src_offset));
-      __ movsd(Operand(ebx, dst_offset), xmm0);
-    }
+  // Fill in the double input registers.
+  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+    int dst_offset = i * kDoubleSize + double_regs_offset;
+    int src_offset = i * kDoubleSize;
+    __ movsd(xmm0, Operand(esp, src_offset));
+    __ movsd(Operand(ebx, dst_offset), xmm0);
   }
 
   // Clear FPU all exceptions.
@@ -387,13 +373,10 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ j(below, &outer_push_loop);
 
   // In case of a failed STUB, we have to restore the XMM registers.
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope scope(masm(), SSE2);
-    for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
-      XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
-      int src_offset = i * kDoubleSize + double_regs_offset;
-      __ movsd(xmm_reg, Operand(ebx, src_offset));
-    }
+  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+    XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
+    int src_offset = i * kDoubleSize + double_regs_offset;
+    __ movsd(xmm_reg, Operand(ebx, src_offset));
   }
 
   // Push state, pc, and continuation from the last output frame.

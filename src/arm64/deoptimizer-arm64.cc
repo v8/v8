@@ -110,11 +110,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 }
 
 
-Code* Deoptimizer::NotifyStubFailureBuiltin() {
-  return isolate_->builtins()->builtin(Builtins::kNotifyStubFailureSaveDoubles);
-}
-
-
 #define __ masm->
 
 static void CopyRegisterDumpToFrame(MacroAssembler* masm,

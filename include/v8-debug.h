@@ -150,21 +150,12 @@ class V8_EXPORT Debug {
   typedef void (*MessageHandler2)(const Message& message);
 
   /**
-   * Debug host dispatch callback function.
-   */
-  typedef void (*HostDispatchHandler)();
-
-  /**
    * Callback function for the host to ensure debug messages are processed.
    */
   typedef void (*DebugMessageDispatchHandler)();
 
   static bool SetDebugEventListener2(EventCallback2 that,
                                      Handle<Value> data = Handle<Value>());
-
-  // Set a JavaScript debug event listener.
-  static bool SetDebugEventListener(v8::Handle<v8::Object> that,
-                                    Handle<Value> data = Handle<Value>());
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
@@ -192,10 +183,6 @@ class V8_EXPORT Debug {
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
                           ClientData* client_data = NULL);
-
-  // Dispatch interface.
-  static void SetHostDispatchHandler(HostDispatchHandler handler,
-                                     int period = 100);
 
   /**
    * Register a callback function to be called when a debug message has been

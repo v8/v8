@@ -342,6 +342,17 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
+void ArrayShiftStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  // x0: receiver
+  static Register registers[] = { x0 };
+  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Builtins::c_function_address(Builtins::c_ArrayShift);
+}
+
+
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand
@@ -4392,12 +4403,6 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
-bool CodeStub::CanUseFPRegisters() {
-  // FP registers always available on ARM64.
-  return true;
-}
-
-
 void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   // We need some extra registers for this stub, they have been allocated
   // but we need to save them before using them.
@@ -4646,7 +4651,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(isolate(), 1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ Call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
@@ -4661,22 +4666,31 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
-// a "Push lr" instruction, followed by a call.
-static const unsigned int kProfileEntryHookCallSize =
-    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
+static unsigned int GetProfileEntryHookCallSize(MacroAssembler* masm) {
+  // The entry hook is a "BumpSystemStackPointer" instruction (sub),
+  // followed by a "Push lr" instruction, followed by a call.
+  unsigned int size =
+      Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
+  if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
+    // If ALWAYS_ALIGN_CSP then there will be an extra bic instruction in
+    // "BumpSystemStackPointer".
+    size += kInstructionSize;
+  }
+  return size;
+}
 
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
     ProfileEntryHookStub stub(masm->isolate());
     Assembler::BlockConstPoolScope no_const_pools(masm);
+    DontEmitDebugCodeScope no_debug_code(masm);
     Label entry_hook_call_start;
     __ Bind(&entry_hook_call_start);
     __ Push(lr);
     __ CallStub(&stub);
     ASSERT(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           kProfileEntryHookCallSize);
+           GetProfileEntryHookCallSize(masm));
 
     __ Pop(lr);
   }
@@ -4694,7 +4708,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   const int kNumSavedRegs = kCallerSaved.Count();
 
   // Compute the function's address as the first argument.
-  __ Sub(x0, lr, kProfileEntryHookCallSize);
+  __ Sub(x0, lr, GetProfileEntryHookCallSize(masm));
 
 #if V8_HOST_ARCH_ARM64
   uintptr_t entry_hook =

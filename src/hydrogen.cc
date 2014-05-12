@@ -2416,23 +2416,15 @@ HValue* HGraphBuilder::BuildNewElementsCapacity(HValue* old_capacity) {
 }
 
 
-void HGraphBuilder::BuildNewSpaceArrayCheck(HValue* length, ElementsKind kind) {
-  int element_size = IsFastDoubleElementsKind(kind) ? kDoubleSize
-                                                    : kPointerSize;
-  int max_size = Page::kMaxRegularHeapObjectSize / element_size;
-  max_size -= JSArray::kSize / element_size;
-  HConstant* max_size_constant = Add<HConstant>(max_size);
-  Add<HBoundsCheck>(length, max_size_constant);
-}
-
-
 HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  HValue* elements,
                                                  ElementsKind kind,
                                                  ElementsKind new_kind,
                                                  HValue* length,
                                                  HValue* new_capacity) {
-  BuildNewSpaceArrayCheck(new_capacity, new_kind);
+  Add<HBoundsCheck>(new_capacity, Add<HConstant>(
+          (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
+          ElementsKindToShiftSize(kind)));
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);
@@ -7833,6 +7825,36 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       }
 
       ast_context()->ReturnValue(new_size);
+      return true;
+    }
+    case kArrayShift: {
+      if (receiver_map.is_null()) return false;
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      ASSERT(receiver_map->is_extensible());
+
+      // If there may be elements accessors in the prototype chain, the fast
+      // inlined version can't be used.
+      if (receiver_map->DictionaryElementsInPrototypeChainOnly()) return false;
+
+      // If there currently can be no elements accessors on the prototype chain,
+      // it doesn't mean that there won't be any later. Install a full prototype
+      // chain check to trap element accessors being installed on the prototype
+      // chain, which would cause elements to go to dictionary mode and result
+      // in a map change.
+      BuildCheckPrototypeMaps(
+          handle(JSObject::cast(receiver_map->prototype()), isolate()),
+          Handle<JSObject>::null());
+
+      Drop(expr->arguments()->length());
+      HValue* receiver = Pop();
+      Drop(1);  // function
+
+      receiver = AddCheckMap(receiver, receiver_map);
+      HInstruction* result = NewUncasted<HArrayShift>(receiver, kind);
+      ast_context()->ReturnInstruction(result, expr->id());
       return true;
     }
     default:

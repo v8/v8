@@ -2986,7 +2986,7 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kPointerSize == 4);
   __ imul(ecx, ecx, DescriptorArray::kDescriptorSize);
-  __ lea(ecx, Operand(ebx, ecx, times_2, DescriptorArray::kFirstOffset));
+  __ lea(ecx, Operand(ebx, ecx, times_4, DescriptorArray::kFirstOffset));
   // Calculate location of the first key name.
   __ add(ebx, Immediate(DescriptorArray::kFirstOffset));
   // Loop through all the keys in the descriptor array. If one of these is the
@@ -3446,12 +3446,8 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
 
-  if (CpuFeatures::IsSupported(SSE2)) {
-    MathPowStub stub(isolate(), MathPowStub::ON_STACK);
-    __ CallStub(&stub);
-  } else {
-    __ CallRuntime(Runtime::kHiddenMathPowSlow, 2);
-  }
+  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
+  __ CallStub(&stub);
   context()->Plug(eax);
 }
 

@@ -116,7 +116,7 @@ class DontEmitDebugCodeScope BASE_EMBEDDED {
   }
   ~DontEmitDebugCodeScope() {
     assembler_->set_emit_debug_code(old_value_);
-  };
+  }
  private:
   AssemblerBase* assembler_;
   bool old_value_;

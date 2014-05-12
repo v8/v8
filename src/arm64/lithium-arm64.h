@@ -28,6 +28,7 @@ class LCodeGen;
   V(ArgumentsLength)                            \
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
+  V(ArrayShift)                                 \
   V(BitI)                                       \
   V(BitS)                                       \
   V(BoundsCheck)                                \
@@ -2451,7 +2452,7 @@ class LStoreKeyedExternal V8_FINAL : public LStoreKeyed<1> {
                       LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 
@@ -2465,7 +2466,7 @@ class LStoreKeyedFixed V8_FINAL : public LStoreKeyed<1> {
                    LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 
@@ -2479,7 +2480,7 @@ class LStoreKeyedFixedDouble V8_FINAL : public LStoreKeyed<1> {
                          LOperand* temp) :
       LStoreKeyed<1>(elements, key, value) {
     temps_[0] = temp;
-  };
+  }
 
   LOperand* temp() { return temps_[0]; }
 
@@ -2849,6 +2850,21 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 2> {
   }
   ElementsKind from_kind() const { return hydrogen()->from_kind(); }
   ElementsKind to_kind() const { return hydrogen()->to_kind(); }
+};
+
+
+class LArrayShift V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+ public:
+  LArrayShift(LOperand* context, LOperand* object) {
+    inputs_[0] = context;
+    inputs_[1] = object;
+  }
+
+  LOperand* context() const { return inputs_[0]; }
+  LOperand* object() const { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(ArrayShift, "array-shift")
+  DECLARE_HYDROGEN_ACCESSOR(ArrayShift)
 };
 
 

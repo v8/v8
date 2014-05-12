@@ -49,9 +49,8 @@ function InstantiateFunction(data, name) {
   if (!isFunctionCached) {
     try {
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      var has_proto = !(flags & (1 << kRemovePrototypeBit));
       var prototype;
-      if (has_proto) {
+      if (!(flags & (1 << kRemovePrototypeBit))) {
         var template = %GetTemplateField(data, kApiPrototypeTemplateOffset);
         prototype = typeof template === 'undefined'
             ?  {} : Instantiate(template);
@@ -68,9 +67,6 @@ function InstantiateFunction(data, name) {
       if (name) %FunctionSetName(fun, name);
       var doNotCache = flags & (1 << kDoNotCacheBit);
       if (!doNotCache) cache[serialNumber] = fun;
-      if (has_proto && flags & (1 << kReadOnlyPrototypeBit)) {
-        %FunctionSetReadOnlyPrototype(fun);
-      }
       ConfigureTemplateInstance(fun, data);
       if (doNotCache) return fun;
     } catch (e) {

@@ -775,7 +775,7 @@ static void KeyedStoreGenerateGenericHelper(
 
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(eax, ebx, ecx, edi, xmm0,
-                                 &transition_double_elements, false);
+                                 &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
     __ add(FieldOperand(edx, JSArray::kLengthOffset),

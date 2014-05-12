@@ -309,6 +309,16 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
+void ArrayShiftStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { eax };
+  descriptor->register_param_count_ = 1;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Builtins::c_function_address(Builtins::c_ArrayShift);
+}
+
+
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { edx, eax };
@@ -456,7 +466,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ pushad();
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatureScope scope(masm, SSE2);
     __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
@@ -473,7 +482,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    CpuFeatureScope scope(masm, SSE2);
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(reg, Operand(esp, i * kDoubleSize));
@@ -726,7 +734,6 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  CpuFeatureScope use_sse2(masm, SSE2);
   Factory* factory = isolate()->factory();
   const Register exponent = eax;
   const Register base = edx;
@@ -2041,15 +2048,14 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Label non_number_comparison;
   Label unordered;
   __ bind(&generic_heap_number_comparison);
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CpuFeatureScope use_sse2(masm, SSE2);
+
+  FloatingPointHelper::LoadSSE2Operands(masm, &non_number_comparison);
+  __ ucomisd(xmm0, xmm1);
+  // Don't base result on EFLAGS when a NaN is involved.
+  __ j(parity_even, &unordered, Label::kNear);
+
+  if (CpuFeatures::IsSupported(CMOV)) {
     CpuFeatureScope use_cmov(masm, CMOV);
-
-    FloatingPointHelper::LoadSSE2Operands(masm, &non_number_comparison);
-    __ ucomisd(xmm0, xmm1);
-
-    // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered, Label::kNear);
     // Return a result of -1, 0, or 1, based on EFLAGS.
     __ mov(eax, 0);  // equal
     __ mov(ecx, Immediate(Smi::FromInt(1)));
@@ -2058,15 +2064,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ cmov(below, eax, ecx);
     __ ret(0);
   } else {
-    FloatingPointHelper::CheckFloatOperands(
-        masm, &non_number_comparison, ebx);
-    FloatingPointHelper::LoadFloatOperand(masm, eax);
-    FloatingPointHelper::LoadFloatOperand(masm, edx);
-    __ FCmp();
-
-    // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered, Label::kNear);
-
     Label below_label, above_label;
     // Return a result of -1, 0, or 1, based on EFLAGS.
     __ j(below, &below_label, Label::kNear);
@@ -2604,28 +2601,20 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   // It is important that the store buffer overflow stubs are generated first.
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
   CreateAllocationSiteStub::GenerateAheadOfTime(isolate);
-  if (Serializer::enabled(isolate)) {
-    PlatformFeatureScope sse2(isolate, SSE2);
-    BinaryOpICStub::GenerateAheadOfTime(isolate);
-    BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
-  } else {
-    BinaryOpICStub::GenerateAheadOfTime(isolate);
-    BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
-  }
+  BinaryOpICStub::GenerateAheadOfTime(isolate);
+  BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(isolate);
 }
 
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
-  if (CpuFeatures::IsSupported(SSE2)) {
-    CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
-    // Stubs might already be in the snapshot, detect that and don't regenerate,
-    // which would lead to code stub initialization state being messed up.
-    Code* save_doubles_code;
-    if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
-      save_doubles_code = *(save_doubles.GetCode());
-    }
-    isolate->set_fp_stubs_generated(true);
+  CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
+  // Stubs might already be in the snapshot, detect that and don't regenerate,
+  // which would lead to code stub initialization state being messed up.
+  Code* save_doubles_code;
+  if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
+    save_doubles_code = *(save_doubles.GetCode());
   }
+  isolate->set_fp_stubs_generated(true);
 }
 
 
@@ -3775,8 +3764,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or SSE2 or CMOV is unsupported.
-  if (CpuFeatures::IsSupported(SSE2) && CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatureScope scope1(masm, SSE2);
+  if (CpuFeatures::IsSupported(CMOV)) {
     CpuFeatureScope scope2(masm, CMOV);
 
     // Load left and right operand.
@@ -4322,15 +4310,8 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
-  if (CpuFeatures::IsSafeForSnapshot(isolate, SSE2)) {
-    StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
-    stub2.GetCode();
-  }
-}
-
-
-bool CodeStub::CanUseFPRegisters() {
-  return CpuFeatures::IsSupported(SSE2);
+  StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
+  stub2.GetCode();
 }
 
 
@@ -4606,15 +4587,14 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                                  ecx,
                                  edi,
                                  xmm0,
-                                 &slow_elements_from_double,
-                                 false);
+                                 &slow_elements_from_double);
   __ pop(edx);
   __ ret(0);
 }
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(isolate(), 1, fp_registers_ ? kSaveFPRegs : kDontSaveFPRegs);
+  CEntryStub ces(isolate(), 1, kSaveFPRegs);
   __ call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

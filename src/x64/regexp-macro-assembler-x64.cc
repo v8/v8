@@ -1210,7 +1210,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   ASSERT(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
-  Object* result = Execution::HandleStackGuardInterrupt(isolate);
+  Object* result = isolate->stack_guard()->HandleInterrupts();
 
   if (*code_handle != re_code) {  // Return address no longer valid
     intptr_t delta = code_handle->address() - re_code->address();

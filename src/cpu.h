@@ -44,6 +44,7 @@ class CPU V8_FINAL BASE_EMBEDDED {
   // arm implementer/part information
   int implementer() const { return implementer_; }
   static const int ARM = 0x41;
+  static const int NVIDIA = 0x4e;
   static const int QUALCOMM = 0x51;
   int architecture() const { return architecture_; }
   int part() const { return part_; }

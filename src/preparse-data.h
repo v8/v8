@@ -58,7 +58,7 @@ class SingletonLogger : public ParserRecorder {
     literals_ = literals;
     properties_ = properties;
     strict_mode_ = strict_mode;
-  };
+  }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector

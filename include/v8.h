@@ -1039,7 +1039,7 @@ class V8_EXPORT ScriptCompiler {
     int length;
     BufferPolicy buffer_policy;
 
-  private:
+   private:
      // Prevent copying. Not implemented.
      CachedData(const CachedData&);
      CachedData& operator=(const CachedData&);
@@ -2428,6 +2428,10 @@ class ReturnValue {
   V8_INLINE void SetEmptyString();
   // Convenience getter for Isolate
   V8_INLINE Isolate* GetIsolate();
+
+  // Pointer setter: Uncompilable to prevent inadvertent misuse.
+  template <typename S>
+  V8_INLINE void Set(S* whatever);
 
  private:
   template<class F> friend class ReturnValue;
@@ -3865,8 +3869,8 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit,
                          uint32_t number_of_processors);
 
-  int max_new_space_size() const { return max_new_space_size_; }
-  void set_max_new_space_size(int value) { max_new_space_size_ = value; }
+  int max_semi_space_size() const { return max_semi_space_size_; }
+  void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
   int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
   int max_executable_size() const { return max_executable_size_; }
@@ -3885,7 +3889,7 @@ class V8_EXPORT ResourceConstraints {
   }
 
  private:
-  int max_new_space_size_;
+  int max_semi_space_size_;
   int max_old_space_size_;
   int max_executable_size_;
   uint32_t* stack_limit_;
@@ -5526,7 +5530,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 74;
+  static const int kContextEmbedderDataIndex = 75;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -5971,6 +5975,13 @@ template<typename T>
 Isolate* ReturnValue<T>::GetIsolate() {
   // Isolate is always the pointer below the default value on the stack.
   return *reinterpret_cast<Isolate**>(&value_[-2]);
+}
+
+template<typename T>
+template<typename S>
+void ReturnValue<T>::Set(S* whatever) {
+  // Uncompilable to prevent inadvertent misuse.
+  TYPE_CHECK(S*, Primitive);
 }
 
 template<typename T>

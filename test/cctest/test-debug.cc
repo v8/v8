@@ -5788,108 +5788,6 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 }
 
 
-/* Test DebuggerHostDispatch */
-/* In this test, the debugger waits for a command on a breakpoint
- * and is dispatching host commands while in the infinite loop.
- */
-
-class HostDispatchV8Thread : public v8::internal::Thread {
- public:
-  HostDispatchV8Thread() : Thread("HostDispatchV8Thread") { }
-  void Run();
-};
-
-class HostDispatchDebuggerThread : public v8::internal::Thread {
- public:
-  HostDispatchDebuggerThread() : Thread("HostDispatchDebuggerThread") { }
-  void Run();
-};
-
-Barriers* host_dispatch_barriers;
-
-static void HostDispatchMessageHandler(const v8::Debug::Message& message) {
-  static char print_buffer[1000];
-  v8::String::Value json(message.GetJSON());
-  Utf16ToAscii(*json, json.length(), print_buffer);
-}
-
-
-static void HostDispatchDispatchHandler() {
-  host_dispatch_barriers->semaphore_1.Signal();
-}
-
-
-void HostDispatchV8Thread::Run() {
-  const char* source_1 = "var y_global = 3;\n"
-    "function cat( new_value ) {\n"
-    "  var x = new_value;\n"
-    "  y_global = 4;\n"
-    "  x = 3 * x + 1;\n"
-    "  y_global = 5;\n"
-    "  return x;\n"
-    "}\n"
-    "\n";
-  const char* source_2 = "cat(17);\n";
-
-  v8::Isolate::Scope isolate_scope(CcTest::isolate());
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Set up message and host dispatch handlers.
-  v8::Debug::SetMessageHandler2(HostDispatchMessageHandler);
-  v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
-
-  CompileRun(source_1);
-  host_dispatch_barriers->barrier_1.Wait();
-  host_dispatch_barriers->barrier_2.Wait();
-  CompileRun(source_2);
-}
-
-
-void HostDispatchDebuggerThread::Run() {
-  const int kBufSize = 1000;
-  uint16_t buffer[kBufSize];
-
-  const char* command_1 = "{\"seq\":101,"
-      "\"type\":\"request\","
-      "\"command\":\"setbreakpoint\","
-      "\"arguments\":{\"type\":\"function\",\"target\":\"cat\",\"line\":3}}";
-  const char* command_2 = "{\"seq\":102,"
-      "\"type\":\"request\","
-      "\"command\":\"continue\"}";
-
-  v8::Isolate* isolate = CcTest::isolate();
-  // v8 thread initializes, runs source_1
-  host_dispatch_barriers->barrier_1.Wait();
-  // 1: Set breakpoint in cat().
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_1, buffer));
-
-  host_dispatch_barriers->barrier_2.Wait();
-  // v8 thread starts compiling source_2.
-  // Break happens, to run queued commands and host dispatches.
-  // Wait for host dispatch to be processed.
-  host_dispatch_barriers->semaphore_1.Wait();
-  // 2: Continue evaluation
-  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_2, buffer));
-}
-
-
-TEST(DebuggerHostDispatch) {
-  HostDispatchDebuggerThread host_dispatch_debugger_thread;
-  HostDispatchV8Thread host_dispatch_v8_thread;
-
-  // Create a V8 environment
-  Barriers stack_allocated_host_dispatch_barriers;
-  host_dispatch_barriers = &stack_allocated_host_dispatch_barriers;
-
-  host_dispatch_v8_thread.Start();
-  host_dispatch_debugger_thread.Start();
-
-  host_dispatch_v8_thread.Join();
-  host_dispatch_debugger_thread.Join();
-}
-
-
 /* Test DebugMessageDispatch */
 /* In this test, the V8 thread waits for a message from the debug thread.
  * The DebugMessageDispatchHandler is executed from the debugger thread
@@ -6834,18 +6732,18 @@ static void BreakMessageHandler(const v8::Debug::Message& message) {
   } else if (message.IsEvent() && message.GetEvent() == v8::AfterCompile) {
     i::HandleScope scope(isolate);
 
-    bool is_debug_break = isolate->stack_guard()->IsDebugBreak();
+    bool is_debug_break = isolate->stack_guard()->CheckDebugBreak();
     // Force DebugBreak flag while serializer is working.
-    isolate->stack_guard()->DebugBreak();
+    isolate->stack_guard()->RequestDebugBreak();
 
     // Force serialization to trigger some internal JS execution.
     message.GetJSON();
 
     // Restore previous state.
     if (is_debug_break) {
-      isolate->stack_guard()->DebugBreak();
+      isolate->stack_guard()->RequestDebugBreak();
     } else {
-      isolate->stack_guard()->Continue(i::DEBUGBREAK);
+      isolate->stack_guard()->ClearDebugBreak();
     }
   }
 }

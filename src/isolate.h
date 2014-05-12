@@ -359,6 +359,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(DebuggerAgent*, debugger_agent_instance, NULL)                             \
+  V(InterruptCallback, api_interrupt_callback, NULL)                           \
+  V(void*, api_interrupt_callback_data, NULL)                                  \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -477,8 +479,6 @@ class Isolate {
   void TearDown();
 
   static void GlobalTearDown();
-
-  bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   static void SetCrashIfDefaultIsolateInitialized();
   // Ensures that process-wide resources and the default isolate have been
@@ -759,6 +759,8 @@ class Isolate {
   Object* StackOverflow();
   Object* TerminateExecution();
   void CancelTerminateExecution();
+
+  void InvokeApiInterruptCallback();
 
   // Administration
   void Iterate(ObjectVisitor* v);
@@ -1134,14 +1136,12 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  // This mutex protects highest_thread_id_, thread_data_table_ and
-  // default_isolate_.
+  // This mutex protects highest_thread_id_ and thread_data_table_.
   static Mutex process_wide_mutex_;
 
   static Thread::LocalStorageKey per_isolate_thread_data_key_;
   static Thread::LocalStorageKey isolate_key_;
   static Thread::LocalStorageKey thread_id_key_;
-  static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.

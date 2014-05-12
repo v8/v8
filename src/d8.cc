@@ -1649,7 +1649,7 @@ int Shell::Main(int argc, char* argv[]) {
     v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   }
   int result = 0;
-  Isolate* isolate = Isolate::GetCurrent();
+  Isolate* isolate = Isolate::New();
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
@@ -1659,6 +1659,7 @@ int Shell::Main(int argc, char* argv[]) {
 #endif
   DumbLineEditor dumb_line_editor(isolate);
   {
+    Isolate::Scope scope(isolate);
     Initialize(isolate);
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
     vTune::InitializeVtuneForV8();
@@ -1722,6 +1723,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+  isolate->Dispose();
   V8::Dispose();
 
   OnExit();

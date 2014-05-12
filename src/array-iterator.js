@@ -27,15 +27,19 @@
 
 'use strict';
 
+
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // var $Array = global.Array;
+
 
 var arrayIteratorObjectSymbol = GLOBAL_PRIVATE("ArrayIterator#object");
 var arrayIteratorNextIndexSymbol = GLOBAL_PRIVATE("ArrayIterator#next");
 var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
 
+
 function ArrayIterator() {}
+
 
 // 15.4.5.1 CreateArrayIterator Abstract Operation
 function CreateArrayIterator(array, kind) {
@@ -47,10 +51,12 @@ function CreateArrayIterator(array, kind) {
   return iterator;
 }
 
+
 // 15.19.4.3.4 CreateItrResultObject
 function CreateIteratorResultObject(value, done) {
   return {value: value, done: done};
 }
+
 
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
@@ -83,30 +89,34 @@ function ArrayIteratorNext() {
   return CreateIteratorResultObject(index, false);
 }
 
+
 function ArrayEntries() {
   return CreateArrayIterator(this, ITERATOR_KIND_ENTRIES);
 }
+
 
 function ArrayValues() {
   return CreateArrayIterator(this, ITERATOR_KIND_VALUES);
 }
 
+
 function ArrayKeys() {
   return CreateArrayIterator(this, ITERATOR_KIND_KEYS);
 }
 
+
 function SetUpArrayIterator() {
   %CheckIsBootstrapping();
 
+  %FunctionSetPrototype(ArrayIterator, new $Object());
   %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
-  %FunctionSetReadOnlyPrototype(ArrayIterator);
 
   InstallFunctions(ArrayIterator.prototype, DONT_ENUM, $Array(
     'next', ArrayIteratorNext
   ));
 }
-
 SetUpArrayIterator();
+
 
 function ExtendArrayPrototype() {
   %CheckIsBootstrapping();
@@ -117,5 +127,4 @@ function ExtendArrayPrototype() {
     'keys', ArrayKeys
   ));
 }
-
 ExtendArrayPrototype();

@@ -2483,7 +2483,7 @@ void MarkCompactCollector::AfterMarking() {
 
 
 void MarkCompactCollector::ProcessMapCaches() {
-  Object* raw_context = heap()->native_contexts_list_;
+  Object* raw_context = heap()->native_contexts_list();
   while (raw_context != heap()->undefined_value()) {
     Context* context = reinterpret_cast<Context*>(raw_context);
     if (IsMarked(context)) {
@@ -3641,9 +3641,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
       PropertyCell::BodyDescriptor::IterateBody(cell, &updating_visitor);
     }
   }
-
-  // Update the head of the native contexts list in the heap.
-  updating_visitor.VisitPointer(heap_->native_contexts_list_address());
 
   heap_->string_table()->Iterate(&updating_visitor);
   updating_visitor.VisitPointer(heap_->weak_object_to_code_table_address());

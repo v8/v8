@@ -1194,7 +1194,7 @@ void MacroAssembler::BranchF(Label* target,
         break;
       default:
         CHECK(0);
-    };
+    }
   }
 
   if (bd == PROTECT) {
@@ -5236,7 +5236,7 @@ void MacroAssembler::CheckMapDeprecated(Handle<Map> map,
   if (map->CanBeDeprecated()) {
     li(scratch, Operand(map));
     lw(scratch, FieldMemOperand(scratch, Map::kBitField3Offset));
-    And(scratch, scratch, Operand(Smi::FromInt(Map::Deprecated::kMask)));
+    And(scratch, scratch, Operand(Map::Deprecated::kMask));
     Branch(if_deprecated, ne, scratch, Operand(zero_reg));
   }
 }
@@ -5493,7 +5493,8 @@ void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
 void MacroAssembler::EnumLength(Register dst, Register map) {
   STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
   lw(dst, FieldMemOperand(map, Map::kBitField3Offset));
-  And(dst, dst, Operand(Smi::FromInt(Map::EnumLengthBits::kMask)));
+  And(dst, dst, Operand(Map::EnumLengthBits::kMask));
+  SmiTag(dst);
 }
 
 

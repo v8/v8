@@ -734,7 +734,7 @@ class MacroAssembler: public Assembler {
                       FPURegister cmp1,
                       FPURegister cmp2) {
     BranchF(target, nan, cc, cmp1, cmp2, bd);
-  };
+  }
 
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
@@ -1486,7 +1486,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   template<typename Field>
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
-    static const int mask = (Field::kMask >> shift) << kSmiTagSize;
+    static const int mask = Field::kMask >> shift;
     srl(reg, reg, shift);
     And(reg, reg, Operand(mask));
   }

@@ -19269,7 +19269,6 @@ TEST(IsolateNewDispose) {
   v8::Isolate* current_isolate = CcTest::isolate();
   v8::Isolate* isolate = v8::Isolate::New();
   CHECK(isolate != NULL);
-  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->IsDefaultIsolate());
   CHECK(current_isolate != isolate);
   CHECK(current_isolate == CcTest::isolate());
 
@@ -19534,10 +19533,9 @@ class InitDefaultIsolateThread : public v8::internal::Thread {
     isolate->Enter();
     switch (testCase_) {
       case SetResourceConstraints: {
-        static const int K = 1024;
         v8::ResourceConstraints constraints;
-        constraints.set_max_new_space_size(2 * K * K);
-        constraints.set_max_old_space_size(4 * K * K);
+        constraints.set_max_semi_space_size(1);
+        constraints.set_max_old_space_size(4);
         v8::SetResourceConstraints(CcTest::isolate(), &constraints);
         break;
       }
@@ -22150,152 +22148,152 @@ class ApiCallOptimizationChecker {
     info.GetReturnValue().Set(v8_str("returned"));
   }
 
-  public:
-    enum SignatureType {
-      kNoSignature,
-      kSignatureOnReceiver,
-      kSignatureOnPrototype
-    };
+ public:
+  enum SignatureType {
+    kNoSignature,
+    kSignatureOnReceiver,
+    kSignatureOnPrototype
+  };
 
-    void RunAll() {
-      SignatureType signature_types[] =
-        {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
-      for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
-        SignatureType signature_type = signature_types[i];
-        for (int j = 0; j < 2; j++) {
-          bool global = j == 0;
-          int key = signature_type +
-              ARRAY_SIZE(signature_types) * (global ? 1 : 0);
-          Run(signature_type, global, key);
-        }
+  void RunAll() {
+    SignatureType signature_types[] =
+      {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
+    for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
+      SignatureType signature_type = signature_types[i];
+      for (int j = 0; j < 2; j++) {
+        bool global = j == 0;
+        int key = signature_type +
+            ARRAY_SIZE(signature_types) * (global ? 1 : 0);
+        Run(signature_type, global, key);
       }
     }
+  }
 
-    void Run(SignatureType signature_type, bool global, int key) {
-      v8::Isolate* isolate = CcTest::isolate();
-      v8::HandleScope scope(isolate);
-      // Build a template for signature checks.
-      Local<v8::ObjectTemplate> signature_template;
-      Local<v8::Signature> signature;
-      {
-        Local<v8::FunctionTemplate> parent_template =
-          FunctionTemplate::New(isolate);
-        parent_template->SetHiddenPrototype(true);
-        Local<v8::FunctionTemplate> function_template
-            = FunctionTemplate::New(isolate);
-        function_template->Inherit(parent_template);
-        switch (signature_type) {
-          case kNoSignature:
-            break;
-          case kSignatureOnReceiver:
-            signature = v8::Signature::New(isolate, function_template);
-            break;
-          case kSignatureOnPrototype:
-            signature = v8::Signature::New(isolate, parent_template);
-            break;
-        }
-        signature_template = function_template->InstanceTemplate();
+  void Run(SignatureType signature_type, bool global, int key) {
+    v8::Isolate* isolate = CcTest::isolate();
+    v8::HandleScope scope(isolate);
+    // Build a template for signature checks.
+    Local<v8::ObjectTemplate> signature_template;
+    Local<v8::Signature> signature;
+    {
+      Local<v8::FunctionTemplate> parent_template =
+        FunctionTemplate::New(isolate);
+      parent_template->SetHiddenPrototype(true);
+      Local<v8::FunctionTemplate> function_template
+          = FunctionTemplate::New(isolate);
+      function_template->Inherit(parent_template);
+      switch (signature_type) {
+        case kNoSignature:
+          break;
+        case kSignatureOnReceiver:
+          signature = v8::Signature::New(isolate, function_template);
+          break;
+        case kSignatureOnPrototype:
+          signature = v8::Signature::New(isolate, parent_template);
+          break;
       }
-      // Global object must pass checks.
-      Local<v8::Context> context =
-          v8::Context::New(isolate, NULL, signature_template);
-      v8::Context::Scope context_scope(context);
-      // Install regular object that can pass signature checks.
-      Local<Object> function_receiver = signature_template->NewInstance();
-      context->Global()->Set(v8_str("function_receiver"), function_receiver);
-      // Get the holder objects.
-      Local<Object> inner_global =
-          Local<Object>::Cast(context->Global()->GetPrototype());
-      // Install functions on hidden prototype object if there is one.
-      data = Object::New(isolate);
-      Local<FunctionTemplate> function_template = FunctionTemplate::New(
-          isolate, OptimizationCallback, data, signature);
-      Local<Function> function = function_template->GetFunction();
-      Local<Object> global_holder = inner_global;
-      Local<Object> function_holder = function_receiver;
-      if (signature_type == kSignatureOnPrototype) {
-        function_holder = Local<Object>::Cast(function_holder->GetPrototype());
-        global_holder = Local<Object>::Cast(global_holder->GetPrototype());
-      }
-      global_holder->Set(v8_str("g_f"), function);
-      global_holder->SetAccessorProperty(v8_str("g_acc"), function, function);
-      function_holder->Set(v8_str("f"), function);
-      function_holder->SetAccessorProperty(v8_str("acc"), function, function);
-      // Initialize expected values.
-      callee = function;
-      count = 0;
-      if (global) {
-        receiver = context->Global();
-        holder = inner_global;
-      } else {
-        holder = function_receiver;
-        // If not using a signature, add something else to the prototype chain
-        // to test the case that holder != receiver
-        if (signature_type == kNoSignature) {
-          receiver = Local<Object>::Cast(CompileRun(
-              "var receiver_subclass = {};\n"
-              "receiver_subclass.__proto__ = function_receiver;\n"
-              "receiver_subclass"));
-        } else {
-          receiver = Local<Object>::Cast(CompileRun(
-            "var receiver_subclass = function_receiver;\n"
+      signature_template = function_template->InstanceTemplate();
+    }
+    // Global object must pass checks.
+    Local<v8::Context> context =
+        v8::Context::New(isolate, NULL, signature_template);
+    v8::Context::Scope context_scope(context);
+    // Install regular object that can pass signature checks.
+    Local<Object> function_receiver = signature_template->NewInstance();
+    context->Global()->Set(v8_str("function_receiver"), function_receiver);
+    // Get the holder objects.
+    Local<Object> inner_global =
+        Local<Object>::Cast(context->Global()->GetPrototype());
+    // Install functions on hidden prototype object if there is one.
+    data = Object::New(isolate);
+    Local<FunctionTemplate> function_template = FunctionTemplate::New(
+        isolate, OptimizationCallback, data, signature);
+    Local<Function> function = function_template->GetFunction();
+    Local<Object> global_holder = inner_global;
+    Local<Object> function_holder = function_receiver;
+    if (signature_type == kSignatureOnPrototype) {
+      function_holder = Local<Object>::Cast(function_holder->GetPrototype());
+      global_holder = Local<Object>::Cast(global_holder->GetPrototype());
+    }
+    global_holder->Set(v8_str("g_f"), function);
+    global_holder->SetAccessorProperty(v8_str("g_acc"), function, function);
+    function_holder->Set(v8_str("f"), function);
+    function_holder->SetAccessorProperty(v8_str("acc"), function, function);
+    // Initialize expected values.
+    callee = function;
+    count = 0;
+    if (global) {
+      receiver = context->Global();
+      holder = inner_global;
+    } else {
+      holder = function_receiver;
+      // If not using a signature, add something else to the prototype chain
+      // to test the case that holder != receiver
+      if (signature_type == kNoSignature) {
+        receiver = Local<Object>::Cast(CompileRun(
+            "var receiver_subclass = {};\n"
+            "receiver_subclass.__proto__ = function_receiver;\n"
             "receiver_subclass"));
-        }
-      }
-      // With no signature, the holder is not set.
-      if (signature_type == kNoSignature) holder = receiver;
-      // build wrap_function
-      i::ScopedVector<char> wrap_function(200);
-      if (global) {
-        i::OS::SNPrintF(
-            wrap_function,
-            "function wrap_f_%d() { var f = g_f; return f(); }\n"
-            "function wrap_get_%d() { return this.g_acc; }\n"
-            "function wrap_set_%d() { return this.g_acc = 1; }\n",
-            key, key, key);
       } else {
-        i::OS::SNPrintF(
-            wrap_function,
-            "function wrap_f_%d() { return receiver_subclass.f(); }\n"
-            "function wrap_get_%d() { return receiver_subclass.acc; }\n"
-            "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
-            key, key, key);
+        receiver = Local<Object>::Cast(CompileRun(
+          "var receiver_subclass = function_receiver;\n"
+          "receiver_subclass"));
       }
-      // build source string
-      i::ScopedVector<char> source(1000);
-      i::OS::SNPrintF(
-          source,
-          "%s\n"  // wrap functions
-          "function wrap_f() { return wrap_f_%d(); }\n"
-          "function wrap_get() { return wrap_get_%d(); }\n"
-          "function wrap_set() { return wrap_set_%d(); }\n"
-          "check = function(returned) {\n"
-          "  if (returned !== 'returned') { throw returned; }\n"
-          "}\n"
-          "\n"
-          "check(wrap_f());\n"
-          "check(wrap_f());\n"
-          "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
-          "check(wrap_f());\n"
-          "\n"
-          "check(wrap_get());\n"
-          "check(wrap_get());\n"
-          "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
-          "check(wrap_get());\n"
-          "\n"
-          "check = function(returned) {\n"
-          "  if (returned !== 1) { throw returned; }\n"
-          "}\n"
-          "check(wrap_set());\n"
-          "check(wrap_set());\n"
-          "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
-          "check(wrap_set());\n",
-          wrap_function.start(), key, key, key, key, key, key);
-      v8::TryCatch try_catch;
-      CompileRun(source.start());
-      ASSERT(!try_catch.HasCaught());
-      CHECK_EQ(9, count);
     }
+    // With no signature, the holder is not set.
+    if (signature_type == kNoSignature) holder = receiver;
+    // build wrap_function
+    i::ScopedVector<char> wrap_function(200);
+    if (global) {
+      i::OS::SNPrintF(
+          wrap_function,
+          "function wrap_f_%d() { var f = g_f; return f(); }\n"
+          "function wrap_get_%d() { return this.g_acc; }\n"
+          "function wrap_set_%d() { return this.g_acc = 1; }\n",
+          key, key, key);
+    } else {
+      i::OS::SNPrintF(
+          wrap_function,
+          "function wrap_f_%d() { return receiver_subclass.f(); }\n"
+          "function wrap_get_%d() { return receiver_subclass.acc; }\n"
+          "function wrap_set_%d() { return receiver_subclass.acc = 1; }\n",
+          key, key, key);
+    }
+    // build source string
+    i::ScopedVector<char> source(1000);
+    i::OS::SNPrintF(
+        source,
+        "%s\n"  // wrap functions
+        "function wrap_f() { return wrap_f_%d(); }\n"
+        "function wrap_get() { return wrap_get_%d(); }\n"
+        "function wrap_set() { return wrap_set_%d(); }\n"
+        "check = function(returned) {\n"
+        "  if (returned !== 'returned') { throw returned; }\n"
+        "}\n"
+        "\n"
+        "check(wrap_f());\n"
+        "check(wrap_f());\n"
+        "%%OptimizeFunctionOnNextCall(wrap_f_%d);\n"
+        "check(wrap_f());\n"
+        "\n"
+        "check(wrap_get());\n"
+        "check(wrap_get());\n"
+        "%%OptimizeFunctionOnNextCall(wrap_get_%d);\n"
+        "check(wrap_get());\n"
+        "\n"
+        "check = function(returned) {\n"
+        "  if (returned !== 1) { throw returned; }\n"
+        "}\n"
+        "check(wrap_set());\n"
+        "check(wrap_set());\n"
+        "%%OptimizeFunctionOnNextCall(wrap_set_%d);\n"
+        "check(wrap_set());\n",
+        wrap_function.start(), key, key, key, key, key, key);
+    v8::TryCatch try_catch;
+    CompileRun(source.start());
+    ASSERT(!try_catch.HasCaught());
+    CHECK_EQ(9, count);
+  }
 };
 
 

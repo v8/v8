@@ -216,7 +216,6 @@ class Debug {
   void Unload();
   bool IsLoaded() { return !debug_context_.is_null(); }
   bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
-  void PreemptionWhileInDebugger();
 
   Object* Break(Arguments args);
   bool SetBreakPoint(Handle<JSFunction> function,
@@ -317,18 +316,13 @@ class Debug {
   }
 
   // Check whether any of the specified interrupts are pending.
-  bool is_interrupt_pending(InterruptFlag what) {
-    return (thread_local_.pending_interrupts_ & what) != 0;
+  bool has_pending_interrupt() {
+    return thread_local_.has_pending_interrupt_;
   }
 
   // Set specified interrupts as pending.
-  void set_interrupts_pending(InterruptFlag what) {
-    thread_local_.pending_interrupts_ |= what;
-  }
-
-  // Clear specified interrupts from pending.
-  void clear_interrupt_pending(InterruptFlag what) {
-    thread_local_.pending_interrupts_ &= ~static_cast<int>(what);
+  void set_has_pending_interrupt(bool value) {
+    thread_local_.has_pending_interrupt_ = value;
   }
 
   // Getter and setter for the disable break state.
@@ -585,7 +579,7 @@ class Debug {
     EnterDebugger* debugger_entry_;
 
     // Pending interrupts scheduled while debugging.
-    int pending_interrupts_;
+    bool has_pending_interrupt_;
 
     // When restarter frame is on stack, stores the address
     // of the pointer to function being restarted. Otherwise (most of the time)
@@ -789,8 +783,6 @@ class Debugger {
                             bool auto_continue);
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler2 handler);
-  void SetHostDispatchHandler(v8::Debug::HostDispatchHandler handler,
-                              TimeDelta period);
   void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
@@ -896,11 +888,10 @@ class Debugger {
   bool force_debugger_active_;  // Activate debugger without event listeners.
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
-  v8::Debug::HostDispatchHandler host_dispatch_handler_;
+
   Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
   v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
   MessageDispatchHelperThread* message_dispatch_helper_thread_;
-  TimeDelta host_dispatch_period_;
 
   DebuggerAgent* agent_;
 

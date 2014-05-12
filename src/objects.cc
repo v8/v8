@@ -945,11 +945,9 @@ Object* Object::GetHash() {
 }
 
 
-Handle<Object> Object::GetOrCreateHash(Handle<Object> object,
-                                       Isolate* isolate) {
+Handle<Smi> Object::GetOrCreateHash(Isolate* isolate, Handle<Object> object) {
   Handle<Object> hash(object->GetHash(), isolate);
-  if (hash->IsSmi())
-    return hash;
+  if (hash->IsSmi()) return Handle<Smi>::cast(hash);
 
   ASSERT(object->IsJSReceiver());
   return JSReceiver::GetOrCreateIdentityHash(Handle<JSReceiver>::cast(object));
@@ -5098,13 +5096,13 @@ void JSObject::SetIdentityHash(Handle<JSObject> object, Handle<Smi> hash) {
 
 
 template<typename ProxyType>
-static Handle<Object> GetOrCreateIdentityHashHelper(Handle<ProxyType> proxy) {
+static Handle<Smi> GetOrCreateIdentityHashHelper(Handle<ProxyType> proxy) {
   Isolate* isolate = proxy->GetIsolate();
 
-  Handle<Object> hash(proxy->hash(), isolate);
-  if (hash->IsSmi()) return hash;
+  Handle<Object> maybe_hash(proxy->hash(), isolate);
+  if (maybe_hash->IsSmi()) return Handle<Smi>::cast(maybe_hash);
 
-  hash = handle(GenerateIdentityHash(isolate), isolate);
+  Handle<Smi> hash(GenerateIdentityHash(isolate), isolate);
   proxy->set_hash(*hash);
   return hash;
 }
@@ -5124,17 +5122,17 @@ Object* JSObject::GetIdentityHash() {
 }
 
 
-Handle<Object> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
+Handle<Smi> JSObject::GetOrCreateIdentityHash(Handle<JSObject> object) {
   if (object->IsJSGlobalProxy()) {
     return GetOrCreateIdentityHashHelper(Handle<JSGlobalProxy>::cast(object));
   }
 
   Isolate* isolate = object->GetIsolate();
 
-  Handle<Object> hash(object->GetIdentityHash(), isolate);
-  if (hash->IsSmi()) return hash;
+  Handle<Object> maybe_hash(object->GetIdentityHash(), isolate);
+  if (maybe_hash->IsSmi()) return Handle<Smi>::cast(maybe_hash);
 
-  hash = handle(GenerateIdentityHash(isolate), isolate);
+  Handle<Smi> hash(GenerateIdentityHash(isolate), isolate);
   SetHiddenProperty(object, isolate->factory()->identity_hash_string(), hash);
   return hash;
 }
@@ -5145,7 +5143,7 @@ Object* JSProxy::GetIdentityHash() {
 }
 
 
-Handle<Object> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
+Handle<Smi> JSProxy::GetOrCreateIdentityHash(Handle<JSProxy> proxy) {
   return GetOrCreateIdentityHashHelper(proxy);
 }
 
@@ -7562,7 +7560,7 @@ Handle<Map> Map::CopyForFreeze(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> new_desc = DescriptorArray::CopyUpToAddAttributes(
       handle(map->instance_descriptors(), isolate), num_descriptors, FROZEN);
-  Handle<Map> new_map = Map::CopyReplaceDescriptors(
+  Handle<Map> new_map = CopyReplaceDescriptors(
       map, new_desc, INSERT_TRANSITION, isolate->factory()->frozen_symbol());
   new_map->freeze();
   new_map->set_is_extensible(false);
@@ -9918,8 +9916,8 @@ static bool CheckEquivalent(Map* first, Map* second) {
     first->instance_type() == second->instance_type() &&
     first->bit_field() == second->bit_field() &&
     first->bit_field2() == second->bit_field2() &&
-    first->is_observed() == second->is_observed() &&
-    first->function_with_prototype() == second->function_with_prototype();
+    first->is_frozen() == second->is_frozen() &&
+    first->has_instance_call_handler() == second->has_instance_call_handler();
 }
 
 
@@ -16114,7 +16112,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   Isolate* isolate = table->GetIsolate();
 
   // Make sure the key object has an identity hash code.
-  Handle<Object> hash = Object::GetOrCreateHash(key, isolate);
+  Handle<Smi> hash = Object::GetOrCreateHash(isolate, key);
 
   int entry = table->FindEntry(key);
 
@@ -16133,7 +16131,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
 
   // Check whether the hash table should be extended.
   table = EnsureCapacity(table, 1, key);
-  table->AddEntry(table->FindInsertionEntry(Handle<Smi>::cast(hash)->value()),
+  table->AddEntry(table->FindInsertionEntry(hash->value()),
                   *key,
                   *value);
   return table;
@@ -16426,8 +16424,8 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 
   table = EnsureGrowable(table);
 
-  Handle<Object> hash = GetOrCreateHash(key, table->GetIsolate());
-  int index = table->AddEntry(Smi::cast(*hash)->value());
+  Handle<Smi> hash = GetOrCreateHash(table->GetIsolate(), key);
+  int index = table->AddEntry(hash->value());
   table->set(index, *key);
   return table;
 }
@@ -16468,8 +16466,8 @@ Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
 
   table = EnsureGrowable(table);
 
-  Handle<Object> hash = GetOrCreateHash(key, table->GetIsolate());
-  int index = table->AddEntry(Smi::cast(*hash)->value());
+  Handle<Smi> hash = GetOrCreateHash(table->GetIsolate(), key);
+  int index = table->AddEntry(hash->value());
   table->set(index, *key);
   table->set(index + kValueOffset, *value);
   return table;

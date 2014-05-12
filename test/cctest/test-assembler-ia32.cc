@@ -152,7 +152,6 @@ typedef int (*F3)(float x);
 
 TEST(AssemblerIa323) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
@@ -160,11 +159,8 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  { CpuFeatureScope fscope(&assm, SSE2);
-    __ cvttss2si(eax, Operand(esp, 4));
-    __ ret(0);
-  }
+  __ cvttss2si(eax, Operand(esp, 4));
+  __ ret(0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
@@ -186,7 +182,6 @@ typedef int (*F4)(double x);
 
 TEST(AssemblerIa324) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
@@ -194,8 +189,6 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CHECK(CpuFeatures::IsSupported(SSE2));
-  CpuFeatureScope fscope(&assm, SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
   __ ret(0);
 
@@ -241,14 +234,12 @@ typedef double (*F5)(double x, double y);
 
 TEST(AssemblerIa326) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  CpuFeatureScope fscope(&assm, SSE2);
   __ movsd(xmm0, Operand(esp, 1 * kPointerSize));
   __ movsd(xmm1, Operand(esp, 3 * kPointerSize));
   __ addsd(xmm0, xmm1);
@@ -285,13 +276,11 @@ typedef double (*F6)(int x);
 
 TEST(AssemblerIa328) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
-  CpuFeatureScope fscope(&assm, SSE2);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, eax);
   // Copy xmm0 to st(0) using eight bytes of stack.
@@ -462,9 +451,6 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::internal::byte buffer[256];
   Assembler assm(isolate, buffer, sizeof buffer);
 
-  ASSERT(CpuFeatures::IsSupported(SSE2));
-  CpuFeatureScope fscope(&assm, SSE2);
-
   // Remove return address from the stack for fix stack frame alignment.
   __ pop(ecx);
 
@@ -500,8 +486,6 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
-
   CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
 
   v8::Isolate* isolate = CcTest::isolate();
@@ -540,15 +524,13 @@ TEST(StackAlignmentForSSE2) {
 
 TEST(AssemblerIa32Extractps) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2) ||
-      !CpuFeatures::IsSupported(SSE4_1)) return;
+  if (!CpuFeatures::IsSupported(SSE4_1)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   MacroAssembler assm(isolate, buffer, sizeof buffer);
-  { CpuFeatureScope fscope2(&assm, SSE2);
-    CpuFeatureScope fscope41(&assm, SSE4_1);
+  { CpuFeatureScope fscope41(&assm, SSE4_1);
     __ movsd(xmm1, Operand(esp, 4));
     __ extractps(eax, xmm1, 0x1);
     __ ret(0);
@@ -573,14 +555,12 @@ TEST(AssemblerIa32Extractps) {
 typedef int (*F8)(float x, float y);
 TEST(AssemblerIa32SSE) {
   CcTest::InitializeVM();
-  if (!CpuFeatures::IsSupported(SSE2)) return;
 
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
   MacroAssembler assm(isolate, buffer, sizeof buffer);
   {
-    CpuFeatureScope fscope(&assm, SSE2);
     __ movss(xmm0, Operand(esp, kPointerSize));
     __ movss(xmm1, Operand(esp, 2 * kPointerSize));
     __ shufps(xmm0, xmm0, 0x0);

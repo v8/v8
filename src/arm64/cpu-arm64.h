@@ -24,11 +24,9 @@ class CpuFeatures : public AllStatic {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    // There are no optional features for ARM64.
-    return false;
-  };
+    return Check(f, supported_);
+  }
 
-  // There are no optional features for ARM64.
   static bool IsSafeForSnapshot(Isolate* isolate, CpuFeature f) {
     return IsSupported(f);
   }
@@ -40,16 +38,13 @@ class CpuFeatures : public AllStatic {
   static unsigned supported_;
 
   static bool VerifyCrossCompiling() {
-    // There are no optional features for ARM64.
-    ASSERT(cross_compile_ == 0);
-    return true;
+    return cross_compile_ == 0;
   }
 
   static bool VerifyCrossCompiling(CpuFeature f) {
-    // There are no optional features for ARM64.
-    USE(f);
-    ASSERT(cross_compile_ == 0);
-    return true;
+    unsigned mask = flag2set(f);
+    return cross_compile_ == 0 ||
+           (cross_compile_ & mask) == mask;
   }
 
   static bool SupportsCrankshaft() { return true; }
@@ -59,8 +54,16 @@ class CpuFeatures : public AllStatic {
   static bool initialized_;
 #endif
 
-  // This isn't used (and is always 0), but it is required by V8.
+  static unsigned found_by_runtime_probing_only_;
   static unsigned cross_compile_;
+
+  static bool Check(CpuFeature f, unsigned set) {
+    return (set & flag2set(f)) != 0;
+  }
+
+  static unsigned flag2set(CpuFeature f) {
+    return 1u << f;
+  }
 
   friend class PlatformFeatureScope;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);

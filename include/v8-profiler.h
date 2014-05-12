@@ -292,7 +292,7 @@ class V8_EXPORT OutputStream {  // NOLINT
    */
   virtual WriteResult WriteHeapStatsChunk(HeapStatsUpdate* data, int count) {
     return kAbort;
-  };
+  }
 };
 
 

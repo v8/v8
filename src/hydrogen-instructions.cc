@@ -341,6 +341,8 @@ HType HType::TypeFromValue(Handle<Object> value) {
     result = HType::JSObject();
   } else if (value->IsJSArray()) {
     result = HType::JSArray();
+  } else if (value->IsHeapObject()) {
+    result = HType::NonPrimitive();
   }
   return result;
 }
@@ -817,6 +819,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsElements:
     case HValue::kArgumentsLength:
     case HValue::kArgumentsObject:
+    case HValue::kArrayShift:
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
     case HValue::kCallFunction:
@@ -3637,6 +3640,12 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
 }
 
 
+void HArrayShift::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" [%s]", ElementsAccessor::ForKind(kind())->name());
+}
+
+
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell().handle());
   if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
@@ -3818,19 +3827,18 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
       dominator_allocate);
   dominator_allocate->UpdateSize(new_dominator_size_constant);
 
+  bool keep_new_space_iterable = FLAG_log_gc || FLAG_heap_stats;
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && dominator_allocate->IsNewSpaceAllocation()) {
+  keep_new_space_iterable = keep_new_space_iterable || FLAG_verify_heap;
+#endif
+
+  if (keep_new_space_iterable && dominator_allocate->IsNewSpaceAllocation()) {
     dominator_allocate->MakePrefillWithFiller();
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos
     // work again in new space.
     dominator_allocate->ClearNextMapWord(original_object_size);
   }
-#else
-  // TODO(hpayer): This is a short-term hack to make allocation mementos
-  // work again in new space.
-  dominator_allocate->ClearNextMapWord(original_object_size);
-#endif
 
   dominator_allocate->UpdateClearNextMapWord(MustClearNextMapWord());
 

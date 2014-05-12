@@ -350,8 +350,6 @@ DEFINE_implication(trace_opt_verbose, trace_opt)
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")
-DEFINE_bool(enable_sse2, true,
-            "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
             "enable use of SSE3 instructions if available")
 DEFINE_bool(enable_sse4_1, true,
@@ -379,6 +377,11 @@ DEFINE_bool(enable_vldr_imm, false,
             "enable use of constant pools for double immediate (ARM only)")
 DEFINE_bool(force_long_branches, false,
             "force all emitted branches to be in long mode (MIPS only)")
+
+// cpu-arm64.cc
+DEFINE_bool(enable_always_align_csp, true,
+            "enable alignment of csp to 16 bytes on platforms which prefer "
+            "the register to always be aligned (ARM64 only)")
 
 // bootstrapper.cc
 DEFINE_string(expose_natives_as, NULL, "expose natives in global object")
@@ -463,9 +466,12 @@ DEFINE_bool(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
 
 // heap.cc
-DEFINE_int(max_new_space_size, 0,
-    "max size of the new space consisting of two semi-spaces which are half"
-    "the size (in MBytes)")
+DEFINE_int(min_semi_space_size, 0,
+    "min size of a semi-space (in MBytes), the new space consists of two"
+    "semi-spaces")
+DEFINE_int(max_semi_space_size, 0,
+    "max size of a semi-space (in MBytes), the new space consists of two"
+    "semi-spaces")
 DEFINE_int(max_old_space_size, 0, "max size of the old space (in Mbytes)")
 DEFINE_int(max_executable_size, 0, "max size of executable memory (in Mbytes)")
 DEFINE_bool(gc_global, false, "always perform global GCs")

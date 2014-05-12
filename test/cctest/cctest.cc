@@ -157,6 +157,10 @@ int main(int argc, char* argv[]) {
   for (int i = 1; i < argc; i++) {
     char* arg = argv[i];
     if (strcmp(arg, "--list") == 0) {
+      // TODO(svenpanne) Serializer::enabled() and Serializer::code_address_map_
+      // are fundamentally broken, so we can't unconditionally initialize and
+      // dispose V8.
+      v8::V8::Initialize();
       PrintTestList(CcTest::last());
       print_run_count = false;
 
@@ -200,7 +204,8 @@ int main(int argc, char* argv[]) {
   if (print_run_count && tests_run != 1)
     printf("Ran %i tests.\n", tests_run);
   CcTest::TearDown();
-  if (!disable_automatic_dispose_) v8::V8::Dispose();
+  // TODO(svenpanne) See comment above.
+  // if (!disable_automatic_dispose_) v8::V8::Dispose();
   return 0;
 }
 

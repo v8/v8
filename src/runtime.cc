@@ -2807,12 +2807,7 @@ static Handle<JSFunction> InstallBuiltin(Isolate* isolate,
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<Code> code(isolate->builtins()->builtin(builtin_name));
   Handle<JSFunction> optimized =
-      isolate->factory()->NewFunction(MaybeHandle<Object>(),
-                                      key,
-                                      JS_OBJECT_TYPE,
-                                      JSObject::kHeaderSize,
-                                      code,
-                                      false);
+      isolate->factory()->NewFunctionWithoutPrototype(key, code);
   optimized->shared()->DontAdaptArguments();
   JSReceiver::SetProperty(holder, key, optimized, NONE, STRICT).Assert();
   return optimized;
@@ -3044,49 +3039,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
   ASSERT(fun->should_have_prototype());
   Accessors::FunctionSetPrototype(fun, value);
   return args[0];  // return TOS
-}
-
-
-RUNTIME_FUNCTION(Runtime_FunctionSetReadOnlyPrototype) {
-  HandleScope shs(isolate);
-  RUNTIME_ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  Handle<String> name = isolate->factory()->prototype_string();
-
-  if (function->HasFastProperties()) {
-    // Construct a new field descriptor with updated attributes.
-    Handle<DescriptorArray> instance_desc =
-        handle(function->map()->instance_descriptors());
-
-    int index = instance_desc->SearchWithCache(*name, function->map());
-    ASSERT(index != DescriptorArray::kNotFound);
-    PropertyDetails details = instance_desc->GetDetails(index);
-
-    CallbacksDescriptor new_desc(
-        name,
-        handle(instance_desc->GetValue(index), isolate),
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY));
-
-    // Create a new map featuring the new field descriptors array.
-    Handle<Map> map = handle(function->map());
-    Handle<Map> new_map = Map::CopyReplaceDescriptor(
-        map, instance_desc, &new_desc, index, OMIT_TRANSITION);
-
-    JSObject::MigrateToMap(function, new_map);
-  } else {  // Dictionary properties.
-    // Directly manipulate the property details.
-    DisallowHeapAllocation no_gc;
-    int entry = function->property_dictionary()->FindEntry(name);
-    ASSERT(entry != NameDictionary::kNotFound);
-    PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
-    PropertyDetails new_details(
-        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
-        details.type(),
-        details.dictionary_index());
-    function->property_dictionary()->DetailsAtPut(entry, new_details);
-  }
-  return *function;
 }
 
 
@@ -7907,7 +7859,7 @@ RUNTIME_FUNCTION(Runtime_MathFloor) {
 
 
 // Slow version of Math.pow.  We check for fast paths for special cases.
-// Used if SSE2/VFP3 is not available.
+// Used if VFP3 is not available.
 RUNTIME_FUNCTION(RuntimeHidden_MathPowSlow) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -9601,7 +9553,7 @@ RUNTIME_FUNCTION(RuntimeHidden_StackGuard) {
     return isolate->StackOverflow();
   }
 
-  return Execution::HandleStackGuardInterrupt(isolate);
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 
@@ -9625,7 +9577,7 @@ RUNTIME_FUNCTION(RuntimeHidden_TryInstallOptimizedCode) {
 RUNTIME_FUNCTION(RuntimeHidden_Interrupt) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::HandleStackGuardInterrupt(isolate);
+  return isolate->stack_guard()->HandleInterrupts();
 }
 
 
@@ -10804,7 +10756,8 @@ RUNTIME_FUNCTION(Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  return Execution::DebugBreakHelper(isolate);
+  Execution::DebugBreakHelper(isolate);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -10841,7 +10794,7 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
 RUNTIME_FUNCTION(Runtime_Break) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  isolate->stack_guard()->DebugBreak();
+  isolate->stack_guard()->RequestDebugBreak();
   return isolate->heap()->undefined_value();
 }
 
@@ -14999,7 +14952,6 @@ RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
-  RUNTIME_ASSERT(accept->IsUndefined() || accept->IsJSObject());
 
   Handle<Context> context(object->GetCreationContext(), isolate);
   Handle<JSFunction> function(context->native_object_observe(), isolate);

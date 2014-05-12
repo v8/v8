@@ -18,6 +18,7 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
 unsigned CpuFeatures::cross_compile_ = 0;
 
 
@@ -31,7 +32,7 @@ class CacheLineSizes {
     __asm__ __volatile__ ("mrs %[ctr], ctr_el0"  // NOLINT
                           : [ctr] "=r" (cache_type_register_));
 #endif
-  };
+  }
 
   uint32_t icache_line_size() const { return ExtractCacheLineSize(0); }
   uint32_t dcache_line_size() const { return ExtractCacheLineSize(16); }
@@ -126,8 +127,25 @@ void CPU::FlushICache(void* address, size_t length) {
 
 
 void CpuFeatures::Probe(bool serializer_enabled) {
-  // AArch64 has no configuration options, no further probing is required.
-  supported_ = 0;
+  ASSERT(supported_ == 0);
+
+  if (serializer_enabled && FLAG_enable_always_align_csp) {
+    // Always align csp in snapshot code - this is safe and ensures that csp
+    // will always be aligned if it is enabled by probing at runtime.
+    supported_ |= static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
+  }
+
+  if (!serializer_enabled) {
+    CPU cpu;
+    // Always align csp on Nvidia cores or when debug_code is enabled.
+    if (FLAG_enable_always_align_csp &&
+        (cpu.implementer() == CPU::NVIDIA || FLAG_debug_code)) {
+      found_by_runtime_probing_only_ |=
+          static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
+    }
+
+    supported_ |= found_by_runtime_probing_only_;
+  }
 
 #ifdef DEBUG
   initialized_ = true;

@@ -261,11 +261,7 @@ TEST(GarbageCollection) {
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-        name, factory->undefined_value());
-    Handle<Map> initial_map =
-        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    function->set_initial_map(*initial_map);
+    Handle<JSFunction> function = factory->NewFunction(name);
     JSReceiver::SetProperty(global, name, function, NONE, SLOPPY).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
@@ -624,11 +620,7 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      name, factory->undefined_value());
-  Handle<Map> initial_map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  function->set_initial_map(*initial_map);
+  Handle<JSFunction> function = factory->NewFunction(name);
 
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
@@ -723,14 +715,11 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunctionWithPrototype(
-      name, factory->undefined_value());
-  Handle<Map> initial_map =
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-  function->set_initial_map(*initial_map);
+  Handle<JSFunction> function = factory->NewFunction(name);
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
+  Handle<Map> initial_map(function->initial_map());
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
@@ -2208,7 +2197,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 TEST(OptimizedPretenuringAllocationFolding) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
@@ -2251,7 +2240,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
 
 TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   i::FLAG_allocation_site_pretenuring = false;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
@@ -2294,7 +2283,7 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
 
 TEST(OptimizedPretenuringObjectArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2323,7 +2312,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2358,7 +2347,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
 TEST(OptimizedPretenuringDoubleArrayProperties) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2387,7 +2376,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
 
 TEST(OptimizedPretenuringdoubleArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2416,7 +2405,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2454,7 +2443,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
 
 TEST(OptimizedPretenuringNestedObjectLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2492,7 +2481,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
 
 TEST(OptimizedPretenuringNestedDoubleLiterals) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
@@ -2538,7 +2527,7 @@ TEST(OptimizedPretenuringConstructorCalls) {
     return;
   }
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_max_new_space_size = 2;
+  i::FLAG_max_semi_space_size = 1;
   CcTest::InitializeVM();
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;

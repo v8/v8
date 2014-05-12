@@ -1201,10 +1201,9 @@ TEST(SliceFromSlice) {
 
 TEST(AsciiArrayJoin) {
   // Set heap limits.
-  static const int K = 1024;
   v8::ResourceConstraints constraints;
-  constraints.set_max_new_space_size(2 * K * K);
-  constraints.set_max_old_space_size(4 * K * K);
+  constraints.set_max_semi_space_size(1);
+  constraints.set_max_old_space_size(4);
   v8::SetResourceConstraints(CcTest::isolate(), &constraints);
 
   // String s is made of 2^17 = 131072 'c' characters and a is an array

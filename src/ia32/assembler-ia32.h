@@ -141,25 +141,25 @@ inline Register Register::FromAllocationIndex(int index)  {
 }
 
 
-struct IntelDoubleRegister {
+struct DoubleRegister {
   static const int kMaxNumRegisters = 8;
   static const int kMaxNumAllocatableRegisters = 7;
   static int NumAllocatableRegisters();
   static int NumRegisters();
   static const char* AllocationIndexToString(int index);
 
-  static int ToAllocationIndex(IntelDoubleRegister reg) {
+  static int ToAllocationIndex(DoubleRegister reg) {
     ASSERT(reg.code() != 0);
     return reg.code() - 1;
   }
 
-  static IntelDoubleRegister FromAllocationIndex(int index) {
+  static DoubleRegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < NumAllocatableRegisters());
     return from_code(index + 1);
   }
 
-  static IntelDoubleRegister from_code(int code) {
-    IntelDoubleRegister result = { code };
+  static DoubleRegister from_code(int code) {
+    DoubleRegister result = { code };
     return result;
   }
 
@@ -175,23 +175,23 @@ struct IntelDoubleRegister {
 };
 
 
-const IntelDoubleRegister double_register_0 = { 0 };
-const IntelDoubleRegister double_register_1 = { 1 };
-const IntelDoubleRegister double_register_2 = { 2 };
-const IntelDoubleRegister double_register_3 = { 3 };
-const IntelDoubleRegister double_register_4 = { 4 };
-const IntelDoubleRegister double_register_5 = { 5 };
-const IntelDoubleRegister double_register_6 = { 6 };
-const IntelDoubleRegister double_register_7 = { 7 };
-const IntelDoubleRegister no_double_reg = { -1 };
+const DoubleRegister double_register_0 = { 0 };
+const DoubleRegister double_register_1 = { 1 };
+const DoubleRegister double_register_2 = { 2 };
+const DoubleRegister double_register_3 = { 3 };
+const DoubleRegister double_register_4 = { 4 };
+const DoubleRegister double_register_5 = { 5 };
+const DoubleRegister double_register_6 = { 6 };
+const DoubleRegister double_register_7 = { 7 };
+const DoubleRegister no_double_reg = { -1 };
 
 
-struct XMMRegister : IntelDoubleRegister {
+struct XMMRegister : DoubleRegister {
   static const int kNumAllocatableRegisters = 7;
   static const int kNumRegisters = 8;
 
   static XMMRegister from_code(int code) {
-    STATIC_ASSERT(sizeof(XMMRegister) == sizeof(IntelDoubleRegister));
+    STATIC_ASSERT(sizeof(XMMRegister) == sizeof(DoubleRegister));
     XMMRegister result;
     result.code_ = code;
     return result;
@@ -229,45 +229,6 @@ struct XMMRegister : IntelDoubleRegister {
 #define xmm6 (static_cast<const XMMRegister&>(double_register_6))
 #define xmm7 (static_cast<const XMMRegister&>(double_register_7))
 #define no_xmm_reg (static_cast<const XMMRegister&>(no_double_reg))
-
-
-struct X87Register : IntelDoubleRegister {
-  static const int kNumAllocatableRegisters = 5;
-  static const int kNumRegisters = 5;
-
-  bool is(X87Register reg) const {
-    return code_ == reg.code_;
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "stX_0", "stX_1", "stX_2", "stX_3", "stX_4"
-    };
-    return names[index];
-  }
-
-  static X87Register FromAllocationIndex(int index) {
-    STATIC_ASSERT(sizeof(X87Register) == sizeof(IntelDoubleRegister));
-    ASSERT(index >= 0 && index < NumAllocatableRegisters());
-    X87Register result;
-    result.code_ = index;
-    return result;
-  }
-
-  static int ToAllocationIndex(X87Register reg) {
-    return reg.code_;
-  }
-};
-
-#define stX_0 static_cast<const X87Register&>(double_register_0)
-#define stX_1 static_cast<const X87Register&>(double_register_1)
-#define stX_2 static_cast<const X87Register&>(double_register_2)
-#define stX_3 static_cast<const X87Register&>(double_register_3)
-#define stX_4 static_cast<const X87Register&>(double_register_4)
-
-
-typedef IntelDoubleRegister DoubleRegister;
 
 
 enum Condition {
@@ -331,7 +292,7 @@ inline Condition ReverseCondition(Condition cc) {
       return greater_equal;
     default:
       return cc;
-  };
+  }
 }
 
 
@@ -520,11 +481,11 @@ class Displacement BASE_EMBEDDED {
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
 // Example:
-//   if (assembler->IsSupported(SSE2)) {
-//     CpuFeatureScope fscope(assembler, SSE2);
-//     // Generate SSE2 floating point code.
+//   if (assembler->IsSupported(CMOV)) {
+//     CpuFeatureScope fscope(assembler, CMOV);
+//     // Generate code containing cmov.
 //   } else {
-//     // Generate standard x87 floating point code.
+//     // Generate alternative code.
 //   }
 class CpuFeatures : public AllStatic {
  public:
@@ -536,7 +497,6 @@ class CpuFeatures : public AllStatic {
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
     if (Check(f, cross_compile_)) return true;
-    if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
@@ -560,7 +520,7 @@ class CpuFeatures : public AllStatic {
            (cross_compile_ & mask) == mask;
   }
 
-  static bool SupportsCrankshaft() { return IsSupported(SSE2); }
+  static bool SupportsCrankshaft() { return true; }
 
  private:
   static bool Check(CpuFeature f, uint64_t set) {

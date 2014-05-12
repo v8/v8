@@ -718,9 +718,11 @@ class MacroAssembler : public Assembler {
   // it can be evidence of a potential bug because the ABI forbids accesses
   // below csp.
   //
-  // If emit_debug_code() is false, this emits no code.
+  // If StackPointer() is the system stack pointer (csp) or ALWAYS_ALIGN_CSP is
+  // enabled, then csp will be dereferenced to  cause the processor
+  // (or simulator) to abort if it is not properly aligned.
   //
-  // If StackPointer() is the system stack pointer, this emits no code.
+  // If emit_debug_code() is false, this emits no code.
   void AssertStackConsistency();
 
   // Preserve the callee-saved registers (as defined by AAPCS64).
@@ -778,11 +780,21 @@ class MacroAssembler : public Assembler {
   //
   // This is necessary when pushing or otherwise adding things to the stack, to
   // satisfy the AAPCS64 constraint that the memory below the system stack
-  // pointer is not accessed.
+  // pointer is not accessed.  The amount pushed will be increased as necessary
+  // to ensure csp remains aligned to 16 bytes.
   //
   // This method asserts that StackPointer() is not csp, since the call does
   // not make sense in that context.
   inline void BumpSystemStackPointer(const Operand& space);
+
+  // Re-synchronizes the system stack pointer (csp) with the current stack
+  // pointer (according to StackPointer()).  This function will ensure the
+  // new value of the system stack pointer is remains aligned to 16 bytes, and
+  // is lower than or equal to the value of the current stack pointer.
+  //
+  // This method asserts that StackPointer() is not csp, since the call does
+  // not make sense in that context.
+  inline void SyncSystemStackPointer();
 
   // Helpers ------------------------------------------------------------------
   // Root register.
@@ -831,7 +843,7 @@ class MacroAssembler : public Assembler {
 
   template<typename Field>
   void DecodeField(Register reg) {
-    static const uint64_t shift = Field::kShift + kSmiShift;
+    static const uint64_t shift = Field::kShift;
     static const uint64_t setbits = CountSetBits(Field::kMask, 32);
     Ubfx(reg, reg, shift, setbits);
   }
@@ -2020,14 +2032,14 @@ class MacroAssembler : public Assembler {
                  const CPURegister& dst0, const CPURegister& dst1,
                  const CPURegister& dst2, const CPURegister& dst3);
 
-  // Perform necessary maintenance operations before a push or pop.
+  // Perform necessary maintenance operations before a push or after a pop.
   //
   // Note that size is specified in bytes.
-  void PrepareForPush(Operand total_size);
-  void PrepareForPop(Operand total_size);
+  void PushPreamble(Operand total_size);
+  void PopPostamble(Operand total_size);
 
-  void PrepareForPush(int count, int size) { PrepareForPush(count * size); }
-  void PrepareForPop(int count, int size) { PrepareForPop(count * size); }
+  void PushPreamble(int count, int size) { PushPreamble(count * size); }
+  void PopPostamble(int count, int size) { PopPostamble(count * size); }
 
   // Call Printf. On a native build, a simple call will be generated, but if the
   // simulator is being used then a suitable pseudo-instruction is used. The

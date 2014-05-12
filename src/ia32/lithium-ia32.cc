@@ -60,17 +60,6 @@ bool LInstruction::HasDoubleRegisterInput() {
 }
 
 
-bool LInstruction::IsDoubleInput(X87Register reg, LCodeGen* cgen) {
-  for (int i = 0; i < InputCount(); i++) {
-    LOperand* op = InputAt(i);
-    if (op != NULL && op->IsDoubleRegister()) {
-      if (cgen->ToX87Register(op).is(reg)) return true;
-    }
-  }
-  return false;
-}
-
-
 void LInstruction::PrintTo(StringStream* stream) {
   stream->Add("%s ", this->Mnemonic());
 
@@ -939,16 +928,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     }
     if (FLAG_stress_environments && !instr->HasEnvironment()) {
       instr = AssignEnvironment(instr);
-    }
-    if (!CpuFeatures::IsSafeForSnapshot(isolate(), SSE2) && instr->IsGoto() &&
-        LGoto::cast(instr)->jumps_to_join()) {
-      // TODO(olivf) Since phis of spilled values are joined as registers
-      // (not in the stack slot), we need to allow the goto gaps to keep one
-      // x87 register alive. To ensure all other values are still spilled, we
-      // insert a fpu register barrier right before.
-      LClobberDoubles* clobber = new(zone()) LClobberDoubles(isolate());
-      clobber->set_hydrogen_value(current);
-      chunk_->AddInstruction(clobber, current_block_);
     }
     chunk_->AddInstruction(instr, current_block_);
 
@@ -1918,9 +1897,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         LOperand* value = UseRegister(val);
         bool truncating = instr->CanTruncateToInt32();
-        LOperand* xmm_temp =
-            (CpuFeatures::IsSafeForSnapshot(isolate(), SSE2) && !truncating)
-                ? FixedTemp(xmm1) : NULL;
+        LOperand* xmm_temp = !truncating ? FixedTemp(xmm1) : NULL;
         LInstruction* result =
             DefineSameAsFirst(new(zone()) LTaggedToI(value, xmm_temp));
         if (!val->representation().IsSmi()) result = AssignEnvironment(result);
@@ -1942,8 +1919,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       bool truncating = instr->CanTruncateToInt32();
-      bool needs_temp =
-          CpuFeatures::IsSafeForSnapshot(isolate(), SSE2) && !truncating;
+      bool needs_temp = !truncating;
       LOperand* value = needs_temp ? UseTempRegister(val) : UseRegister(val);
       LOperand* temp = needs_temp ? TempRegister() : NULL;
       LInstruction* result =
@@ -1960,8 +1936,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else if (val->CheckFlag(HInstruction::kUint32)) {
         LOperand* value = UseRegister(val);
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 =
-            CpuFeatures::IsSupported(SSE2) ? FixedTemp(xmm1) : NULL;
+        LOperand* temp2 = FixedTemp(xmm1);
         LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
         return AssignPointerMap(DefineSameAsFirst(result));
       } else {
@@ -2049,20 +2024,12 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     return DefineFixed(new(zone()) LClampIToUint8(reg), eax);
   } else {
     ASSERT(input_rep.IsSmiOrTagged());
-    if (CpuFeatures::IsSupported(SSE2)) {
-      LOperand* reg = UseFixed(value, eax);
-      // Register allocator doesn't (yet) support allocation of double
-      // temps. Reserve xmm1 explicitly.
-      LOperand* temp = FixedTemp(xmm1);
-      LClampTToUint8* result = new(zone()) LClampTToUint8(reg, temp);
-      return AssignEnvironment(DefineFixed(result, eax));
-    } else {
-      LOperand* value = UseRegister(instr->value());
-      LClampTToUint8NoSSE2* res =
-          new(zone()) LClampTToUint8NoSSE2(value, TempRegister(),
-                                           TempRegister(), TempRegister());
-      return AssignEnvironment(DefineFixed(res, ecx));
-    }
+    LOperand* reg = UseFixed(value, eax);
+    // Register allocator doesn't (yet) support allocation of double
+    // temps. Reserve xmm1 explicitly.
+    LOperand* temp = FixedTemp(xmm1);
+    LClampTToUint8* result = new(zone()) LClampTToUint8(reg, temp);
+    return AssignEnvironment(DefineFixed(result, eax));
   }
 }
 
@@ -2258,11 +2225,6 @@ LOperand* LChunkBuilder::GetStoreKeyedValueOperand(HStoreKeyed* instr) {
     return UseFixed(instr->value(), eax);
   }
 
-  if (!CpuFeatures::IsSafeForSnapshot(isolate(), SSE2) &&
-      IsDoubleOrFloatElementsKind(elements_kind)) {
-    return UseRegisterAtStart(instr->value());
-  }
-
   return UseRegister(instr->value());
 }
 
@@ -2352,6 +2314,14 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
         new(zone()) LTransitionElementsKind(object, context, NULL, NULL);
     return MarkAsCall(result, instr);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoArrayShift(HArrayShift* instr) {
+  LOperand* object = UseFixed(instr->object(), eax);
+  LOperand* context = UseFixed(instr->context(), esi);
+  LArrayShift* result = new(zone()) LArrayShift(context, object);
+  return MarkAsCall(DefineFixed(result, eax), instr, CANNOT_DEOPTIMIZE_EAGERLY);
 }
 
 
