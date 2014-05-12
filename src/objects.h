@@ -1166,6 +1166,7 @@ template <class C> inline bool Is(Object* obj);
   V(kModuleVariable, "Module variable")                                       \
   V(kModuleUrl, "Module url")                                                 \
   V(kNativeFunctionLiteral, "Native function literal")                        \
+  V(kNeedSmiLiteral, "Need a Smi literal here")                               \
   V(kNoCasesLeft, "No cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \

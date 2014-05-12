@@ -8889,10 +8889,20 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(kObjectArg)));
   HValue* obj = Pop();
 
-  ASSERT(arguments->at(kArrayIdArg)->node_type() == AstNode::kLiteral);
+  if (arguments->at(kArrayIdArg)->node_type() != AstNode::kLiteral) {
+    // This should never happen in real use, but can happen when fuzzing.
+    // Just bail out.
+    Bailout(kNeedSmiLiteral);
+    return;
+  }
   Handle<Object> value =
       static_cast<Literal*>(arguments->at(kArrayIdArg))->value();
-  ASSERT(value->IsSmi());
+  if (!value->IsSmi()) {
+    // This should never happen in real use, but can happen when fuzzing.
+    // Just bail out.
+    Bailout(kNeedSmiLiteral);
+    return;
+  }
   int array_id = Smi::cast(*value)->value();
 
   HValue* buffer;

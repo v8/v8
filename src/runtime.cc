@@ -3030,6 +3030,8 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_SMI_ARG_CHECKED(length, 1);
+  RUNTIME_ASSERT((length & 0xC0000000) == 0xC0000000 ||
+                 (length & 0xC0000000) == 0x0);
   fun->shared()->set_length(length);
   return isolate->heap()->undefined_value();
 }
@@ -4882,6 +4884,7 @@ RUNTIME_FUNCTION(Runtime_NumberToFixed) {
   int f = FastD2IChecked(f_number);
   // See DoubleToFixedCString for these constants:
   RUNTIME_ASSERT(f >= 0 && f <= 20);
+  RUNTIME_ASSERT(!Double(value).IsSpecial());
   char* str = DoubleToFixedCString(value, f);
   Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
@@ -4897,6 +4900,7 @@ RUNTIME_FUNCTION(Runtime_NumberToExponential) {
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= -1 && f <= 20);
+  RUNTIME_ASSERT(!Double(value).IsSpecial());
   char* str = DoubleToExponentialCString(value, f);
   Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
@@ -4912,6 +4916,7 @@ RUNTIME_FUNCTION(Runtime_NumberToPrecision) {
   CONVERT_DOUBLE_ARG_CHECKED(f_number, 1);
   int f = FastD2IChecked(f_number);
   RUNTIME_ASSERT(f >= 1 && f <= 21);
+  RUNTIME_ASSERT(!Double(value).IsSpecial());
   char* str = DoubleToPrecisionCString(value, f);
   Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);
   DeleteArray(str);
