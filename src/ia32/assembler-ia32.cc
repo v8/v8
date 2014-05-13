@@ -62,21 +62,6 @@ ExternalReference ExternalReference::cpu_features() {
 }
 
 
-int DoubleRegister::NumAllocatableRegisters() {
-  return XMMRegister::kNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumRegisters() {
-  return XMMRegister::kNumRegisters;
-}
-
-
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  return XMMRegister::AllocationIndexToString(index);
-}
-
-
 void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(!initialized_);
   ASSERT(supported_ == 0);

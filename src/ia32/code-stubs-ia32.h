@@ -336,9 +336,9 @@ class RecordWriteStub: public PlatformCodeStub {
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
       if (mode == kSaveFPRegs) {
         masm->sub(esp,
-                  Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
+                  Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
         // Save all XMM registers except XMM0.
-        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
+        for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
           masm->movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
         }
@@ -349,12 +349,12 @@ class RecordWriteStub: public PlatformCodeStub {
                                            SaveFPRegsMode mode) {
       if (mode == kSaveFPRegs) {
         // Restore all XMM registers except XMM0.
-        for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
+        for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
           XMMRegister reg = XMMRegister::from_code(i);
           masm->movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
         }
         masm->add(esp,
-                  Immediate(kDoubleSize * (XMMRegister::kNumRegisters - 1)));
+                  Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
       }
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
