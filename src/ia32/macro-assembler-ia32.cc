@@ -908,8 +908,8 @@ void MacroAssembler::AssertNotSmi(Register object) {
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  if (frame_mode == BUILD_STUB_FRAME) {
+void MacroAssembler::Prologue(CompilationInfo* info) {
+  if (info->IsStub()) {
     push(ebp);  // Caller's frame pointer.
     mov(ebp, esp);
     push(esi);  // Callee's context.
@@ -917,7 +917,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (isolate()->IsCodePreAgingActive()) {
+    if (info->IsCodePreAgingActive()) {
         // Pre-age the code.
       call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
           RelocInfo::CODE_AGE_SEQUENCE);

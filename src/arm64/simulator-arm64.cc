@@ -3581,43 +3581,7 @@ void Simulator::VisitException(Instruction* instr) {
       } else if (instr->ImmException() == kImmExceptionIsRedirectedCall) {
         DoRuntimeCall(instr);
       } else if (instr->ImmException() == kImmExceptionIsPrintf) {
-        // Read the argument encoded inline in the instruction stream.
-        uint32_t type;
-        memcpy(&type,
-               pc_->InstructionAtOffset(kPrintfTypeOffset),
-               sizeof(type));
-
-        const char* format = reg<const char*>(0);
-
-        // Pass all of the relevant PCS registers onto printf. It doesn't
-        // matter if we pass too many as the extra ones won't be read.
-        int result;
-        fputs(clr_printf, stream_);
-        if (type == CPURegister::kRegister) {
-          result = fprintf(stream_, format,
-                           xreg(1), xreg(2), xreg(3), xreg(4),
-                           xreg(5), xreg(6), xreg(7));
-        } else if (type == CPURegister::kFPRegister) {
-          result = fprintf(stream_, format,
-                           dreg(0), dreg(1), dreg(2), dreg(3),
-                           dreg(4), dreg(5), dreg(6), dreg(7));
-        } else {
-          ASSERT(type == CPURegister::kNoRegister);
-          result = fprintf(stream_, "%s", format);
-        }
-        fputs(clr_normal, stream_);
-
-#ifdef DEBUG
-        CorruptAllCallerSavedCPURegisters();
-#endif
-
-        set_xreg(0, result);
-
-        // The printf parameters are inlined in the code, so skip them.
-        set_pc(pc_->InstructionAtOffset(kPrintfLength));
-
-        // Set LR as if we'd just called a native printf function.
-        set_lr(pc());
+        DoPrintf(instr);
 
       } else if (instr->ImmException() == kImmExceptionIsUnreachable) {
         fprintf(stream_, "Hit UNREACHABLE marker at PC=%p.\n",
@@ -3634,6 +3598,133 @@ void Simulator::VisitException(Instruction* instr) {
       UNIMPLEMENTED();
   }
 }
+
+
+void Simulator::DoPrintf(Instruction* instr) {
+  ASSERT((instr->Mask(ExceptionMask) == HLT) &&
+              (instr->ImmException() == kImmExceptionIsPrintf));
+
+  // Read the arguments encoded inline in the instruction stream.
+  uint32_t arg_count;
+  uint32_t arg_pattern_list;
+  STATIC_ASSERT(sizeof(*instr) == 1);
+  memcpy(&arg_count,
+         instr + kPrintfArgCountOffset,
+         sizeof(arg_count));
+  memcpy(&arg_pattern_list,
+         instr + kPrintfArgPatternListOffset,
+         sizeof(arg_pattern_list));
+
+  ASSERT(arg_count <= kPrintfMaxArgCount);
+  ASSERT((arg_pattern_list >> (kPrintfArgPatternBits * arg_count)) == 0);
+
+  // We need to call the host printf function with a set of arguments defined by
+  // arg_pattern_list. Because we don't know the types and sizes of the
+  // arguments, this is very difficult to do in a robust and portable way. To
+  // work around the problem, we pick apart the format string, and print one
+  // format placeholder at a time.
+
+  // Allocate space for the format string. We take a copy, so we can modify it.
+  // Leave enough space for one extra character per expected argument (plus the
+  // '\0' termination).
+  const char * format_base = reg<const char *>(0);
+  ASSERT(format_base != NULL);
+  size_t length = strlen(format_base) + 1;
+  char * const format = new char[length + arg_count];
+
+  // A list of chunks, each with exactly one format placeholder.
+  const char * chunks[kPrintfMaxArgCount];
+
+  // Copy the format string and search for format placeholders.
+  uint32_t placeholder_count = 0;
+  char * format_scratch = format;
+  for (size_t i = 0; i < length; i++) {
+    if (format_base[i] != '%') {
+      *format_scratch++ = format_base[i];
+    } else {
+      if (format_base[i + 1] == '%') {
+        // Ignore explicit "%%" sequences.
+        *format_scratch++ = format_base[i];
+
+        if (placeholder_count == 0) {
+          // The first chunk is passed to printf using "%s", so we need to
+          // unescape "%%" sequences in this chunk. (Just skip the next '%'.)
+          i++;
+        } else {
+          // Otherwise, pass through "%%" unchanged.
+          *format_scratch++ = format_base[++i];
+        }
+      } else {
+        CHECK(placeholder_count < arg_count);
+        // Insert '\0' before placeholders, and store their locations.
+        *format_scratch++ = '\0';
+        chunks[placeholder_count++] = format_scratch;
+        *format_scratch++ = format_base[i];
+      }
+    }
+  }
+  ASSERT(format_scratch <= (format + length + arg_count));
+  CHECK(placeholder_count == arg_count);
+
+  // Finally, call printf with each chunk, passing the appropriate register
+  // argument. Normally, printf returns the number of bytes transmitted, so we
+  // can emulate a single printf call by adding the result from each chunk. If
+  // any call returns a negative (error) value, though, just return that value.
+
+  fprintf(stream_, "%s", clr_printf);
+
+  // Because '\0' is inserted before each placeholder, the first string in
+  // 'format' contains no format placeholders and should be printed literally.
+  int result = fprintf(stream_, "%s", format);
+  int pcs_r = 1;      // Start at x1. x0 holds the format string.
+  int pcs_f = 0;      // Start at d0.
+  if (result >= 0) {
+    for (uint32_t i = 0; i < placeholder_count; i++) {
+      int part_result = -1;
+
+      uint32_t arg_pattern = arg_pattern_list >> (i * kPrintfArgPatternBits);
+      arg_pattern &= (1 << kPrintfArgPatternBits) - 1;
+      switch (arg_pattern) {
+        case kPrintfArgW:
+          part_result = fprintf(stream_, chunks[i], wreg(pcs_r++));
+          break;
+        case kPrintfArgX:
+          part_result = fprintf(stream_, chunks[i], xreg(pcs_r++));
+          break;
+        case kPrintfArgD:
+          part_result = fprintf(stream_, chunks[i], dreg(pcs_f++));
+          break;
+        default: UNREACHABLE();
+      }
+
+      if (part_result < 0) {
+        // Handle error values.
+        result = part_result;
+        break;
+      }
+
+      result += part_result;
+    }
+  }
+
+  fprintf(stream_, "%s", clr_normal);
+
+#ifdef DEBUG
+  CorruptAllCallerSavedCPURegisters();
+#endif
+
+  // Printf returns its result in x0 (just like the C library's printf).
+  set_xreg(0, result);
+
+  // The printf parameters are inlined in the code, so skip them.
+  set_pc(instr->InstructionAtOffset(kPrintfLength));
+
+  // Set LR as if we'd just called a native printf function.
+  set_lr(pc());
+
+  delete[] format;
+}
+
 
 #endif  // USE_SIMULATOR
 

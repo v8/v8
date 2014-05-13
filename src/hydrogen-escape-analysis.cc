@@ -144,7 +144,7 @@ HValue* HEscapeAnalysisPhase::NewLoadReplacement(
     HLoadNamedField* load, HValue* load_value) {
   HValue* replacement = load_value;
   Representation representation = load->representation();
-  if (representation.IsSmi()) {
+  if (representation.IsSmiOrInteger32() || representation.IsDouble()) {
     Zone* zone = graph()->zone();
     HInstruction* new_instr =
         HForceRepresentation::New(zone, NULL, load_value, representation);

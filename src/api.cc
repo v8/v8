@@ -6447,21 +6447,6 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 }
 
 
-void V8::RunMicrotasks(Isolate* isolate) {
-  isolate->RunMicrotasks();
-}
-
-
-void V8::EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask) {
-  isolate->EnqueueMicrotask(microtask);
-}
-
-
-void V8::SetAutorunMicrotasks(Isolate* isolate, bool autorun) {
-  isolate->SetAutorunMicrotasks(autorun);
-}
-
-
 void V8::TerminateExecution(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i_isolate->stack_guard()->RequestTerminateExecution();
@@ -6656,6 +6641,11 @@ void Isolate::EnqueueMicrotask(Handle<Function> microtask) {
 
 void Isolate::SetAutorunMicrotasks(bool autorun) {
   reinterpret_cast<i::Isolate*>(this)->set_autorun_microtasks(autorun);
+}
+
+
+bool Isolate::WillAutorunMicrotasks() const {
+  return reinterpret_cast<const i::Isolate*>(this)->autorun_microtasks();
 }
 
 

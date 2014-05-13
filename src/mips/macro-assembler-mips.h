@@ -1492,7 +1492,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   }
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void Prologue(CompilationInfo* info);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

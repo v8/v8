@@ -120,6 +120,11 @@ struct MaybeBoolFlag {
 #else
 # define ENABLE_32DREGS_DEFAULT false
 #endif
+#if (defined CAN_USE_NEON) || !(defined ARM_TEST)
+# define ENABLE_NEON_DEFAULT true
+#else
+# define ENABLE_NEON_DEFAULT false
+#endif
 
 #define DEFINE_bool(nam, def, cmt)   FLAG(BOOL, bool, nam, def, cmt)
 #define DEFINE_maybe_bool(nam, cmt)  FLAG(MAYBE_BOOL, MaybeBoolFlag, nam,  \
@@ -362,7 +367,7 @@ DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,
             "enable use of VFP3 instructions if available")
 DEFINE_bool(enable_armv7, ENABLE_ARMV7_DEFAULT,
             "enable use of ARMv7 instructions if available (ARM only)")
-DEFINE_bool(enable_neon, true,
+DEFINE_bool(enable_neon, ENABLE_NEON_DEFAULT,
             "enable use of NEON instructions if available (ARM only)")
 DEFINE_bool(enable_sudiv, true,
             "enable use of SDIV and UDIV instructions if available (ARM only)")
@@ -665,17 +670,6 @@ DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 DEFINE_string(map_counters, "", "Map counters to a file")
 DEFINE_args(js_arguments,
             "Pass all remaining arguments to the script. Alias for \"--\".")
-
-#if defined(WEBOS__)
-DEFINE_bool(debug_compile_events, false, "Enable debugger compile events")
-DEFINE_bool(debug_script_collected_events, false,
-            "Enable debugger script collected events")
-#else
-DEFINE_bool(debug_compile_events, true, "Enable debugger compile events")
-DEFINE_bool(debug_script_collected_events, true,
-            "Enable debugger script collected events")
-#endif
-
 
 //
 // GDB JIT integration flags.

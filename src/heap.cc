@@ -790,7 +790,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
     const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
     incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,
                                 IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-    if (!incremental_marking()->IsComplete()) {
+    if (!incremental_marking()->IsComplete() && !FLAG_gc_global) {
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
       }

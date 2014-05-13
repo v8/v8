@@ -381,6 +381,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
   SC(call_normal_stubs, V8.CallNormalStubs)                           \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \

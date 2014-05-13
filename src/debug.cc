@@ -766,11 +766,9 @@ bool Debug::Load() {
 
   // Bail out if we're already in the process of compiling the native
   // JavaScript source code for the debugger.
-  if (debugger->compiling_natives() ||
-      debugger->is_loading_debugger())
-    return false;
-  debugger->set_loading_debugger(true);
+  if (debugger->ignore_debugger()) return false;
 
+  Debugger::IgnoreScope during_load(debugger);
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
   DisableBreak disable(isolate_, true);
@@ -806,7 +804,6 @@ bool Debug::Load() {
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.
-  debugger->set_compiling_natives(true);
   bool caught_exception =
       !CompileDebuggerScript(isolate_, Natives::GetIndex("mirror")) ||
       !CompileDebuggerScript(isolate_, Natives::GetIndex("debug"));
@@ -816,11 +813,8 @@ bool Debug::Load() {
         !CompileDebuggerScript(isolate_, Natives::GetIndex("liveedit"));
   }
 
-  debugger->set_compiling_natives(false);
-
   // Make sure we mark the debugger as not loading before we might
   // return.
-  debugger->set_loading_debugger(false);
 
   // Check for caught exceptions.
   if (caught_exception) return false;
@@ -1998,37 +1992,15 @@ class ActiveFunctionsRedirector : public ThreadVisitor {
 };
 
 
-class ForceDebuggerActive {
- public:
-  explicit ForceDebuggerActive(Isolate *isolate) {
-    isolate_ = isolate;
-    old_state_ = isolate->debugger()->force_debugger_active();
-    isolate_->debugger()->set_force_debugger_active(true);
-  }
-
-  ~ForceDebuggerActive() {
-    isolate_->debugger()->set_force_debugger_active(old_state_);
-  }
-
- private:
-  Isolate *isolate_;
-  bool old_state_;
-
-  DISALLOW_COPY_AND_ASSIGN(ForceDebuggerActive);
-};
-
-
 void Debug::EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function) {
   if (function->code()->kind() == Code::FUNCTION &&
       function->code()->has_debug_break_slots()) {
     // Nothing to do. Function code already had debug break slots.
     return;
   }
-
   // Make sure that the shared full code is compiled with debug
   // break slots.
   if (!function->shared()->code()->has_debug_break_slots()) {
-    ForceDebuggerActive force_debugger_active(isolate_);
     MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
     // Recompilation can fail.  In that case leave the code as it was.
     if (!code.is_null()) function->ReplaceCode(*code.ToHandleChecked());
@@ -2652,14 +2624,12 @@ void Debug::AfterGarbageCollection() {
 
 
 Debugger::Debugger(Isolate* isolate)
-    : debugger_access_(isolate->debugger_access()),
-      event_listener_(Handle<Object>()),
+    : event_listener_(Handle<Object>()),
       event_listener_data_(Handle<Object>()),
-      compiling_natives_(false),
-      is_loading_debugger_(false),
+      is_active_(false),
+      ignore_debugger_(false),
       live_edit_enabled_(true),
       never_unload_debugger_(false),
-      force_debugger_active_(false),
       message_handler_(NULL),
       debugger_unload_pending_(false),
       debug_message_dispatch_handler_(NULL),
@@ -2760,7 +2730,7 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
 
   // Bail out based on state or if there is no listener for this event
   if (debug->InDebugger()) return;
-  if (!Debugger::EventActive(v8::Exception)) return;
+  if (!Debugger::EventActive()) return;
 
   Handle<Object> promise = debug->GetPromiseForUncaughtException();
   uncaught |= !promise->IsUndefined();
@@ -2804,7 +2774,7 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
 
   // Bail out if there is no listener for this event
-  if (!Debugger::EventActive(v8::Break)) return;
+  if (!Debugger::EventActive()) return;
 
   // Debugger must be entered in advance.
   ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
@@ -2826,8 +2796,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
   // Bail out based on state or if there is no listener for this event
   if (isolate_->debug()->InDebugger()) return;
-  if (compiling_natives()) return;
-  if (!EventActive(v8::BeforeCompile)) return;
+  if (!EventActive()) return;
 
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
@@ -2855,10 +2824,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   debug->AddScriptToScriptCache(script);
 
   // No more to do if not debugging.
-  if (!IsDebuggerActive()) return;
-
-  // No compile events while compiling natives.
-  if (compiling_natives()) return;
+  if (!Debugger::EventActive()) return;
 
   // Store whether in debugger before entering debugger.
   bool in_debugger = debug->InDebugger();
@@ -2897,7 +2863,6 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   }
   // Bail out based on state or if there is no listener for this event
   if (in_debugger && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
-  if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.
   Handle<Object> event_data;
@@ -2914,8 +2879,7 @@ void Debugger::OnScriptCollected(int id) {
 
   // No more to do if not debugging.
   if (isolate_->debug()->InDebugger()) return;
-  if (!IsDebuggerActive()) return;
-  if (!Debugger::EventActive(v8::ScriptCollected)) return;
+  if (!Debugger::EventActive()) return;
 
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
@@ -3129,7 +3093,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     CommandMessage command = command_queue_.Get();
     isolate_->logger()->DebugTag(
         "Got request from command queue, in interactive loop.");
-    if (!Debugger::IsDebuggerActive()) {
+    if (!Debugger::is_active()) {
       // Delete command text and user data.
       command.Dispose();
       return;
@@ -3217,7 +3181,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
 
 
 void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
-  LockGuard<RecursiveMutex> with(debugger_access_);
+  LockGuard<RecursiveMutex> with(&debugger_access_);
 
   message_handler_ = handler;
   ListenersChanged();
@@ -3232,8 +3196,9 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
 
 
 void Debugger::ListenersChanged() {
-  bool active = IsDebuggerActive();
-  if (active) {
+  LockGuard<RecursiveMutex> with(&debugger_access_);
+  is_active_ = message_handler_ != NULL || !event_listener_.is_null();
+  if (is_active_) {
     // Disable the compilation cache when the debugger is active.
     isolate_->compilation_cache()->Disable();
     debugger_unload_pending_ = false;
@@ -3261,7 +3226,7 @@ void Debugger::SetDebugMessageDispatchHandler(
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
-  LockGuard<RecursiveMutex> with(debugger_access_);
+  LockGuard<RecursiveMutex> with(&debugger_access_);
 
   if (message_handler_ != NULL) {
     message_handler_(message);
@@ -3316,15 +3281,6 @@ void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
   if (!isolate_->debug()->InDebugger()) {
     isolate_->stack_guard()->RequestDebugCommand();
   }
-}
-
-
-bool Debugger::IsDebuggerActive() {
-  LockGuard<RecursiveMutex> with(debugger_access_);
-
-  return message_handler_ != NULL ||
-      !event_listener_.is_null() ||
-      force_debugger_active_;
 }
 
 
@@ -3478,7 +3434,7 @@ EnterDebugger::~EnterDebugger() {
     }
 
     // If leaving the debugger with the debugger no longer active unload it.
-    if (!isolate_->debugger()->IsDebuggerActive()) {
+    if (!isolate_->debugger()->is_active()) {
       isolate_->debugger()->UnloadDebugger();
     }
   }

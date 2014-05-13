@@ -104,7 +104,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   if (has_exception) {
     isolate->ReportPendingMessages();
     // Reset stepping state when script exits with uncaught exception.
-    if (isolate->debugger()->IsDebuggerActive()) {
+    if (isolate->debugger()->is_active()) {
       isolate->debug()->ClearStepping();
     }
     return MaybeHandle<Object>();
@@ -685,7 +685,7 @@ void Execution::DebugBreakHelper(Isolate* isolate) {
   if (isolate->bootstrapper()->IsActive()) return;
 
   // Ignore debug break if debugger is not active.
-  if (!isolate->debugger()->IsDebuggerActive()) return;
+  if (!isolate->debugger()->is_active()) return;
 
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;

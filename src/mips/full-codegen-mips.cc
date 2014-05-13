@@ -176,7 +176,8 @@ void FullCodeGenerator::Generate() {
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   info->set_prologue_offset(masm_->pc_offset());
-  __ Prologue(BUILD_FUNCTION_FRAME);
+  ASSERT(!info->IsStub());
+  __ Prologue(info);
   info->AddNoFrameRange(0, masm_->pc_offset());
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -353,7 +354,7 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 
 void FullCodeGenerator::EmitProfilingCounterReset() {
   int reset_value = FLAG_interrupt_budget;
-  if (isolate()->IsDebuggerActive()) {
+  if (info_->is_debug()) {
     // Detect debug break requests as soon as possible.
     reset_value = FLAG_interrupt_budget >> 4;
   }
@@ -1805,33 +1806,12 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
   __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
   __ li(a1, Operand(constant_elements));
-  if (has_fast_elements && constant_elements_values->map() ==
-      isolate()->heap()->fixed_cow_array_map()) {
-    FastCloneShallowArrayStub stub(
-        isolate(),
-        FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS,
-        allocation_site_mode,
-        length);
-    __ CallStub(&stub);
-    __ IncrementCounter(isolate()->counters()->cow_arrays_created_stub(),
-        1, a1, a2);
-  } else if (expr->depth() > 1 || Serializer::enabled(isolate()) ||
-             length > FastCloneShallowArrayStub::kMaximumClonedLength) {
+  if (expr->depth() > 1) {
     __ li(a0, Operand(Smi::FromInt(flags)));
     __ Push(a3, a2, a1, a0);
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);
   } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
-           FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
-
-    if (has_fast_elements) {
-      mode = FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    }
-
-    FastCloneShallowArrayStub stub(isolate(), mode, allocation_site_mode,
-                                   length);
+    FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
     __ CallStub(&stub);
   }
 

@@ -102,15 +102,8 @@
                   }],
                   [ 'arm_version==7 or arm_version=="default"', {
                     'conditions': [
-                      [ 'arm_neon==1', {
-                        'cflags': ['-mfpu=neon',],
-                      },
-                      {
-                        'conditions': [
-                          [ 'arm_fpu!="default"', {
-                            'cflags': ['-mfpu=<(arm_fpu)',],
-                          }],
-                        ],
+                      [ 'arm_fpu!="default"', {
+                        'cflags': ['-mfpu=<(arm_fpu)',],
                       }],
                     ],
                   }],
@@ -153,10 +146,11 @@
                           'CAN_USE_VFP32DREGS',
                         ],
                       }],
-                      [ 'arm_fpu=="neon" or arm_neon==1', {
+                      [ 'arm_fpu=="neon"', {
                         'defines': [
                           'CAN_USE_VFP3_INSTRUCTIONS',
                           'CAN_USE_VFP32DREGS',
+                          'CAN_USE_NEON',
                         ],
                       }],
                     ],
@@ -190,15 +184,8 @@
                   }],
                   [ 'arm_version==7 or arm_version=="default"', {
                     'conditions': [
-                      [ 'arm_neon==1', {
-                        'cflags': ['-mfpu=neon',],
-                      },
-                      {
-                        'conditions': [
-                          [ 'arm_fpu!="default"', {
-                            'cflags': ['-mfpu=<(arm_fpu)',],
-                          }],
-                        ],
+                      [ 'arm_fpu!="default"', {
+                        'cflags': ['-mfpu=<(arm_fpu)',],
                       }],
                     ],
                   }],
@@ -215,6 +202,26 @@
                     'defines': [
                       'ARM_TEST',
                     ],
+                    'conditions': [
+                      [ 'arm_fpu=="vfpv3-d16"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="vfpv3"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                        ],
+                      }],
+                      [ 'arm_fpu=="neon"', {
+                        'defines': [
+                          'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                          'CAN_USE_NEON',
+                        ],
+                      }],
+                    ],
                   }],
                 ],
               }, {
@@ -228,6 +235,8 @@
                       [ 'arm_fpu=="default"', {
                         'defines': [
                           'CAN_USE_VFP3_INSTRUCTIONS',
+                          'CAN_USE_VFP32DREGS',
+                          'CAN_USE_NEON',
                         ],
                       }],
                       [ 'arm_fpu=="vfpv3-d16"', {
@@ -241,10 +250,11 @@
                           'CAN_USE_VFP32DREGS',
                         ],
                       }],
-                      [ 'arm_fpu=="neon" or arm_neon==1', {
+                      [ 'arm_fpu=="neon"', {
                         'defines': [
                           'CAN_USE_VFP3_INSTRUCTIONS',
                           'CAN_USE_VFP32DREGS',
+                          'CAN_USE_NEON',
                         ],
                       }],
                     ],

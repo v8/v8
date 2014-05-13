@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+"use strict";
+
 // This file contains infrastructure used by the API.  See
 // v8natives.js for an explanation of these files are processed and
 // loaded.

@@ -619,6 +619,10 @@ class HValue : public ZoneObject {
     // flag.
     kUint32,
     kHasNoObservableSideEffects,
+    // Indicates an instruction shouldn't be replaced by optimization, this flag
+    // is useful to set in cases where recomputing a value is cheaper than
+    // extending the value's live range and spilling it.
+    kCantBeReplaced,
     // Indicates the instruction is live during dead code elimination.
     kIsLive,
 
@@ -1571,6 +1575,7 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
   }
 
   Unique<Map> map() const { return map_; }
+  bool map_is_stable() const { return map_is_stable_; }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -1587,12 +1592,14 @@ class HCompareMap V8_FINAL : public HUnaryControlInstruction {
               HBasicBlock* true_target = NULL,
               HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
-        known_successor_index_(kNoKnownSuccessorIndex), map_(Unique<Map>(map)) {
-    ASSERT(!map.is_null());
+        known_successor_index_(kNoKnownSuccessorIndex),
+        map_is_stable_(map->is_stable()),
+        map_(Unique<Map>::CreateImmovable(map)) {
     set_representation(Representation::Tagged());
   }
 
-  int known_successor_index_;
+  int known_successor_index_ : 31;
+  bool map_is_stable_ : 1;
   Unique<Map> map_;
 };
 
@@ -2765,6 +2772,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
   bool IsStabilityCheck() const { return is_stability_check_; }
   void MarkAsStabilityCheck() {
+    maps_are_stable_ = true;
     has_migration_target_ = false;
     is_stability_check_ = true;
     ClearChangesFlag(kNewSpacePromotion);
@@ -2795,16 +2803,16 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
                                           Unique<Map> map,
                                           bool map_is_stable,
                                           HInstruction* instr) {
-    return CreateAndInsertAfter(zone, value, new(zone) UniqueSet<Map>(
-            map, zone), map_is_stable, instr);
+    return instr->Append(new(zone) HCheckMaps(
+            value, new(zone) UniqueSet<Map>(map, zone), map_is_stable));
   }
 
-  static HCheckMaps* CreateAndInsertAfter(Zone* zone,
-                                          HValue* value,
-                                          const UniqueSet<Map>* maps,
-                                          bool maps_are_stable,
-                                          HInstruction* instr) {
-    return instr->Append(new(zone) HCheckMaps(value, maps, maps_are_stable));
+  static HCheckMaps* CreateAndInsertBefore(Zone* zone,
+                                           HValue* value,
+                                           const UniqueSet<Map>* maps,
+                                           bool maps_are_stable,
+                                           HInstruction* instr) {
+    return instr->Prepend(new(zone) HCheckMaps(value, maps, maps_are_stable));
   }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
@@ -3498,20 +3506,21 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
-                                          Unique<Object> object,
-                                          bool is_not_in_new_space,
+                                          Unique<Map> map,
+                                          bool map_is_stable,
                                           HInstruction* instruction) {
     return instruction->Prepend(new(zone) HConstant(
-        object, Unique<Map>(Handle<Map>::null()), false,
-        Representation::Tagged(), HType::Tagged(), is_not_in_new_space,
-        false, false, kUnknownInstanceType));
+        map, Unique<Map>(Handle<Map>::null()), map_is_stable,
+        Representation::Tagged(), HType::Tagged(), true,
+        false, false, MAP_TYPE));
   }
 
   static HConstant* CreateAndInsertAfter(Zone* zone,
                                          Unique<Map> map,
+                                         bool map_is_stable,
                                          HInstruction* instruction) {
     return instruction->Append(new(zone) HConstant(
-            map, Unique<Map>(Handle<Map>::null()), false,
+            map, Unique<Map>(Handle<Map>::null()), map_is_stable,
             Representation::Tagged(), HType::Tagged(), true,
             false, false, MAP_TYPE));
   }
@@ -6257,6 +6266,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   bool CanBeReplacedWith(HValue* other) const {
+    if (!CheckFlag(HValue::kCantBeReplaced)) return false;
     if (!type().Equals(other->type())) return false;
     if (!representation().Equals(other->representation())) return false;
     if (!other->IsLoadNamedField()) return true;

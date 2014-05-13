@@ -822,45 +822,49 @@ class Debugger {
   void UnloadDebugger();
   friend void ForceUnloadDebugger();  // In test-debug.cc
 
-  inline bool EventActive(v8::DebugEvent event) {
-    LockGuard<RecursiveMutex> lock_guard(debugger_access_);
+  inline bool EventActive() {
+    LockGuard<RecursiveMutex> lock_guard(&debugger_access_);
 
     // Check whether the message handler was been cleared.
+    // TODO(yangguo): handle loading and unloading of the debugger differently.
     if (debugger_unload_pending_) {
       if (isolate_->debug()->debugger_entry() == NULL) {
         UnloadDebugger();
       }
     }
 
-    if (((event == v8::BeforeCompile) || (event == v8::AfterCompile)) &&
-        !FLAG_debug_compile_events) {
-      return false;
-
-    } else if ((event == v8::ScriptCollected) &&
-               !FLAG_debug_script_collected_events) {
-      return false;
-    }
-
     // Currently argument event is not used.
-    return !compiling_natives_ && Debugger::IsDebuggerActive();
+    return !ignore_debugger_ && is_active_;
   }
 
-  void set_compiling_natives(bool compiling_natives) {
-    compiling_natives_ = compiling_natives;
-  }
-  bool compiling_natives() const { return compiling_natives_; }
-  void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
-  bool is_loading_debugger() const { return is_loading_debugger_; }
+  bool ignore_debugger() const { return ignore_debugger_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
     return FLAG_enable_liveedit && live_edit_enabled_ ;
   }
-  void set_force_debugger_active(bool force_debugger_active) {
-    force_debugger_active_ = force_debugger_active;
-  }
-  bool force_debugger_active() const { return force_debugger_active_; }
 
-  bool IsDebuggerActive();
+  bool is_active() {
+    LockGuard<RecursiveMutex> lock_guard(&debugger_access_);
+    return is_active_;
+  }
+
+  class IgnoreScope {
+   public:
+    explicit IgnoreScope(Debugger* debugger)
+        : debugger_(debugger),
+          old_state_(debugger_->ignore_debugger_) {
+      debugger_->ignore_debugger_ = true;
+    }
+
+    ~IgnoreScope() {
+      debugger_->ignore_debugger_ = old_state_;
+    }
+
+   private:
+    Debugger* debugger_;
+    bool old_state_;
+    DISALLOW_COPY_AND_ASSIGN(IgnoreScope);
+  };
 
  private:
   explicit Debugger(Isolate* isolate);
@@ -878,14 +882,13 @@ class Debugger {
                            Handle<Object> event_data);
   void ListenersChanged();
 
-  RecursiveMutex* debugger_access_;  // Mutex guarding debugger variables.
+  RecursiveMutex debugger_access_;  // Mutex guarding debugger variables.
   Handle<Object> event_listener_;  // Global handle to listener.
   Handle<Object> event_listener_data_;
-  bool compiling_natives_;  // Are we compiling natives?
-  bool is_loading_debugger_;  // Are we loading the debugger?
+  bool is_active_;
+  bool ignore_debugger_;  // Are we temporarily ignoring the debugger?
   bool live_edit_enabled_;  // Enable LiveEdit.
   bool never_unload_debugger_;  // Can we unload the debugger?
-  bool force_debugger_active_;  // Activate debugger without event listeners.
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
 

@@ -3889,8 +3889,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 }
 
 
-void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
-  if (frame_mode == BUILD_STUB_FRAME) {
+void MacroAssembler::Prologue(CompilationInfo* info) {
+  if (info->IsStub()) {
     pushq(rbp);  // Caller's frame pointer.
     movp(rbp, rsp);
     Push(rsi);  // Callee's context.
@@ -3898,7 +3898,7 @@ void MacroAssembler::Prologue(PrologueFrameMode frame_mode) {
   } else {
     PredictableCodeSizeScope predictible_code_size_scope(this,
         kNoCodeAgeSequenceLength);
-    if (isolate()->IsCodePreAgingActive()) {
+    if (info->IsCodePreAgingActive()) {
         // Pre-age the code.
       Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
            RelocInfo::CODE_AGE_SEQUENCE);

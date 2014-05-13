@@ -1648,7 +1648,7 @@ class MacroAssembler : public Assembler {
   void ExitFrameRestoreFPRegs();
 
   // Generates function and stub prologue code.
-  void Prologue(PrologueFrameMode frame_mode);
+  void Prologue(CompilationInfo* info);
 
   // Enter exit frame. Exit frames are used when calling C code from generated
   // (JavaScript) code.
@@ -1930,12 +1930,13 @@ class MacroAssembler : public Assembler {
   // (such as %e, %f or %g) are FPRegisters, and that arguments for integer
   // placeholders are Registers.
   //
-  // A maximum of four arguments may be given to any single Printf call. The
-  // arguments must be of the same type, but they do not need to have the same
-  // size.
+  // At the moment it is only possible to print the value of csp if it is the
+  // current stack pointer. Otherwise, the MacroAssembler will automatically
+  // update csp on every push (using BumpSystemStackPointer), so determining its
+  // value is difficult.
   //
-  // The following registers cannot be printed:
-  //    StackPointer(), csp.
+  // Format placeholders that refer to more than one argument, or to a specific
+  // argument, are not supported. This includes formats like "%1$d" or "%.*d".
   //
   // This function automatically preserves caller-saved registers so that
   // calling code can use Printf at any point without having to worry about
@@ -1943,15 +1944,11 @@ class MacroAssembler : public Assembler {
   // a problem, preserve the important registers manually and then call
   // PrintfNoPreserve. Callee-saved registers are not used by Printf, and are
   // implicitly preserved.
-  //
-  // This function assumes (and asserts) that the current stack pointer is
-  // callee-saved, not caller-saved. This is most likely the case anyway, as a
-  // caller-saved stack pointer doesn't make a lot of sense.
   void Printf(const char * format,
-              const CPURegister& arg0 = NoCPUReg,
-              const CPURegister& arg1 = NoCPUReg,
-              const CPURegister& arg2 = NoCPUReg,
-              const CPURegister& arg3 = NoCPUReg);
+              CPURegister arg0 = NoCPUReg,
+              CPURegister arg1 = NoCPUReg,
+              CPURegister arg2 = NoCPUReg,
+              CPURegister arg3 = NoCPUReg);
 
   // Like Printf, but don't preserve any caller-saved registers, not even 'lr'.
   //
@@ -2046,8 +2043,10 @@ class MacroAssembler : public Assembler {
   // arguments and stack (csp) must be prepared by the caller as for a normal
   // AAPCS64 call to 'printf'.
   //
-  // The 'type' argument specifies the type of the optional arguments.
-  void CallPrintf(CPURegister::RegisterType type = CPURegister::kNoRegister);
+  // The 'args' argument should point to an array of variable arguments in their
+  // proper PCS registers (and in calling order). The argument registers can
+  // have mixed types. The format string (x0) should not be included.
+  void CallPrintf(int arg_count = 0, const CPURegister * args = NULL);
 
   // Helper for throwing exceptions.  Compute a handler address and jump to
   // it.  See the implementation for register usage.

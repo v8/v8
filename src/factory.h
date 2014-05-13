@@ -489,7 +489,8 @@ class Factory V8_FINAL {
                        Handle<Object> self_reference,
                        bool immovable = false,
                        bool crankshafted = false,
-                       int prologue_offset = Code::kPrologueOffsetNotSet);
+                       int prologue_offset = Code::kPrologueOffsetNotSet,
+                       bool is_debug = false);
 
   Handle<Code> CopyCode(Handle<Code> code);
 

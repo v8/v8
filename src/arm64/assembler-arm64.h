@@ -66,6 +66,7 @@ struct CPURegister {
   bool IsValidFPRegister() const;
   bool IsNone() const;
   bool Is(const CPURegister& other) const;
+  bool Aliases(const CPURegister& other) const;
 
   bool IsZero() const;
   bool IsSP() const;
@@ -559,6 +560,11 @@ class CPURegList {
     int size_in_bits = RegisterSizeInBits();
     ASSERT((size_in_bits % kBitsPerByte) == 0);
     return size_in_bits / kBitsPerByte;
+  }
+
+  unsigned TotalSizeInBytes() const {
+    ASSERT(IsValid());
+    return RegisterSizeInBytes() * Count();
   }
 
  private:

@@ -277,6 +277,11 @@ struct CodeStubInterfaceDescriptor {
   int hint_stack_parameter_count_;
   StubFunctionMode function_mode_;
   Register* register_params_;
+  // Specifies Representations for the stub's parameter. Points to an array of
+  // Representations of the same length of the numbers of parameters to the
+  // stub, or if NULL (the default value), Representation of each parameter
+  // assumed to be Tagged()
+  Representation* register_param_representations_;
 
   Address deoptimization_handler_;
   HandlerArgumentsMode handler_arguments_mode_;
@@ -581,50 +586,18 @@ class FastNewContextStub V8_FINAL : public HydrogenCodeStub {
 class FastCloneShallowArrayStub : public HydrogenCodeStub {
  public:
   // Maximum length of copied elements array.
-  static const int kMaximumClonedLength = 8;
-  enum Mode {
-    CLONE_ELEMENTS,
-    CLONE_DOUBLE_ELEMENTS,
-    COPY_ON_WRITE_ELEMENTS,
-    CLONE_ANY_ELEMENTS,
-    LAST_CLONE_MODE = CLONE_ANY_ELEMENTS
-  };
-
-  static const int kFastCloneModeCount = LAST_CLONE_MODE + 1;
+  static const int kMaximumInlinedCloneLength = 8;
 
   FastCloneShallowArrayStub(Isolate* isolate,
-                            Mode mode,
-                            AllocationSiteMode allocation_site_mode,
-                            int length)
+                            AllocationSiteMode allocation_site_mode)
       : HydrogenCodeStub(isolate),
-        mode_(mode),
-        allocation_site_mode_(allocation_site_mode),
-        length_((mode == COPY_ON_WRITE_ELEMENTS) ? 0 : length) {
-    ASSERT_GE(length_, 0);
-    ASSERT_LE(length_, kMaximumClonedLength);
-  }
+      allocation_site_mode_(allocation_site_mode) {}
 
-  Mode mode() const { return mode_; }
-  int length() const { return length_; }
   AllocationSiteMode allocation_site_mode() const {
     return allocation_site_mode_;
   }
 
-  ElementsKind ComputeElementsKind() const {
-    switch (mode()) {
-      case CLONE_ELEMENTS:
-      case COPY_ON_WRITE_ELEMENTS:
-        return FAST_ELEMENTS;
-      case CLONE_DOUBLE_ELEMENTS:
-        return FAST_DOUBLE_ELEMENTS;
-      case CLONE_ANY_ELEMENTS:
-        /*fall-through*/;
-    }
-    UNREACHABLE();
-    return LAST_ELEMENTS_KIND;
-  }
-
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
+  virtual Handle<Code> GenerateCode();
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
@@ -632,22 +605,13 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   static void InstallDescriptors(Isolate* isolate);
 
  private:
-  Mode mode_;
   AllocationSiteMode allocation_site_mode_;
-  int length_;
 
   class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
-  class ModeBits: public BitField<Mode, 1, 4> {};
-  class LengthBits: public BitField<int, 5, 4> {};
   // Ensure data fits within available bits.
-  STATIC_ASSERT(LAST_ALLOCATION_SITE_MODE == 1);
-  STATIC_ASSERT(kFastCloneModeCount < 16);
-  STATIC_ASSERT(kMaximumClonedLength < 16);
   Major MajorKey() { return FastCloneShallowArray; }
   int NotMissMinorKey() {
-    return AllocationSiteModeBits::encode(allocation_site_mode_)
-        | ModeBits::encode(mode_)
-        | LengthBits::encode(length_);
+    return AllocationSiteModeBits::encode(allocation_site_mode_);
   }
 };
 

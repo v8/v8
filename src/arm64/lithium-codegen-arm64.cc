@@ -671,7 +671,7 @@ bool LCodeGen::GeneratePrologue() {
   ASSERT(__ StackPointer().Is(jssp));
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
-    __ Prologue(info()->IsStub() ? BUILD_STUB_FRAME : BUILD_FUNCTION_FRAME);
+    __ Prologue(info());
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
   }
@@ -4111,9 +4111,9 @@ void LCodeGen::DoMathRoundD(LMathRoundD* instr) {
 
 void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
-  DoubleRegister temp1 = ToDoubleRegister(instr->temp1());
+  DoubleRegister temp = ToDoubleRegister(instr->temp1());
+  DoubleRegister dot_five = double_scratch();
   Register result = ToRegister(instr->result());
-  Label try_rounding;
   Label done;
 
   // Math.round() rounds to the nearest integer, with ties going towards
@@ -4124,42 +4124,41 @@ void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
   //    that -0.0 rounds to itself, and values -0.5 <= input < 0 also produce a
   //    result of -0.0.
 
-  DoubleRegister dot_five = double_scratch();
+  // Add 0.5 and round towards -infinity.
   __ Fmov(dot_five, 0.5);
-  __ Fabs(temp1, input);
-  __ Fcmp(temp1, dot_five);
-  // If input is in [-0.5, -0], the result is -0.
-  // If input is in [+0, +0.5[, the result is +0.
-  // If the input is +0.5, the result is 1.
-  __ B(hi, &try_rounding);  // hi so NaN will also branch.
+  __ Fadd(temp, input, dot_five);
+  __ Fcvtms(result, temp);
 
+  // The result is correct if:
+  //  result is not 0, as the input could be NaN or [-0.5, -0.0].
+  //  result is not 1, as 0.499...94 will wrongly map to 1.
+  //  result fits in 32 bits.
+  __ Cmp(result, Operand(result.W(), SXTW));
+  __ Ccmp(result, 1, ZFlag, eq);
+  __ B(hi, &done);
+
+  // At this point, we have to handle possible inputs of NaN or numbers in the
+  // range [-0.5, 1.5[, or numbers larger than 32 bits.
+
+  // Deoptimize if the result > 1, as it must be larger than 32 bits.
+  __ Cmp(result, 1);
+  DeoptimizeIf(hi, instr->environment());
+
+  // Deoptimize for negative inputs, which at this point are only numbers in
+  // the range [-0.5, -0.0]
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ Fmov(result, input);
-    DeoptimizeIfNegative(result, instr->environment());  // [-0.5, -0.0].
+    DeoptimizeIfNegative(result, instr->environment());
   }
+
+  // Deoptimize if the input was NaN.
   __ Fcmp(input, dot_five);
-  __ Mov(result, 1);  // +0.5.
-  // Remaining cases: [+0, +0.5[ or [-0.5, +0.5[, depending on
-  // flag kBailoutOnMinusZero, will return 0 (xzr).
-  __ Csel(result, result, xzr, eq);
-  __ B(&done);
+  DeoptimizeIf(vs, instr->environment());
 
-  __ Bind(&try_rounding);
-  // Since we're providing a 32-bit result, we can implement ties-to-infinity by
-  // adding 0.5 to the input, then taking the floor of the result. This does not
-  // work for very large positive doubles because adding 0.5 would cause an
-  // intermediate rounding stage, so a different approach is necessary when a
-  // double result is needed.
-  __ Fadd(temp1, input, dot_five);
-  __ Fcvtms(result, temp1);
-
-  // Deopt if
-  //  * the input was NaN
-  //  * the result is not representable using a 32-bit integer.
-  __ Fcmp(input, 0.0);
-  __ Ccmp(result, Operand(result.W(), SXTW), NoFlag, vc);
-  DeoptimizeIf(ne, instr->environment());
-
+  // Now, the only unhandled inputs are in the range [0.0, 1.5[ (or [-0.5, 1.5[
+  // if we didn't generate a -0.0 bailout). If input >= 0.5 then return 1,
+  // else 0; we avoid dealing with 0.499...94 directly.
+  __ Cset(result, ge);
   __ Bind(&done);
 }
 

@@ -757,6 +757,9 @@ class Simulator : public DecoderVisitor {
   void CorruptAllCallerSavedCPURegisters();
 #endif
 
+  // Pseudo Printf instruction
+  void DoPrintf(Instruction* instr);
+
   // Processor state ---------------------------------------
 
   // Output stream.

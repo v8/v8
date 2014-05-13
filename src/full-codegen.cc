@@ -805,7 +805,7 @@ void FullCodeGenerator::SetReturnPosition(FunctionLiteral* fun) {
 
 
 void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
-  if (!isolate()->debugger()->IsDebuggerActive()) {
+  if (!info_->is_debug()) {
     CodeGenerator::RecordPositions(masm_, stmt->position());
   } else {
     // Check if the statement will be breakable without adding a debug break
@@ -827,7 +827,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 
 
 void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
-  if (!isolate()->debugger()->IsDebuggerActive()) {
+  if (!info_->is_debug()) {
     CodeGenerator::RecordPositions(masm_, expr->position());
   } else {
     // Check if the expression will be breakable without adding a debug break

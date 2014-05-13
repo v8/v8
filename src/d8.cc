@@ -1352,8 +1352,16 @@ void SourceGroup::WaitForThread() {
 #endif  // !V8_SHARED
 
 
+void SetFlagsFromString(const char* flags) {
+  v8::V8::SetFlagsFromString(flags, static_cast<int>(strlen(flags)));
+}
+
+
 bool Shell::SetOptions(int argc, char* argv[]) {
+  bool logfile_per_isolate = false;
   for (int i = 0; i < argc; i++) {
+    // Turn '_' into '-'.
+    // for (char* c = arg; *c != '\0'; c++) if (*c == '_') *c = '-';
     if (strcmp(argv[i], "--stress-opt") == 0) {
       options.stress_opt = true;
       argv[i] = NULL;
@@ -1370,6 +1378,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       // No support for stressing if we can't use --always-opt.
       options.stress_opt = false;
       options.stress_deopt = false;
+    } else if (strcmp(argv[i], "--logfile-per-isolate") == 0) {
+      logfile_per_isolate = true;
+      argv[i] = NULL;
     } else if (strcmp(argv[i], "--shell") == 0) {
       options.interactive_shell = true;
       argv[i] = NULL;
@@ -1464,6 +1475,10 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   }
   current->End(argc);
 
+  if (!logfile_per_isolate && options.num_isolates) {
+    SetFlagsFromString("--nologfile_per_isolate");
+  }
+
   return true;
 }
 
@@ -1535,21 +1550,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
 #endif  // !V8_SHARED
   return 0;
 }
-
-
-#ifdef V8_SHARED
-static void SetStandaloneFlagsViaCommandLine() {
-  int fake_argc = 3;
-  char **fake_argv = new char*[3];
-  fake_argv[0] = NULL;
-  fake_argv[1] = strdup("--trace-hydrogen-file=hydrogen.cfg");
-  fake_argv[2] = strdup("--redirect-code-traces-to=code.asm");
-  v8::V8::SetFlagsFromCommandLine(&fake_argc, fake_argv, false);
-  free(fake_argv[1]);
-  free(fake_argv[2]);
-  delete[] fake_argv;
-}
-#endif
 
 
 #ifndef V8_SHARED
@@ -1635,12 +1635,8 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
-#ifndef V8_SHARED
-  i::FLAG_trace_hydrogen_file = "hydrogen.cfg";
-  i::FLAG_redirect_code_traces_to = "code.asm";
-#else
-  SetStandaloneFlagsViaCommandLine();
-#endif
+  SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
+  SetFlagsFromString("--redirect-code-traces-to=code.asm");
   ShellArrayBufferAllocator array_buffer_allocator;
   MockArrayBufferAllocator mock_arraybuffer_allocator;
   if (options.mock_arraybuffer_allocator) {

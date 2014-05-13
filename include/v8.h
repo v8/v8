@@ -4393,6 +4393,12 @@ class V8_EXPORT Isolate {
    */
   void SetAutorunMicrotasks(bool autorun);
 
+  /**
+   * Experimental: Returns whether the Microtask Work Queue is automatically
+   * run when the script call depth decrements to zero.
+   */
+  bool WillAutorunMicrotasks() const;
+
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
 
@@ -4753,28 +4759,6 @@ class V8_EXPORT V8 {
    * Removes callback that was installed by AddMemoryAllocationCallback.
    */
   static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
-
-  /**
-   * Experimental: Runs the Microtask Work Queue until empty
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void RunMicrotasks(Isolate* isolate);
-
-  /**
-   * Experimental: Enqueues the callback to the Microtask Work Queue
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Function> microtask);
-
-   /**
-   * Experimental: Controls whether the Microtask Work Queue is automatically
-   * run when the script call depth decrements to zero.
-   *
-   * Deprecated: Use methods on Isolate instead.
-   */
-  static void SetAutorunMicrotasks(Isolate *source, bool autorun);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to

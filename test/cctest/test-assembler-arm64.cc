@@ -9780,7 +9780,7 @@ TEST(cpureglist_utils_empty) {
 
 TEST(printf) {
   INIT_V8();
-  SETUP();
+  SETUP_SIZE(BUF_SIZE * 2);
   START();
 
   char const * test_plain_string = "Printf with no arguments.\n";
@@ -9821,40 +9821,48 @@ TEST(printf) {
   __ Mov(x11, 40);
   __ Mov(x12, 500);
 
-  // x8 and x9 are used by debug code in part of the macro assembler. However,
-  // Printf guarantees to preserve them (so we can use Printf in debug code),
-  // and we need to test that they are properly preserved. The above code
-  // shouldn't need to use them, but we initialize x8 and x9 last to be on the
-  // safe side. This test still assumes that none of the code from
-  // before->Dump() to the end of the test can clobber x8 or x9, so where
-  // possible we use the Assembler directly to be safe.
-  __ orr(x8, xzr, 0x8888888888888888);
-  __ orr(x9, xzr, 0x9999999999999999);
+  // A single character.
+  __ Mov(w13, 'x');
 
-  // Check that we don't clobber any registers, except those that we explicitly
-  // write results into.
+  // Check that we don't clobber any registers.
   before.Dump(&masm);
 
   __ Printf(test_plain_string);   // NOLINT(runtime/printf)
-  __ Printf("x0: %" PRId64", x1: 0x%08" PRIx64 "\n", x0, x1);
+  __ Printf("x0: %" PRId64 ", x1: 0x%08" PRIx64 "\n", x0, x1);
+  __ Printf("w5: %" PRId32 ", x5: %" PRId64"\n", w5, x5);
   __ Printf("d0: %f\n", d0);
   __ Printf("Test %%s: %s\n", x2);
   __ Printf("w3(uint32): %" PRIu32 "\nw4(int32): %" PRId32 "\n"
             "x5(uint64): %" PRIu64 "\nx6(int64): %" PRId64 "\n",
             w3, w4, x5, x6);
   __ Printf("%%f: %f\n%%g: %g\n%%e: %e\n%%E: %E\n", s1, s2, d3, d4);
-  __ Printf("0x%08" PRIx32 ", 0x%016" PRIx64 "\n", x28, x28);
+  __ Printf("0x%" PRIx32 ", 0x%" PRIx64 "\n", w28, x28);
   __ Printf("%g\n", d10);
+  __ Printf("%%%%%s%%%c%%\n", x2, w13);
+
+  // Print the stack pointer (csp).
+  ASSERT(csp.Is(__ StackPointer()));
+  __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
+            __ StackPointer(), __ StackPointer().W());
 
   // Test with a different stack pointer.
   const Register old_stack_pointer = __ StackPointer();
-  __ mov(x29, old_stack_pointer);
+  __ Mov(x29, old_stack_pointer);
   __ SetStackPointer(x29);
-  __ Printf("old_stack_pointer: 0x%016" PRIx64 "\n", old_stack_pointer);
-  __ mov(old_stack_pointer, __ StackPointer());
+  // Print the stack pointer (not csp).
+  __ Printf("StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
+            __ StackPointer(), __ StackPointer().W());
+  __ Mov(old_stack_pointer, __ StackPointer());
   __ SetStackPointer(old_stack_pointer);
 
+  // Test with three arguments.
   __ Printf("3=%u, 4=%u, 5=%u\n", x10, x11, x12);
+
+  // Mixed argument types.
+  __ Printf("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
+            w3, s1, x5, d3);
+  __ Printf("s1: %f, d3: %f, w3: %" PRId32 ", x5: %" PRId64 "\n",
+            s1, d3, w3, x5);
 
   END();
   RUN();
@@ -9877,7 +9885,7 @@ TEST(printf_no_preserve) {
   char const * test_plain_string = "Printf with no arguments.\n";
   char const * test_substring = "'This is a substring.'";
 
-  __ PrintfNoPreserve(test_plain_string);   // NOLINT(runtime/printf)
+  __ PrintfNoPreserve(test_plain_string);
   __ Mov(x19, x0);
 
   // Test simple integer arguments.
@@ -9915,7 +9923,7 @@ TEST(printf_no_preserve) {
 
   // Test printing callee-saved registers.
   __ Mov(x28, 0x123456789abcdef);
-  __ PrintfNoPreserve("0x%08" PRIx32 ", 0x%016" PRIx64 "\n", x28, x28);
+  __ PrintfNoPreserve("0x%" PRIx32 ", 0x%" PRIx64 "\n", w28, x28);
   __ Mov(x25, x0);
 
   __ Fmov(d10, 42.0);
@@ -9926,11 +9934,11 @@ TEST(printf_no_preserve) {
   const Register old_stack_pointer = __ StackPointer();
   __ Mov(x29, old_stack_pointer);
   __ SetStackPointer(x29);
-
-  __ PrintfNoPreserve("old_stack_pointer: 0x%016" PRIx64 "\n",
-                      old_stack_pointer);
+  // Print the stack pointer (not csp).
+  __ PrintfNoPreserve(
+      "StackPointer(not csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
+      __ StackPointer(), __ StackPointer().W());
   __ Mov(x27, x0);
-
   __ Mov(old_stack_pointer, __ StackPointer());
   __ SetStackPointer(old_stack_pointer);
 
@@ -9940,6 +9948,15 @@ TEST(printf_no_preserve) {
   __ Mov(x5, 500);
   __ PrintfNoPreserve("3=%u, 4=%u, 5=%u\n", x3, x4, x5);
   __ Mov(x28, x0);
+
+  // Mixed argument types.
+  __ Mov(w3, 0xffffffff);
+  __ Fmov(s1, 1.234);
+  __ Mov(x5, 0xffffffffffffffff);
+  __ Fmov(d3, 3.456);
+  __ PrintfNoPreserve("w3: %" PRIu32 ", s1: %f, x5: %" PRIu64 ", d3: %f\n",
+                      w3, s1, x5, d3);
+  __ Mov(x29, x0);
 
   END();
   RUN();
@@ -9965,16 +9982,18 @@ TEST(printf_no_preserve) {
   // %e: 3.456000e+00
   // %E: 4.567000E+00
   ASSERT_EQUAL_64(13 + 10 + 17 + 17, x24);
-  // 0x89abcdef, 0x0123456789abcdef
-  ASSERT_EQUAL_64(31, x25);
+  // 0x89abcdef, 0x123456789abcdef
+  ASSERT_EQUAL_64(30, x25);
   // 42
   ASSERT_EQUAL_64(3, x26);
-  // old_stack_pointer: 0x00007fb037ae2370
+  // StackPointer(not csp): 0x00007fb037ae2370, 0x37ae2370
   // Note: This is an example value, but the field width is fixed here so the
   // string length is still predictable.
-  ASSERT_EQUAL_64(38, x27);
+  ASSERT_EQUAL_64(54, x27);
   // 3=3, 4=40, 5=500
   ASSERT_EQUAL_64(17, x28);
+  // w3: 4294967295, s1: 1.234000, x5: 18446744073709551615, d3: 3.456000
+  ASSERT_EQUAL_64(69, x29);
 
   TEARDOWN();
 }

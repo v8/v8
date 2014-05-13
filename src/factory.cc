@@ -1395,7 +1395,8 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Handle<Object> self_ref,
                               bool immovable,
                               bool crankshafted,
-                              int prologue_offset) {
+                              int prologue_offset,
+                              bool is_debug) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<ConstantPoolArray> constant_pool =
       desc.origin->NewConstantPool(isolate());
@@ -1428,12 +1429,13 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
     code->set_marked_for_deoptimization(false);
   }
 
+  if (is_debug) {
+    ASSERT(code->kind() == Code::FUNCTION);
+    code->set_has_debug_break_slots(true);
+  }
+
   desc.origin->PopulateConstantPool(*constant_pool);
   code->set_constant_pool(*constant_pool);
-
-  if (code->kind() == Code::FUNCTION) {
-    code->set_has_debug_break_slots(isolate()->debugger()->IsDebuggerActive());
-  }
 
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.

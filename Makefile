@@ -156,11 +156,6 @@ ifeq ($(armv7), true)
 endif
 endif
 endif
-# vfp2=off. Deprecated, use armfpu=
-# vfp3=off. Deprecated, use armfpu=
-ifeq ($(vfp3), off)
-  GYPFLAGS += -Darm_fpu=vfp
-endif
 # hardfp=on/off. Deprecated, use armfloatabi
 ifeq ($(hardfp),on)
   GYPFLAGS += -Darm_float_abi=hard
@@ -169,16 +164,10 @@ ifeq ($(hardfp),off)
   GYPFLAGS += -Darm_float_abi=softfp
 endif
 endif
-# armneon=on/off
-ifeq ($(armneon), on)
-  GYPFLAGS += -Darm_neon=1
-endif
 # fpu: armfpu=xxx
 # xxx: vfp, vfpv3-d16, vfpv3, neon.
 ifeq ($(armfpu),)
-ifneq ($(vfp3), off)
   GYPFLAGS += -Darm_fpu=default
-endif
 else
   GYPFLAGS += -Darm_fpu=$(armfpu)
 endif
@@ -201,7 +190,7 @@ endif
 # armtest=on
 # With this flag set, by default v8 will only use features implied
 # by the compiler (no probe). This is done by modifying the default
-# values of enable_armv7, enable_vfp2, enable_vfp3 and enable_32dregs.
+# values of enable_armv7, enable_vfp3, enable_32dregs and enable_neon.
 # Modifying these flags when launching v8 will enable the probing for
 # the specified values.
 # When using the simulator, this flag is implied.
