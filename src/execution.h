@@ -212,8 +212,6 @@ enum InterruptFlag {
   void ClearInterrupt(int flagbit);
   bool CheckAndClearInterrupt(InterruptFlag flag, const ExecutionAccess& lock);
 
-  void InvokeApiInterruptCallback();
-
   // You should hold the ExecutionAccess lock when calling this method.
   bool has_pending_interrupts(const ExecutionAccess& lock) {
     // Sanity check: We shouldn't be asking about pending interrupts
