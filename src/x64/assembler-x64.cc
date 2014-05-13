@@ -19,7 +19,7 @@ namespace internal {
 #ifdef DEBUG
 bool CpuFeatures::initialized_ = false;
 #endif
-uint64_t CpuFeatures::supported_ = CpuFeatures::kDefaultCpuFeatures;
+uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::found_by_runtime_probing_only_ = 0;
 uint64_t CpuFeatures::cross_compile_ = 0;
 
@@ -30,11 +30,11 @@ ExternalReference ExternalReference::cpu_features() {
 
 
 void CpuFeatures::Probe(bool serializer_enabled) {
-  ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
+  ASSERT(supported_ == 0);
 #ifdef DEBUG
   initialized_ = true;
 #endif
-  supported_ = kDefaultCpuFeatures;
+  supported_ = 0;
   if (serializer_enabled) {
     supported_ |= OS::CpuFeaturesImpliedByPlatform();
     return;  // No features if we might serialize.
@@ -54,7 +54,6 @@ void CpuFeatures::Probe(bool serializer_enabled) {
 
   // CMOV must be available on every x64 CPU.
   ASSERT(cpu.has_cmov());
-  probed_features |= static_cast<uint64_t>(1) << CMOV;
 
   // SAHF is not generally available in long mode.
   if (cpu.has_sahf()) {
@@ -63,8 +62,7 @@ void CpuFeatures::Probe(bool serializer_enabled) {
 
   uint64_t platform_features = OS::CpuFeaturesImpliedByPlatform();
   supported_ = probed_features | platform_features;
-  found_by_runtime_probing_only_
-      = probed_features & ~kDefaultCpuFeatures & ~platform_features;
+  found_by_runtime_probing_only_ = probed_features & ~platform_features;
 }
 
 

@@ -481,9 +481,9 @@ class Displacement BASE_EMBEDDED {
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
 // Example:
-//   if (assembler->IsSupported(CMOV)) {
-//     CpuFeatureScope fscope(assembler, CMOV);
-//     // Generate code containing cmov.
+//   if (assembler->IsSupported(SSE3)) {
+//     CpuFeatureScope fscope(assembler, SSE3);
+//     // Generate code containing SSE3 instructions.
 //   } else {
 //     // Generate alternative code.
 //   }
@@ -499,7 +499,6 @@ class CpuFeatures : public AllStatic {
     if (Check(f, cross_compile_)) return true;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
-    if (f == CMOV && !FLAG_enable_cmov) return false;
     return Check(f, supported_);
   }
 

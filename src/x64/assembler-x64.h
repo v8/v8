@@ -458,7 +458,6 @@ class CpuFeatures : public AllStatic {
     ASSERT(initialized_);
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
-    if (f == CMOV && !FLAG_enable_cmov) return false;
     if (f == SAHF && !FLAG_enable_sahf) return false;
     return Check(f, supported_);
   }
@@ -490,12 +489,6 @@ class CpuFeatures : public AllStatic {
   static uint64_t flag2set(CpuFeature f) {
     return static_cast<uint64_t>(1) << f;
   }
-
-  // Safe defaults include CMOV for X64. It is always available, if
-  // anyone checks, but they shouldn't need to check.
-  // The required user mode extensions in X64 are (from AMD64 ABI Table A.1):
-  //   fpu, tsc, cx8, cmov, mmx, sse, sse2, fxsr, syscall
-  static const uint64_t kDefaultCpuFeatures = (1 << CMOV);
 
 #ifdef DEBUG
   static bool initialized_;
