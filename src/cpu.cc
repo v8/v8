@@ -206,6 +206,7 @@ class CPUInfo V8_FINAL BASE_EMBEDDED {
   size_t datalen_;
 };
 
+#if V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS
 
 // Checks that a space-separated list of items contains one given 'item'.
 static bool HasListItem(const char* list, const char* item) {
@@ -230,6 +231,8 @@ static bool HasListItem(const char* list, const char* item) {
   }
   return false;
 }
+
+#endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS
 
 #endif  // V8_OS_LINUX
 
