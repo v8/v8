@@ -3919,8 +3919,12 @@ TEST(NoWeakHashTableLeakWithIncrementalMarking) {
     }
     heap->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
-  WeakHashTable* table = WeakHashTable::cast(heap->weak_object_to_code_table());
-  CHECK_EQ(0, table->NumberOfElements());
+  int elements = 0;
+  if (heap->weak_object_to_code_table()->IsHashTable()) {
+    WeakHashTable* t = WeakHashTable::cast(heap->weak_object_to_code_table());
+    elements = t->NumberOfElements();
+  }
+  CHECK_EQ(0, elements);
 }
 
 
