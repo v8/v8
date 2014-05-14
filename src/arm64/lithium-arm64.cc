@@ -2009,10 +2009,9 @@ LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
 
 
 LInstruction* LChunkBuilder::DoConstructDouble(HConstructDouble* instr) {
-  LOperand* lo = UseRegister(instr->lo());
+  LOperand* lo = UseRegisterAndClobber(instr->lo());
   LOperand* hi = UseRegister(instr->hi());
-  LOperand* temp = TempRegister();
-  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo, temp));
+  return DefineAsRegister(new(zone()) LConstructDouble(hi, lo));
 }
 
 
