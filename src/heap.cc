@@ -5460,6 +5460,8 @@ void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
                                          Handle<DependentCode> dep) {
   ASSERT(!InNewSpace(*obj));
   ASSERT(!InNewSpace(*dep));
+  // This handle scope keeps the table handle local to this function, which
+  // allows us to safely skip write barriers in table update operations.
   HandleScope scope(isolate());
   Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
                               isolate());
