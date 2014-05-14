@@ -59,9 +59,7 @@ build/printf_format
 build/storage_class
 legal/copyright
 readability/boost
-readability/braces
 readability/casting
-readability/check
 readability/constructors
 readability/fn_size
 readability/function
@@ -80,7 +78,6 @@ runtime/mutex
 runtime/nonconf
 runtime/printf
 runtime/printf_format
-runtime/references
 runtime/rtti
 runtime/sizeof
 runtime/string
@@ -91,7 +88,6 @@ whitespace/braces
 whitespace/comma
 whitespace/comments
 whitespace/ending_newline
-whitespace/indent
 whitespace/labels
 whitespace/line_length
 whitespace/newline
