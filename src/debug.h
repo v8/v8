@@ -782,7 +782,7 @@ class Debugger {
                             Handle<JSObject> event_data,
                             bool auto_continue);
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  void SetMessageHandler(v8::Debug::MessageHandler2 handler);
+  void SetMessageHandler(v8::Debug::MessageHandler handler);
   void SetDebugMessageDispatchHandler(
       v8::Debug::DebugMessageDispatchHandler handler,
       bool provide_locker);
@@ -889,7 +889,7 @@ class Debugger {
   bool ignore_debugger_;  // Are we temporarily ignoring the debugger?
   bool live_edit_enabled_;  // Enable LiveEdit.
   bool never_unload_debugger_;  // Can we unload the debugger?
-  v8::Debug::MessageHandler2 message_handler_;
+  v8::Debug::MessageHandler message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
 
   Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.

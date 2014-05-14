@@ -6778,10 +6778,10 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
+bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
-  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener2()", return false);
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener()");
+  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
@@ -6811,7 +6811,7 @@ void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
 }
 
 
-void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
   ENTER_V8(isolate);

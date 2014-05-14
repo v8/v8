@@ -3180,7 +3180,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
+void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
   LockGuard<RecursiveMutex> with(&debugger_access_);
 
   message_handler_ = handler;

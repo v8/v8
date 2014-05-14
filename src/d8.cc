@@ -797,7 +797,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
 
   // Start the in-process debugger if requested.
   if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener2(HandleDebugEvent);
+    v8::Debug::SetDebugEventListener(HandleDebugEvent);
   }
 }
 #endif  // !V8_SHARED
