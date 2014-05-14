@@ -1040,9 +1040,9 @@ class V8_EXPORT ScriptCompiler {
     BufferPolicy buffer_policy;
 
    private:
-     // Prevent copying. Not implemented.
-     CachedData(const CachedData&);
-     CachedData& operator=(const CachedData&);
+    // Prevent copying. Not implemented.
+    CachedData(const CachedData&);
+    CachedData& operator=(const CachedData&);
   };
 
   /**
@@ -1065,7 +1065,7 @@ class V8_EXPORT ScriptCompiler {
 
    private:
     friend class ScriptCompiler;
-     // Prevent copying. Not implemented.
+    // Prevent copying. Not implemented.
     Source(const Source&);
     Source& operator=(const Source&);
 
