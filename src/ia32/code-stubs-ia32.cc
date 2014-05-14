@@ -480,8 +480,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ pushad();
   if (save_doubles_ == kSaveFPRegs) {
-    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(Operand(esp, i * kDoubleSize), reg);
     }
@@ -496,11 +496,11 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
   if (save_doubles_ == kSaveFPRegs) {
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(reg, Operand(esp, i * kDoubleSize));
     }
-    __ add(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    __ add(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
   }
   __ popad();
   __ ret(0);
@@ -629,15 +629,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ shrd(result_reg, scratch1);
     __ shr_cl(result_reg);
     __ test(ecx, Immediate(32));
-    if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatureScope use_cmov(masm, CMOV);
-      __ cmov(not_equal, scratch1, result_reg);
-    } else {
-      Label skip_mov;
-      __ j(equal, &skip_mov, Label::kNear);
-      __ mov(scratch1, result_reg);
-      __ bind(&skip_mov);
-    }
+    __ cmov(not_equal, scratch1, result_reg);
   }
 
   // If the double was negative, negate the integer result.
@@ -649,15 +641,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   } else {
     __ cmp(exponent_operand, Immediate(0));
   }
-  if (CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatureScope use_cmov(masm, CMOV);
     __ cmov(greater, result_reg, scratch1);
-  } else {
-    Label skip_mov;
-    __ j(less_equal, &skip_mov, Label::kNear);
-    __ mov(result_reg, scratch1);
-    __ bind(&skip_mov);
-  }
 
   // Restore registers
   __ bind(&done);
@@ -2068,32 +2052,12 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Don't base result on EFLAGS when a NaN is involved.
   __ j(parity_even, &unordered, Label::kNear);
 
-  if (CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatureScope use_cmov(masm, CMOV);
-    // Return a result of -1, 0, or 1, based on EFLAGS.
-    __ mov(eax, 0);  // equal
-    __ mov(ecx, Immediate(Smi::FromInt(1)));
-    __ cmov(above, eax, ecx);
-    __ mov(ecx, Immediate(Smi::FromInt(-1)));
-    __ cmov(below, eax, ecx);
-    __ ret(0);
-  } else {
-    Label below_label, above_label;
-    // Return a result of -1, 0, or 1, based on EFLAGS.
-    __ j(below, &below_label, Label::kNear);
-    __ j(above, &above_label, Label::kNear);
-
-    __ Move(eax, Immediate(0));
-    __ ret(0);
-
-    __ bind(&below_label);
-    __ mov(eax, Immediate(Smi::FromInt(-1)));
-    __ ret(0);
-
-    __ bind(&above_label);
-    __ mov(eax, Immediate(Smi::FromInt(1)));
-    __ ret(0);
-  }
+  __ mov(eax, 0);  // equal
+  __ mov(ecx, Immediate(Smi::FromInt(1)));
+  __ cmov(above, eax, ecx);
+  __ mov(ecx, Immediate(Smi::FromInt(-1)));
+  __ cmov(below, eax, ecx);
+  __ ret(0);
 
   // If one of the numbers was NaN, then the result is always false.
   // The cc is never not-equal.
@@ -3776,63 +3740,46 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
     __ JumpIfNotSmi(eax, &miss);
   }
 
-  // Inlining the double comparison and falling back to the general compare
-  // stub if NaN is involved or SSE2 or CMOV is unsupported.
-  if (CpuFeatures::IsSupported(CMOV)) {
-    CpuFeatureScope scope2(masm, CMOV);
+  // Load left and right operand.
+  Label done, left, left_smi, right_smi;
+  __ JumpIfSmi(eax, &right_smi, Label::kNear);
+  __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+         isolate()->factory()->heap_number_map());
+  __ j(not_equal, &maybe_undefined1, Label::kNear);
+  __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
+  __ jmp(&left, Label::kNear);
+  __ bind(&right_smi);
+  __ mov(ecx, eax);  // Can't clobber eax because we can still jump away.
+  __ SmiUntag(ecx);
+  __ Cvtsi2sd(xmm1, ecx);
 
-    // Load left and right operand.
-    Label done, left, left_smi, right_smi;
-    __ JumpIfSmi(eax, &right_smi, Label::kNear);
-    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-           isolate()->factory()->heap_number_map());
-    __ j(not_equal, &maybe_undefined1, Label::kNear);
-    __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
-    __ jmp(&left, Label::kNear);
-    __ bind(&right_smi);
-    __ mov(ecx, eax);  // Can't clobber eax because we can still jump away.
-    __ SmiUntag(ecx);
-    __ Cvtsi2sd(xmm1, ecx);
+  __ bind(&left);
+  __ JumpIfSmi(edx, &left_smi, Label::kNear);
+  __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+         isolate()->factory()->heap_number_map());
+  __ j(not_equal, &maybe_undefined2, Label::kNear);
+  __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
+  __ jmp(&done);
+  __ bind(&left_smi);
+  __ mov(ecx, edx);  // Can't clobber edx because we can still jump away.
+  __ SmiUntag(ecx);
+  __ Cvtsi2sd(xmm0, ecx);
 
-    __ bind(&left);
-    __ JumpIfSmi(edx, &left_smi, Label::kNear);
-    __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
-           isolate()->factory()->heap_number_map());
-    __ j(not_equal, &maybe_undefined2, Label::kNear);
-    __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-    __ jmp(&done);
-    __ bind(&left_smi);
-    __ mov(ecx, edx);  // Can't clobber edx because we can still jump away.
-    __ SmiUntag(ecx);
-    __ Cvtsi2sd(xmm0, ecx);
+  __ bind(&done);
+  // Compare operands.
+  __ ucomisd(xmm0, xmm1);
 
-    __ bind(&done);
-    // Compare operands.
-    __ ucomisd(xmm0, xmm1);
+  // Don't base result on EFLAGS when a NaN is involved.
+  __ j(parity_even, &unordered, Label::kNear);
 
-    // Don't base result on EFLAGS when a NaN is involved.
-    __ j(parity_even, &unordered, Label::kNear);
-
-    // Return a result of -1, 0, or 1, based on EFLAGS.
-    // Performing mov, because xor would destroy the flag register.
-    __ mov(eax, 0);  // equal
-    __ mov(ecx, Immediate(Smi::FromInt(1)));
-    __ cmov(above, eax, ecx);
-    __ mov(ecx, Immediate(Smi::FromInt(-1)));
-    __ cmov(below, eax, ecx);
-    __ ret(0);
-  } else {
-    __ mov(ecx, edx);
-    __ and_(ecx, eax);
-    __ JumpIfSmi(ecx, &generic_stub, Label::kNear);
-
-    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
-           isolate()->factory()->heap_number_map());
-    __ j(not_equal, &maybe_undefined1, Label::kNear);
-    __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
-           isolate()->factory()->heap_number_map());
-    __ j(not_equal, &maybe_undefined2, Label::kNear);
-  }
+  // Return a result of -1, 0, or 1, based on EFLAGS.
+  // Performing mov, because xor would destroy the flag register.
+  __ mov(eax, 0);  // equal
+  __ mov(ecx, Immediate(Smi::FromInt(1)));
+  __ cmov(above, eax, ecx);
+  __ mov(ecx, Immediate(Smi::FromInt(-1)));
+  __ cmov(below, eax, ecx);
+  __ ret(0);
 
   __ bind(&unordered);
   __ bind(&generic_stub);

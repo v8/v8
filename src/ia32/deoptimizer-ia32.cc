@@ -187,7 +187,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
   }
   input_->SetRegister(esp.code(), reinterpret_cast<intptr_t>(frame->sp()));
   input_->SetRegister(ebp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::NumAllocatableRegisters(); i++) {
+  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; i++) {
     input_->SetDoubleRegister(i, 0.0);
   }
 
@@ -209,7 +209,7 @@ void Deoptimizer::SetPlatformCompiledStubRegisters(
 
 
 void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
-  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
     double double_value = input_->GetDoubleRegister(i);
     output_frame->SetDoubleRegister(i, double_value);
   }
@@ -239,9 +239,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   const int kNumberOfRegisters = Register::kNumRegisters;
 
   const int kDoubleRegsSize = kDoubleSize *
-                              XMMRegister::kNumAllocatableRegisters;
+                              XMMRegister::kMaxNumAllocatableRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
-  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
     int offset = i * kDoubleSize;
     __ movsd(Operand(esp, offset), xmm_reg);
@@ -290,7 +290,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   int double_regs_offset = FrameDescription::double_registers_offset();
   // Fill in the double input registers.
-  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
     int src_offset = i * kDoubleSize;
     __ movsd(xmm0, Operand(esp, src_offset));
@@ -373,7 +373,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ j(below, &outer_push_loop);
 
   // In case of a failed STUB, we have to restore the XMM registers.
-  for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
+  for (int i = 0; i < XMMRegister::kMaxNumAllocatableRegisters; ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
     int src_offset = i * kDoubleSize + double_regs_offset;
     __ movsd(xmm_reg, Operand(ebx, src_offset));

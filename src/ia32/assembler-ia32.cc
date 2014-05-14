@@ -62,21 +62,6 @@ ExternalReference ExternalReference::cpu_features() {
 }
 
 
-int DoubleRegister::NumAllocatableRegisters() {
-  return XMMRegister::kNumAllocatableRegisters;
-}
-
-
-int DoubleRegister::NumRegisters() {
-  return XMMRegister::kNumRegisters;
-}
-
-
-const char* DoubleRegister::AllocationIndexToString(int index) {
-  return XMMRegister::AllocationIndexToString(index);
-}
-
-
 void CpuFeatures::Probe(bool serializer_enabled) {
   ASSERT(!initialized_);
   ASSERT(supported_ == 0);
@@ -98,10 +83,7 @@ void CpuFeatures::Probe(bool serializer_enabled) {
   }
 
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
-
-  if (cpu.has_cmov()) {
-    probed_features |= static_cast<uint64_t>(1) << CMOV;
-  }
+  CHECK(cpu.has_cmov());  // CMOV support is mandatory.
 
   // SAHF must be available in compat/legacy mode.
   ASSERT(cpu.has_sahf());
@@ -636,7 +618,6 @@ void Assembler::movzx_w(Register dst, const Operand& src) {
 
 
 void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
-  ASSERT(IsEnabled(CMOV));
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   EMIT(0x0F);

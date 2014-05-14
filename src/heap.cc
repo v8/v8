@@ -1681,36 +1681,24 @@ void Heap::UpdateReferencesInExternalStringTable(
 
 
 void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
-  // We don't record weak slots during marking or scavenges.
-  // Instead we do it once when we complete mark-compact cycle.
-  // Note that write barrier has no effect if we are already in the middle of
-  // compacting mark-sweep cycle and we have to record slots manually.
-  bool record_slots =
-      gc_state() == MARK_COMPACT &&
-      mark_compact_collector()->is_compacting();
-  ProcessArrayBuffers(retainer, record_slots);
-  ProcessNativeContexts(retainer, record_slots);
+  ProcessArrayBuffers(retainer);
+  ProcessNativeContexts(retainer);
   // TODO(mvstanton): AllocationSites only need to be processed during
   // MARK_COMPACT, as they live in old space. Verify and address.
-  ProcessAllocationSites(retainer, record_slots);
+  ProcessAllocationSites(retainer);
 }
 
-void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer,
-                                 bool record_slots) {
-  Object* head =
-      VisitWeakList<Context>(
-          this, native_contexts_list(), retainer, record_slots);
+
+void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
+  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
 
 
-void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer,
-                               bool record_slots) {
+void Heap::ProcessArrayBuffers(WeakObjectRetainer* retainer) {
   Object* array_buffer_obj =
-      VisitWeakList<JSArrayBuffer>(this,
-                                   array_buffers_list(),
-                                   retainer, record_slots);
+      VisitWeakList<JSArrayBuffer>(this, array_buffers_list(), retainer);
   set_array_buffers_list(array_buffer_obj);
 }
 
@@ -1726,12 +1714,9 @@ void Heap::TearDownArrayBuffers() {
 }
 
 
-void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer,
-                                  bool record_slots) {
+void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
   Object* allocation_site_obj =
-      VisitWeakList<AllocationSite>(this,
-                                    allocation_sites_list(),
-                                    retainer, record_slots);
+      VisitWeakList<AllocationSite>(this, allocation_sites_list(), retainer);
   set_allocation_sites_list(allocation_site_obj);
 }
 

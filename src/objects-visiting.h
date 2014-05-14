@@ -469,10 +469,7 @@ class WeakObjectRetainer;
 // pointers. The template parameter T is a WeakListVisitor that defines how to
 // access the next-element pointers.
 template <class T>
-Object* VisitWeakList(Heap* heap,
-                      Object* list,
-                      WeakObjectRetainer* retainer,
-                      bool record_slots);
+Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
 
 } }  // namespace v8::internal
 

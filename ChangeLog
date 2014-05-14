@@ -1,3 +1,8 @@
+2014-05-14: Version 3.27.3
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-13: Version 3.27.2
 
         Harden %SetIsObserved with RUNTIME_ASSERTs (Chromium issue 371782).

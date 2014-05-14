@@ -195,10 +195,6 @@ class BinaryResource : public v8::String::ExternalAsciiStringResource {
 class ShellOptions {
  public:
   ShellOptions() :
-#ifndef V8_SHARED
-     num_parallel_files(0),
-     parallel_files(NULL),
-#endif  // !V8_SHARED
      script_executed(false),
      last_run(true),
      send_idle_notification(false),
@@ -214,16 +210,9 @@ class ShellOptions {
      icu_data_file(NULL) { }
 
   ~ShellOptions() {
-#ifndef V8_SHARED
-    delete[] parallel_files;
-#endif  // !V8_SHARED
     delete[] isolate_sources;
   }
 
-#ifndef V8_SHARED
-  int num_parallel_files;
-  char** parallel_files;
-#endif  // !V8_SHARED
   bool script_executed;
   bool last_run;
   bool send_idle_notification;

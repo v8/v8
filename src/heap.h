@@ -1974,9 +1974,9 @@ class Heap {
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
 
-  void ProcessNativeContexts(WeakObjectRetainer* retainer, bool record_slots);
-  void ProcessArrayBuffers(WeakObjectRetainer* retainer, bool record_slots);
-  void ProcessAllocationSites(WeakObjectRetainer* retainer, bool record_slots);
+  void ProcessNativeContexts(WeakObjectRetainer* retainer);
+  void ProcessArrayBuffers(WeakObjectRetainer* retainer);
+  void ProcessAllocationSites(WeakObjectRetainer* retainer);
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.

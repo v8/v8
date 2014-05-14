@@ -359,8 +359,6 @@ DEFINE_bool(enable_sse3, true,
             "enable use of SSE3 instructions if available")
 DEFINE_bool(enable_sse4_1, true,
             "enable use of SSE4.1 instructions if available")
-DEFINE_bool(enable_cmov, true,
-            "enable use of CMOV instruction if available")
 DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, ENABLE_VFP3_DEFAULT,

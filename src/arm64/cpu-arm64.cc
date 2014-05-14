@@ -39,8 +39,9 @@ class CacheLineSizes {
 
  private:
   uint32_t ExtractCacheLineSize(int cache_line_size_shift) const {
-    // The cache type register holds the size of the caches as a power of two.
-    return 1 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
+    // The cache type register holds the size of cache lines in words as a
+    // power of two.
+    return 4 << ((cache_type_register_ >> cache_line_size_shift) & 0xf);
   }
 
   uint32_t cache_type_register_;

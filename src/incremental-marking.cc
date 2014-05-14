@@ -222,9 +222,13 @@ class IncrementalMarkingMarkingVisitor
   static void VisitNativeContextIncremental(Map* map, HeapObject* object) {
     Context* context = Context::cast(object);
 
-    // We will mark cache black with a separate pass
-    // when we finish marking.
-    MarkObjectGreyDoNotEnqueue(context->normalized_map_cache());
+    // We will mark cache black with a separate pass when we finish marking.
+    // Note that GC can happen when the context is not fully initialized,
+    // so the cache can be undefined.
+    Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
+    if (!cache->IsUndefined()) {
+      MarkObjectGreyDoNotEnqueue(cache);
+    }
     VisitNativeContext(map, context);
   }
 

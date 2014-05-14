@@ -54,29 +54,30 @@ function array_natives_test() {
   assertTrue(%HasFastDoubleElements([1.1]));
   assertTrue(%HasFastDoubleElements([1.1,2]));
 
-  // Push
-  var a0 = [1, 2, 3];
-  if (%HasFastSmiElements(a0)) {
-    assertTrue(%HasFastSmiElements(a0));
-    a0.push(4);
-    assertTrue(%HasFastSmiElements(a0));
-    a0.push(1.3);
-    assertTrue(%HasFastDoubleElements(a0));
-    a0.push(1.5);
-    assertTrue(%HasFastDoubleElements(a0));
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
-  } else {
-    assertTrue(%HasFastObjectElements(a0));
-    a0.push(4);
-    a0.push(1.3);
-    a0.push(1.5);
-    a0.push({});
-    a0.push({});
-    assertTrue(%HasFastObjectElements(a0));
+  // This code exists to eliminate the learning influence of AllocationSites
+  // on the following tests.
+  var __sequence = 0;
+  function make_array_string(literal) {
+    this.__sequence = this.__sequence + 1;
+    return "/* " + this.__sequence + " */  " + literal;
   }
+  function make_array(literal) {
+    return eval(make_array_string(literal));
+  }
+
+  // Push
+  var a0 = make_array("[1, 2, 3]");
+  assertTrue(%HasFastSmiElements(a0));
+  a0.push(4);
+  assertTrue(%HasFastSmiElements(a0));
+  a0.push(1.3);
+  assertTrue(%HasFastDoubleElements(a0));
+  a0.push(1.5);
+  assertTrue(%HasFastDoubleElements(a0));
+  a0.push({});
+  assertTrue(%HasFastObjectElements(a0));
+  a0.push({});
+  assertTrue(%HasFastObjectElements(a0));
   assertEquals([1,2,3,4,1.3,1.5,{},{}], a0);
 
   // Concat

@@ -54,14 +54,7 @@ static const pthread_t kNoThread = (pthread_t) 0;
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if V8_OS_MACOSX
-  // Mac OS X requires CMOV to install so we can assume it is present.
-  // These constants are defined by the CPUid instructions.
-  const uint64_t one = 1;
-  return one << CMOV;
-#else
-  return 0;  // Nothing special about the other systems.
-#endif
+  return 0;  // Nothing special.
 }
 
 

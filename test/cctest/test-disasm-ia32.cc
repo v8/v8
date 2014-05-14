@@ -414,25 +414,22 @@ TEST(DisasmIa320) {
 
   // cmov.
   {
-    if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatureScope use_cmov(&assm, CMOV);
-      __ cmov(overflow, eax, Operand(eax, 0));
-      __ cmov(no_overflow, eax, Operand(eax, 1));
-      __ cmov(below, eax, Operand(eax, 2));
-      __ cmov(above_equal, eax, Operand(eax, 3));
-      __ cmov(equal, eax, Operand(ebx, 0));
-      __ cmov(not_equal, eax, Operand(ebx, 1));
-      __ cmov(below_equal, eax, Operand(ebx, 2));
-      __ cmov(above, eax, Operand(ebx, 3));
-      __ cmov(sign, eax, Operand(ecx, 0));
-      __ cmov(not_sign, eax, Operand(ecx, 1));
-      __ cmov(parity_even, eax, Operand(ecx, 2));
-      __ cmov(parity_odd, eax, Operand(ecx, 3));
-      __ cmov(less, eax, Operand(edx, 0));
-      __ cmov(greater_equal, eax, Operand(edx, 1));
-      __ cmov(less_equal, eax, Operand(edx, 2));
-      __ cmov(greater, eax, Operand(edx, 3));
-    }
+    __ cmov(overflow, eax, Operand(eax, 0));
+    __ cmov(no_overflow, eax, Operand(eax, 1));
+    __ cmov(below, eax, Operand(eax, 2));
+    __ cmov(above_equal, eax, Operand(eax, 3));
+    __ cmov(equal, eax, Operand(ebx, 0));
+    __ cmov(not_equal, eax, Operand(ebx, 1));
+    __ cmov(below_equal, eax, Operand(ebx, 2));
+    __ cmov(above, eax, Operand(ebx, 3));
+    __ cmov(sign, eax, Operand(ecx, 0));
+    __ cmov(not_sign, eax, Operand(ecx, 1));
+    __ cmov(parity_even, eax, Operand(ecx, 2));
+    __ cmov(parity_odd, eax, Operand(ecx, 3));
+    __ cmov(less, eax, Operand(edx, 0));
+    __ cmov(greater_equal, eax, Operand(edx, 1));
+    __ cmov(less_equal, eax, Operand(edx, 2));
+    __ cmov(greater, eax, Operand(edx, 3));
   }
 
   {

@@ -2757,7 +2757,7 @@ int MarkCompactCollector::ClearNonLiveDependentCodeInGroup(
       ASSERT(start + 1 == end);
       Object* old_head = entries->object_at(start);
       MarkCompactWeakObjectRetainer retainer;
-      Object* head = VisitWeakList<Code>(heap(), old_head, &retainer, true);
+      Object* head = VisitWeakList<Code>(heap(), old_head, &retainer);
       entries->set_object_at(new_start, head);
       Object** slot = entries->slot_at(new_start);
       RecordSlot(slot, slot, head);

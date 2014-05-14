@@ -141,71 +141,41 @@ inline Register Register::FromAllocationIndex(int index)  {
 }
 
 
-struct DoubleRegister {
-  static const int kMaxNumRegisters = 8;
+struct XMMRegister {
   static const int kMaxNumAllocatableRegisters = 7;
-  static int NumAllocatableRegisters();
-  static int NumRegisters();
-  static const char* AllocationIndexToString(int index);
+  static const int kMaxNumRegisters = 8;
+  static int NumAllocatableRegisters() {
+    return kMaxNumAllocatableRegisters;
+  }
 
-  static int ToAllocationIndex(DoubleRegister reg) {
+  static int ToAllocationIndex(XMMRegister reg) {
     ASSERT(reg.code() != 0);
     return reg.code() - 1;
   }
 
-  static DoubleRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < NumAllocatableRegisters());
+  static XMMRegister FromAllocationIndex(int index) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index + 1);
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister result = { code };
+  static XMMRegister from_code(int code) {
+    XMMRegister result = { code };
     return result;
   }
 
   bool is_valid() const {
-    return 0 <= code_ && code_ < NumRegisters();
+    return 0 <= code_ && code_ < kMaxNumRegisters;
   }
+
   int code() const {
     ASSERT(is_valid());
     return code_;
   }
 
-  int code_;
-};
-
-
-const DoubleRegister double_register_0 = { 0 };
-const DoubleRegister double_register_1 = { 1 };
-const DoubleRegister double_register_2 = { 2 };
-const DoubleRegister double_register_3 = { 3 };
-const DoubleRegister double_register_4 = { 4 };
-const DoubleRegister double_register_5 = { 5 };
-const DoubleRegister double_register_6 = { 6 };
-const DoubleRegister double_register_7 = { 7 };
-const DoubleRegister no_double_reg = { -1 };
-
-
-struct XMMRegister : DoubleRegister {
-  static const int kNumAllocatableRegisters = 7;
-  static const int kNumRegisters = 8;
-
-  static XMMRegister from_code(int code) {
-    STATIC_ASSERT(sizeof(XMMRegister) == sizeof(DoubleRegister));
-    XMMRegister result;
-    result.code_ = code;
-    return result;
-  }
-
   bool is(XMMRegister reg) const { return code_ == reg.code_; }
 
-  static XMMRegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < NumAllocatableRegisters());
-    return from_code(index + 1);
-  }
-
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "xmm1",
       "xmm2",
@@ -217,18 +187,23 @@ struct XMMRegister : DoubleRegister {
     };
     return names[index];
   }
+
+  int code_;
 };
 
 
-#define xmm0 (static_cast<const XMMRegister&>(double_register_0))
-#define xmm1 (static_cast<const XMMRegister&>(double_register_1))
-#define xmm2 (static_cast<const XMMRegister&>(double_register_2))
-#define xmm3 (static_cast<const XMMRegister&>(double_register_3))
-#define xmm4 (static_cast<const XMMRegister&>(double_register_4))
-#define xmm5 (static_cast<const XMMRegister&>(double_register_5))
-#define xmm6 (static_cast<const XMMRegister&>(double_register_6))
-#define xmm7 (static_cast<const XMMRegister&>(double_register_7))
-#define no_xmm_reg (static_cast<const XMMRegister&>(no_double_reg))
+typedef XMMRegister DoubleRegister;
+
+
+const XMMRegister xmm0 = { 0 };
+const XMMRegister xmm1 = { 1 };
+const XMMRegister xmm2 = { 2 };
+const XMMRegister xmm3 = { 3 };
+const XMMRegister xmm4 = { 4 };
+const XMMRegister xmm5 = { 5 };
+const XMMRegister xmm6 = { 6 };
+const XMMRegister xmm7 = { 7 };
+const XMMRegister no_xmm_reg = { -1 };
 
 
 enum Condition {
@@ -481,9 +456,9 @@ class Displacement BASE_EMBEDDED {
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a CpuFeatureScope before use.
 // Example:
-//   if (assembler->IsSupported(CMOV)) {
-//     CpuFeatureScope fscope(assembler, CMOV);
-//     // Generate code containing cmov.
+//   if (assembler->IsSupported(SSE3)) {
+//     CpuFeatureScope fscope(assembler, SSE3);
+//     // Generate code containing SSE3 instructions.
 //   } else {
 //     // Generate alternative code.
 //   }
@@ -499,7 +474,6 @@ class CpuFeatures : public AllStatic {
     if (Check(f, cross_compile_)) return true;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
     if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
-    if (f == CMOV && !FLAG_enable_cmov) return false;
     return Check(f, supported_);
   }
 
