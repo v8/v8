@@ -83,7 +83,7 @@ function StringConcat() {
 
 
 // ECMA-262 section 15.5.4.7
-function StringIndexOf(pattern /* position */) {  // length == 1
+function StringIndexOfJS(pattern /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.indexOf");
 
   var subject = TO_STRING_INLINE(this);
@@ -100,7 +100,7 @@ function StringIndexOf(pattern /* position */) {  // length == 1
 
 
 // ECMA-262 section 15.5.4.8
-function StringLastIndexOf(pat /* position */) {  // length == 1
+function StringLastIndexOfJS(pat /* position */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.lastIndexOf");
 
   var sub = TO_STRING_INLINE(this);
@@ -131,7 +131,7 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
 //
 // This function is implementation specific.  For now, we do not
 // do anything locale specific.
-function StringLocaleCompare(other) {
+function StringLocaleCompareJS(other) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.localeCompare");
 
   return %StringLocaleCompare(TO_STRING_INLINE(this),
@@ -140,7 +140,7 @@ function StringLocaleCompare(other) {
 
 
 // ECMA-262 section 15.5.4.10
-function StringMatch(regexp) {
+function StringMatchJS(regexp) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
 
   var subject = TO_STRING_INLINE(this);
@@ -170,7 +170,7 @@ var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
 // For now we do nothing, as proper normalization requires big tables.
 // If Intl is enabled, then i18n.js will override it and provide the the
 // proper functionality.
-function StringNormalize(form) {
+function StringNormalizeJS(form) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
 
   var form = form ? TO_STRING_INLINE(form) : 'NFC';
@@ -585,7 +585,7 @@ function StringSlice(start, end) {
 
 
 // ECMA-262 section 15.5.4.14
-function StringSplit(separator, limit) {
+function StringSplitJS(separator, limit) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.split");
 
   var subject = TO_STRING_INLINE(this);
@@ -756,7 +756,7 @@ function StringSubstr(start, n) {
 
 
 // ECMA-262, 15.5.4.16
-function StringToLowerCase() {
+function StringToLowerCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
 
   return %StringToLowerCase(TO_STRING_INLINE(this));
@@ -772,7 +772,7 @@ function StringToLocaleLowerCase() {
 
 
 // ECMA-262, 15.5.4.18
-function StringToUpperCase() {
+function StringToUpperCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
 
   return %StringToUpperCase(TO_STRING_INLINE(this));
@@ -787,7 +787,7 @@ function StringToLocaleUpperCase() {
 }
 
 // ES5, 15.5.4.20
-function StringTrim() {
+function StringTrimJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.trim");
 
   return %StringTrim(TO_STRING_INLINE(this), true, true);
@@ -935,22 +935,22 @@ function SetUpString() {
     "charAt", StringCharAt,
     "charCodeAt", StringCharCodeAt,
     "concat", StringConcat,
-    "indexOf", StringIndexOf,
-    "lastIndexOf", StringLastIndexOf,
-    "localeCompare", StringLocaleCompare,
-    "match", StringMatch,
-    "normalize", StringNormalize,
+    "indexOf", StringIndexOfJS,
+    "lastIndexOf", StringLastIndexOfJS,
+    "localeCompare", StringLocaleCompareJS,
+    "match", StringMatchJS,
+    "normalize", StringNormalizeJS,
     "replace", StringReplace,
     "search", StringSearch,
     "slice", StringSlice,
-    "split", StringSplit,
+    "split", StringSplitJS,
     "substring", StringSubstring,
     "substr", StringSubstr,
-    "toLowerCase", StringToLowerCase,
+    "toLowerCase", StringToLowerCaseJS,
     "toLocaleLowerCase", StringToLocaleLowerCase,
-    "toUpperCase", StringToUpperCase,
+    "toUpperCase", StringToUpperCaseJS,
     "toLocaleUpperCase", StringToLocaleUpperCase,
-    "trim", StringTrim,
+    "trim", StringTrimJS,
     "trimLeft", StringTrimLeft,
     "trimRight", StringTrimRight,
     "link", StringLink,

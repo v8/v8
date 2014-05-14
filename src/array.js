@@ -45,7 +45,7 @@ function GetSortedArrayKeys(array, indices) {
 }
 
 
-function SparseJoinWithSeparator(array, len, convert, separator) {
+function SparseJoinWithSeparatorJS(array, len, convert, separator) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
   var totalLength = 0;
   var elements = new InternalArray(keys.length * 2);
@@ -111,7 +111,7 @@ function Join(array, length, separator, convert) {
       if (separator.length == 0) {
         return SparseJoin(array, length, convert);
       } else {
-        return SparseJoinWithSeparator(array, length, convert, separator);
+        return SparseJoinWithSeparatorJS(array, length, convert, separator);
       }
     }
 
@@ -457,7 +457,7 @@ function ArrayPush() {
 // Returns an array containing the array elements of the object followed
 // by the array elements of each argument in order. See ECMA-262,
 // section 15.4.4.7.
-function ArrayConcat(arg1) {  // length == 1
+function ArrayConcatJS(arg1) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.concat");
 
   var array = ToObject(this);
@@ -1492,7 +1492,7 @@ function SetUpArray() {
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
     "push", getFunction("push", ArrayPush, 1),
-    "concat", getFunction("concat", ArrayConcat, 1),
+    "concat", getFunction("concat", ArrayConcatJS, 1),
     "reverse", getFunction("reverse", ArrayReverse),
     "shift", getFunction("shift", ArrayShift),
     "unshift", getFunction("unshift", ArrayUnshift, 1),
@@ -1516,7 +1516,7 @@ function SetUpArray() {
   // exposed to user code.
   // Adding only the functions that are actually used.
   SetUpLockedPrototype(InternalArray, $Array(), $Array(
-    "concat", getFunction("concat", ArrayConcat),
+    "concat", getFunction("concat", ArrayConcatJS),
     "indexOf", getFunction("indexOf", ArrayIndexOf),
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),

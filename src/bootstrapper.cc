@@ -1548,7 +1548,7 @@ void Genesis::InstallNativeFunctions() {
 
 
 void Genesis::InstallExperimentalNativeFunctions() {
-  INSTALL_NATIVE(JSFunction, "RunMicrotasks", run_microtasks);
+  INSTALL_NATIVE(JSFunction, "RunMicrotasksJS", run_microtasks);
   INSTALL_NATIVE(JSFunction, "EnqueueMicrotask", enqueue_microtask);
 
   if (FLAG_harmony_proxies) {

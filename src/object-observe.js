@@ -35,7 +35,7 @@
 
 var observationState;
 
-function GetObservationState() {
+function GetObservationStateJS() {
   if (IS_UNDEFINED(observationState))
     observationState = %GetObservationState();
 
@@ -76,7 +76,7 @@ var contextMaps;
 function GetContextMaps() {
   if (IS_UNDEFINED(contextMaps)) {
     var map = GetWeakMapWrapper();
-    var observationState = GetObservationState();
+    var observationState = GetObservationStateJS();
     contextMaps = {
       callbackInfoMap: new map(observationState.callbackInfoMap),
       objectInfoMap: new map(observationState.objectInfoMap),
@@ -100,15 +100,15 @@ function GetNotifierObjectInfoMap() {
 }
 
 function GetPendingObservers() {
-  return GetObservationState().pendingObservers;
+  return GetObservationStateJS().pendingObservers;
 }
 
 function SetPendingObservers(pendingObservers) {
-  GetObservationState().pendingObservers = pendingObservers;
+  GetObservationStateJS().pendingObservers = pendingObservers;
 }
 
 function GetNextCallbackPriority() {
-  return GetObservationState().nextCallbackPriority++;
+  return GetObservationStateJS().nextCallbackPriority++;
 }
 
 function nullProtoObject() {
@@ -440,7 +440,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
     %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
         READ_ONLY + DONT_DELETE);
   }
-  ObjectFreeze(newRecord);
+  ObjectFreezeJS(newRecord);
 
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
@@ -488,8 +488,8 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
     addedCount: addedCount
   };
 
-  ObjectFreeze(changeRecord);
-  ObjectFreeze(changeRecord.removed);
+  ObjectFreezeJS(changeRecord);
+  ObjectFreezeJS(changeRecord.removed);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -512,7 +512,7 @@ function NotifyChange(type, object, name, oldValue) {
     };
   }
 
-  ObjectFreeze(changeRecord);
+  ObjectFreezeJS(changeRecord);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 

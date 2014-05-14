@@ -995,7 +995,7 @@ BUILTIN(ArrayConcat) {
         JSObject::cast(native_context->array_function()->prototype());
     if (!ArrayPrototypeHasNoElements(heap, native_context, array_proto)) {
       AllowHeapAllocation allow_allocation;
-      return CallJsBuiltin(isolate, "ArrayConcat", args);
+      return CallJsBuiltin(isolate, "ArrayConcatJS", args);
     }
 
     // Iterate through all the arguments performing checks
@@ -1007,7 +1007,7 @@ BUILTIN(ArrayConcat) {
           !JSArray::cast(arg)->HasFastElements() ||
           JSArray::cast(arg)->GetPrototype() != array_proto) {
         AllowHeapAllocation allow_allocation;
-        return CallJsBuiltin(isolate, "ArrayConcat", args);
+        return CallJsBuiltin(isolate, "ArrayConcatJS", args);
       }
       int len = Smi::cast(JSArray::cast(arg)->length())->value();
 
@@ -1020,7 +1020,7 @@ BUILTIN(ArrayConcat) {
 
       if (result_len > FixedDoubleArray::kMaxLength) {
         AllowHeapAllocation allow_allocation;
-        return CallJsBuiltin(isolate, "ArrayConcat", args);
+        return CallJsBuiltin(isolate, "ArrayConcatJS", args);
       }
 
       ElementsKind arg_kind = JSArray::cast(arg)->map()->elements_kind();
