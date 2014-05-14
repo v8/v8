@@ -37,7 +37,6 @@
 #include "frames.h"
 #include "platform.h"
 #include "platform/condition-variable.h"
-#include "platform/socket.h"
 #include "stub-cache.h"
 #include "utils.h"
 
