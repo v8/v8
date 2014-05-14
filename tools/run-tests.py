@@ -463,44 +463,39 @@ def Execute(arch, mode, args, options, suites, workspace):
     return 0
 
   # Run the tests, either locally or distributed on the network.
-  try:
-    start_time = time.time()
-    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
-    if options.junitout:
-      progress_indicator = progress.JUnitTestProgressIndicator(
-          progress_indicator, options.junitout, options.junittestsuite)
+  start_time = time.time()
+  progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+  if options.junitout:
+    progress_indicator = progress.JUnitTestProgressIndicator(
+        progress_indicator, options.junitout, options.junittestsuite)
 
-    run_networked = not options.no_network
-    if not run_networked:
-      print("Network distribution disabled, running tests locally.")
-    elif utils.GuessOS() != "linux":
-      print("Network distribution is only supported on Linux, sorry!")
+  run_networked = not options.no_network
+  if not run_networked:
+    print("Network distribution disabled, running tests locally.")
+  elif utils.GuessOS() != "linux":
+    print("Network distribution is only supported on Linux, sorry!")
+    run_networked = False
+  peers = []
+  if run_networked:
+    peers = network_execution.GetPeers()
+    if not peers:
+      print("No connection to distribution server; running tests locally.")
       run_networked = False
-    peers = []
-    if run_networked:
-      peers = network_execution.GetPeers()
-      if not peers:
-        print("No connection to distribution server; running tests locally.")
-        run_networked = False
-      elif len(peers) == 1:
-        print("No other peers on the network; running tests locally.")
-        run_networked = False
-      elif num_tests <= 100:
-        print("Less than 100 tests, running them locally.")
-        run_networked = False
+    elif len(peers) == 1:
+      print("No other peers on the network; running tests locally.")
+      run_networked = False
+    elif num_tests <= 100:
+      print("Less than 100 tests, running them locally.")
+      run_networked = False
 
-    if run_networked:
-      runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                                 ctx, peers, workspace)
-    else:
-      runner = execution.Runner(suites, progress_indicator, ctx)
+  if run_networked:
+    runner = network_execution.NetworkedRunner(suites, progress_indicator,
+                                               ctx, peers, workspace)
+  else:
+    runner = execution.Runner(suites, progress_indicator, ctx)
 
-    exit_code = runner.Run(options.j)
-    if runner.terminate:
-      return exit_code
-    overall_duration = time.time() - start_time
-  except KeyboardInterrupt:
-    raise
+  exit_code = runner.Run(options.j)
+  overall_duration = time.time() - start_time
 
   if options.time:
     verbose.PrintTestDurations(suites, overall_duration)
