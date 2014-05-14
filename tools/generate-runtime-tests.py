@@ -3,10 +3,18 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import itertools
+import multiprocessing
+import optparse
 import os
+import random
 import re
 import shutil
+import signal
+import string
+import subprocess
 import sys
+import time
 
 # TODO(jkummerow): Support DATA_VIEW_{G,S}ETTER in runtime.cc
 
@@ -156,40 +164,504 @@ NON_JS_TYPES = [
   "SharedFunctionInfo"]
 
 
-# Maps argument types to concrete example inputs of that type.
-JS_TYPE_GENERATORS = {
-  "Boolean": "true",
-  "HeapObject": "new Object()",
-  "Int32": "32",
-  "JSArray": "new Array()",
-  "JSArrayBuffer": "new ArrayBuffer(8)",
-  "JSDataView": "new DataView(new ArrayBuffer(8))",
-  "JSDate": "new Date()",
-  "JSFunction": "function() {}",
-  "JSFunctionProxy": "Proxy.createFunction({}, function() {})",
-  "JSGeneratorObject": "(function*(){ yield 1; })()",
-  "JSMap": "new Map()",
-  "JSMapIterator": "%MapCreateIterator(new Map(), 3)",
-  "JSObject": "new Object()",
-  "JSProxy": "Proxy.create({})",
-  "JSReceiver": "new Object()",
-  "JSRegExp": "/ab/g",
-  "JSSet": "new Set()",
-  "JSSetIterator": "%SetCreateIterator(new Set(), 2)",
-  "JSTypedArray": "new Int32Array(2)",
-  "JSValue": "new String('foo')",
-  "JSWeakCollection": "new WeakMap()",
-  "Name": "\"name\"",
-  "Number": "1.5",
-  "Object": "new Object()",
-  "PropertyDetails": "513",
-  "SeqString": "\"seqstring\"",
-  "Smi": 1,
-  "StrictMode": "1",
-  "String": "\"foo\"",
-  "Symbol": "Symbol(\"symbol\")",
-  "Uint32": "32",
-}
+class Generator(object):
+
+  def RandomVariable(self, varname, vartype, simple):
+    if simple:
+      return self._Variable(varname, self.GENERATORS[vartype][0])
+    return self.GENERATORS[vartype][1](self, varname,
+                                       self.DEFAULT_RECURSION_BUDGET)
+
+  @staticmethod
+  def IsTypeSupported(typename):
+    return typename in Generator.GENERATORS
+
+  USUAL_SUSPECT_PROPERTIES = ["size", "length", "byteLength", "__proto__",
+                              "prototype", "0", "1", "-1"]
+  DEFAULT_RECURSION_BUDGET = 2
+  PROXY_TRAPS = """{
+      getOwnPropertyDescriptor: function(name) {
+        return {value: function() {}, configurable: true, writable: true,
+                enumerable: true};
+      },
+      getPropertyDescriptor: function(name) {
+        return {value: function() {}, configurable: true, writable: true,
+                enumerable: true};
+      },
+      getOwnPropertyNames: function() { return []; },
+      getPropertyNames: function() { return []; },
+      defineProperty: function(name, descriptor) {},
+      delete: function(name) { return true; },
+      fix: function() {}
+    }"""
+
+  def _Variable(self, name, value, fallback=None):
+    args = { "name": name, "value": value, "fallback": fallback }
+    if fallback:
+      wrapper = "try { %%s } catch(e) { var %(name)s = %(fallback)s; }" % args
+    else:
+      wrapper = "%s"
+    return [wrapper % ("var %(name)s = %(value)s;" % args)]
+
+  def _Boolean(self, name, recursion_budget):
+    return self._Variable(name, random.choice(["true", "false"]))
+
+  def _Oddball(self, name, recursion_budget):
+    return self._Variable(name,
+                          random.choice(["true", "false", "undefined", "null"]))
+
+  def _StrictMode(self, name, recursion_budget):
+    return self._Variable(name, random.choice([0, 1]))
+
+  def _Int32(self, name, recursion_budget=0):
+    die = random.random()
+    if die < 0.5:
+      value = random.choice([-3, -1, 0, 1, 2, 10, 515, 0x3fffffff, 0x7fffffff,
+                             0x40000000, -0x40000000, -0x80000000])
+    elif die < 0.75:
+      value = random.randint(-1000, 1000)
+    else:
+      value = random.randint(-0x80000000, 0x7fffffff)
+    return self._Variable(name, value)
+
+  def _Uint32(self, name, recursion_budget=0):
+    die = random.random()
+    if die < 0.5:
+      value = random.choice([0, 1, 2, 3, 4, 8, 0x3fffffff, 0x40000000,
+                             0x7fffffff, 0xffffffff])
+    elif die < 0.75:
+      value = random.randint(0, 1000)
+    else:
+      value = random.randint(0, 0xffffffff)
+    return self._Variable(name, value)
+
+  def _Smi(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.5:
+      value = random.choice([-5, -1, 0, 1, 2, 3, 0x3fffffff, -0x40000000])
+    elif die < 0.75:
+      value = random.randint(-1000, 1000)
+    else:
+      value = random.randint(-0x40000000, 0x3fffffff)
+    return self._Variable(name, value)
+
+  def _Number(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.5:
+      return self._Smi(name, recursion_budget)
+    elif die < 0.6:
+      value = random.choice(["Infinity", "-Infinity", "NaN", "-0",
+                             "1.7976931348623157e+308",  # Max value.
+                             "2.2250738585072014e-308",  # Min value.
+                             "4.9406564584124654e-324"])  # Min subnormal.
+    else:
+      value = random.lognormvariate(0, 15)
+    return self._Variable(name, value)
+
+  def _RawRandomString(self, minlength=0, maxlength=100,
+                       alphabet=string.ascii_letters):
+    length = random.randint(minlength, maxlength)
+    result = ""
+    for i in xrange(length):
+      result += random.choice(alphabet)
+    return result
+
+  def _SeqString(self, name, recursion_budget):
+    s1 = self._RawRandomString(1, 5)
+    s2 = self._RawRandomString(1, 5)
+    # 'foo' + 'bar'
+    return self._Variable(name, "\"%s\" + \"%s\"" % (s1, s2))
+
+  def _SlicedString(self, name):
+    s = self._RawRandomString(20, 30)
+    # 'ffoo12345678901234567890'.substr(1)
+    return self._Variable(name, "\"%s\".substr(1)" % s)
+
+  def _ConsString(self, name):
+    s1 = self._RawRandomString(8, 15)
+    s2 = self._RawRandomString(8, 15)
+    # 'foo12345' + (function() { return 'bar12345';})()
+    return self._Variable(name,
+        "\"%s\" + (function() { return \"%s\";})()" % (s1, s2))
+
+  def _ExternalString(self, name):
+    # Needs --expose-externalize-string.
+    return None
+
+  def _InternalizedString(self, name):
+    return self._Variable(name, "\"%s\"" % self._RawRandomString(0, 20))
+
+  def _String(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.5:
+      string = random.choice(self.USUAL_SUSPECT_PROPERTIES)
+      return self._Variable(name, "\"%s\"" % string)
+    elif die < 0.6:
+      number_name = name + "_number"
+      result = self._Number(number_name, recursion_budget)
+      return result + self._Variable(name, "\"\" + %s" % number_name)
+    elif die < 0.7:
+      return self._SeqString(name, recursion_budget)
+    elif die < 0.8:
+      return self._ConsString(name)
+    elif die < 0.9:
+      return self._InternalizedString(name)
+    else:
+      return self._SlicedString(name)
+
+  def _Symbol(self, name, recursion_budget):
+    raw_string_name = name + "_1"
+    result = self._String(raw_string_name, recursion_budget)
+    return result + self._Variable(name, "Symbol(%s)" % raw_string_name)
+
+  def _Name(self, name, recursion_budget):
+    if random.random() < 0.2:
+      return self._Symbol(name, recursion_budget)
+    return self._String(name, recursion_budget)
+
+  def _JSValue(self, name, recursion_budget):
+    die = random.random()
+    raw_name = name + "_1"
+    if die < 0.33:
+      result = self._String(raw_name, recursion_budget)
+      return result + self._Variable(name, "new String(%s)" % raw_name)
+    elif die < 0.66:
+      result = self._Boolean(raw_name, recursion_budget)
+      return result + self._Variable(name, "new Boolean(%s)" % raw_name)
+    else:
+      result = self._Number(raw_name, recursion_budget)
+      return result + self._Variable(name, "new Number(%s)" % raw_name)
+
+  def _RawRandomPropertyName(self):
+    if random.random() < 0.5:
+      return random.choice(self.USUAL_SUSPECT_PROPERTIES)
+    return self._RawRandomString(0, 10)
+
+  def _AddProperties(self, name, result, recursion_budget):
+    propcount = random.randint(0, 3)
+    propname = None
+    for i in range(propcount):
+      die = random.random()
+      if die < 0.5:
+        propname = "%s_prop%d" % (name, i)
+        result += self._Name(propname, recursion_budget - 1)
+      else:
+        propname = "\"%s\"" % self._RawRandomPropertyName()
+      propvalue_name = "%s_val%d" % (name, i)
+      result += self._Object(propvalue_name, recursion_budget - 1)
+      result.append("try { %s[%s] = %s; } catch (e) {}" %
+                    (name, propname, propvalue_name))
+    if random.random() < 0.2 and propname:
+      # Force the object to slow mode.
+      result.append("delete %s[%s];" % (name, propname))
+
+  def _RandomElementIndex(self, element_name, result):
+    if random.random() < 0.5:
+      return random.randint(-1000, 1000)
+    result += self._Smi(element_name, 0)
+    return element_name
+
+  def _AddElements(self, name, result, recursion_budget):
+    elementcount = random.randint(0, 3)
+    for i in range(elementcount):
+      element_name = "%s_idx%d" % (name, i)
+      index = self._RandomElementIndex(element_name, result)
+      value_name = "%s_elt%d" % (name, i)
+      result += self._Object(value_name, recursion_budget - 1)
+      result.append("try { %s[%s] = %s; } catch(e) {}" %
+                    (name, index, value_name))
+
+  def _AddAccessors(self, name, result, recursion_budget):
+    accessorcount = random.randint(0, 3)
+    for i in range(accessorcount):
+      propname = self._RawRandomPropertyName()
+      what = random.choice(["get", "set"])
+      function_name = "%s_access%d" % (name, i)
+      result += self._PlainFunction(function_name, recursion_budget - 1)
+      result.append("try { Object.defineProperty(%s, \"%s\", {%s: %s}); } "
+                    "catch (e) {}" % (name, propname, what, function_name))
+
+  def _PlainArray(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.5:
+      literal = random.choice(["[]", "[1, 2]", "[1.5, 2.5]",
+                               "['a', 'b', 1, true]"])
+      return self._Variable(name, literal)
+    else:
+      new = random.choice(["", "new "])
+      length = random.randint(0, 101000)
+      return self._Variable(name, "%sArray(%d)" % (new, length))
+
+  def _PlainObject(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.67:
+      literal_propcount = random.randint(0, 3)
+      properties = []
+      result = []
+      for i in range(literal_propcount):
+        propname = self._RawRandomPropertyName()
+        propvalue_name = "%s_lit%d" % (name, i)
+        result += self._Object(propvalue_name, recursion_budget - 1)
+        properties.append("\"%s\": %s" % (propname, propvalue_name))
+      return result + self._Variable(name, "{%s}" % ", ".join(properties))
+    else:
+      return self._Variable(name, "new Object()")
+
+  def _JSArray(self, name, recursion_budget):
+    result = self._PlainArray(name, recursion_budget)
+    self._AddAccessors(name, result, recursion_budget)
+    self._AddProperties(name, result, recursion_budget)
+    self._AddElements(name, result, recursion_budget)
+    return result
+
+  def _RawRandomBufferLength(self):
+    if random.random() < 0.2:
+      return random.choice([0, 1, 8, 0x40000000, 0x80000000])
+    return random.randint(0, 1000)
+
+  def _JSArrayBuffer(self, name, recursion_budget):
+    length = self._RawRandomBufferLength()
+    return self._Variable(name, "new ArrayBuffer(%d)" % length)
+
+  def _JSDataView(self, name, recursion_budget):
+    buffer_name = name + "_buffer"
+    result = self._JSArrayBuffer(buffer_name, recursion_budget)
+    args = [buffer_name]
+    die = random.random()
+    if die < 0.67:
+      offset = self._RawRandomBufferLength()
+      args.append("%d" % offset)
+      if die < 0.33:
+        length = self._RawRandomBufferLength()
+        args.append("%d" % length)
+    result += self._Variable(name, "new DataView(%s)" % ", ".join(args),
+                             fallback="new DataView(new ArrayBuffer(8))")
+    return result
+
+  def _JSDate(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.25:
+      return self._Variable(name, "new Date()")
+    elif die < 0.5:
+      ms_name = name + "_ms"
+      result = self._Number(ms_name, recursion_budget)
+      return result + self._Variable(name, "new Date(%s)" % ms_name)
+    elif die < 0.75:
+      str_name = name + "_str"
+      month = random.choice(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul",
+                             "Aug", "Sep", "Oct", "Nov", "Dec"])
+      day = random.randint(1, 28)
+      year = random.randint(1900, 2100)
+      hour = random.randint(0, 23)
+      minute = random.randint(0, 59)
+      second = random.randint(0, 59)
+      str_value = ("\"%s %s, %s %s:%s:%s\"" %
+                   (month, day, year, hour, minute, second))
+      result = self._Variable(str_name, str_value)
+      return result + self._Variable(name, "new Date(%s)" % str_name)
+    else:
+      components = tuple(map(lambda x: "%s_%s" % (name, x),
+                             ["y", "m", "d", "h", "min", "s", "ms"]))
+      return ([j for i in map(self._Int32, components) for j in i] +
+              self._Variable(name, "new Date(%s)" % ", ".join(components)))
+
+  def _PlainFunction(self, name, recursion_budget):
+    result_name = "result"
+    body = ["function() {"]
+    body += self._Object(result_name, recursion_budget - 1)
+    body.append("return result;\n}")
+    return self._Variable(name, "%s" % "\n".join(body))
+
+  def _JSFunction(self, name, recursion_budget):
+    result = self._PlainFunction(name, recursion_budget)
+    self._AddAccessors(name, result, recursion_budget)
+    self._AddProperties(name, result, recursion_budget)
+    self._AddElements(name, result, recursion_budget)
+    return result
+
+  def _JSFunctionProxy(self, name, recursion_budget):
+    # TODO(jkummerow): Revisit this as the Proxy implementation evolves.
+    return self._Variable(name, "Proxy.createFunction(%s, function() {})" %
+                                self.PROXY_TRAPS)
+
+  def _JSGeneratorObject(self, name, recursion_budget):
+    # TODO(jkummerow): Be more creative here?
+    return self._Variable(name, "(function*() { yield 1; })()")
+
+  def _JSMap(self, name, recursion_budget, weak=""):
+    result = self._Variable(name, "new %sMap()" % weak)
+    num_entries = random.randint(0, 3)
+    for i in range(num_entries):
+      key_name = "%s_k%d" % (name, i)
+      value_name = "%s_v%d" % (name, i)
+      if weak:
+        result += self._JSObject(key_name, recursion_budget - 1)
+      else:
+        result += self._Object(key_name, recursion_budget - 1)
+      result += self._Object(value_name, recursion_budget - 1)
+      result.append("%s.set(%s, %s)" % (name, key_name, value_name))
+    return result
+
+  def _JSMapIterator(self, name, recursion_budget):
+    map_name = name + "_map"
+    result = self._JSMap(map_name, recursion_budget)
+    iterator_type = random.randint(1, 3)
+    return (result + self._Variable(name, "%%MapCreateIterator(%s, %d)" %
+                                          (map_name, iterator_type)))
+
+  def _JSProxy(self, name, recursion_budget):
+    # TODO(jkummerow): Revisit this as the Proxy implementation evolves.
+    return self._Variable(name, "Proxy.create(%s)" % self.PROXY_TRAPS)
+
+  def _JSRegExp(self, name, recursion_budget):
+    flags = random.choice(["", "g", "i", "m", "gi"])
+    string = "a(b|c)*a"  # TODO(jkummerow): Be more creative here?
+    ctor = random.choice(["/%s/%s", "new RegExp(\"%s\", \"%s\")"])
+    return self._Variable(name, ctor % (string, flags))
+
+  def _JSSet(self, name, recursion_budget, weak=""):
+    result = self._Variable(name, "new %sSet()" % weak)
+    num_entries = random.randint(0, 3)
+    for i in range(num_entries):
+      element_name = "%s_e%d" % (name, i)
+      if weak:
+        result += self._JSObject(element_name, recursion_budget - 1)
+      else:
+        result += self._Object(element_name, recursion_budget - 1)
+      result.append("%s.add(%s)" % (name, element_name))
+    return result
+
+  def _JSSetIterator(self, name, recursion_budget):
+    set_name = name + "_set"
+    result = self._JSSet(set_name, recursion_budget)
+    iterator_type = random.randint(2, 3)
+    return (result + self._Variable(name, "%%SetCreateIterator(%s, %d)" %
+                                          (set_name, iterator_type)))
+
+  def _JSTypedArray(self, name, recursion_budget):
+    arraytype = random.choice(["Int8", "Int16", "Int32", "Uint8", "Uint16",
+                               "Uint32", "Float32", "Float64", "Uint8Clamped"])
+    ctor_type = random.randint(0, 3)
+    if ctor_type == 0:
+      length = random.randint(0, 1000)
+      return self._Variable(name, "new %sArray(%d)" % (arraytype, length),
+                            fallback="new %sArray(8)" % arraytype)
+    elif ctor_type == 1:
+      input_name = name + "_typedarray"
+      result = self._JSTypedArray(input_name, recursion_budget - 1)
+      return (result +
+              self._Variable(name, "new %sArray(%s)" % (arraytype, input_name),
+                             fallback="new %sArray(8)" % arraytype))
+    elif ctor_type == 2:
+      arraylike_name = name + "_arraylike"
+      result = self._JSObject(arraylike_name, recursion_budget - 1)
+      length = random.randint(0, 1000)
+      result.append("try { %s.length = %d; } catch(e) {}" %
+                    (arraylike_name, length))
+      return (result +
+              self._Variable(name,
+                             "new %sArray(%s)" % (arraytype, arraylike_name),
+                             fallback="new %sArray(8)" % arraytype))
+    else:
+      die = random.random()
+      buffer_name = name + "_buffer"
+      args = [buffer_name]
+      result = self._JSArrayBuffer(buffer_name, recursion_budget)
+      if die < 0.67:
+        offset_name = name + "_offset"
+        args.append(offset_name)
+        result += self._Int32(offset_name)
+      if die < 0.33:
+        length_name = name + "_length"
+        args.append(length_name)
+        result += self._Int32(length_name)
+      return (result +
+              self._Variable(name,
+                             "new %sArray(%s)" % (arraytype, ", ".join(args)),
+                             fallback="new %sArray(8)" % arraytype))
+
+  def _JSWeakCollection(self, name, recursion_budget):
+    ctor = random.choice([self._JSMap, self._JSSet])
+    return ctor(name, recursion_budget, weak="Weak")
+
+  def _PropertyDetails(self, name, recursion_budget):
+    # TODO(jkummerow): Be more clever here?
+    return self._Int32(name)
+
+  def _JSObject(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.4:
+      function = random.choice([self._PlainObject, self._PlainArray,
+                                self._PlainFunction])
+    elif die < 0.5:
+      return self._Variable(name, "this")  # Global object.
+    else:
+      function = random.choice([self._JSArrayBuffer, self._JSDataView,
+                                self._JSDate, self._JSFunctionProxy,
+                                self._JSGeneratorObject, self._JSMap,
+                                self._JSMapIterator, self._JSRegExp,
+                                self._JSSet, self._JSSetIterator,
+                                self._JSTypedArray, self._JSValue,
+                                self._JSWeakCollection])
+    result = function(name, recursion_budget)
+    self._AddAccessors(name, result, recursion_budget)
+    self._AddProperties(name, result, recursion_budget)
+    self._AddElements(name, result, recursion_budget)
+    return result
+
+  def _JSReceiver(self, name, recursion_budget):
+    if random.random() < 0.9: return self._JSObject(name, recursion_budget)
+    return self._JSProxy(name, recursion_budget)
+
+  def _HeapObject(self, name, recursion_budget):
+    die = random.random()
+    if die < 0.9: return self._JSReceiver(name, recursion_budget)
+    elif die < 0.95: return  self._Oddball(name, recursion_budget)
+    else: return self._Name(name, recursion_budget)
+
+  def _Object(self, name, recursion_budget):
+    if recursion_budget <= 0:
+      function = random.choice([self._Oddball, self._Number, self._Name,
+                                self._JSValue, self._JSRegExp])
+      return function(name, recursion_budget)
+    if random.random() < 0.2:
+      return self._Smi(name, recursion_budget)
+    return self._HeapObject(name, recursion_budget)
+
+  GENERATORS = {
+    "Boolean": ["true", _Boolean],
+    "HeapObject": ["new Object()", _HeapObject],
+    "Int32": ["32", _Int32],
+    "JSArray": ["new Array()", _JSArray],
+    "JSArrayBuffer": ["new ArrayBuffer(8)", _JSArrayBuffer],
+    "JSDataView": ["new DataView(new ArrayBuffer(8))", _JSDataView],
+    "JSDate": ["new Date()", _JSDate],
+    "JSFunction": ["function() {}", _JSFunction],
+    "JSFunctionProxy": ["Proxy.createFunction({}, function() {})",
+                        _JSFunctionProxy],
+    "JSGeneratorObject": ["(function*(){ yield 1; })()", _JSGeneratorObject],
+    "JSMap": ["new Map()", _JSMap],
+    "JSMapIterator": ["%MapCreateIterator(new Map(), 3)", _JSMapIterator],
+    "JSObject": ["new Object()", _JSObject],
+    "JSProxy": ["Proxy.create({})", _JSProxy],
+    "JSReceiver": ["new Object()", _JSReceiver],
+    "JSRegExp": ["/ab/g", _JSRegExp],
+    "JSSet": ["new Set()", _JSSet],
+    "JSSetIterator": ["%SetCreateIterator(new Set(), 2)", _JSSetIterator],
+    "JSTypedArray": ["new Int32Array(2)", _JSTypedArray],
+    "JSValue": ["new String('foo')", _JSValue],
+    "JSWeakCollection": ["new WeakMap()", _JSWeakCollection],
+    "Name": ["\"name\"", _Name],
+    "Number": ["1.5", _Number],
+    "Object": ["new Object()", _Object],
+    "PropertyDetails": ["513", _PropertyDetails],
+    "SeqString": ["\"seqstring\"", _SeqString],
+    "Smi": ["1", _Smi],
+    "StrictMode": ["1", _StrictMode],
+    "String": ["\"foo\"", _String],
+    "Symbol": ["Symbol(\"symbol\")", _Symbol],
+    "Uint32": ["32", _Uint32],
+  }
 
 
 class ArgParser(object):
@@ -254,7 +726,6 @@ class Function(object):
                  double_arg_parser, number_arg_parser, strict_mode_arg_parser,
                  boolean_arg_parser, property_details_parser]
 
-
   def SetArgsLength(self, match):
     self.argslength = int(match.group(1))
 
@@ -284,6 +755,7 @@ class Function(object):
       s.append(self.args[i].type if i in self.args else "<unknown>")
     s.append(")")
     return "".join(s)
+
 
 # Parses HEADERFILENAME to find out which runtime functions are "inline".
 def FindInlineRuntimeFunctions():
@@ -391,38 +863,52 @@ def ClassifyFunctions(functions):
           if t in NON_JS_TYPES:
             decision = cctest_fuzzable_functions
           else:
-            assert t in JS_TYPE_GENERATORS, \
+            assert Generator.IsTypeSupported(t), \
                 ("type generator not found for %s, function: %s" % (t, f))
     decision.append(f)
   return (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions)
 
 
-def GenerateJSTestcaseForFunction(f):
+def _GetKnownGoodArgs(function, generator):
+  custom_input = CUSTOM_KNOWN_GOOD_INPUT.get(function.name, None)
+  definitions = []
+  argslist = []
+  for i in range(function.argslength):
+    if custom_input and custom_input[i] is not None:
+      name = "arg%d" % i
+      definitions.append("var %s = %s;" % (name, custom_input[i]))
+    else:
+      arg = function.args[i]
+      name = arg.name
+      definitions += generator.RandomVariable(name, arg.type, simple=True)
+    argslist.append(name)
+  return (definitions, argslist)
+
+
+def _GenerateTestcase(function, definitions, argslist, throws):
   s = ["// Copyright 2014 the V8 project authors. All rights reserved.",
        "// AUTO-GENERATED BY tools/generate-runtime-tests.py, DO NOT MODIFY",
-       "// Flags: --allow-natives-syntax --harmony"]
-  call = "%%%s%s(" % (f.inline, f.name)
-  custom = CUSTOM_KNOWN_GOOD_INPUT.get(f.name, None)
-  for i in range(f.argslength):
-    if custom and custom[i] is not None:
-      (name, value) = ("arg%d" % i, custom[i])
-    else:
-      arg = f.args[i]
-      (name, value) = (arg.name, JS_TYPE_GENERATORS[arg.type])
-    s.append("var %s = %s;" % (name, value))
-    if i > 0: call += ", "
-    call += name
-  call += ");"
-  if f.name in THROWS:
+       "// Flags: --allow-natives-syntax --harmony"] + definitions
+  call = "%%%s%s(%s);" % (function.inline, function.name, ", ".join(argslist))
+  if throws:
     s.append("try {")
     s.append(call);
     s.append("} catch(e) {}")
   else:
     s.append(call)
   testcase = "\n".join(s)
-  path = os.path.join(BASEPATH, f.Filename())
+  return testcase
+
+
+def GenerateJSTestcaseForFunction(function):
+  gen = Generator()
+  (definitions, argslist) = _GetKnownGoodArgs(function, gen)
+  testcase = _GenerateTestcase(function, definitions, argslist,
+                               function.name in THROWS)
+  path = os.path.join(BASEPATH, function.Filename())
   with open(path, "w") as f:
     f.write("%s\n" % testcase)
+
 
 def GenerateTestcases(functions):
   shutil.rmtree(BASEPATH)  # Re-generate everything.
@@ -430,8 +916,88 @@ def GenerateTestcases(functions):
   for f in functions:
     GenerateJSTestcaseForFunction(f)
 
-def PrintUsage():
-  print """Usage: %(this_script)s ACTION
+
+def _SaveFileName(save_path, process_id, save_file_index):
+  return "%s/fuzz_%d_%d.js" % (save_path, process_id, save_file_index)
+
+
+def RunFuzzer(process_id, options, stop_running):
+  base_file_name = "/dev/shm/runtime_fuzz_%d" % process_id
+  test_file_name = "%s.js" % base_file_name
+  stderr_file_name = "%s.out" % base_file_name
+  save_file_index = 0
+  while os.path.exists(_SaveFileName(options.save_path, process_id,
+                                     save_file_index)):
+    save_file_index += 1
+  MAX_SLEEP_TIME = 0.1
+  INITIAL_SLEEP_TIME = 0.001
+  SLEEP_TIME_FACTOR = 1.5
+
+  functions = FindRuntimeFunctions()
+  (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions) = \
+      ClassifyFunctions(functions)
+
+  try:
+    for i in range(options.num_tests):
+      if stop_running.is_set(): break
+      function = random.choice(js_fuzzable_functions)  # TODO: others too
+      if function.argslength == 0: continue
+      args = []
+      definitions = []
+      gen = Generator()
+      for i in range(function.argslength):
+        arg = function.args[i]
+        argname = "arg%d%s" % (i, arg.name)
+        args.append(argname)
+        definitions += gen.RandomVariable(argname, arg.type, simple=False)
+      testcase = _GenerateTestcase(function, definitions, args, True)
+      with open(test_file_name, "w") as f:
+        f.write("%s\n" % testcase)
+      with open("/dev/null", "w") as devnull:
+        with open(stderr_file_name, "w") as stderr:
+          process = subprocess.Popen(
+              [options.binary, "--allow-natives-syntax", "--harmony",
+               "--enable-slow-asserts", test_file_name],
+              stdout=devnull, stderr=stderr)
+          end_time = time.time() + options.timeout
+          timed_out = False
+          exit_code = None
+          sleep_time = INITIAL_SLEEP_TIME
+          while exit_code is None:
+            if time.time() >= end_time:
+              # Kill the process and wait for it to exit.
+              os.kill(process.pid, signal.SIGTERM)
+              exit_code = process.wait()
+              timed_out = True
+            else:
+              exit_code = process.poll()
+              time.sleep(sleep_time)
+              sleep_time = sleep_time * SLEEP_TIME_FACTOR
+              if sleep_time > MAX_SLEEP_TIME:
+                sleep_time = MAX_SLEEP_TIME
+      if exit_code != 0 and not timed_out:
+        oom = False
+        with open(stderr_file_name, "r") as stderr:
+          for line in stderr:
+            if line.strip() == "# Allocation failed - process out of memory":
+              oom = True
+              break
+        if oom: continue
+        save_name = _SaveFileName(options.save_path, process_id,
+                                  save_file_index)
+        shutil.copyfile(test_file_name, save_name)
+        save_file_index += 1
+  except KeyboardInterrupt:
+    stop_running.set()
+  except Exception, e:
+    print e
+  finally:
+    os.remove(test_file_name)
+    os.remove(stderr_file_name)
+
+
+def BuildOptionParser():
+  usage = """Usage: %%prog [options] ACTION
 
 where ACTION can be:
 
@@ -441,20 +1007,46 @@ check     Check that runtime functions can be parsed as expected, and that
 generate  Parse source code for runtime functions, and auto-generate
           test cases for them. Warning: this will nuke and re-create
           %(path)s.
-""" % {"path": os.path.relpath(BASEPATH), "this_script": THIS_SCRIPT}
+fuzz      Generate fuzz tests, run them, save those that crashed (see options).
+""" % {"path": os.path.relpath(BASEPATH)}
 
-if __name__ == "__main__":
-  if len(sys.argv) != 2:
-    PrintUsage()
-    sys.exit(1)
-  action = sys.argv[1]
-  if action in ["-h", "--help", "help"]:
-    PrintUsage()
-    sys.exit(0)
+  o = optparse.OptionParser(usage=usage)
+  o.add_option("--binary", default="out/x64.debug/d8",
+               help="d8 binary used for running fuzz tests (default: %default)")
+  o.add_option("-n", "--num-tests", default=1000, type="int",
+               help="Number of fuzz tests to generate per worker process"
+                    " (default: %default)")
+  o.add_option("--save-path", default="~/runtime_fuzz_output",
+               help="Path to directory where failing tests will be stored"
+                    " (default: %default)")
+  o.add_option("--timeout", default=20, type="int",
+               help="Timeout for each fuzz test (in seconds, default:"
+                    "%default)")
+  return o
+
+
+def Main():
+  parser = BuildOptionParser()
+  (options, args) = parser.parse_args()
+  options.save_path = os.path.expanduser(options.save_path)
+
+  if len(args) != 1 or args[0] == "help":
+    parser.print_help()
+    return 1
+  action = args[0]
 
   functions = FindRuntimeFunctions()
   (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions) = \
       ClassifyFunctions(functions)
+
+  if action == "test":
+    gen = Generator()
+    vartype = "JSTypedArray"
+    print("simple: %s" % gen.RandomVariable("x", vartype, True))
+    for i in range(10):
+      print("----")
+      print("%s" % "\n".join(gen.RandomVariable("x", vartype, False)))
+    return 0
 
   if action == "info":
     print("%d functions total; js_fuzzable_functions: %d, "
@@ -464,49 +1056,76 @@ if __name__ == "__main__":
     print("unknown functions:")
     for f in unknown_functions:
       print(f)
-    sys.exit(0)
+    return 0
 
   if action == "check":
-    error = False
+    errors = 0
+
     def CheckCount(actual, expected, description):
-      global error
       if len(actual) != expected:
         print("Expected to detect %d %s, but found %d." % (
               expected, description, len(actual)))
         print("If this change is intentional, please update the expectations"
               " at the top of %s." % THIS_SCRIPT)
-        error = True
-    CheckCount(functions, EXPECTED_FUNCTION_COUNT, "functions in total")
-    CheckCount(js_fuzzable_functions, EXPECTED_FUZZABLE_COUNT,
-               "JavaScript-fuzzable functions")
-    CheckCount(cctest_fuzzable_functions, EXPECTED_CCTEST_COUNT,
-               "cctest-fuzzable functions")
-    CheckCount(unknown_functions, EXPECTED_UNKNOWN_COUNT,
-               "functions with incomplete type information")
+        return 1
+      return 0
+
+    errors += CheckCount(functions, EXPECTED_FUNCTION_COUNT,
+                         "functions in total")
+    errors += CheckCount(js_fuzzable_functions, EXPECTED_FUZZABLE_COUNT,
+                         "JavaScript-fuzzable functions")
+    errors += CheckCount(cctest_fuzzable_functions, EXPECTED_CCTEST_COUNT,
+                         "cctest-fuzzable functions")
+    errors += CheckCount(unknown_functions, EXPECTED_UNKNOWN_COUNT,
+                         "functions with incomplete type information")
 
     def CheckTestcasesExisting(functions):
-      global error
+      errors = 0
       for f in functions:
         if not os.path.isfile(os.path.join(BASEPATH, f.Filename())):
           print("Missing testcase for %s, please run '%s generate'" %
                 (f.name, THIS_SCRIPT))
-          error = True
+          errors += 1
       files = filter(lambda filename: not filename.startswith("."),
                      os.listdir(BASEPATH))
       if (len(files) != len(functions)):
         unexpected_files = set(files) - set([f.Filename() for f in functions])
         for f in unexpected_files:
           print("Unexpected testcase: %s" % os.path.join(BASEPATH, f))
-          error = True
+          errors += 1
         print("Run '%s generate' to automatically clean these up."
               % THIS_SCRIPT)
-    CheckTestcasesExisting(js_fuzzable_functions)
+      return errors
 
-    if error:
-      sys.exit(1)
+    errors += CheckTestcasesExisting(js_fuzzable_functions)
+
+    if errors > 0:
+      return 1
     print("Generated runtime tests: all good.")
-    sys.exit(0)
+    return 0
 
   if action == "generate":
     GenerateTestcases(js_fuzzable_functions)
-    sys.exit(0)
+    return 0
+
+  if action == "fuzz":
+    processes = []
+    if not os.path.isdir(options.save_path):
+      os.makedirs(options.save_path)
+    stop_running = multiprocessing.Event()
+    for i in range(multiprocessing.cpu_count()):
+      args = (i, options, stop_running)
+      p = multiprocessing.Process(target=RunFuzzer, args=args)
+      p.start()
+      processes.append(p)
+    try:
+      for i in range(len(processes)):
+        processes[i].join()
+    except KeyboardInterrupt:
+      stop_running.set()
+      for i in range(len(processes)):
+        processes[i].join()
+    return 0
+
+if __name__ == "__main__":
+  sys.exit(Main())
