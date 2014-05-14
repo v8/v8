@@ -109,28 +109,6 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 v8::Persistent<v8::Context> debug_message_context;
 
-void DispatchDebugMessages() {
-  // We are in some random thread. We should already have v8::Locker acquired
-  // (we requested this when registered this callback). We was called
-  // because new debug messages arrived; they may have already been processed,
-  // but we shouldn't worry about this.
-  //
-  // All we have to do is to set context and call ProcessDebugMessages.
-  //
-  // We should decide which V8 context to use here. This is important for
-  // "evaluate" command, because it must be executed some context.
-  // In our sample we have only one context, so there is nothing really to
-  // think about.
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      v8::Local<v8::Context>::New(isolate, debug_message_context);
-  v8::Context::Scope scope(context);
-
-  v8::Debug::ProcessDebugMessages();
-}
-
-
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::Isolate* isolate = v8::Isolate::New();
@@ -141,10 +119,6 @@ int RunMain(int argc, char* argv[]) {
   v8::Handle<v8::String> script_source;
   v8::Handle<v8::Value> script_name;
   int script_param_counter = 0;
-
-  int port_number = -1;
-  bool wait_for_connection = false;
-  bool support_callback = false;
 
   MainCycleType cycle_type = CycleInCpp;
 
@@ -158,13 +132,6 @@ int RunMain(int argc, char* argv[]) {
       cycle_type = CycleInCpp;
     } else if (strcmp(str, "--main-cycle-in-js") == 0) {
       cycle_type = CycleInJs;
-    } else if (strcmp(str, "--callback") == 0) {
-      support_callback = true;
-    } else if (strcmp(str, "--wait-for-connection") == 0) {
-      wait_for_connection = true;
-    } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-      port_number = atoi(argv[i + 1]);  // NOLINT
-      i++;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
@@ -213,14 +180,6 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
   debug_message_context.Reset(isolate, context);
-
-  if (support_callback) {
-    v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
-  }
-
-  if (port_number != -1) {
-    v8::Debug::EnableAgent("lineprocessor", port_number, wait_for_connection);
-  }
 
   bool report_exceptions = true;
 

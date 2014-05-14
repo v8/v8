@@ -265,7 +265,6 @@ class Shell : public i::AllStatic {
                                            Handle<String> message);
   static Local<Value> DebugCommandToJSONRequest(Isolate* isolate,
                                                 Handle<String> command);
-  static void DispatchDebugMessages();
 
   static void PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !V8_SHARED

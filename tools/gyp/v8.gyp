@@ -313,8 +313,6 @@
         '../../src/dateparser-inl.h',
         '../../src/dateparser.cc',
         '../../src/dateparser.h',
-        '../../src/debug-agent.cc',
-        '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
         '../../src/deoptimizer.cc',

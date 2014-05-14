@@ -8,7 +8,6 @@
 #include "allocation.h"
 #include "arguments.h"
 #include "assembler.h"
-#include "debug-agent.h"
 #include "execution.h"
 #include "factory.h"
 #include "flags.h"
@@ -783,16 +782,10 @@ class Debugger {
                             bool auto_continue);
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler handler);
-  void SetDebugMessageDispatchHandler(
-      v8::Debug::DebugMessageDispatchHandler handler,
-      bool provide_locker);
-
-  // Invoke the message handler function.
-  void InvokeMessageHandler(MessageImpl message);
 
   // Add a debugger command to the command queue.
-  void ProcessCommand(Vector<const uint16_t> command,
-                      v8::Debug::ClientData* client_data = NULL);
+  void EnqueueCommandMessage(Vector<const uint16_t> command,
+                             v8::Debug::ClientData* client_data = NULL);
 
   // Check whether there are commands in the command queue.
   bool HasCommands();
@@ -802,18 +795,6 @@ class Debugger {
 
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
                                            Handle<Object> data);
-
-  // Start the debugger agent listening on the provided port.
-  bool StartAgent(const char* name, int port,
-                  bool wait_for_connection = false);
-
-  // Stop the debugger agent.
-  void StopAgent();
-
-  // Blocks until the agent has started listening for connections
-  void WaitForAgent();
-
-  void CallMessageDispatchHandler();
 
   Handle<Context> GetDebugContext();
 
@@ -882,6 +863,9 @@ class Debugger {
                            Handle<Object> event_data);
   void ListenersChanged();
 
+  // Invoke the message handler function.
+  void InvokeMessageHandler(MessageImpl message);
+
   RecursiveMutex debugger_access_;  // Mutex guarding debugger variables.
   Handle<Object> event_listener_;  // Global handle to listener.
   Handle<Object> event_listener_data_;
@@ -891,12 +875,6 @@ class Debugger {
   bool never_unload_debugger_;  // Can we unload the debugger?
   v8::Debug::MessageHandler message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
-
-  Mutex dispatch_handler_access_;  // Mutex guarding dispatch handler.
-  v8::Debug::DebugMessageDispatchHandler debug_message_dispatch_handler_;
-  MessageDispatchHelperThread* message_dispatch_helper_thread_;
-
-  DebuggerAgent* agent_;
 
   static const int kQueueInitialSize = 4;
   LockingCommandMessageQueue command_queue_;
@@ -993,29 +971,6 @@ class Debug_Address {
  private:
   Debug::AddressId id_;
 };
-
-// The optional thread that Debug Agent may use to temporary call V8 to process
-// pending debug requests if debuggee is not running V8 at the moment.
-// Techincally it does not call V8 itself, rather it asks embedding program
-// to do this via v8::Debug::HostDispatchHandler
-class MessageDispatchHelperThread: public Thread {
- public:
-  explicit MessageDispatchHelperThread(Isolate* isolate);
-  ~MessageDispatchHelperThread() {}
-
-  void Schedule();
-
- private:
-  void Run();
-
-  Isolate* isolate_;
-  Semaphore sem_;
-  Mutex mutex_;
-  bool already_signalled_;
-
-  DISALLOW_COPY_AND_ASSIGN(MessageDispatchHelperThread);
-};
-
 
 } }  // namespace v8::internal
 

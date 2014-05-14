@@ -83,7 +83,7 @@ bool ReadLineEditor::Close() {
 Handle<String> ReadLineEditor::Prompt(const char* prompt) {
   char* result = NULL;
   {  // Release lock for blocking input.
-    Unlocker unlock(Isolate::GetCurrent());
+    Unlocker unlock(isolate_);
     result = readline(prompt);
   }
   if (result == NULL) return Handle<String>();

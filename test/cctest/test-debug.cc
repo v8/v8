@@ -5788,242 +5788,6 @@ TEST(DebuggerClearMessageHandlerWhileActive) {
 }
 
 
-/* Test DebugMessageDispatch */
-/* In this test, the V8 thread waits for a message from the debug thread.
- * The DebugMessageDispatchHandler is executed from the debugger thread
- * which signals the V8 thread to wake up.
- */
-
-class DebugMessageDispatchV8Thread : public v8::internal::Thread {
- public:
-  DebugMessageDispatchV8Thread() : Thread("DebugMessageDispatchV8Thread") { }
-  void Run();
-};
-
-class DebugMessageDispatchDebuggerThread : public v8::internal::Thread {
- public:
-  DebugMessageDispatchDebuggerThread()
-      : Thread("DebugMessageDispatchDebuggerThread") { }
-  void Run();
-};
-
-Barriers* debug_message_dispatch_barriers;
-
-
-static void DebugMessageHandler() {
-  debug_message_dispatch_barriers->semaphore_1.Signal();
-}
-
-
-void DebugMessageDispatchV8Thread::Run() {
-  v8::Isolate::Scope isolate_scope(CcTest::isolate());
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Set up debug message dispatch handler.
-  v8::Debug::SetDebugMessageDispatchHandler(DebugMessageHandler);
-
-  CompileRun("var y = 1 + 2;\n");
-  debug_message_dispatch_barriers->barrier_1.Wait();
-  debug_message_dispatch_barriers->semaphore_1.Wait();
-  debug_message_dispatch_barriers->barrier_2.Wait();
-}
-
-
-void DebugMessageDispatchDebuggerThread::Run() {
-  debug_message_dispatch_barriers->barrier_1.Wait();
-  SendContinueCommand();
-  debug_message_dispatch_barriers->barrier_2.Wait();
-}
-
-
-TEST(DebuggerDebugMessageDispatch) {
-  DebugMessageDispatchDebuggerThread debug_message_dispatch_debugger_thread;
-  DebugMessageDispatchV8Thread debug_message_dispatch_v8_thread;
-
-  // Create a V8 environment
-  Barriers stack_allocated_debug_message_dispatch_barriers;
-  debug_message_dispatch_barriers =
-      &stack_allocated_debug_message_dispatch_barriers;
-
-  debug_message_dispatch_v8_thread.Start();
-  debug_message_dispatch_debugger_thread.Start();
-
-  debug_message_dispatch_v8_thread.Join();
-  debug_message_dispatch_debugger_thread.Join();
-}
-
-
-TEST(DebuggerAgent) {
-  v8::V8::Initialize();
-  i::Debugger* debugger = CcTest::i_isolate()->debugger();
-  // Make sure these ports is not used by other tests to allow tests to run in
-  // parallel.
-  const int kPort1 = 5858 + FlagDependentPortOffset();
-  const int kPort2 = 5857 + FlagDependentPortOffset();
-  const int kPort3 = 5856 + FlagDependentPortOffset();
-
-  // Make a string with the port2 number.
-  const int kPortBufferLen = 6;
-  char port2_str[kPortBufferLen];
-  OS::SNPrintF(i::Vector<char>(port2_str, kPortBufferLen), "%d", kPort2);
-
-  bool ok;
-
-  // Test starting and stopping the agent without any client connection.
-  debugger->StartAgent("test", kPort1);
-  debugger->StopAgent();
-  // Test starting the agent, connecting a client and shutting down the agent
-  // with the client connected.
-  ok = debugger->StartAgent("test", kPort2);
-  CHECK(ok);
-  debugger->WaitForAgent();
-  i::Socket* client = new i::Socket;
-  ok = client->Connect("localhost", port2_str);
-  CHECK(ok);
-  // It is important to wait for a message from the agent. Otherwise,
-  // we can close the server socket during "accept" syscall, making it failing
-  // (at least on Linux), and the test will work incorrectly.
-  char buf;
-  ok = client->Receive(&buf, 1) == 1;
-  CHECK(ok);
-  debugger->StopAgent();
-  delete client;
-
-  // Test starting and stopping the agent with the required port already
-  // occoupied.
-  i::Socket* server = new i::Socket;
-  ok = server->Bind(kPort3);
-  CHECK(ok);
-
-  debugger->StartAgent("test", kPort3);
-  debugger->StopAgent();
-
-  delete server;
-}
-
-
-class DebuggerAgentProtocolServerThread : public i::Thread {
- public:
-  explicit DebuggerAgentProtocolServerThread(int port)
-      : Thread("DebuggerAgentProtocolServerThread"),
-        port_(port),
-        server_(NULL),
-        client_(NULL),
-        listening_(0) {
-  }
-  ~DebuggerAgentProtocolServerThread() {
-    // Close both sockets.
-    delete client_;
-    delete server_;
-  }
-
-  void Run();
-  void WaitForListening() { listening_.Wait(); }
-  char* body() { return body_.get(); }
-
- private:
-  int port_;
-  i::SmartArrayPointer<char> body_;
-  i::Socket* server_;  // Server socket used for bind/accept.
-  i::Socket* client_;  // Single client connection used by the test.
-  i::Semaphore listening_;  // Signalled when the server is in listen mode.
-};
-
-
-void DebuggerAgentProtocolServerThread::Run() {
-  bool ok;
-
-  // Create the server socket and bind it to the requested port.
-  server_ = new i::Socket;
-  CHECK(server_ != NULL);
-  ok = server_->Bind(port_);
-  CHECK(ok);
-
-  // Listen for new connections.
-  ok = server_->Listen(1);
-  CHECK(ok);
-  listening_.Signal();
-
-  // Accept a connection.
-  client_ = server_->Accept();
-  CHECK(client_ != NULL);
-
-  // Receive a debugger agent protocol message.
-  i::DebuggerAgentUtil::ReceiveMessage(client_);
-}
-
-
-TEST(DebuggerAgentProtocolOverflowHeader) {
-  // Make sure this port is not used by other tests to allow tests to run in
-  // parallel.
-  const int kPort = 5860 + FlagDependentPortOffset();
-  static const char* kLocalhost = "localhost";
-
-  // Make a string with the port number.
-  const int kPortBufferLen = 6;
-  char port_str[kPortBufferLen];
-  OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
-
-  // Create a socket server to receive a debugger agent message.
-  DebuggerAgentProtocolServerThread* server =
-      new DebuggerAgentProtocolServerThread(kPort);
-  server->Start();
-  server->WaitForListening();
-
-  // Connect.
-  i::Socket* client = new i::Socket;
-  CHECK(client != NULL);
-  bool ok = client->Connect(kLocalhost, port_str);
-  CHECK(ok);
-
-  // Send headers which overflow the receive buffer.
-  static const int kBufferSize = 1000;
-  char buffer[kBufferSize];
-
-  // Long key and short value: XXXX....XXXX:0\r\n.
-  for (int i = 0; i < kBufferSize - 4; i++) {
-    buffer[i] = 'X';
-  }
-  buffer[kBufferSize - 4] = ':';
-  buffer[kBufferSize - 3] = '0';
-  buffer[kBufferSize - 2] = '\r';
-  buffer[kBufferSize - 1] = '\n';
-  int result = client->Send(buffer, kBufferSize);
-  CHECK_EQ(kBufferSize, result);
-
-  // Short key and long value: X:XXXX....XXXX\r\n.
-  buffer[0] = 'X';
-  buffer[1] = ':';
-  for (int i = 2; i < kBufferSize - 2; i++) {
-    buffer[i] = 'X';
-  }
-  buffer[kBufferSize - 2] = '\r';
-  buffer[kBufferSize - 1] = '\n';
-  result = client->Send(buffer, kBufferSize);
-  CHECK_EQ(kBufferSize, result);
-
-  // Add empty body to request.
-  const char* content_length_zero_header = "Content-Length:0\r\n";
-  int length = StrLength(content_length_zero_header);
-  result = client->Send(content_length_zero_header, length);
-  CHECK_EQ(length, result);
-  result = client->Send("\r\n", 2);
-  CHECK_EQ(2, result);
-
-  // Wait until data is received.
-  server->Join();
-
-  // Check for empty body.
-  CHECK(server->body() == NULL);
-
-  // Close the client before the server to avoid TIME_WAIT issues.
-  client->Shutdown();
-  delete client;
-  delete server;
-}
-
-
 // Test for issue http://code.google.com/p/v8/issues/detail?id=289.
 // Make sure that DebugGetLoadedScripts doesn't return scripts
 // with disposed external source.
@@ -6783,7 +6547,7 @@ TEST(NoDebugBreakInAfterCompileMessageHandler) {
 static int counting_message_handler_counter;
 
 static void CountingMessageHandler(const v8::Debug::Message& message) {
-  counting_message_handler_counter++;
+  if (message.IsResponse()) counting_message_handler_counter++;
 }
 
 
@@ -6826,6 +6590,83 @@ TEST(ProcessDebugMessages) {
 
   // Get rid of the debug message handler.
   v8::Debug::SetMessageHandler(NULL);
+  CheckDebuggerUnloaded();
+}
+
+
+class SendCommandThread : public v8::internal::Thread {
+ public:
+  explicit SendCommandThread(v8::Isolate* isolate)
+      : Thread("SendCommandThread"),
+        semaphore_(0),
+        isolate_(isolate) { }
+
+  static void ProcessDebugMessages(v8::Isolate* isolate, void* data) {
+    v8::Debug::ProcessDebugMessages();
+    reinterpret_cast<v8::internal::Semaphore*>(data)->Signal();
+  }
+
+  virtual void Run() {
+    semaphore_.Wait();
+    const int kBufferSize = 1000;
+    uint16_t buffer[kBufferSize];
+    const char* scripts_command =
+      "{\"seq\":0,"
+       "\"type\":\"request\","
+       "\"command\":\"scripts\"}";
+    int length = AsciiToUtf16(scripts_command, buffer);
+    // Send scripts command.
+
+    for (int i = 0; i < 100; i++) {
+      CHECK_EQ(i, counting_message_handler_counter);
+      // Queue debug message.
+      v8::Debug::SendCommand(isolate_, buffer, length);
+      // Synchronize with the main thread to force message processing.
+      isolate_->RequestInterrupt(ProcessDebugMessages, &semaphore_);
+      semaphore_.Wait();
+    }
+
+    v8::V8::TerminateExecution(isolate_);
+  }
+
+  void StartSending() {
+    semaphore_.Signal();
+  }
+
+ private:
+  v8::internal::Semaphore semaphore_;
+  v8::Isolate* isolate_;
+};
+
+
+static SendCommandThread* send_command_thread_ = NULL;
+
+static void StartSendingCommands(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  send_command_thread_->StartSending();
+}
+
+
+TEST(ProcessDebugMessagesThreaded) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  counting_message_handler_counter = 0;
+
+  v8::Debug::SetMessageHandler2(CountingMessageHandler);
+  send_command_thread_ = new SendCommandThread(isolate);
+  send_command_thread_->Start();
+
+  v8::Handle<v8::FunctionTemplate> start =
+      v8::FunctionTemplate::New(isolate, StartSendingCommands);
+  env->Global()->Set(v8_str("start"), start->GetFunction());
+
+  CompileRun("start(); while (true) { }");
+
+  CHECK_EQ(100, counting_message_handler_counter);
+
+  v8::Debug::SetMessageHandler2(NULL);
   CheckDebuggerUnloaded();
 }
 
