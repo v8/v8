@@ -180,18 +180,10 @@ class StoreBuffer {
     ObjectSlotCallback slot_callback,
     bool clear_maps);
 
-  void FindPointersToNewSpaceOnPage(
-    PagedSpace* space,
-    Page* page,
-    RegionCallback region_callback,
-    ObjectSlotCallback slot_callback,
-    bool clear_maps);
-
   void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
                                     bool clear_maps);
 
 #ifdef VERIFY_HEAP
-  void VerifyPointers(PagedSpace* space, RegionCallback region_callback);
   void VerifyPointers(LargeObjectSpace* space);
 #endif
 
