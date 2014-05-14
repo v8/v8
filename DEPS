@@ -3,7 +3,7 @@
 # all paths in here must match this assumption.
 
 vars = {
-  "chromium_url": "https://src.chromium.org",
+  "chromium_trunk": "https://src.chromium.org/svn/trunk",
 }
 
 deps = {
@@ -12,16 +12,16 @@ deps = {
     "http://gyp.googlecode.com/svn/trunk@1831",
 
   "v8/third_party/icu":
-    Var("chromium_url") + "/svn/trunk/deps/third_party/icu46@258359",
+    Var("chromium_trunk") + "/deps/third_party/icu46@258359",
 }
 
 deps_os = {
   "win": {
     "v8/third_party/cygwin":
-      Var("chromium_url") + "/svn/trunk/deps/third_party/cygwin@66844",
+      Var("chromium_trunk") + "/deps/third_party/cygwin@66844",
 
     "v8/third_party/python_26":
-      Var("chromium_url") + "/svn/trunk/tools/third_party/python_26@89111",
+      Var("chromium_trunk") + "/tools/third_party/python_26@89111",
   }
 }
 
