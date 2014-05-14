@@ -3879,9 +3879,14 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register result = ToRegister32(instr->result());
   int32_t divisor = instr->divisor();
 
+  // If the divisor is 1, return the dividend.
+  if (divisor == 1) {
+    __ Mov(result, dividend, kDiscardForSameWReg);
+    return;
+  }
+
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
-  if (divisor == 1) return;
   int32_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
     __ Mov(result, Operand(dividend, ASR, shift));
@@ -3906,14 +3911,8 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
     return;
   }
 
-  // Using a conditional data processing instruction would need 1 more register.
-  Label not_kmin_int, done;
-  __ B(vc, &not_kmin_int);
-  __ Mov(result, kMinInt / divisor);
-  __ B(&done);
-  __ bind(&not_kmin_int);
-  __ Mov(result, Operand(dividend, ASR, shift));
-  __ bind(&done);
+  __ Asr(result, dividend, shift);
+  __ Csel(result, result, kMinInt / divisor, vc);
 }
 
 
