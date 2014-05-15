@@ -2025,7 +2025,7 @@ class Heap {
   static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
 
-  static const int kOldSurvivalRateLowThreshold = 20;
+  static const int kOldSurvivalRateLowThreshold = 10;
 
   int young_survivors_after_last_gc_;
   int high_survival_rate_period_length_;
