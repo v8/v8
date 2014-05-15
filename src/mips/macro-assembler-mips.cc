@@ -4452,36 +4452,37 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
 }
 
 
-void MacroAssembler::Prologue(CompilationInfo* info) {
-  if (info->IsStub()) {
+void MacroAssembler::StubPrologue() {
     Push(ra, fp, cp);
     Push(Smi::FromInt(StackFrame::STUB));
     // Adjust FP to point to saved FP.
     Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  } else {
-    PredictableCodeSizeScope predictible_code_size_scope(
+}
+
+
+void MacroAssembler::Prologue(bool code_pre_aging) {
+  PredictableCodeSizeScope predictible_code_size_scope(
       this, kNoCodeAgeSequenceLength);
-    // The following three instructions must remain together and unmodified
-    // for code aging to work properly.
-    if (info->IsCodePreAgingActive()) {
-      // Pre-age the code.
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      nop(Assembler::CODE_AGE_MARKER_NOP);
-      // Load the stub address to t9 and call it,
-      // GetCodeAgeAndParity() extracts the stub address from this instruction.
-      li(t9,
-         Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),
-         CONSTANT_SIZE);
-      nop();  // Prevent jalr to jal optimization.
-      jalr(t9, a0);
-      nop();  // Branch delay slot nop.
-      nop();  // Pad the empty space.
-    } else {
-      Push(ra, fp, cp, a1);
-      nop(Assembler::CODE_AGE_SEQUENCE_NOP);
-      // Adjust fp to point to caller's fp.
-      Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-    }
+  // The following three instructions must remain together and unmodified
+  // for code aging to work properly.
+  if (code_pre_aging) {
+    // Pre-age the code.
+    Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+    nop(Assembler::CODE_AGE_MARKER_NOP);
+    // Load the stub address to t9 and call it,
+    // GetCodeAgeAndParity() extracts the stub address from this instruction.
+    li(t9,
+       Operand(reinterpret_cast<uint32_t>(stub->instruction_start())),
+       CONSTANT_SIZE);
+    nop();  // Prevent jalr to jal optimization.
+    jalr(t9, a0);
+    nop();  // Branch delay slot nop.
+    nop();  // Pad the empty space.
+  } else {
+    Push(ra, fp, cp, a1);
+    nop(Assembler::CODE_AGE_SEQUENCE_NOP);
+    // Adjust fp to point to caller's fp.
+    Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   }
 }
 

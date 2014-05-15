@@ -2992,23 +2992,24 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
 }
 
 
-void MacroAssembler::Prologue(CompilationInfo* info) {
-  if (info->IsStub()) {
-    ASSERT(StackPointer().Is(jssp));
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-    __ Mov(temp, Smi::FromInt(StackFrame::STUB));
-    // Compiled stubs don't age, and so they don't need the predictable code
-    // ageing sequence.
-    __ Push(lr, fp, cp, temp);
-    __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+void MacroAssembler::StubPrologue() {
+  ASSERT(StackPointer().Is(jssp));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  __ Mov(temp, Smi::FromInt(StackFrame::STUB));
+  // Compiled stubs don't age, and so they don't need the predictable code
+  // ageing sequence.
+  __ Push(lr, fp, cp, temp);
+  __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+}
+
+
+void MacroAssembler::Prologue(bool code_pre_aging) {
+  if (code_pre_aging) {
+    Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+    __ EmitCodeAgeSequence(stub);
   } else {
-    if (info->IsCodePreAgingActive()) {
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      __ EmitCodeAgeSequence(stub);
-    } else {
-      __ EmitFrameSetupForCodeAgePatching();
-    }
+    __ EmitFrameSetupForCodeAgePatching();
   }
 }
 
