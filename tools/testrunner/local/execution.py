@@ -138,6 +138,7 @@ class Runner(object):
         self.indicator.HasRun(test, has_unexpected_output)
     finally:
       pool.terminate()
+      self.perf_data_manager.close()
     if queued_exception:
       raise queued_exception
 
