@@ -1314,11 +1314,13 @@ void Genesis::InitializeExperimentalGlobal() {
     {   // -- S e t I t e r a t o r
       Handle<Map> map = isolate()->factory()->NewMap(
           JS_SET_ITERATOR_TYPE, JSSetIterator::kSize);
+      map->set_constructor(native_context()->closure());
       native_context()->set_set_iterator_map(*map);
     }
     {   // -- M a p I t e r a t o r
       Handle<Map> map = isolate()->factory()->NewMap(
           JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize);
+      map->set_constructor(native_context()->closure());
       native_context()->set_map_iterator_map(*map);
     }
   }
