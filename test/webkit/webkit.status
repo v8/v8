@@ -27,10 +27,6 @@
 
 [
 [ALWAYS, {
-  # BUG(237872). TODO(bmeurer): Investigate.
-  'string-replacement-outofmemory': [FAIL],
-
-  ##############################################################################
   # Flaky tests.
   # BUG(v8:2989).
   'dfg-inline-arguments-become-double': [PASS, FAIL],
