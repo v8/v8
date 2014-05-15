@@ -134,3 +134,13 @@ class Pool():
 
     for p in self.processes:
       p.join()
+
+    # Drain the queues to prevent failures when queues are garbage collected.
+    try:
+      while True: self.work_queue.get(False)
+    except:
+      pass
+    try:
+      while True: self.done_queue.get(False)
+    except:
+      pass
