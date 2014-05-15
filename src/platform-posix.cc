@@ -17,7 +17,6 @@
 #include <time.h>
 
 #include <sys/mman.h>
-#include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>

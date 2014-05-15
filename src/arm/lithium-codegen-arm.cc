@@ -1435,9 +1435,14 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register result = ToRegister(instr->result());
   int32_t divisor = instr->divisor();
 
+  // If the divisor is 1, return the dividend.
+  if (divisor == 1) {
+    __ Move(result, dividend);
+    return;
+  }
+
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
-  if (divisor == 1) return;
   int32_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
     __ mov(result, Operand(dividend, ASR, shift));

@@ -204,31 +204,22 @@ function PromiseThen(onResolve, onReject) {
   );
 }
 
-PromiseCoerce.table = new $WeakMap;
-
 function PromiseCoerce(constructor, x) {
   if (!IsPromise(x) && IS_SPEC_OBJECT(x)) {
     var then;
     try {
       then = x.then;
     } catch(r) {
-      var promise = %_CallFunction(constructor, r, PromiseRejected);
-      PromiseCoerce.table.set(x, promise);
-      return promise;
+      return %_CallFunction(constructor, r, PromiseRejected);
     }
-    if (typeof then === 'function') {
-      if (PromiseCoerce.table.has(x)) {
-        return PromiseCoerce.table.get(x);
-      } else {
-        var deferred = %_CallFunction(constructor, PromiseDeferred);
-        PromiseCoerce.table.set(x, deferred.promise);
-        try {
-          %_CallFunction(x, deferred.resolve, deferred.reject, then);
-        } catch(r) {
-          deferred.reject(r);
-        }
-        return deferred.promise;
+    if (IS_SPEC_FUNCTION(then)) {
+      var deferred = %_CallFunction(constructor, PromiseDeferred);
+      try {
+        %_CallFunction(x, deferred.resolve, deferred.reject, then);
+      } catch(r) {
+        deferred.reject(r);
       }
+      return deferred.promise;
     }
   }
   return x;

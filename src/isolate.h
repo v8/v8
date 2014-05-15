@@ -75,7 +75,6 @@ typedef void* ExternalReferenceRedirectorPointer();
 
 class Debug;
 class Debugger;
-class DebuggerAgent;
 
 #if !defined(__arm__) && V8_TARGET_ARCH_ARM || \
     !defined(__aarch64__) && V8_TARGET_ARCH_ARM64 || \
@@ -358,7 +357,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, fp_stubs_generated, false)                                           \
   V(int, max_available_threads, 0)                                             \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
-  V(DebuggerAgent*, debugger_agent_instance, NULL)                             \
   V(InterruptCallback, api_interrupt_callback, NULL)                           \
   V(void*, api_interrupt_callback_data, NULL)                                  \
   ISOLATE_INIT_SIMULATOR_LIST(V)

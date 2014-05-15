@@ -26,17 +26,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import multiprocessing
 import os
-import threading
 import time
 
+from pool import Pool
 from . import commands
 from . import utils
-
-
-BREAK_NOW = -1
-EXCEPTION = -2
 
 
 class Job(object):
@@ -49,24 +44,17 @@ class Job(object):
 
 
 def RunTest(job):
-  try:
-    start_time = time.time()
-    if job.dep_command is not None:
-      dep_output = commands.Execute(job.dep_command, job.verbose, job.timeout)
-      # TODO(jkummerow): We approximate the test suite specific function
-      # IsFailureOutput() by just checking the exit code here. Currently
-      # only cctests define dependencies, for which this simplification is
-      # correct.
-      if dep_output.exit_code != 0:
-        return (job.id, dep_output, time.time() - start_time)
-    output = commands.Execute(job.command, job.verbose, job.timeout)
-    return (job.id, output, time.time() - start_time)
-  except KeyboardInterrupt:
-    return (-1, BREAK_NOW, 0)
-  except Exception, e:
-    print(">>> EXCEPTION: %s" % e)
-    return (-1, EXCEPTION, 0)
-
+  start_time = time.time()
+  if job.dep_command is not None:
+    dep_output = commands.Execute(job.dep_command, job.verbose, job.timeout)
+    # TODO(jkummerow): We approximate the test suite specific function
+    # IsFailureOutput() by just checking the exit code here. Currently
+    # only cctests define dependencies, for which this simplification is
+    # correct.
+    if dep_output.exit_code != 0:
+      return (job.id, dep_output, time.time() - start_time)
+  output = commands.Execute(job.command, job.verbose, job.timeout)
+  return (job.id, output, time.time() - start_time)
 
 class Runner(object):
 
@@ -83,8 +71,6 @@ class Runner(object):
     self.remaining = num_tests
     self.failed = []
     self.crashed = 0
-    self.terminate = False
-    self.lock = threading.Lock()
 
   def Run(self, jobs):
     self.indicator.Starting()
@@ -95,8 +81,11 @@ class Runner(object):
     return 0
 
   def _RunInternal(self, jobs):
-    pool = multiprocessing.Pool(processes=jobs)
+    pool = Pool(jobs)
     test_map = {}
+    # TODO(machenbach): Instead of filling the queue completely before
+    # pool.imap_unordered, make this a generator that already starts testing
+    # while the queue is filled.
     queue = []
     queued_exception = None
     for test in self.tests:
@@ -119,22 +108,11 @@ class Runner(object):
       else:
         dep_command = None
       job = Job(command, dep_command, test.id, timeout, self.context.verbose)
-      queue.append(job)
+      queue.append([job])
     try:
-      kChunkSize = 1
-      it = pool.imap_unordered(RunTest, queue, kChunkSize)
+      it = pool.imap_unordered(RunTest, queue)
       for result in it:
-        test_id = result[0]
-        if test_id < 0:
-          if result[1] == BREAK_NOW:
-            self.terminate = True
-          else:
-            continue
-        if self.terminate:
-          pool.terminate()
-          pool.join()
-          raise BreakNowException("User pressed Ctrl+C or IO went wrong")
-        test = test_map[test_id]
+        test = test_map[result[0]]
         self.indicator.AboutToRun(test)
         test.output = result[1]
         test.duration = result[2]
@@ -147,18 +125,10 @@ class Runner(object):
           self.succeeded += 1
         self.remaining -= 1
         self.indicator.HasRun(test, has_unexpected_output)
-    except KeyboardInterrupt:
+    finally:
       pool.terminate()
-      pool.join()
-      raise
-    except Exception, e:
-      print("Exception: %s" % e)
-      pool.terminate()
-      pool.join()
-      raise
     if queued_exception:
       raise queued_exception
-    return
 
 
   def GetCommand(self, test):

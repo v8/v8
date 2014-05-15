@@ -2632,9 +2632,6 @@ Debugger::Debugger(Isolate* isolate)
       never_unload_debugger_(false),
       message_handler_(NULL),
       debugger_unload_pending_(false),
-      debug_message_dispatch_handler_(NULL),
-      message_dispatch_helper_thread_(NULL),
-      agent_(NULL),
       command_queue_(isolate->logger(), kQueueInitialSize),
       command_received_(0),
       event_command_queue_(isolate->logger(), kQueueInitialSize),
@@ -3180,7 +3177,7 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
+void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
   LockGuard<RecursiveMutex> with(&debugger_access_);
 
   message_handler_ = handler;
@@ -3189,7 +3186,7 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler2 handler) {
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
     if (isolate_->debug()->InDebugger()) {
-      ProcessCommand(Vector<const uint16_t>::empty());
+      EnqueueCommandMessage(Vector<const uint16_t>::empty());
     }
   }
 }
@@ -3211,18 +3208,6 @@ void Debugger::ListenersChanged() {
 }
 
 
-void Debugger::SetDebugMessageDispatchHandler(
-    v8::Debug::DebugMessageDispatchHandler handler, bool provide_locker) {
-  LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
-  debug_message_dispatch_handler_ = handler;
-
-  if (provide_locker && message_dispatch_helper_thread_ == NULL) {
-    message_dispatch_helper_thread_ = new MessageDispatchHelperThread(isolate_);
-    message_dispatch_helper_thread_->Start();
-  }
-}
-
-
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
@@ -3238,8 +3223,8 @@ void Debugger::InvokeMessageHandler(MessageImpl message) {
 // a copy of the command string managed by the debugger.  Up to this
 // point, the command data was managed by the API client.  Called
 // by the API client thread.
-void Debugger::ProcessCommand(Vector<const uint16_t> command,
-                              v8::Debug::ClientData* client_data) {
+void Debugger::EnqueueCommandMessage(Vector<const uint16_t> command,
+                                     v8::Debug::ClientData* client_data) {
   // Need to cast away const.
   CommandMessage message = CommandMessage::New(
       Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
@@ -3252,18 +3237,6 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command,
   // Set the debug command break flag to have the command processed.
   if (!isolate_->debug()->InDebugger()) {
     isolate_->stack_guard()->RequestDebugCommand();
-  }
-
-  MessageDispatchHelperThread* dispatch_thread;
-  {
-    LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
-    dispatch_thread = message_dispatch_helper_thread_;
-  }
-
-  if (dispatch_thread == NULL) {
-    CallMessageDispatchHandler();
-  } else {
-    dispatch_thread->Schedule();
   }
 }
 
@@ -3309,60 +3282,6 @@ MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
                      isolate_),
       ARRAY_SIZE(argv),
       argv);
-}
-
-
-static void StubMessageHandler2(const v8::Debug::Message& message) {
-  // Simply ignore message.
-}
-
-
-bool Debugger::StartAgent(const char* name, int port,
-                          bool wait_for_connection) {
-  if (wait_for_connection) {
-    // Suspend V8 if it is already running or set V8 to suspend whenever
-    // it starts.
-    // Provide stub message handler; V8 auto-continues each suspend
-    // when there is no message handler; we doesn't need it.
-    // Once become suspended, V8 will stay so indefinitely long, until remote
-    // debugger connects and issues "continue" command.
-    Debugger::message_handler_ = StubMessageHandler2;
-    v8::Debug::DebugBreak(reinterpret_cast<v8::Isolate*>(isolate_));
-  }
-
-  if (agent_ == NULL) {
-    agent_ = new DebuggerAgent(isolate_, name, port);
-    agent_->Start();
-  }
-  return true;
-}
-
-
-void Debugger::StopAgent() {
-  if (agent_ != NULL) {
-    agent_->Shutdown();
-    agent_->Join();
-    delete agent_;
-    agent_ = NULL;
-  }
-}
-
-
-void Debugger::WaitForAgent() {
-  if (agent_ != NULL)
-    agent_->WaitUntilListening();
-}
-
-
-void Debugger::CallMessageDispatchHandler() {
-  v8::Debug::DebugMessageDispatchHandler handler;
-  {
-    LockGuard<Mutex> lock_guard(&dispatch_handler_access_);
-    handler = Debugger::debug_message_dispatch_handler_;
-  }
-  if (handler != NULL) {
-    handler();
-  }
 }
 
 
@@ -3701,40 +3620,6 @@ void LockingCommandMessageQueue::Put(const CommandMessage& message) {
 void LockingCommandMessageQueue::Clear() {
   LockGuard<Mutex> lock_guard(&mutex_);
   queue_.Clear();
-}
-
-
-MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
-    : Thread("v8:MsgDispHelpr"),
-      isolate_(isolate), sem_(0),
-      already_signalled_(false) {
-}
-
-
-void MessageDispatchHelperThread::Schedule() {
-  {
-    LockGuard<Mutex> lock_guard(&mutex_);
-    if (already_signalled_) {
-      return;
-    }
-    already_signalled_ = true;
-  }
-  sem_.Signal();
-}
-
-
-void MessageDispatchHelperThread::Run() {
-  while (true) {
-    sem_.Wait();
-    {
-      LockGuard<Mutex> lock_guard(&mutex_);
-      already_signalled_ = false;
-    }
-    {
-      Locker locker(reinterpret_cast<v8::Isolate*>(isolate_));
-      isolate_->debugger()->CallMessageDispatchHandler();
-    }
-  }
 }
 
 } }  // namespace v8::internal

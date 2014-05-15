@@ -80,7 +80,7 @@ function RegExpConstructor(pattern, flags) {
 // were called again.  In SpiderMonkey, this method returns the regexp object.
 // In JSC, it returns undefined.  For compatibility with JSC, we match their
 // behavior.
-function RegExpCompile(pattern, flags) {
+function RegExpCompileJS(pattern, flags) {
   // Both JSC and SpiderMonkey treat a missing pattern argument as the
   // empty subject string, and an actual undefined value passed as the
   // pattern as the string 'undefined'.  Note that JSC is inconsistent
@@ -381,7 +381,7 @@ function SetUpRegExp() {
     "exec", RegExpExec,
     "test", RegExpTest,
     "toString", RegExpToString,
-    "compile", RegExpCompile
+    "compile", RegExpCompileJS
   ));
 
   // The length of compile is 1 in SpiderMonkey.

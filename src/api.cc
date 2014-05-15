@@ -6778,10 +6778,10 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 // --- D e b u g   S u p p o r t ---
 
-bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
+bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
-  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener2()", return false);
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener()");
+  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
@@ -6811,7 +6811,7 @@ void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
 }
 
 
-void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
   ENTER_V8(isolate);
@@ -6824,19 +6824,8 @@ void Debug::SendCommand(Isolate* isolate,
                         int length,
                         ClientData* client_data) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debugger()->ProcessCommand(
+  internal_isolate->debugger()->EnqueueCommandMessage(
       i::Vector<const uint16_t>(command, length), client_data);
-}
-
-
-void Debug::SetDebugMessageDispatchHandler(
-    DebugMessageDispatchHandler handler, bool provide_locker) {
-  i::Isolate* isolate = i::Isolate::Current();
-  EnsureInitializedForIsolate(isolate,
-                              "v8::Debug::SetDebugMessageDispatchHandler");
-  ENTER_V8(isolate);
-  isolate->debugger()->SetDebugMessageDispatchHandler(
-      handler, provide_locker);
 }
 
 
@@ -6888,17 +6877,6 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   }
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return scope.Escape(result);
-}
-
-
-bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
-  return i::Isolate::Current()->debugger()->StartAgent(name, port,
-                                                       wait_for_connection);
-}
-
-
-void Debug::DisableAgent() {
-  return i::Isolate::Current()->debugger()->StopAgent();
 }
 
 

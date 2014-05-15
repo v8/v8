@@ -2343,6 +2343,16 @@ void MacroAssembler::JumpIfMinusZero(DoubleRegister input,
 }
 
 
+void MacroAssembler::JumpIfMinusZero(Register input,
+                                     Label* on_negative_zero) {
+  ASSERT(input.Is64Bits());
+  // Floating point value is in an integer register. Detect -0.0 by subtracting
+  // 1 (cmp), which will cause overflow.
+  Cmp(input, 1);
+  B(vs, on_negative_zero);
+}
+
+
 void MacroAssembler::ClampInt32ToUint8(Register output, Register input) {
   // Clamp the value to [0..255].
   Cmp(input.W(), Operand(input.W(), UXTB));

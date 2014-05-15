@@ -263,7 +263,7 @@ function ObjectPropertyIsEnumerable(V) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(V)) return false;
 
-    var desc = GetOwnProperty(this, P);
+    var desc = GetOwnPropertyJS(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
   }
   return %IsPropertyEnumerable(ToObject(this), P);
@@ -627,7 +627,7 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 
 
 // ES5 section 8.12.1.
-function GetOwnProperty(obj, v) {
+function GetOwnPropertyJS(obj, v) {
   var p = ToName(v);
   if (%IsJSProxy(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
@@ -659,7 +659,7 @@ function GetOwnProperty(obj, v) {
 
 // ES5 section 8.12.7.
 function Delete(obj, p, should_throw) {
-  var desc = GetOwnProperty(obj, p);
+  var desc = GetOwnPropertyJS(obj, p);
   if (IS_UNDEFINED(desc)) return true;
   if (desc.isConfigurable()) {
     %DeleteProperty(obj, p, 0);
@@ -866,7 +866,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     if (new_length != ToNumber(desc.getValue())) {
       throw new $RangeError('defineProperty() array length out of range');
     }
-    var length_desc = GetOwnProperty(obj, "length");
+    var length_desc = GetOwnPropertyJS(obj, "length");
     if (new_length != length && !length_desc.isWritable()) {
       if (should_throw) {
         throw MakeTypeError("redefine_disallowed", [p]);
@@ -888,7 +888,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
     while (new_length < length--) {
       var index = ToString(length);
       if (emit_splice) {
-        var deletedDesc = GetOwnProperty(obj, index);
+        var deletedDesc = GetOwnPropertyJS(obj, index);
         if (deletedDesc && deletedDesc.hasValue())
           removed[length - new_length] = deletedDesc.getValue();
       }
@@ -935,7 +935,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
       BeginPerformSplice(obj);
     }
 
-    var length_desc = GetOwnProperty(obj, "length");
+    var length_desc = GetOwnPropertyJS(obj, "length");
     if ((index >= length && !length_desc.isWritable()) ||
         !DefineObjectProperty(obj, p, desc, true)) {
       if (emit_splice)
@@ -1007,7 +1007,7 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
     throw MakeTypeError("called_on_non_object",
                         ["Object.getOwnPropertyDescriptor"]);
   }
-  var desc = GetOwnProperty(obj, p);
+  var desc = GetOwnPropertyJS(obj, p);
   return FromPropertyDescriptor(desc);
 }
 
@@ -1157,7 +1157,7 @@ function ObjectDefineProperty(obj, p, attributes) {
     for (var i = 0; i < names.length; i++) {
       var N = names[i];
       if (!(%HasLocalProperty(standardNames, N))) {
-        var attr = GetOwnProperty(attributes, N);
+        var attr = GetOwnPropertyJS(attributes, N);
         DefineOwnProperty(descObj, N, attr, true);
       }
     }
@@ -1242,7 +1242,7 @@ function ObjectSeal(obj) {
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
-    var desc = GetOwnProperty(obj, name);
+    var desc = GetOwnPropertyJS(obj, name);
     if (desc.isConfigurable()) {
       desc.setConfigurable(false);
       DefineOwnProperty(obj, name, desc, true);
@@ -1254,7 +1254,7 @@ function ObjectSeal(obj) {
 
 
 // ES5 section 15.2.3.9.
-function ObjectFreeze(obj) {
+function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
@@ -1266,7 +1266,7 @@ function ObjectFreeze(obj) {
     var names = ObjectGetOwnPropertyNames(obj);
     for (var i = 0; i < names.length; i++) {
       var name = names[i];
-      var desc = GetOwnProperty(obj, name);
+      var desc = GetOwnPropertyJS(obj, name);
       if (desc.isWritable() || desc.isConfigurable()) {
         if (IsDataDescriptor(desc)) desc.setWritable(false);
         desc.setConfigurable(false);
@@ -1310,7 +1310,7 @@ function ObjectIsSealed(obj) {
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
-    var desc = GetOwnProperty(obj, name);
+    var desc = GetOwnPropertyJS(obj, name);
     if (desc.isConfigurable()) return false;
   }
   return true;
@@ -1331,7 +1331,7 @@ function ObjectIsFrozen(obj) {
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
-    var desc = GetOwnProperty(obj, name);
+    var desc = GetOwnPropertyJS(obj, name);
     if (IsDataDescriptor(desc) && desc.isWritable()) return false;
     if (desc.isConfigurable()) return false;
   }
@@ -1422,7 +1422,7 @@ function SetUpObject() {
     "create", ObjectCreate,
     "defineProperty", ObjectDefineProperty,
     "defineProperties", ObjectDefineProperties,
-    "freeze", ObjectFreeze,
+    "freeze", ObjectFreezeJS,
     "getPrototypeOf", ObjectGetPrototypeOf,
     "setPrototypeOf", ObjectSetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
@@ -1554,7 +1554,7 @@ function NumberValueOf() {
 
 
 // ECMA-262 section 15.7.4.5
-function NumberToFixed(fractionDigits) {
+function NumberToFixedJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
@@ -1579,7 +1579,7 @@ function NumberToFixed(fractionDigits) {
 
 
 // ECMA-262 section 15.7.4.6
-function NumberToExponential(fractionDigits) {
+function NumberToExponentialJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
@@ -1605,7 +1605,7 @@ function NumberToExponential(fractionDigits) {
 
 
 // ECMA-262 section 15.7.4.7
-function NumberToPrecision(precision) {
+function NumberToPrecisionJS(precision) {
   var x = this;
   if (!IS_NUMBER(this)) {
     if (!IS_NUMBER_WRAPPER(this)) {
@@ -1694,9 +1694,9 @@ function SetUpNumber() {
     "toString", NumberToString,
     "toLocaleString", NumberToLocaleString,
     "valueOf", NumberValueOf,
-    "toFixed", NumberToFixed,
-    "toExponential", NumberToExponential,
-    "toPrecision", NumberToPrecision
+    "toFixed", NumberToFixedJS,
+    "toExponential", NumberToExponentialJS,
+    "toPrecision", NumberToPrecisionJS
   ));
 
   // Harmony Number constructor additions
@@ -1823,7 +1823,7 @@ function NewFunctionString(arguments, function_token) {
     // If the formal parameters string include ) - an illegal
     // character - it may make the combined function expression
     // compile. We avoid this problem by checking for this early on.
-    if (%_CallFunction(p, ')', StringIndexOf) != -1) {
+    if (%_CallFunction(p, ')', StringIndexOfJS) != -1) {
       throw MakeSyntaxError('paren_in_arg_string', []);
     }
     // If the formal parameters include an unbalanced block comment, the
@@ -1870,7 +1870,7 @@ SetUpFunction();
 // Eventually, we should move to a real event queue that allows to maintain
 // relative ordering of different kinds of tasks.
 
-function RunMicrotasks() {
+function RunMicrotasksJS() {
   while (%SetMicrotaskPending(false)) {
     var microtaskState = %GetMicrotaskState();
     if (IS_UNDEFINED(microtaskState.queue))

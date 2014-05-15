@@ -1,3 +1,13 @@
+2014-05-15: Version 3.27.4
+
+        Drop thenable coercion cache (Chromium issue 372788).
+
+        Skip write barriers when updating the weak hash table (Chromium issue
+        359401).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-14: Version 3.27.3
 
         Performance and stability improvements on all platforms.

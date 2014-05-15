@@ -62,7 +62,7 @@ function ArrayBufferSlice(start, end) {
   return result;
 }
 
-function ArrayBufferIsView(obj) {
+function ArrayBufferIsViewJS(obj) {
   return %ArrayBufferIsView(obj);
 }
 
@@ -79,7 +79,7 @@ function SetUpArrayBuffer() {
   InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 
   InstallFunctions($ArrayBuffer, DONT_ENUM, $Array(
-      "isView", ArrayBufferIsView
+      "isView", ArrayBufferIsViewJS
   ));
 
   InstallFunctions($ArrayBuffer.prototype, DONT_ENUM, $Array(

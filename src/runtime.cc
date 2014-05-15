@@ -7850,7 +7850,7 @@ RUNTIME_FUNCTION(Runtime_MathAtan2) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathExp) {
+RUNTIME_FUNCTION(Runtime_MathExpRT) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_exp()->Increment();
@@ -7861,7 +7861,7 @@ RUNTIME_FUNCTION(Runtime_MathExp) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathFloor) {
+RUNTIME_FUNCTION(Runtime_MathFloorRT) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_floor()->Increment();
@@ -7956,7 +7956,7 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MathSqrt) {
+RUNTIME_FUNCTION(Runtime_MathSqrtRT) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   isolate->counters()->math_sqrt()->Increment();

@@ -403,13 +403,6 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 }
 
 
-// Pick a slightly different port to allow tests to be run in parallel.
-static inline int FlagDependentPortOffset() {
-  return ::v8::internal::FLAG_crankshaft == false ? 100 :
-         ::v8::internal::FLAG_always_opt ? 200 : 0;
-}
-
-
 // Helper function that simulates a full new-space in the heap.
 static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
   int new_linear_size = static_cast<int>(

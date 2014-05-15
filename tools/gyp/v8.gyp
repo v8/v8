@@ -313,8 +313,6 @@
         '../../src/dateparser-inl.h',
         '../../src/dateparser.cc',
         '../../src/dateparser.h',
-        '../../src/debug-agent.cc',
-        '../../src/debug-agent.h',
         '../../src/debug.cc',
         '../../src/debug.h',
         '../../src/deoptimizer.cc',
@@ -502,8 +500,6 @@
         '../../src/platform/mutex.h',
         '../../src/platform/semaphore.cc',
         '../../src/platform/semaphore.h',
-        '../../src/platform/socket.cc',
-        '../../src/platform/socket.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',
@@ -869,7 +865,7 @@
                 }],
                 ['_toolset=="target"', {
                   'libraries': [
-                    '-lbacktrace', '-lsocket'
+                    '-lbacktrace'
                   ],
                 }],
               ],
@@ -932,7 +928,7 @@
         ['OS=="solaris"', {
             'link_settings': {
               'libraries': [
-                '-lsocket -lnsl',
+                '-lnsl',
             ]},
             'sources': [
               '../../src/platform-solaris.cc',

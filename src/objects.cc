@@ -16168,7 +16168,10 @@ Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
   int entry = table->FindEntry(key);
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    table->set(EntryToValueIndex(entry), *value);
+    // TODO(ulan): Skipping write barrier is a temporary solution to avoid
+    // memory leaks. Remove this once we have special visitor for weak fixed
+    // arrays.
+    table->set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
     return table;
   }
 
@@ -16184,8 +16187,11 @@ void WeakHashTable::AddEntry(int entry,
                              Handle<Object> key,
                              Handle<Object> value) {
   DisallowHeapAllocation no_allocation;
-  set(EntryToIndex(entry), *key);
-  set(EntryToValueIndex(entry), *value);
+  // TODO(ulan): Skipping write barrier is a temporary solution to avoid
+  // memory leaks. Remove this once we have special visitor for weak fixed
+  // arrays.
+  set(EntryToIndex(entry), *key, SKIP_WRITE_BARRIER);
+  set(EntryToValueIndex(entry), *value, SKIP_WRITE_BARRIER);
   ElementAdded();
 }
 

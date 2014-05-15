@@ -403,14 +403,14 @@ function IsValidHex(s) {
 
 
 // ECMA-262 - B.2.1.
-function URIEscape(str) {
+function URIEscapeJS(str) {
   var s = ToString(str);
   return %URIEscape(s);
 }
 
 
 // ECMA-262 - B.2.2.
-function URIUnescape(str) {
+function URIUnescapeJS(str) {
   var s = ToString(str);
   return %URIUnescape(s);
 }
@@ -424,8 +424,8 @@ function SetUpUri() {
   // Set up non-enumerable URI functions on the global object and set
   // their names.
   InstallFunctions(global, DONT_ENUM, $Array(
-    "escape", URIEscape,
-    "unescape", URIUnescape,
+    "escape", URIEscapeJS,
+    "unescape", URIUnescapeJS,
     "decodeURI", URIDecode,
     "decodeURIComponent", URIDecodeComponent,
     "encodeURI", URIEncode,

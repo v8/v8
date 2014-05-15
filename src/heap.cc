@@ -1079,8 +1079,6 @@ bool Heap::PerformGarbageCollection(
     MarkCompact(tracer);
     sweep_generation_++;
 
-    UpdateSurvivalRateTrend(start_new_space_size);
-
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSizeOfObjects();
 
     old_generation_allocation_limit_ =
@@ -1091,9 +1089,9 @@ bool Heap::PerformGarbageCollection(
     tracer_ = tracer;
     Scavenge();
     tracer_ = NULL;
-
-    UpdateSurvivalRateTrend(start_new_space_size);
   }
+
+  UpdateSurvivalRateTrend(start_new_space_size);
 
   if (!new_space_high_promotion_mode_active_ &&
       new_space_.Capacity() == new_space_.MaximumCapacity() &&
@@ -5460,6 +5458,8 @@ void Heap::AddWeakObjectToCodeDependency(Handle<Object> obj,
                                          Handle<DependentCode> dep) {
   ASSERT(!InNewSpace(*obj));
   ASSERT(!InNewSpace(*dep));
+  // This handle scope keeps the table handle local to this function, which
+  // allows us to safely skip write barriers in table update operations.
   HandleScope scope(isolate());
   Handle<WeakHashTable> table(WeakHashTable::cast(weak_object_to_code_table_),
                               isolate());
@@ -6179,6 +6179,7 @@ GCTracer::~GCTracer() {
     PrintF("nodes_died_in_new=%d ", nodes_died_in_new_space_);
     PrintF("nodes_copied_in_new=%d ", nodes_copied_in_new_space_);
     PrintF("nodes_promoted=%d ", nodes_promoted_);
+    PrintF("survived=%.1f%% ", heap_->survival_rate_);
 
     if (collector_ == SCAVENGER) {
       PrintF("stepscount=%d ", steps_count_since_last_gc_);

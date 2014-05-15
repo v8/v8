@@ -47,7 +47,7 @@ function MathAtan(x) {
 // ECMA 262 - 15.8.2.5
 // The naming of y and x matches the spec, as does the order in which
 // ToNumber (valueOf) is called.
-function MathAtan2(y, x) {
+function MathAtan2JS(y, x) {
   return %MathAtan2(TO_NUMBER_INLINE(y), TO_NUMBER_INLINE(x));
 }
 
@@ -64,7 +64,7 @@ function MathCos(x) {
 
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
-  return %MathExp(TO_NUMBER_INLINE(x));
+  return %MathExpRT(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.9
@@ -79,7 +79,7 @@ function MathFloor(x) {
     // has to be -0, which wouldn't be the case with the shift.
     return TO_UINT32(x);
   } else {
-    return %MathFloor(x);
+    return %MathFloorRT(x);
   }
 }
 
@@ -173,7 +173,7 @@ function MathSin(x) {
 
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
-  return %_MathSqrt(TO_NUMBER_INLINE(x));
+  return %_MathSqrtRT(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.18
@@ -296,7 +296,7 @@ function SetUpMath() {
     "sin", MathSin,
     "sqrt", MathSqrt,
     "tan", MathTan,
-    "atan2", MathAtan2,
+    "atan2", MathAtan2JS,
     "pow", MathPow,
     "max", MathMax,
     "min", MathMin,

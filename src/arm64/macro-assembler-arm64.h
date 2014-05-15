@@ -919,6 +919,10 @@ class MacroAssembler : public Assembler {
   // Jump to label if the input double register contains -0.0.
   void JumpIfMinusZero(DoubleRegister input, Label* on_negative_zero);
 
+  // Jump to label if the input integer register contains the double precision
+  // floating point representation of -0.0.
+  void JumpIfMinusZero(Register input, Label* on_negative_zero);
+
   // Generate code to do a lookup in the number string cache. If the number in
   // the register object is found in the cache the generated code falls through
   // with the result in the result register. The object and the result register

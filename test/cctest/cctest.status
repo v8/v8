@@ -156,6 +156,10 @@
 
   # BUG(3215). Crashes on windows.
   'test-lockers/MultithreadedParallelIsolates': [SKIP],
+
+  # BUG(3331). Fails on windows.
+  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
+
 }],  # 'system == windows'
 
 ##############################################################################

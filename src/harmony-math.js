@@ -132,7 +132,7 @@ function MathHypot(x, y) {  // Function length is 2.
 
 
 // ES6 draft 09-27-13, section 20.2.2.16.
-function MathFround(x) {
+function MathFroundJS(x) {
   return %MathFround(TO_NUMBER_INLINE(x));
 }
 
@@ -234,7 +234,7 @@ function ExtendMath() {
     "log10", MathLog10,
     "log2", MathLog2,
     "hypot", MathHypot,
-    "fround", MathFround,
+    "fround", MathFroundJS,
     "clz32", MathClz32,
     "cbrt", MathCbrt,
     "log1p", MathLog1p,

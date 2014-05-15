@@ -957,12 +957,12 @@ function CallSiteToString() {
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
-          %_CallFunction(functionName, typeName, StringIndexOf) != 0) {
+          %_CallFunction(functionName, typeName, StringIndexOfJS) != 0) {
         line += typeName + ".";
       }
       line += functionName;
       if (methodName &&
-          (%_CallFunction(functionName, "." + methodName, StringIndexOf) !=
+          (%_CallFunction(functionName, "." + methodName, StringIndexOfJS) !=
            functionName.length - methodName.length - 1)) {
         line += " [as " + methodName + "]";
       }

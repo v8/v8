@@ -2290,7 +2290,7 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
   Register result_reg = ToRegister(instr->result());
   if (instr->hydrogen()->bits() == HDoubleBits::HIGH) {
     __ Fmov(result_reg, value_reg);
-    __ Mov(result_reg, Operand(result_reg, LSR, 32));
+    __ Lsr(result_reg, result_reg, 32);
   } else {
     __ Fmov(result_reg.W(), value_reg.S());
   }
@@ -2300,12 +2300,12 @@ void LCodeGen::DoDoubleBits(LDoubleBits* instr) {
 void LCodeGen::DoConstructDouble(LConstructDouble* instr) {
   Register hi_reg = ToRegister(instr->hi());
   Register lo_reg = ToRegister(instr->lo());
-  Register temp = ToRegister(instr->temp());
   DoubleRegister result_reg = ToDoubleRegister(instr->result());
 
-  __ And(temp, lo_reg, Operand(0xffffffff));
-  __ Orr(temp, temp, Operand(hi_reg, LSL, 32));
-  __ Fmov(result_reg, temp);
+  // Insert the least significant 32 bits of hi_reg into the most significant
+  // 32 bits of lo_reg, and move to a floating point register.
+  __ Bfi(lo_reg, hi_reg, 32, 32);
+  __ Fmov(result_reg, lo_reg);
 }
 
 
@@ -2415,8 +2415,8 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
     Register value = ToRegister(instr->value());
     __ CheckMap(value, scratch, Heap::kHeapNumberMapRootIndex,
                 instr->FalseLabel(chunk()), DO_SMI_CHECK);
-    __ Ldr(double_scratch(), FieldMemOperand(value, HeapNumber::kValueOffset));
-    __ JumpIfMinusZero(double_scratch(), instr->TrueLabel(chunk()));
+    __ Ldr(scratch, FieldMemOperand(value, HeapNumber::kValueOffset));
+    __ JumpIfMinusZero(scratch, instr->TrueLabel(chunk()));
   }
   EmitGoto(instr->FalseDestination(chunk()));
 }
@@ -2524,7 +2524,15 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
 void LCodeGen::DoConstantD(LConstantD* instr) {
   ASSERT(instr->result()->IsDoubleRegister());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  __ Fmov(result, instr->value());
+  if (instr->value() == 0) {
+    if (copysign(1.0, instr->value()) == 1.0) {
+      __ Fmov(result, fp_zero);
+    } else {
+      __ Fneg(result, fp_zero);
+    }
+  } else {
+    __ Fmov(result, instr->value());
+  }
 }
 
 
@@ -2663,13 +2671,14 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
   // Check for (0 / -x) that will produce negative zero.
   HDiv* hdiv = instr->hydrogen();
   if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
-    __ Cmp(dividend, 0);
-    DeoptimizeIf(eq, instr->environment());
+    DeoptimizeIfZero(dividend, instr->environment());
   }
   // Check for (kMinInt / -1).
   if (hdiv->CheckFlag(HValue::kCanOverflow) && divisor == -1) {
-    __ Cmp(dividend, kMinInt);
-    DeoptimizeIf(eq, instr->environment());
+    // Test dividend for kMinInt by subtracting one (cmp) and checking for
+    // overflow.
+    __ Cmp(dividend, 1);
+    DeoptimizeIf(vs, instr->environment());
   }
   // Deoptimize if remainder will not be 0.
   if (!hdiv->CheckFlag(HInstruction::kAllUsesTruncatingToInt32) &&
@@ -3870,9 +3879,14 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   Register result = ToRegister32(instr->result());
   int32_t divisor = instr->divisor();
 
+  // If the divisor is 1, return the dividend.
+  if (divisor == 1) {
+    __ Mov(result, dividend, kDiscardForSameWReg);
+    return;
+  }
+
   // If the divisor is positive, things are easy: There can be no deopts and we
   // can simply do an arithmetic right shift.
-  if (divisor == 1) return;
   int32_t shift = WhichPowerOf2Abs(divisor);
   if (divisor > 1) {
     __ Mov(result, Operand(dividend, ASR, shift));
@@ -3897,14 +3911,8 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
     return;
   }
 
-  // Using a conditional data processing instruction would need 1 more register.
-  Label not_kmin_int, done;
-  __ B(vc, &not_kmin_int);
-  __ Mov(result, kMinInt / divisor);
-  __ B(&done);
-  __ bind(&not_kmin_int);
-  __ Mov(result, Operand(dividend, ASR, shift));
-  __ bind(&done);
+  __ Asr(result, dividend, shift);
+  __ Csel(result, result, kMinInt / divisor, vc);
 }
 
 
@@ -3922,8 +3930,7 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   // Check for (0 / -x) that will produce negative zero.
   HMathFloorOfDiv* hdiv = instr->hydrogen();
   if (hdiv->CheckFlag(HValue::kBailoutOnMinusZero) && divisor < 0) {
-    __ Cmp(dividend, 0);
-    DeoptimizeIf(eq, instr->environment());
+    DeoptimizeIfZero(dividend, instr->environment());
   }
 
   // Easy case: We need no dynamic check for the dividend and the flooring
@@ -3945,12 +3952,12 @@ void LCodeGen::DoFlooringDivByConstI(LFlooringDivByConstI* instr) {
   __ TruncatingDiv(result, dividend, Abs(divisor));
   if (divisor < 0) __ Neg(result, result);
   __ B(&done);
-  __ bind(&needs_adjustment);
+  __ Bind(&needs_adjustment);
   __ Add(temp, dividend, Operand(divisor > 0 ? 1 : -1));
   __ TruncatingDiv(result, temp, Abs(divisor));
   if (divisor < 0) __ Neg(result, result);
   __ Sub(result, result, Operand(1));
-  __ bind(&done);
+  __ Bind(&done);
 }
 
 
@@ -4217,8 +4224,7 @@ void LCodeGen::DoModByPowerOf2I(LModByPowerOf2I* instr) {
   int32_t mask = divisor < 0 ? -(divisor + 1) : (divisor - 1);
   Label dividend_is_not_negative, done;
   if (hmod->CheckFlag(HValue::kLeftCanBeNegative)) {
-    __ Cmp(dividend, 0);
-    __ B(pl, &dividend_is_not_negative);
+    __ Tbz(dividend, kWSignBit, &dividend_is_not_negative);
     // Note that this is correct even for kMinInt operands.
     __ Neg(dividend, dividend);
     __ And(dividend, dividend, mask);

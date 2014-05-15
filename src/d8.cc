@@ -638,16 +638,6 @@ Local<Value> Shell::DebugCommandToJSONRequest(Isolate* isolate,
 }
 
 
-void Shell::DispatchDebugMessages() {
-  Isolate* isolate = v8::Isolate::GetCurrent();
-  HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context =
-      v8::Local<v8::Context>::New(isolate, Shell::evaluation_context_);
-  v8::Context::Scope context_scope(context);
-  v8::Debug::ProcessDebugMessages();
-}
-
-
 int32_t* Counter::Bind(const char* name, bool is_histogram) {
   int i;
   for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
@@ -796,9 +786,7 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
 
   // Start the in-process debugger if requested.
-  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener2(HandleDebugEvent);
-  }
+  if (i::FLAG_debugger) v8::Debug::SetDebugEventListener(HandleDebugEvent);
 }
 #endif  // !V8_SHARED
 
@@ -920,12 +908,6 @@ void Shell::InitializeDebugger(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_.Reset(isolate,
                          Context::New(isolate, NULL, global_template));
-
-  // Start the debugger agent if requested.
-  if (i::FLAG_debugger_agent) {
-    v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
-    v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
-  }
 #endif  // !V8_SHARED
 }
 
@@ -1552,19 +1534,8 @@ int Shell::Main(int argc, char* argv[]) {
       result = RunMain(isolate, argc, argv);
     }
 
-
-#ifndef V8_SHARED
-    // Run remote debugger if requested, but never on --test
-    if (i::FLAG_remote_debugger && !options.test_shell) {
-      InstallUtilityScript(isolate);
-      RunRemoteDebugger(isolate, i::FLAG_debugger_port);
-      return 0;
-    }
-#endif  // !V8_SHARED
-
     // Run interactive shell if explicitly requested or if no script has been
     // executed, but never on --test
-
     if (( options.interactive_shell || !options.script_executed )
         && !options.test_shell ) {
 #ifndef V8_SHARED

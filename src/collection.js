@@ -43,7 +43,7 @@ function SetConstructor() {
 }
 
 
-function SetAdd(key) {
+function SetAddJS(key) {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.add', this]);
@@ -52,7 +52,7 @@ function SetAdd(key) {
 }
 
 
-function SetHas(key) {
+function SetHasJS(key) {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.has', this]);
@@ -61,7 +61,7 @@ function SetHas(key) {
 }
 
 
-function SetDelete(key) {
+function SetDeleteJS(key) {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.delete', this]);
@@ -76,7 +76,7 @@ function SetDelete(key) {
 }
 
 
-function SetGetSize() {
+function SetGetSizeJS() {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.size', this]);
@@ -85,7 +85,7 @@ function SetGetSize() {
 }
 
 
-function SetClear() {
+function SetClearJS() {
   if (!IS_SET(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.clear', this]);
@@ -128,12 +128,12 @@ function SetUpSet() {
   %FunctionSetLength(SetForEach, 1);
 
   // Set up the non-enumerable functions on the Set prototype object.
-  InstallGetter($Set.prototype, "size", SetGetSize);
+  InstallGetter($Set.prototype, "size", SetGetSizeJS);
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
-    "add", SetAdd,
-    "has", SetHas,
-    "delete", SetDelete,
-    "clear", SetClear,
+    "add", SetAddJS,
+    "has", SetHasJS,
+    "delete", SetDeleteJS,
+    "clear", SetClearJS,
     "forEach", SetForEach
   ));
 }
@@ -153,7 +153,7 @@ function MapConstructor() {
 }
 
 
-function MapGet(key) {
+function MapGetJS(key) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.get', this]);
@@ -162,7 +162,7 @@ function MapGet(key) {
 }
 
 
-function MapSet(key, value) {
+function MapSetJS(key, value) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.set', this]);
@@ -171,7 +171,7 @@ function MapSet(key, value) {
 }
 
 
-function MapHas(key) {
+function MapHasJS(key) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.has', this]);
@@ -180,7 +180,7 @@ function MapHas(key) {
 }
 
 
-function MapDelete(key) {
+function MapDeleteJS(key) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.delete', this]);
@@ -189,7 +189,7 @@ function MapDelete(key) {
 }
 
 
-function MapGetSize() {
+function MapGetSizeJS() {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.size', this]);
@@ -198,7 +198,7 @@ function MapGetSize() {
 }
 
 
-function MapClear() {
+function MapClearJS() {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.clear', this]);
@@ -241,13 +241,13 @@ function SetUpMap() {
   %FunctionSetLength(MapForEach, 1);
 
   // Set up the non-enumerable functions on the Map prototype object.
-  InstallGetter($Map.prototype, "size", MapGetSize);
+  InstallGetter($Map.prototype, "size", MapGetSizeJS);
   InstallFunctions($Map.prototype, DONT_ENUM, $Array(
-    "get", MapGet,
-    "set", MapSet,
-    "has", MapHas,
-    "delete", MapDelete,
-    "clear", MapClear,
+    "get", MapGetJS,
+    "set", MapSetJS,
+    "has", MapHasJS,
+    "delete", MapDeleteJS,
+    "clear", MapClearJS,
     "forEach", MapForEach
   ));
 }
