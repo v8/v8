@@ -30,17 +30,17 @@ function MathAbs(x) {
 }
 
 // ECMA 262 - 15.8.2.2
-function MathAcos(x) {
+function MathAcosJS(x) {
   return %MathAcos(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.3
-function MathAsin(x) {
+function MathAsinJS(x) {
   return %MathAsin(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.4
-function MathAtan(x) {
+function MathAtanJS(x) {
   return %MathAtan(TO_NUMBER_INLINE(x));
 }
 
@@ -85,7 +85,7 @@ function MathFloor(x) {
 
 // ECMA 262 - 15.8.2.10
 function MathLog(x) {
-  return %_MathLog(TO_NUMBER_INLINE(x));
+  return %_MathLogRT(TO_NUMBER_INLINE(x));
 }
 
 // ECMA 262 - 15.8.2.11
@@ -284,9 +284,9 @@ function SetUpMath() {
   InstallFunctions($Math, DONT_ENUM, $Array(
     "random", MathRandom,
     "abs", MathAbs,
-    "acos", MathAcos,
-    "asin", MathAsin,
-    "atan", MathAtan,
+    "acos", MathAcosJS,
+    "asin", MathAsinJS,
+    "atan", MathAtanJS,
     "ceil", MathCeil,
     "cos", MathCos,
     "exp", MathExp,

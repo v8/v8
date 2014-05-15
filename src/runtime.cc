@@ -7791,7 +7791,7 @@ RUNTIME_FUNCTION(Runtime_Math##Name) {                           \
 RUNTIME_UNARY_MATH(Acos, acos)
 RUNTIME_UNARY_MATH(Asin, asin)
 RUNTIME_UNARY_MATH(Atan, atan)
-RUNTIME_UNARY_MATH(Log, log)
+RUNTIME_UNARY_MATH(LogRT, log)
 #undef RUNTIME_UNARY_MATH
 
 
