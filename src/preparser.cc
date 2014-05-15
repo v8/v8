@@ -35,31 +35,22 @@ namespace internal {
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,
-                                      Vector<const char*> args,
+                                      const char* arg,
                                       bool is_reference_error) {
   ReportMessageAt(location.beg_pos,
                   location.end_pos,
                   message,
-                  args.length() > 0 ? args[0] : NULL,
+                  arg,
                   is_reference_error);
-}
-
-
-void PreParserTraits::ReportMessageAt(Scanner::Location location,
-                                      const char* type,
-                                      const char* name_opt,
-                                      bool is_reference_error) {
-  pre_parser_->log_->LogMessage(location.beg_pos, location.end_pos, type,
-                                name_opt, is_reference_error);
 }
 
 
 void PreParserTraits::ReportMessageAt(int start_pos,
                                       int end_pos,
-                                      const char* type,
-                                      const char* name_opt,
+                                      const char* message,
+                                      const char* arg,
                                       bool is_reference_error) {
-  pre_parser_->log_->LogMessage(start_pos, end_pos, type, name_opt,
+  pre_parser_->log_->LogMessage(start_pos, end_pos, message, arg,
                                 is_reference_error);
 }
 
@@ -294,8 +285,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       if (strict_mode() == STRICT) {
         PreParserTraits::ReportMessageAt(start_location.beg_pos,
                                          end_location.end_pos,
-                                         "strict_function",
-                                         NULL);
+                                         "strict_function");
         *ok = false;
         return Statement::Default();
       } else {

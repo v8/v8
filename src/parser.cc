@@ -300,19 +300,18 @@ const char* ScriptData::BuildMessage() const {
 }
 
 
-Vector<const char*> ScriptData::BuildArgs() const {
+const char* ScriptData::BuildArg() const {
   int arg_count = Read(PreparseDataConstants::kMessageArgCountPos);
-  const char** array = NewArray<const char*>(arg_count);
+  ASSERT(arg_count == 0 || arg_count == 1);
+  if (arg_count == 0) {
+    return NULL;
+  }
   // Position after text found by skipping past length field and
   // length field content words.
   int pos = PreparseDataConstants::kMessageTextPos + 1
       + Read(PreparseDataConstants::kMessageTextPos);
-  for (int i = 0; i < arg_count; i++) {
-    int count = 0;
-    array[i] = ReadString(ReadAddress(pos), &count);
-    pos += count + 1;
-  }
-  return Vector<const char*>(array, arg_count);
+  int count = 0;
+  return ReadString(ReadAddress(pos), &count);
 }
 
 
@@ -623,7 +622,7 @@ Expression* ParserTraits::NewThrowError(
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<const char*> args,
+                                   const char* arg,
                                    bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
@@ -635,11 +634,11 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                            source_location.beg_pos,
                            source_location.end_pos);
   Factory* factory = parser_->isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
+  Handle<FixedArray> elements = factory->NewFixedArray(arg == NULL ? 0 : 1);
+  if (arg != NULL) {
     Handle<String> arg_string =
-        factory->NewStringFromUtf8(CStrVector(args[i])).ToHandleChecked();
-    elements->set(i, *arg_string);
+        factory->NewStringFromUtf8(CStrVector(arg)).ToHandleChecked();
+    elements->set(0, *arg_string);
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
   Handle<Object> result = is_reference_error
@@ -650,16 +649,16 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
 
 
 void ParserTraits::ReportMessage(const char* message,
-                                 Vector<Handle<String> > args,
+                                 MaybeHandle<String> arg,
                                  bool is_reference_error) {
   Scanner::Location source_location = parser_->scanner()->location();
-  ReportMessageAt(source_location, message, args, is_reference_error);
+  ReportMessageAt(source_location, message, arg, is_reference_error);
 }
 
 
 void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                                    const char* message,
-                                   Vector<Handle<String> > args,
+                                   MaybeHandle<String> arg,
                                    bool is_reference_error) {
   if (parser_->stack_overflow()) {
     // Suppress the error message (syntax error or such) in the presence of a
@@ -671,9 +670,9 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
                            source_location.beg_pos,
                            source_location.end_pos);
   Factory* factory = parser_->isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    elements->set(i, *args[i]);
+  Handle<FixedArray> elements = factory->NewFixedArray(arg.is_null() ? 0 : 1);
+  if (!arg.is_null()) {
+    elements->set(0, *(arg.ToHandleChecked()));
   }
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
   Handle<Object> result = is_reference_error
@@ -918,7 +917,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           !body->at(0)->IsExpressionStatement() ||
           !body->at(0)->AsExpressionStatement()->
               expression()->IsFunctionLiteral()) {
-        ReportMessage("single_function_literal", Vector<const char*>::empty());
+        ReportMessage("single_function_literal");
         ok = false;
       }
     }
@@ -1276,9 +1275,7 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   for (Interface::Iterator it = interface->iterator();
        !it.done(); it.Advance()) {
     if (scope->LocalLookup(it.name()) == NULL) {
-      Handle<String> name(it.name());
-      ParserTraits::ReportMessage("module_export_undefined",
-                                  Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("module_export_undefined", it.name());
       *ok = false;
       return NULL;
     }
@@ -1317,8 +1314,7 @@ Module* Parser::ParseModulePath(bool* ok) {
         member->interface()->Print();
       }
 #endif
-      ParserTraits::ReportMessage("invalid_module_path",
-                                  Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("invalid_module_path", name);
       return NULL;
     }
     result = member;
@@ -1428,8 +1424,7 @@ Block* Parser::ParseImportDeclaration(bool* ok) {
         module->interface()->Print();
       }
 #endif
-      ParserTraits::ReportMessage("invalid_module_path",
-                                  Vector<Handle<String> >(&name, 1));
+      ParserTraits::ReportMessage("invalid_module_path", name);
       return NULL;
     }
     VariableProxy* proxy = NewUnresolved(names[i], LET, interface);
@@ -1717,10 +1712,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       if (allow_harmony_scoping() && strict_mode() == STRICT) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
-        SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-        const char* elms[1] = { c_string.get() };
-        Vector<const char*> args(elms, 1);
-        ReportMessage("var_redeclaration", args);
+        ParserTraits::ReportMessage("var_redeclaration", name);
         *ok = false;
         return;
       }
@@ -1812,8 +1804,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
           var->interface()->Print();
         }
 #endif
-        ParserTraits::ReportMessage("module_type_error",
-                                    Vector<Handle<String> >(&name, 1));
+        ParserTraits::ReportMessage("module_type_error", name);
       }
     }
   }
@@ -2032,14 +2023,14 @@ Block* Parser::ParseVariableDeclarations(
           if (var_context == kStatement) {
             // In strict mode 'const' declarations are only allowed in source
             // element positions.
-            ReportMessage("unprotected_const", Vector<const char*>::empty());
+            ReportMessage("unprotected_const");
             *ok = false;
             return NULL;
           }
           mode = CONST;
           init_op = Token::INIT_CONST;
         } else {
-          ReportMessage("strict_const", Vector<const char*>::empty());
+          ReportMessage("strict_const");
           *ok = false;
           return NULL;
         }
@@ -2056,14 +2047,14 @@ Block* Parser::ParseVariableDeclarations(
     //
     // TODO(rossberg): make 'let' a legal identifier in sloppy mode.
     if (!allow_harmony_scoping() || strict_mode() == SLOPPY) {
-      ReportMessage("illegal_let", Vector<const char*>::empty());
+      ReportMessage("illegal_let");
       *ok = false;
       return NULL;
     }
     Consume(Token::LET);
     if (var_context == kStatement) {
       // Let declarations are only allowed in source element positions.
-      ReportMessage("unprotected_let", Vector<const char*>::empty());
+      ReportMessage("unprotected_let");
       *ok = false;
       return NULL;
     }
@@ -2333,10 +2324,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     // structured.  However, these are probably changes we want to
     // make later anyway so we should go back and fix this then.
     if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
-      SmartArrayPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
-      const char* elms[1] = { c_string.get() };
-      Vector<const char*> args(elms, 1);
-      ReportMessage("label_redeclaration", args);
+      ParserTraits::ReportMessage("label_redeclaration", label);
       *ok = false;
       return NULL;
     }
@@ -2421,12 +2409,10 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   if (target == NULL) {
     // Illegal continue statement.
     const char* message = "illegal_continue";
-    Vector<Handle<String> > args;
     if (!label.is_null()) {
       message = "unknown_label";
-      args = Vector<Handle<String> >(&label, 1);
     }
-    ParserTraits::ReportMessageAt(scanner()->location(), message, args);
+    ParserTraits::ReportMessageAt(scanner()->location(), message, label);
     *ok = false;
     return NULL;
   }
@@ -2459,12 +2445,10 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   if (target == NULL) {
     // Illegal break statement.
     const char* message = "illegal_break";
-    Vector<Handle<String> > args;
     if (!label.is_null()) {
       message = "unknown_label";
-      args = Vector<Handle<String> >(&label, 1);
     }
-    ParserTraits::ReportMessageAt(scanner()->location(), message, args);
+    ParserTraits::ReportMessageAt(scanner()->location(), message, label);
     *ok = false;
     return NULL;
   }
@@ -2523,7 +2507,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   int pos = position();
 
   if (strict_mode() == STRICT) {
-    ReportMessage("strict_mode_with", Vector<const char*>::empty());
+    ReportMessage("strict_mode_with");
     *ok = false;
     return NULL;
   }
@@ -2556,8 +2540,7 @@ CaseClause* Parser::ParseCaseClause(bool* default_seen_ptr, bool* ok) {
   } else {
     Expect(Token::DEFAULT, CHECK_OK);
     if (*default_seen_ptr) {
-      ReportMessage("multiple_defaults_in_switch",
-                    Vector<const char*>::empty());
+      ReportMessage("multiple_defaults_in_switch");
       *ok = false;
       return NULL;
     }
@@ -2613,7 +2596,7 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
   Expect(Token::THROW, CHECK_OK);
   int pos = position();
   if (scanner()->HasAnyLineTerminatorBeforeNext()) {
-    ReportMessage("newline_after_throw", Vector<const char*>::empty());
+    ReportMessage("newline_after_throw");
     *ok = false;
     return NULL;
   }
@@ -2649,7 +2632,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Token::Value tok = peek();
   if (tok != Token::CATCH && tok != Token::FINALLY) {
-    ReportMessage("no_catch_or_finally", Vector<const char*>::empty());
+    ReportMessage("no_catch_or_finally");
     *ok = false;
     return NULL;
   }
@@ -3079,10 +3062,7 @@ DebuggerStatement* Parser::ParseDebuggerStatement(bool* ok) {
 
 
 void Parser::ReportInvalidCachedData(Handle<String> name, bool* ok) {
-  SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
-  const char* element[1] = { name_string.get() };
-  ReportMessage("invalid_cached_data_function",
-                Vector<const char*>(element, 1));
+  ParserTraits::ReportMessage("invalid_cached_data_function", name);
   *ok = false;
 }
 
@@ -3452,14 +3432,9 @@ void Parser::SkipLazyFunctionBody(Handle<String> function_name,
       return;
     }
     if (logger.has_error()) {
-      const char* arg = logger.argument_opt();
-      Vector<const char*> args;
-      if (arg != NULL) {
-        args = Vector<const char*>(&arg, 1);
-      }
       ParserTraits::ReportMessageAt(
           Scanner::Location(logger.start(), logger.end()),
-          logger.message(), args, logger.is_reference_error());
+          logger.message(), logger.argument_opt(), logger.is_reference_error());
       *ok = false;
       return;
     }
@@ -3598,7 +3573,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
     if (args->length() == 1 && args->at(0)->AsVariableProxy() != NULL) {
       return args->at(0);
     } else {
-      ReportMessage("not_isvar", Vector<const char*>::empty());
+      ReportMessage("not_isvar");
       *ok = false;
       return NULL;
     }
@@ -3608,15 +3583,14 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   if (function != NULL &&
       function->nargs != -1 &&
       function->nargs != args->length()) {
-    ReportMessage("illegal_access", Vector<const char*>::empty());
+    ReportMessage("illegal_access");
     *ok = false;
     return NULL;
   }
 
   // Check that the function is defined if it's an inline runtime call.
   if (function == NULL && name->Get(0) == '_') {
-    ParserTraits::ReportMessage("not_defined",
-                                Vector<Handle<String> >(&name, 1));
+    ParserTraits::ReportMessage("not_defined", name);
     *ok = false;
     return NULL;
   }
@@ -3638,14 +3612,11 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     // In harmony mode we treat conflicting variable bindinds as early
     // errors. See ES5 16 for a definition of early errors.
     Handle<String> name = decl->proxy()->name();
-    SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
-    const char* elms[1] = { c_string.get() };
-    Vector<const char*> args(elms, 1);
     int position = decl->proxy()->position();
     Scanner::Location location = position == RelocInfo::kNoPosition
         ? Scanner::Location::invalid()
         : Scanner::Location(position, position + 1);
-    ParserTraits::ReportMessageAt(location, "var_redeclaration", args);
+    ParserTraits::ReportMessageAt(location, "var_redeclaration", name);
     *ok = false;
   }
 }
@@ -4620,14 +4591,11 @@ bool Parser::Parse() {
       ScriptData* cached_data = *(info()->cached_data());
       Scanner::Location loc = cached_data->MessageLocation();
       const char* message = cached_data->BuildMessage();
-      Vector<const char*> args = cached_data->BuildArgs();
-      ParserTraits::ReportMessageAt(loc, message, args,
+      const char* arg = cached_data->BuildArg();
+      ParserTraits::ReportMessageAt(loc, message, arg,
                                     cached_data->IsReferenceError());
       DeleteArray(message);
-      for (int i = 0; i < args.length(); i++) {
-        DeleteArray(args[i]);
-      }
-      DeleteArray(args.start());
+      DeleteArray(arg);
       ASSERT(info()->isolate()->has_pending_exception());
     } else {
       result = ParseProgram();

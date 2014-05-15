@@ -348,16 +348,15 @@ class ParserBase : public Traits {
   bool is_generator() const { return function_state_->is_generator(); }
 
   // Report syntax errors.
-  void ReportMessage(const char* message, Vector<const char*> args,
+  void ReportMessage(const char* message, const char* arg = NULL,
                      bool is_reference_error = false) {
     Scanner::Location source_location = scanner()->location();
-    Traits::ReportMessageAt(source_location, message, args, is_reference_error);
+    Traits::ReportMessageAt(source_location, message, arg, is_reference_error);
   }
 
   void ReportMessageAt(Scanner::Location location, const char* message,
                        bool is_reference_error = false) {
-    Traits::ReportMessageAt(location, message, Vector<const char*>::empty(),
-                            is_reference_error);
+    Traits::ReportMessageAt(location, message, NULL, is_reference_error);
   }
 
   void ReportUnexpectedToken(Token::Value token);
@@ -968,16 +967,12 @@ class PreParserTraits {
   // Reporting errors.
   void ReportMessageAt(Scanner::Location location,
                        const char* message,
-                       Vector<const char*> args,
-                       bool is_reference_error = false);
-  void ReportMessageAt(Scanner::Location location,
-                       const char* type,
-                       const char* name_opt,
+                       const char* arg = NULL,
                        bool is_reference_error = false);
   void ReportMessageAt(int start_pos,
                        int end_pos,
-                       const char* type,
-                       const char* name_opt,
+                       const char* message,
+                       const char* arg = NULL,
                        bool is_reference_error = false);
 
   // "null" return type creators.
@@ -1240,7 +1235,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
       const char* name = Token::String(token);
       ASSERT(name != NULL);
       Traits::ReportMessageAt(
-          source_location, "unexpected_token", Vector<const char*>(&name, 1));
+          source_location, "unexpected_token", name);
   }
 }
 
@@ -1321,7 +1316,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   int pos = peek_position();
   if (!scanner()->ScanRegExpPattern(seen_equal)) {
     Next();
-    ReportMessage("unterminated_regexp", Vector<const char*>::empty());
+    ReportMessage("unterminated_regexp");
     *ok = false;
     return Traits::EmptyExpression();
   }
@@ -1864,7 +1859,7 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     // "delete identifier" is a syntax error in strict mode.
     if (op == Token::DELETE && strict_mode() == STRICT &&
         this->IsIdentifier(expression)) {
-      ReportMessage("strict_delete", Vector<const char*>::empty());
+      ReportMessage("strict_delete");
       *ok = false;
       return this->EmptyExpression();
     }
