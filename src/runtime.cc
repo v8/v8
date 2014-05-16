@@ -11042,8 +11042,9 @@ RUNTIME_FUNCTION(Runtime_DebugIndexedInterceptorElementValue) {
 
 
 static bool CheckExecutionState(Isolate* isolate, int break_id) {
-  return (isolate->debug()->break_id() != 0 &&
-          break_id == isolate->debug()->break_id());
+  return !isolate->debug()->debug_context().is_null() &&
+         isolate->debug()->break_id() != 0 &&
+         isolate->debug()->break_id() == break_id;
 }
 
 

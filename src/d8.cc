@@ -753,11 +753,12 @@ void Shell::InstallUtilityScript(Isolate* isolate) {
   // Install the debugger object in the utility scope
   i::Debug* debug = reinterpret_cast<i::Isolate*>(isolate)->debug();
   debug->Load();
+  i::Handle<i::Context> debug_context = debug->debug_context();
   i::Handle<i::JSObject> js_debug
-      = i::Handle<i::JSObject>(debug->debug_context()->global_object());
+      = i::Handle<i::JSObject>(debug_context->global_object());
   utility_context->Global()->Set(String::NewFromUtf8(isolate, "$debug"),
                                  Utils::ToLocal(js_debug));
-  debug->debug_context()->set_security_token(
+  debug_context->set_security_token(
       reinterpret_cast<i::Isolate*>(isolate)->heap()->undefined_value());
 
   // Run the d8 shell utility script in the utility context
