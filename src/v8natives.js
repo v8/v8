@@ -1886,6 +1886,9 @@ function RunMicrotasksJS() {
 }
 
 function EnqueueMicrotask(fn) {
+  if (!IS_FUNCTION(fn)) {
+    throw new $TypeError('Can only enqueue functions');
+  }
   var microtaskState = %GetMicrotaskState();
   if (IS_UNDEFINED(microtaskState.queue) || IS_NULL(microtaskState.queue)) {
     microtaskState.queue = new InternalArray;
