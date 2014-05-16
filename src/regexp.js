@@ -115,8 +115,12 @@ macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
   var numResults = NUMBER_OF_CAPTURES(MATCHINFO) >> 1;
   var start = MATCHINFO[CAPTURE0];
   var end = MATCHINFO[CAPTURE1];
+  // Calculate the substring of the first match before creating the result array
+  // to avoid an unnecessary write barrier storing the first result.
+  var first = %_SubString(STRING, start, end);
   var result = %_RegExpConstructResult(numResults, start, STRING);
-  result[0] = %_SubString(STRING, start, end);
+  result[0] = first;
+  if (numResults == 1) return result;
   var j = REGEXP_FIRST_CAPTURE + 2;
   for (var i = 1; i < numResults; i++) {
     start = MATCHINFO[j++];

@@ -618,8 +618,6 @@ function StringSplitJS(separator, limit) {
 }
 
 
-var ArrayPushBuiltin = $Array.prototype.push;
-
 function StringSplitOnRegExp(subject, separator, limit, length) {
   if (length === 0) {
     if (DoRegExpExec(separator, subject, 0, 0) != null) {
@@ -637,15 +635,13 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
   while (true) {
 
     if (startIndex === length) {
-      %_CallFunction(result, %_SubString(subject, currentIndex, length),
-                     ArrayPushBuiltin);
+      result[result.length] = %_SubString(subject, currentIndex, length);
       break;
     }
 
     var matchInfo = DoRegExpExec(separator, subject, startIndex);
     if (matchInfo == null || length === (startMatch = matchInfo[CAPTURE0])) {
-      %_CallFunction(result, %_SubString(subject, currentIndex, length),
-                     ArrayPushBuiltin);
+      result[result.length] = %_SubString(subject, currentIndex, length);
       break;
     }
     var endIndex = matchInfo[CAPTURE1];
@@ -656,8 +652,7 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       continue;
     }
 
-    %_CallFunction(result, %_SubString(subject, currentIndex, startMatch),
-                   ArrayPushBuiltin);
+    result[result.length] = %_SubString(subject, currentIndex, startMatch);
 
     if (result.length === limit) break;
 
@@ -666,10 +661,9 @@ function StringSplitOnRegExp(subject, separator, limit, length) {
       var start = matchInfo[i++];
       var end = matchInfo[i++];
       if (end != -1) {
-        %_CallFunction(result, %_SubString(subject, start, end),
-                       ArrayPushBuiltin);
+        result[result.length] = %_SubString(subject, start, end);
       } else {
-        %_CallFunction(result, UNDEFINED, ArrayPushBuiltin);
+        result[result.length] = UNDEFINED;
       }
       if (result.length === limit) break outer_loop;
     }

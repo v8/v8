@@ -1483,6 +1483,8 @@ HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
   HValue* input = GetParameter(RegExpConstructResultStub::kInput);
 
+  info()->MarkMustNotHaveEagerFrame();
+
   return BuildRegExpConstructResult(length, index, input);
 }
 
