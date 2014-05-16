@@ -1147,12 +1147,12 @@ i::Handle<i::String> FormatMessage(i::ScriptData* data) {
   const char* message = data->BuildMessage();
   i::Handle<i::String> format = v8::Utils::OpenHandle(
       *v8::String::NewFromUtf8(CcTest::isolate(), message));
-  i::Vector<const char*> args = data->BuildArgs();
-  i::Handle<i::JSArray> args_array = factory->NewJSArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
+  const char* arg = data->BuildArg();
+  i::Handle<i::JSArray> args_array = factory->NewJSArray(arg == NULL ? 0 : 1);
+  if (arg != NULL) {
     i::JSArray::SetElement(
-        args_array, i, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
-                                                  CcTest::isolate(), args[i])),
+        args_array, 0, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
+                                                  CcTest::isolate(), arg)),
         NONE, i::SLOPPY).Check();
   }
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
@@ -1162,11 +1162,8 @@ i::Handle<i::String> FormatMessage(i::ScriptData* data) {
   i::Handle<i::Object> result = i::Execution::Call(
       isolate, format_fun, builtins, 2, arg_handles).ToHandleChecked();
   CHECK(result->IsString());
-  for (int i = 0; i < args.length(); i++) {
-    i::DeleteArray(args[i]);
-  }
-  i::DeleteArray(args.start());
   i::DeleteArray(message);
+  i::DeleteArray(arg);
   return i::Handle<i::String>::cast(result);
 }
 

@@ -4612,6 +4612,7 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
     set_current_block(body_exit);
     loop_successor = graph()->CreateBasicBlock();
     if (stmt->cond()->ToBooleanIsFalse()) {
+      loop_entry->loop_information()->stack_check()->Eliminate();
       Goto(loop_successor);
       body_exit = NULL;
     } else {
@@ -11117,7 +11118,7 @@ void HOptimizedGraphBuilder::GenerateMathPow(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateMathLog(CallRuntime* call) {
+void HOptimizedGraphBuilder::GenerateMathLogRT(CallRuntime* call) {
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* value = Pop();

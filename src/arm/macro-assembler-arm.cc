@@ -902,29 +902,34 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
 }
 
 
-void MacroAssembler::Prologue(CompilationInfo* info) {
-  if (info->IsStub()) {
-    PushFixedFrame();
-    Push(Smi::FromInt(StackFrame::STUB));
+void MacroAssembler::StubPrologue() {
+  PushFixedFrame();
+  Push(Smi::FromInt(StackFrame::STUB));
+  // Adjust FP to point to saved FP.
+  add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+  if (FLAG_enable_ool_constant_pool) {
+    LoadConstantPoolPointerRegister();
+    set_constant_pool_available(true);
+  }
+}
+
+
+void MacroAssembler::Prologue(bool code_pre_aging) {
+  PredictableCodeSizeScope predictible_code_size_scope(
+      this, kNoCodeAgeSequenceLength);
+  // The following three instructions must remain together and unmodified
+  // for code aging to work properly.
+  if (code_pre_aging) {
+    // Pre-age the code.
+    Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
+    add(r0, pc, Operand(-8));
+    ldr(pc, MemOperand(pc, -4));
+    emit_code_stub_address(stub);
+  } else {
+    PushFixedFrame(r1);
+    nop(ip.code());
     // Adjust FP to point to saved FP.
     add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  } else {
-    PredictableCodeSizeScope predictible_code_size_scope(
-        this, kNoCodeAgeSequenceLength);
-    // The following three instructions must remain together and unmodified
-    // for code aging to work properly.
-    if (info->IsCodePreAgingActive()) {
-      // Pre-age the code.
-      Code* stub = Code::GetPreAgedCodeAgeStub(isolate());
-      add(r0, pc, Operand(-8));
-      ldr(pc, MemOperand(pc, -4));
-      emit_code_stub_address(stub);
-    } else {
-      PushFixedFrame(r1);
-      nop(ip.code());
-      // Adjust FP to point to saved FP.
-      add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-    }
   }
   if (FLAG_enable_ool_constant_pool) {
     LoadConstantPoolPointerRegister();

@@ -89,7 +89,7 @@ class ScriptData {
   Scanner::Location MessageLocation() const;
   bool IsReferenceError() const;
   const char* BuildMessage() const;
-  Vector<const char*> BuildArgs() const;
+  const char* BuildArg() const;
 
   int function_count() {
     int functions_size =
@@ -515,14 +515,14 @@ class ParserTraits {
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<const char*> args,
+                       const char* arg,
                        bool is_reference_error = false);
   void ReportMessage(const char* message,
-                     Vector<Handle<String> > args,
+                     MaybeHandle<String> arg,
                      bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       Vector<Handle<String> > args,
+                       MaybeHandle<String> arg,
                        bool is_reference_error = false);
 
   // "null" return type creators.

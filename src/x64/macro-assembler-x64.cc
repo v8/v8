@@ -3889,26 +3889,27 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 }
 
 
-void MacroAssembler::Prologue(CompilationInfo* info) {
-  if (info->IsStub()) {
+void MacroAssembler::StubPrologue() {
     pushq(rbp);  // Caller's frame pointer.
     movp(rbp, rsp);
     Push(rsi);  // Callee's context.
     Push(Smi::FromInt(StackFrame::STUB));
+}
+
+
+void MacroAssembler::Prologue(bool code_pre_aging) {
+  PredictableCodeSizeScope predictible_code_size_scope(this,
+      kNoCodeAgeSequenceLength);
+  if (code_pre_aging) {
+      // Pre-age the code.
+    Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
+         RelocInfo::CODE_AGE_SEQUENCE);
+    Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
   } else {
-    PredictableCodeSizeScope predictible_code_size_scope(this,
-        kNoCodeAgeSequenceLength);
-    if (info->IsCodePreAgingActive()) {
-        // Pre-age the code.
-      Call(isolate()->builtins()->MarkCodeAsExecutedOnce(),
-           RelocInfo::CODE_AGE_SEQUENCE);
-      Nop(kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
-    } else {
-      pushq(rbp);  // Caller's frame pointer.
-      movp(rbp, rsp);
-      Push(rsi);  // Callee's context.
-      Push(rdi);  // Callee's JS function.
-    }
+    pushq(rbp);  // Caller's frame pointer.
+    movp(rbp, rsp);
+    Push(rsi);  // Callee's context.
+    Push(rdi);  // Callee's JS function.
   }
 }
 

@@ -685,7 +685,7 @@ namespace internal {
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
   F(MathSqrtRT, 1, 1)                                                        \
-  F(MathLog, 1, 1)                                                           \
+  F(MathLogRT, 1, 1)                                                         \
   /* Debugger */                                                             \
   F(DebugCallbackSupportsStepping, 1, 1)
 

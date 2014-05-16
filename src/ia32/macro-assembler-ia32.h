@@ -204,7 +204,8 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 
   // Generates function and stub prologue code.
-  void Prologue(CompilationInfo* info);
+  void StubPrologue();
+  void Prologue(bool code_pre_aging);
 
   // Enter specific kind of exit frame. Expects the number of
   // arguments in register eax and sets up the number of arguments in

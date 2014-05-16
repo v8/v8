@@ -1388,63 +1388,10 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         }
       }
 
-      if (request.command == 'continue') {
-        this.continueRequest_(request, response);
-      } else if (request.command == 'break') {
-        this.breakRequest_(request, response);
-      } else if (request.command == 'setbreakpoint') {
-        this.setBreakPointRequest_(request, response);
-      } else if (request.command == 'changebreakpoint') {
-        this.changeBreakPointRequest_(request, response);
-      } else if (request.command == 'clearbreakpoint') {
-        this.clearBreakPointRequest_(request, response);
-      } else if (request.command == 'clearbreakpointgroup') {
-        this.clearBreakPointGroupRequest_(request, response);
-      } else if (request.command == 'disconnect') {
-        this.disconnectRequest_(request, response);
-      } else if (request.command == 'setexceptionbreak') {
-        this.setExceptionBreakRequest_(request, response);
-      } else if (request.command == 'listbreakpoints') {
-        this.listBreakpointsRequest_(request, response);
-      } else if (request.command == 'backtrace') {
-        this.backtraceRequest_(request, response);
-      } else if (request.command == 'frame') {
-        this.frameRequest_(request, response);
-      } else if (request.command == 'scopes') {
-        this.scopesRequest_(request, response);
-      } else if (request.command == 'scope') {
-        this.scopeRequest_(request, response);
-      } else if (request.command == 'setVariableValue') {
-        this.setVariableValueRequest_(request, response);
-      } else if (request.command == 'evaluate') {
-        this.evaluateRequest_(request, response);
-      } else if (request.command == 'lookup') {
-        this.lookupRequest_(request, response);
-      } else if (request.command == 'references') {
-        this.referencesRequest_(request, response);
-      } else if (request.command == 'source') {
-        this.sourceRequest_(request, response);
-      } else if (request.command == 'scripts') {
-        this.scriptsRequest_(request, response);
-      } else if (request.command == 'threads') {
-        this.threadsRequest_(request, response);
-      } else if (request.command == 'suspend') {
-        this.suspendRequest_(request, response);
-      } else if (request.command == 'version') {
-        this.versionRequest_(request, response);
-      } else if (request.command == 'changelive') {
-        this.changeLiveRequest_(request, response);
-      } else if (request.command == 'restartframe') {
-        this.restartFrameRequest_(request, response);
-      } else if (request.command == 'flags') {
-        this.debuggerFlagsRequest_(request, response);
-      } else if (request.command == 'v8flags') {
-        this.v8FlagsRequest_(request, response);
-
-      // GC tools:
-      } else if (request.command == 'gc') {
-        this.gcRequest_(request, response);
-
+      var key = request.command.toLowerCase();
+      var handler = DebugCommandProcessor.prototype.dispatch_[key];
+      if (IS_FUNCTION(handler)) {
+        %_CallFunction(this, request, response, handler);
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
       }
@@ -2490,6 +2437,40 @@ DebugCommandProcessor.prototype.gcRequest_ = function(request, response) {
 
   response.body = { "before": before, "after": after };
 };
+
+
+DebugCommandProcessor.prototype.dispatch_ = (function() {
+  var proto = DebugCommandProcessor.prototype;
+  return {
+    "continue":             proto.continueRequest_,
+    "break"   :             proto.breakRequest_,
+    "setbreakpoint" :       proto.setBreakPointRequest_,
+    "changebreakpoint":     proto.changeBreakPointRequest_,
+    "clearbreakpoint":      proto.clearBreakPointRequest_,
+    "clearbreakpointgroup": proto.clearBreakPointGroupRequest_,
+    "disconnect":           proto.disconnectRequest_,
+    "setexceptionbreak":    proto.setExceptionBreakRequest_,
+    "listbreakpoints":      proto.listBreakpointsRequest_,
+    "backtrace":            proto.backtraceRequest_,
+    "frame":                proto.frameRequest_,
+    "scopes":               proto.scopesRequest_,
+    "scope":                proto.scopeRequest_,
+    "setvariablevalue":     proto.setVariableValueRequest_,
+    "evaluate":             proto.evaluateRequest_,
+    "lookup":               proto.lookupRequest_,
+    "references":           proto.referencesRequest_,
+    "source":               proto.sourceRequest_,
+    "scripts":              proto.scriptsRequest_,
+    "threads":              proto.threadsRequest_,
+    "suspend":              proto.suspendRequest_,
+    "version":              proto.versionRequest_,
+    "changelive":           proto.changeLiveRequest_,
+    "restartframe":         proto.restartFrameRequest_,
+    "flags":                proto.debuggerFlagsRequest_,
+    "v8flag":               proto.v8FlagsRequest_,
+    "gc":                   proto.gcRequest_,
+  };
+})();
 
 
 // Check whether the previously processed command caused the VM to become

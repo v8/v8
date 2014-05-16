@@ -74,6 +74,7 @@ class FullCodeGenerator: public AstVisitor {
                          info->zone()),
         back_edges_(2, info->zone()),
         ic_total_count_(0) {
+    ASSERT(!info->IsStub());
     Initialize();
   }
 

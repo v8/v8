@@ -671,7 +671,11 @@ bool LCodeGen::GeneratePrologue() {
   ASSERT(__ StackPointer().Is(jssp));
   info()->set_prologue_offset(masm_->pc_offset());
   if (NeedsEagerFrame()) {
-    __ Prologue(info());
+    if (info()->IsStub()) {
+      __ StubPrologue();
+    } else {
+      __ Prologue(info()->IsCodePreAgingActive());
+    }
     frame_is_built_ = true;
     info_->AddNoFrameRange(0, masm_->pc_offset());
   }

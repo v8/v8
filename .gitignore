@@ -21,7 +21,11 @@
 #*#
 *~
 .cpplint-cache
+.cproject
 .d8_history
+.project
+.pydevproject
+.settings
 .*.sw?
 bsuite
 d8

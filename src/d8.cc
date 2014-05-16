@@ -1450,7 +1450,8 @@ static void DumpHeapConstants(i::Isolate* isolate) {
 class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
-    return memset(AllocateUninitialized(length), 0, length);
+    void* data = AllocateUninitialized(length);
+    return data == NULL ? data : memset(data, 0, length);
   }
   virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
   virtual void Free(void* data, size_t) { free(data); }
