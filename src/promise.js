@@ -301,12 +301,3 @@ function SetUpPromise() {
 }
 
 SetUpPromise();
-
-// Functions to expose promise details to the debugger.
-function GetPromiseStatus(promise) {
-  return GET_PRIVATE(promise, promiseStatus);
-}
-
-function GetPromiseValue(promise) {
-  return GET_PRIVATE(promise, promiseValue);
-}
