@@ -48,51 +48,24 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
-#ifdef DEBUG
-bool CpuFeatures::initialized_ = false;
-#endif
-uint64_t CpuFeatures::supported_ = 0;
-uint64_t CpuFeatures::found_by_runtime_probing_only_ = 0;
-uint64_t CpuFeatures::cross_compile_ = 0;
-
-
-ExternalReference ExternalReference::cpu_features() {
-  ASSERT(CpuFeatures::initialized_);
-  return ExternalReference(&CpuFeatures::supported_);
-}
-
-
-void CpuFeatures::Probe(bool serializer_enabled) {
-  ASSERT(!initialized_);
-  ASSERT(supported_ == 0);
-#ifdef DEBUG
-  initialized_ = true;
-#endif
-  if (serializer_enabled) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    return;  // No features if we might serialize.
-  }
-
-  uint64_t probed_features = 0;
+void CpuFeatures::ProbeImpl(bool cross_compile) {
   CPU cpu;
-  if (cpu.has_sse41()) {
-    probed_features |= static_cast<uint64_t>(1) << SSE4_1;
-  }
-  if (cpu.has_sse3()) {
-    probed_features |= static_cast<uint64_t>(1) << SSE3;
-  }
-
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
   CHECK(cpu.has_cmov());  // CMOV support is mandatory.
+  CHECK(cpu.has_sahf());  // SAHF must be available in compat/legacy mode.
+  supported_ |= 1u << SAHF;
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
 
-  // SAHF must be available in compat/legacy mode.
-  ASSERT(cpu.has_sahf());
-  probed_features |= static_cast<uint64_t>(1) << SAHF;
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
 
-  uint64_t platform_features = OS::CpuFeaturesImpliedByPlatform();
-  supported_ = probed_features | platform_features;
-  found_by_runtime_probing_only_ = probed_features & ~platform_features;
+  if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
+  if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
 }
+
+
+void CpuFeatures::PrintTarget() { }
+void CpuFeatures::PrintFeatures() { }
 
 
 // -----------------------------------------------------------------------------
@@ -2613,10 +2586,9 @@ void Assembler::dd(uint32_t data) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
   // Don't record external references unless the heap will be serialized.
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-      return;
-    }
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+      !serializer_enabled() && !emit_debug_code()) {
+    return;
   }
   RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);

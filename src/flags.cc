@@ -7,13 +7,10 @@
 
 #include "v8.h"
 
+#include "assembler.h"
 #include "platform.h"
 #include "smart-pointers.h"
 #include "string-stream.h"
-
-#if V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm-inl.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -337,15 +334,10 @@ static Flag* FindFlag(const char* name) {
 }
 
 
-bool FlagList::serializer_enabled_ = false;
-
-
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc,
                                       char** argv,
-                                      bool remove_flags,
-                                      bool serializer_enabled) {
-  serializer_enabled_ = serializer_enabled;
+                                      bool remove_flags) {
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -525,11 +517,8 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
-#if V8_TARGET_ARCH_ARM
   CpuFeatures::PrintTarget();
-  CpuFeatures::Probe(serializer_enabled_);
   CpuFeatures::PrintFeatures();
-#endif  // V8_TARGET_ARCH_ARM
 
   printf("Usage:\n");
   printf("  shell [options] -e string\n");

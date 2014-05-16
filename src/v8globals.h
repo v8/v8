@@ -399,20 +399,26 @@ enum StateTag {
 #endif
 
 
-// Feature flags bit positions. They are mostly based on the CPUID spec.
-// On X86/X64, values below 32 are bits in EDX, values above 32 are bits in ECX.
-enum CpuFeature { SSE4_1 = 32 + 19,  // x86
-                  SSE3 = 32 + 0,     // x86
-                  VFP3 = 1,    // ARM
-                  ARMv7 = 2,   // ARM
-                  SUDIV = 3,   // ARM
-                  UNALIGNED_ACCESSES = 4,  // ARM
-                  MOVW_MOVT_IMMEDIATE_LOADS = 5,  // ARM
-                  VFP32DREGS = 6,  // ARM
-                  NEON = 7,    // ARM
-                  SAHF = 0,    // x86
-                  FPU = 1,     // MIPS
-                  ALWAYS_ALIGN_CSP = 1 };    // ARM64
+// CPU feature flags.
+enum CpuFeature {
+    // x86
+    SSE4_1,
+    SSE3,
+    SAHF,
+    // ARM
+    VFP3,
+    ARMv7,
+    SUDIV,
+    UNALIGNED_ACCESSES,
+    MOVW_MOVT_IMMEDIATE_LOADS,
+    VFP32DREGS,
+    NEON,
+    // MIPS
+    FPU,
+    // ARM64
+    ALWAYS_ALIGN_CSP,
+    NUMBER_OF_CPU_FEATURES
+};
 
 
 // Used to specify if a macro instruction must perform a smi check on tagged

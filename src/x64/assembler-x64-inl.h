@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+bool CpuFeatures::SupportsCrankshaft() { return true; }
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler

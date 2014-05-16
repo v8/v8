@@ -47,6 +47,9 @@ namespace v8 {
 namespace internal {
 
 
+bool CpuFeatures::SupportsCrankshaft() { return IsSupported(VFP3); }
+
+
 int Register::NumAllocatableRegisters() {
   return kMaxNumAllocatableRegisters;
 }

@@ -8802,8 +8802,10 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   BailoutId ast_id = caller_code->TranslatePcOffsetToAstId(pc_offset);
   ASSERT(!ast_id.IsNone());
 
-  Compiler::ConcurrencyMode mode = isolate->concurrent_osr_enabled()
-      ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
+  Compiler::ConcurrencyMode mode =
+      isolate->concurrent_osr_enabled() &&
+      (caller_code->CodeSize() > 32 * FullCodeGenerator::kCodeSizeMultiplier)
+          ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
   Handle<Code> result = Handle<Code>::null();
 
   OptimizedCompileJob* job = NULL;

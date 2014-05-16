@@ -656,7 +656,6 @@
             '../../src/arm64/code-stubs-arm64.h',
             '../../src/arm64/constants-arm64.h',
             '../../src/arm64/cpu-arm64.cc',
-            '../../src/arm64/cpu-arm64.h',
             '../../src/arm64/debug-arm64.cc',
             '../../src/arm64/decoder-arm64.cc',
             '../../src/arm64/decoder-arm64.h',

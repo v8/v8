@@ -8,19 +8,11 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "arm64/cpu-arm64.h"
+#include "cpu.h"
 #include "arm64/utils-arm64.h"
 
 namespace v8 {
 namespace internal {
-
-#ifdef DEBUG
-bool CpuFeatures::initialized_ = false;
-#endif
-unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
-unsigned CpuFeatures::cross_compile_ = 0;
-
 
 class CacheLineSizes {
  public:
@@ -125,34 +117,6 @@ void CPU::FlushICache(void* address, size_t length) {
   );  // NOLINT
 #endif
 }
-
-
-void CpuFeatures::Probe(bool serializer_enabled) {
-  ASSERT(supported_ == 0);
-
-  if (serializer_enabled && FLAG_enable_always_align_csp) {
-    // Always align csp in snapshot code - this is safe and ensures that csp
-    // will always be aligned if it is enabled by probing at runtime.
-    supported_ |= static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
-  }
-
-  if (!serializer_enabled) {
-    CPU cpu;
-    // Always align csp on Nvidia cores or when debug_code is enabled.
-    if (FLAG_enable_always_align_csp &&
-        (cpu.implementer() == CPU::NVIDIA || FLAG_debug_code)) {
-      found_by_runtime_probing_only_ |=
-          static_cast<uint64_t>(1) << ALWAYS_ALIGN_CSP;
-    }
-
-    supported_ |= found_by_runtime_probing_only_;
-  }
-
-#ifdef DEBUG
-  initialized_ = true;
-#endif
-}
-
 
 } }  // namespace v8::internal
 

@@ -1279,7 +1279,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 // Note: r0 will contain hash code
 void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
   // Xor original key with a seed.
-  if (Serializer::enabled(isolate())) {
+  if (serializer_enabled()) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(isolate());
     mov(scratch, Immediate(Heap::kHashSeedRootIndex));

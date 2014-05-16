@@ -43,38 +43,22 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-bool CpuFeatures::initialized_ = false;
-#endif
-unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
-unsigned CpuFeatures::cross_compile_ = 0;
-
-
-ExternalReference ExternalReference::cpu_features() {
-  ASSERT(CpuFeatures::initialized_);
-  return ExternalReference(&CpuFeatures::supported_);
-}
-
-
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
 // can be defined to enable FPU instructions when building the
 // snapshot.
-static uint64_t CpuFeaturesImpliedByCompiler() {
-  uint64_t answer = 0;
+static unsigned CpuFeaturesImpliedByCompiler() {
+  unsigned answer = 0;
 #ifdef CAN_USE_FPU_INSTRUCTIONS
-  answer |= static_cast<uint64_t>(1) << FPU;
+  answer |= 1u << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
-#ifdef __mips__
   // If the compiler is allowed to use FPU then we can use FPU too in our code
   // generation even when generating snapshots.  This won't work for cross
   // compilation.
-#if(defined(__mips_hard_float) && __mips_hard_float != 0)
-  answer |= static_cast<uint64_t>(1) << FPU;
-#endif  // defined(__mips_hard_float) && __mips_hard_float != 0
-#endif  // def __mips__
+#if defined(__mips__) && defined(__mips_hard_float) && __mips_hard_float != 0
+  answer |= 1u << FPU;
+#endif
 
   return answer;
 }
@@ -102,41 +86,28 @@ const char* DoubleRegister::AllocationIndexToString(int index) {
 }
 
 
-void CpuFeatures::Probe(bool serializer_enabled) {
-  unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
-                                CpuFeaturesImpliedByCompiler());
-  ASSERT(supported_ == 0 ||
-         (supported_ & standard_features) == standard_features);
-#ifdef DEBUG
-  initialized_ = true;
-#endif
+void CpuFeatures::ProbeImpl(bool cross_compile) {
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
 
-  // Get the features implied by the OS and the compiler settings. This is the
-  // minimal set of features which is also allowed for generated code in the
-  // snapshot.
-  supported_ |= standard_features;
-
-  if (serializer_enabled) {
-    // No probing for features if we might serialize (generate snapshot).
-    return;
-  }
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
 
   // If the compiler is allowed to use fpu then we can use fpu too in our
   // code generation.
-#if !defined(__mips__)
+#ifndef __mips__
   // For the simulator build, use FPU.
-  supported_ |= static_cast<uint64_t>(1) << FPU;
+  supported_ |= 1u << FPU;
 #else
-  // Probe for additional features not already known to be available.
+  // Probe for additional features at runtime.
   CPU cpu;
-  if (cpu.has_fpu()) {
-    // This implementation also sets the FPU flags if
-    // runtime detection of FPU returns true.
-    supported_ |= static_cast<uint64_t>(1) << FPU;
-    found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << FPU;
-  }
+  if (cpu.has_fpu()) supported_ |= 1u << FPU;
 #endif
 }
+
+
+void CpuFeatures::PrintTarget() { }
+void CpuFeatures::PrintFeatures() { }
 
 
 int ToNumber(Register reg) {
@@ -2079,10 +2050,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-        return;
-      }
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+        !serializer_enabled() && !emit_debug_code()) {
+      return;
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {

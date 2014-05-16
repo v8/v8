@@ -402,7 +402,7 @@ void FullCodeGenerator::Initialize() {
   // we disable the production of debug code in the full compiler if we are
   // either generating a snapshot or we booted from a snapshot.
   generate_debug_code_ = FLAG_debug_code &&
-                         !Serializer::enabled(isolate()) &&
+                         !masm_->serializer_enabled() &&
                          !Snapshot::HaveASnapshotToStartFrom();
   masm_->set_emit_debug_code(generate_debug_code_);
   masm_->set_predictable_code_size(true);

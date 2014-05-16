@@ -52,7 +52,7 @@ namespace internal {
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
+unsigned OS::CpuFeaturesImpliedByPlatform() {
   return 0;  // Nothing special.
 }
 
