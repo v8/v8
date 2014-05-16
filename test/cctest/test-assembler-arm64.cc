@@ -173,8 +173,7 @@ static void InitializeVM() {
   ASSERT(isolate != NULL);                                                     \
   byte* buf = new byte[buf_size];                                              \
   MacroAssembler masm(isolate, buf, buf_size);                                 \
-  RegisterDump core;                                                           \
-  CpuFeatures::Probe(false);
+  RegisterDump core;
 
 #define RESET()                                                                \
   __ Reset();                                                                  \
