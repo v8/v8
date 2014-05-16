@@ -1404,11 +1404,11 @@ static bool DataViewSetValue(
 
 
 #define DATA_VIEW_GETTER(TypeName, Type, Converter)                           \
-  RUNTIME_FUNCTION(Runtime_DataViewGet##TypeName) {                  \
+  RUNTIME_FUNCTION(Runtime_DataViewGet##TypeName) {                           \
     HandleScope scope(isolate);                                               \
     ASSERT(args.length() == 3);                                               \
     CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                        \
-    CONVERT_ARG_HANDLE_CHECKED(Object, offset, 1);                            \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                             \
     CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 2);                         \
     Type result;                                                              \
     if (DataViewGetValue(                                                     \
@@ -1486,12 +1486,12 @@ double DataViewConvertValue<double>(double value) {
 
 
 #define DATA_VIEW_SETTER(TypeName, Type)                                      \
-  RUNTIME_FUNCTION(Runtime_DataViewSet##TypeName) {                  \
+  RUNTIME_FUNCTION(Runtime_DataViewSet##TypeName) {                           \
     HandleScope scope(isolate);                                               \
     ASSERT(args.length() == 4);                                               \
     CONVERT_ARG_HANDLE_CHECKED(JSDataView, holder, 0);                        \
-    CONVERT_ARG_HANDLE_CHECKED(Object, offset, 1);                            \
-    CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);                             \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset, 1);                             \
+    CONVERT_NUMBER_ARG_HANDLE_CHECKED(value, 2);                              \
     CONVERT_BOOLEAN_ARG_CHECKED(is_little_endian, 3);                         \
     Type v = DataViewConvertValue<Type>(value->Number());                     \
     if (DataViewSetValue(                                                     \
