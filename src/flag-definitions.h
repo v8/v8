@@ -155,8 +155,7 @@ DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_modules, false,
             "enable harmony modules (implies block scoping)")
-DEFINE_bool(harmony_symbols, false,
-            "enable harmony symbols (a.k.a. private names)")
+DEFINE_bool(harmony_symbols, false, "enable harmony symbols")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps)")
@@ -172,7 +171,6 @@ DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
-DEFINE_implication(harmony, harmony_symbols)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony, harmony_generators)
@@ -184,6 +182,7 @@ DEFINE_implication(harmony_modules, harmony_scoping)
 
 DEFINE_implication(harmony, es_staging)
 DEFINE_implication(es_staging, harmony_maths)
+DEFINE_implication(es_staging, harmony_symbols)
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
