@@ -2271,7 +2271,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
   bool is_unsigned = instr->hydrogen()->CheckFlag(HInstruction::kUint32);
-  Condition cc = TokenToCondition(instr->op(), is_unsigned);
+  Condition cond = TokenToCondition(instr->op(), is_unsigned);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
     // We can statically evaluate the comparison.
