@@ -1566,7 +1566,7 @@ inline bool AllocationSite::IncrementMementoFoundCount() {
 
   int value = memento_found_count();
   set_memento_found_count(value + 1);
-  return value == 0;
+  return value == kPretenureMinimumCreated;
 }
 
 
