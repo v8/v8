@@ -123,7 +123,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       jit_cookie_(0),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
-      predictable_code_size_(false) {
+      predictable_code_size_(false),
+      serializer_enabled_(Serializer::enabled(isolate)) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
@@ -191,7 +192,7 @@ PredictableCodeSizeScope::~PredictableCodeSizeScope() {
 #ifdef DEBUG
 CpuFeatureScope::CpuFeatureScope(AssemblerBase* assembler, CpuFeature f)
     : assembler_(assembler) {
-  ASSERT(CpuFeatures::IsSafeForSnapshot(assembler_->isolate(), f));
+  ASSERT(CpuFeatures::IsSupported(f));
   old_enabled_ = assembler_->enabled_cpu_features();
   uint64_t mask = static_cast<uint64_t>(1) << f;
   // TODO(svenpanne) This special case below doesn't belong here!
@@ -211,23 +212,9 @@ CpuFeatureScope::~CpuFeatureScope() {
 #endif
 
 
-// -----------------------------------------------------------------------------
-// Implementation of PlatformFeatureScope
-
-PlatformFeatureScope::PlatformFeatureScope(Isolate* isolate, CpuFeature f)
-    : isolate_(isolate), old_cross_compile_(CpuFeatures::cross_compile_) {
-  // CpuFeatures is a global singleton, therefore this is only safe in
-  // single threaded code.
-  ASSERT(Serializer::enabled(isolate));
-  uint64_t mask = static_cast<uint64_t>(1) << f;
-  CpuFeatures::cross_compile_ |= mask;
-  USE(isolate_);
-}
-
-
-PlatformFeatureScope::~PlatformFeatureScope() {
-  CpuFeatures::cross_compile_ = old_cross_compile_;
-}
+bool CpuFeatures::initialized_ = false;
+unsigned CpuFeatures::supported_ = 0;
+unsigned CpuFeatures::cache_line_size_ = 0;
 
 
 // -----------------------------------------------------------------------------
@@ -1435,6 +1422,12 @@ ExternalReference ExternalReference::page_flags(Page* page) {
 
 ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
   return ExternalReference(entry);
+}
+
+
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
 }
 
 

@@ -3213,7 +3213,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register character,
                                     Register scratch) {
   // hash = (seed + character) + ((seed + character) << 10);
-  if (Serializer::enabled(masm->isolate())) {
+  if (masm->serializer_enabled()) {
     __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
     __ SmiUntag(scratch);
     __ add(scratch, character);

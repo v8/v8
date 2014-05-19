@@ -84,6 +84,7 @@ function URIHexCharsToCharCode(highChar, lowChar) {
 
 
 function URIDecodeOctets(octets, result, index) {
+  if (!IS_STRING(result)) throw new $URIError("Internal error");
   var value;
   var o0 = octets[0];
   if (o0 < 0x80) {
@@ -148,9 +149,15 @@ function URIDecodeOctets(octets, result, index) {
     throw new $URIError("URI malformed");
   }
   if (value < 0x10000) {
+    if (index < 0 || index >= result.length) {
+      throw new $URIError("Internal error");
+    }
     %_TwoByteSeqStringSetChar(result, index++, value);
     return index;
   } else {
+    if (index < 0 || index >= result.length - 1) {
+      throw new $URIError("Internal error");
+    }
     %_TwoByteSeqStringSetChar(result, index++, (value >> 10) + 0xd7c0);
     %_TwoByteSeqStringSetChar(result, index++, (value & 0x3ff) + 0xdc00);
     return index;

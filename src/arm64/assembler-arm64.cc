@@ -39,11 +39,25 @@ namespace internal {
 
 
 // -----------------------------------------------------------------------------
-// CpuFeatures utilities (for V8 compatibility).
+// CpuFeatures implementation.
 
-ExternalReference ExternalReference::cpu_features() {
-  return ExternalReference(&CpuFeatures::supported_);
+void CpuFeatures::ProbeImpl(bool cross_compile) {
+  if (cross_compile) {
+    // Always align csp in cross compiled code - this is safe and ensures that
+    // csp will always be aligned if it is enabled by probing at runtime.
+    if (FLAG_enable_always_align_csp) supported_ |= 1u << ALWAYS_ALIGN_CSP;
+  } else {
+    CPU cpu;
+    if (FLAG_enable_always_align_csp && (cpu.implementer() == CPU::NVIDIA ||
+                                         FLAG_debug_code)) {
+      supported_ |= 1u << ALWAYS_ALIGN_CSP;
+    }
+  }
 }
+
+
+void CpuFeatures::PrintTarget() { }
+void CpuFeatures::PrintFeatures() { }
 
 
 // -----------------------------------------------------------------------------
@@ -271,9 +285,9 @@ void Operand::initialize_handle(Handle<Object> handle) {
 }
 
 
-bool Operand::NeedsRelocation(Isolate* isolate) const {
+bool Operand::NeedsRelocation(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-    return Serializer::enabled(isolate);
+    return assembler->serializer_enabled();
   }
 
   return !RelocInfo::IsNone(rmode_);
@@ -1903,7 +1917,7 @@ void Assembler::AddSub(const Register& rd,
                        FlagsUpdate S,
                        AddSubOp op) {
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     ASSERT(IsImmAddSub(immediate));
@@ -1943,7 +1957,7 @@ void Assembler::AddSubWithCarry(const Register& rd,
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
   ASSERT(rd.SizeInBits() == operand.reg().SizeInBits());
   ASSERT(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) | Rn(rn) | Rd(rd));
 }
 
@@ -1964,7 +1978,7 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
 #ifdef USE_SIMULATOR
   // Don't generate simulator specific code if we are building a snapshot, which
   // might be run on real hardware.
-  if (!Serializer::enabled(isolate())) {
+  if (!serializer_enabled()) {
     // The arguments to the debug marker need to be contiguous in memory, so
     // make sure we don't try to emit pools.
     BlockPoolsScope scope(this);
@@ -1999,7 +2013,7 @@ void Assembler::Logical(const Register& rd,
                         const Operand& operand,
                         LogicalOp op) {
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     unsigned reg_size = rd.SizeInBits();
@@ -2051,7 +2065,7 @@ void Assembler::ConditionalCompare(const Register& rn,
                                    Condition cond,
                                    ConditionalCompareOp op) {
   Instr ccmpop;
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.immediate();
     ASSERT(IsImmConditionalCompare(immediate));
@@ -2166,7 +2180,7 @@ void Assembler::DataProcShiftedRegister(const Register& rd,
                                         Instr op) {
   ASSERT(operand.IsShiftedRegister());
   ASSERT(rn.Is64Bits() || (rn.Is32Bits() && is_uint5(operand.shift_amount())));
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   Emit(SF(rd) | op | Flags(S) |
        ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
        Rm(operand.reg()) | Rn(rn) | Rd(rd));
@@ -2178,7 +2192,7 @@ void Assembler::DataProcExtendedRegister(const Register& rd,
                                          const Operand& operand,
                                          FlagsUpdate S,
                                          Instr op) {
-  ASSERT(!operand.NeedsRelocation(isolate()));
+  ASSERT(!operand.NeedsRelocation(this));
   Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
   Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) |
        ExtendMode(operand.extend()) | ImmExtendShift(operand.shift_amount()) |
@@ -2516,10 +2530,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
   if (!RelocInfo::IsNone(rmode)) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-        return;
-      }
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+        !serializer_enabled() && !emit_debug_code()) {
+      return;
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {

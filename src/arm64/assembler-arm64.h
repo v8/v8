@@ -8,12 +8,12 @@
 #include <list>
 #include <map>
 
+#include "cpu.h"
 #include "globals.h"
 #include "utils.h"
 #include "assembler.h"
 #include "serialize.h"
 #include "arm64/instructions-arm64.h"
-#include "arm64/cpu-arm64.h"
 
 
 namespace v8 {
@@ -655,7 +655,7 @@ class Operand {
   // Relocation information.
   RelocInfo::Mode rmode() const { return rmode_; }
   void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
-  bool NeedsRelocation(Isolate* isolate) const;
+  bool NeedsRelocation(const Assembler* assembler) const;
 
   // Helpers
   inline static Operand UntagSmi(Register smi);

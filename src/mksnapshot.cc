@@ -11,6 +11,7 @@
 
 #include "v8.h"
 
+#include "assembler.h"
 #include "bootstrapper.h"
 #include "flags.h"
 #include "natives.h"
@@ -18,9 +19,6 @@
 #include "serialize.h"
 #include "list.h"
 
-#if V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm-inl.h"
-#endif
 
 using namespace v8;
 
@@ -274,13 +272,14 @@ void DumpException(Handle<Message> message) {
 int main(int argc, char** argv) {
   V8::InitializeICU();
   i::Isolate::SetCrashIfDefaultIsolateInitialized();
+  i::CpuFeatures::Probe(true);
 
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
-  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true, true);
+  int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   if (result > 0 || argc != 2 || i::FLAG_help) {
     ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
     i::FlagList::PrintHelp();

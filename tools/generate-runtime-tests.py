@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 import itertools
+import js2c
 import multiprocessing
 import optparse
 import os
@@ -16,26 +17,41 @@ import subprocess
 import sys
 import time
 
-# TODO(jkummerow): Support DATA_VIEW_{G,S}ETTER in runtime.cc
-
 FILENAME = "src/runtime.cc"
 HEADERFILENAME = "src/runtime.h"
 FUNCTION = re.compile("^RUNTIME_FUNCTION\(Runtime_(\w+)")
 ARGSLENGTH = re.compile(".*ASSERT\(.*args\.length\(\) == (\d+)\);")
 FUNCTIONEND = "}\n"
+MACRO = re.compile(r"^#define ([^ ]+)\(([^)]*)\) *([^\\]*)\\?\n$")
+FIRST_WORD = re.compile("^\s*(.*?)[\s({\[]")
 
 WORKSPACE = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), ".."))
 BASEPATH = os.path.join(WORKSPACE, "test", "mjsunit", "runtime-gen")
 THIS_SCRIPT = os.path.relpath(sys.argv[0])
 
+# Expand these macros, they define further runtime functions.
+EXPAND_MACROS = [
+  "BUFFER_VIEW_GETTER",
+  "DATA_VIEW_GETTER",
+  "DATA_VIEW_SETTER",
+  "RUNTIME_UNARY_MATH",
+]
+# TODO(jkummerow): We could also whitelist the following macros, but the
+# functions they define are so trivial that it's unclear how much benefit
+# that would provide:
+# ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+# FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
+# TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
+
 # Counts of functions in each detection state. These are used to assert
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 338
-EXPECTED_FUZZABLE_COUNT = 305
+EXPECTED_FUNCTION_COUNT = 362
+EXPECTED_FUZZABLE_COUNT = 329
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 5
+EXPECTED_BUILTINS_COUNT = 826
 
 
 # Don't call these at all.
@@ -283,10 +299,6 @@ class Generator(object):
     # 'foo12345' + (function() { return 'bar12345';})()
     return self._Variable(name,
         "\"%s\" + (function() { return \"%s\";})()" % (s1, s2))
-
-  def _ExternalString(self, name):
-    # Needs --expose-externalize-string.
-    return None
 
   def _InternalizedString(self, name):
     return self._Variable(name, "\"%s\"" % self._RawRandomString(0, 20))
@@ -580,6 +592,12 @@ class Generator(object):
                              "new %sArray(%s)" % (arraytype, ", ".join(args)),
                              fallback="new %sArray(8)" % arraytype))
 
+  def _JSArrayBufferView(self, name, recursion_budget):
+    if random.random() < 0.4:
+      return self._JSDataView(name, recursion_budget)
+    else:
+      return self._JSTypedArray(name, recursion_budget)
+
   def _JSWeakCollection(self, name, recursion_budget):
     ctor = random.choice([self._JSMap, self._JSSet])
     return ctor(name, recursion_budget, weak="Weak")
@@ -634,7 +652,8 @@ class Generator(object):
     "Int32": ["32", _Int32],
     "JSArray": ["new Array()", _JSArray],
     "JSArrayBuffer": ["new ArrayBuffer(8)", _JSArrayBuffer],
-    "JSDataView": ["new DataView(new ArrayBuffer(8))", _JSDataView],
+    "JSArrayBufferView": ["new Int32Array(2)", _JSArrayBufferView],
+    "JSDataView": ["new DataView(new ArrayBuffer(24))", _JSDataView],
     "JSDate": ["new Date()", _JSDate],
     "JSFunction": ["function() {}", _JSFunction],
     "JSFunctionProxy": ["Proxy.createFunction({}, function() {})",
@@ -757,6 +776,45 @@ class Function(object):
     return "".join(s)
 
 
+class Macro(object):
+  def __init__(self, match):
+    self.name = match.group(1)
+    self.args = [s.strip() for s in match.group(2).split(",")]
+    self.lines = []
+    self.indentation = 0
+    self.AddLine(match.group(3))
+
+  def AddLine(self, line):
+    if not line: return
+    if not self.lines:
+      # This is the first line, detect indentation.
+      self.indentation = len(line) - len(line.lstrip())
+    line = line.rstrip("\\\n ")
+    if not line: return
+    assert len(line[:self.indentation].strip()) == 0, \
+        ("expected whitespace: '%s', full line: '%s'" %
+         (line[:self.indentation], line))
+    line = line[self.indentation:]
+    if not line: return
+    self.lines.append(line + "\n")
+
+  def Finalize(self):
+    for arg in self.args:
+      pattern = re.compile(r"(##|\b)%s(##|\b)" % arg)
+      for i in range(len(self.lines)):
+        self.lines[i] = re.sub(pattern, "%%(%s)s" % arg, self.lines[i])
+
+  def FillIn(self, arg_values):
+    filler = {}
+    assert len(arg_values) == len(self.args)
+    for i in range(len(self.args)):
+      filler[self.args[i]] = arg_values[i]
+    result = []
+    for line in self.lines:
+      result.append(line % filler)
+    return result
+
+
 # Parses HEADERFILENAME to find out which runtime functions are "inline".
 def FindInlineRuntimeFunctions():
   inline_functions = []
@@ -778,48 +836,139 @@ def FindInlineRuntimeFunctions():
   return inline_functions
 
 
+def ReadFileAndExpandMacros(filename):
+  found_macros = {}
+  expanded_lines = []
+  with open(filename, "r") as f:
+    found_macro = None
+    for line in f:
+      if found_macro is not None:
+        found_macro.AddLine(line)
+        if not line.endswith("\\\n"):
+          found_macro.Finalize()
+          found_macro = None
+        continue
+
+      match = MACRO.match(line)
+      if match:
+        found_macro = Macro(match)
+        if found_macro.name in EXPAND_MACROS:
+          found_macros[found_macro.name] = found_macro
+        else:
+          found_macro = None
+        continue
+
+      match = FIRST_WORD.match(line)
+      if match:
+        first_word = match.group(1)
+        if first_word in found_macros:
+          MACRO_CALL = re.compile("%s\(([^)]*)\)" % first_word)
+          match = MACRO_CALL.match(line)
+          assert match
+          args = [s.strip() for s in match.group(1).split(",")]
+          expanded_lines += found_macros[first_word].FillIn(args)
+          continue
+
+      expanded_lines.append(line)
+  return expanded_lines
+
+
 # Detects runtime functions by parsing FILENAME.
 def FindRuntimeFunctions():
   inline_functions = FindInlineRuntimeFunctions()
   functions = []
-  with open(FILENAME, "r") as f:
-    function = None
+  expanded_lines = ReadFileAndExpandMacros(FILENAME)
+  function = None
+  partial_line = ""
+  for line in expanded_lines:
+    # Multi-line definition support, ignoring macros.
+    if line.startswith("RUNTIME_FUNCTION") and not line.endswith("{\n"):
+      if line.endswith("\\\n"): continue
+      partial_line = line.rstrip()
+      continue
+    if partial_line:
+      partial_line += " " + line.strip()
+      if partial_line.endswith("{"):
+        line = partial_line
+        partial_line = ""
+      else:
+        continue
+
+    match = FUNCTION.match(line)
+    if match:
+      function = Function(match)
+      if function.name in inline_functions:
+        function.inline = "_"
+      continue
+    if function is None: continue
+
+    match = ARGSLENGTH.match(line)
+    if match:
+      function.SetArgsLength(match)
+      continue
+
+    if function.TryParseArg(line):
+      continue
+
+    if line == FUNCTIONEND:
+      if function is not None:
+        functions.append(function)
+        function = None
+  return functions
+
+
+# Hack: This must have the same fields as class Function above, because the
+# two are used polymorphically in RunFuzzer(). We could use inheritance...
+class Builtin(object):
+  def __init__(self, match):
+    self.name = match.group(1)
+    args = match.group(2)
+    self.argslength = 0 if args == "" else args.count(",") + 1
+    self.inline = ""
+    self.args = {}
+    if self.argslength > 0:
+      args = args.split(",")
+      for i in range(len(args)):
+        # a = args[i].strip()  # TODO: filter out /* comments */ first.
+        a = ""
+        self.args[i] = Arg("Object", a, i)
+
+  def __str__(self):
+    return "%s(%d)" % (self.name, self.argslength)
+
+
+def FindJSBuiltins():
+  PATH = "src"
+  fileslist = []
+  for (root, dirs, files) in os.walk(PATH):
+    for f in files:
+      if f.endswith(".js"):
+        fileslist.append(os.path.join(root, f))
+  builtins = []
+  regexp = re.compile("^function (\w+)\s*\((.*?)\) {")
+  matches = 0
+  for filename in fileslist:
+    with open(filename, "r") as f:
+      file_contents = f.read()
+    file_contents = js2c.ExpandInlineMacros(file_contents)
+    lines = file_contents.split("\n")
     partial_line = ""
-    for line in f:
-      # Multi-line definition support, ignoring macros.
-      if line.startswith("RUNTIME_FUNCTION") and not line.endswith("{\n"):
-        if line.endswith("\\\n"): continue
-        partial_line = line.rstrip()
+    for line in lines:
+      if line.startswith("function") and not '{' in line:
+        partial_line += line.rstrip()
         continue
       if partial_line:
         partial_line += " " + line.strip()
-        if partial_line.endswith("{"):
+        if '{' in line:
           line = partial_line
           partial_line = ""
         else:
           continue
-
-      match = FUNCTION.match(line)
+      match = regexp.match(line)
       if match:
-        function = Function(match)
-        if function.name in inline_functions:
-          function.inline = "_"
-        continue
-      if function is None: continue
+        builtins.append(Builtin(match))
+  return builtins
 
-      match = ARGSLENGTH.match(line)
-      if match:
-        function.SetArgsLength(match)
-        continue
-
-      if function.TryParseArg(line):
-        continue
-
-      if line == FUNCTIONEND:
-        if function is not None:
-          functions.append(function)
-          function = None
-  return functions
 
 # Classifies runtime functions.
 def ClassifyFunctions(functions):
@@ -921,7 +1070,23 @@ def _SaveFileName(save_path, process_id, save_file_index):
   return "%s/fuzz_%d_%d.js" % (save_path, process_id, save_file_index)
 
 
+def _GetFuzzableRuntimeFunctions():
+  functions = FindRuntimeFunctions()
+  (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions) = \
+      ClassifyFunctions(functions)
+  return js_fuzzable_functions
+
+
+FUZZ_TARGET_LISTS = {
+  "runtime": _GetFuzzableRuntimeFunctions,
+  "builtins": FindJSBuiltins,
+}
+
+
 def RunFuzzer(process_id, options, stop_running):
+  MAX_SLEEP_TIME = 0.1
+  INITIAL_SLEEP_TIME = 0.001
+  SLEEP_TIME_FACTOR = 1.25
   base_file_name = "/dev/shm/runtime_fuzz_%d" % process_id
   test_file_name = "%s.js" % base_file_name
   stderr_file_name = "%s.out" % base_file_name
@@ -929,19 +1094,14 @@ def RunFuzzer(process_id, options, stop_running):
   while os.path.exists(_SaveFileName(options.save_path, process_id,
                                      save_file_index)):
     save_file_index += 1
-  MAX_SLEEP_TIME = 0.1
-  INITIAL_SLEEP_TIME = 0.001
-  SLEEP_TIME_FACTOR = 1.5
 
-  functions = FindRuntimeFunctions()
-  (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions) = \
-      ClassifyFunctions(functions)
-
+  targets = FUZZ_TARGET_LISTS[options.fuzz_target]()
   try:
     for i in range(options.num_tests):
       if stop_running.is_set(): break
-      function = random.choice(js_fuzzable_functions)  # TODO: others too
-      if function.argslength == 0: continue
+      function = None
+      while function is None or function.argslength == 0:
+        function = random.choice(targets)
       args = []
       definitions = []
       gen = Generator()
@@ -989,11 +1149,11 @@ def RunFuzzer(process_id, options, stop_running):
         save_file_index += 1
   except KeyboardInterrupt:
     stop_running.set()
-  except Exception, e:
-    print e
   finally:
-    os.remove(test_file_name)
-    os.remove(stderr_file_name)
+    if os.path.exists(test_file_name):
+      os.remove(test_file_name)
+    if os.path.exists(stderr_file_name):
+      os.remove(stderr_file_name)
 
 
 def BuildOptionParser():
@@ -1013,6 +1173,9 @@ fuzz      Generate fuzz tests, run them, save those that crashed (see options).
   o = optparse.OptionParser(usage=usage)
   o.add_option("--binary", default="out/x64.debug/d8",
                help="d8 binary used for running fuzz tests (default: %default)")
+  o.add_option("--fuzz-target", default="runtime",
+               help="Set of functions targeted by fuzzing. Allowed values: "
+                    "%s (default: %%default)" % ", ".join(FUZZ_TARGET_LISTS))
   o.add_option("-n", "--num-tests", default=1000, type="int",
                help="Number of fuzz tests to generate per worker process"
                     " (default: %default)")
@@ -1025,12 +1188,21 @@ fuzz      Generate fuzz tests, run them, save those that crashed (see options).
   return o
 
 
+def ProcessOptions(options, args):
+  options.save_path = os.path.expanduser(options.save_path)
+  if options.fuzz_target not in FUZZ_TARGET_LISTS:
+    print("Invalid fuzz target: %s" % options.fuzz_target)
+    return False
+  if len(args) != 1 or args[0] == "help":
+    return False
+  return True
+
+
 def Main():
   parser = BuildOptionParser()
   (options, args) = parser.parse_args()
-  options.save_path = os.path.expanduser(options.save_path)
 
-  if len(args) != 1 or args[0] == "help":
+  if not ProcessOptions(options, args):
     parser.print_help()
     return 1
   action = args[0]
@@ -1038,14 +1210,10 @@ def Main():
   functions = FindRuntimeFunctions()
   (js_fuzzable_functions, cctest_fuzzable_functions, unknown_functions) = \
       ClassifyFunctions(functions)
+  builtins = FindJSBuiltins()
 
   if action == "test":
-    gen = Generator()
-    vartype = "JSTypedArray"
-    print("simple: %s" % gen.RandomVariable("x", vartype, True))
-    for i in range(10):
-      print("----")
-      print("%s" % "\n".join(gen.RandomVariable("x", vartype, False)))
+    print("put your temporary debugging code here")
     return 0
 
   if action == "info":
@@ -1053,6 +1221,7 @@ def Main():
           "cctest_fuzzable_functions: %d, unknown_functions: %d"
           % (len(functions), len(js_fuzzable_functions),
              len(cctest_fuzzable_functions), len(unknown_functions)))
+    print("%d JavaScript builtins" % len(builtins))
     print("unknown functions:")
     for f in unknown_functions:
       print(f)
@@ -1078,6 +1247,8 @@ def Main():
                          "cctest-fuzzable functions")
     errors += CheckCount(unknown_functions, EXPECTED_UNKNOWN_COUNT,
                          "functions with incomplete type information")
+    errors += CheckCount(builtins, EXPECTED_BUILTINS_COUNT,
+                         "JavaScript builtins")
 
     def CheckTestcasesExisting(functions):
       errors = 0
@@ -1098,6 +1269,19 @@ def Main():
       return errors
 
     errors += CheckTestcasesExisting(js_fuzzable_functions)
+
+    def CheckNameClashes(runtime_functions, builtins):
+      errors = 0
+      runtime_map = {}
+      for f in runtime_functions:
+        runtime_map[f.name] = 1
+      for b in builtins:
+        if b.name in runtime_map:
+          print("Builtin/Runtime_Function name clash: %s" % b.name)
+          errors += 1
+      return errors
+
+    errors += CheckNameClashes(functions, builtins)
 
     if errors > 0:
       return 1

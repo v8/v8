@@ -336,13 +336,8 @@ def Main():
   workspace = os.path.abspath(join(os.path.dirname(sys.argv[0]), ".."))
   if not options.no_presubmit:
     print ">>> running presubmit tests"
-    code = subprocess.call(
+    exit_code = subprocess.call(
         [sys.executable, join(workspace, "tools", "presubmit.py")])
-    exit_code = code
-    code = subprocess.call(
-        [sys.executable, join(workspace, "tools", "generate-runtime-tests.py"),
-         "check"])
-    exit_code = exit_code or code
 
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
 

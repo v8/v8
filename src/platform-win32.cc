@@ -1191,7 +1191,7 @@ void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
 
 
-uint64_t OS::CpuFeaturesImpliedByPlatform() {
+unsigned OS::CpuFeaturesImpliedByPlatform() {
   return 0;  // Windows runs on anything.
 }
 

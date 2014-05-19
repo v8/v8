@@ -272,7 +272,7 @@ class OS {
   // This is a little messy because the interpretation is subject to the cross
   // of the CPU and the OS.  The bits in the answer correspond to the bit
   // positions indicated by the members of the CpuFeature enum from globals.h
-  static uint64_t CpuFeaturesImpliedByPlatform();
+  static unsigned CpuFeaturesImpliedByPlatform();
 
   // The total amount of physical memory available on the current system.
   static uint64_t TotalPhysicalMemory();

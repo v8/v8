@@ -45,21 +45,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
-bool CpuFeatures::initialized_ = false;
-#endif
-unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
-unsigned CpuFeatures::cross_compile_ = 0;
-unsigned CpuFeatures::cache_line_size_ = 64;
-
-
-ExternalReference ExternalReference::cpu_features() {
-  ASSERT(CpuFeatures::initialized_);
-  return ExternalReference(&CpuFeatures::supported_);
-}
-
-
 // Get the CPU features enabled by the build. For cross compilation the
 // preprocessor symbols CAN_USE_ARMV7_INSTRUCTIONS and CAN_USE_VFP3_INSTRUCTIONS
 // can be defined to enable ARMv7 and VFPv3 instructions when building the
@@ -67,24 +52,16 @@ ExternalReference ExternalReference::cpu_features() {
 static unsigned CpuFeaturesImpliedByCompiler() {
   unsigned answer = 0;
 #ifdef CAN_USE_ARMV7_INSTRUCTIONS
-  if (FLAG_enable_armv7) {
-    answer |= 1u << ARMv7;
-  }
+  if (FLAG_enable_armv7) answer |= 1u << ARMv7;
 #endif  // CAN_USE_ARMV7_INSTRUCTIONS
 #ifdef CAN_USE_VFP3_INSTRUCTIONS
-  if (FLAG_enable_vfp3) {
-    answer |= 1u << VFP3 | 1u << ARMv7;
-  }
+  if (FLAG_enable_vfp3) answer |= 1u << VFP3 | 1u << ARMv7;
 #endif  // CAN_USE_VFP3_INSTRUCTIONS
 #ifdef CAN_USE_VFP32DREGS
-  if (FLAG_enable_32dregs) {
-    answer |= 1u << VFP32DREGS;
-  }
+  if (FLAG_enable_32dregs) answer |= 1u << VFP32DREGS;
 #endif  // CAN_USE_VFP32DREGS
 #ifdef CAN_USE_NEON
-  if (FLAG_enable_neon) {
-    answer |= 1u << NEON;
-  }
+  if (FLAG_enable_neon) answer |= 1u << NEON;
 #endif  // CAN_USE_VFP32DREGS
   if ((answer & (1u << ARMv7)) && FLAG_enable_unaligned_accesses) {
     answer |= 1u << UNALIGNED_ACCESSES;
@@ -94,114 +71,57 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 
-const char* DwVfpRegister::AllocationIndexToString(int index) {
-  ASSERT(index >= 0 && index < NumAllocatableRegisters());
-  ASSERT(kScratchDoubleReg.code() - kDoubleRegZero.code() ==
-         kNumReservedRegisters - 1);
-  if (index >= kDoubleRegZero.code())
-    index += kNumReservedRegisters;
+void CpuFeatures::ProbeImpl(bool cross_compile) {
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
+  cache_line_size_ = 64;
 
-  return VFPRegisters::Name(index, true);
-}
-
-
-void CpuFeatures::Probe(bool serializer_enabled) {
-  uint64_t standard_features = static_cast<unsigned>(
-      OS::CpuFeaturesImpliedByPlatform()) | CpuFeaturesImpliedByCompiler();
-  ASSERT(supported_ == 0 ||
-         (supported_ & standard_features) == standard_features);
-#ifdef DEBUG
-  initialized_ = true;
-#endif
-
-  // Get the features implied by the OS and the compiler settings. This is the
-  // minimal set of features which is also alowed for generated code in the
-  // snapshot.
-  supported_ |= standard_features;
-
-  if (serializer_enabled) {
-    // No probing for features if we might serialize (generate snapshot).
-    return;
-  }
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
 
 #ifndef __arm__
-  // For the simulator=arm build, use ARMv7 when FLAG_enable_armv7 is enabled
+  // For the simulator build, use whatever the flags specify.
   if (FLAG_enable_armv7) {
-    supported_ |= static_cast<uint64_t>(1) << ARMv7;
-    if (FLAG_enable_vfp3) {
-      supported_ |= static_cast<uint64_t>(1) << VFP3;
-    }
-    if (FLAG_enable_neon) {
-      supported_ |= 1u << NEON;
-      supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
-    }
-    if (FLAG_enable_sudiv) {
-      supported_ |= static_cast<uint64_t>(1) << SUDIV;
-    }
-    if (FLAG_enable_movw_movt) {
-      supported_ |= static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
-    }
-    if (FLAG_enable_32dregs) {
-      supported_ |= static_cast<uint64_t>(1) << VFP32DREGS;
-    }
+    supported_ |= 1u << ARMv7;
+    if (FLAG_enable_vfp3) supported_ |= 1u << VFP3;
+    if (FLAG_enable_neon) supported_ |= 1u << NEON | 1u << VFP32DREGS;
+    if (FLAG_enable_sudiv)  supported_ |= 1u << SUDIV;
+    if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
+    if (FLAG_enable_32dregs) supported_ |= 1u << VFP32DREGS;
   }
-  if (FLAG_enable_unaligned_accesses) {
-    supported_ |= static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
-  }
+  if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
 
 #else  // __arm__
-  // Probe for additional features not already known to be available.
+  // Probe for additional features at runtime.
   CPU cpu;
-  if (!IsSupported(VFP3) && FLAG_enable_vfp3 && cpu.has_vfp3()) {
+  if (FLAG_enable_vfp3 && cpu.has_vfp3()) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
     // 0406B, page A1-6.
-    found_by_runtime_probing_only_ |=
-        static_cast<uint64_t>(1) << VFP3 |
-        static_cast<uint64_t>(1) << ARMv7;
+    supported_ |= 1u << VFP3 | 1u << ARMv7;
   }
 
-  if (!IsSupported(NEON) && FLAG_enable_neon && cpu.has_neon()) {
-    found_by_runtime_probing_only_ |= 1u << NEON;
-  }
+  if (FLAG_enable_neon && cpu.has_neon()) supported_ |= 1u << NEON;
+  if (FLAG_enable_sudiv && cpu.has_idiva()) supported_ |= 1u << SUDIV;
 
-  if (!IsSupported(ARMv7) && FLAG_enable_armv7 && cpu.architecture() >= 7) {
-    found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << ARMv7;
-  }
-
-  if (!IsSupported(SUDIV) && FLAG_enable_sudiv && cpu.has_idiva()) {
-    found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << SUDIV;
-  }
-
-  if (!IsSupported(UNALIGNED_ACCESSES) && FLAG_enable_unaligned_accesses
-      && cpu.architecture() >= 7) {
-    found_by_runtime_probing_only_ |=
-        static_cast<uint64_t>(1) << UNALIGNED_ACCESSES;
-  }
-
-  // Use movw/movt for QUALCOMM ARMv7 cores.
-  if (cpu.implementer() == CPU::QUALCOMM &&
-      cpu.architecture() >= 7 &&
-      FLAG_enable_movw_movt) {
-    found_by_runtime_probing_only_ |=
-        static_cast<uint64_t>(1) << MOVW_MOVT_IMMEDIATE_LOADS;
+  if (cpu.architecture() >= 7) {
+    if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
+    if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
+    // Use movw/movt for QUALCOMM ARMv7 cores.
+    if (FLAG_enable_movw_movt && cpu.implementer() == CPU::QUALCOMM) {
+      supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
+    }
   }
 
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
-  if (cpu.implementer() == CPU::ARM &&
-      (cpu.part() == CPU::ARM_CORTEX_A5 ||
-       cpu.part() == CPU::ARM_CORTEX_A9)) {
+  if (cpu.implementer() == CPU::ARM && (cpu.part() == CPU::ARM_CORTEX_A5 ||
+                                        cpu.part() == CPU::ARM_CORTEX_A9)) {
     cache_line_size_ = 32;
   }
 
-  if (!IsSupported(VFP32DREGS) && FLAG_enable_32dregs && cpu.has_vfp3_d32()) {
-    found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << VFP32DREGS;
-  }
-
-  supported_ |= found_by_runtime_probing_only_;
+  if (FLAG_enable_32dregs && cpu.has_vfp3_d32()) supported_ |= 1u << VFP32DREGS;
 #endif
 
-  // Assert that VFP3 implies ARMv7.
   ASSERT(!IsSupported(VFP3) || IsSupported(ARMv7));
 }
 
@@ -280,6 +200,18 @@ void CpuFeatures::PrintFeatures() {
   bool eabi_hardfloat = false;
 #endif
     printf(" USE_EABI_HARDFLOAT=%d\n", eabi_hardfloat);
+}
+
+
+// -----------------------------------------------------------------------------
+// Implementation of DwVfpRegister
+
+const char* DwVfpRegister::AllocationIndexToString(int index) {
+  ASSERT(index >= 0 && index < NumAllocatableRegisters());
+  ASSERT(kScratchDoubleReg.code() - kDoubleRegZero.code() ==
+         kNumReservedRegisters - 1);
+  if (index >= kDoubleRegZero.code()) index += kNumReservedRegisters;
+  return VFPRegisters::Name(index, true);
 }
 
 
@@ -1074,11 +1006,10 @@ static bool fits_shifter(uint32_t imm32,
 // if they can be encoded in the ARM's 12 bits of immediate-offset instruction
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
-bool Operand::must_output_reloc_info(Isolate* isolate,
-                                     const Assembler* assembler) const {
+bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
     if (assembler != NULL && assembler->predictable_code_size()) return true;
-    return Serializer::enabled(isolate);
+    return assembler->serializer_enabled();
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
   }
@@ -1086,8 +1017,7 @@ bool Operand::must_output_reloc_info(Isolate* isolate,
 }
 
 
-static bool use_mov_immediate_load(Isolate* isolate,
-                                   const Operand& x,
+static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
   if (assembler != NULL && !assembler->can_use_constant_pool()) {
     // If there is no constant pool available, we must use an mov immediate.
@@ -1098,7 +1028,7 @@ static bool use_mov_immediate_load(Isolate* isolate,
              (assembler == NULL || !assembler->predictable_code_size())) {
     // Prefer movw / movt to constant pool if it is more efficient on the CPU.
     return true;
-  } else if (x.must_output_reloc_info(isolate, assembler)) {
+  } else if (x.must_output_reloc_info(assembler)) {
     // Prefer constant pool if data is likely to be patched.
     return false;
   } else {
@@ -1108,18 +1038,17 @@ static bool use_mov_immediate_load(Isolate* isolate,
 }
 
 
-bool Operand::is_single_instruction(Isolate* isolate,
-                                    const Assembler* assembler,
+bool Operand::is_single_instruction(const Assembler* assembler,
                                     Instr instr) const {
   if (rm_.is_valid()) return true;
   uint32_t dummy1, dummy2;
-  if (must_output_reloc_info(isolate, assembler) ||
+  if (must_output_reloc_info(assembler) ||
       !fits_shifter(imm32_, &dummy1, &dummy2, &instr)) {
     // The immediate operand cannot be encoded as a shifter operand, or use of
     // constant pool is required. For a mov instruction not setting the
     // condition code additional instruction conventions can be used.
     if ((instr & ~kCondMask) == 13*B21) {  // mov, S not set
-      return !use_mov_immediate_load(isolate, *this, assembler);
+      return !use_mov_immediate_load(*this, assembler);
     } else {
       // If this is not a mov or mvn instruction there will always an additional
       // instructions - either mov or ldr. The mov might actually be two
@@ -1139,16 +1068,16 @@ void Assembler::move_32_bit_immediate(Register rd,
                                       const Operand& x,
                                       Condition cond) {
   RelocInfo rinfo(pc_, x.rmode_, x.imm32_, NULL);
-  if (x.must_output_reloc_info(isolate(), this)) {
+  if (x.must_output_reloc_info(this)) {
     RecordRelocInfo(rinfo);
   }
 
-  if (use_mov_immediate_load(isolate(), x, this)) {
+  if (use_mov_immediate_load(x, this)) {
     Register target = rd.code() == pc.code() ? ip : rd;
     // TODO(rmcilroy): add ARMv6 support for immediate loads.
     ASSERT(CpuFeatures::IsSupported(ARMv7));
     if (!FLAG_enable_ool_constant_pool &&
-        x.must_output_reloc_info(isolate(), this)) {
+        x.must_output_reloc_info(this)) {
       // Make sure the movw/movt doesn't get separated.
       BlockConstPoolFor(2);
     }
@@ -1176,7 +1105,7 @@ void Assembler::addrmod1(Instr instr,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (x.must_output_reloc_info(isolate(), this) ||
+    if (x.must_output_reloc_info(this) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -1858,7 +1787,7 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // Immediate.
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if (src.must_output_reloc_info(isolate(), this) ||
+    if (src.must_output_reloc_info(this) ||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // Immediate operand cannot be encoded, load it first to register ip.
       move_32_bit_immediate(ip, src);
@@ -3260,10 +3189,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 void Assembler::RecordRelocInfo(const RelocInfo& rinfo) {
   if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
-    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE) {
-      if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-        return;
-      }
+    if (rinfo.rmode() == RelocInfo::EXTERNAL_REFERENCE &&
+        !serializer_enabled() && !emit_debug_code()) {
+      return;
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rinfo.rmode() == RelocInfo::CODE_TARGET_WITH_ID) {
@@ -3492,8 +3420,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
         //   data
 
         bool found = false;
-        if (!Serializer::enabled(isolate()) &&
-            (rinfo.rmode() >= RelocInfo::CELL)) {
+        if (!serializer_enabled() && rinfo.rmode() >= RelocInfo::CELL) {
           for (int j = 0; j < i; j++) {
             RelocInfo& rinfo2 = pending_32_bit_reloc_info_[j];
 
@@ -3597,7 +3524,7 @@ void ConstantPoolBuilder::AddEntry(Assembler* assm,
   // Try to merge entries which won't be patched.
   int merged_index = -1;
   if (RelocInfo::IsNone(rmode) ||
-      (!Serializer::enabled(assm->isolate()) && (rmode >= RelocInfo::CELL))) {
+      (!assm->serializer_enabled() && (rmode >= RelocInfo::CELL))) {
     size_t i;
     std::vector<RelocInfo>::const_iterator it;
     for (it = entries_.begin(), i = 0; it != entries_.end(); it++, i++) {

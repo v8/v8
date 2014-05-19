@@ -21,10 +21,11 @@ function ClearMirrorCache() {
 
 // Wrapper to check whether an object is a Promise.  The call may not work
 // if promises are not enabled.
-// TODO(yangguo): remove this wrapper once promises are enabled by default.
+// TODO(yangguo): remove try-catch once promises are enabled by default.
 function ObjectIsPromise(value) {
   try {
-    return %IsPromise(value);
+    return IS_SPEC_OBJECT(value) &&
+           !IS_UNDEFINED(%DebugGetProperty(value, builtins.promiseStatus));
   } catch (e) {
     return false;
   }
@@ -798,7 +799,8 @@ ObjectMirror.prototype.toText = function() {
 
 /**
  * Return the internal properties of the value, such as [[PrimitiveValue]] of
- * scalar wrapper objects and properties of the bound function.
+ * scalar wrapper objects, properties of the bound function and properties of
+ * the promise.
  * This method is done static to be accessible from Debug API with the bare
  * values without mirrors.
  * @return {Array} array (possibly empty) of InternalProperty instances
@@ -821,6 +823,13 @@ ObjectMirror.GetInternalProperties = function(value) {
       }
       result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
     }
+    return result;
+  } else if (ObjectIsPromise(value)) {
+    var result = [];
+    result.push(new InternalPropertyMirror("[[PromiseStatus]]",
+                                           PromiseGetStatus_(value)));
+    result.push(new InternalPropertyMirror("[[PromiseValue]]",
+                                           PromiseGetValue_(value)));
     return result;
   }
   return [];
@@ -1185,16 +1194,26 @@ function PromiseMirror(value) {
 inherits(PromiseMirror, ObjectMirror);
 
 
-PromiseMirror.prototype.status = function() {
-  var status = builtins.GetPromiseStatus(this.value_);
+function PromiseGetStatus_(value) {
+  var status = %DebugGetProperty(value, builtins.promiseStatus);
   if (status == 0) return "pending";
   if (status == 1) return "resolved";
   return "rejected";
+}
+
+
+function PromiseGetValue_(value) {
+  return %DebugGetProperty(value, builtins.promiseValue);
+}
+
+
+PromiseMirror.prototype.status = function() {
+  return PromiseGetStatus_(this.value_);
 };
 
 
 PromiseMirror.prototype.promiseValue = function() {
-  return builtins.GetPromiseValue(this.value_);
+  return MakeMirror(PromiseGetValue_(this.value_));
 };
 
 
@@ -2515,7 +2534,7 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   if (mirror.isPromise()) {
     // Add promise specific properties.
     content.status = mirror.status();
-    content.promiseValue = mirror.promiseValue();
+    content.promiseValue = this.serializeReference(mirror.promiseValue());
   }
 
   // Add actual properties - named properties followed by indexed properties.

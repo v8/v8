@@ -46,6 +46,10 @@
 namespace v8 {
 namespace internal {
 
+
+bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
+
+
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 

@@ -96,9 +96,7 @@ void V8::InitializeOncePerProcessImpl() {
   platform_ = new DefaultPlatform;
 #endif
   Sampler::SetUp();
-  // TODO(svenpanne) Clean this up when Serializer is a real object.
-  bool serializer_enabled = Serializer::enabled(NULL);
-  CpuFeatures::Probe(serializer_enabled);
+  CpuFeatures::Probe(false);
   OS::PostSetUp();
   // The custom exp implementation needs 16KB of lookup data; initialize it
   // on demand.

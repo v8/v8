@@ -108,23 +108,30 @@ function DoRegExpExec(regexp, string, index) {
 }
 
 
-function BuildResultFromMatchInfo(lastMatchInfo, s) {
-  var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
-  var start = lastMatchInfo[CAPTURE0];
-  var end = lastMatchInfo[CAPTURE1];
-  var result = %_RegExpConstructResult(numResults, start, s);
-  result[0] = %_SubString(s, start, end);
+// This is kind of performance sensitive, so we want to avoid unnecessary
+// type checks on inputs. But we also don't want to inline it several times
+// manually, so we use a macro :-)
+macro RETURN_NEW_RESULT_FROM_MATCH_INFO(MATCHINFO, STRING)
+  var numResults = NUMBER_OF_CAPTURES(MATCHINFO) >> 1;
+  var start = MATCHINFO[CAPTURE0];
+  var end = MATCHINFO[CAPTURE1];
+  // Calculate the substring of the first match before creating the result array
+  // to avoid an unnecessary write barrier storing the first result.
+  var first = %_SubString(STRING, start, end);
+  var result = %_RegExpConstructResult(numResults, start, STRING);
+  result[0] = first;
+  if (numResults == 1) return result;
   var j = REGEXP_FIRST_CAPTURE + 2;
   for (var i = 1; i < numResults; i++) {
-    start = lastMatchInfo[j++];
+    start = MATCHINFO[j++];
     if (start != -1) {
-      end = lastMatchInfo[j];
-      result[i] = %_SubString(s, start, end);
+      end = MATCHINFO[j];
+      result[i] = %_SubString(STRING, start, end);
     }
     j++;
   }
   return result;
-}
+endmacro
 
 
 function RegExpExecNoTests(regexp, string, start) {
@@ -132,7 +139,7 @@ function RegExpExecNoTests(regexp, string, start) {
   var matchInfo = %_RegExpExec(regexp, string, start, lastMatchInfo);
   if (matchInfo !== null) {
     lastMatchInfoOverride = null;
-    return BuildResultFromMatchInfo(matchInfo, string);
+    RETURN_NEW_RESULT_FROM_MATCH_INFO(matchInfo, string);
   }
   regexp.lastIndex = 0;
   return null;
@@ -175,7 +182,7 @@ function RegExpExec(string) {
   if (global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
   }
-  return BuildResultFromMatchInfo(matchIndices, string);
+  RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
 }
 
 

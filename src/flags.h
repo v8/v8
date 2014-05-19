@@ -42,8 +42,7 @@ class FlagList {
   //   --            (equivalent to --js_arguments, captures all remaining args)
   static int SetFlagsFromCommandLine(int* argc,
                                      char** argv,
-                                     bool remove_flags,
-                                     bool serializer_enabled = false);
+                                     bool remove_flags);
 
   // Set the flag values by parsing the string str. Splits string into argc
   // substrings argv[], each of which consisting of non-white-space chars,
@@ -58,10 +57,6 @@ class FlagList {
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();
-
- private:
-  // TODO(svenpanne) Remove this when Serializer/startup has been refactored.
-  static bool serializer_enabled_;
 };
 
 } }  // namespace v8::internal

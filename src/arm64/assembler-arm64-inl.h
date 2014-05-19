@@ -14,6 +14,9 @@ namespace v8 {
 namespace internal {
 
 
+bool CpuFeatures::SupportsCrankshaft() { return true; }
+
+
 void RelocInfo::apply(intptr_t delta) {
   UNIMPLEMENTED();
 }

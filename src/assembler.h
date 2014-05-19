@@ -65,6 +65,8 @@ class AssemblerBase: public Malloced {
   bool emit_debug_code() const { return emit_debug_code_; }
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
+  bool serializer_enabled() const { return serializer_enabled_; }
+
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
@@ -104,6 +106,7 @@ class AssemblerBase: public Malloced {
   uint64_t enabled_cpu_features_;
   bool emit_debug_code_;
   bool predictable_code_size_;
+  bool serializer_enabled_;
 };
 
 
@@ -154,16 +157,47 @@ class CpuFeatureScope BASE_EMBEDDED {
 };
 
 
-// Enable a unsupported feature within a scope for cross-compiling for a
-// different CPU.
-class PlatformFeatureScope BASE_EMBEDDED {
+// CpuFeatures keeps track of which features are supported by the target CPU.
+// Supported features must be enabled by a CpuFeatureScope before use.
+// Example:
+//   if (assembler->IsSupported(SSE3)) {
+//     CpuFeatureScope fscope(assembler, SSE3);
+//     // Generate code containing SSE3 instructions.
+//   } else {
+//     // Generate alternative code.
+//   }
+class CpuFeatures : public AllStatic {
  public:
-  PlatformFeatureScope(Isolate* isolate, CpuFeature f);
-  ~PlatformFeatureScope();
+  static void Probe(bool cross_compile) {
+    STATIC_ASSERT(NUMBER_OF_CPU_FEATURES <= kBitsPerInt);
+    if (initialized_) return;
+    initialized_ = true;
+    ProbeImpl(cross_compile);
+  }
+
+  static bool IsSupported(CpuFeature f) {
+    return (supported_ & (1u << f)) != 0;
+  }
+
+  static inline bool SupportsCrankshaft();
+
+  static inline unsigned cache_line_size() {
+    ASSERT(cache_line_size_ != 0);
+    return cache_line_size_;
+  }
+
+  static void PrintTarget();
+  static void PrintFeatures();
 
  private:
-  Isolate* isolate_;
-  uint64_t old_cross_compile_;
+  // Platform-dependent implementation.
+  static void ProbeImpl(bool cross_compile);
+
+  static unsigned supported_;
+  static unsigned cache_line_size_;
+  static bool initialized_;
+  friend class ExternalReference;
+  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 

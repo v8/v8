@@ -194,8 +194,6 @@ class CodeStub BASE_EMBEDDED {
   // Generates the assembler code for the stub.
   virtual Handle<Code> GenerateCode() = 0;
 
-  virtual void VerifyPlatformFeatures();
-
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
@@ -1130,8 +1128,6 @@ class BinaryOpICStub : public HydrogenCodeStub {
     return state_.GetExtraICState();
   }
 
-  virtual void VerifyPlatformFeatures() V8_FINAL V8_OVERRIDE { }
-
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
   const BinaryOpIC::State& state() const { return state_; }
@@ -1184,8 +1180,6 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
   virtual ExtraICState GetExtraICState() V8_OVERRIDE {
     return state_.GetExtraICState();
   }
-
-  virtual void VerifyPlatformFeatures() V8_OVERRIDE { }
 
   virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
 
@@ -1265,8 +1259,6 @@ class StringAddStub V8_FINAL : public HydrogenCodeStub {
   PretenureFlag pretenure_flag() const {
     return PretenureFlagBits::decode(bit_field_);
   }
-
-  virtual void VerifyPlatformFeatures() V8_OVERRIDE { }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
@@ -1476,9 +1468,6 @@ class CEntryStub : public PlatformCodeStub {
   // their code generation.  On machines that always have gp registers (x64) we
   // can generate both variants ahead of time.
   static void GenerateAheadOfTime(Isolate* isolate);
-
- protected:
-  virtual void VerifyPlatformFeatures() V8_OVERRIDE { }
 
  private:
   // Number of pointers/values returned.
@@ -1874,7 +1863,7 @@ class DoubleToIStub : public PlatformCodeStub {
       OffsetBits::encode(offset) |
       IsTruncatingBits::encode(is_truncating) |
       SkipFastPathBits::encode(skip_fastpath) |
-      SSE3Bits::encode(CpuFeatures::IsSafeForSnapshot(isolate, SSE3) ? 1 : 0);
+      SSE3Bits::encode(CpuFeatures::IsSupported(SSE3) ? 1 : 0);
   }
 
   Register source() {
@@ -1900,9 +1889,6 @@ class DoubleToIStub : public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual bool SometimesSetsUpAFrame() { return false; }
-
- protected:
-  virtual void VerifyPlatformFeatures() V8_OVERRIDE { }
 
  private:
   static const int kBitsPerRegisterNumber = 6;

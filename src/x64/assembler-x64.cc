@@ -15,55 +15,25 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // Implementation of CpuFeatures
 
-
-#ifdef DEBUG
-bool CpuFeatures::initialized_ = false;
-#endif
-uint64_t CpuFeatures::supported_ = 0;
-uint64_t CpuFeatures::found_by_runtime_probing_only_ = 0;
-uint64_t CpuFeatures::cross_compile_ = 0;
-
-ExternalReference ExternalReference::cpu_features() {
-  ASSERT(CpuFeatures::initialized_);
-  return ExternalReference(&CpuFeatures::supported_);
-}
-
-
-void CpuFeatures::Probe(bool serializer_enabled) {
-  ASSERT(supported_ == 0);
-#ifdef DEBUG
-  initialized_ = true;
-#endif
-  supported_ = 0;
-  if (serializer_enabled) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    return;  // No features if we might serialize.
-  }
-
-  uint64_t probed_features = 0;
+void CpuFeatures::ProbeImpl(bool cross_compile) {
   CPU cpu;
-  if (cpu.has_sse41()) {
-    probed_features |= static_cast<uint64_t>(1) << SSE4_1;
-  }
-  if (cpu.has_sse3()) {
-    probed_features |= static_cast<uint64_t>(1) << SSE3;
-  }
+  CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
+  CHECK(cpu.has_cmov());  // CMOV support is mandatory.
 
-  // SSE2 must be available on every x64 CPU.
-  ASSERT(cpu.has_sse2());
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
 
-  // CMOV must be available on every x64 CPU.
-  ASSERT(cpu.has_cmov());
+  // Only use statically determined features for cross compile (snapshot).
+  if (cross_compile) return;
 
+  if (cpu.has_sse41() && FLAG_enable_sse4_1) supported_ |= 1u << SSE4_1;
+  if (cpu.has_sse3() && FLAG_enable_sse3) supported_ |= 1u << SSE3;
   // SAHF is not generally available in long mode.
-  if (cpu.has_sahf()) {
-    probed_features |= static_cast<uint64_t>(1) << SAHF;
-  }
-
-  uint64_t platform_features = OS::CpuFeaturesImpliedByPlatform();
-  supported_ = probed_features | platform_features;
-  found_by_runtime_probing_only_ = probed_features & ~platform_features;
+  if (cpu.has_sahf() && FLAG_enable_sahf) supported_|= 1u << SAHF;
 }
+
+
+void CpuFeatures::PrintTarget() { }
+void CpuFeatures::PrintFeatures() { }
 
 
 // -----------------------------------------------------------------------------
@@ -2220,6 +2190,7 @@ void Assembler::fnclex() {
 void Assembler::sahf() {
   // TODO(X64): Test for presence. Not all 64-bit intel CPU's have sahf
   // in 64-bit mode. Test CpuID.
+  ASSERT(IsEnabled(SAHF));
   EnsureSpace ensure_space(this);
   emit(0x9E);
 }
@@ -2925,11 +2896,10 @@ void Assembler::dd(uint32_t data) {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   ASSERT(!RelocInfo::IsNone(rmode));
-  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
-    // Don't record external references unless the heap will be serialized.
-    if (!Serializer::enabled(isolate()) && !emit_debug_code()) {
-      return;
-    }
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
+      !serializer_enabled() && !emit_debug_code()) {
+    return;
   } else if (rmode == RelocInfo::CODE_AGE_SEQUENCE) {
     // Don't record psuedo relocation info for code age sequence mode.
     return;

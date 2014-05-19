@@ -106,11 +106,6 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 }
 
 
-void CodeStub::VerifyPlatformFeatures() {
-  ASSERT(CpuFeatures::VerifyCrossCompiling());
-}
-
-
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
   Code* code;
@@ -120,10 +115,6 @@ Handle<Code> CodeStub::GetCode() {
     ASSERT(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
-
-#ifdef DEBUG
-  VerifyPlatformFeatures();
-#endif
 
   {
     HandleScope scope(isolate());
