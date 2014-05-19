@@ -151,6 +151,9 @@ class HBasicBlock V8_FINAL : public ZoneObject {
     dominates_loop_successors_ = true;
   }
 
+  bool IsOrdered() const { return is_ordered_; }
+  void MarkAsOrdered() { is_ordered_ = true; }
+
   void MarkSuccEdgeUnreachable(int succ);
 
   inline Zone* zone() const;
@@ -207,6 +210,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   bool is_reachable_ : 1;
   bool dominates_loop_successors_ : 1;
   bool is_osr_entry_ : 1;
+  bool is_ordered_ : 1;
 };
 
 

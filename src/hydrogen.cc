@@ -79,7 +79,8 @@ HBasicBlock::HBasicBlock(HGraph* graph)
       is_inline_return_target_(false),
       is_reachable_(true),
       dominates_loop_successors_(false),
-      is_osr_entry_(false) { }
+      is_osr_entry_(false),
+      is_ordered_(false) { }
 
 
 Isolate* HBasicBlock::isolate() const {
@@ -3330,21 +3331,19 @@ class PostorderProcessor : public ZoneObject {
   HBasicBlock* loop_header() { return loop_header_; }
 
   static PostorderProcessor* CreateEntryProcessor(Zone* zone,
-                                                  HBasicBlock* block,
-                                                  BitVector* visited) {
+                                                  HBasicBlock* block) {
     PostorderProcessor* result = new(zone) PostorderProcessor(NULL);
-    return result->SetupSuccessors(zone, block, NULL, visited);
+    return result->SetupSuccessors(zone, block, NULL);
   }
 
   PostorderProcessor* PerformStep(Zone* zone,
-                                  BitVector* visited,
                                   ZoneList<HBasicBlock*>* order) {
     PostorderProcessor* next =
-        PerformNonBacktrackingStep(zone, visited, order);
+        PerformNonBacktrackingStep(zone, order);
     if (next != NULL) {
       return next;
     } else {
-      return Backtrack(zone, visited, order);
+      return Backtrack(zone, order);
     }
   }
 
@@ -3364,9 +3363,8 @@ class PostorderProcessor : public ZoneObject {
   // Each "Setup..." method is like a constructor for a cycle state.
   PostorderProcessor* SetupSuccessors(Zone* zone,
                                       HBasicBlock* block,
-                                      HBasicBlock* loop_header,
-                                      BitVector* visited) {
-    if (block == NULL || visited->Contains(block->block_id()) ||
+                                      HBasicBlock* loop_header) {
+    if (block == NULL || block->IsOrdered() ||
         block->parent_loop_header() != loop_header) {
       kind_ = NONE;
       block_ = NULL;
@@ -3376,7 +3374,7 @@ class PostorderProcessor : public ZoneObject {
     } else {
       block_ = block;
       loop_ = NULL;
-      visited->Add(block->block_id());
+      block->MarkAsOrdered();
 
       if (block->IsLoopHeader()) {
         kind_ = SUCCESSORS_OF_LOOP_HEADER;
@@ -3439,7 +3437,6 @@ class PostorderProcessor : public ZoneObject {
 
   // This method is the basic block to walk up the stack.
   PostorderProcessor* Pop(Zone* zone,
-                          BitVector* visited,
                           ZoneList<HBasicBlock*>* order) {
     switch (kind_) {
       case SUCCESSORS:
@@ -3466,16 +3463,15 @@ class PostorderProcessor : public ZoneObject {
 
   // Walks up the stack.
   PostorderProcessor* Backtrack(Zone* zone,
-                                BitVector* visited,
                                 ZoneList<HBasicBlock*>* order) {
-    PostorderProcessor* parent = Pop(zone, visited, order);
+    PostorderProcessor* parent = Pop(zone, order);
     while (parent != NULL) {
       PostorderProcessor* next =
-          parent->PerformNonBacktrackingStep(zone, visited, order);
+          parent->PerformNonBacktrackingStep(zone, order);
       if (next != NULL) {
         return next;
       } else {
-        parent = parent->Pop(zone, visited, order);
+        parent = parent->Pop(zone, order);
       }
     }
     return NULL;
@@ -3483,7 +3479,6 @@ class PostorderProcessor : public ZoneObject {
 
   PostorderProcessor* PerformNonBacktrackingStep(
       Zone* zone,
-      BitVector* visited,
       ZoneList<HBasicBlock*>* order) {
     HBasicBlock* next_block;
     switch (kind_) {
@@ -3491,16 +3486,14 @@ class PostorderProcessor : public ZoneObject {
         next_block = AdvanceSuccessors();
         if (next_block != NULL) {
           PostorderProcessor* result = Push(zone);
-          return result->SetupSuccessors(zone, next_block,
-                                         loop_header_, visited);
+          return result->SetupSuccessors(zone, next_block, loop_header_);
         }
         break;
       case SUCCESSORS_OF_LOOP_HEADER:
         next_block = AdvanceSuccessors();
         if (next_block != NULL) {
           PostorderProcessor* result = Push(zone);
-          return result->SetupSuccessors(zone, next_block,
-                                         block(), visited);
+          return result->SetupSuccessors(zone, next_block, block());
         }
         break;
       case LOOP_MEMBERS:
@@ -3515,8 +3508,7 @@ class PostorderProcessor : public ZoneObject {
         next_block = AdvanceSuccessors();
         if (next_block != NULL) {
           PostorderProcessor* result = Push(zone);
-          return result->SetupSuccessors(zone, next_block,
-                                         loop_header_, visited);
+          return result->SetupSuccessors(zone, next_block, loop_header_);
         }
         break;
       case NONE:
@@ -3571,21 +3563,36 @@ class PostorderProcessor : public ZoneObject {
 
 void HGraph::OrderBlocks() {
   CompilationPhase phase("H_Block ordering", info());
-  BitVector visited(blocks_.length(), zone());
 
-  ZoneList<HBasicBlock*> reverse_result(8, zone());
-  HBasicBlock* start = blocks_[0];
-  PostorderProcessor* postorder =
-      PostorderProcessor::CreateEntryProcessor(zone(), start, &visited);
-  while (postorder != NULL) {
-    postorder = postorder->PerformStep(zone(), &visited, &reverse_result);
+#ifdef DEBUG
+  // Initially the blocks must not be ordered.
+  for (int i = 0; i < blocks_.length(); ++i) {
+    ASSERT(!blocks_[i]->IsOrdered());
   }
+#endif
+
+  PostorderProcessor* postorder =
+      PostorderProcessor::CreateEntryProcessor(zone(), blocks_[0]);
   blocks_.Rewind(0);
-  int index = 0;
-  for (int i = reverse_result.length() - 1; i >= 0; --i) {
-    HBasicBlock* b = reverse_result[i];
-    blocks_.Add(b, zone());
-    b->set_block_id(index++);
+  while (postorder) {
+    postorder = postorder->PerformStep(zone(), &blocks_);
+  }
+
+#ifdef DEBUG
+  // Now all blocks must be marked as ordered.
+  for (int i = 0; i < blocks_.length(); ++i) {
+    ASSERT(blocks_[i]->IsOrdered());
+  }
+#endif
+
+  // Reverse block list and assign block IDs.
+  for (int i = 0, j = blocks_.length(); --j >= i; ++i) {
+    HBasicBlock* bi = blocks_[i];
+    HBasicBlock* bj = blocks_[j];
+    bi->set_block_id(j);
+    bj->set_block_id(i);
+    blocks_[i] = bj;
+    blocks_[j] = bi;
   }
 }
 
