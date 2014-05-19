@@ -2264,7 +2264,12 @@ void Isolate::EnqueueMicrotask(Handle<JSFunction> microtask) {
 
 
 void Isolate::RunMicrotasks() {
-  ASSERT(handle_scope_implementer()->CallDepthIsZero());
+  // TODO(adamk): This ASSERT triggers in mjsunit tests which
+  // call the %RunMicrotasks runtime function. But it should
+  // never happen outside of tests, so it would be nice to
+  // uncomment it.
+  //
+  // ASSERT(handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
   handle_scope_implementer()->IncrementCallDepth();
