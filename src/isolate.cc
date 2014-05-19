@@ -2232,13 +2232,13 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void Isolate::FireCallCompletedCallback() {
   bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
-  bool run_microtasks = autorun_microtasks() && microtask_pending();
+  bool run_microtasks = autorun_microtasks() && pending_microtask_count();
   if (!has_call_completed_callbacks && !run_microtasks) return;
 
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
+  if (run_microtasks) RunMicrotasks();
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   handle_scope_implementer()->IncrementCallDepth();
-  if (run_microtasks) Execution::RunMicrotasks(this);
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
     call_completed_callbacks_.at(i)();
   }
@@ -2246,15 +2246,46 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 
-void Isolate::RunMicrotasks() {
-  if (!microtask_pending())
-    return;
+void Isolate::EnqueueMicrotask(Handle<JSFunction> microtask) {
+  Handle<FixedArray> queue(heap()->microtask_queue(), this);
+  int num_tasks = pending_microtask_count();
+  ASSERT(num_tasks <= queue->length());
+  if (num_tasks == 0) {
+    queue = factory()->NewFixedArray(8);
+    heap()->set_microtask_queue(*queue);
+  } else if (num_tasks == queue->length()) {
+    queue = FixedArray::CopySize(queue, num_tasks * 2);
+    heap()->set_microtask_queue(*queue);
+  }
+  ASSERT(queue->get(num_tasks)->IsUndefined());
+  queue->set(num_tasks, *microtask);
+  set_pending_microtask_count(num_tasks + 1);
+}
 
+
+void Isolate::RunMicrotasks() {
   ASSERT(handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
   handle_scope_implementer()->IncrementCallDepth();
-  Execution::RunMicrotasks(this);
+
+  while (pending_microtask_count() > 0) {
+    HandleScope scope(this);
+    int num_tasks = pending_microtask_count();
+    Handle<FixedArray> queue(heap()->microtask_queue(), this);
+    ASSERT(num_tasks <= queue->length());
+    set_pending_microtask_count(0);
+    heap()->set_microtask_queue(heap()->empty_fixed_array());
+
+    for (int i = 0; i < num_tasks; i++) {
+      HandleScope scope(this);
+      Handle<JSFunction> microtask(JSFunction::cast(queue->get(i)), this);
+      // TODO(adamk): This should ignore/clear exceptions instead of Checking.
+      Execution::Call(this, microtask, factory()->undefined_value(),
+                      0, NULL).Check();
+    }
+  }
+
   handle_scope_implementer()->DecrementCallDepth();
 }
 

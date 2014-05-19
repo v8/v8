@@ -14880,28 +14880,20 @@ RUNTIME_FUNCTION(Runtime_SetIsObserved) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetMicrotaskPending) {
-  SealHandleScope shs(isolate);
+RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(new_state, 0);
-  bool old_state = isolate->microtask_pending();
-  isolate->set_microtask_pending(new_state);
-  return isolate->heap()->ToBoolean(old_state);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
+  isolate->EnqueueMicrotask(microtask);
+  return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 0);
-  if (isolate->microtask_pending()) Execution::RunMicrotasks(isolate);
+  isolate->RunMicrotasks();
   return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetMicrotaskState) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 0);
-  return isolate->heap()->microtask_state();
 }
 
 

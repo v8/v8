@@ -6626,16 +6626,13 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void Isolate::RunMicrotasks() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::HandleScope scope(i_isolate);
-  i_isolate->RunMicrotasks();
+  reinterpret_cast<i::Isolate*>(this)->RunMicrotasks();
 }
 
 
 void Isolate::EnqueueMicrotask(Handle<Function> microtask) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  ENTER_V8(i_isolate);
-  i::Execution::EnqueueMicrotask(i_isolate, Utils::OpenHandle(*microtask));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->EnqueueMicrotask(Utils::OpenHandle(*microtask));
 }
 
 

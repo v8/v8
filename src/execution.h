@@ -121,9 +121,6 @@ class Execution V8_FINAL : public AllStatic {
                                                Handle<Object> object);
   static MaybeHandle<Object> TryGetConstructorDelegate(Isolate* isolate,
                                                        Handle<Object> object);
-
-  static void RunMicrotasks(Isolate* isolate);
-  static void EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask);
 };
 
 

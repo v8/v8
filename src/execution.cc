@@ -307,28 +307,6 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 }
 
 
-void Execution::RunMicrotasks(Isolate* isolate) {
-  ASSERT(isolate->microtask_pending());
-  Execution::Call(
-      isolate,
-      isolate->run_microtasks(),
-      isolate->factory()->undefined_value(),
-      0,
-      NULL).Check();
-}
-
-
-void Execution::EnqueueMicrotask(Isolate* isolate, Handle<Object> microtask) {
-  Handle<Object> args[] = { microtask };
-  Execution::Call(
-      isolate,
-      isolate->enqueue_microtask(),
-      isolate->factory()->undefined_value(),
-      1,
-      args).Check();
-}
-
-
 bool StackGuard::IsStackOverflow() {
   ExecutionAccess access(isolate_);
   return (thread_local_.jslimit_ != kInterruptLimit &&
