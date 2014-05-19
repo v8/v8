@@ -1068,13 +1068,20 @@ BUILTIN(ArrayConcat) {
 
 
 // -----------------------------------------------------------------------------
-// Strict mode poison pills
+// Generator and strict mode poison pills
 
 
 BUILTIN(StrictModePoisonPill) {
   HandleScope scope(isolate);
   return isolate->Throw(*isolate->factory()->NewTypeError(
       "strict_poison_pill", HandleVector<Object>(NULL, 0)));
+}
+
+
+BUILTIN(GeneratorPoisonPill) {
+  HandleScope scope(isolate);
+  return isolate->Throw(*isolate->factory()->NewTypeError(
+      "generator_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 

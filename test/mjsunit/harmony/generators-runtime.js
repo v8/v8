@@ -55,7 +55,16 @@ function TestGeneratorFunctionInstance() {
     var f_desc = Object.getOwnPropertyDescriptor(f, prop);
     var g_desc = Object.getOwnPropertyDescriptor(g, prop);
     assertEquals(f_desc.configurable, g_desc.configurable, prop);
-    assertEquals(f_desc.writable, g_desc.writable, prop);
+    if (prop === 'arguments' || prop === 'caller') {
+      // Unlike sloppy functions, which have read-only data arguments and caller
+      // properties, sloppy generators have a poison pill implemented via
+      // accessors
+      assertFalse('writable' in g_desc, prop);
+      assertTrue(g_desc.get instanceof Function, prop);
+      assertEquals(g_desc.get, g_desc.set, prop);
+    } else {
+      assertEquals(f_desc.writable, g_desc.writable, prop);
+    }
     assertEquals(f_desc.enumerable, g_desc.enumerable, prop);
   }
 }
