@@ -714,6 +714,9 @@ void Execution::DebugBreakHelper(Isolate* isolate) {
 
 void Execution::ProcessDebugMessages(Isolate* isolate,
                                      bool debug_command_only) {
+  // Assert that we are on the main thread of the isolate.
+  ASSERT(ThreadId::Current().Equals(isolate->thread_id()));
+
   isolate->stack_guard()->ClearDebugCommand();
 
   StackLimitCheck check(isolate);

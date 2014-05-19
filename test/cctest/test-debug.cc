@@ -98,11 +98,10 @@ class DebugLocalContext {
     v8::internal::Isolate* isolate =
         reinterpret_cast<v8::internal::Isolate*>(context_->GetIsolate());
     v8::internal::Factory* factory = isolate->factory();
+    v8::internal::Debug* debug = isolate->debug();
     // Expose the debug context global object in the global object for testing.
-    CHECK(isolate->debug()->Load());
-    Handle<v8::internal::Context> debug_context =
-        isolate->debug()->debug_context();
-    debug_context->set_security_token(
+    debug->Load();
+    debug->debug_context()->set_security_token(
         v8::Utils::OpenHandle(*context_)->security_token());
 
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
@@ -110,7 +109,7 @@ class DebugLocalContext {
     Handle<v8::internal::String> debug_string =
         factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
     v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
-        Handle<Object>(debug_context->global_proxy(), isolate),
+        Handle<Object>(debug->debug_context()->global_proxy(), isolate),
         DONT_ENUM,
         ::v8::internal::SLOPPY).Check();
   }
@@ -419,6 +418,12 @@ void CheckDebuggerUnloaded(bool check_functions) {
       }
     }
   }
+}
+
+
+void ForceUnloadDebugger() {
+  CcTest::i_isolate()->debugger()->never_unload_debugger_ = false;
+  CcTest::i_isolate()->debugger()->UnloadDebugger();
 }
 
 
@@ -5495,12 +5500,13 @@ static void CheckDataParameter(
       v8::String::NewFromUtf8(args.GetIsolate(), "Test");
   CHECK(v8::Debug::Call(debugger_call_with_data, data)->IsString());
 
-  for (int i = 0; i < 3; i++) {
-    v8::TryCatch catcher;
-    CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
-    CHECK(catcher.HasCaught());
-    CHECK(catcher.Exception()->IsString());
-  }
+  CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
+  CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
+
+  v8::TryCatch catcher;
+  v8::Debug::Call(debugger_call_with_data);
+  CHECK(catcher.HasCaught());
+  CHECK(catcher.Exception()->IsString());
 }
 
 
@@ -6866,11 +6872,9 @@ TEST(CallingContextIsNotDebugContext) {
 
 TEST(DebugContextIsPreservedBetweenAccesses) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Debug::SetDebugEventListener(DebugEventBreakPointHitCount);
   v8::Local<v8::Context> context1 = v8::Debug::GetDebugContext();
   v8::Local<v8::Context> context2 = v8::Debug::GetDebugContext();
   CHECK_EQ(*context1, *context2);
-  v8::Debug::SetDebugEventListener(NULL);
 }
 
 
