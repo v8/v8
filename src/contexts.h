@@ -449,6 +449,11 @@ class Context: public FixedArray {
     return map == map->GetHeap()->global_context_map();
   }
 
+  bool HasSameSecurityTokenAs(Context* that) {
+    return this->global_object()->native_context()->security_token() ==
+        that->global_object()->native_context()->security_token();
+  }
+
   // A native context holds a list of all functions with optimized code.
   void AddOptimizedFunction(JSFunction* function);
   void RemoveOptimizedFunction(JSFunction* function);

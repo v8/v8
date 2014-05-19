@@ -1124,22 +1124,33 @@ Handle<AccessorInfo> Accessors::FunctionArgumentsInfo(
 //
 
 
+static inline bool AllowAccessToFunction(Context* current_context,
+                                         JSFunction* function) {
+  return current_context->HasSameSecurityTokenAs(function->context());
+}
+
+
 class FrameFunctionIterator {
  public:
   FrameFunctionIterator(Isolate* isolate, const DisallowHeapAllocation& promise)
-      : frame_iterator_(isolate),
+      : isolate_(isolate),
+        frame_iterator_(isolate),
         functions_(2),
         index_(0) {
     GetFunctions();
   }
   JSFunction* next() {
-    if (functions_.length() == 0) return NULL;
-    JSFunction* next_function = functions_[index_];
-    index_--;
-    if (index_ < 0) {
-      GetFunctions();
+    while (true) {
+      if (functions_.length() == 0) return NULL;
+      JSFunction* next_function = functions_[index_];
+      index_--;
+      if (index_ < 0) {
+        GetFunctions();
+      }
+      // Skip functions from other origins.
+      if (!AllowAccessToFunction(isolate_->context(), next_function)) continue;
+      return next_function;
     }
-    return next_function;
   }
 
   // Iterate through functions until the first occurence of 'function'.
@@ -1164,6 +1175,7 @@ class FrameFunctionIterator {
     frame_iterator_.Advance();
     index_ = functions_.length() - 1;
   }
+  Isolate* isolate_;
   JavaScriptFrameIterator frame_iterator_;
   List<JSFunction*> functions_;
   int index_;
@@ -1209,6 +1221,10 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
   if (caller->shared()->strict_mode() == STRICT) {
+    return MaybeHandle<JSFunction>();
+  }
+  // Don't return caller from another security context.
+  if (!AllowAccessToFunction(isolate->context(), caller)) {
     return MaybeHandle<JSFunction>();
   }
   return Handle<JSFunction>(caller);

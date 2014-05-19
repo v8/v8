@@ -2115,6 +2115,9 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
     StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);
+  // TODO(dcarney): remove when ScriptDebugServer is fixed.
+  options = static_cast<StackTraceOptions>(
+      static_cast<int>(options) | kExposeFramesAcrossSecurityOrigins);
   i::Handle<i::JSArray> stackTrace =
       i_isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);

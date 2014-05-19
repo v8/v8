@@ -388,13 +388,15 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
        iter.Advance()) {
     StackFrame* raw_frame = iter.frame();
     if (IsVisibleInStackTrace(raw_frame, *caller, &seen_caller)) {
-      frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
       // Set initial size to the maximum inlining level + 1 for the outermost
       // function.
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
+        Handle<JSFunction> fun = frames[i].function();
+        // Filter out frames from other security contexts.
+        if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
         if (cursor + 4 > elements->length()) {
           int new_capacity = JSObject::NewElementsCapacity(elements->length());
           Handle<FixedArray> new_elements =
@@ -407,7 +409,6 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         ASSERT(cursor + 4 <= elements->length());
 
         Handle<Object> recv = frames[i].receiver();
-        Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
         // The stack trace API should not expose receivers and function
@@ -426,6 +427,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         elements->set(cursor++, *code);
         elements->set(cursor++, *offset);
       }
+      frames_seen++;
     }
   }
   elements->set(0, Smi::FromInt(sloppy_frames));
@@ -480,10 +482,14 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      Handle<JSFunction> fun = frames[i].function();
+      // Filter frames from other security contexts.
+      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+          !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
+
       // Create a JSObject to hold the information for the StackFrame.
       Handle<JSObject> stack_frame = factory()->NewJSObject(object_function());
 
-      Handle<JSFunction> fun = frames[i].function();
       Handle<Script> script(Script::cast(fun->shared()->script()));
 
       if (options & StackTrace::kLineNumber) {
