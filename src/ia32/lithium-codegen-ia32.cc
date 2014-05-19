@@ -1749,13 +1749,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
   Register reg = ToRegister(instr->result());
   Handle<Object> object = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
-  if (instr->hydrogen()->HasObjectMap()) {
-    Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
-    ASSERT(object->IsHeapObject());
-    ASSERT(!object_map->is_stable() ||
-           *object_map == Handle<HeapObject>::cast(object)->map());
-    USE(object_map);
-  }
   __ LoadObject(reg, object);
 }
 
