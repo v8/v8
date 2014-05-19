@@ -1392,8 +1392,9 @@ void Genesis::InitializeExperimentalGlobal() {
     Handle<AccessorPair> poison_pair(factory()->NewAccessorPair());
     PropertyAttributes rw_attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    poison_pair->set_getter(*GetGeneratorPoisonFunction());
-    poison_pair->set_setter(*GetGeneratorPoisonFunction());
+    Handle<JSFunction> poison_function = GetGeneratorPoisonFunction();
+    poison_pair->set_getter(*poison_function);
+    poison_pair->set_setter(*poison_function);
     ReplaceAccessors(generator_function_map, factory()->arguments_string(),
         rw_attribs, poison_pair);
     ReplaceAccessors(generator_function_map, factory()->caller_string(),
