@@ -2120,18 +2120,20 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
+    Debug* debug = isolate->debug();
     // If loading fails we just bail out without installing the
     // debugger but without tanking the whole context.
-    Debug* debug = isolate->debug();
     if (!debug->Load()) return true;
-    Handle<Context> debug_context = debug->debug_context();
     // Set the security token for the debugger context to the same as
     // the shell native context to allow calling between these (otherwise
     // exposing debug global object doesn't make much sense).
-    debug_context->set_security_token(native_context->security_token());
+    debug->debug_context()->set_security_token(
+        native_context->security_token());
+
     Handle<String> debug_string =
         factory->InternalizeUtf8String(FLAG_expose_debug_as);
-    Handle<Object> global_proxy(debug_context->global_proxy(), isolate);
+    Handle<Object> global_proxy(
+        debug->debug_context()->global_proxy(), isolate);
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
         JSObject::SetLocalPropertyIgnoreAttributes(
