@@ -173,6 +173,8 @@ def BuildOptions():
                     help=("Quick check mode (skip slow/flaky tests)"))
   result.add_option("--report", help="Print a summary of the tests to be run",
                     default=False, action="store_true")
+  result.add_option("--json-test-results",
+                    help="Path to a file for storing json results.")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
@@ -463,6 +465,9 @@ def Execute(arch, mode, args, options, suites, workspace):
   if options.junitout:
     progress_indicator = progress.JUnitTestProgressIndicator(
         progress_indicator, options.junitout, options.junittestsuite)
+  if options.json_test_results:
+    progress_indicator = progress.JsonTestProgressIndicator(
+        progress_indicator, options.json_test_results, arch, mode)
 
   run_networked = not options.no_network
   if not run_networked:
