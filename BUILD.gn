@@ -239,6 +239,8 @@ source_set("v8_nosnapshot") {
     "src/snapshot-empty.cc",
   ]
 
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features" ]
 }
 
@@ -312,8 +314,6 @@ source_set("v8_base") {
     "src/dateparser-inl.h",
     "src/dateparser.cc",
     "src/dateparser.h",
-    "src/debug-agent.cc",
-    "src/debug-agent.h",
     "src/debug.cc",
     "src/debug.h",
     "src/deoptimizer.cc",
@@ -501,8 +501,6 @@ source_set("v8_base") {
     "src/platform/mutex.h",
     "src/platform/semaphore.cc",
     "src/platform/semaphore.h",
-    "src/platform/socket.cc",
-    "src/platform/socket.h",
     "src/preparse-data-format.h",
     "src/preparse-data.cc",
     "src/preparse-data.h",
@@ -712,7 +710,6 @@ source_set("v8_base") {
       "src/arm64/code-stubs-arm64.h",
       "src/arm64/constants-arm64.h",
       "src/arm64/cpu-arm64.cc",
-      "src/arm64/cpu-arm64.h",
       "src/arm64/debug-arm64.cc",
       "src/arm64/decoder-arm64.cc",
       "src/arm64/decoder-arm64.h",
@@ -780,6 +777,8 @@ source_set("v8_base") {
     ]
   }
 
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features" ]
 
   defines = []
@@ -846,7 +845,7 @@ source_set("v8_base") {
 # TODO(jochen): Remove this as soon as toolchain.gypi is integrated.
 if (build_cpu_arch != cpu_arch) {
 
-executable("mksnapshot") {
+source_set("mksnapshot") {
   sources = [
   ]
 }
@@ -858,6 +857,8 @@ executable("mksnapshot") {
     "src/mksnapshot.cc",
   ]
 
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features" ]
 
   deps = [
