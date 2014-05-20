@@ -4321,14 +4321,15 @@ STRUCT_LIST(MAKE_CASE)
 
 bool Heap::IsHeapIterable() {
   return (!old_pointer_space()->was_swept_conservatively() &&
-          !old_data_space()->was_swept_conservatively());
+          !old_data_space()->was_swept_conservatively() &&
+          new_space()->bottom() == new_space()->top());
 }
 
 
-void Heap::EnsureHeapIsIterable() {
+void Heap::MakeHeapIterable() {
   ASSERT(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask, "Heap::EnsureHeapIsIterable");
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
   }
   ASSERT(IsHeapIterable());
 }
@@ -5732,7 +5733,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
 
 HeapIterator::HeapIterator(Heap* heap)
-    : heap_(heap),
+    : make_heap_iterable_helper_(heap),
+      no_heap_allocation_(),
+      heap_(heap),
       filtering_(HeapIterator::kNoFiltering),
       filter_(NULL) {
   Init();
@@ -5741,7 +5744,9 @@ HeapIterator::HeapIterator(Heap* heap)
 
 HeapIterator::HeapIterator(Heap* heap,
                            HeapIterator::HeapObjectsFiltering filtering)
-    : heap_(heap),
+    : make_heap_iterable_helper_(heap),
+      no_heap_allocation_(),
+      heap_(heap),
       filtering_(filtering),
       filter_(NULL) {
   Init();
