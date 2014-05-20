@@ -2269,6 +2269,7 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
   return array_builder->AllocateArray(capacity, length);
 }
 
+
 HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
                                              HValue* capacity) {
   int elements_size;
@@ -2293,8 +2294,8 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
       isolate()->heap()->GetPretenureMode() : NOT_TENURED;
 
-  return Add<HAllocate>(total_size, HType::Tagged(), pretenure_flag,
-      instance_type);
+  return Add<HAllocate>(total_size, HType::NonPrimitive(),
+                        pretenure_flag, instance_type);
 }
 
 
@@ -8794,7 +8795,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
   HValue* elements =
       Add<HAllocate>(
           Add<HConstant>(ExternalArray::kAlignedSize),
-          HType::Tagged(),
+          HType::NonPrimitive(),
           NOT_TENURED,
           external_array_map->instance_type());
 
@@ -8851,9 +8852,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   Handle<Map> fixed_typed_array_map(
       isolate()->heap()->MapForFixedTypedArray(array_type));
   HValue* elements =
-      Add<HAllocate>(total_size, HType::Tagged(),
-          NOT_TENURED,
-          fixed_typed_array_map->instance_type());
+      Add<HAllocate>(total_size, HType::NonPrimitive(),
+                     NOT_TENURED, fixed_typed_array_map->instance_type());
   AddStoreMapConstant(elements, fixed_typed_array_map);
 
   Add<HStoreNamedField>(elements,
@@ -10292,13 +10292,11 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HInstruction* object_elements = NULL;
   if (elements_size > 0) {
     HValue* object_elements_size = Add<HConstant>(elements_size);
-    if (boilerplate_object->HasFastDoubleElements()) {
-      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
-          pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
-    } else {
-      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
-          pretenure_flag, FIXED_ARRAY_TYPE, site_context->current());
-    }
+    InstanceType instance_type = boilerplate_object->HasFastDoubleElements()
+        ? FIXED_DOUBLE_ARRAY_TYPE : FIXED_ARRAY_TYPE;
+    object_elements = Add<HAllocate>(
+        object_elements_size, HType::NonPrimitive(),
+        pretenure_flag, instance_type, site_context->current());
   }
   BuildInitElementsInObjectHeader(boilerplate_object, object, object_elements);
 
