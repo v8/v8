@@ -40,7 +40,6 @@ Debug::Debug(Isolate* isolate)
       promise_catch_handlers_(0),
       promise_getters_(0),
       isolate_(isolate) {
-  memset(registers_, 0, sizeof(JSCallerSavedBuffer));
   ThreadInit();
 }
 
@@ -518,10 +517,7 @@ void Debug::ThreadInit() {
 char* Debug::ArchiveDebug(char* storage) {
   char* to = storage;
   OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
-  to += sizeof(ThreadLocal);
-  OS::MemCopy(to, reinterpret_cast<char*>(&registers_), sizeof(registers_));
   ThreadInit();
-  ASSERT(to <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
 
@@ -530,15 +526,12 @@ char* Debug::RestoreDebug(char* storage) {
   char* from = storage;
   OS::MemCopy(
       reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  from += sizeof(ThreadLocal);
-  OS::MemCopy(reinterpret_cast<char*>(&registers_), from, sizeof(registers_));
-  ASSERT(from <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
 
 
 int Debug::ArchiveSpacePerThread() {
-  return sizeof(ThreadLocal) + sizeof(JSCallerSavedBuffer);
+  return sizeof(ThreadLocal);
 }
 
 

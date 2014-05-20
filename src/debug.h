@@ -350,11 +350,6 @@ class Debug {
     return reinterpret_cast<Address*>(address);
   }
 
-  // Support for saving/restoring registers when handling debug break calls.
-  Object** register_address(int r) {
-    return &registers_[r];
-  }
-
   static const int kEstimatedNofDebugInfoEntries = 16;
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
@@ -586,7 +581,6 @@ class Debug {
   };
 
   // Storage location for registers when handling debug break calls
-  JSCallerSavedBuffer registers_;
   ThreadLocal thread_local_;
   void ThreadInit();
 
