@@ -5076,6 +5076,22 @@ class V8_EXPORT TryCatch {
    */
   void SetCaptureMessage(bool value);
 
+  /**
+   * There are cases when the raw address of C++ TryCatch object cannot be
+   * used for comparisons with addresses into the JS stack. The cases are:
+   * 1) ARM, ARM64 and MIPS simulators which have separate JS stack.
+   * 2) Address sanitizer allocates local C++ object in the heap when
+   *    UseAfterReturn mode is enabled.
+   * This method returns address that can be used for comparisons with
+   * addresses into the JS stack. When neither simulator nor ASAN's
+   * UseAfterReturn is enabled, then the address returned will be the address
+   * of the C++ try catch handler itself.
+   */
+  static void* JSStackComparableAddress(v8::TryCatch* handler) {
+    if (handler == NULL) return NULL;
+    return handler->js_stack_comparable_address_;
+  }
+
  private:
   // Make it hard to create heap-allocated TryCatch blocks.
   TryCatch(const TryCatch&);
@@ -5084,10 +5100,11 @@ class V8_EXPORT TryCatch {
   void operator delete(void*, size_t);
 
   v8::internal::Isolate* isolate_;
-  void* next_;
+  v8::TryCatch* next_;
   void* exception_;
   void* message_obj_;
   void* message_script_;
+  void* js_stack_comparable_address_;
   int message_start_pos_;
   int message_end_pos_;
   bool is_verbose_ : 1;

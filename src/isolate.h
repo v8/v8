@@ -213,10 +213,10 @@ class ThreadLocalTop BASE_EMBEDDED {
 
   // Get the top C++ try catch handler or NULL if none are registered.
   //
-  // This method is not guarenteed to return an address that can be
+  // This method is not guaranteed to return an address that can be
   // used for comparison with addresses into the JS stack.  If such an
   // address is needed, use try_catch_handler_address.
-  v8::TryCatch* TryCatchHandler();
+  FIELD_ACCESSOR(v8::TryCatch*, try_catch_handler)
 
   // Get the address of the top C++ try catch handler or NULL if
   // none are registered.
@@ -228,12 +228,15 @@ class ThreadLocalTop BASE_EMBEDDED {
   // stack, try_catch_handler_address returns a JS stack address that
   // corresponds to the place on the JS stack where the C++ handler
   // would have been if the stack were not separate.
-  FIELD_ACCESSOR(Address, try_catch_handler_address)
+  Address try_catch_handler_address() {
+    return reinterpret_cast<Address>(
+        v8::TryCatch::JSStackComparableAddress(try_catch_handler()));
+  }
 
   void Free() {
     ASSERT(!has_pending_message_);
     ASSERT(!external_caught_exception_);
-    ASSERT(try_catch_handler_address_ == NULL);
+    ASSERT(try_catch_handler_ == NULL);
   }
 
   Isolate* isolate_;
@@ -281,7 +284,7 @@ class ThreadLocalTop BASE_EMBEDDED {
  private:
   void InitializeInternal();
 
-  Address try_catch_handler_address_;
+  v8::TryCatch* try_catch_handler_;
 };
 
 
@@ -559,7 +562,7 @@ class Isolate {
     thread_local_top_.pending_message_script_ = heap_.the_hole_value();
   }
   v8::TryCatch* try_catch_handler() {
-    return thread_local_top_.TryCatchHandler();
+    return thread_local_top_.try_catch_handler();
   }
   Address try_catch_handler_address() {
     return thread_local_top_.try_catch_handler_address();

@@ -37,9 +37,6 @@ typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*,
   (FUNCTION_CAST<arm_regexp_matcher>(entry)(                              \
       p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
 
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
-
 // The stack limit beyond which we will throw stack overflow errors in
 // generated code. Because generated code on arm uses the C stack, we
 // just use the C stack limit.
@@ -435,10 +432,6 @@ class Simulator {
 #define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
   Simulator::current(Isolate::Current())->Call( \
       entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
