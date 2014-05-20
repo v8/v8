@@ -478,7 +478,10 @@ class Assembler : public AssemblerBase {
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   static Address target_address_at(Address pc);
-  static void set_target_address_at(Address pc, Address target);
+  static void set_target_address_at(Address pc,
+                                    Address target,
+                                    ICacheFlushMode icache_flush_mode =
+                                        FLUSH_ICACHE_IF_NEEDED);
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc,
                                           ConstantPoolArray* constant_pool)) {
@@ -486,8 +489,10 @@ class Assembler : public AssemblerBase {
   }
   INLINE(static void set_target_address_at(Address pc,
                                            ConstantPoolArray* constant_pool,
-                                           Address target)) {
-    set_target_address_at(pc, target);
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED)) {
+    set_target_address_at(pc, target, icache_flush_mode);
   }
   INLINE(static Address target_address_at(Address pc, Code* code)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
@@ -495,9 +500,11 @@ class Assembler : public AssemblerBase {
   }
   INLINE(static void set_target_address_at(Address pc,
                                            Code* code,
-                                           Address target)) {
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED)) {
     ConstantPoolArray* constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target);
+    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
