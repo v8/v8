@@ -788,11 +788,15 @@ class Assembler : public AssemblerBase {
                                           ConstantPoolArray* constant_pool);
   inline static void set_target_address_at(Address pc,
                                            ConstantPoolArray* constant_pool,
-                                           Address target);
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED);
   static inline Address target_address_at(Address pc, Code* code);
   static inline void set_target_address_at(Address pc,
                                            Code* code,
-                                           Address target);
+                                           Address target,
+                                           ICacheFlushMode icache_flush_mode =
+                                               FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address of
   // that call in the instruction stream.
