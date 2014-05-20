@@ -2371,6 +2371,10 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     value = UseRegisterAndClobber(instr->value());
     temp0 = TempRegister();
     temp1 = TempRegister();
+  } else if (instr->NeedsWriteBarrierForMap()) {
+    value = UseRegister(instr->value());
+    temp0 = TempRegister();
+    temp1 = TempRegister();
   } else {
     value = UseRegister(instr->value());
     temp0 = TempRegister();

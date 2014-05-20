@@ -451,7 +451,15 @@ class HCheckTable : public ZoneObject {
 
   void ReduceStoreNamedField(HStoreNamedField* instr) {
     HValue* object = instr->object()->ActualValue();
-    if (instr->access().IsMap()) {
+    if (instr->has_transition()) {
+      // This store transitions the object to a new map.
+      Kill(object);
+      HConstant* c_transition = HConstant::cast(instr->transition());
+      HCheckTableEntry::State state = c_transition->HasStableMapValue()
+          ? HCheckTableEntry::CHECKED_STABLE
+          : HCheckTableEntry::CHECKED;
+      Insert(object, NULL, c_transition->MapValue(), state);
+    } else if (instr->access().IsMap()) {
       // This is a store directly to the map field of the object.
       Kill(object);
       if (!instr->value()->IsConstant()) return;
@@ -706,7 +714,7 @@ class HCheckMapsEffects : public ZoneObject {
     switch (instr->opcode()) {
       case HValue::kStoreNamedField: {
         HStoreNamedField* store = HStoreNamedField::cast(instr);
-        if (store->access().IsMap()) {
+        if (store->access().IsMap() || store->has_transition()) {
           objects_.Add(store->object(), zone);
         }
         break;

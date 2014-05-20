@@ -206,12 +206,16 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           ASSERT(store->access().IsInobject());
           state = NewStateCopy(store->previous(), state);
           state->SetOperandAt(index, store->value());
+          if (store->has_transition()) {
+            state->SetOperandAt(0, store->transition());
+          }
           if (store->HasObservableSideEffects()) {
             state->ReuseSideEffectsFromStore(store);
           }
           store->DeleteAndReplaceWith(store->ActualValue());
           if (FLAG_trace_escape_analysis) {
-            PrintF("Replacing store #%d\n", instr->id());
+            PrintF("Replacing store #%d%s\n", instr->id(),
+                   store->has_transition() ? " (with transition)" : "");
           }
           break;
         }

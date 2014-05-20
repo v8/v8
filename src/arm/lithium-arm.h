@@ -2145,15 +2145,17 @@ class LSmiUntag V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 0> {
+class LStoreNamedField V8_FINAL : public LTemplateInstruction<0, 2, 1> {
  public:
-  LStoreNamedField(LOperand* object, LOperand* value) {
+  LStoreNamedField(LOperand* object, LOperand* value, LOperand* temp) {
     inputs_[0] = object;
     inputs_[1] = value;
+    temps_[0] = temp;
   }
 
   LOperand* object() { return inputs_[0]; }
   LOperand* value() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreNamedField, "store-named-field")
   DECLARE_HYDROGEN_ACCESSOR(StoreNamedField)

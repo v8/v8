@@ -5302,12 +5302,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   int offset = access.offset();
 
   if (access.IsExternalMemory()) {
+    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     Register value = ToRegister(instr->value());
     __ Store(value, MemOperand(object, offset), representation);
     return;
   } else if (representation.IsDouble()) {
     ASSERT(access.IsInobject());
+    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     FPRegister value = ToDoubleRegister(instr->value());
     __ Str(value, FieldMemOperand(object, offset));
@@ -5328,6 +5330,26 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
     // We know now that value is not a smi, so we can omit the check below.
     check_needed = OMIT_SMI_CHECK;
+  }
+
+  if (instr->hydrogen()->has_transition()) {
+    Handle<Map> transition = instr->hydrogen()->transition_map();
+    AddDeprecationDependency(transition);
+    // Store the new map value.
+    Register new_map_value = ToRegister(instr->temp0());
+    __ Mov(new_map_value, Operand(transition));
+    __ Str(new_map_value, FieldMemOperand(object, HeapObject::kMapOffset));
+    if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
+      // Update the write barrier for the map field.
+      __ RecordWriteField(object,
+                          HeapObject::kMapOffset,
+                          new_map_value,
+                          ToRegister(instr->temp1()),
+                          GetLinkRegisterState(),
+                          kSaveFPRegs,
+                          OMIT_REMEMBERED_SET,
+                          OMIT_SMI_CHECK);
+    }
   }
 
   // Do the store.
