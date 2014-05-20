@@ -7934,6 +7934,10 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       return true;
     }
     case kArrayShift: {
+      // Something in here seems to be causing crbug.com/374838.
+      // TODO(bmeurer): Investigate the problem and re-enable this code.
+      return false;
+
       if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
       ElementsKind kind = receiver_map->elements_kind();
