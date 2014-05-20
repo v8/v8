@@ -939,9 +939,12 @@ static void ReplaceCodeObject(Handle<Code> original,
   // to code objects (that are never in new space) without worrying about
   // write barriers.
   Heap* heap = original->GetHeap();
-  HeapIterator iterator(heap);
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "liveedit.cc ReplaceCodeObject");
 
   ASSERT(!heap->InNewSpace(*substitution));
+
+  DisallowHeapAllocation no_allocation;
 
   ReplacingVisitor visitor(*original, *substitution);
 
@@ -952,6 +955,7 @@ static void ReplaceCodeObject(Handle<Code> original,
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
+  HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
@@ -1015,6 +1019,8 @@ class LiteralFixer {
   template<typename Visitor>
   static void IterateJSFunctions(SharedFunctionInfo* shared_info,
                                  Visitor* visitor) {
+    DisallowHeapAllocation no_allocation;
+
     HeapIterator iterator(shared_info->GetHeap());
     for (HeapObject* obj = iterator.next(); obj != NULL;
         obj = iterator.next()) {
@@ -1159,7 +1165,7 @@ void LiveEdit::ReplaceFunctionCode(
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  isolate->heap()->MakeHeapIterable();
+  isolate->heap()->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
@@ -1396,7 +1402,7 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
 
-  info->GetIsolate()->heap()->MakeHeapIterable();
+  info->GetIsolate()->heap()->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.
