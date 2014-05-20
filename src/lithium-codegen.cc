@@ -216,12 +216,6 @@ void LCodeGenBase::Abort(BailoutReason reason) {
 }
 
 
-void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
-  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
-  chunk_->AddDeprecationDependency(map);
-}
-
-
 void LCodeGenBase::AddStabilityDependency(Handle<Map> map) {
   if (!map->is_stable()) return Abort(kMapBecameUnstable);
   chunk_->AddStabilityDependency(map);

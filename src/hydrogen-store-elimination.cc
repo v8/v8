@@ -58,7 +58,11 @@ void HStoreEliminationPhase::ProcessStore(HStoreNamedField* store) {
   while (i < unobserved_.length()) {
     HStoreNamedField* prev = unobserved_.at(i);
     if (aliasing_->MustAlias(object, prev->object()->ActualValue()) &&
-        store->access().Equals(prev->access())) {
+        store->access().Equals(prev->access()) &&
+        (!SmiValuesAre32Bits() ||
+         !store->field_representation().IsSmi() ||
+         store->store_mode() == STORE_TO_INITIALIZED_ENTRY ||
+         prev->store_mode() == INITIALIZING_STORE)) {
       // This store is guaranteed to overwrite the previous store.
       prev->DeleteAndReplaceWith(NULL);
       TRACE(("++ Unobserved store S%d overwritten by S%d\n",
@@ -69,11 +73,8 @@ void HStoreEliminationPhase::ProcessStore(HStoreNamedField* store) {
       i++;
     }
   }
-  // Only non-transitioning stores are removable.
-  if (!store->has_transition()) {
-    TRACE(("-- Might remove store S%d\n", store->id()));
-    unobserved_.Add(store, zone());
-  }
+  TRACE(("-- Might remove store S%d\n", store->id()));
+  unobserved_.Add(store, zone());
 }
 
 

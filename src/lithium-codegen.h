@@ -76,7 +76,6 @@ class LCodeGenBase BASE_EMBEDDED {
   void Abort(BailoutReason reason);
 
   // Methods for code dependencies.
-  void AddDeprecationDependency(Handle<Map> map);
   void AddStabilityDependency(Handle<Map> map);
 };
 

@@ -5529,7 +5529,14 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   if (transition_to_field) {
     Handle<Map> transition(info->transition());
     ASSERT(!transition->is_deprecated());
-    instr->SetTransition(Add<HConstant>(transition));
+    if (transition->CanBeDeprecated()) {
+      Map::AddDependentCompilationInfo(
+          transition, DependentCode::kTransitionGroup, top_info());
+    }
+    Add<HStoreNamedField>(checked_object->ActualValue(),
+                          HObjectAccess::ForMap(),
+                          Add<HConstant>(transition),
+                          STORE_TO_INITIALIZED_ENTRY);
   }
   return instr;
 }

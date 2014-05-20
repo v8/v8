@@ -2279,8 +2279,6 @@ LInstruction* LChunkBuilder::DoTrapAllocationMemento(
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_in_object = instr->access().IsInobject();
   bool needs_write_barrier = instr->NeedsWriteBarrier();
-  bool needs_write_barrier_for_map = instr->has_transition() &&
-      instr->NeedsWriteBarrierForMap();
 
   LOperand* obj;
   if (needs_write_barrier) {
@@ -2288,9 +2286,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
         ? UseRegister(instr->object())
         : UseTempRegister(instr->object());
   } else {
-    obj = needs_write_barrier_for_map
-        ? UseRegister(instr->object())
-        : UseRegisterAtStart(instr->object());
+    obj = UseRegisterAtStart(instr->object());
   }
 
   LOperand* val;
@@ -2302,10 +2298,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     val = UseRegister(instr->value());
   }
 
-  // We need a temporary register for write barrier of the map field.
-  LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
-
-  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
+  LInstruction* result = new(zone()) LStoreNamedField(obj, val);
   if (!instr->access().IsExternalMemory() &&
       instr->field_representation().IsHeapObject() &&
       !instr->value()->type().IsHeapObject()) {

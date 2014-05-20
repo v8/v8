@@ -4021,31 +4021,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else if (representation.IsDouble()) {
     ASSERT(access.IsInobject());
-    ASSERT(!hinstr->has_transition());
     ASSERT(!hinstr->NeedsWriteBarrier());
     XMMRegister value = ToDoubleRegister(instr->value());
     __ movsd(FieldOperand(object, offset), value);
     return;
-  }
-
-  if (hinstr->has_transition()) {
-    Handle<Map> transition = hinstr->transition_map();
-    AddDeprecationDependency(transition);
-    if (!hinstr->NeedsWriteBarrierForMap()) {
-      __ Move(FieldOperand(object, HeapObject::kMapOffset), transition);
-    } else {
-      Register temp = ToRegister(instr->temp());
-      __ Move(kScratchRegister, transition);
-      __ movp(FieldOperand(object, HeapObject::kMapOffset), kScratchRegister);
-      // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          kScratchRegister,
-                          temp,
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
-    }
   }
 
   // Do the store.

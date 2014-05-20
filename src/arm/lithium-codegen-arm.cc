@@ -4097,30 +4097,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     }
   } else if (representation.IsDouble()) {
     ASSERT(access.IsInobject());
-    ASSERT(!instr->hydrogen()->has_transition());
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     DwVfpRegister value = ToDoubleRegister(instr->value());
     __ vstr(value, FieldMemOperand(object, offset));
     return;
-  }
-
-  if (instr->hydrogen()->has_transition()) {
-    Handle<Map> transition = instr->hydrogen()->transition_map();
-    AddDeprecationDependency(transition);
-    __ mov(scratch, Operand(transition));
-    __ str(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
-    if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
-      Register temp = ToRegister(instr->temp());
-      // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          scratch,
-                          temp,
-                          GetLinkRegisterState(),
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
-    }
   }
 
   // Do the store.

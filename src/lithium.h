@@ -650,13 +650,6 @@ class LChunk : public ZoneObject {
     inlined_closures_.Add(closure, zone());
   }
 
-  void AddDeprecationDependency(Handle<Map> map) {
-    ASSERT(!map->is_deprecated());
-    if (!map->CanBeDeprecated()) return;
-    ASSERT(!info_->IsStub());
-    deprecation_dependencies_.insert(map);
-  }
-
   void AddStabilityDependency(Handle<Map> map) {
     ASSERT(map->is_stable());
     if (!map->CanTransition()) return;
@@ -691,7 +684,6 @@ class LChunk : public ZoneObject {
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
-  MapSet deprecation_dependencies_;
   MapSet stability_dependencies_;
 };
 

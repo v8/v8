@@ -240,12 +240,7 @@ class HLoadEliminationTable : public ZoneObject {
     HValue* object = instr->object()->ActualValue();
     HValue* value = instr->value();
 
-    if (instr->has_transition()) {
-      // A transition introduces a new field and alters the map of the object.
-      // Since the field in the object is new, it cannot alias existing entries.
-      // TODO(titzer): introduce a constant for the new map and remember it.
-      KillFieldInternal(object, FieldOf(JSObject::kMapOffset), NULL);
-    } else {
+    if (instr->store_mode() == STORE_TO_INITIALIZED_ENTRY) {
       // Kill non-equivalent may-alias entries.
       KillFieldInternal(object, field, value);
     }

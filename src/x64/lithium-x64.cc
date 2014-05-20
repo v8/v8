@@ -2276,8 +2276,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool is_external_location = instr->access().IsExternalMemory() &&
       instr->access().offset() == 0;
   bool needs_write_barrier = instr->NeedsWriteBarrier();
-  bool needs_write_barrier_for_map = instr->has_transition() &&
-      instr->NeedsWriteBarrierForMap();
 
   LOperand* obj;
   if (needs_write_barrier) {
@@ -2287,12 +2285,9 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   } else if (is_external_location) {
     ASSERT(!is_in_object);
     ASSERT(!needs_write_barrier);
-    ASSERT(!needs_write_barrier_for_map);
     obj = UseRegisterOrConstant(instr->object());
   } else {
-    obj = needs_write_barrier_for_map
-        ? UseRegister(instr->object())
-        : UseRegisterAtStart(instr->object());
+    obj = UseRegisterAtStart(instr->object());
   }
 
   bool can_be_constant = instr->value()->IsConstant() &&
@@ -2316,8 +2311,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   // We only need a scratch register if we have a write barrier or we
   // have a store into the properties array (not in-object-property).
-  LOperand* temp = (!is_in_object || needs_write_barrier ||
-      needs_write_barrier_for_map) ? TempRegister() : NULL;
+  LOperand* temp = (!is_in_object || needs_write_barrier)
+      ? TempRegister() : NULL;
 
   LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
   if (!instr->access().IsExternalMemory() &&

@@ -6656,7 +6656,7 @@ enum StoreFieldOrKeyedMode {
 };
 
 
-class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
+class HStoreNamedField V8_FINAL : public HTemplateInstruction<2> {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreNamedField, HValue*,
                                  HObjectAccess, HValue*);
@@ -6711,30 +6711,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
-  HValue* transition() const { return OperandAt(2); }
 
   HObjectAccess access() const { return access_; }
   HValue* new_space_dominator() const { return new_space_dominator_; }
-  bool has_transition() const { return has_transition_; }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
-  Handle<Map> transition_map() const {
-    if (has_transition()) {
-      return Handle<Map>::cast(
-          HConstant::cast(transition())->handle(Isolate::Current()));
-    } else {
-      return Handle<Map>();
-    }
-  }
-
-  void SetTransition(HConstant* transition) {
-    ASSERT(!has_transition());  // Only set once.
-    SetOperandAt(2, transition);
-    has_transition_ = true;
-  }
-
   bool NeedsWriteBarrier() {
-    ASSERT(!field_representation().IsDouble() || !has_transition());
     if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
@@ -6743,12 +6725,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     return StoringValueNeedsWriteBarrier(value()) &&
         ReceiverObjectNeedsWriteBarrier(object(), value(),
                                         new_space_dominator());
-  }
-
-  bool NeedsWriteBarrierForMap() {
-    if (IsSkipWriteBarrier()) return false;
-    return ReceiverObjectNeedsWriteBarrier(object(), transition(),
-                                           new_space_dominator());
   }
 
   Representation field_representation() const {
@@ -6767,7 +6743,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
       : access_(access),
         new_space_dominator_(NULL),
         write_barrier_mode_(UPDATE_WRITE_BARRIER),
-        has_transition_(false),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
@@ -6775,14 +6750,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
            obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
-    SetOperandAt(2, obj);
     access.SetGVNFlags(this, STORE);
   }
 
   HObjectAccess access_;
   HValue* new_space_dominator_;
   WriteBarrierMode write_barrier_mode_ : 1;
-  bool has_transition_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };
 

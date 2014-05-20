@@ -3589,9 +3589,6 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
   if (NeedsWriteBarrier()) {
     stream->Add(" (write-barrier)");
   }
-  if (has_transition()) {
-    stream->Add(" (transition map %p)", *transition_map());
-  }
 }
 
 
