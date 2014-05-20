@@ -1187,9 +1187,18 @@ class Heap {
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
 
+  inline void IncrementPromotedObjectsSize(int object_size) {
+    ASSERT(object_size > 0);
+    promoted_objects_size_ += object_size;
+  }
+
+  inline void IncrementSemiSpaceCopiedObjectSize(int object_size) {
+    ASSERT(object_size > 0);
+    semi_space_copied_object_size_ += object_size;
+  }
+
   inline void IncrementYoungSurvivorsCounter(int survived) {
     ASSERT(survived >= 0);
-    young_survivors_after_last_gc_ = survived;
     survived_since_last_expansion_ += survived;
   }
 
@@ -2027,10 +2036,13 @@ class Heap {
 
   static const int kOldSurvivalRateLowThreshold = 10;
 
-  int young_survivors_after_last_gc_;
   int high_survival_rate_period_length_;
   int low_survival_rate_period_length_;
   double survival_rate_;
+  intptr_t promoted_objects_size_;
+  double promotion_rate_;
+  intptr_t semi_space_copied_object_size_;
+  double semi_space_copied_rate_;
   SurvivalRateTrend previous_survival_rate_trend_;
   SurvivalRateTrend survival_rate_trend_;
 
@@ -2600,10 +2612,6 @@ class GCTracer BASE_EMBEDDED {
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
 
-  void increment_promoted_objects_size(int object_size) {
-    promoted_objects_size_ += object_size;
-  }
-
   void increment_nodes_died_in_new_space() {
     nodes_died_in_new_space_++;
   }
@@ -2656,9 +2664,6 @@ class GCTracer BASE_EMBEDDED {
   // Amount of time spent in mutator that is time elapsed between end of the
   // previous collection and the beginning of the current one.
   double spent_in_mutator_;
-
-  // Size of objects promoted during the current collection.
-  intptr_t promoted_objects_size_;
 
   // Number of died nodes in the new space.
   int nodes_died_in_new_space_;

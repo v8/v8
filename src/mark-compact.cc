@@ -2077,6 +2077,7 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
                     object,
                     size,
                     NEW_SPACE);
+      heap()->IncrementSemiSpaceCopiedObjectSize(size);
     }
     *cells = 0;
   }
@@ -3083,8 +3084,7 @@ bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
                   object,
                   object_size,
                   target_space->identity());
-    heap()->mark_compact_collector()->tracer()->
-        increment_promoted_objects_size(object_size);
+    heap()->IncrementPromotedObjectsSize(object_size);
     return true;
   }
 
