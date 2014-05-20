@@ -167,7 +167,9 @@ class Genesis BASE_EMBEDDED {
   // Creates the empty function.  Used for creating a context from scratch.
   Handle<JSFunction> CreateEmptyFunction(Isolate* isolate);
   // Creates the ThrowTypeError function. ECMA 5th Ed. 13.2.3
-  Handle<JSFunction> GetThrowTypeErrorFunction();
+  Handle<JSFunction> GetStrictPoisonFunction();
+  // Poison for sloppy generator function arguments/callee.
+  Handle<JSFunction> GetGeneratorPoisonFunction();
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
 
@@ -302,7 +304,8 @@ class Genesis BASE_EMBEDDED {
   // prototype, maps.
   Handle<Map> sloppy_function_map_writable_prototype_;
   Handle<Map> strict_function_map_writable_prototype_;
-  Handle<JSFunction> throw_type_error_function;
+  Handle<JSFunction> strict_poison_function;
+  Handle<JSFunction> generator_poison_function;
 
   BootstrapperActive active_;
   friend class Bootstrapper;
@@ -566,20 +569,36 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
 
 
 // ECMAScript 5th Edition, 13.2.3
-Handle<JSFunction> Genesis::GetThrowTypeErrorFunction() {
-  if (throw_type_error_function.is_null()) {
+Handle<JSFunction> Genesis::GetStrictPoisonFunction() {
+  if (strict_poison_function.is_null()) {
     Handle<String> name = factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
-    throw_type_error_function = factory()->NewFunctionWithoutPrototype(
-        name, code);
-    throw_type_error_function->set_map(native_context()->sloppy_function_map());
-    throw_type_error_function->shared()->DontAdaptArguments();
+    strict_poison_function = factory()->NewFunctionWithoutPrototype(name, code);
+    strict_poison_function->set_map(native_context()->sloppy_function_map());
+    strict_poison_function->shared()->DontAdaptArguments();
 
-    JSObject::PreventExtensions(throw_type_error_function).Assert();
+    JSObject::PreventExtensions(strict_poison_function).Assert();
   }
-  return throw_type_error_function;
+  return strict_poison_function;
+}
+
+
+Handle<JSFunction> Genesis::GetGeneratorPoisonFunction() {
+  if (generator_poison_function.is_null()) {
+    Handle<String> name = factory()->InternalizeOneByteString(
+        STATIC_ASCII_VECTOR("ThrowTypeError"));
+    Handle<Code> code(isolate()->builtins()->builtin(
+        Builtins::kGeneratorPoisonPill));
+    generator_poison_function = factory()->NewFunctionWithoutPrototype(
+        name, code);
+    generator_poison_function->set_map(native_context()->sloppy_function_map());
+    generator_poison_function->shared()->DontAdaptArguments();
+
+    JSObject::PreventExtensions(generator_poison_function).Assert();
+  }
+  return generator_poison_function;
 }
 
 
@@ -631,9 +650,20 @@ static void SetAccessors(Handle<Map> map,
 }
 
 
+static void ReplaceAccessors(Handle<Map> map,
+                             Handle<String> name,
+                             PropertyAttributes attributes,
+                             Handle<AccessorPair> accessor_pair) {
+  DescriptorArray* descriptors = map->instance_descriptors();
+  int idx = descriptors->SearchWithCache(*name, *map);
+  CallbacksDescriptor descriptor(name, accessor_pair, attributes);
+  descriptors->Replace(idx, &descriptor);
+}
+
+
 void Genesis::PoisonArgumentsAndCaller(Handle<Map> map) {
-  SetAccessors(map, factory()->arguments_string(), GetThrowTypeErrorFunction());
-  SetAccessors(map, factory()->caller_string(), GetThrowTypeErrorFunction());
+  SetAccessors(map, factory()->arguments_string(), GetStrictPoisonFunction());
+  SetAccessors(map, factory()->caller_string(), GetStrictPoisonFunction());
 }
 
 
@@ -1159,14 +1189,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<AccessorPair> callee = factory->NewAccessorPair();
     Handle<AccessorPair> caller = factory->NewAccessorPair();
 
-    Handle<JSFunction> throw_function =
-        GetThrowTypeErrorFunction();
+    Handle<JSFunction> poison = GetStrictPoisonFunction();
 
     // Install the ThrowTypeError functions.
-    callee->set_getter(*throw_function);
-    callee->set_setter(*throw_function);
-    caller->set_getter(*throw_function);
-    caller->set_setter(*throw_function);
+    callee->set_getter(*poison);
+    callee->set_setter(*poison);
+    caller->set_getter(*poison);
+    caller->set_setter(*poison);
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
@@ -1340,20 +1369,43 @@ void Genesis::InitializeExperimentalGlobal() {
 
     // Create maps for generator functions and their prototypes.  Store those
     // maps in the native context.
-    Handle<Map> function_map(native_context()->sloppy_function_map());
-    Handle<Map> generator_function_map = Map::Copy(function_map);
+    Handle<Map> sloppy_function_map(native_context()->sloppy_function_map());
+    Handle<Map> generator_function_map = Map::Copy(sloppy_function_map);
     generator_function_map->set_prototype(*generator_function_prototype);
     native_context()->set_sloppy_generator_function_map(
         *generator_function_map);
 
-    Handle<Map> strict_mode_function_map(
-        native_context()->strict_function_map());
-    Handle<Map> strict_mode_generator_function_map =
-        Map::Copy(strict_mode_function_map);
-    strict_mode_generator_function_map->set_prototype(
-        *generator_function_prototype);
+    // The "arguments" and "caller" instance properties aren't specified, so
+    // technically we could leave them out.  They make even less sense for
+    // generators than for functions.  Still, the same argument that it makes
+    // sense to keep them around but poisoned in strict mode applies to
+    // generators as well.  With poisoned accessors, naive callers can still
+    // iterate over the properties without accessing them.
+    //
+    // We can't use PoisonArgumentsAndCaller because that mutates accessor pairs
+    // in place, and the initial state of the generator function map shares the
+    // accessor pair with sloppy functions.  Also the error message should be
+    // different.  Also unhappily, we can't use the API accessors to implement
+    // poisoning, because API accessors present themselves as data properties,
+    // not accessor properties, and so getOwnPropertyDescriptor raises an
+    // exception as it tries to get the values.  Sadness.
+    Handle<AccessorPair> poison_pair(factory()->NewAccessorPair());
+    PropertyAttributes rw_attribs =
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+    Handle<JSFunction> poison_function = GetGeneratorPoisonFunction();
+    poison_pair->set_getter(*poison_function);
+    poison_pair->set_setter(*poison_function);
+    ReplaceAccessors(generator_function_map, factory()->arguments_string(),
+        rw_attribs, poison_pair);
+    ReplaceAccessors(generator_function_map, factory()->caller_string(),
+        rw_attribs, poison_pair);
+
+    Handle<Map> strict_function_map(native_context()->strict_function_map());
+    Handle<Map> strict_generator_function_map = Map::Copy(strict_function_map);
+    // "arguments" and "caller" already poisoned.
+    strict_generator_function_map->set_prototype(*generator_function_prototype);
     native_context()->set_strict_generator_function_map(
-        *strict_mode_generator_function_map);
+        *strict_generator_function_map);
 
     Handle<JSFunction> object_function(native_context()->object_function());
     Handle<Map> generator_object_prototype_map = Map::Create(
@@ -1550,9 +1602,6 @@ void Genesis::InstallNativeFunctions() {
 
 
 void Genesis::InstallExperimentalNativeFunctions() {
-  INSTALL_NATIVE(JSFunction, "RunMicrotasksJS", run_microtasks);
-  INSTALL_NATIVE(JSFunction, "EnqueueMicrotask", enqueue_microtask);
-
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);

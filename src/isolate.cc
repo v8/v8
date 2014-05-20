@@ -388,13 +388,15 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
        iter.Advance()) {
     StackFrame* raw_frame = iter.frame();
     if (IsVisibleInStackTrace(raw_frame, *caller, &seen_caller)) {
-      frames_seen++;
       JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
       // Set initial size to the maximum inlining level + 1 for the outermost
       // function.
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       frame->Summarize(&frames);
       for (int i = frames.length() - 1; i >= 0; i--) {
+        Handle<JSFunction> fun = frames[i].function();
+        // Filter out frames from other security contexts.
+        if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
         if (cursor + 4 > elements->length()) {
           int new_capacity = JSObject::NewElementsCapacity(elements->length());
           Handle<FixedArray> new_elements =
@@ -407,7 +409,6 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         ASSERT(cursor + 4 <= elements->length());
 
         Handle<Object> recv = frames[i].receiver();
-        Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
         // The stack trace API should not expose receivers and function
@@ -426,6 +427,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         elements->set(cursor++, *code);
         elements->set(cursor++, *offset);
       }
+      frames_seen++;
     }
   }
   elements->set(0, Smi::FromInt(sloppy_frames));
@@ -480,10 +482,14 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      Handle<JSFunction> fun = frames[i].function();
+      // Filter frames from other security contexts.
+      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+          !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
+
       // Create a JSObject to hold the information for the StackFrame.
       Handle<JSObject> stack_frame = factory()->NewJSObject(object_function());
 
-      Handle<JSFunction> fun = frames[i].function();
       Handle<Script> script(Script::cast(fun->shared()->script()));
 
       if (options & StackTrace::kLineNumber) {
@@ -2232,13 +2238,13 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 void Isolate::FireCallCompletedCallback() {
   bool has_call_completed_callbacks = !call_completed_callbacks_.is_empty();
-  bool run_microtasks = autorun_microtasks() && microtask_pending();
+  bool run_microtasks = autorun_microtasks() && pending_microtask_count();
   if (!has_call_completed_callbacks && !run_microtasks) return;
 
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
+  if (run_microtasks) RunMicrotasks();
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   handle_scope_implementer()->IncrementCallDepth();
-  if (run_microtasks) Execution::RunMicrotasks(this);
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
     call_completed_callbacks_.at(i)();
   }
@@ -2246,15 +2252,51 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 
-void Isolate::RunMicrotasks() {
-  if (!microtask_pending())
-    return;
+void Isolate::EnqueueMicrotask(Handle<JSFunction> microtask) {
+  Handle<FixedArray> queue(heap()->microtask_queue(), this);
+  int num_tasks = pending_microtask_count();
+  ASSERT(num_tasks <= queue->length());
+  if (num_tasks == 0) {
+    queue = factory()->NewFixedArray(8);
+    heap()->set_microtask_queue(*queue);
+  } else if (num_tasks == queue->length()) {
+    queue = FixedArray::CopySize(queue, num_tasks * 2);
+    heap()->set_microtask_queue(*queue);
+  }
+  ASSERT(queue->get(num_tasks)->IsUndefined());
+  queue->set(num_tasks, *microtask);
+  set_pending_microtask_count(num_tasks + 1);
+}
 
-  ASSERT(handle_scope_implementer()->CallDepthIsZero());
+
+void Isolate::RunMicrotasks() {
+  // TODO(adamk): This ASSERT triggers in mjsunit tests which
+  // call the %RunMicrotasks runtime function. But it should
+  // never happen outside of tests, so it would be nice to
+  // uncomment it.
+  //
+  // ASSERT(handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
   handle_scope_implementer()->IncrementCallDepth();
-  Execution::RunMicrotasks(this);
+
+  while (pending_microtask_count() > 0) {
+    HandleScope scope(this);
+    int num_tasks = pending_microtask_count();
+    Handle<FixedArray> queue(heap()->microtask_queue(), this);
+    ASSERT(num_tasks <= queue->length());
+    set_pending_microtask_count(0);
+    heap()->set_microtask_queue(heap()->empty_fixed_array());
+
+    for (int i = 0; i < num_tasks; i++) {
+      HandleScope scope(this);
+      Handle<JSFunction> microtask(JSFunction::cast(queue->get(i)), this);
+      // TODO(adamk): This should ignore/clear exceptions instead of Checking.
+      Execution::Call(this, microtask, factory()->undefined_value(),
+                      0, NULL).Check();
+    }
+  }
+
   handle_scope_implementer()->DecrementCallDepth();
 }
 

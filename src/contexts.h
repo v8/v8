@@ -156,8 +156,6 @@ enum BindingFlags {
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings) \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object, \
     error_message_for_code_gen_from_strings) \
-  V(RUN_MICROTASKS_INDEX, JSFunction, run_microtasks) \
-  V(ENQUEUE_MICROTASK_INDEX, JSFunction, enqueue_microtask) \
   V(IS_PROMISE_INDEX, JSFunction, is_promise) \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create) \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve) \
@@ -449,6 +447,11 @@ class Context: public FixedArray {
   bool IsGlobalContext() {
     Map* map = this->map();
     return map == map->GetHeap()->global_context_map();
+  }
+
+  bool HasSameSecurityTokenAs(Context* that) {
+    return this->global_object()->native_context()->security_token() ==
+        that->global_object()->native_context()->security_token();
   }
 
   // A native context holds a list of all functions with optimized code.

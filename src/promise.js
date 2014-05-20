@@ -151,7 +151,7 @@ function PromiseCatch(onReject) {
 }
 
 function PromiseEnqueue(value, tasks) {
-  EnqueueMicrotask(function() {
+  %EnqueueMicrotask(function() {
     for (var i = 0; i < tasks.length; i += 2) {
       PromiseHandle(value, tasks[i], tasks[i + 1])
     }

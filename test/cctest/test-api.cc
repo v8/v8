@@ -20821,6 +20821,25 @@ TEST(SetAutorunMicrotasks) {
 }
 
 
+TEST(RunMicrotasksWithoutEnteringContext) {
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  isolate->SetAutorunMicrotasks(false);
+  Handle<Context> context = Context::New(isolate);
+  {
+    Context::Scope context_scope(context);
+    CompileRun("var ext1Calls = 0;");
+    isolate->EnqueueMicrotask(Function::New(isolate, MicrotaskOne));
+  }
+  isolate->RunMicrotasks();
+  {
+    Context::Scope context_scope(context);
+    CHECK_EQ(1, CompileRun("ext1Calls")->Int32Value());
+  }
+  isolate->SetAutorunMicrotasks(true);
+}
+
+
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;

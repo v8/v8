@@ -5702,7 +5702,7 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 
 inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
                                             HValue* value,
-                                            HValue* new_space_dominator) {
+                                            HValue* dominator) {
   while (object->IsInnerAllocatedObject()) {
     object = HInnerAllocatedObject::cast(object)->base_object();
   }
@@ -5714,26 +5714,27 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     // Stores to external references require no write barriers
     return false;
   }
-  if (object != new_space_dominator) return true;
-  if (object->IsAllocate()) {
-    // Stores to new space allocations require no write barriers if the object
-    // is the new space dominator.
+  // We definitely need a write barrier unless the object is the allocation
+  // dominator.
+  if (object == dominator && object->IsAllocate()) {
+    // Stores to new space allocations require no write barriers.
     if (HAllocate::cast(object)->IsNewSpaceAllocation()) {
       return false;
     }
-    // Storing a map or an immortal immovable object requires no write barriers
-    // if the object is the new space dominator.
-    if (value->IsConstant() &&
-        (HConstant::cast(value)->IsMap() ||
-         HConstant::cast(value)->ImmortalImmovable())) {
+    // Stores to old space allocations require no write barriers if the value is
+    // a constant provably not in new space.
+    if (value->IsConstant() && HConstant::cast(value)->NotInNewSpace()) {
       return false;
     }
-    // Likewise we don't need a write barrier if we store a value that
-    // originates from the same allocation (via allocation folding).
+    // Stores to old space allocations require no write barriers if the value is
+    // an old space allocation.
     while (value->IsInnerAllocatedObject()) {
       value = HInnerAllocatedObject::cast(value)->base_object();
     }
-    return object != value;
+    if (value->IsAllocate() &&
+        !HAllocate::cast(value)->IsNewSpaceAllocation()) {
+      return false;
+    }
   }
   return true;
 }

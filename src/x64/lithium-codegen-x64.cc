@@ -1605,11 +1605,11 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         }
         break;
       case Token::SHR:
-        if (shift_count == 0 && instr->can_deopt()) {
+        if (shift_count != 0) {
+          __ shrl(ToRegister(left), Immediate(shift_count));
+        } else if (instr->can_deopt()) {
           __ testl(ToRegister(left), ToRegister(left));
           DeoptimizeIf(negative, instr->environment());
-        } else {
-          __ shrl(ToRegister(left), Immediate(shift_count));
         }
         break;
       case Token::SHL:
@@ -1697,13 +1697,6 @@ void LCodeGen::DoConstantE(LConstantE* instr) {
 void LCodeGen::DoConstantT(LConstantT* instr) {
   Handle<Object> object = instr->value(isolate());
   AllowDeferredHandleDereference smi_check;
-  if (instr->hydrogen()->HasObjectMap()) {
-    Handle<Map> object_map = instr->hydrogen()->ObjectMap().handle();
-    ASSERT(object->IsHeapObject());
-    ASSERT(!object_map->is_stable() ||
-           *object_map == Handle<HeapObject>::cast(object)->map());
-    USE(object_map);
-  }
   __ Move(ToRegister(instr->result()), object);
 }
 
@@ -2234,7 +2227,9 @@ inline Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
-  Condition cc = TokenToCondition(instr->op(), instr->is_double());
+  bool is_unsigned =
+      instr->is_double() || instr->hydrogen()->CheckFlag(HInstruction::kUint32);
+  Condition cc = TokenToCondition(instr->op(), is_unsigned);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
     // We can statically evaluate the comparison.

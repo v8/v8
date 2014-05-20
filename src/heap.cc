@@ -2897,9 +2897,9 @@ void Heap::CreateInitialObjects() {
   set_observation_state(*factory->NewJSObjectFromMap(
       factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)));
 
-  // Allocate object to hold object microtask state.
-  set_microtask_state(*factory->NewJSObjectFromMap(
-      factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize)));
+  // Microtask queue uses the empty fixed array as a sentinel for "empty".
+  // Number of queued microtasks stored in Isolate::pending_microtask_count().
+  set_microtask_queue(empty_fixed_array());
 
   set_frozen_symbol(*factory->NewPrivateSymbol());
   set_nonexistent_symbol(*factory->NewPrivateSymbol());

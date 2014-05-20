@@ -2115,6 +2115,9 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
     StackTraceOptions options) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);
+  // TODO(dcarney): remove when ScriptDebugServer is fixed.
+  options = static_cast<StackTraceOptions>(
+      static_cast<int>(options) | kExposeFramesAcrossSecurityOrigins);
   i::Handle<i::JSArray> stackTrace =
       i_isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
@@ -6626,16 +6629,13 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void Isolate::RunMicrotasks() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::HandleScope scope(i_isolate);
-  i_isolate->RunMicrotasks();
+  reinterpret_cast<i::Isolate*>(this)->RunMicrotasks();
 }
 
 
 void Isolate::EnqueueMicrotask(Handle<Function> microtask) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  ENTER_V8(i_isolate);
-  i::Execution::EnqueueMicrotask(i_isolate, Utils::OpenHandle(*microtask));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->EnqueueMicrotask(Utils::OpenHandle(*microtask));
 }
 
 

@@ -196,7 +196,7 @@ namespace internal {
   V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
-  V(JSObject, microtask_state, MicrotaskState)
+  V(FixedArray, microtask_queue, MicrotaskQueue)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

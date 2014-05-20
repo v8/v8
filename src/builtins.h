@@ -59,7 +59,8 @@ enum BuiltinExtraArguments {
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
   V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)                 \
                                                                     \
-  V(StrictModePoisonPill, NO_EXTRA_ARGUMENTS)
+  V(StrictModePoisonPill, NO_EXTRA_ARGUMENTS)                       \
+  V(GeneratorPoisonPill, NO_EXTRA_ARGUMENTS)
 
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                               \

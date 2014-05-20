@@ -1,3 +1,13 @@
+2014-05-20: Version 3.27.8
+
+        Move microtask queueing logic from JavaScript to C++.
+
+        Partial revert of "Next bunch of fixes for check elimination" (Chromium
+        issue 372173).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-19: Version 3.27.7
 
         Performance and stability improvements on all platforms.

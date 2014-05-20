@@ -1862,37 +1862,3 @@ function SetUpFunction() {
 }
 
 SetUpFunction();
-
-
-//----------------------------------------------------------------------------
-
-// TODO(rossberg): very simple abstraction for generic microtask queue.
-// Eventually, we should move to a real event queue that allows to maintain
-// relative ordering of different kinds of tasks.
-
-function RunMicrotasksJS() {
-  while (%SetMicrotaskPending(false)) {
-    var microtaskState = %GetMicrotaskState();
-    if (IS_UNDEFINED(microtaskState.queue))
-      return;
-
-    var microtasks = microtaskState.queue;
-    microtaskState.queue = null;
-
-    for (var i = 0; i < microtasks.length; i++) {
-      microtasks[i]();
-    }
-  }
-}
-
-function EnqueueMicrotask(fn) {
-  if (!IS_FUNCTION(fn)) {
-    throw new $TypeError('Can only enqueue functions');
-  }
-  var microtaskState = %GetMicrotaskState();
-  if (IS_UNDEFINED(microtaskState.queue) || IS_NULL(microtaskState.queue)) {
-    microtaskState.queue = new InternalArray;
-  }
-  microtaskState.queue.push(fn);
-  %SetMicrotaskPending(true);
-}
