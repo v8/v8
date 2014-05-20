@@ -1558,8 +1558,6 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
-    debugger()->UnloadDebugger();
-
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
       delete optimizing_compiler_thread_;
