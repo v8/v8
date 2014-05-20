@@ -852,3 +852,138 @@ for (var i = 9; i >= 0; i--) {
   });
   assertEquals(4950, accumulated);
 })();
+
+
+(function TestMapForEachAllRemovedTransition() {
+  var map = new Map;
+  map.set(0, 0);
+
+  var buffer = [];
+  map.forEach(function(v) {
+    buffer.push(v);
+    if (v === 0) {
+      for (var i = 1; i < 4; i++) {
+        map.set(i, i);
+      }
+    }
+
+    if (v === 3) {
+      for (var i = 0; i < 4; i++) {
+        map.delete(i);
+      }
+      for (var i = 4; i < 8; i++) {
+        map.set(i, i);
+      }
+    }
+  });
+
+  assertArrayEquals([0, 1, 2, 3, 4, 5, 6, 7], buffer);
+})();
+
+
+(function TestMapForEachClearTransition() {
+  var map = new Map;
+  map.set(0, 0);
+
+  var i = 0;
+  var buffer = [];
+  map.forEach(function(v) {
+    buffer.push(v);
+    if (++i < 5) {
+      for (var j = 0; j < 5; j++) {
+        map.clear();
+        map.set(i, i);
+      }
+    }
+  });
+
+  assertArrayEquals([0, 1, 2, 3, 4], buffer);
+})();
+
+
+(function TestMapForEachNestedNonTrivialTransition() {
+  var map = new Map;
+  map.set(0, 0);
+  map.set(1, 1);
+  map.set(2, 2);
+  map.set(3, 3);
+  map.delete(0);
+
+  var i = 0;
+  var buffer = [];
+  map.forEach(function(v) {
+    if (++i > 10) return;
+
+    buffer.push(v);
+
+    if (v == 3) {
+      map.delete(1);
+      for (var j = 4; j < 10; j++) {
+        map.set(j, j);
+      }
+      for (var j = 4; j < 10; j += 2) {
+        map.delete(j);
+      }
+      map.delete(2);
+
+      for (var j = 10; j < 20; j++) {
+        map.set(j, j);
+      }
+      for (var j = 10; j < 20; j += 2) {
+        map.delete(j);
+      }
+
+      map.delete(3);
+    }
+  });
+
+  assertArrayEquals([1, 2, 3, 5, 7, 9, 11, 13, 15, 17], buffer);
+})();
+
+
+(function TestMapForEachAllRemovedTransitionNoClear() {
+  var map = new Map;
+  map.set(0, 0);
+
+  var buffer = [];
+  map.forEach(function(v) {
+    buffer.push(v);
+    if (v === 0) {
+      for (var i = 1; i < 8; i++) {
+        map.set(i, i);
+      }
+    }
+
+    if (v === 4) {
+      for (var i = 0; i < 8; i++) {
+        map.delete(i);
+      }
+    }
+  });
+
+  assertArrayEquals([0, 1, 2, 3, 4], buffer);
+})();
+
+
+(function TestMapForEachNoMoreElementsAfterTransition() {
+  var map = new Map;
+  map.set(0, 0);
+
+  var buffer = [];
+  map.forEach(function(v) {
+    buffer.push(v);
+    if (v === 0) {
+      for (var i = 1; i < 16; i++) {
+        map.set(i, i);
+      }
+    }
+
+    if (v === 4) {
+      for (var i = 5; i < 16; i++) {
+        map.delete(i);
+      }
+    }
+  });
+
+  assertArrayEquals([0, 1, 2, 3, 4], buffer);
+})();

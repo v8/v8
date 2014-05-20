@@ -743,14 +743,8 @@ void OrderedHashTableIterator<Derived, TableType>::
   table()->ShortPrint(out);
   PrintF(out, "\n - index = ");
   index()->ShortPrint(out);
-  PrintF(out, "\n - count = ");
-  count()->ShortPrint(out);
   PrintF(out, "\n - kind = ");
   kind()->ShortPrint(out);
-  PrintF(out, "\n - next_iterator = ");
-  next_iterator()->ShortPrint(out);
-  PrintF(out, "\n - previous_iterator = ");
-  previous_iterator()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

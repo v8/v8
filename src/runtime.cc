@@ -1600,15 +1600,6 @@ RUNTIME_FUNCTION(Runtime_SetIteratorNext) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetIteratorClose) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-  holder->Close();
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_MapInitialize) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -1706,15 +1697,6 @@ RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
   return *JSMapIterator::Next(holder);
-}
-
-
-RUNTIME_FUNCTION(Runtime_MapIteratorClose) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-  holder->Close();
-  return isolate->heap()->undefined_value();
 }
 
 

@@ -106,12 +106,8 @@ function SetForEach(f, receiver) {
 
   var iterator = %SetCreateIterator(this, ITERATOR_KIND_VALUES);
   var entry;
-  try {
-    while (!(entry = %SetIteratorNext(iterator)).done) {
-      %_CallFunction(receiver, entry.value, entry.value, this, f);
-    }
-  } finally {
-    %SetIteratorClose(iterator);
+  while (!(entry = %SetIteratorNext(iterator)).done) {
+    %_CallFunction(receiver, entry.value, entry.value, this, f);
   }
 }
 
@@ -219,12 +215,8 @@ function MapForEach(f, receiver) {
 
   var iterator = %MapCreateIterator(this, ITERATOR_KIND_ENTRIES);
   var entry;
-  try {
-    while (!(entry = %MapIteratorNext(iterator)).done) {
-      %_CallFunction(receiver, entry.value[1], entry.value[0], this, f);
-    }
-  } finally {
-    %MapIteratorClose(iterator);
+  while (!(entry = %MapIteratorNext(iterator)).done) {
+    %_CallFunction(receiver, entry.value[1], entry.value[0], this, f);
   }
 }
 
