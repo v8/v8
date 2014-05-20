@@ -500,7 +500,7 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   // Store an empty fixed array for the code dependency.
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
-  HStoreNamedField* store = Add<HStoreNamedField>(
+  Add<HStoreNamedField>(
       object,
       HObjectAccess::ForAllocationSiteOffset(
           AllocationSite::kDependentCodeOffset),
@@ -512,10 +512,15 @@ HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
   HValue* site = Add<HLoadNamedField>(
       site_list, static_cast<HValue*>(NULL),
       HObjectAccess::ForAllocationSiteList());
-  store = Add<HStoreNamedField>(object,
+  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
+  // mark as such in order to skip the write barrier, once we have a unified
+  // system for weakness. For now we decided to keep it like this because having
+  // an initial write barrier backed store makes this pointer strong until the
+  // next GC, and allocation sites are designed to survive several GCs anyway.
+  Add<HStoreNamedField>(
+      object,
       HObjectAccess::ForAllocationSiteOffset(AllocationSite::kWeakNextOffset),
       site);
-  store->SkipWriteBarrier();
   Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
                         object);
 

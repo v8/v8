@@ -6704,11 +6704,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<2> {
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  void SkipWriteBarrier() { write_barrier_mode_ = SKIP_WRITE_BARRIER; }
-  bool IsSkipWriteBarrier() const {
-    return write_barrier_mode_ == SKIP_WRITE_BARRIER;
-  }
-
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
 
@@ -6717,7 +6712,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<2> {
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
   bool NeedsWriteBarrier() {
-    if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;
@@ -6742,7 +6736,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<2> {
                    StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
-        write_barrier_mode_(UPDATE_WRITE_BARRIER),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
@@ -6755,7 +6748,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<2> {
 
   HObjectAccess access_;
   HValue* new_space_dominator_;
-  WriteBarrierMode write_barrier_mode_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };
 

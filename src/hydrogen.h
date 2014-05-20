@@ -1388,18 +1388,9 @@ class HGraphBuilder {
 
   HInstruction* AddLoadStringInstanceType(HValue* string);
   HInstruction* AddLoadStringLength(HValue* string);
-  HStoreNamedField* AddStoreMapNoWriteBarrier(HValue* object, HValue* map) {
-    HStoreNamedField* store_map = Add<HStoreNamedField>(
-        object, HObjectAccess::ForMap(), map);
-    store_map->SkipWriteBarrier();
-    return store_map;
-  }
-  HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map> map);
-  HStoreNamedField* AddStoreMapConstantNoWriteBarrier(HValue* object,
-                                                      Handle<Map> map) {
-    HStoreNamedField* store_map = AddStoreMapConstant(object, map);
-    store_map->SkipWriteBarrier();
-    return store_map;
+  HStoreNamedField* AddStoreMapConstant(HValue* object, Handle<Map> map) {
+    return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
+                                 Add<HConstant>(map));
   }
   HLoadNamedField* AddLoadElements(HValue* object,
                                    HValue* dependency = NULL);
