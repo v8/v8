@@ -41,14 +41,17 @@ void HMergeRemovableSimulatesPhase::Run() {
     bool first = true;
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* current = it.Current();
+      if (current->IsEnterInlined()) {
+        // Ensure there's a non-foldable HSimulate before an HEnterInlined to
+        // avoid folding across HEnterInlined.
+        ASSERT(!HSimulate::cast(current->previous())->
+                   is_candidate_for_removal());
+      }
       if (current->IsLeaveInlined()) {
-        // Never fold simulates from inlined environments into simulates
-        // in the outer environment.
-        // (Before each HEnterInlined, there is a non-foldable HSimulate
-        // anyway, so we get the barrier in the other direction for free.)
-        // Simply remove all accumulated simulates without merging.  This
-        // is safe because simulates after instructions with side effects
-        // are never added to the merge list.
+        // Never fold simulates from inlined environments into simulates in the
+        // outer environment. Simply remove all accumulated simulates without
+        // merging. This is safe because simulates after instructions with side
+        // effects are never added to the merge list.
         while (!mergelist.is_empty()) {
           mergelist.RemoveLast()->DeleteAndReplaceWith(NULL);
         }
@@ -70,13 +73,24 @@ void HMergeRemovableSimulatesPhase::Run() {
         continue;
       }
       HSimulate* current_simulate = HSimulate::cast(current);
-      if ((current_simulate->previous()->HasObservableSideEffects() &&
-           !current_simulate->next()->IsSimulate()) ||
-          !current_simulate->is_candidate_for_removal()) {
-        // This simulate is not suitable for folding.
-        // Fold the ones accumulated so far.
+      if (!current_simulate->is_candidate_for_removal()) {
         current_simulate->MergeWith(&mergelist);
-        continue;
+      } else if (current_simulate->ast_id().IsNone()) {
+        ASSERT(current_simulate->next()->IsEnterInlined());
+        if (!mergelist.is_empty()) {
+          HSimulate* last = mergelist.RemoveLast();
+          last->MergeWith(&mergelist);
+        }
+      } else if (current_simulate->previous()->HasObservableSideEffects()) {
+        while (current_simulate->next()->IsSimulate()) {
+          it.Advance();
+          HSimulate* next_simulate = HSimulate::cast(it.Current());
+          if (next_simulate->ast_id().IsNone()) break;
+          mergelist.Add(current_simulate, zone());
+          current_simulate = next_simulate;
+          if (!current_simulate->is_candidate_for_removal()) break;
+        }
+        current_simulate->MergeWith(&mergelist);
       } else {
         // Accumulate this simulate for folding later on.
         mergelist.Add(current_simulate, zone());
