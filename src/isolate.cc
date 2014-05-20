@@ -842,10 +842,16 @@ void Isolate::CancelTerminateExecution() {
 
 
 void Isolate::InvokeApiInterruptCallback() {
-  InterruptCallback callback = api_interrupt_callback_;
-  void* data = api_interrupt_callback_data_;
-  api_interrupt_callback_ = NULL;
-  api_interrupt_callback_data_ = NULL;
+  // Note: callback below should be called outside of execution access lock.
+  InterruptCallback callback = NULL;
+  void* data = NULL;
+  {
+    ExecutionAccess access(this);
+    callback = api_interrupt_callback_;
+    data = api_interrupt_callback_data_;
+    api_interrupt_callback_ = NULL;
+    api_interrupt_callback_data_ = NULL;
+  }
 
   if (callback != NULL) {
     VMState<EXTERNAL> state(this);
