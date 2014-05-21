@@ -38,10 +38,15 @@ function CreateIteratorResultObject(value, done) {
 // 15.4.5.2.2 ArrayIterator.prototype.next( )
 function ArrayIteratorNext() {
   var iterator = ToObject(this);
-  var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
-  if (!array) {
+
+  if (!HAS_PRIVATE(iterator, arrayIteratorObjectSymbol)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Array Iterator.prototype.next']);
+  }
+
+  var array = GET_PRIVATE(iterator, arrayIteratorObjectSymbol);
+  if (IS_UNDEFINED(array)) {
+    return CreateIteratorResultObject(UNDEFINED, true);
   }
 
   var index = GET_PRIVATE(iterator, arrayIteratorNextIndexSymbol);
@@ -51,17 +56,19 @@ function ArrayIteratorNext() {
   // "sparse" is never used.
 
   if (index >= length) {
-    SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, INFINITY);
+    SET_PRIVATE(iterator, arrayIteratorObjectSymbol, UNDEFINED);
     return CreateIteratorResultObject(UNDEFINED, true);
   }
 
   SET_PRIVATE(iterator, arrayIteratorNextIndexSymbol, index + 1);
 
-  if (itemKind == ITERATOR_KIND_VALUES)
+  if (itemKind == ITERATOR_KIND_VALUES) {
     return CreateIteratorResultObject(array[index], false);
+  }
 
-  if (itemKind == ITERATOR_KIND_ENTRIES)
+  if (itemKind == ITERATOR_KIND_ENTRIES) {
     return CreateIteratorResultObject([index, array[index]], false);
+  }
 
   return CreateIteratorResultObject(index, false);
 }
