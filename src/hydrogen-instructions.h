@@ -7123,6 +7123,7 @@ class HArrayShift V8_FINAL : public HTemplateInstruction<2> {
       : kind_(kind) {
     SetOperandAt(0, context);
     SetOperandAt(1, object);
+    SetChangesFlag(kArrayLengths);
     SetChangesFlag(kNewSpacePromotion);
     set_representation(Representation::Tagged());
     if (IsFastSmiOrObjectElementsKind(kind)) {
