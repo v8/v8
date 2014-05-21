@@ -166,10 +166,12 @@ macro TO_OBJECT_INLINE(arg) = (IS_SPEC_OBJECT(%IS_VAR(arg)) ? arg : ToObject(arg
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
 
 # Private names.
+# GET_PRIVATE should only be used if the property is known to exists on obj
+# itself (it should really use %GetOwnProperty, but that would be way slower).
 macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateSymbol(name));
 macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
-macro HAS_PRIVATE(obj, sym) = (sym in obj);
+macro HAS_PRIVATE(obj, sym) = (%HasLocalProperty(obj, sym));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);

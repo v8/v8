@@ -69,7 +69,7 @@ void ThreadLocalTop::InitializeInternal() {
   js_entry_sp_ = NULL;
   external_callback_scope_ = NULL;
   current_vm_state_ = EXTERNAL;
-  try_catch_handler_address_ = NULL;
+  try_catch_handler_ = NULL;
   context_ = NULL;
   thread_id_ = ThreadId::Invalid();
   external_caught_exception_ = false;
@@ -95,11 +95,6 @@ void ThreadLocalTop::Initialize() {
   simulator_ = Simulator::current(isolate_);
 #endif
   thread_id_ = ThreadId::Current();
-}
-
-
-v8::TryCatch* ThreadLocalTop::TryCatchHandler() {
-  return TRY_CATCH_FROM_ADDRESS(try_catch_handler_address());
 }
 
 
@@ -209,9 +204,9 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(BitCast<Object**>(&(thread->context_)));
   v->VisitPointer(&thread->scheduled_exception_);
 
-  for (v8::TryCatch* block = thread->TryCatchHandler();
+  for (v8::TryCatch* block = thread->try_catch_handler();
        block != NULL;
-       block = TRY_CATCH_FROM_ADDRESS(block->next_)) {
+       block = block->next_) {
     v->VisitPointer(BitCast<Object**>(&(block->exception_)));
     v->VisitPointer(BitCast<Object**>(&(block->message_obj_)));
     v->VisitPointer(BitCast<Object**>(&(block->message_script_)));
@@ -266,23 +261,14 @@ bool Isolate::IsDeferredHandle(Object** handle) {
 
 
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
-  // The ARM simulator has a separate JS stack.  We therefore register
-  // the C++ try catch handler with the simulator and get back an
-  // address that can be used for comparisons with addresses into the
-  // JS stack.  When running without the simulator, the address
-  // returned will be the address of the C++ try catch handler itself.
-  Address address = reinterpret_cast<Address>(
-      SimulatorStack::RegisterCTryCatch(reinterpret_cast<uintptr_t>(that)));
-  thread_local_top()->set_try_catch_handler_address(address);
+  thread_local_top()->set_try_catch_handler(that);
 }
 
 
 void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  ASSERT(thread_local_top()->TryCatchHandler() == that);
-  thread_local_top()->set_try_catch_handler_address(
-      reinterpret_cast<Address>(that->next_));
+  ASSERT(thread_local_top()->try_catch_handler() == that);
+  thread_local_top()->set_try_catch_handler(that->next_);
   thread_local_top()->catcher_ = NULL;
-  SimulatorStack::UnregisterCTryCatch();
 }
 
 
@@ -842,10 +828,16 @@ void Isolate::CancelTerminateExecution() {
 
 
 void Isolate::InvokeApiInterruptCallback() {
-  InterruptCallback callback = api_interrupt_callback_;
-  void* data = api_interrupt_callback_data_;
-  api_interrupt_callback_ = NULL;
-  api_interrupt_callback_data_ = NULL;
+  // Note: callback below should be called outside of execution access lock.
+  InterruptCallback callback = NULL;
+  void* data = NULL;
+  {
+    ExecutionAccess access(this);
+    callback = api_interrupt_callback_;
+    data = api_interrupt_callback_data_;
+    api_interrupt_callback_ = NULL;
+    api_interrupt_callback_data_ = NULL;
+  }
 
   if (callback != NULL) {
     VMState<EXTERNAL> state(this);
@@ -1551,8 +1543,6 @@ void Isolate::GlobalTearDown() {
 void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
-
-    debugger()->UnloadDebugger();
 
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();

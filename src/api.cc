@@ -6,6 +6,9 @@
 
 #include <string.h>  // For memcpy, strlen.
 #include <cmath>  // For isnan.
+#ifdef V8_USE_ADDRESS_SANITIZER
+#include <sanitizer/asan_interface.h>
+#endif  // V8_USE_ADDRESS_SANITIZER
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
@@ -37,6 +40,7 @@
 #include "runtime.h"
 #include "runtime-profiler.h"
 #include "scanner-character-streams.h"
+#include "simulator.h"
 #include "snapshot.h"
 #include "unicode-inl.h"
 #include "utils/random-number-generator.h"
@@ -1785,13 +1789,26 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 v8::TryCatch::TryCatch()
     : isolate_(i::Isolate::Current()),
-      next_(isolate_->try_catch_handler_address()),
+      next_(isolate_->try_catch_handler()),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false),
       has_terminated_(false) {
   Reset();
+  js_stack_comparable_address_ = this;
+#ifdef V8_USE_ADDRESS_SANITIZER
+  void* asan_fake_stack_handle = __asan_get_current_fake_stack();
+  if (asan_fake_stack_handle != NULL) {
+    js_stack_comparable_address_ = __asan_addr_is_in_fake_stack(
+        asan_fake_stack_handle, js_stack_comparable_address_, NULL, NULL);
+    CHECK(js_stack_comparable_address_ != NULL);
+  }
+#endif
+  // Special handling for simulators which have a separate JS stack.
+  js_stack_comparable_address_ = reinterpret_cast<void*>(
+      v8::internal::SimulatorStack::RegisterCTryCatch(
+          reinterpret_cast<uintptr_t>(js_stack_comparable_address_)));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -1811,10 +1828,12 @@ v8::TryCatch::~TryCatch() {
       isolate_->RestorePendingMessageFromTryCatch(this);
     }
     isolate_->UnregisterTryCatchHandler(this);
+    v8::internal::SimulatorStack::UnregisterCTryCatch();
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
     isolate_->UnregisterTryCatchHandler(this);
+    v8::internal::SimulatorStack::UnregisterCTryCatch();
   }
 }
 

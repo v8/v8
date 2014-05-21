@@ -6704,11 +6704,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  void SkipWriteBarrier() { write_barrier_mode_ = SKIP_WRITE_BARRIER; }
-  bool IsSkipWriteBarrier() const {
-    return write_barrier_mode_ == SKIP_WRITE_BARRIER;
-  }
-
   HValue* object() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
   HValue* transition() const { return OperandAt(2); }
@@ -6735,7 +6730,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   bool NeedsWriteBarrier() {
     ASSERT(!field_representation().IsDouble() || !has_transition());
-    if (IsSkipWriteBarrier()) return false;
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;
@@ -6746,7 +6740,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
 
   bool NeedsWriteBarrierForMap() {
-    if (IsSkipWriteBarrier()) return false;
     return ReceiverObjectNeedsWriteBarrier(object(), transition(),
                                            new_space_dominator());
   }
@@ -6766,7 +6759,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                    StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
         new_space_dominator_(NULL),
-        write_barrier_mode_(UPDATE_WRITE_BARRIER),
         has_transition_(false),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
@@ -6781,7 +6773,6 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   HObjectAccess access_;
   HValue* new_space_dominator_;
-  WriteBarrierMode write_barrier_mode_ : 1;
   bool has_transition_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };

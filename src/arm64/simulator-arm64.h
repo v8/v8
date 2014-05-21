@@ -54,9 +54,6 @@ typedef int (*arm64_regexp_matcher)(String* input,
   (FUNCTION_CAST<arm64_regexp_matcher>(entry)(                                \
       p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
 
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
-  reinterpret_cast<TryCatch*>(try_catch_address)
-
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
@@ -856,10 +853,6 @@ class Simulator : public DecoderVisitor {
   Simulator::current(Isolate::Current())->CallRegExp(                          \
       entry,                                                                   \
       p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8)
-
-#define TRY_CATCH_FROM_ADDRESS(try_catch_address)                              \
-  try_catch_address == NULL ?                                                  \
-      NULL : *(reinterpret_cast<TryCatch**>(try_catch_address))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

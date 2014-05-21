@@ -630,21 +630,12 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     // and we want to report the stack overflow later.
     return;
   }
-  MessageLocation location(parser_->script_,
-                           source_location.beg_pos,
-                           source_location.end_pos);
-  Factory* factory = parser_->isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(arg == NULL ? 0 : 1);
-  if (arg != NULL) {
-    Handle<String> arg_string =
-        factory->NewStringFromUtf8(CStrVector(arg)).ToHandleChecked();
-    elements->set(0, *arg_string);
-  }
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = is_reference_error
-      ? factory->NewReferenceError(message, array)
-      : factory->NewSyntaxError(message, array);
-  parser_->isolate()->Throw(*result, &location);
+  parser_->has_pending_error_ = true;
+  parser_->pending_error_location_ = source_location;
+  parser_->pending_error_message_ = message;
+  parser_->pending_error_char_arg_ = arg;
+  parser_->pending_error_arg_ = Handle<String>();
+  parser_->pending_error_is_reference_error_ = is_reference_error;
 }
 
 
@@ -666,19 +657,12 @@ void ParserTraits::ReportMessageAt(Scanner::Location source_location,
     // and we want to report the stack overflow later.
     return;
   }
-  MessageLocation location(parser_->script_,
-                           source_location.beg_pos,
-                           source_location.end_pos);
-  Factory* factory = parser_->isolate()->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(arg.is_null() ? 0 : 1);
-  if (!arg.is_null()) {
-    elements->set(0, *(arg.ToHandleChecked()));
-  }
-  Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> result = is_reference_error
-      ? factory->NewReferenceError(message, array)
-      : factory->NewSyntaxError(message, array);
-  parser_->isolate()->Throw(*result, &location);
+  parser_->has_pending_error_ = true;
+  parser_->pending_error_location_ = source_location;
+  parser_->pending_error_message_ = message;
+  parser_->pending_error_char_arg_ = NULL;
+  parser_->pending_error_arg_ = arg;
+  parser_->pending_error_is_reference_error_ = is_reference_error;
 }
 
 
@@ -790,7 +774,10 @@ Parser::Parser(CompilationInfo* info)
       target_stack_(NULL),
       cached_data_(NULL),
       cached_data_mode_(NO_CACHED_DATA),
-      info_(info) {
+      info_(info),
+      has_pending_error_(false),
+      pending_error_message_(NULL),
+      pending_error_char_arg_(NULL) {
   ASSERT(!script_.is_null());
   isolate_->set_ast_node_id(0);
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
@@ -942,6 +929,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           factory()->visitor()->dont_optimize_reason());
     } else if (stack_overflow()) {
       isolate()->StackOverflow();
+    } else {
+      ThrowPendingError();
     }
   }
 
@@ -1036,7 +1025,11 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   ASSERT(target_stack_ == NULL);
 
   if (result == NULL) {
-    if (stack_overflow()) isolate()->StackOverflow();
+    if (stack_overflow()) {
+      isolate()->StackOverflow();
+    } else {
+      ThrowPendingError();
+    }
   } else {
     Handle<String> inferred_name(shared_info->inferred_name());
     result->set_inferred_name(inferred_name);
@@ -3675,6 +3668,32 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
   for (Target* t = target_stack_; t != stop; t = t->previous()) {
     TargetCollector* collector = t->node()->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target, zone());
+  }
+}
+
+
+void Parser::ThrowPendingError() {
+  if (has_pending_error_) {
+    MessageLocation location(script_,
+                             pending_error_location_.beg_pos,
+                             pending_error_location_.end_pos);
+    Factory* factory = isolate()->factory();
+    bool has_arg =
+        !pending_error_arg_.is_null() || pending_error_char_arg_ != NULL;
+    Handle<FixedArray> elements = factory->NewFixedArray(has_arg ? 1 : 0);
+    if (!pending_error_arg_.is_null()) {
+      elements->set(0, *(pending_error_arg_.ToHandleChecked()));
+    } else if (pending_error_char_arg_ != NULL) {
+      Handle<String> arg_string =
+          factory->NewStringFromUtf8(CStrVector(pending_error_char_arg_))
+          .ToHandleChecked();
+      elements->set(0, *arg_string);
+    }
+    Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
+    Handle<Object> result = pending_error_is_reference_error_
+        ? factory->NewReferenceError(pending_error_message_, array)
+        : factory->NewSyntaxError(pending_error_message_, array);
+    isolate()->Throw(*result, &location);
   }
 }
 

@@ -193,9 +193,12 @@ Address Assembler::target_address_at(Address pc,
 
 void Assembler::set_target_address_at(Address pc,
                                       ConstantPoolArray* constant_pool,
-                                      Address target) {
+                                      Address target,
+                                      ICacheFlushMode icache_flush_mode) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
-  CPU::FlushICache(pc, sizeof(int32_t));
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    CPU::FlushICache(pc, sizeof(int32_t));
+  }
 }
 
 
@@ -218,19 +221,20 @@ Address Assembler::runtime_entry_at(Address pc) {
 // Implementation of RelocInfo
 
 // The modes possibly affected by apply must be in kApplyMask.
-void RelocInfo::apply(intptr_t delta) {
+void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
+  bool flush_icache = icache_flush_mode != SKIP_ICACHE_FLUSH;
   if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     Memory::Address_at(pc_) += static_cast<int32_t>(delta);
-    CPU::FlushICache(pc_, sizeof(Address));
+    if (flush_icache) CPU::FlushICache(pc_, sizeof(Address));
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
-    CPU::FlushICache(pc_, sizeof(int32_t));
+    if (flush_icache) CPU::FlushICache(pc_, sizeof(int32_t));
   } else if (rmode_ == CODE_AGE_SEQUENCE) {
     if (*pc_ == kCallOpcode) {
       int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
       *p -= static_cast<int32_t>(delta);  // Relocate entry.
-      CPU::FlushICache(p, sizeof(uint32_t));
+      if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
     }
   }
 }
@@ -265,10 +269,13 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
+void RelocInfo::set_target_address(Address target,
+                                   WriteBarrierMode write_barrier_mode,
+                                   ICacheFlushMode icache_flush_mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target);
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
+  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
+      IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
@@ -298,12 +305,16 @@ Address RelocInfo::target_reference() {
 }
 
 
-void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
+void RelocInfo::set_target_object(Object* target,
+                                  WriteBarrierMode write_barrier_mode,
+                                  ICacheFlushMode icache_flush_mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
   Memory::Object_at(pc_) = target;
-  CPU::FlushICache(pc_, sizeof(Address));
-  if (mode == UPDATE_WRITE_BARRIER &&
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    CPU::FlushICache(pc_, sizeof(Address));
+  }
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWrite(
@@ -319,9 +330,12 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
 
 
 void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode mode) {
+                                         WriteBarrierMode write_barrier_mode,
+                                         ICacheFlushMode icache_flush_mode) {
   ASSERT(IsRuntimeEntry(rmode_));
-  if (target_address() != target) set_target_address(target, mode);
+  if (target_address() != target) {
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
+  }
 }
 
 
@@ -338,12 +352,16 @@ Cell* RelocInfo::target_cell() {
 }
 
 
-void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
+void RelocInfo::set_target_cell(Cell* cell,
+                                WriteBarrierMode write_barrier_mode,
+                                ICacheFlushMode icache_flush_mode) {
   ASSERT(rmode_ == RelocInfo::CELL);
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
-  CPU::FlushICache(pc_, sizeof(Address));
-  if (mode == UPDATE_WRITE_BARRIER &&
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    CPU::FlushICache(pc_, sizeof(Address));
+  }
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL) {
     // TODO(1550) We are passing NULL as a slot because cell can never be on
     // evacuation candidate.
@@ -397,10 +415,12 @@ Code* RelocInfo::code_age_stub() {
 }
 
 
-void RelocInfo::set_code_age_stub(Code* stub) {
+void RelocInfo::set_code_age_stub(Code* stub,
+                                  ICacheFlushMode icache_flush_mode) {
   ASSERT(*pc_ == kCallOpcode);
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(pc_ + 1, host_, stub->instruction_start());
+  Assembler::set_target_address_at(pc_ + 1, host_, stub->instruction_start(),
+                                   icache_flush_mode);
 }
 
 

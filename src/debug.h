@@ -350,11 +350,6 @@ class Debug {
     return reinterpret_cast<Address*>(address);
   }
 
-  // Support for saving/restoring registers when handling debug break calls.
-  Object** register_address(int r) {
-    return &registers_[r];
-  }
-
   static const int kEstimatedNofDebugInfoEntries = 16;
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
@@ -490,7 +485,6 @@ class Debug {
 
  private:
   explicit Debug(Isolate* isolate);
-  ~Debug();
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
@@ -587,7 +581,6 @@ class Debug {
   };
 
   // Storage location for registers when handling debug break calls
-  JSCallerSavedBuffer registers_;
   ThreadLocal thread_local_;
   void ThreadInit();
 
@@ -743,25 +736,6 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 
 class Debugger {
  public:
-  ~Debugger();
-
-  void DebugRequest(const uint16_t* json_request, int length);
-
-  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
-      Vector<const char> constructor_name,
-      int argc,
-      Handle<Object> argv[]);
-  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
-  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
-      Handle<Object> break_points_hit);
-  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception,
-      bool uncaught,
-      Handle<Object> promise);
-  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
-      Handle<Script> script, bool before);
-  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
-
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   void OnException(Handle<Object> exception, bool uncaught);
   void OnBeforeCompile(Handle<Script> script);
@@ -773,13 +747,7 @@ class Debugger {
   void OnAfterCompile(Handle<Script> script,
                       AfterCompileFlags after_compile_flags);
   void OnScriptCollected(int id);
-  void ProcessDebugEvent(v8::DebugEvent event,
-                         Handle<JSObject> event_data,
-                         bool auto_continue);
-  void NotifyMessageHandler(v8::DebugEvent event,
-                            Handle<JSObject> exec_state,
-                            Handle<JSObject> event_data,
-                            bool auto_continue);
+
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler handler);
 
@@ -798,36 +766,13 @@ class Debugger {
 
   Handle<Context> GetDebugContext();
 
-  // Unload the debugger if possible. Only called when no debugger is currently
-  // active.
-  void UnloadDebugger();
-  friend void ForceUnloadDebugger();  // In test-debug.cc
-
-  inline bool EventActive() {
-    LockGuard<RecursiveMutex> lock_guard(&debugger_access_);
-
-    // Check whether the message handler was been cleared.
-    // TODO(yangguo): handle loading and unloading of the debugger differently.
-    if (debugger_unload_pending_) {
-      if (isolate_->debug()->debugger_entry() == NULL) {
-        UnloadDebugger();
-      }
-    }
-
-    // Currently argument event is not used.
-    return !ignore_debugger_ && is_active_;
-  }
-
   bool ignore_debugger() const { return ignore_debugger_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
     return FLAG_enable_liveedit && live_edit_enabled_ ;
   }
 
-  bool is_active() {
-    LockGuard<RecursiveMutex> lock_guard(&debugger_access_);
-    return is_active_;
-  }
+  bool is_active() { return is_active_; }
 
   class IgnoreScope {
    public:
@@ -849,6 +794,22 @@ class Debugger {
 
  private:
   explicit Debugger(Isolate* isolate);
+  ~Debugger();
+
+  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
+      Vector<const char> constructor_name,
+      int argc,
+      Handle<Object> argv[]);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
+  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
+      Handle<Object> break_points_hit);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception,
+      bool uncaught,
+      Handle<Object> promise);
+  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+      Handle<Script> script, bool before);
+  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,
@@ -861,18 +822,31 @@ class Debugger {
   void CallJSEventCallback(v8::DebugEvent event,
                            Handle<Object> exec_state,
                            Handle<Object> event_data);
-  void ListenersChanged();
+  void UpdateState();
+
+  void ProcessDebugEvent(v8::DebugEvent event,
+                         Handle<JSObject> event_data,
+                         bool auto_continue);
+  void NotifyMessageHandler(v8::DebugEvent event,
+                            Handle<JSObject> exec_state,
+                            Handle<JSObject> event_data,
+                            bool auto_continue);
 
   // Invoke the message handler function.
   void InvokeMessageHandler(MessageImpl message);
 
-  RecursiveMutex debugger_access_;  // Mutex guarding debugger variables.
+  inline bool EventActive() {
+    // Check whether the message handler was been cleared.
+    // TODO(yangguo): handle loading and unloading of the debugger differently.
+    // Currently argument event is not used.
+    return !ignore_debugger_ && is_active_;
+  }
+
   Handle<Object> event_listener_;  // Global handle to listener.
   Handle<Object> event_listener_data_;
   bool is_active_;
   bool ignore_debugger_;  // Are we temporarily ignoring the debugger?
   bool live_edit_enabled_;  // Enable LiveEdit.
-  bool never_unload_debugger_;  // Can we unload the debugger?
   v8::Debug::MessageHandler message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
 
@@ -911,8 +885,7 @@ class EnterDebugger BASE_EMBEDDED {
  private:
   Isolate* isolate_;
   EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
-  JavaScriptFrameIterator it_;
-  const bool has_js_frames_;  // Were there any JavaScript frames?
+  bool has_js_frames_;  // Were there any JavaScript frames?
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;  // Previous break id.
   bool load_failed_;  // Did the debugger fail to load?

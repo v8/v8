@@ -97,10 +97,13 @@ Heap::Heap()
       gc_safe_size_of_old_object_(NULL),
       total_regexp_code_generated_(0),
       tracer_(NULL),
-      young_survivors_after_last_gc_(0),
       high_survival_rate_period_length_(0),
       low_survival_rate_period_length_(0),
       survival_rate_(0),
+      promoted_objects_size_(0),
+      promotion_rate_(0),
+      semi_space_copied_object_size_(0),
+      semi_space_copied_rate_(0),
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
       max_gc_pause_(0.0),
@@ -420,6 +423,10 @@ void Heap::GarbageCollectionPrologue() {
     }
 #endif
   }
+
+  // Reset GC statistics.
+  promoted_objects_size_ = 0;
+  semi_space_copied_object_size_ = 0;
 
   UpdateMaximumCommitted();
 
@@ -1005,9 +1012,15 @@ void Heap::ClearNormalizedMapCaches() {
 void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
-  double survival_rate =
-      (static_cast<double>(young_survivors_after_last_gc_) * 100) /
-      start_new_space_size;
+  promotion_rate_ =
+        (static_cast<double>(promoted_objects_size_) /
+            static_cast<double>(start_new_space_size) * 100);
+
+  semi_space_copied_rate_ =
+        (static_cast<double>(semi_space_copied_object_size_) /
+            static_cast<double>(start_new_space_size) * 100);
+
+  double survival_rate = promotion_rate_ + semi_space_copied_rate_;
 
   if (survival_rate > kYoungSurvivalRateHighThreshold) {
     high_survival_rate_period_length_++;
@@ -2056,7 +2069,7 @@ class ScavengingVisitor : public StaticVisitorBase {
           }
         }
 
-        heap->tracer()->increment_promoted_objects_size(object_size);
+        heap->IncrementPromotedObjectsSize(object_size);
         return;
       }
     }
@@ -2075,6 +2088,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     // buffer.
     *slot = target;
     MigrateObject(heap, object, target, object_size);
+    heap->IncrementSemiSpaceCopiedObjectSize(object_size);
     return;
   }
 
@@ -6028,7 +6042,6 @@ GCTracer::GCTracer(Heap* heap,
       full_gc_count_(0),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
-      promoted_objects_size_(0),
       nodes_died_in_new_space_(0),
       nodes_copied_in_new_space_(0),
       nodes_promoted_(0),
@@ -6175,11 +6188,15 @@ GCTracer::~GCTracer() {
     PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize(heap_));
 
     PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
-    PrintF("promoted=%" V8_PTR_PREFIX "d ", promoted_objects_size_);
+    PrintF("promoted=%" V8_PTR_PREFIX "d ", heap_->promoted_objects_size_);
+    PrintF("semi_space_copied=%" V8_PTR_PREFIX "d ",
+        heap_->semi_space_copied_object_size_);
     PrintF("nodes_died_in_new=%d ", nodes_died_in_new_space_);
     PrintF("nodes_copied_in_new=%d ", nodes_copied_in_new_space_);
     PrintF("nodes_promoted=%d ", nodes_promoted_);
-    PrintF("survived=%.1f%% ", heap_->survival_rate_);
+    PrintF("survival_rate=%.1f%% ", heap_->survival_rate_);
+    PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
+    PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
 
     if (collector_ == SCAVENGER) {
       PrintF("stepscount=%d ", steps_count_since_last_gc_);

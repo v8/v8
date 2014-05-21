@@ -1560,7 +1560,9 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
   HValue* native_context = Add<HLoadNamedField>(
       global_object, static_cast<HValue*>(NULL),
       HObjectAccess::ForGlobalObjectNativeContext());
-  AddStoreMapNoWriteBarrier(result, Add<HLoadNamedField>(
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForMap(),
+      Add<HLoadNamedField>(
           native_context, static_cast<HValue*>(NULL),
           HObjectAccess::ForContextSlot(Context::REGEXP_RESULT_MAP_INDEX)));
   Add<HStoreNamedField>(
@@ -1581,8 +1583,7 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
       input);
 
   // Initialize the elements header.
-  AddStoreMapConstantNoWriteBarrier(elements,
-                                    isolate()->factory()->fixed_array_map());
+  AddStoreMapConstant(elements, isolate()->factory()->fixed_array_map());
   Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(), length);
 
   // Initialize the elements contents with undefined.
@@ -1832,14 +1833,16 @@ HValue* HGraphBuilder::BuildCreateConsString(
   if_onebyte.Then();
   {
     // We can safely skip the write barrier for storing the map here.
-    Handle<Map> map = isolate()->factory()->cons_ascii_string_map();
-    AddStoreMapConstantNoWriteBarrier(result, map);
+    Add<HStoreNamedField>(
+        result, HObjectAccess::ForMap(),
+        Add<HConstant>(isolate()->factory()->cons_ascii_string_map()));
   }
   if_onebyte.Else();
   {
     // We can safely skip the write barrier for storing the map here.
-    Handle<Map> map = isolate()->factory()->cons_string_map();
-    AddStoreMapConstantNoWriteBarrier(result, map);
+    Add<HStoreNamedField>(
+        result, HObjectAccess::ForMap(),
+        Add<HConstant>(isolate()->factory()->cons_string_map()));
   }
   if_onebyte.End();
 
@@ -1998,9 +2001,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       // STRING_TYPE or ASCII_STRING_TYPE here, so we just use STRING_TYPE here.
       HAllocate* result = BuildAllocate(
           size, HType::String(), STRING_TYPE, allocation_mode);
-
-      // We can safely skip the write barrier for storing map here.
-      AddStoreMapNoWriteBarrier(result, map);
+      Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
 
       // Initialize the string fields.
       Add<HStoreNamedField>(result, HObjectAccess::ForStringHashField(),
@@ -2269,6 +2270,7 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
   return array_builder->AllocateArray(capacity, length);
 }
 
+
 HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
                                              HValue* capacity) {
   int elements_size;
@@ -2293,8 +2295,8 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
       isolate()->heap()->GetPretenureMode() : NOT_TENURED;
 
-  return Add<HAllocate>(total_size, HType::Tagged(), pretenure_flag,
-      instance_type);
+  return Add<HAllocate>(total_size, HType::NonPrimitive(),
+                        pretenure_flag, instance_type);
 }
 
 
@@ -2306,7 +2308,7 @@ void HGraphBuilder::BuildInitializeElementsHeader(HValue* elements,
       ? factory->fixed_double_array_map()
       : factory->fixed_array_map();
 
-  AddStoreMapConstant(elements, map);
+  Add<HStoreNamedField>(elements, HObjectAccess::ForMap(), Add<HConstant>(map));
   Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(),
                         capacity);
 }
@@ -2811,11 +2813,9 @@ void HGraphBuilder::BuildCreateAllocationMemento(
     // This smi value is reset to zero after every gc, overflow isn't a problem
     // since the counter is bounded by the new space size.
     memento_create_count->ClearFlag(HValue::kCanOverflow);
-    HStoreNamedField* store = Add<HStoreNamedField>(
+    Add<HStoreNamedField>(
         allocation_site, HObjectAccess::ForAllocationSiteOffset(
             AllocationSite::kPretenureCreateCountOffset), memento_create_count);
-    // No write barrier needed to store a smi.
-    store->SkipWriteBarrier();
   }
 }
 
@@ -3030,13 +3030,6 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   }
 
   return new_object;
-}
-
-
-HStoreNamedField* HGraphBuilder::AddStoreMapConstant(HValue *object,
-                                                     Handle<Map> map) {
-  return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
-                               Add<HConstant>(map));
 }
 
 
@@ -8798,7 +8791,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateExternalElements(
   HValue* elements =
       Add<HAllocate>(
           Add<HConstant>(ExternalArray::kAlignedSize),
-          HType::Tagged(),
+          HType::NonPrimitive(),
           NOT_TENURED,
           external_array_map->instance_type());
 
@@ -8855,9 +8848,8 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
   Handle<Map> fixed_typed_array_map(
       isolate()->heap()->MapForFixedTypedArray(array_type));
   HValue* elements =
-      Add<HAllocate>(total_size, HType::Tagged(),
-          NOT_TENURED,
-          fixed_typed_array_map->instance_type());
+      Add<HAllocate>(total_size, HType::NonPrimitive(),
+                     NOT_TENURED, fixed_typed_array_map->instance_type());
   AddStoreMapConstant(elements, fixed_typed_array_map);
 
   Add<HStoreNamedField>(elements,
@@ -10296,13 +10288,11 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HInstruction* object_elements = NULL;
   if (elements_size > 0) {
     HValue* object_elements_size = Add<HConstant>(elements_size);
-    if (boilerplate_object->HasFastDoubleElements()) {
-      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
-          pretenure_flag, FIXED_DOUBLE_ARRAY_TYPE, site_context->current());
-    } else {
-      object_elements = Add<HAllocate>(object_elements_size, HType::Tagged(),
-          pretenure_flag, FIXED_ARRAY_TYPE, site_context->current());
-    }
+    InstanceType instance_type = boilerplate_object->HasFastDoubleElements()
+        ? FIXED_DOUBLE_ARRAY_TYPE : FIXED_ARRAY_TYPE;
+    object_elements = Add<HAllocate>(
+        object_elements_size, HType::NonPrimitive(),
+        pretenure_flag, instance_type, site_context->current());
   }
   BuildInitElementsInObjectHeader(boilerplate_object, object, object_elements);
 

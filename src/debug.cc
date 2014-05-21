@@ -40,12 +40,7 @@ Debug::Debug(Isolate* isolate)
       promise_catch_handlers_(0),
       promise_getters_(0),
       isolate_(isolate) {
-  memset(registers_, 0, sizeof(JSCallerSavedBuffer));
   ThreadInit();
-}
-
-
-Debug::~Debug() {
 }
 
 
@@ -522,10 +517,7 @@ void Debug::ThreadInit() {
 char* Debug::ArchiveDebug(char* storage) {
   char* to = storage;
   OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
-  to += sizeof(ThreadLocal);
-  OS::MemCopy(to, reinterpret_cast<char*>(&registers_), sizeof(registers_));
   ThreadInit();
-  ASSERT(to <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
 
@@ -534,15 +526,12 @@ char* Debug::RestoreDebug(char* storage) {
   char* from = storage;
   OS::MemCopy(
       reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
-  from += sizeof(ThreadLocal);
-  OS::MemCopy(reinterpret_cast<char*>(&registers_), from, sizeof(registers_));
-  ASSERT(from <= storage + ArchiveSpacePerThread());
   return storage + ArchiveSpacePerThread();
 }
 
 
 int Debug::ArchiveSpacePerThread() {
-  return sizeof(ThreadLocal) + sizeof(JSCallerSavedBuffer);
+  return sizeof(ThreadLocal);
 }
 
 
@@ -694,9 +683,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   HandleScope scope(isolate);
 
   // Bail out if the index is invalid.
-  if (index == -1) {
-    return false;
-  }
+  if (index == -1) return false;
 
   // Find source and name for the requested script.
   Handle<String> source_code =
@@ -762,13 +749,11 @@ bool Debug::Load() {
   // Return if debugger is already loaded.
   if (IsLoaded()) return true;
 
-  Debugger* debugger = isolate_->debugger();
-
   // Bail out if we're already in the process of compiling the native
   // JavaScript source code for the debugger.
-  if (debugger->ignore_debugger()) return false;
+  if (isolate_->debugger()->ignore_debugger()) return false;
+  Debugger::IgnoreScope during_create(isolate_->debugger());
 
-  Debugger::IgnoreScope during_load(debugger);
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
   DisableBreak disable(isolate_, true);
@@ -793,14 +778,13 @@ bool Debug::Load() {
   // Expose the builtins object in the debugger context.
   Handle<String> key = isolate_->factory()->InternalizeOneByteString(
       STATIC_ASCII_VECTOR("builtins"));
-  Handle<GlobalObject> global = Handle<GlobalObject>(context->global_object());
+  Handle<GlobalObject> global =
+      Handle<GlobalObject>(context->global_object(), isolate_);
+  Handle<JSBuiltinsObject> builtin =
+      Handle<JSBuiltinsObject>(global->builtins(), isolate_);
   RETURN_ON_EXCEPTION_VALUE(
       isolate_,
-      JSReceiver::SetProperty(global,
-                              key,
-                              Handle<Object>(global->builtins(), isolate_),
-                              NONE,
-                              SLOPPY),
+      JSReceiver::SetProperty(global, key, builtin, NONE, SLOPPY),
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.
@@ -812,32 +796,24 @@ bool Debug::Load() {
     caught_exception = caught_exception ||
         !CompileDebuggerScript(isolate_, Natives::GetIndex("liveedit"));
   }
-
-  // Make sure we mark the debugger as not loading before we might
-  // return.
-
   // Check for caught exceptions.
   if (caught_exception) return false;
 
-  // Debugger loaded, create debugger context global handle.
   debug_context_ = Handle<Context>::cast(
       isolate_->global_handles()->Create(*context));
-
   return true;
 }
 
 
 void Debug::Unload() {
   // Return debugger is not loaded.
-  if (!IsLoaded()) {
-    return;
-  }
+  if (!IsLoaded()) return;
 
   // Clear the script cache.
   DestroyScriptCache();
 
   // Clear debugger context global handle.
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
+  GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
   debug_context_ = Handle<Context>();
 }
 
@@ -854,7 +830,7 @@ Object* Debug::Break(Arguments args) {
   JavaScriptFrame* frame = it.frame();
 
   // Just continue if breaks are disabled or debugger cannot be loaded.
-  if (disable_break() || !Load()) {
+  if (disable_break()) {
     SetAfterBreakTarget(frame);
     return heap->undefined_value();
   }
@@ -2629,9 +2605,7 @@ Debugger::Debugger(Isolate* isolate)
       is_active_(false),
       ignore_debugger_(false),
       live_edit_enabled_(true),
-      never_unload_debugger_(false),
       message_handler_(NULL),
-      debugger_unload_pending_(false),
       command_queue_(isolate->logger(), kQueueInitialSize),
       command_received_(0),
       event_command_queue_(isolate->logger(), kQueueInitialSize),
@@ -2988,25 +2962,9 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
 
 
 Handle<Context> Debugger::GetDebugContext() {
-  never_unload_debugger_ = true;
   EnterDebugger debugger(isolate_);
-  return isolate_->debug()->debug_context();
-}
-
-
-void Debugger::UnloadDebugger() {
-  Debug* debug = isolate_->debug();
-
-  // Make sure that there are no breakpoints left.
-  debug->ClearAllBreakPoints();
-
-  // Unload the debugger if feasible.
-  if (!never_unload_debugger_) {
-    debug->Unload();
-  }
-
-  // Clear the flag indicating that the debugger should be unloaded.
-  debugger_unload_pending_ = false;
+  // The global handle may be destroyed soon after.  Return it reboxed.
+  return handle(*isolate_->debug()->debug_context(), isolate_);
 }
 
 
@@ -3014,10 +2972,8 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
                                     Handle<JSObject> exec_state,
                                     Handle<JSObject> event_data,
                                     bool auto_continue) {
+  ASSERT(is_active_);
   HandleScope scope(isolate_);
-
-  if (!isolate_->debug()->Load()) return;
-
   // Process the individual events.
   bool sendEventMessage = false;
   switch (event) {
@@ -3145,77 +3101,60 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
 
 void Debugger::SetEventListener(Handle<Object> callback,
                                 Handle<Object> data) {
-  HandleScope scope(isolate_);
   GlobalHandles* global_handles = isolate_->global_handles();
 
-  // Clear the global handles for the event listener and the event listener data
-  // object.
-  if (!event_listener_.is_null()) {
-    GlobalHandles::Destroy(
-        reinterpret_cast<Object**>(event_listener_.location()));
-    event_listener_ = Handle<Object>();
-  }
-  if (!event_listener_data_.is_null()) {
-    GlobalHandles::Destroy(
-        reinterpret_cast<Object**>(event_listener_data_.location()));
-    event_listener_data_ = Handle<Object>();
-  }
+  // Remove existing entry.
+  GlobalHandles::Destroy(event_listener_.location());
+  event_listener_ = Handle<Object>();
+  GlobalHandles::Destroy(event_listener_data_.location());
+  event_listener_data_ = Handle<Object>();
 
-  // If there is a new debug event listener register it together with its data
-  // object.
+  // Set new entry.
   if (!callback->IsUndefined() && !callback->IsNull()) {
-    event_listener_ = Handle<Object>::cast(
-        global_handles->Create(*callback));
-    if (data.is_null()) {
-      data = isolate_->factory()->undefined_value();
-    }
-    event_listener_data_ = Handle<Object>::cast(
-        global_handles->Create(*data));
+    event_listener_ = global_handles->Create(*callback);
+    if (data.is_null()) data = isolate_->factory()->undefined_value();
+    event_listener_data_ = global_handles->Create(*data);
   }
 
-  ListenersChanged();
+  UpdateState();
 }
 
 
 void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
-  LockGuard<RecursiveMutex> with(&debugger_access_);
-
   message_handler_ = handler;
-  ListenersChanged();
-  if (handler == NULL) {
+  UpdateState();
+  if (handler == NULL && isolate_->debug()->InDebugger()) {
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
-    if (isolate_->debug()->InDebugger()) {
-      EnqueueCommandMessage(Vector<const uint16_t>::empty());
-    }
+    EnqueueCommandMessage(Vector<const uint16_t>::empty());
   }
 }
 
 
-void Debugger::ListenersChanged() {
-  LockGuard<RecursiveMutex> with(&debugger_access_);
-  is_active_ = message_handler_ != NULL || !event_listener_.is_null();
-  if (is_active_) {
-    // Disable the compilation cache when the debugger is active.
+void Debugger::UpdateState() {
+  bool activate = message_handler_ != NULL ||
+                  !event_listener_.is_null() ||
+                  isolate_->debug()->InDebugger();
+  if (!is_active_ && activate) {
+    // Note that the debug context could have already been loaded to
+    // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    debugger_unload_pending_ = false;
-  } else {
+    activate = isolate_->debug()->Load();
+  } else if (is_active_ && !activate) {
     isolate_->compilation_cache()->Enable();
-    // Unload the debugger if event listener and message handler cleared.
-    // Schedule this for later, because we may be in non-V8 thread.
-    debugger_unload_pending_ = true;
+    isolate_->debug()->ClearAllBreakPoints();
+    isolate_->debug()->Unload();
   }
+  is_active_ = activate;
+  // At this point the debug context is loaded iff the debugger is active.
+  ASSERT(isolate_->debug()->IsLoaded() == is_active_);
 }
 
 
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debugger::InvokeMessageHandler(MessageImpl message) {
-  LockGuard<RecursiveMutex> with(&debugger_access_);
-
-  if (message_handler_ != NULL) {
-    message_handler_(message);
-  }
+  if (message_handler_ != NULL) message_handler_(message);
 }
 
 
@@ -3259,9 +3198,6 @@ void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
 
 MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
                                    Handle<Object> data) {
-  // When calling functions in the debugger prevent it from beeing unloaded.
-  Debugger::never_unload_debugger_ = true;
-
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) {
@@ -3288,10 +3224,9 @@ MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
 EnterDebugger::EnterDebugger(Isolate* isolate)
     : isolate_(isolate),
       prev_(isolate_->debug()->debugger_entry()),
-      it_(isolate_),
-      has_js_frames_(!it_.done()),
       save_(isolate_) {
   Debug* debug = isolate_->debug();
+
   // Link recursive debugger entry.
   debug->set_debugger_entry(this);
 
@@ -3301,24 +3236,23 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
 
   // Create the new break info. If there is no JavaScript frames there is no
   // break frame id.
-  if (has_js_frames_) {
-    debug->NewBreak(it_.frame()->id());
-  } else {
-    debug->NewBreak(StackFrame::NO_ID);
-  }
+  JavaScriptFrameIterator it(isolate_);
+  has_js_frames_ = !it.done();
+  debug->NewBreak(has_js_frames_ ? it.frame()->id() : StackFrame::NO_ID);
 
+  isolate_->debugger()->UpdateState();
   // Make sure that debugger is loaded and enter the debugger context.
-  load_failed_ = !debug->Load();
-  if (!load_failed_) {
-    // NOTE the member variable save which saves the previous context before
-    // this change.
-    isolate_->set_context(*debug->debug_context());
-  }
+  // The previous context is kept in save_.
+  load_failed_ = !debug->IsLoaded();
+  if (!load_failed_) isolate_->set_context(*debug->debug_context());
 }
 
 
 EnterDebugger::~EnterDebugger() {
   Debug* debug = isolate_->debug();
+
+  // Leaving this debugger entry.
+  debug->set_debugger_entry(prev_);
 
   // Restore to the previous break state.
   debug->SetBreak(break_frame_id_, break_id_);
@@ -3351,15 +3285,9 @@ EnterDebugger::~EnterDebugger() {
     if (isolate_->debugger()->HasCommands()) {
       isolate_->stack_guard()->RequestDebugCommand();
     }
-
-    // If leaving the debugger with the debugger no longer active unload it.
-    if (!isolate_->debugger()->is_active()) {
-      isolate_->debugger()->UnloadDebugger();
-    }
   }
 
-  // Leaving this debugger entry.
-  debug->set_debugger_entry(prev_);
+  isolate_->debugger()->UpdateState();
 }
 
 

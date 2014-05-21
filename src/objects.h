@@ -4153,16 +4153,27 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
 //   [0]: bucket count
 //   [1]: element count
 //   [2]: deleted element count
-//   [3]: live iterators (doubly-linked list)
-//   [4..(NumberOfBuckets() - 1)]: "hash table", where each item is an offset
-//                                 into the data table (see below) where the
-//                                 first item in this bucket is stored.
-//   [4 + NumberOfBuckets()..length]: "data table", an array of length
+//   [3..(3 + NumberOfBuckets() - 1)]: "hash table", where each item is an
+//                            offset into the data table (see below) where the
+//                            first item in this bucket is stored.
+//   [3 + NumberOfBuckets()..length]: "data table", an array of length
 //                            Capacity() * kEntrySize, where the first entrysize
 //                            items are handled by the derived class and the
 //                            item at kChainOffset is another entry into the
 //                            data table indicating the next entry in this hash
 //                            bucket.
+//
+// When we transition the table to a new version we obsolete it and reuse parts
+// of the memory to store information how to transition an iterator to the new
+// table:
+//
+// Memory layout for obsolete table:
+//   [0]: bucket count
+//   [1]: Next newer table
+//   [2]: Number of removed holes or -1 when the table was cleared.
+//   [3..(3 + NumberOfRemovedHoles() - 1)]: The indexes of the removed holes.
+//   [3 + NumberOfRemovedHoles()..length]: Not used
+//
 template<class Derived, class Iterator, int entrysize>
 class OrderedHashTable: public FixedArray {
  public:
@@ -4199,10 +4210,6 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(get(kNumberOfBucketsIndex))->value();
   }
 
-  Object* iterators() { return get(kIteratorsIndex); }
-
-  void set_iterators(Object* value) { set(kIteratorsIndex, value); }
-
   // Returns the index into the data table where the new entry
   // should be placed. The table is assumed to have enough space
   // for a new entry.
@@ -4218,6 +4225,20 @@ class OrderedHashTable: public FixedArray {
   }
 
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
+
+  bool IsObsolete() {
+    return !get(kNextTableIndex)->IsSmi();
+  }
+
+  // The next newer table. This is only valid if the table is obsolete.
+  Derived* NextTable() {
+    return Derived::cast(get(kNextTableIndex));
+  }
+
+  // When the table is obsolete we store the indexes of the removed holes.
+  int RemovedIndexAt(int index) {
+    return Smi::cast(get(kRemovedHolesIndex + index))->value();
+  }
 
   static const int kNotFound = -1;
   static const int kMinCapacity = 4;
@@ -4255,11 +4276,21 @@ class OrderedHashTable: public FixedArray {
     return Smi::cast(get(kHashTableStartIndex + bucket))->value();
   }
 
+  void SetNextTable(Derived* next_table) {
+    set(kNextTableIndex, next_table);
+  }
+
+  void SetRemovedIndexAt(int index, int removed_index) {
+    return set(kRemovedHolesIndex + index, Smi::FromInt(removed_index));
+  }
+
   static const int kNumberOfBucketsIndex = 0;
   static const int kNumberOfElementsIndex = kNumberOfBucketsIndex + 1;
   static const int kNumberOfDeletedElementsIndex = kNumberOfElementsIndex + 1;
-  static const int kIteratorsIndex = kNumberOfDeletedElementsIndex + 1;
-  static const int kHashTableStartIndex = kIteratorsIndex + 1;
+  static const int kHashTableStartIndex = kNumberOfDeletedElementsIndex + 1;
+
+  static const int kNextTableIndex = kNumberOfElementsIndex;
+  static const int kRemovedHolesIndex = kHashTableStartIndex;
 
   static const int kEntrySize = entrysize + 1;
   static const int kChainOffset = entrysize;
@@ -9956,17 +9987,15 @@ class JSMap: public JSObject {
 // OrderedHashTableIterator is an iterator that iterates over the keys and
 // values of an OrderedHashTable.
 //
-// The hash table has a reference to the iterator and the iterators themselves
-// have references to the [next_iterator] and [previous_iterator], thus creating
-// a double linked list.
+// The iterator has a reference to the underlying OrderedHashTable data,
+// [table], as well as the current [index] the iterator is at.
 //
-// When the hash table changes the iterators are called to update their [index]
-// and [count]. The hash table calls [EntryRemoved], [TableCompacted] as well
-// as [TableCleared].
+// When the OrderedHashTable is rehashed it adds a reference from the old table
+// to the new table as well as storing enough data about the changes so that the
+// iterator [index] can be adjusted accordingly.
 //
-// When an iterator is done it closes itself. It removes itself from the double
-// linked list and it sets its [table] to undefined, no longer keeping the
-// [table] alive.
+// When the [Next] result from the iterator is requested, the iterator checks if
+// there is a newer table that it needs to transition to.
 template<class Derived, class TableType>
 class OrderedHashTableIterator: public JSObject {
  public:
@@ -9976,17 +10005,8 @@ class OrderedHashTableIterator: public JSObject {
   // [index]: The index into the data table.
   DECL_ACCESSORS(index, Smi)
 
-  // [count]: The logical index into the data table, ignoring the holes.
-  DECL_ACCESSORS(count, Smi)
-
   // [kind]: The kind of iteration this is. One of the [Kind] enum values.
   DECL_ACCESSORS(kind, Smi)
-
-  // [next_iterator]: Used as a double linked list for the live iterators.
-  DECL_ACCESSORS(next_iterator, Object)
-
-  // [previous_iterator]: Used as a double linked list for the live iterators.
-  DECL_ACCESSORS(previous_iterator, Object)
 
 #ifdef OBJECT_PRINT
   void OrderedHashTableIteratorPrint(FILE* out);
@@ -9994,36 +10014,14 @@ class OrderedHashTableIterator: public JSObject {
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kIndexOffset = kTableOffset + kPointerSize;
-  static const int kCountOffset = kIndexOffset + kPointerSize;
-  static const int kKindOffset = kCountOffset + kPointerSize;
-  static const int kNextIteratorOffset = kKindOffset + kPointerSize;
-  static const int kPreviousIteratorOffset = kNextIteratorOffset + kPointerSize;
-  static const int kSize = kPreviousIteratorOffset + kPointerSize;
+  static const int kKindOffset = kIndexOffset + kPointerSize;
+  static const int kSize = kKindOffset + kPointerSize;
 
   enum Kind {
     kKindKeys = 1,
     kKindValues = 2,
     kKindEntries = 3
   };
-
-  // Called by the underlying [table] when an entry is removed.
-  void EntryRemoved(int index);
-
-  // Called by the underlying [table] when it is compacted/rehashed.
-  void TableCompacted() {
-    // All holes have been removed so index is now same as count.
-    set_index(count());
-  }
-
-  // Called by the underlying [table] when it is cleared.
-  void TableCleared() {
-    set_index(Smi::FromInt(0));
-    set_count(Smi::FromInt(0));
-  }
-
-  // Removes the iterator from the double linked list and removes its reference
-  // back to the [table].
-  void Close();
 
   // Returns an iterator result object: {value: any, done: boolean} and moves
   // the index to the next valid entry. Closes the iterator if moving past the
@@ -10035,16 +10033,9 @@ class OrderedHashTableIterator: public JSObject {
       Handle<Map> map, Handle<TableType> table, int kind);
 
  private:
-  // Ensures [index] is not pointing to a hole.
-  void Seek();
-
-  // Moves [index] to next valid entry. Closes the iterator if moving past the
-  // end.
-  void MoveNext();
-
-  bool Closed() {
-    return table()->IsUndefined();
-  }
+  // Transitions the iterator to the non obsolote backing store. This is a NOP
+  // if the [table] is not obsolete.
+  void Transition();
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OrderedHashTableIterator);
 };
@@ -10066,7 +10057,8 @@ class JSSetIterator: public OrderedHashTableIterator<JSSetIterator,
   static inline JSSetIterator* cast(Object* obj);
 
   static Handle<Object> ValueForKind(
-      Handle<JSSetIterator> iterator, int entry_index);
+      Handle<JSSetIterator> iterator,
+      int entry_index);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSetIterator);
@@ -10089,7 +10081,8 @@ class JSMapIterator: public OrderedHashTableIterator<JSMapIterator,
   static inline JSMapIterator* cast(Object* obj);
 
   static Handle<Object> ValueForKind(
-      Handle<JSMapIterator> iterator, int entry_index);
+      Handle<JSMapIterator> iterator,
+      int entry_index);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMapIterator);

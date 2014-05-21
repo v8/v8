@@ -692,9 +692,6 @@ void Execution::DebugBreakHelper(Isolate* isolate) {
 
 void Execution::ProcessDebugMessages(Isolate* isolate,
                                      bool debug_command_only) {
-  // Assert that we are on the main thread of the isolate.
-  ASSERT(ThreadId::Current().Equals(isolate->thread_id()));
-
   isolate->stack_guard()->ClearDebugCommand();
 
   StackLimitCheck check(isolate);
@@ -713,43 +710,50 @@ void Execution::ProcessDebugMessages(Isolate* isolate,
 
 
 Object* StackGuard::HandleInterrupts() {
-  ExecutionAccess access(isolate_);
-  if (should_postpone_interrupts(access)) {
-    return isolate_->heap()->undefined_value();
+  bool has_api_interrupt = false;
+  {
+    ExecutionAccess access(isolate_);
+    if (should_postpone_interrupts(access)) {
+      return isolate_->heap()->undefined_value();
+    }
+
+    if (CheckAndClearInterrupt(GC_REQUEST, access)) {
+      isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
+    }
+
+    if (CheckDebugBreak() || CheckDebugCommand()) {
+      Execution::DebugBreakHelper(isolate_);
+    }
+
+    if (CheckAndClearInterrupt(TERMINATE_EXECUTION, access)) {
+      return isolate_->TerminateExecution();
+    }
+
+    if (CheckAndClearInterrupt(FULL_DEOPT, access)) {
+      Deoptimizer::DeoptimizeAll(isolate_);
+    }
+
+    if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES, access)) {
+      isolate_->heap()->DeoptMarkedAllocationSites();
+    }
+
+    if (CheckAndClearInterrupt(INSTALL_CODE, access)) {
+      ASSERT(isolate_->concurrent_recompilation_enabled());
+      isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
+    }
+
+    has_api_interrupt = CheckAndClearInterrupt(API_INTERRUPT, access);
+
+    isolate_->counters()->stack_interrupts()->Increment();
+    isolate_->counters()->runtime_profiler_ticks()->Increment();
+    isolate_->runtime_profiler()->OptimizeNow();
   }
 
-  if (CheckAndClearInterrupt(API_INTERRUPT, access)) {
+  if (has_api_interrupt) {
+    // Callback must be invoked outside of ExecusionAccess lock.
     isolate_->InvokeApiInterruptCallback();
   }
 
-  if (CheckAndClearInterrupt(GC_REQUEST, access)) {
-    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
-  }
-
-  if (CheckDebugBreak() || CheckDebugCommand()) {
-    Execution::DebugBreakHelper(isolate_);
-  }
-
-  if (CheckAndClearInterrupt(TERMINATE_EXECUTION, access)) {
-    return isolate_->TerminateExecution();
-  }
-
-  if (CheckAndClearInterrupt(FULL_DEOPT, access)) {
-    Deoptimizer::DeoptimizeAll(isolate_);
-  }
-
-  if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES, access)) {
-    isolate_->heap()->DeoptMarkedAllocationSites();
-  }
-
-  if (CheckAndClearInterrupt(INSTALL_CODE, access)) {
-    ASSERT(isolate_->concurrent_recompilation_enabled());
-    isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
-  }
-
-  isolate_->counters()->stack_interrupts()->Increment();
-  isolate_->counters()->runtime_profiler_ticks()->Increment();
-  isolate_->runtime_profiler()->OptimizeNow();
   return isolate_->heap()->undefined_value();
 }
 

@@ -91,7 +91,7 @@ DwVfpRegister DwVfpRegister::FromAllocationIndex(int index) {
 }
 
 
-void RelocInfo::apply(intptr_t delta) {
+void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
@@ -142,10 +142,13 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
+void RelocInfo::set_target_address(Address target,
+                                   WriteBarrierMode write_barrier_mode,
+                                   ICacheFlushMode icache_flush_mode) {
   ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target);
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
+  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
+      host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target_code));
@@ -166,12 +169,15 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 
-void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
+void RelocInfo::set_target_object(Object* target,
+                                  WriteBarrierMode write_barrier_mode,
+                                  ICacheFlushMode icache_flush_mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   ASSERT(!target->IsConsString());
   Assembler::set_target_address_at(pc_, host_,
-                                   reinterpret_cast<Address>(target));
-  if (mode == UPDATE_WRITE_BARRIER &&
+                                   reinterpret_cast<Address>(target),
+                                   icache_flush_mode);
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWrite(
@@ -193,9 +199,11 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
 
 
 void RelocInfo::set_target_runtime_entry(Address target,
-                                         WriteBarrierMode mode) {
+                                         WriteBarrierMode write_barrier_mode,
+                                         ICacheFlushMode icache_flush_mode) {
   ASSERT(IsRuntimeEntry(rmode_));
-  if (target_address() != target) set_target_address(target, mode);
+  if (target_address() != target)
+    set_target_address(target, write_barrier_mode, icache_flush_mode);
 }
 
 
@@ -212,11 +220,13 @@ Cell* RelocInfo::target_cell() {
 }
 
 
-void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode mode) {
+void RelocInfo::set_target_cell(Cell* cell,
+                                WriteBarrierMode write_barrier_mode,
+                                ICacheFlushMode icache_flush_mode) {
   ASSERT(rmode_ == RelocInfo::CELL);
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
-  if (mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
     // TODO(1550) We are passing NULL as a slot because cell can never be on
     // evacuation candidate.
     host()->GetHeap()->incremental_marking()->RecordWrite(
@@ -242,7 +252,8 @@ Code* RelocInfo::code_age_stub() {
 }
 
 
-void RelocInfo::set_code_age_stub(Code* stub) {
+void RelocInfo::set_code_age_stub(Code* stub,
+                                  ICacheFlushMode icache_flush_mode) {
   ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   Memory::Address_at(pc_ +
                      (kNoCodeAgeSequenceLength - Assembler::kInstrSize)) =
@@ -506,24 +517,27 @@ static Instr EncodeMovwImmediate(uint32_t immediate) {
 }
 
 
+static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate) {
+  instruction &= ~EncodeMovwImmediate(0xffff);
+  return instruction | EncodeMovwImmediate(immediate);
+}
+
+
 void Assembler::set_target_address_at(Address pc,
                                       ConstantPoolArray* constant_pool,
-                                      Address target) {
+                                      Address target,
+                                      ICacheFlushMode icache_flush_mode) {
   if (IsMovW(Memory::int32_at(pc))) {
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     uint32_t* instr_ptr = reinterpret_cast<uint32_t*>(pc);
     uint32_t immediate = reinterpret_cast<uint32_t>(target);
-    uint32_t intermediate = instr_ptr[0];
-    intermediate &= ~EncodeMovwImmediate(0xFFFF);
-    intermediate |= EncodeMovwImmediate(immediate & 0xFFFF);
-    instr_ptr[0] = intermediate;
-    intermediate = instr_ptr[1];
-    intermediate &= ~EncodeMovwImmediate(0xFFFF);
-    intermediate |= EncodeMovwImmediate(immediate >> 16);
-    instr_ptr[1] = intermediate;
+    instr_ptr[0] = PatchMovwImmediate(instr_ptr[0], immediate & 0xFFFF);
+    instr_ptr[1] = PatchMovwImmediate(instr_ptr[1], immediate >> 16);
     ASSERT(IsMovW(Memory::int32_at(pc)));
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
-    CPU::FlushICache(pc, 2 * kInstrSize);
+    if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+      CPU::FlushICache(pc, 2 * kInstrSize);
+    }
   } else if (FLAG_enable_ool_constant_pool) {
     ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
     Memory::Address_at(

@@ -5683,12 +5683,7 @@ ACCESSORS(JSMap, table, Object, kTableOffset)
 
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Smi, kIndexOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(count, Smi, kCountOffset)
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Smi, kKindOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(next_iterator, Object,
-                                      kNextIteratorOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(previous_iterator, Object,
-                                      kPreviousIteratorOffset)
 
 #undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
 
