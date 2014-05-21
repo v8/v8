@@ -37,8 +37,6 @@ Debug::Debug(Isolate* isolate)
       disable_break_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
-      promise_catch_handlers_(0),
-      promise_getters_(0),
       isolate_(isolate) {
   ThreadInit();
 }
@@ -511,6 +509,7 @@ void Debug::ThreadInit() {
   thread_local_.debugger_entry_ = NULL;
   thread_local_.has_pending_interrupt_ = false;
   thread_local_.restarter_frame_function_pointer_ = NULL;
+  thread_local_.promise_on_stack_ = NULL;
 }
 
 
@@ -1249,29 +1248,42 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
+Debug::PromiseOnStack::PromiseOnStack(Isolate* isolate,
+                                      PromiseOnStack* prev,
+                                      Handle<JSFunction> getter)
+    : isolate_(isolate), prev_(prev) {
+  handler_ = StackHandler::FromAddress(
+      Isolate::handler(isolate->thread_local_top()));
+  getter_ = Handle<JSFunction>::cast(
+      isolate->global_handles()->Create(*getter));
+}
+
+
+Debug::PromiseOnStack::~PromiseOnStack() {
+  isolate_->global_handles()->Destroy(Handle<Object>::cast(getter_).location());
+}
+
+
 void Debug::PromiseHandlePrologue(Handle<JSFunction> promise_getter) {
-  Handle<JSFunction> promise_getter_global = Handle<JSFunction>::cast(
-      isolate_->global_handles()->Create(*promise_getter));
-  StackHandler* handler =
-      StackHandler::FromAddress(Isolate::handler(isolate_->thread_local_top()));
-  promise_getters_.Add(promise_getter_global);
-  promise_catch_handlers_.Add(handler);
+  PromiseOnStack* prev = thread_local_.promise_on_stack_;
+  thread_local_.promise_on_stack_ =
+      new PromiseOnStack(isolate_, prev, promise_getter);
 }
 
 
 void Debug::PromiseHandleEpilogue() {
-  if (promise_catch_handlers_.length() == 0) return;
-  promise_catch_handlers_.RemoveLast();
-  Handle<Object> promise_getter = promise_getters_.RemoveLast();
-  isolate_->global_handles()->Destroy(promise_getter.location());
+  if (thread_local_.promise_on_stack_ == NULL) return;
+  PromiseOnStack* prev = thread_local_.promise_on_stack_->prev();
+  delete thread_local_.promise_on_stack_;
+  thread_local_.promise_on_stack_ = prev;
 }
 
 
 Handle<Object> Debug::GetPromiseForUncaughtException() {
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  if (promise_getters_.length() == 0) return undefined;
-  Handle<JSFunction> promise_getter = promise_getters_.last();
-  StackHandler* promise_catch = promise_catch_handlers_.last();
+  if (thread_local_.promise_on_stack_ == NULL) return undefined;
+  Handle<JSFunction> promise_getter = thread_local_.promise_on_stack_->getter();
+  StackHandler* promise_catch = thread_local_.promise_on_stack_->handler();
   // Find the top-most try-catch handler.
   StackHandler* handler = StackHandler::FromAddress(
       Isolate::handler(isolate_->thread_local_top()));
