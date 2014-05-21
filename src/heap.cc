@@ -5052,8 +5052,9 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
 
   // The external allocation limit should be below 256 MB on all architectures
-  // to avoid that resource-constrained embedders run low on memory.
-  external_allocation_limit_ = 24 * max_semi_space_size_;
+  // to avoid unnecessary low memory notifications, as that is the threshold
+  // for some embedders.
+  external_allocation_limit_ = 12 * max_semi_space_size_;
   ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
