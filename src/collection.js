@@ -47,12 +47,7 @@ function SetDeleteJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.delete', this]);
   }
-  if (%SetHas(this, key)) {
-    %SetDelete(this, key);
-    return true;
-  } else {
-    return false;
-  }
+  return %SetDelete(this, key);
 }
 
 

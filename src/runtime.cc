@@ -1554,9 +1554,10 @@ RUNTIME_FUNCTION(Runtime_SetDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  table = OrderedHashSet::Remove(table, key);
+  bool was_present = false;
+  table = OrderedHashSet::Remove(table, key, &was_present);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 

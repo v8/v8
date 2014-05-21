@@ -16456,9 +16456,14 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 
 
 Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
-                                              Handle<Object> key) {
+                                              Handle<Object> key,
+                                              bool* was_present) {
   int entry = table->FindEntry(key);
-  if (entry == kNotFound) return table;
+  if (entry == kNotFound) {
+    *was_present = false;
+    return table;
+  }
+  *was_present = true;
   table->RemoveEntry(entry);
   return Shrink(table);
 }

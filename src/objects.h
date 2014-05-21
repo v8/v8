@@ -4323,7 +4323,7 @@ class OrderedHashSet: public OrderedHashTable<
   static Handle<OrderedHashSet> Add(
       Handle<OrderedHashSet> table, Handle<Object> key);
   static Handle<OrderedHashSet> Remove(
-      Handle<OrderedHashSet> table, Handle<Object> key);
+      Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
 };
 
 
