@@ -11,25 +11,6 @@
 var $Set = global.Set;
 var $Map = global.Map;
 
-// Global sentinel to be used instead of undefined keys, which are not
-// supported internally but required for Harmony sets and maps.
-var undefined_sentinel = {};
-
-
-// Map and Set uses SameValueZero which means that +0 and -0 should be treated
-// as the same value.
-function NormalizeKey(key) {
-  if (IS_UNDEFINED(key)) {
-    return undefined_sentinel;
-  }
-
-  if (key === 0) {
-    return 0;
-  }
-
-  return key;
-}
-
 
 // -------------------------------------------------------------------
 // Harmony Set
@@ -48,7 +29,7 @@ function SetAddJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.add', this]);
   }
-  return %SetAdd(this, NormalizeKey(key));
+  return %SetAdd(this, key);
 }
 
 
@@ -57,7 +38,7 @@ function SetHasJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.has', this]);
   }
-  return %SetHas(this, NormalizeKey(key));
+  return %SetHas(this, key);
 }
 
 
@@ -66,7 +47,6 @@ function SetDeleteJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.delete', this]);
   }
-  key = NormalizeKey(key);
   if (%SetHas(this, key)) {
     %SetDelete(this, key);
     return true;
@@ -154,7 +134,7 @@ function MapGetJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.get', this]);
   }
-  return %MapGet(this, NormalizeKey(key));
+  return %MapGet(this, key);
 }
 
 
@@ -163,7 +143,7 @@ function MapSetJS(key, value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.set', this]);
   }
-  return %MapSet(this, NormalizeKey(key), value);
+  return %MapSet(this, key, value);
 }
 
 
@@ -172,7 +152,7 @@ function MapHasJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.has', this]);
   }
-  return %MapHas(this, NormalizeKey(key));
+  return %MapHas(this, key);
 }
 
 
@@ -181,7 +161,7 @@ function MapDeleteJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.delete', this]);
   }
-  return %MapDelete(this, NormalizeKey(key));
+  return %MapDelete(this, key);
 }
 
 

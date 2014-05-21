@@ -975,6 +975,25 @@ bool Object::SameValue(Object* other) {
 }
 
 
+bool Object::SameValueZero(Object* other) {
+  if (other == this) return true;
+
+  // The object is either a number, a name, an odd-ball,
+  // a real JS object, or a Harmony proxy.
+  if (IsNumber() && other->IsNumber()) {
+    double this_value = Number();
+    double other_value = other->Number();
+    // +0 == -0 is true
+    return this_value == other_value
+        || (std::isnan(this_value) && std::isnan(other_value));
+  }
+  if (IsString() && other->IsString()) {
+    return String::cast(this)->Equals(String::cast(other));
+  }
+  return false;
+}
+
+
 void Object::ShortPrint(FILE* out) {
   HeapStringAllocator allocator;
   StringStream accumulator(&allocator);
@@ -16329,7 +16348,7 @@ int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
        entry != kNotFound;
        entry = ChainAt(entry)) {
     Object* candidate = KeyAt(entry);
-    if (candidate->SameValue(*key))
+    if (candidate->SameValueZero(*key))
       return entry;
   }
   return kNotFound;
