@@ -2569,6 +2569,10 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
 
+  // The following code uses heap iterators, so we want the heap to be
+  // stable. It should follow TagGlobalObjects as that can allocate.
+  DisallowHeapAllocation no_alloc;
+
 #ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif

@@ -939,9 +939,12 @@ static void ReplaceCodeObject(Handle<Code> original,
   // to code objects (that are never in new space) without worrying about
   // write barriers.
   Heap* heap = original->GetHeap();
-  HeapIterator iterator(heap);
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "liveedit.cc ReplaceCodeObject");
 
   ASSERT(!heap->InNewSpace(*substitution));
+
+  DisallowHeapAllocation no_allocation;
 
   ReplacingVisitor visitor(*original, *substitution);
 
@@ -952,6 +955,7 @@ static void ReplaceCodeObject(Handle<Code> original,
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
+  HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
@@ -978,7 +982,7 @@ class LiteralFixer {
       // If literal count didn't change, simply go over all functions
       // and clear literal arrays.
       ClearValuesVisitor visitor;
-      IterateJSFunctions(shared_info, &visitor);
+      IterateJSFunctions(*shared_info, &visitor);
     } else {
       // When literal count changes, we have to create new array instances.
       // Since we cannot create instances when iterating heap, we should first
@@ -1013,14 +1017,16 @@ class LiteralFixer {
   // Iterates all function instances in the HEAP that refers to the
   // provided shared_info.
   template<typename Visitor>
-  static void IterateJSFunctions(Handle<SharedFunctionInfo> shared_info,
+  static void IterateJSFunctions(SharedFunctionInfo* shared_info,
                                  Visitor* visitor) {
+    DisallowHeapAllocation no_allocation;
+
     HeapIterator iterator(shared_info->GetHeap());
     for (HeapObject* obj = iterator.next(); obj != NULL;
         obj = iterator.next()) {
       if (obj->IsJSFunction()) {
         JSFunction* function = JSFunction::cast(obj);
-        if (function->shared() == *shared_info) {
+        if (function->shared() == shared_info) {
           visitor->visit(function);
         }
       }
@@ -1033,13 +1039,13 @@ class LiteralFixer {
       Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
     CountVisitor count_visitor;
     count_visitor.count = 0;
-    IterateJSFunctions(shared_info, &count_visitor);
+    IterateJSFunctions(*shared_info, &count_visitor);
     int size = count_visitor.count;
 
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(size);
     if (size > 0) {
       CollectVisitor collect_visitor(result);
-      IterateJSFunctions(shared_info, &collect_visitor);
+      IterateJSFunctions(*shared_info, &collect_visitor);
     }
     return result;
   }
@@ -1159,7 +1165,7 @@ void LiveEdit::ReplaceFunctionCode(
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  isolate->heap()->MakeHeapIterable();
+  isolate->heap()->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
@@ -1396,7 +1402,7 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
 
-  info->GetIsolate()->heap()->MakeHeapIterable();
+  info->GetIsolate()->heap()->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.
