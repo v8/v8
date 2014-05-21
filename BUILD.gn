@@ -13,9 +13,9 @@ v8_enable_i18n_support = true
 v8_enable_verify_heap = false
 v8_interpreted_regexp = false
 v8_object_print = false
-v8_postmortem_support = false
+#v8_postmortem_support = false
 v8_use_default_platform = true
-v8_use_snapshot = true
+#v8_use_snapshot = true
 
 if (is_debug) {
   v8_enable_extra_checks = true
