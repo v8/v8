@@ -759,7 +759,7 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
 void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          Handle<Name> name,
                                          LookupResult* lookup) {
-  holder->LocalLookupRealNamedProperty(name, lookup);
+  holder->LookupOwnRealNamedProperty(name, lookup);
   if (lookup->IsFound()) return;
   if (holder->GetPrototype()->IsNull()) return;
   holder->GetPrototype()->Lookup(name, lookup);

@@ -207,7 +207,7 @@ static void LookupForRead(Handle<Object> object,
       return;
     }
 
-    holder->LocalLookupRealNamedProperty(name, lookup);
+    holder->LookupOwnRealNamedProperty(name, lookup);
     if (lookup->IsFound()) {
       ASSERT(!lookup->IsInterceptor());
       return;
@@ -285,7 +285,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   if (receiver->IsGlobalObject()) {
     LookupResult lookup(isolate());
     GlobalObject* global = GlobalObject::cast(*receiver);
-    global->LocalLookupRealNamedProperty(name, &lookup);
+    global->LookupOwnRealNamedProperty(name, &lookup);
     if (!lookup.IsFound()) return false;
     PropertyCell* cell = global->GetPropertyCell(&lookup);
     return cell->type()->IsConstant();
@@ -1193,7 +1193,7 @@ static bool LookupForWrite(Handle<JSObject> receiver,
   receiver->Lookup(name, lookup);
   if (lookup->IsFound()) {
     if (lookup->IsInterceptor() && !HasInterceptorSetter(lookup->holder())) {
-      receiver->LocalLookupRealNamedProperty(name, lookup);
+      receiver->LookupOwnRealNamedProperty(name, lookup);
       if (!lookup->IsFound()) return false;
     }
 
@@ -2018,7 +2018,7 @@ RUNTIME_FUNCTION(StoreIC_ArrayLength) {
 #ifdef DEBUG
   // The length property has to be a writable callback property.
   LookupResult debug_lookup(isolate);
-  receiver->LocalLookup(isolate->factory()->length_string(), &debug_lookup);
+  receiver->LookupOwn(isolate->factory()->length_string(), &debug_lookup);
   ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
 #endif
 

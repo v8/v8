@@ -5,10 +5,10 @@
 #include "api.h"
 
 #include <string.h>  // For memcpy, strlen.
-#include <cmath>  // For isnan.
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
+#include <cmath>  // For isnan.
 #include "../include/v8-debug.h"
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
@@ -1750,12 +1750,10 @@ Local<Script> ScriptCompiler::Compile(
     Source* source,
     CompileOptions options) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()",
-             return Local<Script>());
+  ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()", return Local<Script>());
   LOG_API(isolate, "ScriptCompiler::CompiletBound()");
   ENTER_V8(isolate);
-  Local<UnboundScript> generic =
-      CompileUnbound(v8_isolate, source, options);
+  Local<UnboundScript> generic = CompileUnbound(v8_isolate, source, options);
   if (generic.IsEmpty()) return Local<Script>();
   return generic->BindToCurrentContext();
 }
@@ -3059,8 +3057,8 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
 
 
 bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
-  return Set(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
-             value, DontEnum);
+  return ForceSet(v8::Handle<Value>(reinterpret_cast<Value*>(*key)),
+                  value, DontEnum);
 }
 
 
@@ -3147,8 +3145,7 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
 
 Local<Value> v8::Object::GetPrototype() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetPrototype()",
-             return Local<v8::Value>());
+  ON_BAILOUT(isolate, "v8::Object::GetPrototype()", return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> result(self->GetPrototype(isolate), isolate);
@@ -3224,7 +3221,7 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::FixedArray> value;
   has_pending_exception = !i::JSReceiver::GetKeys(
-      self, i::JSReceiver::LOCAL_ONLY).ToHandle(&value);
+      self, i::JSReceiver::OWN_ONLY).ToHandle(&value);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Array>());
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -3349,6 +3346,8 @@ bool v8::Object::Has(v8::Handle<Value> key) {
 
 
 bool v8::Object::HasPrivate(v8::Handle<Private> key) {
+  // TODO(rossberg): this should use HasOwnProperty, but we'd need to
+  // generalise that to a (noy yet existant) Name argument first.
   return Has(v8::Handle<Value>(reinterpret_cast<Value*>(*key)));
 }
 
@@ -3452,7 +3451,7 @@ bool v8::Object::HasOwnProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
              return false);
-  return i::JSReceiver::HasLocalProperty(
+  return i::JSReceiver::HasOwnProperty(
       Utils::OpenHandle(this), Utils::OpenHandle(*key));
 }
 

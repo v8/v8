@@ -171,7 +171,7 @@ macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? 
 macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateSymbol(name));
 macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
-macro HAS_PRIVATE(obj, sym) = (%HasLocalProperty(obj, sym));
+macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);
 macro DELETE_PRIVATE(obj, sym) = (delete obj[sym]);

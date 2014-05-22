@@ -676,9 +676,9 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
-    // Get all the local property names except for private symbols.
+    // Get all own property names except for private symbols.
     propertyNames =
-        %GetLocalPropertyNames(this.value_, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
+        %GetOwnPropertyNames(this.value_, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.
@@ -694,8 +694,8 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the indexed properties.
   if (kind & PropertyKind.Indexed) {
-    // Get the local element names.
-    elementNames = %GetLocalElementNames(this.value_);
+    // Get own element names.
+    elementNames = %GetOwnElementNames(this.value_);
     total += elementNames.length;
 
     // Get names for indexed interceptor properties.

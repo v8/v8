@@ -244,7 +244,7 @@ function ObjectHasOwnProperty(V) {
     var handler = %GetHandler(this);
     return CallTrap1(handler, "hasOwn", DerivedHasOwnTrap, ToName(V));
   }
-  return %HasLocalProperty(TO_OBJECT_INLINE(this), ToName(V));
+  return %HasOwnProperty(TO_OBJECT_INLINE(this), ToName(V));
 }
 
 
@@ -332,7 +332,7 @@ function ObjectKeys(obj) {
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
     return ToNameArray(names, "keys", false);
   }
-  return %LocalKeys(obj);
+  return %OwnKeys(obj);
 }
 
 
@@ -1025,7 +1025,7 @@ function ToNameArray(obj, trap, includeSymbols) {
     var s = ToName(obj[index]);
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(s) && !includeSymbols) continue;
-    if (%HasLocalProperty(names, s)) {
+    if (%HasOwnProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
     array[index] = s;
@@ -1045,13 +1045,13 @@ function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
 
   // Find all the indexed properties.
 
-  // Only get the local element names if we want to include string keys.
+  // Only get own element names if we want to include string keys.
   if (!symbolsOnly) {
-    var localElementNames = %GetLocalElementNames(obj);
-    for (var i = 0; i < localElementNames.length; ++i) {
-      localElementNames[i] = %_NumberToString(localElementNames[i]);
+    var ownElementNames = %GetOwnElementNames(obj);
+    for (var i = 0; i < ownElementNames.length; ++i) {
+      ownElementNames[i] = %_NumberToString(ownElementNames[i]);
     }
-    nameArrays.push(localElementNames);
+    nameArrays.push(ownElementNames);
 
     // Get names for indexed interceptor properties.
     var interceptorInfo = %GetInterceptorInfo(obj);
@@ -1065,8 +1065,8 @@ function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
 
   // Find all the named properties.
 
-  // Get the local property names.
-  nameArrays.push(%GetLocalPropertyNames(obj, filter));
+  // Get own property names.
+  nameArrays.push(%GetOwnPropertyNames(obj, filter));
 
   // Get names for named interceptor properties if any.
   if ((interceptorInfo & 2) != 0) {
@@ -1156,7 +1156,7 @@ function ObjectDefineProperty(obj, p, attributes) {
       {value: 0, writable: 0, get: 0, set: 0, enumerable: 0, configurable: 0};
     for (var i = 0; i < names.length; i++) {
       var N = names[i];
-      if (!(%HasLocalProperty(standardNames, N))) {
+      if (!(%HasOwnProperty(standardNames, N))) {
         var attr = GetOwnPropertyJS(attributes, N);
         DefineOwnProperty(descObj, N, attr, true);
       }
@@ -1176,7 +1176,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 function GetOwnEnumerablePropertyNames(properties) {
   var names = new InternalArray();
   for (var key in properties) {
-    if (%HasLocalProperty(properties, key)) {
+    if (%HasOwnProperty(properties, key)) {
       names.push(key);
     }
   }

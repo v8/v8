@@ -2097,7 +2097,7 @@ class V8_EXPORT Object : public Value {
 
   bool Set(uint32_t index, Handle<Value> value);
 
-  // Sets a local property on this object bypassing interceptors and
+  // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //
   // Note that if the object has an interceptor the property will be set

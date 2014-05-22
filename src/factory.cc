@@ -1294,10 +1294,10 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
   if (!function->shared()->is_generator()) {
-    JSObject::SetLocalPropertyIgnoreAttributes(prototype,
-                                               constructor_string(),
-                                               function,
-                                               DONT_ENUM).Assert();
+    JSObject::SetOwnPropertyIgnoreAttributes(prototype,
+                                             constructor_string(),
+                                             function,
+                                             DONT_ENUM).Assert();
   }
 
   return prototype;
@@ -2131,7 +2131,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
     return result;
   }
 
-  JSObject::SetLocalPropertyIgnoreAttributes(
+  JSObject::SetOwnPropertyIgnoreAttributes(
       handle(JSObject::cast(result->prototype())),
       constructor_string(),
       result,

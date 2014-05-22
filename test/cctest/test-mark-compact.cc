@@ -166,7 +166,7 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    CHECK(JSReceiver::HasLocalProperty(global, func_name));
+    CHECK(JSReceiver::HasOwnProperty(global, func_name));
     Handle<Object> func_value =
         Object::GetProperty(global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
@@ -184,7 +184,7 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    CHECK(JSReceiver::HasLocalProperty(global, obj_name));
+    CHECK(JSReceiver::HasOwnProperty(global, obj_name));
     Handle<Object> object =
         Object::GetProperty(global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());

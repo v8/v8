@@ -100,7 +100,7 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
-  Variable* LocalLookup(Handle<String> name);
+  Variable* LookupLocal(Handle<String> name);
 
   // This lookup corresponds to a lookup in the "intermediate" scope sitting
   // between this scope and the outer scope. (ECMA-262, 3rd., requires that

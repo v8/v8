@@ -59,8 +59,8 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
   }
 
   function PromiseInit(promise) {
-    return PromiseSet(promise, 0, UNDEFINED, new InternalArray,
-                      new InternalArray)
+    return PromiseSet(
+        promise, 0, UNDEFINED, new InternalArray, new InternalArray)
   }
 
   function PromiseDone(promise, status, value, promiseQueue) {
@@ -136,7 +136,7 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
   // For bootstrapper.
 
   IsPromise = function IsPromise(x) {
-    return IS_SPEC_OBJECT(x) && %HasLocalProperty(x, promiseStatus);
+    return IS_SPEC_OBJECT(x) && HAS_PRIVATE(x, promiseStatus);
   }
 
   PromiseCreate = function PromiseCreate() {

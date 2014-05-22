@@ -6284,13 +6284,12 @@ bool JSReceiver::HasProperty(Handle<JSReceiver> object,
 }
 
 
-bool JSReceiver::HasLocalProperty(Handle<JSReceiver> object,
-                                  Handle<Name> name) {
+bool JSReceiver::HasOwnProperty(Handle<JSReceiver> object, Handle<Name> name) {
   if (object->IsJSProxy()) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return GetLocalPropertyAttribute(object, name) != ABSENT;
+  return GetOwnPropertyAttribute(object, name) != ABSENT;
 }
 
 
@@ -6349,7 +6348,7 @@ bool JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
 }
 
 
-bool JSReceiver::HasLocalElement(Handle<JSReceiver> object, uint32_t index) {
+bool JSReceiver::HasOwnElement(Handle<JSReceiver> object, uint32_t index) {
   if (object->IsJSProxy()) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasElementWithHandler(proxy, index);
@@ -6359,7 +6358,7 @@ bool JSReceiver::HasLocalElement(Handle<JSReceiver> object, uint32_t index) {
 }
 
 
-PropertyAttributes JSReceiver::GetLocalElementAttribute(
+PropertyAttributes JSReceiver::GetOwnElementAttribute(
     Handle<JSReceiver> object, uint32_t index) {
   if (object->IsJSProxy()) {
     return JSProxy::GetElementAttributeWithHandler(

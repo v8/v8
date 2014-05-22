@@ -435,7 +435,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
 
   Handle<String> key =
       factory->NewStringFromStaticAscii("minimumSignificantDigits");
-  if (JSReceiver::HasLocalProperty(resolved, key)) {
+  if (JSReceiver::HasOwnProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
         factory->NewStringFromStaticAscii("minimumSignificantDigits"),
@@ -445,7 +445,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
   }
 
   key = factory->NewStringFromStaticAscii("maximumSignificantDigits");
-  if (JSReceiver::HasLocalProperty(resolved, key)) {
+  if (JSReceiver::HasOwnProperty(resolved, key)) {
     JSObject::SetProperty(
         resolved,
         factory->NewStringFromStaticAscii("maximumSignificantDigits"),
@@ -823,7 +823,7 @@ icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromStaticAscii("dateFormat");
-  if (JSReceiver::HasLocalProperty(obj, key)) {
+  if (JSReceiver::HasOwnProperty(obj, key)) {
     return reinterpret_cast<icu::SimpleDateFormat*>(
         obj->GetInternalField(0));
   }
@@ -897,7 +897,7 @@ icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromStaticAscii("numberFormat");
-  if (JSReceiver::HasLocalProperty(obj, key)) {
+  if (JSReceiver::HasOwnProperty(obj, key)) {
     return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
   }
 
@@ -952,7 +952,7 @@ icu::Collator* Collator::InitializeCollator(
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
   Handle<String> key = isolate->factory()->NewStringFromStaticAscii("collator");
-  if (JSReceiver::HasLocalProperty(obj, key)) {
+  if (JSReceiver::HasOwnProperty(obj, key)) {
     return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
   }
 
@@ -1011,7 +1011,7 @@ icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
                                                        Handle<JSObject> obj) {
   Handle<String> key =
       isolate->factory()->NewStringFromStaticAscii("breakIterator");
-  if (JSReceiver::HasLocalProperty(obj, key)) {
+  if (JSReceiver::HasOwnProperty(obj, key)) {
     return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
   }
 

@@ -1764,7 +1764,7 @@ String* V8HeapExplorer::GetConstructorName(JSObject* object) {
     Object* constructor_prop = NULL;
     Isolate* isolate = heap->isolate();
     LookupResult result(isolate);
-    object->LocalLookupRealNamedProperty(
+    object->LookupOwnRealNamedProperty(
         isolate->factory()->constructor_string(), &result);
     if (!result.IsFound()) return object->constructor_name();
 

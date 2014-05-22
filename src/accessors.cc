@@ -183,7 +183,7 @@ void Accessors::ArrayLengthSetter(
   // causes an infinite loop.
   if (!object->IsJSArray()) {
     MaybeHandle<Object> maybe_result =
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             object, isolate->factory()->length_string(), value, NONE);
     maybe_result.Check();
     return;
@@ -790,7 +790,7 @@ static Handle<Object> SetFunctionPrototype(Isolate* isolate,
   if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
     MaybeHandle<Object> maybe_result =
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             receiver, isolate->factory()->prototype_string(), value, NONE);
     return maybe_result.ToHandleChecked();
   }
