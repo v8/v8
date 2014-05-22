@@ -26,6 +26,7 @@ class ProfileGenerator;
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
   V(CODE_MOVE,        CodeMoveEventRecord)                         \
+  V(CODE_DISABLE_OPT, CodeDisableOptEventRecord)                   \
   V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)           \
   V(REPORT_BUILTIN,   ReportBuiltinEventRecord)
 
@@ -60,6 +61,15 @@ class CodeMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
+
+  INLINE(void UpdateCodeMap(CodeMap* code_map));
+};
+
+
+class CodeDisableOptEventRecord : public CodeEventRecord {
+ public:
+  Address start;
+  const char* bailout_reason;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -225,6 +235,7 @@ class CpuProfiler : public CodeEventListener {
                                Code* code, int args_count);
   virtual void CodeMovingGCEvent() {}
   virtual void CodeMoveEvent(Address from, Address to);
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
   virtual void CodeDeleteEvent(Address from);
   virtual void GetterCallbackEvent(Name* name, Address entry_point);
   virtual void RegExpCodeCreateEvent(Code* code, String* source);

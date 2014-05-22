@@ -10706,9 +10706,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   if (code()->kind() == Code::FUNCTION) {
     code()->set_optimizable(false);
   }
-  PROFILE(GetIsolate(),
-      LogExistingFunction(Handle<SharedFunctionInfo>(this),
-                          Handle<Code>(code())));
+  PROFILE(GetIsolate(), CodeDisableOptEvent(code(), this));
   if (FLAG_trace_opt) {
     PrintF("[disabled optimization for ");
     ShortPrint();

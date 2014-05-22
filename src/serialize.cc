@@ -630,6 +630,9 @@ class CodeAddressMap: public CodeEventLogger {
     address_to_name_map_.Move(from, to);
   }
 
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
+  }
+
   virtual void CodeDeleteEvent(Address from) {
     address_to_name_map_.Remove(from);
   }

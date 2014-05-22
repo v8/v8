@@ -304,6 +304,15 @@ void CpuProfiler::CodeMoveEvent(Address from, Address to) {
 }
 
 
+void CpuProfiler::CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_DISABLE_OPT);
+  CodeDisableOptEventRecord* rec = &evt_rec.CodeDisableOptEventRecord_;
+  rec->start = code->address();
+  rec->bailout_reason = GetBailoutReason(shared->DisableOptimizationReason());
+  processor_->Enqueue(evt_rec);
+}
+
+
 void CpuProfiler::CodeDeleteEvent(Address from) {
 }
 
