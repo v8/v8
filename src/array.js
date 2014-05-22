@@ -628,7 +628,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
   var is_sealed = ObjectIsSealed(array);
 
-  if (IS_ARRAY(array) && !is_sealed) {
+  if (IS_ARRAY(array) && !is_sealed && len > 0) {
     SmartMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);

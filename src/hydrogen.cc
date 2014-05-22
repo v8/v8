@@ -7880,6 +7880,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
       if (receiver_map->is_observed()) return false;
+      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
       ASSERT(receiver_map->is_extensible());
 
       // If there may be elements accessors in the prototype chain, the fast

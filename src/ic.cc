@@ -1794,6 +1794,15 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     }
   }
 
+  if (store_handle.is_null()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(),
+        store_handle,
+        Runtime::SetObjectProperty(
+            isolate(), object, key, value, NONE, strict_mode()),
+        Object);
+  }
+
   if (!is_target_set()) {
     if (*stub == *generic_stub()) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
@@ -1803,15 +1812,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     TRACE_IC("StoreIC", key);
   }
 
-  if (!store_handle.is_null()) return store_handle;
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(),
-      result,
-      Runtime::SetObjectProperty(
-          isolate(), object, key, value,  NONE, strict_mode()),
-      Object);
-  return result;
+  return store_handle;
 }
 
 

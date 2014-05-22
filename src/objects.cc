@@ -13258,6 +13258,14 @@ MaybeHandle<Object> JSObject::SetElementWithoutInterceptor(
       CheckArrayAbuse(object, "elements write", index, true);
     }
   }
+  if (object->IsJSArray() && JSArray::WouldChangeReadOnlyLength(
+      Handle<JSArray>::cast(object), index)) {
+    if (strict_mode == SLOPPY) {
+      return value;
+    } else {
+      return JSArray::ReadOnlyLengthError(Handle<JSArray>::cast(object));
+    }
+  }
   switch (object->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
@@ -13540,6 +13548,41 @@ void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
         static_cast<double>(index) + 1);
     array->set_length(*len);
   }
+}
+
+
+bool JSArray::IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
+    Isolate* isolate = jsarray_map->GetIsolate();
+    ASSERT(!jsarray_map->is_dictionary_map());
+    LookupResult lookup(isolate);
+    Handle<Name> length_string = isolate->factory()->length_string();
+    jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
+    return lookup.IsReadOnly();
+}
+
+
+bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
+                                        uint32_t index) {
+  uint32_t length = 0;
+  CHECK(array->length()->ToArrayIndex(&length));
+  if (length <= index) {
+    Isolate* isolate = array->GetIsolate();
+    LookupResult lookup(isolate);
+    Handle<Name> length_string = isolate->factory()->length_string();
+    array->LocalLookupRealNamedProperty(length_string, &lookup);
+    return lookup.IsReadOnly();
+  }
+  return false;
+}
+
+
+MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
+  Isolate* isolate = array->GetIsolate();
+  Handle<Name> length = isolate->factory()->length_string();
+  Handle<Object> args[2] = { length, array };
+  Handle<Object> error = isolate->factory()->NewTypeError(
+      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
+  return isolate->Throw<Object>(error);
 }
 
 
