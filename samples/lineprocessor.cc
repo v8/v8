@@ -69,25 +69,6 @@ while (true) {
   var res = line + " | " + line;
   print(res);
 }
-
- *
- * When run with "-p" argument, the program starts V8 Debugger Agent and
- * allows remote debugger to attach and debug JavaScript code.
- *
- * Interesting aspects:
- * 1. Wait for remote debugger to attach
- * Normally the program compiles custom script and immediately runs it.
- * If programmer needs to debug script from the very beginning, he should
- * run this sample program with "--wait-for-connection" command line parameter.
- * This way V8 will suspend on the first statement and wait for
- * debugger to attach.
- *
- * 2. Unresponsive V8
- * V8 Debugger Agent holds a connection with remote debugger, but it does
- * respond only when V8 is running some script. In particular, when this program
- * is waiting for input, all requests from debugger get deferred until V8
- * is called again. See how "--callback" command-line parameter in this sample
- * fixes this issue.
  */
 
 enum MainCycleType {
@@ -113,7 +94,6 @@ int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::Isolate* isolate = v8::Isolate::New();
   v8::Isolate::Scope isolate_scope(isolate);
-  v8::Locker locker(isolate);
   v8::HandleScope handle_scope(isolate);
 
   v8::Handle<v8::String> script_source;
@@ -224,7 +204,6 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
                  v8::Local<v8::Context> context,
                  bool report_exceptions) {
   v8::Isolate* isolate = context->GetIsolate();
-  v8::Locker lock(isolate);
 
   v8::Handle<v8::String> fun_name =
       v8::String::NewFromUtf8(isolate, "ProcessLine");
@@ -382,7 +361,6 @@ v8::Handle<v8::String> ReadLine() {
 
   char* res;
   {
-    v8::Unlocker unlocker(v8::Isolate::GetCurrent());
     res = fgets(buffer, kBufferSize, stdin);
   }
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
