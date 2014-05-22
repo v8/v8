@@ -185,16 +185,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
               isolate);
   }
 
-  // Debug addresses
-  Add(Debug_Address(Debug::k_after_break_target_address).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_after_break_target_address << kDebugIdShift,
-      "Debug::after_break_target_address()");
-  Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(isolate),
-      DEBUG_ADDRESS,
-      Debug::k_restarter_frame_function_pointer << kDebugIdShift,
-      "Debug::restarter_frame_function_pointer_address()");
-
   // Stat counters
   struct StatsRefTableEntry {
     StatsCounter* (Counters::*counter)();
@@ -535,6 +525,18 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       66,
       "InvokeAccessorGetterCallback");
 
+  // Debug addresses
+  Add(ExternalReference::debug_after_break_target_address(isolate).address(),
+      UNCLASSIFIED,
+      67,
+      "Debug::after_break_target_address()");
+
+  Add(ExternalReference::debug_restarter_frame_function_pointer_address(
+          isolate).address(),
+      UNCLASSIFIED,
+      68,
+      "Debug::restarter_frame_function_pointer_address()");
+
   // Add a small set of deopt entry addresses to encoder without generating the
   // deopt table code, which isn't possible at deserialization time.
   HandleScope scope(isolate);
@@ -563,7 +565,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
 uint32_t ExternalReferenceEncoder::Encode(Address key) const {
   int index = IndexOf(key);
   ASSERT(key == NULL || index >= 0);
-  return index >=0 ?
+  return index >= 0 ?
          ExternalReferenceTable::instance(isolate_)->code(index) : 0;
 }
 

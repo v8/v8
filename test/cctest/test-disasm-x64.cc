@@ -261,7 +261,7 @@ TEST(DisasmX64) {
   // TODO(mstarzinger): The following is protected.
   // __ jmp(Operand(rbx, rcx, times_4, 10000));
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
+      ExternalReference::debug_after_break_target_address(isolate);
   USE(after_break_target);
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();

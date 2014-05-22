@@ -17,7 +17,6 @@ enum TypeCode {
   BUILTIN,
   RUNTIME_FUNCTION,
   IC_UTILITY,
-  DEBUG_ADDRESS,
   STATS_COUNTER,
   TOP_ADDRESS,
   C_BUILTIN,
@@ -34,8 +33,6 @@ const int kFirstTypeCode = UNCLASSIFIED;
 const int kReferenceIdBits = 16;
 const int kReferenceIdMask = (1 << kReferenceIdBits) - 1;
 const int kReferenceTypeShift = kReferenceIdBits;
-const int kDebugRegisterBits = 4;
-const int kDebugIdShift = kDebugRegisterBits;
 
 const int kDeoptTableSerializeEntryCount = 12;
 

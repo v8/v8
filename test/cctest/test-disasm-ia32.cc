@@ -275,7 +275,7 @@ TEST(DisasmIa320) {
   __ jmp(&L1);
   __ jmp(Operand(ebx, ecx, times_4, 10000));
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
+      ExternalReference::debug_after_break_target_address(isolate);
   __ jmp(Operand::StaticVariable(after_break_target));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();

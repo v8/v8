@@ -794,8 +794,6 @@ class ExternalReference BASE_EMBEDDED {
 
   ExternalReference(const IC_Utility& ic_utility, Isolate* isolate);
 
-  ExternalReference(const Debug_Address& debug_address, Isolate* isolate);
-
   explicit ExternalReference(StatsCounter* counter);
 
   ExternalReference(Isolate::AddressId id, Isolate* isolate);
@@ -914,6 +912,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ForDeoptEntry(Address entry);
 
   static ExternalReference cpu_features();
+
+  static ExternalReference debug_after_break_target_address(Isolate* isolate);
+  static ExternalReference debug_restarter_frame_function_pointer_address(
+      Isolate* isolate);
 
   static ExternalReference is_profiling_address(Isolate* isolate);
   static ExternalReference invoke_function_callback(Isolate* isolate);

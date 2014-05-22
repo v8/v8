@@ -342,12 +342,13 @@ class Debug {
   };
 
   // Support for setting the address to jump to when returning from break point.
-  Address* after_break_target_address() {
-    return reinterpret_cast<Address*>(&thread_local_.after_break_target_);
+  Address after_break_target_address() {
+    return reinterpret_cast<Address>(&thread_local_.after_break_target_);
   }
-  Address* restarter_frame_function_pointer_address() {
+
+  Address restarter_frame_function_pointer_address() {
     Object*** address = &thread_local_.restarter_frame_function_pointer_;
-    return reinterpret_cast<Address*>(address);
+    return reinterpret_cast<Address>(address);
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;
@@ -925,39 +926,6 @@ class DisableBreak BASE_EMBEDDED {
   // The previous state of the disable break used to restore the value when this
   // object is destructed.
   bool prev_disable_break_;
-};
-
-
-// Debug_Address encapsulates the Address pointers used in generating debug
-// code.
-class Debug_Address {
- public:
-  explicit Debug_Address(Debug::AddressId id) : id_(id) { }
-
-  static Debug_Address AfterBreakTarget() {
-    return Debug_Address(Debug::k_after_break_target_address);
-  }
-
-  static Debug_Address RestarterFrameFunctionPointer() {
-    return Debug_Address(Debug::k_restarter_frame_function_pointer);
-  }
-
-  Address address(Isolate* isolate) const {
-    Debug* debug = isolate->debug();
-    switch (id_) {
-      case Debug::k_after_break_target_address:
-        return reinterpret_cast<Address>(debug->after_break_target_address());
-      case Debug::k_restarter_frame_function_pointer:
-        return reinterpret_cast<Address>(
-            debug->restarter_frame_function_pointer_address());
-      default:
-        UNREACHABLE();
-        return NULL;
-    }
-  }
-
- private:
-  Debug::AddressId id_;
 };
 
 } }  // namespace v8::internal
