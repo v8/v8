@@ -304,6 +304,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
+                                           bool count_constructions,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
@@ -314,8 +315,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // -----------------------------------
 
   ASM_LOCATION("Builtins::Generate_JSConstructStubHelper");
+  // Should never count constructions for api objects.
+  ASSERT(!is_api_function || !count_constructions);
   // Should never create mementos for api functions.
   ASSERT(!is_api_function || !create_memento);
+  // Should never create mementos before slack tracking is finished.
+  ASSERT(!count_constructions || !create_memento);
 
   Isolate* isolate = masm->isolate();
 
@@ -361,28 +366,24 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ CompareInstanceType(init_map, x10, JS_FUNCTION_TYPE);
       __ B(eq, &rt_call);
 
-      Register constructon_count = x14;
-      if (!is_api_function) {
+      if (count_constructions) {
         Label allocate;
-        MemOperand bit_field3 =
-            FieldMemOperand(init_map, Map::kBitField3Offset);
-        // Check if slack tracking is enabled.
-        __ Ldr(x4, bit_field3);
-        __ DecodeField<Map::ConstructionCount>(constructon_count, x4);
-        __ Cmp(constructon_count, Operand(JSFunction::kNoSlackTracking));
-        __ B(eq, &allocate);
         // Decrease generous allocation count.
-        __ Subs(x4, x4, Operand(1 << Map::ConstructionCount::kShift));
-        __ Str(x4, bit_field3);
-        __ Cmp(constructon_count, Operand(JSFunction::kFinishSlackTracking));
+        __ Ldr(x3, FieldMemOperand(constructor,
+                                   JSFunction::kSharedFunctionInfoOffset));
+        MemOperand constructor_count =
+            FieldMemOperand(x3, SharedFunctionInfo::kConstructionCountOffset);
+        __ Ldrb(x4, constructor_count);
+        __ Subs(x4, x4, 1);
+        __ Strb(x4, constructor_count);
         __ B(ne, &allocate);
 
         // Push the constructor and map to the stack, and the constructor again
         // as argument to the runtime call.
         __ Push(constructor, init_map, constructor);
+        // The call will replace the stub, so the countdown is only done once.
         __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
         __ Pop(init_map, constructor);
-        __ Mov(constructon_count, Operand(JSFunction::kNoSlackTracking));
         __ Bind(&allocate);
       }
 
@@ -412,8 +413,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Add(first_prop, new_obj, JSObject::kHeaderSize);
 
       // Fill all of the in-object properties with the appropriate filler.
-      Register filler = x7;
-      __ LoadRoot(filler, Heap::kUndefinedValueRootIndex);
+      Register undef = x7;
+      __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
 
       // Obtain number of pre-allocated property fields and in-object
       // properties.
@@ -431,38 +432,36 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       Register prop_fields = x6;
       __ Sub(prop_fields, obj_size, JSObject::kHeaderSize / kPointerSize);
 
-      if (!is_api_function) {
-        Label no_inobject_slack_tracking;
-
-        // Check if slack tracking is enabled.
-        __ Cmp(constructon_count, Operand(JSFunction::kNoSlackTracking));
-        __ B(eq, &no_inobject_slack_tracking);
-        constructon_count = NoReg;
-
+      if (count_constructions) {
         // Fill the pre-allocated fields with undef.
-        __ FillFields(first_prop, prealloc_fields, filler);
+        __ FillFields(first_prop, prealloc_fields, undef);
 
-        // Update first_prop register to be the offset of the first field after
+        // Register first_non_prealloc is the offset of the first field after
         // pre-allocated fields.
-        __ Add(first_prop, first_prop,
+        Register first_non_prealloc = x12;
+        __ Add(first_non_prealloc, first_prop,
                Operand(prealloc_fields, LSL, kPointerSizeLog2));
 
+        first_prop = NoReg;
+
         if (FLAG_debug_code) {
-          Register obj_end = x14;
+          Register obj_end = x5;
           __ Add(obj_end, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
-          __ Cmp(first_prop, obj_end);
+          __ Cmp(first_non_prealloc, obj_end);
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields);
         }
 
         // Fill the remaining fields with one pointer filler map.
-        __ LoadRoot(filler, Heap::kOnePointerFillerMapRootIndex);
-        __ Sub(prop_fields, prop_fields, prealloc_fields);
-
-        __ bind(&no_inobject_slack_tracking);
-      }
-      if (create_memento) {
+        Register one_pointer_filler = x5;
+        Register non_prealloc_fields = x6;
+        __ LoadRoot(one_pointer_filler, Heap::kOnePointerFillerMapRootIndex);
+        __ Sub(non_prealloc_fields, prop_fields, prealloc_fields);
+        __ FillFields(first_non_prealloc, non_prealloc_fields,
+                      one_pointer_filler);
+        prop_fields = NoReg;
+      } else if (create_memento) {
         // Fill the pre-allocated fields with undef.
-        __ FillFields(first_prop, prop_fields, filler);
+        __ FillFields(first_prop, prop_fields, undef);
         __ Add(first_prop, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
         __ LoadRoot(x14, Heap::kAllocationMementoMapRootIndex);
         ASSERT_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
@@ -474,7 +473,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         first_prop = NoReg;
       } else {
         // Fill all of the property fields with undef.
-        __ FillFields(first_prop, prop_fields, filler);
+        __ FillFields(first_prop, prop_fields, undef);
         first_prop = NoReg;
         prop_fields = NoReg;
       }
@@ -517,7 +516,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // Initialize the fields to undefined.
       Register elements = x10;
       __ Add(elements, new_array, FixedArray::kHeaderSize);
-      __ FillFields(elements, element_count, filler);
+      __ FillFields(elements, element_count, undef);
 
       // Store the initialized FixedArray into the properties field of the
       // JSObject.
@@ -625,7 +624,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    if (!is_api_function && !count_constructions) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -676,13 +675,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 }
 
 
+void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, false);
+}
+
+
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
 }
 
 

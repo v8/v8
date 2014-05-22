@@ -508,6 +508,9 @@ void OptimizedCompileJob::RecordOptimizationStats() {
 // Sets the expected number of properties based on estimate from compiler.
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate) {
+  // See the comment in SetExpectedNofProperties.
+  if (shared->live_objects_may_exist()) return;
+
   // If no properties are added in the constructor, they are more likely
   // to be added later.
   if (estimate == 0) estimate = 2;

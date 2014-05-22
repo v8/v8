@@ -101,6 +101,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
+                                           bool count_constructions,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
@@ -108,8 +109,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- rbx: allocation site or undefined
   // -----------------------------------
 
+  // Should never count constructions for api objects.
+  ASSERT(!is_api_function || !count_constructions);\
+
   // Should never create mementos for api functions.
   ASSERT(!is_api_function || !create_memento);
+
+  // Should never create mementos before slack tracking is finished.
+  ASSERT(!count_constructions || !create_memento);
 
   // Enter a construct frame.
   {
@@ -159,32 +166,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
       __ j(equal, &rt_call);
 
-      if (!is_api_function) {
+      if (count_constructions) {
         Label allocate;
-        // The code below relies on these assumptions.
-        STATIC_ASSERT(JSFunction::kNoSlackTracking == 0);
-        STATIC_ASSERT(Map::ConstructionCount::kShift +
-                      Map::ConstructionCount::kSize == 32);
-        // Check if slack tracking is enabled.
-        __ movl(rsi, FieldOperand(rax, Map::kBitField3Offset));
-        __ shrl(rsi, Immediate(Map::ConstructionCount::kShift));
-        __ j(zero, &allocate);  // JSFunction::kNoSlackTracking
         // Decrease generous allocation count.
-        __ subl(FieldOperand(rax, Map::kBitField3Offset),
-                Immediate(1 << Map::ConstructionCount::kShift));
-
-        __ cmpl(rsi, Immediate(JSFunction::kFinishSlackTracking));
-        __ j(not_equal, &allocate);
+        __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+        __ decb(FieldOperand(rcx,
+                             SharedFunctionInfo::kConstructionCountOffset));
+        __ j(not_zero, &allocate);
 
         __ Push(rax);
         __ Push(rdi);
 
         __ Push(rdi);  // constructor
+        // The call will replace the stub, so the countdown is only done once.
         __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
 
         __ Pop(rdi);
         __ Pop(rax);
-        __ xorl(rsi, rsi);  // JSFunction::kNoSlackTracking
 
         __ bind(&allocate);
       }
@@ -215,17 +213,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rax: initial map
       // rbx: JSObject
       // rdi: start of next object (including memento if create_memento)
-      // rsi: slack tracking counter (non-API function case)
       __ leap(rcx, Operand(rbx, JSObject::kHeaderSize));
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-      if (!is_api_function) {
-        Label no_inobject_slack_tracking;
-
-        // Check if slack tracking is enabled.
-        __ cmpl(rsi, Immediate(JSFunction::kNoSlackTracking));
-        __ j(equal, &no_inobject_slack_tracking);
-
-        // Allocate object with a slack.
+      if (count_constructions) {
         __ movzxbp(rsi,
                    FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
         __ leap(rsi,
@@ -238,21 +228,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         }
         __ InitializeFieldsWithFiller(rcx, rsi, rdx);
         __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
-        // Fill the remaining fields with one pointer filler map.
-
-        __ bind(&no_inobject_slack_tracking);
-      }
-      if (create_memento) {
+        __ InitializeFieldsWithFiller(rcx, rdi, rdx);
+      } else if (create_memento) {
         __ leap(rsi, Operand(rdi, -AllocationMemento::kSize));
         __ InitializeFieldsWithFiller(rcx, rsi, rdx);
 
         // Fill in memento fields if necessary.
         // rsi: points to the allocated but uninitialized memento.
+        Handle<Map> allocation_memento_map = factory->allocation_memento_map();
         __ Move(Operand(rsi, AllocationMemento::kMapOffset),
-                factory->allocation_memento_map());
+                allocation_memento_map);
         // Get the cell or undefined.
         __ movp(rdx, Operand(rsp, kPointerSize*2));
-        __ movp(Operand(rsi, AllocationMemento::kAllocationSiteOffset), rdx);
+        __ movp(Operand(rsi, AllocationMemento::kAllocationSiteOffset),
+                rdx);
       } else {
         __ InitializeFieldsWithFiller(rcx, rdi, rdx);
       }
@@ -427,7 +416,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function) {
+    if (!is_api_function && !count_constructions) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -470,13 +459,18 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 }
 
 
+void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, true, false);
+}
+
+
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false);
+  Generate_JSConstructStubHelper(masm, true, false, false);
 }
 
 

@@ -842,15 +842,10 @@ class MacroAssembler : public Assembler {
   void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
-  void DecodeField(Register dst, Register src) {
+  void DecodeField(Register reg) {
     static const uint64_t shift = Field::kShift;
     static const uint64_t setbits = CountSetBits(Field::kMask, 32);
-    Ubfx(dst, src, shift, setbits);
-  }
-
-  template<typename Field>
-  void DecodeField(Register reg) {
-    DecodeField<Field>(reg, reg);
+    Ubfx(reg, reg, shift, setbits);
   }
 
   // ---- SMI and Number Utilities ----
