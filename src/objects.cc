@@ -11245,10 +11245,19 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
   FixedArray* vector = feedback_vector();
   Heap* heap = GetHeap();
+  JSFunction* array_function = NULL;
+
+  // Clearing type feedback can be called when the contexts are still being
+  // set up so caution is required.
   Context* context = GetIsolate()->context();
-  JSFunction* array_function = context != NULL
-      ? context->native_context()->array_function()
-      : NULL;
+  if (context != NULL) {
+    Context* native_context = context->native_context();
+    Object* candidate = native_context->get(Context::ARRAY_FUNCTION_INDEX);
+    if (candidate->IsJSFunction()) {
+      array_function = JSFunction::cast(candidate);
+    }
+  }
+
   int length = vector->length();
 
   for (int i = 0; i < length; i++) {
