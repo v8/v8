@@ -68,6 +68,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new NumberMirror(value);
   } else if (IS_STRING(value)) {
     mirror = new StringMirror(value);
+  } else if (IS_SYMBOL(value)) {
+    mirror = new SymbolMirror(value);
   } else if (IS_ARRAY(value)) {
     mirror = new ArrayMirror(value);
   } else if (IS_DATE(value)) {
@@ -141,6 +143,7 @@ var NULL_TYPE = 'null';
 var BOOLEAN_TYPE = 'boolean';
 var NUMBER_TYPE = 'number';
 var STRING_TYPE = 'string';
+var SYMBOL_TYPE = 'symbol';
 var OBJECT_TYPE = 'object';
 var FUNCTION_TYPE = 'function';
 var REGEXP_TYPE = 'regexp';
@@ -198,6 +201,7 @@ var ScopeType = { Global: 0,
 //       - NullMirror
 //       - NumberMirror
 //       - StringMirror
+//       - SymbolMirror
 //       - ObjectMirror
 //         - FunctionMirror
 //           - UnresolvedFunctionMirror
@@ -278,6 +282,15 @@ Mirror.prototype.isNumber = function() {
  */
 Mirror.prototype.isString = function() {
   return this instanceof StringMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a symbol.
+ * @returns {boolean} True if the mirror reflects a symbol
+ */
+Mirror.prototype.isSymbol = function() {
+  return this instanceof SymbolMirror;
 };
 
 
@@ -466,7 +479,8 @@ ValueMirror.prototype.isPrimitive = function() {
          type === 'null' ||
          type === 'boolean' ||
          type === 'number' ||
-         type === 'string';
+         type === 'string' ||
+         type === 'symbol';
 };
 
 
@@ -572,6 +586,28 @@ StringMirror.prototype.getTruncatedValue = function(maxLength) {
 StringMirror.prototype.toText = function() {
   return this.getTruncatedValue(kMaxProtocolStringLength);
 };
+
+
+/**
+ * Mirror object for a Symbol
+ * @param {Object} value The Symbol
+ * @constructor
+ * @extends Mirror
+ */
+function SymbolMirror(value) {
+  %_CallFunction(this, SYMBOL_TYPE, value, ValueMirror);
+}
+inherits(SymbolMirror, ValueMirror);
+
+
+SymbolMirror.prototype.description = function() {
+  return %SymbolDescription(%_ValueOf(this.value_));
+}
+
+
+SymbolMirror.prototype.toText = function() {
+  return %_CallFunction(this.value_, builtins.SymbolToString);
+}
 
 
 /**
@@ -1184,9 +1220,9 @@ ErrorMirror.prototype.toText = function() {
 
 /**
  * Mirror object for a Promise object.
- * @param {Object} data The Promise object
+ * @param {Object} value The Promise object
  * @constructor
- * @extends Mirror
+ * @extends ObjectMirror
  */
 function PromiseMirror(value) {
   %_CallFunction(this, value, PROMISE_TYPE, ObjectMirror);
@@ -2318,6 +2354,9 @@ JSONProtocolSerializer.prototype.serializeReferenceWithDisplayData_ =
     case STRING_TYPE:
       o.value = mirror.getTruncatedValue(this.maxStringLength_());
       break;
+    case SYMBOL_TYPE:
+      o.description = mirror.description();
+      break;
     case FUNCTION_TYPE:
       o.name = mirror.name();
       o.inferredName = mirror.inferredName();
@@ -2390,6 +2429,10 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
         content.value = mirror.value();
       }
       content.length = mirror.length();
+      break;
+
+    case SYMBOL_TYPE:
+      content.description = mirror.description();
       break;
 
     case OBJECT_TYPE:

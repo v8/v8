@@ -75,9 +75,15 @@ TEST(Set) {
   ordered_set = OrderedHashSet::Add(ordered_set, obj);
   CHECK_EQ(1, ordered_set->NumberOfElements());
   CHECK(ordered_set->Contains(obj));
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj);
+  bool was_present = false;
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(was_present);
   CHECK_EQ(0, ordered_set->NumberOfElements());
   CHECK(!ordered_set->Contains(obj));
+
+  // Removing a not-present object should set was_present to false.
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(!was_present);
 
   // Test for collisions/chaining
   Handle<JSObject> obj1 = factory->NewJSObjectFromMap(map);
@@ -133,10 +139,14 @@ TEST(Set) {
                         true);
 
   // Test shrinking
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj1);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj2);
-  ordered_set = OrderedHashSet::Remove(ordered_set, obj3);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj1, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj2, &was_present);
+  CHECK(was_present);
+  ordered_set = OrderedHashSet::Remove(ordered_set, obj3, &was_present);
+  CHECK(was_present);
   CHECK_EQ(1, ordered_set->NumberOfElements());
   CHECK_EQ(2, ordered_set->NumberOfBuckets());
 }

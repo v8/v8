@@ -187,7 +187,9 @@ static void TestHashSetCausesGC(Handle<HashSet> table) {
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Remove() will not cause GC in this case.
-  table = HashSet::Remove(table, key);
+  bool was_present = false;
+  table = HashSet::Remove(table, key, &was_present);
+  CHECK(!was_present);
   CHECK(gc_count == isolate->heap()->gc_count());
 
   // Calling Add() should cause GC.

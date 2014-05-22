@@ -214,3 +214,15 @@ function TestForArrayEntries() {
   }
 }
 TestForArrayEntries();
+
+
+function TestNonOwnSlots() {
+  var array = [0];
+  var iterator = array.values();
+  var object = {__proto__: iterator};
+
+  assertThrows(function() {
+    object.next();
+  }, TypeError);
+}
+TestNonOwnSlots();

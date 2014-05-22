@@ -1586,13 +1586,13 @@ int UnboundScript::GetId() {
 
 
 int UnboundScript::GetLineNumber(int code_pos) {
-  i::Handle<i::HeapObject> obj =
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::UnboundScript::GetLineNumber()", return -1);
   LOG_API(isolate, "UnboundScript::GetLineNumber");
-  if (obj->IsScript()) {
-    i::Handle<i::Script> script(i::Script::cast(*obj));
+  if (obj->script()->IsScript()) {
+    i::Handle<i::Script> script(i::Script::cast(obj->script()));
     return i::Script::GetLineNumber(script, code_pos);
   } else {
     return -1;
@@ -1601,14 +1601,14 @@ int UnboundScript::GetLineNumber(int code_pos) {
 
 
 Handle<Value> UnboundScript::GetScriptName() {
-  i::Handle<i::HeapObject> obj =
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
   i::Isolate* isolate = obj->GetIsolate();
   ON_BAILOUT(isolate, "v8::UnboundScript::GetName()",
              return Handle<String>());
   LOG_API(isolate, "UnboundScript::GetName");
-  if (obj->IsScript()) {
-    i::Object* name = i::Script::cast(*obj)->name();
+  if (obj->script()->IsScript()) {
+    i::Object* name = i::Script::cast(obj->script())->name();
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
   } else {
     return Handle<String>();

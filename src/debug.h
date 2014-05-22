@@ -519,13 +519,21 @@ class Debug {
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
 
-  // When a promise is being resolved, we may want to trigger a debug event for
-  // the case we catch a throw.  For this purpose we remember the try-catch
-  // handler address that would catch the exception.  We also hold onto a
-  // closure that returns a promise if the exception is considered uncaught.
-  // Due to the possibility of reentry we use a list to form a stack.
-  List<StackHandler*> promise_catch_handlers_;
-  List<Handle<JSFunction> > promise_getters_;
+  class PromiseOnStack {
+   public:
+    PromiseOnStack(Isolate* isolate,
+                   PromiseOnStack* prev,
+                   Handle<JSFunction> getter);
+    ~PromiseOnStack();
+    StackHandler* handler() { return handler_; }
+    Handle<JSFunction> getter() { return getter_; }
+    PromiseOnStack* prev() { return prev_; }
+   private:
+    Isolate* isolate_;
+    StackHandler* handler_;
+    Handle<JSFunction> getter_;
+    PromiseOnStack* prev_;
+  };
 
   // Per-thread data.
   class ThreadLocal {
@@ -578,6 +586,13 @@ class Debug {
     // of the pointer to function being restarted. Otherwise (most of the time)
     // stores NULL. This pointer is used with 'step in' implementation.
     Object** restarter_frame_function_pointer_;
+
+    // When a promise is being resolved, we may want to trigger a debug event
+    // if we catch a throw.  For this purpose we remember the try-catch
+    // handler address that would catch the exception.  We also hold onto a
+    // closure that returns a promise if the exception is considered uncaught.
+    // Due to the possibility of reentry we use a linked list.
+    PromiseOnStack* promise_on_stack_;
   };
 
   // Storage location for registers when handling debug break calls

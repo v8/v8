@@ -960,13 +960,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
 
   RUNTIME_ASSERT(arrayId >= Runtime::ARRAY_ID_FIRST &&
                  arrayId <= Runtime::ARRAY_ID_LAST);
-  RUNTIME_ASSERT(maybe_buffer->IsNull() || maybe_buffer->IsJSArrayBuffer());
-
-  ASSERT(holder->GetInternalFieldCount() ==
-      v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
-  }
 
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
@@ -978,7 +971,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
       &external_elements_kind,
       &fixed_elements_kind,
       &element_size);
-
   RUNTIME_ASSERT(holder->map()->elements_kind() == fixed_elements_kind);
 
   size_t byte_offset = 0;
@@ -986,8 +978,15 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_offset_object, &byte_offset));
   RUNTIME_ASSERT(TryNumberToSize(isolate, *byte_length_object, &byte_length));
 
-  holder->set_byte_offset(*byte_offset_object);
-  holder->set_byte_length(*byte_length_object);
+  if (maybe_buffer->IsJSArrayBuffer()) {
+    Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
+    size_t array_buffer_byte_length =
+        NumberToSize(isolate, buffer->byte_length());
+    RUNTIME_ASSERT(byte_offset <= array_buffer_byte_length);
+    RUNTIME_ASSERT(array_buffer_byte_length - byte_offset >= byte_length);
+  } else {
+    RUNTIME_ASSERT(maybe_buffer->IsNull());
+  }
 
   RUNTIME_ASSERT(byte_length % element_size == 0);
   size_t length = byte_length / element_size;
@@ -998,16 +997,20 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
                                            HandleVector<Object>(NULL, 0)));
   }
 
+  // All checks are done, now we can modify objects.
+
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
+  holder->set_byte_offset(*byte_offset_object);
+  holder->set_byte_length(*byte_length_object);
+
   if (!maybe_buffer->IsNull()) {
-    Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(*maybe_buffer));
-
-    size_t array_buffer_byte_length =
-        NumberToSize(isolate, buffer->byte_length());
-    RUNTIME_ASSERT(byte_offset <= array_buffer_byte_length);
-    RUNTIME_ASSERT(array_buffer_byte_length - byte_offset >= byte_length);
-
+    Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(maybe_buffer);
     holder->set_buffer(*buffer);
     holder->set_weak_next(buffer->weak_first_view());
     buffer->set_weak_first_view(*holder);
@@ -1048,12 +1051,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   RUNTIME_ASSERT(arrayId >= Runtime::ARRAY_ID_FIRST &&
                  arrayId <= Runtime::ARRAY_ID_LAST);
 
-  ASSERT(holder->GetInternalFieldCount() ==
-      v8::ArrayBufferView::kInternalFieldCount);
-  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
-  }
-
   ExternalArrayType array_type = kExternalInt8Array;  // Bogus initialization.
   size_t element_size = 1;  // Bogus initialization.
   ElementsKind external_elements_kind =
@@ -1082,6 +1079,12 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
             HandleVector<Object>(NULL, 0)));
   }
   size_t byte_length = length * element_size;
+
+  ASSERT(holder->GetInternalFieldCount() ==
+      v8::ArrayBufferView::kInternalFieldCount);
+  for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
+    holder->SetInternalField(i, Smi::FromInt(0));
+  }
 
   // NOTE: not initializing backing store.
   // We assume that the caller of this function will initialize holder
@@ -1554,9 +1557,10 @@ RUNTIME_FUNCTION(Runtime_SetDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  table = OrderedHashSet::Remove(table, key);
+  bool was_present = false;
+  table = OrderedHashSet::Remove(table, key, &was_present);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 

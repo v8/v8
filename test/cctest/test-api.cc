@@ -22614,3 +22614,22 @@ TEST(CaptureStackTraceForStackOverflow) {
   CompileRun("(function f(x) { f(x+1); })(0)");
   CHECK(try_catch.HasCaught());
 }
+
+
+TEST(ScriptNameAndLineNumber) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(v8_str(url), v8::Integer::New(isolate, 13));
+  v8::ScriptCompiler::Source script_source(v8_str("var foo;"), origin);
+  Local<Script> script = v8::ScriptCompiler::Compile(
+      isolate, &script_source);
+  Local<Value> script_name = script->GetUnboundScript()->GetScriptName();
+  CHECK(!script_name.IsEmpty());
+  CHECK(script_name->IsString());
+  String::Utf8Value utf8_name(script_name);
+  CHECK_EQ(url, *utf8_name);
+  int line_number = script->GetUnboundScript()->GetLineNumber(0);
+  CHECK_EQ(13, line_number);
+}
