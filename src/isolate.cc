@@ -883,7 +883,7 @@ void Isolate::ScheduleThrow(Object* exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
-  OptionalRescheduleException(false);
+  PropagatePendingExceptionToExternalTryCatch();
   if (has_pending_exception()) {
     thread_local_top()->scheduled_exception_ = pending_exception();
     thread_local_top()->external_caught_exception_ = false;
