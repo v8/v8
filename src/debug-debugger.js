@@ -2485,17 +2485,6 @@ DebugCommandProcessor.prototype.systemBreak = function(cmd, args) {
 };
 
 
-function NumberToHex8Str(n) {
-  var r = "";
-  for (var i = 0; i < 8; ++i) {
-    var c = hexCharArray[n & 0x0F];  // hexCharArray is defined in uri.js
-    r = c + r;
-    n = n >>> 4;
-  }
-  return r;
-}
-
-
 /**
  * Convert an Object to its debugger protocol representation. The representation
  * may be serilized to a JSON object using JSON.stringify().

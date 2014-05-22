@@ -1133,6 +1133,24 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       } else {
         OS::PrintError("Extension or internal compilation error.\n");
       }
+#ifdef OBJECT_PRINT
+      // Since comments and empty lines have been stripped from the source of
+      // builtins, print the actual source here so that line numbers match.
+      if (location->script()->source()->IsString()) {
+        Handle<String> src(String::cast(location->script()->source()));
+        PrintF("Failing script:\n");
+        int len = src->length();
+        int line_number = 1;
+        PrintF("%5d: ", line_number);
+        for (int i = 0; i < len; i++) {
+          uint16_t character = src->Get(i);
+          PrintF("%c", character);
+          if (character == '\n' && i < len - 2) {
+            PrintF("%5d: ", ++line_number);
+          }
+        }
+      }
+#endif
     }
   }
 
