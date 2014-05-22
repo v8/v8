@@ -205,7 +205,7 @@
             },
             {
               'dependencies': [
-                '../../tools/gyp/v8.gyp:v8_nosnapshot.<(v8_target_arch)',
+                '../../tools/gyp/v8.gyp:v8_nosnapshot',
               ],
             }],
           ],
