@@ -68,8 +68,6 @@ enum BuiltinExtraArguments {
                                     kNoExtraICState)                    \
   V(InOptimizationQueue,            BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
-  V(JSConstructStubCountdown,       BUILTIN, UNINITIALIZED,             \
-                                    kNoExtraICState)                    \
   V(JSConstructStubGeneric,         BUILTIN, UNINITIALIZED,             \
                                     kNoExtraICState)                    \
   V(JSConstructStubApi,             BUILTIN, UNINITIALIZED,             \
@@ -340,7 +338,6 @@ class Builtins {
   static void Generate_InOptimizationQueue(MacroAssembler* masm);
   static void Generate_CompileOptimized(MacroAssembler* masm);
   static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);
-  static void Generate_JSConstructStubCountdown(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
