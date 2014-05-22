@@ -2053,6 +2053,7 @@ void Debug::PrepareForBreakPoints() {
       Heap* heap = isolate_->heap();
       heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                               "preparing for breakpoints");
+      HeapIterator iterator(heap);
 
       // Ensure no GC in this scope as we are going to use gc_metadata
       // field in the Code object to mark active functions.
@@ -2072,7 +2073,6 @@ void Debug::PrepareForBreakPoints() {
       // Scan the heap for all non-optimized functions which have no
       // debug break slots and are not active or inlined into an active
       // function and mark them for lazy compilation.
-      HeapIterator iterator(heap);
       HeapObject* obj = NULL;
       while (((obj = iterator.next()) != NULL)) {
         if (obj->IsJSFunction()) {
@@ -2197,9 +2197,7 @@ Object* Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
   Handle<SharedFunctionInfo> target;
   Heap* heap = isolate_->heap();
   while (!done) {
-    { // Extra scope for iterator and no-allocation.
-      heap->EnsureHeapIsIterable();
-      DisallowHeapAllocation no_alloc_during_heap_iteration;
+    { // Extra scope for iterator.
       HeapIterator iterator(heap);
       for (HeapObject* obj = iterator.next();
            obj != NULL; obj = iterator.next()) {
@@ -2529,8 +2527,6 @@ void Debug::CreateScriptCache() {
   // scripts which are no longer referenced.  The second also sweeps precisely,
   // which saves us doing yet another GC to make the heap iterable.
   heap->CollectAllGarbage(Heap::kNoGCFlags, "Debug::CreateScriptCache");
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                          "Debug::CreateScriptCache");
 
   ASSERT(script_cache_ == NULL);
   script_cache_ = new ScriptCache(isolate_);
@@ -2538,7 +2534,6 @@ void Debug::CreateScriptCache() {
   // Scan heap for Script objects.
   int count = 0;
   HeapIterator iterator(heap);
-  DisallowHeapAllocation no_allocation;
 
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsScript() && Script::cast(obj)->HasValidSource()) {

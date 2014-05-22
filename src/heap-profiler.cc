@@ -173,9 +173,6 @@ void HeapProfiler::SetRetainedObjectInfo(UniqueId id,
 
 
 Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
-  heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
-                            "HeapProfiler::FindHeapObjectById");
-  DisallowHeapAllocation no_allocation;
   HeapObject* object = NULL;
   HeapIterator iterator(heap(), HeapIterator::kFilterUnreachable);
   // Make sure that object with the given id is still reachable.

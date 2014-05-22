@@ -890,7 +890,6 @@ TEST(StringAllocation) {
 static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
-  heap->EnsureHeapIsIterable();
   HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
@@ -1629,9 +1628,8 @@ TEST(TestSizeOfObjects) {
 
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   CcTest::InitializeVM();
-  CcTest::heap()->EnsureHeapIsIterable();
-  intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   HeapIterator iterator(CcTest::heap());
+  intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
