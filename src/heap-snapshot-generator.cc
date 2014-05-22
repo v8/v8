@@ -1421,9 +1421,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "feedback_vector", shared->feedback_vector(),
                        SharedFunctionInfo::kFeedbackVectorOffset);
-  SetWeakReference(obj, entry,
-                   "initial_map", shared->initial_map(),
-                   SharedFunctionInfo::kInitialMapOffset);
 }
 
 

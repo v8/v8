@@ -10225,8 +10225,8 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     // copy containing the new prototype.  Also complete any in-object
     // slack tracking that is in progress at this point because it is
     // still tracking the old copy.
-    if (function->shared()->IsInobjectSlackTrackingInProgress()) {
-      function->shared()->CompleteInobjectSlackTracking();
+    if (function->IsInobjectSlackTrackingInProgress()) {
+      function->CompleteInobjectSlackTracking();
     }
     Handle<Map> new_map = Map::Copy(handle(function->initial_map()));
     new_map->set_prototype(*value);
@@ -10335,13 +10335,13 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   map->set_prototype(*prototype);
   ASSERT(map->has_fast_object_elements());
 
-  if (!function->shared()->is_generator()) {
-    function->shared()->StartInobjectSlackTracking(*map);
-  }
-
   // Finally link initial map and constructor function.
   function->set_initial_map(*map);
   map->set_constructor(*function);
+
+  if (!function->shared()->is_generator()) {
+    function->StartInobjectSlackTracking();
+  }
 }
 
 
@@ -10726,14 +10726,15 @@ bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
 }
 
 
-void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
-  ASSERT(!IsInobjectSlackTrackingInProgress());
+void JSFunction::StartInobjectSlackTracking() {
+  ASSERT(has_initial_map() && !IsInobjectSlackTrackingInProgress());
 
   if (!FLAG_clever_optimizations) return;
+  Map* map = initial_map();
 
   // Only initiate the tracking the first time.
-  if (live_objects_may_exist()) return;
-  set_live_objects_may_exist(true);
+  if (map->done_inobject_slack_tracking()) return;
+  map->set_done_inobject_slack_tracking(true);
 
   // No tracking during the snapshot construction phase.
   Isolate* isolate = GetIsolate();
@@ -10741,56 +10742,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
 
   if (map->unused_property_fields() == 0) return;
 
-  // Nonzero counter is a leftover from the previous attempt interrupted
-  // by GC, keep it.
-  if (construction_count() == 0) {
-    set_construction_count(kGenerousAllocationCount);
-  }
-  set_initial_map(map);
-  Builtins* builtins = isolate->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
-            construct_stub());
-  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
-}
-
-
-// Called from GC, hence reinterpret_cast and unchecked accessors.
-void SharedFunctionInfo::DetachInitialMap() {
-  Map* map = reinterpret_cast<Map*>(initial_map());
-
-  // Make the map remember to restore the link if it survives the GC.
-  map->set_bit_field2(
-      map->bit_field2() | (1 << Map::kAttachedToSharedFunctionInfo));
-
-  // Undo state changes made by StartInobjectTracking (except the
-  // construction_count). This way if the initial map does not survive the GC
-  // then StartInobjectTracking will be called again the next time the
-  // constructor is called. The countdown will continue and (possibly after
-  // several more GCs) CompleteInobjectSlackTracking will eventually be called.
-  Heap* heap = map->GetHeap();
-  set_initial_map(heap->undefined_value());
-  Builtins* builtins = heap->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
-            *RawField(this, kConstructStubOffset));
-  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubGeneric));
-  // It is safe to clear the flag: it will be set again if the map is live.
-  set_live_objects_may_exist(false);
-}
-
-
-// Called from GC, hence reinterpret_cast and unchecked accessors.
-void SharedFunctionInfo::AttachInitialMap(Map* map) {
-  map->set_bit_field2(
-      map->bit_field2() & ~(1 << Map::kAttachedToSharedFunctionInfo));
-
-  // Resume inobject slack tracking.
-  set_initial_map(map);
-  Builtins* builtins = map->GetHeap()->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubGeneric),
-            *RawField(this, kConstructStubOffset));
-  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubCountdown));
-  // The map survived the gc, so there may be objects referencing it.
-  set_live_objects_may_exist(true);
+  map->set_construction_count(kGenerousAllocationCount);
 }
 
 
@@ -10833,26 +10785,18 @@ static void ShrinkInstanceSize(Map* map, void* data) {
 }
 
 
-void SharedFunctionInfo::CompleteInobjectSlackTracking() {
-  ASSERT(live_objects_may_exist() && IsInobjectSlackTrackingInProgress());
-  Map* map = Map::cast(initial_map());
+void JSFunction::CompleteInobjectSlackTracking() {
+  ASSERT(has_initial_map());
+  Map* map = initial_map();
 
-  Heap* heap = map->GetHeap();
-  set_initial_map(heap->undefined_value());
-  Builtins* builtins = heap->isolate()->builtins();
-  ASSERT_EQ(builtins->builtin(Builtins::kJSConstructStubCountdown),
-            construct_stub());
-  set_construct_stub(builtins->builtin(Builtins::kJSConstructStubGeneric));
+  ASSERT(map->done_inobject_slack_tracking());
+  map->set_construction_count(kNoSlackTracking);
 
   int slack = map->unused_property_fields();
   map->TraverseTransitionTree(&GetMinInobjectSlack, &slack);
   if (slack != 0) {
     // Resize the initial map and all maps in its transition tree.
     map->TraverseTransitionTree(&ShrinkInstanceSize, &slack);
-
-    // Give the correct expected_nof_properties to initial maps created later.
-    ASSERT(expected_nof_properties() >= slack);
-    set_expected_nof_properties(expected_nof_properties() - slack);
   }
 }
 

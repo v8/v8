@@ -1932,7 +1932,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
   share->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  share->set_initial_map(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
   share->set_counters(0);

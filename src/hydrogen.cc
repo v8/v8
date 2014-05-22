@@ -8582,8 +8582,8 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
 
     // Force completion of inobject slack tracking before generating
     // allocation code to finalize instance size.
-    if (constructor->shared()->IsInobjectSlackTrackingInProgress()) {
-      constructor->shared()->CompleteInobjectSlackTracking();
+    if (constructor->IsInobjectSlackTrackingInProgress()) {
+      constructor->CompleteInobjectSlackTracking();
     }
 
     // Calculate instance size from initial map of constructor.
