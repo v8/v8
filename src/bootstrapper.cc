@@ -2522,8 +2522,8 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 class NoTrackDoubleFieldsForSerializerScope {
  public:
   explicit NoTrackDoubleFieldsForSerializerScope(Isolate* isolate)
-      : isolate_(isolate), flag_(FLAG_track_double_fields) {
-    if (Serializer::enabled(isolate)) {
+      : flag_(FLAG_track_double_fields) {
+    if (isolate->serializer_enabled()) {
       // Disable tracking double fields because heap numbers treated as
       // immutable by the serializer.
       FLAG_track_double_fields = false;
@@ -2531,13 +2531,10 @@ class NoTrackDoubleFieldsForSerializerScope {
   }
 
   ~NoTrackDoubleFieldsForSerializerScope() {
-    if (Serializer::enabled(isolate_)) {
-      FLAG_track_double_fields = flag_;
-    }
+    FLAG_track_double_fields = flag_;
   }
 
  private:
-  Isolate* isolate_;
   bool flag_;
 };
 
@@ -2614,7 +2611,7 @@ Genesis::Genesis(Isolate* isolate,
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot
   // creation time and we don't need trigonometric functions then.
-  if (!Serializer::enabled(isolate)) {
+  if (!isolate->serializer_enabled()) {
     // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
     const int num_elems = 2;

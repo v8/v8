@@ -450,7 +450,7 @@ Handle<Code> LChunk::Codegen() {
                    CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
-    ASSERT(!(Serializer::enabled(info()->isolate()) &&
+    ASSERT(!(info()->isolate()->serializer_enabled() &&
              info()->GetMustNotHaveEagerFrame() &&
              generator.NeedsEagerFrame()));
     return code;

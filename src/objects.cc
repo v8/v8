@@ -10737,7 +10737,7 @@ void SharedFunctionInfo::StartInobjectSlackTracking(Map* map) {
 
   // No tracking during the snapshot construction phase.
   Isolate* isolate = GetIsolate();
-  if (Serializer::enabled(isolate)) return;
+  if (isolate->serializer_enabled()) return;
 
   if (map->unused_property_fields() == 0) return;
 

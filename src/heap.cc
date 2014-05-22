@@ -4389,7 +4389,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || Serializer::enabled(isolate_)) {
+  if (!FLAG_incremental_marking || isolate_->serializer_enabled()) {
     return IdleGlobalGC();
   }
 

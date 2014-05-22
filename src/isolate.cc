@@ -1457,8 +1457,8 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      serializer_enabled_(false),
       has_fatal_error_(false),
-      use_crankshaft_(true),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
@@ -1776,10 +1776,6 @@ bool Isolate::Init(Deserializer* des) {
 
   has_fatal_error_ = false;
 
-  use_crankshaft_ = FLAG_crankshaft
-      && !Serializer::enabled(this)
-      && CpuFeatures::SupportsCrankshaft();
-
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code
     // stubs from scratch to get entry hooks, rather than loading the previously
@@ -1965,7 +1961,7 @@ bool Isolate::Init(Deserializer* des) {
         kDeoptTableSerializeEntryCount - 1);
   }
 
-  if (!Serializer::enabled(this)) {
+  if (!serializer_enabled()) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
@@ -2135,6 +2131,13 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
     }
   }
   return NULL;
+}
+
+
+bool Isolate::use_crankshaft() const {
+  return FLAG_crankshaft &&
+         !serializer_enabled_ &&
+         CpuFeatures::SupportsCrankshaft();
 }
 
 

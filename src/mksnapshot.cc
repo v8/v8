@@ -296,106 +296,103 @@ int main(int argc, char** argv) {
   i::FLAG_logfile_per_isolate = false;
 
   Isolate* isolate = v8::Isolate::New();
-  isolate->Enter();
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Serializer::RequestEnable(internal_isolate);
-  Persistent<Context> context;
-  {
-    HandleScope handle_scope(isolate);
-    context.Reset(isolate, Context::New(isolate));
-  }
+  { Isolate::Scope isolate_scope(isolate);
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->enable_serializer();
 
-  if (context.IsEmpty()) {
-    fprintf(stderr,
-            "\nException thrown while compiling natives - see above.\n\n");
-    exit(1);
-  }
-  if (i::FLAG_extra_code != NULL) {
-    // Capture 100 frames if anything happens.
-    V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
-    HandleScope scope(isolate);
-    v8::Context::Scope cscope(v8::Local<v8::Context>::New(isolate, context));
-    const char* name = i::FLAG_extra_code;
-    FILE* file = i::OS::FOpen(name, "rb");
-    if (file == NULL) {
-      fprintf(stderr, "Failed to open '%s': errno %d\n", name, errno);
-      exit(1);
+    Persistent<Context> context;
+    {
+      HandleScope handle_scope(isolate);
+      context.Reset(isolate, Context::New(isolate));
     }
 
-    fseek(file, 0, SEEK_END);
-    int size = ftell(file);
-    rewind(file);
-
-    char* chars = new char[size + 1];
-    chars[size] = '\0';
-    for (int i = 0; i < size;) {
-      int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
-      if (read < 0) {
-        fprintf(stderr, "Failed to read '%s': errno %d\n", name, errno);
+    if (context.IsEmpty()) {
+      fprintf(stderr,
+              "\nException thrown while compiling natives - see above.\n\n");
+      exit(1);
+    }
+    if (i::FLAG_extra_code != NULL) {
+      // Capture 100 frames if anything happens.
+      V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
+      HandleScope scope(isolate);
+      v8::Context::Scope cscope(v8::Local<v8::Context>::New(isolate, context));
+      const char* name = i::FLAG_extra_code;
+      FILE* file = i::OS::FOpen(name, "rb");
+      if (file == NULL) {
+        fprintf(stderr, "Failed to open '%s': errno %d\n", name, errno);
         exit(1);
       }
-      i += read;
+
+      fseek(file, 0, SEEK_END);
+      int size = ftell(file);
+      rewind(file);
+
+      char* chars = new char[size + 1];
+      chars[size] = '\0';
+      for (int i = 0; i < size;) {
+        int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
+        if (read < 0) {
+          fprintf(stderr, "Failed to read '%s': errno %d\n", name, errno);
+          exit(1);
+        }
+        i += read;
+      }
+      fclose(file);
+      Local<String> source = String::NewFromUtf8(isolate, chars);
+      TryCatch try_catch;
+      Local<Script> script = Script::Compile(source);
+      if (try_catch.HasCaught()) {
+        fprintf(stderr, "Failure compiling '%s'\n", name);
+        DumpException(try_catch.Message());
+        exit(1);
+      }
+      script->Run();
+      if (try_catch.HasCaught()) {
+        fprintf(stderr, "Failure running '%s'\n", name);
+        DumpException(try_catch.Message());
+        exit(1);
+      }
     }
-    fclose(file);
-    Local<String> source = String::NewFromUtf8(isolate, chars);
-    TryCatch try_catch;
-    Local<Script> script = Script::Compile(source);
-    if (try_catch.HasCaught()) {
-      fprintf(stderr, "Failure compiling '%s'\n", name);
-      DumpException(try_catch.Message());
-      exit(1);
+    // Make sure all builtin scripts are cached.
+    { HandleScope scope(isolate);
+      for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
+        internal_isolate->bootstrapper()->NativesSourceLookup(i);
+      }
     }
-    script->Run();
-    if (try_catch.HasCaught()) {
-      fprintf(stderr, "Failure running '%s'\n", name);
-      DumpException(try_catch.Message());
-      exit(1);
+    // If we don't do this then we end up with a stray root pointing at the
+    // context even after we have disposed of the context.
+    internal_isolate->heap()->CollectAllGarbage(
+        i::Heap::kNoGCFlags, "mksnapshot");
+    i::Object* raw_context = *v8::Utils::OpenPersistent(context);
+    context.Reset();
+
+    // This results in a somewhat smaller snapshot, probably because it gets
+    // rid of some things that are cached between garbage collections.
+    i::List<char> snapshot_data;
+    ListSnapshotSink snapshot_sink(&snapshot_data);
+    i::StartupSerializer ser(internal_isolate, &snapshot_sink);
+    ser.SerializeStrongReferences();
+
+    i::List<char> context_data;
+    ListSnapshotSink contex_sink(&context_data);
+    i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
+    context_ser.Serialize(&raw_context);
+    ser.SerializeWeakReferences();
+
+    {
+      SnapshotWriter writer(argv[1]);
+      writer.SetOmit(i::FLAG_omit);
+      if (i::FLAG_raw_file && i::FLAG_raw_context_file)
+        writer.SetRawFiles(i::FLAG_raw_file, i::FLAG_raw_context_file);
+  #ifdef COMPRESS_STARTUP_DATA_BZ2
+      BZip2Compressor bzip2;
+      writer.SetCompressor(&bzip2);
+  #endif
+      writer.WriteSnapshot(snapshot_data, ser, context_data, context_ser);
     }
   }
-  // Make sure all builtin scripts are cached.
-  { HandleScope scope(isolate);
-    for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
-      internal_isolate->bootstrapper()->NativesSourceLookup(i);
-    }
-  }
-  // If we don't do this then we end up with a stray root pointing at the
-  // context even after we have disposed of the context.
-  internal_isolate->heap()->CollectAllGarbage(
-      i::Heap::kNoGCFlags, "mksnapshot");
-  i::Object* raw_context = *v8::Utils::OpenPersistent(context);
-  context.Reset();
 
-  // This results in a somewhat smaller snapshot, probably because it gets rid
-  // of some things that are cached between garbage collections.
-  i::List<char> snapshot_data;
-  ListSnapshotSink snapshot_sink(&snapshot_data);
-  i::StartupSerializer ser(internal_isolate, &snapshot_sink);
-  ser.SerializeStrongReferences();
-
-  i::List<char> context_data;
-  ListSnapshotSink contex_sink(&context_data);
-  i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
-  context_ser.Serialize(&raw_context);
-  ser.SerializeWeakReferences();
-
-  {
-    SnapshotWriter writer(argv[1]);
-    writer.SetOmit(i::FLAG_omit);
-    if (i::FLAG_raw_file && i::FLAG_raw_context_file)
-      writer.SetRawFiles(i::FLAG_raw_file, i::FLAG_raw_context_file);
-#ifdef COMPRESS_STARTUP_DATA_BZ2
-    BZip2Compressor bzip2;
-    writer.SetCompressor(&bzip2);
-#endif
-    writer.WriteSnapshot(snapshot_data, ser, context_data, context_ser);
-  }
-
-  isolate->Exit();
   isolate->Dispose();
-  // TODO(svenpanne) Alas, we can't cleanly dispose V8 here, because
-  // Serializer::code_address_map_ is static (a.k.a. a global variable), and
-  // disposing that would involve accessing the Isolate just disposed.
-  // code_address_map_ really has to be an instance variable...
-  // V8::Dispose();
+  V8::Dispose();
   return 0;
 }
