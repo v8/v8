@@ -471,6 +471,29 @@ TEST(HeapSnapshotConsString) {
 }
 
 
+TEST(HeapSnapshotSymbol) {
+  i::FLAG_harmony_symbols = true;
+
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("a = Symbol('mySymbol');\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("Symbol"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* a =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a);
+  CHECK_EQ(a->GetType(), v8::HeapGraphNode::kSymbol);
+  CHECK_EQ(v8_str("symbol"), a->GetName());
+  const v8::HeapGraphNode* name =
+      GetProperty(a, v8::HeapGraphEdge::kInternal, "name");
+  CHECK_NE(NULL, name);
+  CHECK_EQ(v8_str("mySymbol"), name->GetName());
+}
+
 
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
