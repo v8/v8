@@ -371,7 +371,7 @@ void LLoadKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintTo(stream);
   if (hydrogen()->IsDehoisted()) {
-    stream->Add(" + %d]", additional_index());
+    stream->Add(" + %d]", base_offset());
   } else {
     stream->Add("]");
   }
@@ -383,7 +383,7 @@ void LStoreKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintTo(stream);
   if (hydrogen()->IsDehoisted()) {
-    stream->Add(" + %d] <-", additional_index());
+    stream->Add(" + %d] <-", base_offset());
   } else {
     stream->Add("] <- ");
   }

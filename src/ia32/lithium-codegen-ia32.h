@@ -241,8 +241,7 @@ class LCodeGen: public LCodeGenBase {
                                 LOperand* key,
                                 Representation key_representation,
                                 ElementsKind elements_kind,
-                                uint32_t offset,
-                                uint32_t additional_index = 0);
+                                uint32_t base_offset);
 
   Operand BuildSeqStringOperand(Register string,
                                 LOperand* index,

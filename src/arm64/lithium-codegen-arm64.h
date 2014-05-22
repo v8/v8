@@ -255,14 +255,14 @@ class LCodeGen: public LCodeGenBase {
                                               bool key_is_constant,
                                               int constant_key,
                                               ElementsKind elements_kind,
-                                              int additional_index);
+                                              int base_offset);
   MemOperand PrepareKeyedArrayOperand(Register base,
                                       Register elements,
                                       Register key,
                                       bool key_is_tagged,
                                       ElementsKind elements_kind,
                                       Representation representation,
-                                      int additional_index);
+                                      int base_offset);
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);

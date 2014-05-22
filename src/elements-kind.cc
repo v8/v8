@@ -51,6 +51,12 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 }
 
 
+int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
+  return IsExternalArrayElementsKind(elements_kind)
+      ? 0 : (FixedArray::kHeaderSize - kSmiTagSize);
+}
+
+
 const char* ElementsKindToString(ElementsKind kind) {
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   return accessor->name();
