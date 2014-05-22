@@ -6753,6 +6753,19 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     SetOperandAt(1, value);
   }
 
+  bool CanBeReplacedWith(HStoreNamedField* that) const {
+    if (!this->access().Equals(that->access())) return false;
+    if (SmiValuesAre32Bits() &&
+        this->field_representation().IsSmi() &&
+        this->store_mode() == INITIALIZING_STORE &&
+        that->store_mode() == STORE_TO_INITIALIZED_ENTRY) {
+      // We cannot replace an initializing store to a smi field with a store to
+      // an initialized entry on 64-bit architectures (with 32-bit smis).
+      return false;
+    }
+    return true;
+  }
+
  private:
   HStoreNamedField(HValue* obj,
                    HObjectAccess access,

@@ -58,7 +58,7 @@ void HStoreEliminationPhase::ProcessStore(HStoreNamedField* store) {
   while (i < unobserved_.length()) {
     HStoreNamedField* prev = unobserved_.at(i);
     if (aliasing_->MustAlias(object, prev->object()->ActualValue()) &&
-        store->access().Equals(prev->access())) {
+        prev->CanBeReplacedWith(store)) {
       // This store is guaranteed to overwrite the previous store.
       prev->DeleteAndReplaceWith(NULL);
       TRACE(("++ Unobserved store S%d overwritten by S%d\n",
