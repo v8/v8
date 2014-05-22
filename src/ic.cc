@@ -1850,7 +1850,8 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
       isolate()->context()->native_context()->array_function(), isolate());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
-    vector->set(slot->value(), *isolate()->factory()->NewAllocationSite());
+    Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();
+    vector->set(slot->value(), *new_site);
     State new_state = state.ToMonomorphicArrayCallState();
     CallICStub stub(isolate(), new_state);
     set_target(*stub.GetCode());
