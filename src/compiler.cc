@@ -456,6 +456,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     if (optimized_code.is_null()) {
       if (info()->bailout_reason() == kNoReason) {
         info_->set_bailout_reason(kCodeGenerationFailed);
+      } else if (info()->bailout_reason() == kMapBecameUnstable) {
+        return AbortOptimization();
       }
       return AbortAndDisableOptimization();
     }
