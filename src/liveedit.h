@@ -89,6 +89,11 @@ class LiveEdit : AllStatic {
                                          Handle<JSValue> orig_function_shared,
                                          Handle<JSValue> subst_function_shared);
 
+  // Find open generator activations, and set corresponding "result" elements to
+  // FUNCTION_BLOCKED_ACTIVE_GENERATOR.
+  static bool FindActiveGenerators(Handle<FixedArray> shared_info_array,
+                                   Handle<FixedArray> result, int len);
+
   // Checks listed functions on stack and return array with corresponding
   // FunctionPatchabilityStatus statuses; extra array element may
   // contain general error message. Modifies the current stack and
@@ -107,7 +112,9 @@ class LiveEdit : AllStatic {
     FUNCTION_BLOCKED_ON_ACTIVE_STACK = 2,
     FUNCTION_BLOCKED_ON_OTHER_STACK = 3,
     FUNCTION_BLOCKED_UNDER_NATIVE_CODE = 4,
-    FUNCTION_REPLACED_ON_ACTIVE_STACK = 5
+    FUNCTION_REPLACED_ON_ACTIVE_STACK = 5,
+    FUNCTION_BLOCKED_UNDER_GENERATOR = 6,
+    FUNCTION_BLOCKED_ACTIVE_GENERATOR = 7
   };
 
   // Compares 2 strings line-by-line, then token-wise and returns diff in form

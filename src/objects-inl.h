@@ -5715,6 +5715,14 @@ bool JSGeneratorObject::is_suspended() {
   return continuation() > 0;
 }
 
+bool JSGeneratorObject::is_closed() {
+  return continuation() == kGeneratorClosed;
+}
+
+bool JSGeneratorObject::is_executing() {
+  return continuation() == kGeneratorExecuting;
+}
+
 JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {
   ASSERT(obj->IsJSGeneratorObject());
   ASSERT(HeapObject::cast(obj)->Size() == JSGeneratorObject::kSize);
