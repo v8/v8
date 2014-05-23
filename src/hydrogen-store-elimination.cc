@@ -30,8 +30,10 @@ void HStoreEliminationPhase::Run() {
   for (int i = 0; i < graph()->blocks()->length(); i++) {
     unobserved_.Rewind(0);
     HBasicBlock* block = graph()->blocks()->at(i);
+    if (!block->IsReachable()) continue;
     for (HInstructionIterator it(block); !it.Done(); it.Advance()) {
       HInstruction* instr = it.Current();
+      if (instr->CheckFlag(HValue::kIsDead)) continue;
 
       // TODO(titzer): eliminate unobserved HStoreKeyed instructions too.
       switch (instr->opcode()) {
@@ -97,17 +99,20 @@ void HStoreEliminationPhase::ProcessInstr(HInstruction* instr,
     GVNFlagSet flags) {
   if (unobserved_.length() == 0) return;  // Nothing to do.
   if (instr->CanDeoptimize()) {
-    TRACE(("-- Observed stores at I%d (might deoptimize)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (%s might deoptimize)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }
   if (instr->CheckChangesFlag(kNewSpacePromotion)) {
-    TRACE(("-- Observed stores at I%d (might GC)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (%s might GC)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }
   if (instr->DependsOnFlags().ContainsAnyOf(flags)) {
-    TRACE(("-- Observed stores at I%d (GVN flags)\n", instr->id()));
+    TRACE(("-- Observed stores at I%d (GVN flags of %s)\n",
+           instr->id(), instr->Mnemonic()));
     unobserved_.Rewind(0);
     return;
   }
