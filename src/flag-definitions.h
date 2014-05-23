@@ -166,7 +166,6 @@ DEFINE_bool(harmony_numeric_literals, false,
 DEFINE_bool(harmony_strings, false, "enable harmony string")
 DEFINE_bool(harmony_arrays, false, "enable harmony arrays")
 DEFINE_bool(harmony_maths, false, "enable harmony math functions")
-DEFINE_bool(harmony_promises, true, "(dummy flag, has no effect)")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 
 DEFINE_implication(harmony, harmony_scoping)
