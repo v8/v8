@@ -209,7 +209,7 @@ TEST(HeapObjects) {
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
   Handle<GlobalObject> global(CcTest::i_isolate()->context()->global_object());
-  CHECK(JSReceiver::HasLocalProperty(global, object_string));
+  CHECK(JSReceiver::HasOwnProperty(global, object_string));
 
   // Check ToString for oddballs
   CheckOddball(isolate, heap->true_value(), "true");
@@ -278,7 +278,7 @@ TEST(GarbageCollection) {
   heap->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(JSReceiver::HasLocalProperty(global, name));
+  CHECK(JSReceiver::HasOwnProperty(global, name));
   // Check function is retained.
   Handle<Object> func_value =
       Object::GetProperty(global, name).ToHandleChecked();
@@ -297,7 +297,7 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   heap->CollectGarbage(NEW_SPACE);
 
-  CHECK(JSReceiver::HasLocalProperty(global, obj_name));
+  CHECK(JSReceiver::HasOwnProperty(global, obj_name));
   Handle<Object> obj =
       Object::GetProperty(global, obj_name).ToHandleChecked();
   CHECK(obj->IsJSObject());
@@ -655,55 +655,55 @@ TEST(ObjectProperties) {
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
   // check for empty
-  CHECK(!JSReceiver::HasLocalProperty(obj, first));
+  CHECK(!JSReceiver::HasOwnProperty(obj, first));
 
   // add first
   JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
-  CHECK(JSReceiver::HasLocalProperty(obj, first));
+  CHECK(JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
-  CHECK(!JSReceiver::HasLocalProperty(obj, first));
+  CHECK(!JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
   JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
   JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
-  CHECK(JSReceiver::HasLocalProperty(obj, first));
-  CHECK(JSReceiver::HasLocalProperty(obj, second));
+  CHECK(JSReceiver::HasOwnProperty(obj, first));
+  CHECK(JSReceiver::HasOwnProperty(obj, second));
 
   // delete first and then second
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
-  CHECK(JSReceiver::HasLocalProperty(obj, second));
+  CHECK(JSReceiver::HasOwnProperty(obj, second));
   JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
-  CHECK(!JSReceiver::HasLocalProperty(obj, first));
-  CHECK(!JSReceiver::HasLocalProperty(obj, second));
+  CHECK(!JSReceiver::HasOwnProperty(obj, first));
+  CHECK(!JSReceiver::HasOwnProperty(obj, second));
 
   // add first and then second
   JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
   JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
-  CHECK(JSReceiver::HasLocalProperty(obj, first));
-  CHECK(JSReceiver::HasLocalProperty(obj, second));
+  CHECK(JSReceiver::HasOwnProperty(obj, first));
+  CHECK(JSReceiver::HasOwnProperty(obj, second));
 
   // delete second and then first
   JSReceiver::DeleteProperty(obj, second, JSReceiver::NORMAL_DELETION).Check();
-  CHECK(JSReceiver::HasLocalProperty(obj, first));
+  CHECK(JSReceiver::HasOwnProperty(obj, first));
   JSReceiver::DeleteProperty(obj, first, JSReceiver::NORMAL_DELETION).Check();
-  CHECK(!JSReceiver::HasLocalProperty(obj, first));
-  CHECK(!JSReceiver::HasLocalProperty(obj, second));
+  CHECK(!JSReceiver::HasOwnProperty(obj, first));
+  CHECK(!JSReceiver::HasOwnProperty(obj, second));
 
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
   JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
-  CHECK(JSReceiver::HasLocalProperty(obj, s1_string));
+  CHECK(JSReceiver::HasOwnProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
   JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY).Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
-  CHECK(JSReceiver::HasLocalProperty(obj, s2));
+  CHECK(JSReceiver::HasOwnProperty(obj, s2));
 }
 
 
@@ -890,7 +890,6 @@ TEST(StringAllocation) {
 static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
-  heap->EnsureHeapIsIterable();
   HeapIterator iterator(heap);
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
@@ -1629,9 +1628,8 @@ TEST(TestSizeOfObjects) {
 
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   CcTest::InitializeVM();
-  CcTest::heap()->EnsureHeapIsIterable();
-  intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   HeapIterator iterator(CcTest::heap());
+  intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;

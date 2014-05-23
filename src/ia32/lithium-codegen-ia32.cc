@@ -3041,8 +3041,7 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
       key,
       instr->hydrogen()->key()->representation(),
       elements_kind,
-      0,
-      instr->additional_index()));
+      instr->base_offset()));
   if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
@@ -3105,14 +3104,11 @@ void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
 
 void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-        sizeof(kHoleNanLower32);
     Operand hole_check_operand = BuildFastArrayOperand(
         instr->elements(), instr->key(),
         instr->hydrogen()->key()->representation(),
         FAST_DOUBLE_ELEMENTS,
-        offset,
-        instr->additional_index());
+        instr->base_offset() + sizeof(kHoleNanLower32));
     __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
     DeoptimizeIf(equal, instr->environment());
   }
@@ -3122,8 +3118,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
       instr->key(),
       instr->hydrogen()->key()->representation(),
       FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      instr->base_offset());
   XMMRegister result = ToDoubleRegister(instr->result());
   __ movsd(result, double_load_operand);
 }
@@ -3138,8 +3133,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
                                instr->key(),
                                instr->hydrogen()->key()->representation(),
                                FAST_ELEMENTS,
-                               FixedArray::kHeaderSize - kHeapObjectTag,
-                               instr->additional_index()));
+                               instr->base_offset()));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3170,13 +3164,9 @@ Operand LCodeGen::BuildFastArrayOperand(
     LOperand* key,
     Representation key_representation,
     ElementsKind elements_kind,
-    uint32_t offset,
-    uint32_t additional_index) {
+    uint32_t base_offset) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int element_shift_size = ElementsKindToShiftSize(elements_kind);
-  if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    offset += FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
-  }
   int shift_size = element_shift_size;
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
@@ -3184,8 +3174,8 @@ Operand LCodeGen::BuildFastArrayOperand(
       Abort(kArrayIndexConstantValueTooBig);
     }
     return Operand(elements_pointer_reg,
-                   ((constant_value + additional_index) << shift_size)
-                       + offset);
+                   ((constant_value) << shift_size)
+                       + base_offset);
   } else {
     // Take the tag bit into account while computing the shift size.
     if (key_representation.IsSmi() && (shift_size >= 1)) {
@@ -3195,7 +3185,7 @@ Operand LCodeGen::BuildFastArrayOperand(
     return Operand(elements_pointer_reg,
                    ToRegister(key),
                    scale_factor,
-                   offset + (additional_index << element_shift_size));
+                   base_offset);
   }
 }
 
@@ -4122,8 +4112,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
       key,
       instr->hydrogen()->key()->representation(),
       elements_kind,
-      0,
-      instr->additional_index()));
+      instr->base_offset()));
   if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS) {
     XMMRegister xmm_scratch = double_scratch0();
@@ -4182,8 +4171,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       instr->key(),
       instr->hydrogen()->key()->representation(),
       FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      instr->base_offset());
 
   XMMRegister value = ToDoubleRegister(instr->value());
 
@@ -4210,8 +4198,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
       instr->key(),
       instr->hydrogen()->key()->representation(),
       FAST_ELEMENTS,
-      FixedArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      instr->base_offset());
   if (instr->value()->IsRegister()) {
     __ mov(operand, ToRegister(instr->value()));
   } else {

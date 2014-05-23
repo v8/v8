@@ -371,7 +371,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   } else {
     attributes = DONT_ENUM;
   }
-  JSObject::SetLocalPropertyIgnoreAttributes(
+  JSObject::SetOwnPropertyIgnoreAttributes(
       target, internalized_name, function, attributes).Check();
   if (target->IsJSGlobalObject()) {
     function->shared()->set_instance_class_name(*internalized_name);
@@ -748,7 +748,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(js_global_function->instance_prototype()));
-    JSObject::SetLocalPropertyIgnoreAttributes(
+    JSObject::SetOwnPropertyIgnoreAttributes(
         prototype, factory()->constructor_string(),
         isolate()->object_function(), NONE).Check();
   } else {
@@ -863,7 +863,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Heap* heap = isolate->heap();
 
   Handle<String> object_name = factory->Object_string();
-  JSObject::SetLocalPropertyIgnoreAttributes(
+  JSObject::SetOwnPropertyIgnoreAttributes(
       inner_global, object_name,
       isolate->object_function(), DONT_ENUM).Check();
 
@@ -1064,7 +1064,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
-    JSObject::SetLocalPropertyIgnoreAttributes(
+    JSObject::SetOwnPropertyIgnoreAttributes(
         global, name, json_object, DONT_ENUM).Check();
     native_context()->set_json_object(*json_object);
   }
@@ -1130,22 +1130,22 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_sloppy_arguments_boilerplate(*result);
     // Note: length must be added as the first property and
     //       callee must be added as the second property.
-    JSObject::SetLocalPropertyIgnoreAttributes(
+    JSObject::SetOwnPropertyIgnoreAttributes(
         result, factory->length_string(),
         factory->undefined_value(), DONT_ENUM,
         Object::FORCE_TAGGED, FORCE_FIELD).Check();
-    JSObject::SetLocalPropertyIgnoreAttributes(
+    JSObject::SetOwnPropertyIgnoreAttributes(
         result, factory->callee_string(),
         factory->undefined_value(), DONT_ENUM,
         Object::FORCE_TAGGED, FORCE_FIELD).Check();
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(factory->callee_string(), &lookup);
+    result->LookupOwn(factory->callee_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsCalleeIndex);
 
-    result->LocalLookup(factory->length_string(), &lookup);
+    result->LookupOwn(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -1235,13 +1235,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_strict_arguments_boilerplate(*result);
 
     // Add length property only for strict mode boilerplate.
-    JSObject::SetLocalPropertyIgnoreAttributes(
+    JSObject::SetOwnPropertyIgnoreAttributes(
         result, factory->length_string(),
         factory->undefined_value(), DONT_ENUM).Check();
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
-    result->LocalLookup(factory->length_string(), &lookup);
+    result->LookupOwn(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
 
@@ -1694,11 +1694,11 @@ bool Genesis::InstallNatives() {
   Handle<String> global_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("global"));
   Handle<Object> global_obj(native_context()->global_object(), isolate());
-  JSObject::SetLocalPropertyIgnoreAttributes(
+  JSObject::SetOwnPropertyIgnoreAttributes(
       builtins, global_string, global_obj, attributes).Check();
   Handle<String> builtins_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
-  JSObject::SetLocalPropertyIgnoreAttributes(
+  JSObject::SetOwnPropertyIgnoreAttributes(
       builtins, builtins_string, builtins, attributes).Check();
 
   // Set up the reference from the global object to the builtins object.
@@ -2148,7 +2148,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         factory->InternalizeUtf8String(FLAG_expose_natives_as);
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             global, natives, Handle<JSObject>(global->builtins()), DONT_ENUM),
         false);
   }
@@ -2162,7 +2162,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         Smi::FromInt(FLAG_stack_trace_limit), isolate);
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE),
         false);
   }
@@ -2183,7 +2183,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     Handle<Object> global_proxy(debug_context->global_proxy(), isolate);
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             global, debug_string, global_proxy, DONT_ENUM),
         false);
   }
@@ -2410,7 +2410,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           ASSERT(!descs->GetDetails(i).representation().IsDouble());
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
-          JSObject::SetLocalPropertyIgnoreAttributes(
+          JSObject::SetOwnPropertyIgnoreAttributes(
               to, key, value, details.attributes()).Check();
           break;
         }
@@ -2418,14 +2418,14 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
-          JSObject::SetLocalPropertyIgnoreAttributes(
+          JSObject::SetOwnPropertyIgnoreAttributes(
               to, key, constant, details.attributes()).Check();
           break;
         }
         case CALLBACKS: {
           LookupResult result(isolate());
           Handle<Name> key(Name::cast(descs->GetKey(i)), isolate());
-          to->LocalLookup(key, &result);
+          to->LookupOwn(key, &result);
           // If the property is already there we skip it
           if (result.IsFound()) continue;
           HandleScope inner(isolate());
@@ -2458,7 +2458,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // If the property is already there we skip it.
         LookupResult result(isolate());
         Handle<Name> key(Name::cast(raw_key));
-        to->LocalLookup(key, &result);
+        to->LookupOwn(key, &result);
         if (result.IsFound()) continue;
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
@@ -2469,7 +2469,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             to, key, value, details.attributes()).Check();
       }
     }
@@ -2522,8 +2522,8 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 class NoTrackDoubleFieldsForSerializerScope {
  public:
   explicit NoTrackDoubleFieldsForSerializerScope(Isolate* isolate)
-      : isolate_(isolate), flag_(FLAG_track_double_fields) {
-    if (Serializer::enabled(isolate)) {
+      : flag_(FLAG_track_double_fields) {
+    if (isolate->serializer_enabled()) {
       // Disable tracking double fields because heap numbers treated as
       // immutable by the serializer.
       FLAG_track_double_fields = false;
@@ -2531,13 +2531,10 @@ class NoTrackDoubleFieldsForSerializerScope {
   }
 
   ~NoTrackDoubleFieldsForSerializerScope() {
-    if (Serializer::enabled(isolate_)) {
-      FLAG_track_double_fields = flag_;
-    }
+    FLAG_track_double_fields = flag_;
   }
 
  private:
-  Isolate* isolate_;
   bool flag_;
 };
 
@@ -2614,7 +2611,7 @@ Genesis::Genesis(Isolate* isolate,
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot
   // creation time and we don't need trigonometric functions then.
-  if (!Serializer::enabled(isolate)) {
+  if (!isolate->serializer_enabled()) {
     // Initially seed the per-context random number generator using the
     // per-isolate random number generator.
     const int num_elems = 2;
@@ -2688,7 +2685,7 @@ int Bootstrapper::ArchiveSpacePerThread() {
 }
 
 
-// Archive statics that are thread local.
+// Archive statics that are thread-local.
 char* Bootstrapper::ArchiveState(char* to) {
   *reinterpret_cast<NestingCounterType*>(to) = nesting_;
   nesting_ = 0;
@@ -2696,7 +2693,7 @@ char* Bootstrapper::ArchiveState(char* to) {
 }
 
 
-// Restore statics that are thread local.
+// Restore statics that are thread-local.
 char* Bootstrapper::RestoreState(char* from) {
   nesting_ = *reinterpret_cast<NestingCounterType*>(from);
   return from + sizeof(NestingCounterType);

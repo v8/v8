@@ -10282,7 +10282,7 @@ THREADED_TEST(SetPrototype) {
 
 
 // Getting property names of an object with a prototype chain that
-// triggers dictionary elements in GetLocalPropertyNames() shouldn't
+// triggers dictionary elements in GetOwnPropertyNames() shouldn't
 // crash the runtime.
 THREADED_TEST(Regress91517) {
   i::FLAG_allow_natives_syntax = true;
@@ -10321,11 +10321,11 @@ THREADED_TEST(Regress91517) {
   CHECK(o3->SetPrototype(o2));
   CHECK(o2->SetPrototype(o1));
 
-  // Call the runtime version of GetLocalPropertyNames() on the natively
+  // Call the runtime version of GetOwnPropertyNames() on the natively
   // created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o4);
   // PROPERTY_ATTRIBUTES_NONE = 0
-  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
+  CompileRun("var names = %GetOwnPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
@@ -10376,12 +10376,12 @@ THREADED_TEST(Regress269562) {
   o1->SetHiddenValue(
       v8_str("h1"), v8::Integer::New(context->GetIsolate(), 2013));
 
-  // Call the runtime version of GetLocalPropertyNames() on
+  // Call the runtime version of GetOwnPropertyNames() on
   // the natively created object through JavaScript.
   context->Global()->Set(v8_str("obj"), o2);
   context->Global()->Set(v8_str("sym"), sym);
   // PROPERTY_ATTRIBUTES_NONE = 0
-  CompileRun("var names = %GetLocalPropertyNames(obj, 0);");
+  CompileRun("var names = %GetOwnPropertyNames(obj, 0);");
 
   ExpectInt32("names.length", 7);
   ExpectTrue("names.indexOf(\"foo\") >= 0");
@@ -13514,7 +13514,6 @@ THREADED_TEST(LockUnlockLock) {
 
 
 static int GetGlobalObjectsCount() {
-  CcTest::heap()->EnsureHeapIsIterable();
   int count = 0;
   i::HeapIterator it(CcTest::heap());
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
@@ -19252,7 +19251,7 @@ TEST(GCInFailedAccessCheckCallback) {
   ExpectUndefined("Object.prototype.__lookupGetter__.call("
                   "    other, \'x\')");
 
-  // HasLocalElement.
+  // HasOwnElement.
   ExpectFalse("Object.prototype.hasOwnProperty.call(other, \'0\')");
 
   CHECK_EQ(false, global0->HasRealIndexedProperty(0));
@@ -21686,13 +21685,13 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%IgnoreAttributesAndSetProperty(other, 'x', 'foo')");
   CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");
   CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
-  CheckCorrectThrow("%HasLocalProperty(other, 'x')");
+  CheckCorrectThrow("%HasOwnProperty(other, 'x')");
   CheckCorrectThrow("%HasProperty(other, 'x')");
   CheckCorrectThrow("%HasElement(other, 1)");
   CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
   CheckCorrectThrow("%GetPropertyNames(other)");
   // PROPERTY_ATTRIBUTES_NONE = 0
-  CheckCorrectThrow("%GetLocalPropertyNames(other, 0)");
+  CheckCorrectThrow("%GetOwnPropertyNames(other, 0)");
   CheckCorrectThrow("%DefineOrRedefineAccessorProperty("
                         "other, 'x', null, null, 1)");
 

@@ -230,6 +230,7 @@ class PerfBasicLogger : public CodeEventLogger {
   virtual ~PerfBasicLogger();
 
   virtual void CodeMoveEvent(Address from, Address to) { }
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) { }
   virtual void CodeDeleteEvent(Address from) { }
 
  private:
@@ -295,6 +296,7 @@ class PerfJitLogger : public CodeEventLogger {
   virtual ~PerfJitLogger();
 
   virtual void CodeMoveEvent(Address from, Address to) { }
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) { }
   virtual void CodeDeleteEvent(Address from) { }
 
  private:
@@ -457,6 +459,7 @@ class LowLevelLogger : public CodeEventLogger {
   virtual ~LowLevelLogger();
 
   virtual void CodeMoveEvent(Address from, Address to);
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) { }
   virtual void CodeDeleteEvent(Address from);
   virtual void SnapshotPositionEvent(Address addr, int pos);
   virtual void CodeMovingGCEvent();
@@ -623,6 +626,7 @@ class JitLogger : public CodeEventLogger {
   explicit JitLogger(JitCodeEventHandler code_event_handler);
 
   virtual void CodeMoveEvent(Address from, Address to);
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) { }
   virtual void CodeDeleteEvent(Address from);
   virtual void AddCodeLinePosInfoEvent(
       void* jit_handler_data,
@@ -1442,6 +1446,24 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   AppendCodeCreateHeader(&msg, tag, code);
   msg.Append("\"args_count: %d\"", args_count);
   msg.Append('\n');
+  msg.WriteToLogFile();
+}
+
+
+void Logger::CodeDisableOptEvent(Code* code,
+                                 SharedFunctionInfo* shared) {
+  PROFILER_LOG(CodeDisableOptEvent(code, shared));
+
+  if (!is_logging_code_events()) return;
+  CALL_LISTENERS(CodeDisableOptEvent(code, shared));
+
+  if (!FLAG_log_code || !log_->IsEnabled()) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("%s,", kLogEventsNames[CODE_DISABLE_OPT_EVENT]);
+  SmartArrayPointer<char> name =
+      shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  msg.Append("\"%s\",", name.get());
+  msg.Append("\"%s\"\n", GetBailoutReason(shared->DisableOptimizationReason()));
   msg.WriteToLogFile();
 }
 

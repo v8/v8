@@ -28,6 +28,14 @@ void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
+void CodeDisableOptEventRecord::UpdateCodeMap(CodeMap* code_map) {
+  CodeEntry* entry = code_map->FindEntry(start);
+  if (entry != NULL) {
+    entry->set_bailout_reason(bailout_reason);
+  }
+}
+
+
 void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
   code_map->MoveCode(from, to);
 }

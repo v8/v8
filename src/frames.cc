@@ -640,7 +640,7 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
     // Number of doubles not known at snapshot time.
-    ASSERT(!Serializer::enabled(isolate()));
+    ASSERT(!isolate()->serializer_enabled());
     parameters_base += DoubleRegister::NumAllocatableRegisters() *
         kDoubleSize / kPointerSize;
   }

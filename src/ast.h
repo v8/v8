@@ -1762,11 +1762,25 @@ class Call V8_FINAL : public Expression, public FeedbackSlotInterface {
     return !target_.is_null();
   }
 
+  bool global_call() const {
+    VariableProxy* proxy = expression_->AsVariableProxy();
+    return proxy != NULL && proxy->var()->IsUnallocated();
+  }
+
+  bool known_global_function() const {
+    return global_call() && !target_.is_null();
+  }
+
   Handle<JSFunction> target() { return target_; }
 
   Handle<Cell> cell() { return cell_; }
 
+  Handle<AllocationSite> allocation_site() { return allocation_site_; }
+
   void set_target(Handle<JSFunction> target) { target_ = target; }
+  void set_allocation_site(Handle<AllocationSite> site) {
+    allocation_site_ = site;
+  }
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
 
   BailoutId ReturnId() const { return return_id_; }
@@ -1809,6 +1823,7 @@ class Call V8_FINAL : public Expression, public FeedbackSlotInterface {
 
   Handle<JSFunction> target_;
   Handle<Cell> cell_;
+  Handle<AllocationSite> allocation_site_;
   int call_feedback_slot_;
 
   const BailoutId return_id_;

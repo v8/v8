@@ -494,30 +494,30 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          JSObject::SetLocalPropertyIgnoreAttributes(
+          JSObject::SetOwnPropertyIgnoreAttributes(
               stack_frame, column_key,
               Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE).Check();
         }
-       JSObject::SetLocalPropertyIgnoreAttributes(
+       JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, line_key,
             Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE).Check();
       }
 
       if (options & StackTrace::kScriptId) {
         Handle<Smi> script_id(script->id(), this);
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, script_id_key, script_id, NONE).Check();
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name(), this);
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, script_name_key, script_name, NONE).Check();
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
         Handle<Object> result = Script::GetNameOrSourceURL(script);
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, script_name_or_source_url_key, result, NONE).Check();
       }
 
@@ -526,7 +526,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         if (!fun_name->BooleanValue()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
         }
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, function_key, fun_name, NONE).Check();
       }
 
@@ -534,14 +534,14 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         Handle<Object> is_eval =
             script->compilation_type() == Script::COMPILATION_TYPE_EVAL ?
                 factory()->true_value() : factory()->false_value();
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, eval_key, is_eval, NONE).Check();
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             factory()->true_value() : factory()->false_value();
-        JSObject::SetLocalPropertyIgnoreAttributes(
+        JSObject::SetOwnPropertyIgnoreAttributes(
             stack_frame, constructor_key, is_constructor, NONE).Check();
       }
 
@@ -1133,6 +1133,24 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       } else {
         OS::PrintError("Extension or internal compilation error.\n");
       }
+#ifdef OBJECT_PRINT
+      // Since comments and empty lines have been stripped from the source of
+      // builtins, print the actual source here so that line numbers match.
+      if (location->script()->source()->IsString()) {
+        Handle<String> src(String::cast(location->script()->source()));
+        PrintF("Failing script:\n");
+        int len = src->length();
+        int line_number = 1;
+        PrintF("%5d: ", line_number);
+        for (int i = 0; i < len; i++) {
+          uint16_t character = src->Get(i);
+          PrintF("%c", character);
+          if (character == '\n' && i < len - 2) {
+            PrintF("%5d: ", ++line_number);
+          }
+        }
+      }
+#endif
     }
   }
 
@@ -1457,8 +1475,8 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
+      serializer_enabled_(false),
       has_fatal_error_(false),
-      use_crankshaft_(true),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
       heap_profiler_(NULL),
@@ -1776,10 +1794,6 @@ bool Isolate::Init(Deserializer* des) {
 
   has_fatal_error_ = false;
 
-  use_crankshaft_ = FLAG_crankshaft
-      && !Serializer::enabled(this)
-      && CpuFeatures::SupportsCrankshaft();
-
   if (function_entry_hook() != NULL) {
     // When function entry hooking is in effect, we have to create the code
     // stubs from scratch to get entry hooks, rather than loading the previously
@@ -1965,7 +1979,7 @@ bool Isolate::Init(Deserializer* des) {
         kDeoptTableSerializeEntryCount - 1);
   }
 
-  if (!Serializer::enabled(this)) {
+  if (!serializer_enabled()) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
@@ -2135,6 +2149,13 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
     }
   }
   return NULL;
+}
+
+
+bool Isolate::use_crankshaft() const {
+  return FLAG_crankshaft &&
+         !serializer_enabled_ &&
+         CpuFeatures::SupportsCrankshaft();
 }
 
 

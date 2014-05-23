@@ -1079,6 +1079,18 @@ class HValue : public ZoneObject {
     return new(zone) I(p1, p2, p3, p4, p5);                                    \
   }
 
+#define DECLARE_INSTRUCTION_FACTORY_P6(I, P1, P2, P3, P4, P5, P6)              \
+  static I* New(Zone* zone,                                                    \
+                HValue* context,                                               \
+                P1 p1,                                                         \
+                P2 p2,                                                         \
+                P3 p3,                                                         \
+                P4 p4,                                                         \
+                P5 p5,                                                         \
+                P6 p6) {                                                       \
+    return new(zone) I(p1, p2, p3, p4, p5, p6);                                \
+  }
+
 #define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(I)                         \
   static I* New(Zone* zone, HValue* context) {                                 \
     return new(zone) I(context);                                               \
@@ -6413,8 +6425,9 @@ class ArrayInstructionInterface {
  public:
   virtual HValue* GetKey() = 0;
   virtual void SetKey(HValue* key) = 0;
-  virtual void SetIndexOffset(uint32_t index_offset) = 0;
-  virtual int MaxIndexOffsetBits() = 0;
+  virtual ElementsKind elements_kind() const = 0;
+  virtual void IncreaseBaseOffset(uint32_t base_offset) = 0;
+  virtual int MaxBaseOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
   virtual ~ArrayInstructionInterface() { }
@@ -6425,6 +6438,8 @@ class ArrayInstructionInterface {
   }
 };
 
+
+static const int kDefaultKeyedHeaderOffsetSentinel = -1;
 
 enum LoadKeyedHoleMode {
   NEVER_RETURN_HOLE,
@@ -6439,6 +6454,8 @@ class HLoadKeyed V8_FINAL
                                  ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HLoadKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, LoadKeyedHoleMode);
+  DECLARE_INSTRUCTION_FACTORY_P6(HLoadKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind, LoadKeyedHoleMode, int);
 
   bool is_external() const {
     return IsExternalArrayElementsKind(elements_kind());
@@ -6456,12 +6473,13 @@ class HLoadKeyed V8_FINAL
     return OperandAt(2);
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
-  uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
-  void SetIndexOffset(uint32_t index_offset) {
-    bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
+  uint32_t base_offset() { return BaseOffsetField::decode(bit_field_); }
+  void IncreaseBaseOffset(uint32_t base_offset) {
+    base_offset += BaseOffsetField::decode(bit_field_);
+    bit_field_ = BaseOffsetField::update(bit_field_, base_offset);
   }
-  virtual int MaxIndexOffsetBits() {
-    return kBitsForIndexOffset;
+  virtual int MaxBaseOffsetBits() {
+    return kBitsForBaseOffset;
   }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
@@ -6511,7 +6529,7 @@ class HLoadKeyed V8_FINAL
     if (!other->IsLoadKeyed()) return false;
     HLoadKeyed* other_load = HLoadKeyed::cast(other);
 
-    if (IsDehoisted() && index_offset() != other_load->index_offset())
+    if (IsDehoisted() && base_offset() != other_load->base_offset())
       return false;
     return elements_kind() == other_load->elements_kind();
   }
@@ -6521,10 +6539,15 @@ class HLoadKeyed V8_FINAL
              HValue* key,
              HValue* dependency,
              ElementsKind elements_kind,
-             LoadKeyedHoleMode mode = NEVER_RETURN_HOLE)
+             LoadKeyedHoleMode mode = NEVER_RETURN_HOLE,
+             int offset = kDefaultKeyedHeaderOffsetSentinel)
       : bit_field_(0) {
+    offset = offset == kDefaultKeyedHeaderOffsetSentinel
+        ? GetDefaultHeaderSizeForElementsKind(elements_kind)
+        : offset;
     bit_field_ = ElementsKindField::encode(elements_kind) |
-        HoleModeField::encode(mode);
+        HoleModeField::encode(mode) |
+        BaseOffsetField::encode(offset);
 
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
@@ -6587,16 +6610,16 @@ class HLoadKeyed V8_FINAL
   enum LoadKeyedBits {
     kBitsForElementsKind = 5,
     kBitsForHoleMode = 1,
-    kBitsForIndexOffset = 25,
+    kBitsForBaseOffset = 25,
     kBitsForIsDehoisted = 1,
 
     kStartElementsKind = 0,
     kStartHoleMode = kStartElementsKind + kBitsForElementsKind,
-    kStartIndexOffset = kStartHoleMode + kBitsForHoleMode,
-    kStartIsDehoisted = kStartIndexOffset + kBitsForIndexOffset
+    kStartBaseOffset = kStartHoleMode + kBitsForHoleMode,
+    kStartIsDehoisted = kStartBaseOffset + kBitsForBaseOffset
   };
 
-  STATIC_ASSERT((kBitsForElementsKind + kBitsForIndexOffset +
+  STATIC_ASSERT((kBitsForElementsKind + kBitsForBaseOffset +
                  kBitsForIsDehoisted) <= sizeof(uint32_t)*8);
   STATIC_ASSERT(kElementsKindCount <= (1 << kBitsForElementsKind));
   class ElementsKindField:
@@ -6605,8 +6628,8 @@ class HLoadKeyed V8_FINAL
   class HoleModeField:
     public BitField<LoadKeyedHoleMode, kStartHoleMode, kBitsForHoleMode>
     {};  // NOLINT
-  class IndexOffsetField:
-    public BitField<uint32_t, kStartIndexOffset, kBitsForIndexOffset>
+  class BaseOffsetField:
+    public BitField<uint32_t, kStartBaseOffset, kBitsForBaseOffset>
     {};  // NOLINT
   class IsDehoistedField:
     public BitField<bool, kStartIsDehoisted, kBitsForIsDehoisted>
@@ -6726,6 +6749,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     ASSERT(!has_transition());  // Only set once.
     SetOperandAt(2, transition);
     has_transition_ = true;
+    SetChangesFlag(kMaps);
   }
 
   bool NeedsWriteBarrier() {
@@ -6750,6 +6774,19 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   void UpdateValue(HValue* value) {
     SetOperandAt(1, value);
+  }
+
+  bool CanBeReplacedWith(HStoreNamedField* that) const {
+    if (!this->access().Equals(that->access())) return false;
+    if (SmiValuesAre32Bits() &&
+        this->field_representation().IsSmi() &&
+        this->store_mode() == INITIALIZING_STORE &&
+        that->store_mode() == STORE_TO_INITIALIZED_ENTRY) {
+      // We cannot replace an initializing store to a smi field with a store to
+      // an initialized entry on 64-bit architectures (with 32-bit smis).
+      return false;
+    }
+    return true;
   }
 
  private:
@@ -6823,6 +6860,8 @@ class HStoreKeyed V8_FINAL
                                  ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
                                  ElementsKind, StoreFieldOrKeyedMode);
+  DECLARE_INSTRUCTION_FACTORY_P6(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 ElementsKind, StoreFieldOrKeyedMode, int);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     // kind_fast:               tagged[int32] = tagged
@@ -6895,9 +6934,11 @@ class HStoreKeyed V8_FINAL
   }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  uint32_t index_offset() { return index_offset_; }
-  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
-  virtual int MaxIndexOffsetBits() {
+  uint32_t base_offset() { return base_offset_; }
+  void IncreaseBaseOffset(uint32_t base_offset) {
+    base_offset_ += base_offset;
+  }
+  virtual int MaxBaseOffsetBits() {
     return 31 - ElementsKindToShiftSize(elements_kind_);
   }
   HValue* GetKey() { return key(); }
@@ -6941,9 +6982,12 @@ class HStoreKeyed V8_FINAL
  private:
   HStoreKeyed(HValue* obj, HValue* key, HValue* val,
               ElementsKind elements_kind,
-              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
+              StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE,
+              int offset = kDefaultKeyedHeaderOffsetSentinel)
       : elements_kind_(elements_kind),
-      index_offset_(0),
+      base_offset_(offset == kDefaultKeyedHeaderOffsetSentinel
+          ? GetDefaultHeaderSizeForElementsKind(elements_kind)
+          : offset),
       is_dehoisted_(false),
       is_uninitialized_(false),
       store_mode_(store_mode),
@@ -6983,7 +7027,7 @@ class HStoreKeyed V8_FINAL
   }
 
   ElementsKind elements_kind_;
-  uint32_t index_offset_;
+  uint32_t base_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
   StoreFieldOrKeyedMode store_mode_: 1;

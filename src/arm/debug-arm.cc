@@ -148,7 +148,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // jumping to the target address intended by the caller and that was
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
+      ExternalReference::debug_after_break_target_address(masm->isolate());
   __ mov(ip, Operand(after_break_target));
   __ ldr(ip, MemOperand(ip));
   __ Jump(ip);

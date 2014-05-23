@@ -1295,6 +1295,10 @@ class HGraphBuilder {
 
   void AddSimulate(BailoutId id, RemovableSimulate removable = FIXED_SIMULATE);
 
+  // When initializing arrays, we'll unfold the loop if the number of elements
+  // is known at compile time and is <= kElementLoopUnrollThreshold.
+  static const int kElementLoopUnrollThreshold = 8;
+
  protected:
   virtual bool BuildGraph() = 0;
 
@@ -2242,6 +2246,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
+  bool TryHandleArrayCall(Call* expr, HValue* function);
+  bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
+  void BuildArrayCall(Expression* expr, int arguments_count, HValue* function,
+                      Handle<AllocationSite> cell);
+
   HValue* ImplicitReceiverFor(HValue* function,
                               Handle<JSFunction> target);
 
@@ -2325,8 +2334,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       ElementsKind fixed_elements_kind,
       HValue* byte_length, HValue* length);
 
-  bool IsCallNewArrayInlineable(CallNew* expr);
-  void BuildInlinedCallNewArray(CallNew* expr);
+  Handle<JSFunction> array_function() {
+    return handle(isolate()->native_context()->array_function());
+  }
+
+  bool IsCallArrayInlineable(int argument_count, Handle<AllocationSite> site);
+  void BuildInlinedCallArray(Expression* expression, int argument_count,
+                             Handle<AllocationSite> site);
 
   class PropertyAccessInfo {
    public:

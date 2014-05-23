@@ -2473,14 +2473,14 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
   }
 
   // Special loop unfolding case
-  static const int kLoopUnfoldLimit = 8;
-  STATIC_ASSERT(JSArray::kPreallocatedArrayElements <= kLoopUnfoldLimit);
+  STATIC_ASSERT(JSArray::kPreallocatedArrayElements <=
+                kElementLoopUnrollThreshold);
   int initial_capacity = -1;
   if (from->IsInteger32Constant() && to->IsInteger32Constant()) {
     int constant_from = from->GetInteger32Constant();
     int constant_to = to->GetInteger32Constant();
 
-    if (constant_from == 0 && constant_to <= kLoopUnfoldLimit) {
+    if (constant_from == 0 && constant_to <= kElementLoopUnrollThreshold) {
       initial_capacity = constant_to;
     }
   }
@@ -7880,6 +7880,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
       if (receiver_map->is_observed()) return false;
+      if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
       ASSERT(receiver_map->is_extensible());
 
       // If there may be elements accessors in the prototype chain, the fast
@@ -8033,7 +8034,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   if (call_type == kCallApiFunction) {
     // Cannot embed a direct reference to the global proxy map
     // as it maybe dropped on deserialization.
-    CHECK(!Serializer::enabled(isolate()));
+    CHECK(!isolate()->serializer_enabled());
     ASSERT_EQ(0, receiver_maps->length());
     receiver_maps->Add(handle(
         function->context()->global_object()->global_receiver()->map()),
@@ -8220,12 +8221,62 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
   if (shared->strict_mode() == SLOPPY && !shared->native()) {
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
-    CHECK(!Serializer::enabled(isolate()));
+    CHECK(!isolate()->serializer_enabled());
     Handle<JSObject> global_receiver(
         target->context()->global_object()->global_receiver());
     return Add<HConstant>(global_receiver);
   }
   return graph()->GetConstantUndefined();
+}
+
+
+void HOptimizedGraphBuilder::BuildArrayCall(Expression* expression,
+                                            int arguments_count,
+                                            HValue* function,
+                                            Handle<AllocationSite> site) {
+  Add<HCheckValue>(function, array_function());
+
+  if (IsCallArrayInlineable(arguments_count, site)) {
+    BuildInlinedCallArray(expression, arguments_count, site);
+    return;
+  }
+
+  HInstruction* call = PreProcessCall(New<HCallNewArray>(
+      function, arguments_count + 1, site->GetElementsKind()));
+  if (expression->IsCall()) {
+    Drop(1);
+  }
+  ast_context()->ReturnInstruction(call, expression->id());
+}
+
+
+bool HOptimizedGraphBuilder::TryHandleArrayCall(Call* expr, HValue* function) {
+  if (!array_function().is_identical_to(expr->target())) {
+    return false;
+  }
+
+  Handle<AllocationSite> site = expr->allocation_site();
+  if (site.is_null()) return false;
+
+  BuildArrayCall(expr,
+                 expr->arguments()->length(),
+                 function,
+                 site);
+  return true;
+}
+
+
+bool HOptimizedGraphBuilder::TryHandleArrayCallNew(CallNew* expr,
+                                                   HValue* function) {
+  if (!array_function().is_identical_to(expr->target())) {
+    return false;
+  }
+
+  BuildArrayCall(expr,
+                 expr->arguments()->length(),
+                 function,
+                 expr->allocation_site());
+  return true;
 }
 
 
@@ -8323,8 +8374,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     // evaluation of the arguments.
     CHECK_ALIVE(VisitForValue(expr->expression()));
     HValue* function = Top();
-    bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
-    if (global_call) {
+    if (expr->global_call()) {
       Variable* var = proxy->var();
       bool known_global_function = false;
       // If there is a global property cell for the name at compile time and
@@ -8358,6 +8408,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
           return;
         }
         if (TryInlineApiFunctionCall(expr, receiver)) return;
+        if (TryHandleArrayCall(expr, function)) return;
         if (TryInlineCall(expr)) return;
 
         PushArgumentsFromEnvironment(argument_count);
@@ -8407,20 +8458,21 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 }
 
 
-void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
+void HOptimizedGraphBuilder::BuildInlinedCallArray(
+    Expression* expression,
+    int argument_count,
+    Handle<AllocationSite> site) {
+  ASSERT(!site.is_null());
+  ASSERT(argument_count >= 0 && argument_count <= 1);
   NoObservableSideEffectsScope no_effects(this);
 
-  int argument_count = expr->arguments()->length();
   // We should at least have the constructor on the expression stack.
   HValue* constructor = environment()->ExpressionStackAt(argument_count);
-
-  ElementsKind kind = expr->elements_kind();
-  Handle<AllocationSite> site = expr->allocation_site();
-  ASSERT(!site.is_null());
 
   // Register on the site for deoptimization if the transition feedback changes.
   AllocationSite::AddDependentCompilationInfo(
       site, AllocationSite::TRANSITIONS, top_info());
+  ElementsKind kind = site->GetElementsKind();
   HInstruction* site_instruction = Add<HConstant>(site);
 
   // In the single constant argument case, we may have to adjust elements kind
@@ -8443,32 +8495,12 @@ void HOptimizedGraphBuilder::BuildInlinedCallNewArray(CallNew* expr) {
                                site_instruction,
                                constructor,
                                DISABLE_ALLOCATION_SITES);
-  HValue* new_object;
-  if (argument_count == 0) {
-    new_object = array_builder.AllocateEmptyArray();
-  } else if (argument_count == 1) {
-    HValue* argument = environment()->Top();
-    new_object = BuildAllocateArrayFromLength(&array_builder, argument);
-  } else {
-    HValue* length = Add<HConstant>(argument_count);
-    // Smi arrays need to initialize array elements with the hole because
-    // bailout could occur if the arguments don't fit in a smi.
-    //
-    // TODO(mvstanton): If all the arguments are constants in smi range, then
-    // we could set fill_with_hole to false and save a few instructions.
-    JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
-        ? JSArrayBuilder::FILL_WITH_HOLE
-        : JSArrayBuilder::DONT_FILL_WITH_HOLE;
-    new_object = array_builder.AllocateArray(length, length, fill_mode);
-    HValue* elements = array_builder.GetElementsLocation();
-    for (int i = 0; i < argument_count; i++) {
-      HValue* value = environment()->ExpressionStackAt(argument_count - i - 1);
-      HValue* constant_i = Add<HConstant>(i);
-      Add<HStoreKeyed>(elements, constant_i, value, kind);
-    }
-  }
+  HValue* new_object = argument_count == 0
+      ? array_builder.AllocateEmptyArray()
+      : BuildAllocateArrayFromLength(&array_builder, Top());
 
-  Drop(argument_count + 1);  // drop constructor and args.
+  int args_to_drop = argument_count + (expression->IsCall() ? 2 : 1);
+  Drop(args_to_drop);
   ast_context()->ReturnValue(new_object);
 }
 
@@ -8482,14 +8514,13 @@ static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
 }
 
 
-bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
+bool HOptimizedGraphBuilder::IsCallArrayInlineable(
+    int argument_count,
+    Handle<AllocationSite> site) {
   Handle<JSFunction> caller = current_info()->closure();
-  Handle<JSFunction> target(isolate()->native_context()->array_function(),
-                            isolate());
-  int argument_count = expr->arguments()->length();
+  Handle<JSFunction> target = array_function();
   // We should have the function plus array arguments on the environment stack.
   ASSERT(environment()->length() >= (argument_count + 1));
-  Handle<AllocationSite> site = expr->allocation_site();
   ASSERT(!site.is_null());
 
   bool inline_ok = false;
@@ -8499,22 +8530,24 @@ bool HOptimizedGraphBuilder::IsCallNewArrayInlineable(CallNew* expr) {
       HValue* argument = Top();
       if (argument->IsConstant()) {
         // Do not inline if the constant length argument is not a smi or
-        // outside the valid range for a fast array.
+        // outside the valid range for unrolled loop initialization.
         HConstant* constant_argument = HConstant::cast(argument);
         if (constant_argument->HasSmiValue()) {
           int value = constant_argument->Integer32Value();
-          inline_ok = value >= 0 &&
-              value < JSObject::kInitialMaxFastElementArray;
+          inline_ok = value >= 0 && value <= kElementLoopUnrollThreshold;
           if (!inline_ok) {
             TraceInline(target, caller,
-                        "Length outside of valid array range");
+                        "Constant length outside of valid inlining range.");
           }
         }
       } else {
-        inline_ok = true;
+        TraceInline(target, caller,
+                    "Dont inline [new] Array(n) where n isn't constant.");
       }
-    } else {
+    } else if (argument_count == 0) {
       inline_ok = true;
+    } else {
+      TraceInline(target, caller, "Too many arguments to inline.");
     }
   } else {
     TraceInline(target, caller, "AllocationSite requested no inlining.");
@@ -8644,25 +8677,10 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
   } else {
     // The constructor function is both an operand to the instruction and an
     // argument to the construct call.
-    Handle<JSFunction> array_function(
-        isolate()->native_context()->array_function(), isolate());
-    bool use_call_new_array = expr->target().is_identical_to(array_function);
-    if (use_call_new_array && IsCallNewArrayInlineable(expr)) {
-      // Verify we are still calling the array function for our native context.
-      Add<HCheckValue>(function, array_function);
-      BuildInlinedCallNewArray(expr);
-      return;
-    }
+    if (TryHandleArrayCallNew(expr, function)) return;
 
-    HBinaryCall* call;
-    if (use_call_new_array) {
-      Add<HCheckValue>(function, array_function);
-      call = New<HCallNewArray>(function, argument_count,
-                                expr->elements_kind());
-    } else {
-      call = New<HCallNew>(function, argument_count);
-    }
-    PreProcessCall(call);
+    HInstruction* call =
+        PreProcessCall(New<HCallNew>(function, argument_count));
     return ast_context()->ReturnInstruction(call, expr->id());
   }
 }

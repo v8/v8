@@ -271,7 +271,7 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
 function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
   for (var i = 0; i < del_count; i++) {
     var index = start_i + i;
-    // The spec could also be interpreted such that %HasLocalProperty
+    // The spec could also be interpreted such that %HasOwnProperty
     // would be the appropriate test.  We follow KJS in consulting the
     // prototype.
     var current = array[index];
@@ -291,7 +291,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
         var from_index = i + del_count - 1;
         var to_index = i + num_additional_args - 1;
         // The spec could also be interpreted such that
-        // %HasLocalProperty would be the appropriate test.  We follow
+        // %HasOwnProperty would be the appropriate test.  We follow
         // KJS in consulting the prototype.
         var current = array[from_index];
         if (!IS_UNDEFINED(current) || from_index in array) {
@@ -305,7 +305,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
         var from_index = i + del_count;
         var to_index = i + num_additional_args;
         // The spec could also be interpreted such that
-        // %HasLocalProperty would be the appropriate test.  We follow
+        // %HasOwnProperty would be the appropriate test.  We follow
         // KJS in consulting the prototype.
         var current = array[from_index];
         if (!IS_UNDEFINED(current) || from_index in array) {
@@ -628,7 +628,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
   var is_sealed = ObjectIsSealed(array);
 
-  if (IS_ARRAY(array) && !is_sealed) {
+  if (IS_ARRAY(array) && !is_sealed && len > 0) {
     SmartMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);
@@ -1075,7 +1075,7 @@ function ArraySort(comparefn) {
     // For compatibility with JSC, we also sort elements inherited from
     // the prototype chain on non-Array objects.
     // We do this by copying them to this object and sorting only
-    // local elements. This is not very efficient, but sorting with
+    // own elements. This is not very efficient, but sorting with
     // inherited elements happens very, very rarely, if at all.
     // The specification allows "implementation dependent" behavior
     // if an element on the prototype chain has an element that

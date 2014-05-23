@@ -472,10 +472,7 @@ Handle<String> Shell::ReadFromStdin(Isolate* isolate) {
     // not been fully read into the buffer yet (does not end with '\n').
     // If fgets gets an error, just give up.
     char* input = NULL;
-    {  // Release lock for blocking input.
-      Unlocker unlock(isolate);
-      input = fgets(buffer, kBufferSize, stdin);
-    }
+    input = fgets(buffer, kBufferSize, stdin);
     if (input == NULL) return Handle<String>();
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
@@ -737,7 +734,6 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 
 
 void Shell::InstallUtilityScript(Isolate* isolate) {
-  Locker lock(isolate);
   HandleScope scope(isolate);
   // If we use the utility context, we have to set the security tokens so that
   // utility, evaluation and debug context can all access each other.
@@ -904,7 +900,6 @@ void Shell::Initialize(Isolate* isolate) {
 void Shell::InitializeDebugger(Isolate* isolate) {
   if (options.test_shell) return;
 #ifndef V8_SHARED
-  Locker lock(isolate);
   HandleScope scope(isolate);
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   utility_context_.Reset(isolate,
@@ -1031,8 +1026,6 @@ static FILE* FOpen(const char* path, const char* mode) {
 
 
 static char* ReadChars(Isolate* isolate, const char* name, int* size_out) {
-  // Release the V8 lock while reading files.
-  v8::Unlocker unlocker(isolate);
   FILE* file = FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -1112,7 +1105,6 @@ Handle<String> Shell::ReadFile(Isolate* isolate, const char* name) {
 
 
 void Shell::RunShell(Isolate* isolate) {
-  Locker locker(isolate);
   HandleScope outer_scope(isolate);
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
@@ -1204,7 +1196,6 @@ void SourceGroup::ExecuteInThread() {
     next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
-      Locker lock(isolate);
       {
         HandleScope scope(isolate);
         PerIsolateData data(isolate);
@@ -1351,34 +1342,31 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
     options.isolate_sources[i].StartExecuteInThread();
   }
 #endif  // !V8_SHARED
-  {  // NOLINT
-    Locker lock(isolate);
-    {
-      HandleScope scope(isolate);
-      Local<Context> context = CreateEvaluationContext(isolate);
-      if (options.last_run) {
-        // Keep using the same context in the interactive shell.
-        evaluation_context_.Reset(isolate, context);
+  {
+    HandleScope scope(isolate);
+    Local<Context> context = CreateEvaluationContext(isolate);
+    if (options.last_run) {
+      // Keep using the same context in the interactive shell.
+      evaluation_context_.Reset(isolate, context);
 #ifndef V8_SHARED
-        // If the interactive debugger is enabled make sure to activate
-        // it before running the files passed on the command line.
-        if (i::FLAG_debugger) {
-          InstallUtilityScript(isolate);
-        }
+      // If the interactive debugger is enabled make sure to activate
+      // it before running the files passed on the command line.
+      if (i::FLAG_debugger) {
+        InstallUtilityScript(isolate);
+      }
 #endif  // !V8_SHARED
-      }
-      {
-        Context::Scope cscope(context);
-        PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-        options.isolate_sources[0].Execute(isolate);
-      }
     }
-    if (!options.last_run) {
-      if (options.send_idle_notification) {
-        const int kLongIdlePauseInMs = 1000;
-        V8::ContextDisposedNotification();
-        V8::IdleNotification(kLongIdlePauseInMs);
-      }
+    {
+      Context::Scope cscope(context);
+      PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
+      options.isolate_sources[0].Execute(isolate);
+    }
+  }
+  if (!options.last_run) {
+    if (options.send_idle_notification) {
+      const int kLongIdlePauseInMs = 1000;
+      V8::ContextDisposedNotification();
+      V8::IdleNotification(kLongIdlePauseInMs);
     }
   }
 

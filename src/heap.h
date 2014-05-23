@@ -767,7 +767,7 @@ class Heap {
 
   // Ensure that we have swept all spaces in such a way that we can iterate
   // over all objects.  May cause a GC.
-  void EnsureHeapIsIterable();
+  void MakeHeapIterable();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed();
@@ -1549,6 +1549,7 @@ class Heap {
   LargeObjectSpace* lo_space_;
   HeapState gc_state_;
   int gc_post_processing_depth_;
+  Address new_space_top_after_last_gc_;
 
   // Returns the amount of external memory registered since last global gc.
   int64_t PromotedExternalMemorySize();
@@ -2391,6 +2392,9 @@ class SpaceIterator : public Malloced {
 // aggregates the specific iterators for the different spaces as
 // these can only iterate over one space only.
 //
+// HeapIterator ensures there is no allocation during its lifetime
+// (using an embedded DisallowHeapAllocation instance).
+//
 // HeapIterator can skip free list nodes (that is, de-allocated heap
 // objects that still remain in the heap). As implementation of free
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
@@ -2413,12 +2417,18 @@ class HeapIterator BASE_EMBEDDED {
   void reset();
 
  private:
+  struct MakeHeapIterableHelper {
+    explicit MakeHeapIterableHelper(Heap* heap) { heap->MakeHeapIterable(); }
+  };
+
   // Perform the initialization.
   void Init();
   // Perform all necessary shutdown (destruction) work.
   void Shutdown();
   HeapObject* NextObject();
 
+  MakeHeapIterableHelper make_heap_iterable_helper_;
+  DisallowHeapAllocation no_heap_allocation_;
   Heap* heap_;
   HeapObjectsFiltering filtering_;
   HeapObjectsFilter* filter_;

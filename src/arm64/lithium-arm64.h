@@ -1757,15 +1757,15 @@ class LLoadKeyed : public LTemplateInstruction<1, 2, T> {
   bool is_typed_elements() const {
     return is_external() || is_fixed_typed_array();
   }
-  uint32_t additional_index() const {
-    return this->hydrogen()->index_offset();
+  uint32_t base_offset() const {
+    return this->hydrogen()->base_offset();
   }
   void PrintDataTo(StringStream* stream) V8_OVERRIDE {
     this->elements()->PrintTo(stream);
     stream->Add("[");
     this->key()->PrintTo(stream);
-    if (this->hydrogen()->IsDehoisted()) {
-      stream->Add(" + %d]", this->additional_index());
+    if (this->base_offset() != 0) {
+      stream->Add(" + %d]", this->base_offset());
     } else {
       stream->Add("]");
     }
@@ -2419,14 +2419,14 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
     }
     return this->hydrogen()->NeedsCanonicalization();
   }
-  uint32_t additional_index() const { return this->hydrogen()->index_offset(); }
+  uint32_t base_offset() const { return this->hydrogen()->base_offset(); }
 
   void PrintDataTo(StringStream* stream) V8_OVERRIDE {
     this->elements()->PrintTo(stream);
     stream->Add("[");
     this->key()->PrintTo(stream);
-    if (this->hydrogen()->IsDehoisted()) {
-      stream->Add(" + %d] <-", this->additional_index());
+    if (this->base_offset() != 0) {
+      stream->Add(" + %d] <-", this->base_offset());
     } else {
       stream->Add("] <- ");
     }

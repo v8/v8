@@ -699,6 +699,10 @@ void Heap::GarbageCollectionEpilogue() {
   ReportStatisticsAfterGC();
 #endif  // DEBUG
   isolate_->debug()->AfterGarbageCollection();
+
+  // Remember the last top pointer so that we can later find out
+  // whether we allocated in new space since the last GC.
+  new_space_top_after_last_gc_ = new_space()->top();
 }
 
 
@@ -4321,14 +4325,15 @@ STRUCT_LIST(MAKE_CASE)
 
 bool Heap::IsHeapIterable() {
   return (!old_pointer_space()->was_swept_conservatively() &&
-          !old_data_space()->was_swept_conservatively());
+          !old_data_space()->was_swept_conservatively() &&
+          new_space_top_after_last_gc_ == new_space()->top());
 }
 
 
-void Heap::EnsureHeapIsIterable() {
+void Heap::MakeHeapIterable() {
   ASSERT(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask, "Heap::EnsureHeapIsIterable");
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
   }
   ASSERT(IsHeapIterable());
 }
@@ -4389,7 +4394,7 @@ bool Heap::IdleNotification(int hint) {
     return false;
   }
 
-  if (!FLAG_incremental_marking || Serializer::enabled(isolate_)) {
+  if (!FLAG_incremental_marking || isolate_->serializer_enabled()) {
     return IdleGlobalGC();
   }
 
@@ -5052,9 +5057,8 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
 
   // The external allocation limit should be below 256 MB on all architectures
-  // to avoid unnecessary low memory notifications, as that is the threshold
-  // for some embedders.
-  external_allocation_limit_ = 12 * max_semi_space_size_;
+  // to avoid that resource-constrained embedders run low on memory.
+  external_allocation_limit_ = 192 * MB;
   ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
@@ -5209,6 +5213,7 @@ bool Heap::SetUp() {
   if (!new_space_.SetUp(reserved_semispace_size_, max_semi_space_size_)) {
     return false;
   }
+  new_space_top_after_last_gc_ = new_space()->top();
 
   // Initialize old pointer space.
   old_pointer_space_ =
@@ -5732,7 +5737,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
 
 HeapIterator::HeapIterator(Heap* heap)
-    : heap_(heap),
+    : make_heap_iterable_helper_(heap),
+      no_heap_allocation_(),
+      heap_(heap),
       filtering_(HeapIterator::kNoFiltering),
       filter_(NULL) {
   Init();
@@ -5741,7 +5748,9 @@ HeapIterator::HeapIterator(Heap* heap)
 
 HeapIterator::HeapIterator(Heap* heap,
                            HeapIterator::HeapObjectsFiltering filtering)
-    : heap_(heap),
+    : make_heap_iterable_helper_(heap),
+      no_heap_allocation_(),
+      heap_(heap),
       filtering_(filtering),
       filter_(NULL) {
   Init();

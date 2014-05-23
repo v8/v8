@@ -26,14 +26,14 @@ namespace internal {
   F(GetProperty, 2, 1) \
   F(KeyedGetProperty, 2, 1) \
   F(DeleteProperty, 3, 1) \
-  F(HasLocalProperty, 2, 1) \
+  F(HasOwnProperty, 2, 1) \
   F(HasProperty, 2, 1) \
   F(HasElement, 2, 1) \
   F(IsPropertyEnumerable, 2, 1) \
   F(GetPropertyNames, 1, 1) \
   F(GetPropertyNamesFast, 1, 1) \
-  F(GetLocalPropertyNames, 2, 1) \
-  F(GetLocalElementNames, 1, 1) \
+  F(GetOwnPropertyNames, 2, 1) \
+  F(GetOwnElementNames, 1, 1) \
   F(GetInterceptorInfo, 1, 1) \
   F(GetNamedInterceptorPropertyNames, 1, 1) \
   F(GetIndexedInterceptorElementNames, 1, 1) \
@@ -356,7 +356,7 @@ namespace internal {
   F(Abort, 1, 1) \
   F(AbortJS, 1, 1) \
   /* ES5 */ \
-  F(LocalKeys, 1, 1) \
+  F(OwnKeys, 1, 1) \
   \
   /* Message objects */ \
   F(MessageGetStartPosition, 1, 1) \

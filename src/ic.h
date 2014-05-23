@@ -333,20 +333,34 @@ class IC_Utility {
 class CallIC: public IC {
  public:
   enum CallType { METHOD, FUNCTION };
+  enum StubType { DEFAULT, MONOMORPHIC_ARRAY };
 
   class State V8_FINAL BASE_EMBEDDED {
    public:
     explicit State(ExtraICState extra_ic_state);
 
+    static State MonomorphicArrayCallState(int argc, CallType call_type) {
+      return State(argc, call_type, MONOMORPHIC_ARRAY);
+    }
+
     static State DefaultCallState(int argc, CallType call_type) {
-      return State(argc, call_type);
+      return State(argc, call_type, DEFAULT);
     }
 
-    static State MegamorphicCallState(int argc, CallType call_type) {
-      return State(argc, call_type);
+    // Transition from the current state to another.
+    State ToGenericState() const {
+      return DefaultCallState(arg_count(), call_type());
     }
 
-    InlineCacheState GetICState() const { return ::v8::internal::GENERIC; }
+    State ToMonomorphicArrayCallState() const {
+      return MonomorphicArrayCallState(arg_count(), call_type());
+    }
+
+    InlineCacheState GetICState() const {
+      return stub_type_ == CallIC::DEFAULT
+          ? ::v8::internal::GENERIC
+          : ::v8::internal::MONOMORPHIC;
+    }
 
     ExtraICState GetExtraICState() const;
 
@@ -355,6 +369,7 @@ class CallIC: public IC {
 
     int arg_count() const { return argc_; }
     CallType call_type() const { return call_type_; }
+    StubType stub_type() const { return stub_type_; }
 
     bool CallAsMethod() const { return call_type_ == METHOD; }
 
@@ -370,17 +385,20 @@ class CallIC: public IC {
     }
 
    private:
-    State(int argc,
-          CallType call_type)
+    State(int argc, CallType call_type, StubType stub_type)
         : argc_(argc),
-        call_type_(call_type) {
+        call_type_(call_type),
+        stub_type_(stub_type) {
     }
 
     class ArgcBits: public BitField<int, 0, Code::kArgumentsBits> {};
     class CallTypeBits: public BitField<CallType, Code::kArgumentsBits, 1> {};
+    class StubTypeBits:
+        public BitField<StubType, Code::kArgumentsBits + 1, 1> {};  // NOLINT
 
     const int argc_;
     const CallType call_type_;
+    const StubType stub_type_;
   };
 
   explicit CallIC(Isolate* isolate)
@@ -391,6 +409,13 @@ class CallIC: public IC {
                   Handle<Object> function,
                   Handle<FixedArray> vector,
                   Handle<Smi> slot);
+
+  // Returns true if a custom handler was installed.
+  bool DoCustomHandler(Handle<Object> receiver,
+                       Handle<Object> function,
+                       Handle<FixedArray> vector,
+                       Handle<Smi> slot,
+                       const State& new_state);
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate,

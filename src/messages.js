@@ -1240,7 +1240,7 @@ var cyclic_error_marker = new $Object();
 function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
   var current = error;
   // Climb the prototype chain until we find the holder.
-  while (current && !%HasLocalProperty(current, name)) {
+  while (current && !%HasOwnProperty(current, name)) {
     current = %GetPrototype(current);
   }
   if (IS_NULL(current)) return UNDEFINED;

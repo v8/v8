@@ -963,10 +963,18 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ACCESSOR(LookupResult*, top_lookup_result)
 
+  void enable_serializer() {
+    // The serializer can only be enabled before the isolate init.
+    ASSERT(state_ != INITIALIZED);
+    serializer_enabled_ = true;
+  }
+
+  bool serializer_enabled() const { return serializer_enabled_; }
+
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft() const { return use_crankshaft_; }
+  bool use_crankshaft() const;
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
@@ -1232,11 +1240,11 @@ class Isolate {
   CallInterfaceDescriptor* call_descriptors_;
   RandomNumberGenerator* random_number_generator_;
 
+  // Whether the isolate has been created for snapshotting.
+  bool serializer_enabled_;
+
   // True if fatal error has been signaled for this isolate.
   bool has_fatal_error_;
-
-  // True if we are using the Crankshaft optimizing compiler.
-  bool use_crankshaft_;
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;

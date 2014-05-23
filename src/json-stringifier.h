@@ -675,7 +675,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
     Handle<FixedArray> contents;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, contents,
-        JSReceiver::GetKeys(object, JSReceiver::LOCAL_ONLY),
+        JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY),
         EXCEPTION);
 
     for (int i = 0; i < contents->length(); i++) {

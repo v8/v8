@@ -382,15 +382,17 @@ BUILTIN(ArrayPush) {
   }
 
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  int len = Smi::cast(array->length())->value();
+  int to_add = args.length() - 1;
+  if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
+    return CallJsBuiltin(isolate, "ArrayPush", args);
+  }
   ASSERT(!array->map()->is_observed());
 
   ElementsKind kind = array->GetElementsKind();
 
   if (IsFastSmiOrObjectElementsKind(kind)) {
     Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-
-    int len = Smi::cast(array->length())->value();
-    int to_add = args.length() - 1;
     if (to_add == 0) {
       return Smi::FromInt(len);
     }
@@ -429,10 +431,7 @@ BUILTIN(ArrayPush) {
     array->set_length(Smi::FromInt(new_length));
     return Smi::FromInt(new_length);
   } else {
-    int len = Smi::cast(array->length())->value();
     int elms_len = elms_obj->length();
-
-    int to_add = args.length() - 1;
     if (to_add == 0) {
       return Smi::FromInt(len);
     }
@@ -578,14 +577,18 @@ BUILTIN(ArrayUnshift) {
   if (!array->HasFastSmiOrObjectElements()) {
     return CallJsBuiltin(isolate, "ArrayUnshift", args);
   }
-  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
-
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
   int new_length = len + to_add;
   // Currently fixed arrays cannot grow too big, so
   // we should never hit this case.
   ASSERT(to_add <= (Smi::kMaxValue - len));
+
+  if (to_add > 0 && JSArray::WouldChangeReadOnlyLength(array, len + to_add)) {
+    return CallJsBuiltin(isolate, "ArrayUnshift", args);
+  }
+
+  Handle<FixedArray> elms = Handle<FixedArray>::cast(elms_obj);
 
   JSObject::EnsureCanContainElements(array, &args, 1, to_add,
                                      DONT_ALLOW_DOUBLE_ELEMENTS);

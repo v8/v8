@@ -52,8 +52,6 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   CPU cpu;
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
   CHECK(cpu.has_cmov());  // CMOV support is mandatory.
-  CHECK(cpu.has_sahf());  // SAHF must be available in compat/legacy mode.
-  supported_ |= 1u << SAHF;
   supported_ |= OS::CpuFeaturesImpliedByPlatform();
 
   // Only use statically determined features for cross compile (snapshot).

@@ -587,6 +587,72 @@ TEST(CollectCpuProfile) {
 }
 
 
+static const char* hot_deopt_no_frame_entry_test_source =
+"function foo(a, b) {\n"
+"    try {\n"
+"      return a + b;\n"
+"    } catch (e) { }\n"
+"}\n"
+"function start(timeout) {\n"
+"  var start = Date.now();\n"
+"  do {\n"
+"    for (var i = 1; i < 1000; ++i) foo(1, i);\n"
+"    var duration = Date.now() - start;\n"
+"  } while (duration < timeout);\n"
+"  return duration;\n"
+"}\n";
+
+// Check that the profile tree for the script above will look like the
+// following:
+//
+// [Top down]:
+//  1062     0  (root) [-1]
+//  1054     0    start [-1]
+//  1054     1      foo [-1]
+//     2     2    (program) [-1]
+//     6     6    (garbage collector) [-1]
+//
+// The test checks no FP ranges are present in a deoptimized funcion.
+// If 'foo' has no ranges the samples falling into the prologue will miss the
+// 'start' function on the stack, so 'foo' will be attached to the (root).
+TEST(HotDeoptNoFrameEntry) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  v8::Script::Compile(v8::String::NewFromUtf8(
+      env->GetIsolate(),
+      hot_deopt_no_frame_entry_test_source))->Run();
+  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "start")));
+
+  int32_t profiling_interval_ms = 200;
+  v8::Handle<v8::Value> args[] = {
+    v8::Integer::New(env->GetIsolate(), profiling_interval_ms)
+  };
+  v8::CpuProfile* profile =
+      RunProfiler(env.local(), function, args, ARRAY_SIZE(args), 200);
+  function->Call(env->Global(), ARRAY_SIZE(args), args);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+
+  ScopedVector<v8::Handle<v8::String> > names(3);
+  names[0] = v8::String::NewFromUtf8(
+      env->GetIsolate(), ProfileGenerator::kGarbageCollectorEntryName);
+  names[1] = v8::String::NewFromUtf8(env->GetIsolate(),
+                                     ProfileGenerator::kProgramEntryName);
+  names[2] = v8::String::NewFromUtf8(env->GetIsolate(), "start");
+  CheckChildrenNames(root, names);
+
+  const v8::CpuProfileNode* startNode =
+      GetChild(env->GetIsolate(), root, "start");
+  CHECK_EQ(1, startNode->GetChildrenCount());
+
+  GetChild(env->GetIsolate(), startNode, "foo");
+
+  profile->Delete();
+}
+
+
 TEST(CollectCpuProfileSamples) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

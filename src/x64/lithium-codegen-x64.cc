@@ -3024,15 +3024,11 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoLoadKeyedExternalArray(LLoadKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
-  int base_offset = instr->is_fixed_typed_array()
-    ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
-    : 0;
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
       elements_kind,
-      base_offset,
-      instr->additional_index()));
+      instr->base_offset()));
 
   if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS) {
@@ -3098,14 +3094,11 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
   XMMRegister result(ToDoubleRegister(instr->result()));
   LOperand* key = instr->key();
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-        sizeof(kHoleNanLower32);
     Operand hole_check_operand = BuildFastArrayOperand(
         instr->elements(),
         key,
         FAST_DOUBLE_ELEMENTS,
-        offset,
-        instr->additional_index());
+        instr->base_offset() + sizeof(kHoleNanLower32));
     __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
     DeoptimizeIf(equal, instr->environment());
   }
@@ -3114,8 +3107,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
       instr->elements(),
       key,
       FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      instr->base_offset());
   __ movsd(result, double_load_operand);
 }
 
@@ -3125,8 +3117,8 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
   Register result = ToRegister(instr->result());
   LOperand* key = instr->key();
   bool requires_hole_check = hinstr->RequiresHoleCheck();
-  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
   Representation representation = hinstr->representation();
+  int offset = instr->base_offset();
 
   if (representation.IsInteger32() && SmiValuesAre32Bits() &&
       hinstr->elements_kind() == FAST_SMI_ELEMENTS) {
@@ -3137,8 +3129,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
               BuildFastArrayOperand(instr->elements(),
                                     key,
                                     FAST_ELEMENTS,
-                                    offset,
-                                    instr->additional_index()),
+                                    offset),
               Representation::Smi());
       __ AssertSmi(scratch);
     }
@@ -3152,8 +3143,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
           BuildFastArrayOperand(instr->elements(),
                                 key,
                                 FAST_ELEMENTS,
-                                offset,
-                                instr->additional_index()),
+                                offset),
           representation);
 
   // Check for the hole value.
@@ -3184,8 +3174,7 @@ Operand LCodeGen::BuildFastArrayOperand(
     LOperand* elements_pointer,
     LOperand* key,
     ElementsKind elements_kind,
-    uint32_t offset,
-    uint32_t additional_index) {
+    uint32_t offset) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
@@ -3194,14 +3183,13 @@ Operand LCodeGen::BuildFastArrayOperand(
       Abort(kArrayIndexConstantValueTooBig);
     }
     return Operand(elements_pointer_reg,
-                   ((constant_value + additional_index) << shift_size)
-                       + offset);
+                   (constant_value << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
     return Operand(elements_pointer_reg,
                    ToRegister(key),
                    scale_factor,
-                   offset + (additional_index << shift_size));
+                   offset);
   }
 }
 
@@ -4184,15 +4172,11 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   LOperand* key = instr->key();
-  int base_offset = instr->is_fixed_typed_array()
-    ? FixedTypedArrayBase::kDataOffset - kHeapObjectTag
-    : 0;
   Operand operand(BuildFastArrayOperand(
       instr->elements(),
       key,
       elements_kind,
-      base_offset,
-      instr->additional_index()));
+      instr->base_offset()));
 
   if (elements_kind == EXTERNAL_FLOAT32_ELEMENTS ||
       elements_kind == FLOAT32_ELEMENTS) {
@@ -4264,8 +4248,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
       instr->elements(),
       key,
       FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      instr->base_offset());
 
   __ movsd(double_store_operand, value);
 }
@@ -4274,7 +4257,7 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
 void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
   HStoreKeyed* hinstr = instr->hydrogen();
   LOperand* key = instr->key();
-  int offset = FixedArray::kHeaderSize - kHeapObjectTag;
+  int offset = instr->base_offset();
   Representation representation = hinstr->value()->representation();
 
   if (representation.IsInteger32() && SmiValuesAre32Bits()) {
@@ -4286,8 +4269,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
               BuildFastArrayOperand(instr->elements(),
                                     key,
                                     FAST_ELEMENTS,
-                                    offset,
-                                    instr->additional_index()),
+                                    offset),
               Representation::Smi());
       __ AssertSmi(scratch);
     }
@@ -4301,9 +4283,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
       BuildFastArrayOperand(instr->elements(),
                             key,
                             FAST_ELEMENTS,
-                            offset,
-                            instr->additional_index());
-
+                            offset);
   if (instr->value()->IsRegister()) {
     __ Store(operand, ToRegister(instr->value()), representation);
   } else {

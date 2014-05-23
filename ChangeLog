@@ -1,3 +1,10 @@
+2014-05-23: Version 3.27.11
+
+        Add support for ES6 Symbol in heap profiler (Chromium issue 376194).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-22: Version 3.27.10
 
         Implement Mirror object for Symbols (issue 3290).

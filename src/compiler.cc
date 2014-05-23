@@ -456,6 +456,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     if (optimized_code.is_null()) {
       if (info()->bailout_reason() == kNoReason) {
         info_->set_bailout_reason(kCodeGenerationFailed);
+      } else if (info()->bailout_reason() == kMapBecameUnstable) {
+        return AbortOptimization();
       }
       return AbortAndDisableOptimization();
     }
@@ -518,7 +520,7 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
   // TODO(yangguo): check whether those heuristics are still up-to-date.
   // We do not shrink objects that go into a snapshot (yet), so we adjust
   // the estimate conservatively.
-  if (Serializer::enabled(shared->GetIsolate())) {
+  if (shared->GetIsolate()->serializer_enabled()) {
     estimate += 2;
   } else if (FLAG_clever_optimizations) {
     // Inobject slack tracking will reclaim redundant inobject space later,

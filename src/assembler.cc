@@ -124,7 +124,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
-      serializer_enabled_(Serializer::enabled(isolate)) {
+      // We may use the assembler without an isolate.
+      serializer_enabled_(isolate && isolate->serializer_enabled()) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
@@ -996,9 +997,6 @@ ExternalReference::ExternalReference(const IC_Utility& ic_utility,
                                      Isolate* isolate)
   : address_(Redirect(isolate, ic_utility.address())) {}
 
-ExternalReference::ExternalReference(const Debug_Address& debug_address,
-                                     Isolate* isolate)
-  : address_(debug_address.address(isolate)) {}
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}
@@ -1428,6 +1426,20 @@ ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
 ExternalReference ExternalReference::cpu_features() {
   ASSERT(CpuFeatures::initialized_);
   return ExternalReference(&CpuFeatures::supported_);
+}
+
+
+ExternalReference ExternalReference::debug_after_break_target_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->after_break_target_address());
+}
+
+
+ExternalReference
+    ExternalReference::debug_restarter_frame_function_pointer_address(
+        Isolate* isolate) {
+  return ExternalReference(
+      isolate->debug()->restarter_frame_function_pointer_address());
 }
 
 

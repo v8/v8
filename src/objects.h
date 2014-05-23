@@ -1922,9 +1922,9 @@ class JSReceiver: public HeapObject {
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
-  static inline bool HasLocalProperty(Handle<JSReceiver>, Handle<Name> name);
+  static inline bool HasOwnProperty(Handle<JSReceiver>, Handle<Name> name);
   static inline bool HasElement(Handle<JSReceiver> object, uint32_t index);
-  static inline bool HasLocalElement(Handle<JSReceiver> object, uint32_t index);
+  static inline bool HasOwnElement(Handle<JSReceiver> object, uint32_t index);
 
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
@@ -1953,14 +1953,14 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object,
       Handle<JSReceiver> receiver,
       Handle<Name> name);
-  static PropertyAttributes GetLocalPropertyAttribute(
+  static PropertyAttributes GetOwnPropertyAttribute(
       Handle<JSReceiver> object,
       Handle<Name> name);
 
   static inline PropertyAttributes GetElementAttribute(
       Handle<JSReceiver> object,
       uint32_t index);
-  static inline PropertyAttributes GetLocalElementAttribute(
+  static inline PropertyAttributes GetOwnElementAttribute(
       Handle<JSReceiver> object,
       uint32_t index);
 
@@ -1981,11 +1981,11 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LocalLookup(Handle<Name> name, LookupResult* result,
-                   bool search_hidden_prototypes = false);
+  void LookupOwn(Handle<Name> name, LookupResult* result,
+                 bool search_hidden_prototypes = false);
   void Lookup(Handle<Name> name, LookupResult* result);
 
-  enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
+  enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
 
   // Computes the enumerable keys for a JSObject. Used for implementing
   // "for (n in object) { }".
@@ -2157,7 +2157,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetLocalPropertyIgnoreAttributes(
+  MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object,
       Handle<Name> key,
       Handle<Object> value,
@@ -2273,8 +2273,8 @@ class JSObject: public JSReceiver {
 
   // Accessors for hidden properties object.
   //
-  // Hidden properties are not local properties of the object itself.
-  // Instead they are stored in an auxiliary structure kept as a local
+  // Hidden properties are not own properties of the object itself.
+  // Instead they are stored in an auxiliary structure kept as an own
   // property with a special name Heap::hidden_string(). But if the
   // receiver is a JSGlobalProxy then the auxiliary object is a property
   // of its prototype, and if it's a detached proxy, then you can't have
@@ -2344,10 +2344,10 @@ class JSObject: public JSReceiver {
   }
 
   // These methods do not perform access checks!
-  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetLocalPropertyAccessorPair(
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnPropertyAccessorPair(
       Handle<JSObject> object,
       Handle<Name> name);
-  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetLocalElementAccessorPair(
+  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnElementAccessorPair(
       Handle<JSObject> object,
       uint32_t index);
 
@@ -2432,7 +2432,7 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Smi* value);
 
   // The following lookup functions skip interceptors.
-  void LocalLookupRealNamedProperty(Handle<Name> name, LookupResult* result);
+  void LookupOwnRealNamedProperty(Handle<Name> name, LookupResult* result);
   void LookupRealNamedProperty(Handle<Name> name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(Handle<Name> name,
                                            LookupResult* result);
@@ -2440,20 +2440,20 @@ class JSObject: public JSReceiver {
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
-  int NumberOfLocalProperties(PropertyAttributes filter = NONE);
+  int NumberOfOwnProperties(PropertyAttributes filter = NONE);
   // Fill in details for properties into storage starting at the specified
   // index.
-  void GetLocalPropertyNames(
+  void GetOwnPropertyNames(
       FixedArray* storage, int index, PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
-  int NumberOfLocalElements(PropertyAttributes filter);
+  int NumberOfOwnElements(PropertyAttributes filter);
   // Returns the number of enumerable elements (ignoring interceptors).
   int NumberOfEnumElements();
   // Returns the number of elements on this object filtering out elements
   // with the specified attributes (ignoring interceptors).
-  int GetLocalElementKeys(FixedArray* storage, PropertyAttributes filter);
+  int GetOwnElementKeys(FixedArray* storage, PropertyAttributes filter);
   // Count and fill in the enumerable elements into storage.
   // (storage->length() == NumberOfEnumElements()).
   // If storage is NULL, will count the elements without adding
@@ -2468,7 +2468,7 @@ class JSObject: public JSReceiver {
   static void TransitionElementsKind(Handle<JSObject> object,
                                      ElementsKind to_kind);
 
-  // TODO(mstarzinger): Both public because of ConvertAnsSetLocalProperty().
+  // TODO(mstarzinger): Both public because of ConvertAndSetOwnProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
@@ -7495,6 +7495,8 @@ class JSGeneratorObject: public JSObject {
   // cannot be resumed.
   inline int continuation();
   inline void set_continuation(int continuation);
+  inline bool is_closed();
+  inline bool is_executing();
   inline bool is_suspended();
 
   // [operand_stack]: Saved operand stack.
@@ -7920,7 +7922,7 @@ class JSDate: public JSObject {
   // [sec]: caches seconds. Either undefined, smi, or NaN.
   DECL_ACCESSORS(sec, Object)
   // [cache stamp]: sample of the date cache stamp at the
-  // moment when local fields were cached.
+  // moment when chached fields were cached.
   DECL_ACCESSORS(cache_stamp, Object)
 
   // Casting.
@@ -7984,7 +7986,7 @@ class JSDate: public JSObject {
   Object* GetUTCField(FieldIndex index, double value, DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
-  inline void SetLocalFields(int64_t local_time_ms, DateCache* date_cache);
+  inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
 
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
@@ -10336,6 +10338,10 @@ class JSArray: public JSObject {
                                            uint32_t index,
                                            Handle<Object> value);
 
+  static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
+  static bool WouldChangeReadOnlyLength(Handle<JSArray> array, uint32_t index);
+  static MaybeHandle<Object> ReadOnlyLengthError(Handle<JSArray> array);
+
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
@@ -10569,7 +10575,7 @@ class DeclaredAccessorInfo: public AccessorInfo {
 // the request is ignored.
 //
 // If the accessor in the prototype has the READ_ONLY property attribute, then
-// a new value is added to the local object when the property is set.
+// a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
 class ExecutableAccessorInfo: public AccessorInfo {
  public:

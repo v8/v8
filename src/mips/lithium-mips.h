@@ -1609,7 +1609,7 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
 
   virtual void PrintDataTo(StringStream* stream);
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+  uint32_t base_offset() const { return hydrogen()->base_offset(); }
 };
 
 
@@ -2178,7 +2178,7 @@ class LStoreKeyed V8_FINAL : public LTemplateInstruction<0, 3, 0> {
 
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+  uint32_t base_offset() const { return hydrogen()->base_offset(); }
 };
 
 

@@ -79,6 +79,7 @@ struct TickSample;
 
 #define LOG_EVENTS_AND_TAGS_LIST(V)                                     \
   V(CODE_CREATION_EVENT,            "code-creation")                    \
+  V(CODE_DISABLE_OPT_EVENT,         "code-disable-optimization")        \
   V(CODE_MOVE_EVENT,                "code-move")                        \
   V(CODE_DELETE_EVENT,              "code-delete")                      \
   V(CODE_MOVING_GC,                 "code-moving-gc")                   \
@@ -237,6 +238,8 @@ class Logger {
                        CompilationInfo* info,
                        Name* source, int line, int column);
   void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
+  // Emits a code deoptimization event.
+  void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(Code* code, String* source);
@@ -470,6 +473,7 @@ class CodeEventListener {
   virtual void CodeDeleteEvent(Address from) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
+  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) = 0;
 };
 
 

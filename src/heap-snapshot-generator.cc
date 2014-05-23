@@ -155,6 +155,7 @@ const char* HeapEntry::TypeAsString() {
     case kSynthetic: return "/synthetic/";
     case kConsString: return "/concatenated string/";
     case kSlicedString: return "/sliced string/";
+    case kSymbol: return "/symbol/";
     default: return "???";
   }
 }
@@ -851,6 +852,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object,
                     HeapEntry::kString,
                     names_->GetName(String::cast(object)));
+  } else if (object->IsSymbol()) {
+    return AddEntry(object, HeapEntry::kSymbol, "symbol");
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
@@ -1098,6 +1101,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
     ExtractStringReferences(entry, String::cast(obj));
+  } else if (obj->IsSymbol()) {
+    ExtractSymbolReferences(entry, Symbol::cast(obj));
   } else if (obj->IsMap()) {
     ExtractMapReferences(entry, Map::cast(obj));
   } else if (obj->IsSharedFunctionInfo()) {
@@ -1241,6 +1246,13 @@ void V8HeapExplorer::ExtractStringReferences(int entry, String* string) {
     SetInternalReference(ss, entry, "parent", ss->parent(),
                          SlicedString::kParentOffset);
   }
+}
+
+
+void V8HeapExplorer::ExtractSymbolReferences(int entry, Symbol* symbol) {
+  SetInternalReference(symbol, entry,
+                       "name", symbol->name(),
+                       Symbol::kNameOffset);
 }
 
 
@@ -1752,7 +1764,7 @@ String* V8HeapExplorer::GetConstructorName(JSObject* object) {
     Object* constructor_prop = NULL;
     Isolate* isolate = heap->isolate();
     LookupResult result(isolate);
-    object->LocalLookupRealNamedProperty(
+    object->LookupOwnRealNamedProperty(
         isolate->factory()->constructor_string(), &result);
     if (!result.IsFound()) return object->constructor_name();
 
@@ -2568,10 +2580,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
         was_swept_conservatively());
   CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
-
-  // The following code uses heap iterators, so we want the heap to be
-  // stable. It should follow TagGlobalObjects as that can allocate.
-  DisallowHeapAllocation no_alloc;
 
 #ifdef VERIFY_HEAP
   debug_heap->Verify();

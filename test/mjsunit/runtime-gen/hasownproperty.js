@@ -3,4 +3,4 @@
 // Flags: --allow-natives-syntax --harmony
 var _object = new Object();
 var _key = "name";
-%HasLocalProperty(_object, _key);
+%HasOwnProperty(_object, _key);

@@ -17,7 +17,6 @@ enum TypeCode {
   BUILTIN,
   RUNTIME_FUNCTION,
   IC_UTILITY,
-  DEBUG_ADDRESS,
   STATS_COUNTER,
   TOP_ADDRESS,
   C_BUILTIN,
@@ -34,8 +33,6 @@ const int kFirstTypeCode = UNCLASSIFIED;
 const int kReferenceIdBits = 16;
 const int kReferenceIdMask = (1 << kReferenceIdBits) - 1;
 const int kReferenceTypeShift = kReferenceIdBits;
-const int kDebugRegisterBits = 4;
-const int kDebugIdShift = kDebugRegisterBits;
 
 const int kDeoptTableSerializeEntryCount = 12;
 
@@ -60,7 +57,7 @@ class ExternalReferenceTable {
 
  private:
   explicit ExternalReferenceTable(Isolate* isolate) : refs_(64) {
-      PopulateTable(isolate);
+    PopulateTable(isolate);
   }
 
   struct ExternalReferenceEntry {
@@ -447,16 +444,7 @@ class Serializer : public SerializerDeserializer {
   }
 
   Isolate* isolate() const { return isolate_; }
-  static void RequestEnable(Isolate* isolate);
-  static void InitializeOncePerProcess();
-  static void TearDown();
 
-  static bool enabled(Isolate* isolate) {
-    SerializationState state = static_cast<SerializationState>(
-        NoBarrier_Load(&serialization_state_));
-    ASSERT(state != SERIALIZER_STATE_UNINITIALIZED);
-    return state == SERIALIZER_STATE_ENABLED;
-  }
   SerializationAddressMapper* address_mapper() { return &address_mapper_; }
   void PutRoot(int index,
                HeapObject* object,
@@ -555,14 +543,6 @@ class Serializer : public SerializerDeserializer {
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
 
-  enum SerializationState {
-    SERIALIZER_STATE_UNINITIALIZED = 0,
-    SERIALIZER_STATE_DISABLED = 1,
-    SERIALIZER_STATE_ENABLED = 2
-  };
-
-  static AtomicWord serialization_state_;
-
   SerializationAddressMapper address_mapper_;
   intptr_t root_index_wave_front_;
   void Pad();
@@ -570,8 +550,12 @@ class Serializer : public SerializerDeserializer {
   friend class ObjectSerializer;
   friend class Deserializer;
 
+  // We may not need the code address map for logging for every instance
+  // of the serializer.  Initialize it on demand.
+  void InitializeCodeAddressMap();
+
  private:
-  static CodeAddressMap* code_address_map_;
+  CodeAddressMap* code_address_map_;
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
@@ -584,6 +568,7 @@ class PartialSerializer : public Serializer {
     : Serializer(isolate, sink),
       startup_serializer_(startup_snapshot_serializer) {
     set_root_index_wave_front(Heap::kStrongRootListLength);
+    InitializeCodeAddressMap();
   }
 
   // Serialize the objects reachable from a single object pointer.
@@ -623,6 +608,7 @@ class StartupSerializer : public Serializer {
     // which will repopulate the cache with objects needed by that partial
     // snapshot.
     isolate->set_serialize_partial_snapshot_cache_length(0);
+    InitializeCodeAddressMap();
   }
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.

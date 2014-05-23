@@ -3457,7 +3457,7 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   if (IsDehoisted()) {
-    stream->Add(" + %d]", index_offset());
+    stream->Add(" + %d]", base_offset());
   } else {
     stream->Add("]");
   }
@@ -3609,7 +3609,7 @@ void HStoreKeyed::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   if (IsDehoisted()) {
-    stream->Add(" + %d] = ", index_offset());
+    stream->Add(" + %d] = ", base_offset());
   } else {
     stream->Add("] = ");
   }

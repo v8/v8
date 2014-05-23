@@ -1267,7 +1267,7 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   Interface* interface = scope->interface();
   for (Interface::Iterator it = interface->iterator();
        !it.done(); it.Advance()) {
-    if (scope->LocalLookup(it.name()) == NULL) {
+    if (scope->LookupLocal(it.name()) == NULL) {
       ParserTraits::ReportMessage("module_export_undefined", it.name());
       *ok = false;
       return NULL;
@@ -1679,7 +1679,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
     // global scope.
     var = declaration_scope->is_global_scope()
         ? declaration_scope->Lookup(name)
-        : declaration_scope->LocalLookup(name);
+        : declaration_scope->LookupLocal(name);
     if (var == NULL) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(

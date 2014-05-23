@@ -290,7 +290,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
       && (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
           target->ic_state() == POLYMORPHIC || heap->flush_monomorphic_ics() ||
-          Serializer::enabled(heap->isolate()) ||
+          heap->isolate()->serializer_enabled() ||
           target->ic_age() != heap->global_ic_age() ||
           target->is_invalidated_weak_stub())) {
     IC::Clear(heap->isolate(), rinfo->pc(), rinfo->host()->constant_pool());
@@ -406,7 +406,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
   Code* code = Code::cast(object);
-  if (FLAG_age_code && !Serializer::enabled(heap->isolate())) {
+  if (FLAG_age_code && !heap->isolate()->serializer_enabled()) {
     code->MakeOlder(heap->mark_compact_collector()->marking_parity());
   }
   code->CodeIterateBody<StaticVisitor>(heap);
