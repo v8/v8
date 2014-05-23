@@ -379,9 +379,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
       __ Branch(&rt_call, eq, a3, Operand(JS_FUNCTION_TYPE));
 
-      // Use t7 to hold undefined, which is used in several places below.
-      __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
-
       if (!is_api_function) {
         Label allocate;
         MemOperand bit_field3 = FieldMemOperand(a2, Map::kBitField3Offset);
@@ -399,6 +396,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
 
         __ Pop(a1, a2);
+        // Slack tracking counter is kNoSlackTracking after runtime call.
+        ASSERT(JSFunction::kNoSlackTracking == 0);
+        __ mov(t2, zero_reg);
 
         __ bind(&allocate);
       }
@@ -437,6 +437,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // t5: First in-object property of JSObject (not tagged)
       // t2: slack tracking counter (non-API function case)
       ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
+
+      // Use t7 to hold undefined, which is used in several places below.
+      __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
 
       if (!is_api_function) {
         Label no_inobject_slack_tracking;
