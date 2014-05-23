@@ -1995,9 +1995,21 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoPushArgument(HPushArgument* instr) {
-  LOperand* argument = UseRegister(instr->argument());
-  return new(zone()) LPushArgument(argument);
+LInstruction* LChunkBuilder::DoPushArguments(HPushArguments* instr) {
+  int argc = instr->OperandCount();
+  AddInstruction(new(zone()) LPreparePushArguments(argc), instr);
+
+  LPushArguments* push_args = new(zone()) LPushArguments(zone());
+
+  for (int i = 0; i < argc; ++i) {
+    if (push_args->ShouldSplitPush()) {
+      AddInstruction(push_args, instr);
+      push_args = new(zone()) LPushArguments(zone());
+    }
+    push_args->AddArgument(UseRegister(instr->argument(i)));
+  }
+
+  return push_args;
 }
 
 

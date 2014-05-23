@@ -805,10 +805,13 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 }
 
 
-void MacroAssembler::PushPopQueue::PushQueued() {
+void MacroAssembler::PushPopQueue::PushQueued(
+    PreambleDirective preamble_directive) {
   if (queued_.empty()) return;
 
-  masm_->PushPreamble(size_);
+  if (preamble_directive == WITH_PREAMBLE) {
+    masm_->PushPreamble(size_);
+  }
 
   int count = queued_.size();
   int index = 0;

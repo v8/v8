@@ -4677,14 +4677,27 @@ void LCodeGen::DoParameter(LParameter* instr) {
 }
 
 
-void LCodeGen::DoPushArgument(LPushArgument* instr) {
-  LOperand* argument = instr->value();
-  if (argument->IsDoubleRegister() || argument->IsDoubleStackSlot()) {
-    Abort(kDoPushArgumentNotImplementedForDoubleType);
-  } else {
-    __ Push(ToRegister(argument));
-    after_push_argument_ = true;
+void LCodeGen::DoPreparePushArguments(LPreparePushArguments* instr) {
+  __ PushPreamble(instr->argc(), kPointerSize);
+}
+
+
+void LCodeGen::DoPushArguments(LPushArguments* instr) {
+  MacroAssembler::PushPopQueue args(masm());
+
+  for (int i = 0; i < instr->ArgumentCount(); ++i) {
+    LOperand* arg = instr->argument(i);
+    if (arg->IsDoubleRegister() || arg->IsDoubleStackSlot()) {
+      Abort(kDoPushArgumentNotImplementedForDoubleType);
+      return;
+    }
+    args.Queue(ToRegister(arg));
   }
+
+  // The preamble was done by LPreparePushArguments.
+  args.PushQueued(MacroAssembler::PushPopQueue::SKIP_PREAMBLE);
+
+  after_push_argument_ = true;
 }
 
 
