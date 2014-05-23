@@ -16,8 +16,9 @@ class State : public ZoneObject {
 
   State* Process(HInstruction* instr, Zone* zone) {
     if (FLAG_trace_removable_simulates) {
-      PrintF("[State::Process %s #%d %s]\n",
-             mode_ == NORMAL ? "normal" : "collect",
+      PrintF("[%s with state %p in B%d: #%d %s]\n",
+             mode_ == NORMAL ? "processing" : "collecting",
+             reinterpret_cast<void*>(this), instr->block()->block_id(),
              instr->id(), instr->Mnemonic());
     }
     // Forward-merge "trains" of simulates after an instruction with observable
@@ -80,18 +81,19 @@ class State : public ZoneObject {
                       State* pred_state,
                       HBasicBlock* pred_block,
                       Zone* zone) {
-    if (FLAG_trace_removable_simulates) {
-      PrintF("[State::Merge predecessor block %d, successor block %d\n",
-             pred_block->block_id(), succ_block->block_id());
-    }
-    return pred_state;
+    return (succ_state == NULL)
+        ? pred_state->Copy(succ_block, pred_block, zone)
+        : succ_state->Merge(succ_block, pred_state, pred_block, zone);
   }
 
   static State* Finish(State* state, HBasicBlock* block, Zone* zone) {
     if (FLAG_trace_removable_simulates) {
-      PrintF("[State::Finish block %d]\n", block->block_id()); }
-    // Make sure the merge list is empty at the start of a block.
-    ASSERT(state->mergelist_.is_empty());
+      PrintF("[preparing state %p for B%d]\n", reinterpret_cast<void*>(state),
+             block->block_id());
+    }
+    // For our current local analysis, we should not remember simulates across
+    // block boundaries.
+    ASSERT(!state->HasRememberedSimulates());
     // Nasty heuristic: Never remove the first simulate in a block. This
     // just so happens to have a beneficial effect on register allocation.
     state->first_ = true;
@@ -99,22 +101,56 @@ class State : public ZoneObject {
   }
 
  private:
+  explicit State(const State& other)
+      : zone_(other.zone_),
+        mergelist_(other.mergelist_, other.zone_),
+        first_(other.first_),
+        mode_(other.mode_) { }
+
   enum Mode { NORMAL, COLLECT_CONSECUTIVE_SIMULATES };
+
+  bool HasRememberedSimulates() const { return !mergelist_.is_empty(); }
 
   void Remember(HSimulate* sim) {
     mergelist_.Add(sim, zone_);
   }
 
   void FlushSimulates() {
-    if (!mergelist_.is_empty()) {
+    if (HasRememberedSimulates()) {
       mergelist_.RemoveLast()->MergeWith(&mergelist_);
     }
   }
 
   void RemoveSimulates() {
-    while (!mergelist_.is_empty()) {
+    while (HasRememberedSimulates()) {
       mergelist_.RemoveLast()->DeleteAndReplaceWith(NULL);
     }
+  }
+
+  State* Copy(HBasicBlock* succ_block, HBasicBlock* pred_block, Zone* zone) {
+    State* copy = new(zone) State(*this);
+    if (FLAG_trace_removable_simulates) {
+      PrintF("[copy state %p from B%d to new state %p for B%d]\n",
+             reinterpret_cast<void*>(this), pred_block->block_id(),
+             reinterpret_cast<void*>(copy), succ_block->block_id());
+    }
+    return copy;
+  }
+
+  State* Merge(HBasicBlock* succ_block,
+               State* pred_state,
+               HBasicBlock* pred_block,
+               Zone* zone) {
+    // For our current local analysis, we should not remember simulates across
+    // block boundaries.
+    ASSERT(!pred_state->HasRememberedSimulates());
+    ASSERT(!HasRememberedSimulates());
+    if (FLAG_trace_removable_simulates) {
+      PrintF("[merge state %p from B%d into %p for B%d]\n",
+             reinterpret_cast<void*>(pred_state), pred_block->block_id(),
+             reinterpret_cast<void*>(this), succ_block->block_id());
+    }
+    return this;
   }
 
   Zone* zone_;
