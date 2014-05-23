@@ -3137,6 +3137,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   LInstruction* AssignEnvironment(LInstruction* instr);
 
   void VisitInstruction(HInstruction* current);
+  void AddInstruction(LInstruction* instr, HInstruction* current);
   void DoBasicBlock(HBasicBlock* block);
 
   int JSShiftAmountFromHConstant(HValue* constant) {
