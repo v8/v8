@@ -17,6 +17,8 @@
 #include "arm/lithium-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/lithium-mips.h"
+#elif V8_TARGET_ARCH_X87
+#include "x87/lithium-x87.h"
 #else
 #error "Unknown architecture."
 #endif

@@ -52,7 +52,7 @@ int strncasecmp(const char* s1, const char* s2, int n);
 #if (_MSC_VER < 1800)
 inline int lrint(double flt) {
   int intgr;
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __asm {
     fld flt
     fistp intgr
@@ -78,7 +78,7 @@ namespace internal {
 
 #ifndef V8_NO_FAST_TLS
 
-#if defined(_MSC_VER) && V8_HOST_ARCH_IA32
+#if defined(_MSC_VER) && (V8_HOST_ARCH_IA32)
 
 #define V8_FAST_TLS_SUPPORTED 1
 
@@ -292,7 +292,7 @@ class OS {
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
 
-#if defined(V8_TARGET_ARCH_IA32)
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
   // Limit below which the extra overhead of the MemCopy function is likely
   // to outweigh the benefits of faster copying.
   static const int kMinComplexMemCopy = 64;

@@ -175,6 +175,17 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
+        ['v8_target_arch=="x87"', {
+          'sources': [  ### gcmole(arch:x87) ###
+            'test-assembler-x87.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-x87.cc',
+            'test-cpu-x87.cc',
+            'test-disasm-x87.cc',
+            'test-macro-assembler-x87.cc',
+            'test-log-stack-tracer.cc'
+          ],
+        }],
         [ 'OS=="linux" or OS=="qnx"', {
           'sources': [
             'test-platform-linux.cc',

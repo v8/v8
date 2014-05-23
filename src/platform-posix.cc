@@ -442,7 +442,7 @@ int OS::VSNPrintF(Vector<char> str,
 }
 
 
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
@@ -491,7 +491,7 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 
 
 void OS::PostSetUp() {
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;
