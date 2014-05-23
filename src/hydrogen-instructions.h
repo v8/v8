@@ -714,6 +714,7 @@ class HValue : public ZoneObject {
     if (r.IsTagged()) {
       HType t = type();
       if (t.IsSmi()) return Representation::Smi();
+      // TODO(mstarzinger): This is not correct for mutable HeapNumbers.
       if (t.IsHeapNumber()) return Representation::Double();
       if (t.IsHeapObject()) return r;
       return Representation::None();
@@ -5502,6 +5503,10 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
+  }
+  // TODO(mstarzinger): Workaround until we track mutable HeapNumber types.
+  virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
+    return representation();
   }
 
   virtual Handle<Map> GetMonomorphicJSObjectMap() {
