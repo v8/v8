@@ -851,12 +851,6 @@ class MarkCompactCollector {
   int ClearNonLiveDependentCodeInGroup(DependentCode* dependent_code, int group,
                                        int start, int end, int new_start);
 
-  // Marking detaches initial maps from SharedFunctionInfo objects
-  // to make this reference weak. We need to reattach initial maps
-  // back after collection. This is either done during
-  // ClearNonLiveTransitions pass or by calling this function.
-  void ReattachInitialMaps();
-
   // Mark all values associated with reachable keys in weak collections
   // encountered so far.  This might push new object or even new weak maps onto
   // the marking stack.

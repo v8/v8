@@ -3637,7 +3637,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // so that object accesses before the constructor completes (e.g. in the
   // debugger) will not cause a crash.
   if (map->constructor()->IsJSFunction() &&
-      JSFunction::cast(map->constructor())->shared()->
+      JSFunction::cast(map->constructor())->
           IsInobjectSlackTrackingInProgress()) {
     // We might want to shrink the object later.
     ASSERT(obj->GetInternalFieldCount() == 0);
