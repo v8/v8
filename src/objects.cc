@@ -10212,6 +10212,8 @@ Handle<Object> CacheInitialJSArrayMaps(
 
 void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
                                       Handle<Object> value) {
+  Isolate* isolate = function->GetIsolate();
+
   ASSERT(value->IsJSReceiver());
 
   // First some logic for the map of the prototype to make sure it is in fast
@@ -10230,7 +10232,8 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     if (function->IsInobjectSlackTrackingInProgress()) {
       function->CompleteInobjectSlackTracking();
     }
-    Handle<Map> new_map = Map::Copy(handle(function->initial_map()));
+    Handle<Map> initial_map(function->initial_map(), isolate);
+    Handle<Map> new_map = Map::Copy(initial_map);
     new_map->set_prototype(*value);
 
     // If the function is used as the global Array function, cache the
@@ -10239,17 +10242,21 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     Object* array_function = native_context->get(Context::ARRAY_FUNCTION_INDEX);
     if (array_function->IsJSFunction() &&
         *function == JSFunction::cast(array_function)) {
-      CacheInitialJSArrayMaps(handle(native_context), new_map);
+      CacheInitialJSArrayMaps(handle(native_context, isolate), new_map);
     }
 
     function->set_initial_map(*new_map);
+
+    // Deoptimize all code that embeds the previous initial map.
+    initial_map->dependent_code()->DeoptimizeDependentCodeGroup(
+        isolate, DependentCode::kInitialMapChangedGroup);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
     function->set_prototype_or_initial_map(*value);
   }
-  function->GetHeap()->ClearInstanceofCache();
+  isolate->heap()->ClearInstanceofCache();
 }
 
 

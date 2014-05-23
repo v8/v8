@@ -8610,25 +8610,16 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
       }
     }
 
-    HAllocate* receiver =
-        BuildAllocate(size_in_bytes, HType::JSObject(), JS_OBJECT_TYPE,
-                      allocation_mode);
+    HAllocate* receiver = BuildAllocate(
+        size_in_bytes, HType::JSObject(), JS_OBJECT_TYPE, allocation_mode);
     receiver->set_known_initial_map(initial_map);
-
-    // Load the initial map from the constructor.
-    HValue* constructor_value = Add<HConstant>(constructor);
-    HValue* initial_map_value =
-      Add<HLoadNamedField>(constructor_value, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForMapAndOffset(
-                               handle(constructor->map()),
-                               JSFunction::kPrototypeOrInitialMapOffset));
 
     // Initialize map and fields of the newly allocated object.
     { NoObservableSideEffectsScope no_effects(this);
       ASSERT(initial_map->instance_type() == JS_OBJECT_TYPE);
       Add<HStoreNamedField>(receiver,
           HObjectAccess::ForMapAndOffset(initial_map, JSObject::kMapOffset),
-          initial_map_value);
+          Add<HConstant>(initial_map));
       HValue* empty_fixed_array = Add<HConstant>(factory->empty_fixed_array());
       Add<HStoreNamedField>(receiver,
           HObjectAccess::ForMapAndOffset(initial_map,
@@ -8655,21 +8646,25 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
     ASSERT(environment()->ExpressionStackAt(receiver_index) == function);
     environment()->SetExpressionStackAt(receiver_index, receiver);
 
-    if (TryInlineConstruct(expr, receiver)) return;
+    if (TryInlineConstruct(expr, receiver)) {
+      // Inlining worked, add a dependency on the initial map to make sure that
+      // this code is deoptimized whenever the initial map of the constructor
+      // changes.
+      Map::AddDependentCompilationInfo(
+          initial_map, DependentCode::kInitialMapChangedGroup, top_info());
+      return;
+    }
 
     // TODO(mstarzinger): For now we remove the previous HAllocate and all
     // corresponding instructions and instead add HPushArgument for the
     // arguments in case inlining failed.  What we actually should do is for
     // inlining to try to build a subgraph without mutating the parent graph.
     HInstruction* instr = current_block()->last();
-    while (instr != initial_map_value) {
+    do {
       HInstruction* prev_instr = instr->previous();
       instr->DeleteAndReplaceWith(NULL);
       instr = prev_instr;
-    }
-    initial_map_value->DeleteAndReplaceWith(NULL);
-    receiver->DeleteAndReplaceWith(NULL);
-    check->DeleteAndReplaceWith(NULL);
+    } while (instr != check);
     environment()->SetExpressionStackAt(receiver_index, function);
     HInstruction* call =
       PreProcessCall(New<HCallNew>(function, argument_count));

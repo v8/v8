@@ -5884,6 +5884,9 @@ class DependentCode: public FixedArray {
     // Group of code that omit run-time type checks for the field(s) introduced
     // by this map.
     kFieldTypeGroup,
+    // Group of code that omit run-time type checks for initial maps of
+    // constructors.
+    kInitialMapChangedGroup,
     // Group of code that depends on tenuring information in AllocationSites
     // not being changed.
     kAllocationSiteTenuringChangedGroup,
