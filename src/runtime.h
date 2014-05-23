@@ -200,7 +200,6 @@ namespace internal {
   F(GetV8Version, 0, 1) \
   \
   F(SetCode, 2, 1) \
-  F(SetExpectedNumberOfProperties, 2, 1) \
   \
   F(CreateApiFunction, 2, 1) \
   F(IsTemplate, 1, 1) \

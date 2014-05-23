@@ -472,6 +472,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     object_fun->set_initial_map(*object_function_map);
     object_function_map->set_constructor(*object_fun);
+    object_function_map->set_unused_property_fields(
+        JSObject::kInitialGlobalObjectUnusedPropertiesCount);
 
     native_context()->set_object_function(*object_fun);
 

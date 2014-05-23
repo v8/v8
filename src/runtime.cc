@@ -3118,23 +3118,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetExpectedNumberOfProperties) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  CONVERT_SMI_ARG_CHECKED(num, 1);
-  RUNTIME_ASSERT(num >= 0);
-
-  func->shared()->set_expected_nof_properties(num);
-  if (func->has_initial_map()) {
-    Handle<Map> new_initial_map = Map::Copy(handle(func->initial_map()));
-    new_initial_map->set_unused_property_fields(num);
-    func->set_initial_map(*new_initial_map);
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(RuntimeHidden_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 0);

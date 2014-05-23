@@ -1472,11 +1472,6 @@ class MarkCompactMarkingVisitor
     return true;
   }
 
-  INLINE(static void BeforeVisitingSharedFunctionInfo(HeapObject* object)) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
-    shared->BeforeVisitingPointers();
-  }
-
   static void VisitWeakCollection(Map* map, HeapObject* object) {
     MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
     JSWeakCollection* weak_collection =

@@ -2635,6 +2635,10 @@ class JSObject: public JSReceiver {
   // permissible values (see the ASSERT in heap.cc).
   static const int kInitialMaxFastElementArray = 100000;
 
+  // This constant applies only to the initial map of "$Object" aka
+  // "global.Object" and not to arbitrary other JSObject maps.
+  static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
+
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
   static const int kMaxInstanceSize = 255 * kPointerSize;
@@ -6965,10 +6969,6 @@ class SharedFunctionInfo: public HeapObject {
   // available. Currently the field is duplicated in
   // TypeFeedbackInfo::feedback_vector, but the allocation is done here.
   DECL_ACCESSORS(feedback_vector, FixedArray)
-
-  // Invoked before pointers in SharedFunctionInfo are being marked.
-  // Also clears the optimized code map.
-  inline void BeforeVisitingPointers();
 
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)

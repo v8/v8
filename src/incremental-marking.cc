@@ -240,8 +240,6 @@ class IncrementalMarkingMarkingVisitor
                   HeapObject::RawField(object, JSWeakCollection::kSize));
   }
 
-  static void BeforeVisitingSharedFunctionInfo(HeapObject* object) {}
-
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
     if (obj->IsHeapObject()) {
