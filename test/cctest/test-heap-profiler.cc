@@ -495,6 +495,70 @@ TEST(HeapSnapshotSymbol) {
 }
 
 
+TEST(HeapSnapshotWeakCollection) {
+  i::FLAG_harmony_collections = true;
+
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("k = {}; v = {};\n"
+             "ws = new WeakSet(); ws.add(k); ws.add(v);\n"
+             "wm = new WeakMap(); wm.set(k, v);\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("WeakCollections"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* k =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "k");
+  CHECK_NE(NULL, k);
+  const v8::HeapGraphNode* v =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "v");
+  CHECK_NE(NULL, v);
+
+  const v8::HeapGraphNode* ws =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "ws");
+  CHECK_NE(NULL, ws);
+  CHECK_EQ(v8::HeapGraphNode::kObject, ws->GetType());
+  CHECK_EQ(v8_str("WeakSet"), ws->GetName());
+
+  const v8::HeapGraphNode* ws_table =
+      GetProperty(ws, v8::HeapGraphEdge::kInternal, "table");
+  CHECK_EQ(v8::HeapGraphNode::kArray, ws_table->GetType());
+  CHECK_GT(ws_table->GetChildrenCount(), 0);
+  int weak_entries = 0;
+  for (int i = 0, count = ws_table->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = ws_table->GetChild(i);
+    if (prop->GetType() != v8::HeapGraphEdge::kWeak) continue;
+    if (k->GetId() == prop->GetToNode()->GetId()) {
+      ++weak_entries;
+    }
+  }
+  CHECK_EQ(1, weak_entries);
+
+  const v8::HeapGraphNode* wm =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "wm");
+  CHECK_NE(NULL, wm);
+  CHECK_EQ(v8::HeapGraphNode::kObject, wm->GetType());
+  CHECK_EQ(v8_str("WeakMap"), wm->GetName());
+
+  const v8::HeapGraphNode* wm_table =
+      GetProperty(wm, v8::HeapGraphEdge::kInternal, "table");
+  CHECK_EQ(v8::HeapGraphNode::kArray, wm_table->GetType());
+  CHECK_GT(wm_table->GetChildrenCount(), 0);
+  weak_entries = 0;
+  for (int i = 0, count = wm_table->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = wm_table->GetChild(i);
+    if (prop->GetType() != v8::HeapGraphEdge::kWeak) continue;
+    const v8::SnapshotObjectId to_node_id = prop->GetToNode()->GetId();
+    if (to_node_id == k->GetId() || to_node_id == v->GetId()) {
+      ++weak_entries;
+    }
+  }
+  CHECK_EQ(2, weak_entries);
+}
+
+
 TEST(HeapSnapshotInternalReferences) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
