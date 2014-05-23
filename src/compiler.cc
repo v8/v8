@@ -459,14 +459,14 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
       } else if (info()->bailout_reason() == kMapBecameDeprecated) {
         if (FLAG_trace_opt) {
           PrintF("[aborted optimizing ");
-          function->ShortPrint();
+          info()->closure()->ShortPrint();
           PrintF(" because a map became deprecated]\n");
         }
         return AbortOptimization();
       } else if (info()->bailout_reason() == kMapBecameUnstable) {
         if (FLAG_trace_opt) {
           PrintF("[aborted optimizing ");
-          function->ShortPrint();
+          info()->closure()->ShortPrint();
           PrintF(" because a map became unstable]\n");
         }
         return AbortOptimization();
