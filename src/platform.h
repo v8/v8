@@ -274,6 +274,9 @@ class OS {
   // positions indicated by the members of the CpuFeature enum from globals.h
   static unsigned CpuFeaturesImpliedByPlatform();
 
+  // Returns the number of processors online.
+  static int NumberOfProcessorsOnline();
+
   // The total amount of physical memory available on the current system.
   static uint64_t TotalPhysicalMemory();
 

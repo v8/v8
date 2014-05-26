@@ -57,6 +57,11 @@ unsigned OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
+int OS::NumberOfProcessorsOnline() {
+  return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
+}
+
+
 // Maximum size of the virtual memory.  0 means there is no artificial
 // limit.
 

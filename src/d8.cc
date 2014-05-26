@@ -1476,7 +1476,7 @@ int Shell::Main(int argc, char* argv[]) {
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
                                 i::OS::MaxVirtualMemory(),
-                                i::CPU::NumberOfProcessorsOnline());
+                                i::OS::NumberOfProcessorsOnline());
   v8::SetResourceConstraints(isolate, &constraints);
 #endif
   DumbLineEditor dumb_line_editor(isolate);

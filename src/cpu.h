@@ -77,9 +77,6 @@ class CPU V8_FINAL BASE_EMBEDDED {
   bool has_vfp3() const { return has_vfp3_; }
   bool has_vfp3_d32() const { return has_vfp3_d32_; }
 
-  // Returns the number of processors online.
-  static int NumberOfProcessorsOnline();
-
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
 

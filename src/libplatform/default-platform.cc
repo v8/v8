@@ -9,8 +9,7 @@
 
 // TODO(jochen): We should have our own version of checks.h.
 #include "../checks.h"
-// TODO(jochen): Why is cpu.h not in platform/?
-#include "../cpu.h"
+#include "../platform.h"
 #include "worker-thread.h"
 
 namespace v8 {
@@ -40,7 +39,7 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   LockGuard<Mutex> guard(&lock_);
   ASSERT(thread_pool_size >= 0);
   if (thread_pool_size < 1)
-    thread_pool_size = CPU::NumberOfProcessorsOnline();
+    thread_pool_size = OS::NumberOfProcessorsOnline();
   thread_pool_size_ =
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
