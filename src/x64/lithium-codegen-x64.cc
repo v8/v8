@@ -4531,11 +4531,8 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  LOperand* temp = instr->temp();
 
-  __ LoadUint32(ToDoubleRegister(output),
-                ToRegister(input),
-                ToDoubleRegister(temp));
+  __ LoadUint32(ToDoubleRegister(output), ToRegister(input));
 }
 
 
@@ -4582,8 +4579,7 @@ void LCodeGen::DoDeferredNumberTagU(LNumberTagU* instr) {
   // Load value into temp_xmm which will be preserved across potential call to
   // runtime (MacroAssembler::EnterExitFrameEpilogue preserves only allocatable
   // XMM registers on x64).
-  XMMRegister xmm_scratch = double_scratch0();
-  __ LoadUint32(temp_xmm, reg, xmm_scratch);
+  __ LoadUint32(temp_xmm, reg);
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);

@@ -375,16 +375,14 @@ void MacroAssembler::TaggedToI(Register result_reg,
 
 
 void MacroAssembler::LoadUint32(XMMRegister dst,
-                                Register src,
-                                XMMRegister scratch) {
+                                Register src) {
   Label done;
   cmp(src, Immediate(0));
   ExternalReference uint32_bias =
         ExternalReference::address_of_uint32_bias();
-  movsd(scratch, Operand::StaticVariable(uint32_bias));
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
-  addsd(dst, scratch);
+  addsd(dst, Operand::StaticVariable(uint32_bias));
   bind(&done);
 }
 

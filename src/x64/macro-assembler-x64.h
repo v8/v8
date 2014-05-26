@@ -1004,7 +1004,7 @@ class MacroAssembler: public Assembler {
       MinusZeroMode minus_zero_mode, Label* lost_precision,
       Label::Distance dst = Label::kFar);
 
-  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+  void LoadUint32(XMMRegister dst, Register src);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);

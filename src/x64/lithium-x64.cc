@@ -1904,9 +1904,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsDouble());
       if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* temp = FixedTemp(xmm1);
-        return DefineAsRegister(
-            new(zone()) LUint32ToDouble(UseRegister(val), temp));
+        return DefineAsRegister(new(zone()) LUint32ToDouble(UseRegister(val)));
       } else {
         LOperand* value = Use(val);
         return DefineAsRegister(new(zone()) LInteger32ToDouble(value));

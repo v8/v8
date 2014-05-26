@@ -3323,8 +3323,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 
 
 void MacroAssembler::LoadUint32(XMMRegister dst,
-                                Register src,
-                                XMMRegister scratch) {
+                                Register src) {
   if (FLAG_debug_code) {
     cmpq(src, Immediate(0xffffffff));
     Assert(below_equal, kInputGPRIsExpectedToHaveUpper32Cleared);

@@ -4447,10 +4447,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  LOperand* temp = instr->temp();
-  __ LoadUint32(ToDoubleRegister(output),
-                ToRegister(input),
-                ToDoubleRegister(temp));
+  __ LoadUint32(ToDoubleRegister(output), ToRegister(input));
 }
 
 
@@ -4461,8 +4458,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
                        LNumberTagI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp(),
-                                       NULL, SIGNED_INT32);
+      codegen()->DoDeferredNumberTagIU(
+          instr_, instr_->value(), instr_->temp(), SIGNED_INT32);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4487,8 +4484,8 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp1(),
-                                       instr_->temp2(), UNSIGNED_INT32);
+      codegen()->DoDeferredNumberTagIU(
+          instr_, instr_->value(), instr_->temp(), UNSIGNED_INT32);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4510,12 +4507,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
                                      LOperand* value,
-                                     LOperand* temp1,
-                                     LOperand* temp2,
+                                     LOperand* temp,
                                      IntegerSignedness signedness) {
   Label done, slow;
   Register reg = ToRegister(value);
-  Register tmp = ToRegister(temp1);
+  Register tmp = ToRegister(temp);
   XMMRegister xmm_scratch = double_scratch0();
 
   if (signedness == SIGNED_INT32) {
@@ -4526,7 +4522,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     __ xor_(reg, 0x80000000);
     __ Cvtsi2sd(xmm_scratch, Operand(reg));
   } else {
-    __ LoadUint32(xmm_scratch, reg, ToDoubleRegister(temp2));
+    __ LoadUint32(xmm_scratch, reg);
   }
 
   if (FLAG_inline_new) {
