@@ -18,7 +18,6 @@
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "store-buffer.h"
-#include "v8globals.h"
 
 namespace v8 {
 namespace internal {

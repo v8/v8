@@ -9,7 +9,6 @@
 #include "checks.h"
 #include "globals.h"
 #include "platform.h"
-#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
