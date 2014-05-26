@@ -807,14 +807,14 @@ bool Debug::Load() {
 void Debug::Unload() {
   ClearAllBreakPoints();
 
+  // Match unmatched PromiseHandlePrologue calls.
+  while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
+
   // Return debugger is not loaded.
   if (!IsLoaded()) return;
 
   // Clear the script cache.
   DestroyScriptCache();
-
-  // Match unmatched PromiseHandlePrologue calls.
-  while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
 
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
