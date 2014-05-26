@@ -813,6 +813,9 @@ void Debug::Unload() {
   // Clear the script cache.
   DestroyScriptCache();
 
+  // Match unmatched PromiseHandlePrologue calls.
+  while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
+
   // Clear debugger context global handle.
   GlobalHandles::Destroy(Handle<Object>::cast(debug_context_).location());
   debug_context_ = Handle<Context>();
@@ -3260,9 +3263,6 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
 EnterDebugger::~EnterDebugger() {
   Debug* debug = isolate_->debug();
 
-  // Leaving this debugger entry.
-  debug->set_debugger_entry(prev_);
-
   // Restore to the previous break state.
   debug->SetBreak(break_frame_id_, break_id_);
 
@@ -3282,6 +3282,9 @@ EnterDebugger::~EnterDebugger() {
       isolate_->stack_guard()->RequestDebugCommand();
     }
   }
+
+  // Leaving this debugger entry.
+  debug->set_debugger_entry(prev_);
 
   isolate_->debugger()->UpdateState();
 }
