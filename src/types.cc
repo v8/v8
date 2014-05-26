@@ -148,6 +148,8 @@ int TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
     return kArray;
   } else if (type->IsFunction()) {
     return kFunction;
+  } else if (type->IsContext()) {
+    return kInternal & kTaggedPtr;
   } else {
     UNREACHABLE();
     return kNone;
@@ -158,16 +160,43 @@ int TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
 template<class Config>
 int TypeImpl<Config>::BitsetType::Lub(i::Object* value) {
   DisallowHeapAllocation no_allocation;
-  if (value->IsSmi()) return kSignedSmall & kTaggedInt;
-  i::Map* map = i::HeapObject::cast(value)->map();
-  if (map->instance_type() == HEAP_NUMBER_TYPE) {
-    int32_t i;
-    uint32_t u;
-    return kTaggedPtr & (
-        value->ToInt32(&i) ? (Smi::IsValid(i) ? kSignedSmall : kOtherSigned32) :
-        value->ToUint32(&u) ? kUnsigned32 : kFloat);
+  if (value->IsNumber()) {
+    return Lub(value->Number()) & (value->IsSmi() ? kTaggedInt : kTaggedPtr);
   }
-  return Lub(map);
+  return Lub(i::HeapObject::cast(value)->map());
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(double value) {
+  DisallowHeapAllocation no_allocation;
+  if (i::IsMinusZero(value)) return kMinusZero;
+  if (std::isnan(value)) return kNaN;
+  if (IsUint32Double(value)) return Lub(FastD2UI(value));
+  if (IsInt32Double(value)) return Lub(FastD2I(value));
+  return kOtherNumber;
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(int32_t value) {
+  if (value >= 0x40000000) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  if (value >= 0) return kUnsignedSmall;
+  if (value >= -0x40000000) return kOtherSignedSmall;
+  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
+  DisallowHeapAllocation no_allocation;
+  if (value >= 0x80000000u) return kOtherUnsigned32;
+  if (value >= 0x40000000u) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  return kUnsignedSmall;
 }
 
 
@@ -211,7 +240,7 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       return kInternal & kTaggedPtr;
     }
     case HEAP_NUMBER_TYPE:
-      return kFloat & kTaggedPtr;
+      return kNumber & kTaggedPtr;
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_OBJECT_TYPE:
@@ -254,6 +283,7 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       return kDetectable;
     case DECLARED_ACCESSOR_INFO_TYPE:
     case EXECUTABLE_ACCESSOR_INFO_TYPE:
+    case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case FOREIGN_TYPE:
@@ -295,6 +325,10 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
   if (that->IsConstant()) {
     return this->IsConstant()
         && *this->AsConstant()->Value() == *that->AsConstant()->Value();
+  }
+  if (that->IsContext()) {
+    return this->IsContext()
+        && this->AsContext()->Outer()->Equals(that->AsContext()->Outer());
   }
   if (that->IsArray()) {
     return this->IsArray()
@@ -411,6 +445,9 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
     return that->IsConstant()
         && *this->AsConstant()->Value() == *that->AsConstant()->Value();
   }
+  if (this->IsContext()) {
+    return this->Equals(that);
+  }
   if (this->IsArray()) {
     // There is no variance!
     return this->Equals(that);
@@ -463,7 +500,8 @@ int TypeImpl<Config>::ExtendUnion(
   } else if (!type->IsBitset()) {
     // For all structural types, subtyping implies equivalence.
     ASSERT(type->IsClass() || type->IsConstant() ||
-           type->IsArray() || type->IsFunction());
+           type->IsArray() || type->IsFunction() ||
+           type->IsContext());
     if (!type->InUnion(result, old_size)) {
       result->Set(current_size++, type);
     }
@@ -539,7 +577,7 @@ int TypeImpl<Config>::ExtendIntersection(
   } else if (!type->IsBitset()) {
     // For all structural types, subtyping implies equivalence.
     ASSERT(type->IsClass() || type->IsConstant() ||
-           type->IsArray() || type->IsFunction());
+           type->IsArray() || type->IsFunction() || type->IsContext());
     if (type->Is(other) && !type->InUnion(result, old_size)) {
       result->Set(current_size++, type);
     }
@@ -608,6 +646,9 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
     return ClassType::New(type->AsClass()->Map(), region);
   } else if (type->IsConstant()) {
     return ConstantType::New(type->AsConstant()->Value(), region);
+  } else if (type->IsContext()) {
+    TypeHandle outer = Convert<OtherType>(type->AsContext()->Outer(), region);
+    return ContextType::New(outer, region);
   } else if (type->IsUnion()) {
     int length = type->AsUnion()->Length();
     UnionHandle unioned = UnionType::New(length, region);
@@ -647,26 +688,18 @@ Representation Representation::FromType(Type* type) {
 
 
 template<class Config>
-void TypeImpl<Config>::TypePrint(PrintDimension dim) {
-  TypePrint(stdout, dim);
-  PrintF(stdout, "\n");
-  Flush(stdout);
-}
-
-
-template<class Config>
 const char* TypeImpl<Config>::BitsetType::Name(int bitset) {
   switch (bitset) {
-    case kAny & kRepresentation: return "Any";
-    #define PRINT_COMPOSED_TYPE(type, value) \
-    case k##type & kRepresentation: return #type;
-    REPRESENTATION_BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
-    #undef PRINT_COMPOSED_TYPE
+    case REPRESENTATION(kAny): return "Any";
+    #define RETURN_NAMED_REPRESENTATION_TYPE(type, value) \
+    case REPRESENTATION(k##type): return #type;
+    REPRESENTATION_BITSET_TYPE_LIST(RETURN_NAMED_REPRESENTATION_TYPE)
+    #undef RETURN_NAMED_REPRESENTATION_TYPE
 
-    #define PRINT_COMPOSED_TYPE(type, value) \
-    case k##type & kSemantic: return #type;
-    SEMANTIC_BITSET_TYPE_LIST(PRINT_COMPOSED_TYPE)
-    #undef PRINT_COMPOSED_TYPE
+    #define RETURN_NAMED_SEMANTIC_TYPE(type, value) \
+    case SEMANTIC(k##type): return #type;
+    SEMANTIC_BITSET_TYPE_LIST(RETURN_NAMED_SEMANTIC_TYPE)
+    #undef RETURN_NAMED_SEMANTIC_TYPE
 
     default:
       return NULL;
@@ -675,94 +708,115 @@ const char* TypeImpl<Config>::BitsetType::Name(int bitset) {
 
 
 template<class Config>
-void TypeImpl<Config>::BitsetType::BitsetTypePrint(FILE* out, int bitset) {
+void TypeImpl<Config>::BitsetType::PrintTo(StringStream* stream, int bitset) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bitset);
   if (name != NULL) {
-    PrintF(out, "%s", name);
+    stream->Add("%s", name);
   } else {
     static const int named_bitsets[] = {
-      #define BITSET_CONSTANT(type, value) k##type & kRepresentation,
+      #define BITSET_CONSTANT(type, value) REPRESENTATION(k##type),
       REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
       #undef BITSET_CONSTANT
 
-      #define BITSET_CONSTANT(type, value) k##type & kSemantic,
+      #define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
       SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
       #undef BITSET_CONSTANT
     };
 
     bool is_first = true;
-    PrintF(out, "(");
+    stream->Add("(");
     for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
       int subset = named_bitsets[i];
       if ((bitset & subset) == subset) {
-        if (!is_first) PrintF(out, " | ");
+        if (!is_first) stream->Add(" | ");
         is_first = false;
-        PrintF(out, "%s", Name(subset));
+        stream->Add("%s", Name(subset));
         bitset -= subset;
       }
     }
     ASSERT(bitset == 0);
-    PrintF(out, ")");
+    stream->Add(")");
+  }
+}
+
+
+template<class Config>
+void TypeImpl<Config>::PrintTo(StringStream* stream, PrintDimension dim) {
+  DisallowHeapAllocation no_allocation;
+  if (this->IsBitset()) {
+    int bitset = this->AsBitset();
+    switch (dim) {
+      case BOTH_DIMS:
+        BitsetType::PrintTo(stream, SEMANTIC(bitset));
+        stream->Add("/");
+        BitsetType::PrintTo(stream, REPRESENTATION(bitset));
+        break;
+      case SEMANTIC_DIM:
+        BitsetType::PrintTo(stream, SEMANTIC(bitset));
+        break;
+      case REPRESENTATION_DIM:
+        BitsetType::PrintTo(stream, REPRESENTATION(bitset));
+        break;
+    }
+  } else if (this->IsConstant()) {
+    stream->Add("Constant(%p : ",
+        static_cast<void*>(*this->AsConstant()->Value()));
+    BitsetType::New(BitsetType::Lub(this))->PrintTo(stream, dim);
+    stream->Add(")");
+  } else if (this->IsClass()) {
+    stream->Add("Class(%p < ", static_cast<void*>(*this->AsClass()->Map()));
+    BitsetType::New(BitsetType::Lub(this))->PrintTo(stream, dim);
+    stream->Add(")");
+  } else if (this->IsContext()) {
+    stream->Add("Context(");
+    this->AsContext()->Outer()->PrintTo(stream, dim);
+    stream->Add(")");
+  } else if (this->IsUnion()) {
+    stream->Add("(");
+    UnionHandle unioned = handle(this->AsUnion());
+    for (int i = 0; i < unioned->Length(); ++i) {
+      TypeHandle type_i = unioned->Get(i);
+      if (i > 0) stream->Add(" | ");
+      type_i->PrintTo(stream, dim);
+    }
+    stream->Add(")");
+  } else if (this->IsArray()) {
+    stream->Add("[");
+    AsArray()->Element()->PrintTo(stream, dim);
+    stream->Add("]");
+  } else if (this->IsFunction()) {
+    if (!this->AsFunction()->Receiver()->IsAny()) {
+      this->AsFunction()->Receiver()->PrintTo(stream, dim);
+      stream->Add(".");
+    }
+    stream->Add("(");
+    for (int i = 0; i < this->AsFunction()->Arity(); ++i) {
+      if (i > 0) stream->Add(", ");
+      this->AsFunction()->Parameter(i)->PrintTo(stream, dim);
+    }
+    stream->Add(")->");
+    this->AsFunction()->Result()->PrintTo(stream, dim);
+  } else {
+    UNREACHABLE();
   }
 }
 
 
 template<class Config>
 void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
-  DisallowHeapAllocation no_allocation;
-  if (this->IsBitset()) {
-    int bitset = this->AsBitset();
-    switch (dim) {
-      case BOTH_DIMS:
-        BitsetType::BitsetTypePrint(out, bitset & BitsetType::kSemantic);
-        PrintF(out, "/");
-        BitsetType::BitsetTypePrint(out, bitset & BitsetType::kRepresentation);
-        break;
-      case SEMANTIC_DIM:
-        BitsetType::BitsetTypePrint(out, bitset & BitsetType::kSemantic);
-        break;
-      case REPRESENTATION_DIM:
-        BitsetType::BitsetTypePrint(out, bitset & BitsetType::kRepresentation);
-        break;
-    }
-  } else if (this->IsConstant()) {
-    PrintF(out, "Constant(%p : ",
-        static_cast<void*>(*this->AsConstant()->Value()));
-    BitsetType::New(BitsetType::Lub(this))->TypePrint(out, dim);
-    PrintF(out, ")");
-  } else if (this->IsClass()) {
-    PrintF(out, "Class(%p < ", static_cast<void*>(*this->AsClass()->Map()));
-    BitsetType::New(BitsetType::Lub(this))->TypePrint(out, dim);
-    PrintF(out, ")");
-  } else if (this->IsUnion()) {
-    PrintF(out, "(");
-    UnionHandle unioned = handle(this->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      TypeHandle type_i = unioned->Get(i);
-      if (i > 0) PrintF(out, " | ");
-      type_i->TypePrint(out, dim);
-    }
-    PrintF(out, ")");
-  } else if (this->IsArray()) {
-    PrintF(out, "[");
-    AsArray()->Element()->TypePrint(out, dim);
-    PrintF(out, "]");
-  } else if (this->IsFunction()) {
-    if (!this->AsFunction()->Receiver()->IsAny()) {
-      this->AsFunction()->Receiver()->TypePrint(out, dim);
-      PrintF(out, ".");
-    }
-    PrintF(out, "(");
-    for (int i = 0; i < this->AsFunction()->Arity(); ++i) {
-      if (i > 0) PrintF(out, ", ");
-      this->AsFunction()->Parameter(i)->TypePrint(out, dim);
-    }
-    PrintF(out, ")->");
-    this->AsFunction()->Result()->TypePrint(out, dim);
-  } else {
-    UNREACHABLE();
-  }
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  PrintTo(&stream, dim);
+  stream.OutputToFile(out);
+}
+
+
+template<class Config>
+void TypeImpl<Config>::TypePrint(PrintDimension dim) {
+  TypePrint(stdout, dim);
+  PrintF(stdout, "\n");
+  Flush(stdout);
 }
 
 

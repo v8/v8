@@ -20,7 +20,7 @@ template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
   ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() ||
-         t->IsUnion() || t->IsArray() || t->IsFunction());
+         t->IsUnion() || t->IsArray() || t->IsFunction() || t->IsContext());
   return t;
 }
 

@@ -163,6 +163,17 @@ static inline bool IsInt32Double(double value) {
 }
 
 
+// UInteger32 is an integer that can be represented as an unsigned 32-bit
+// integer. It has to be in the range [0, 2^32 - 1].
+// We also have to check for negative 0 as it is not a UInteger32.
+static inline bool IsUint32Double(double value) {
+  return !IsMinusZero(value) &&
+         value >= 0 &&
+         value <= kMaxUInt32 &&
+         value == FastUI2D(FastD2UI(value));
+}
+
+
 // Convert from Number object to C integer.
 inline int32_t NumberToInt32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();

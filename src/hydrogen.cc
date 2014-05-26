@@ -9503,7 +9503,7 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
 
   if (expected_obj->Is(Type::Undefined(zone()))) {
     // This is already done by HChange.
-    *expected = Type::Union(expected_number, Type::Float(zone()), zone());
+    *expected = Type::Union(expected_number, Type::Number(zone()), zone());
     return value;
   }
 
