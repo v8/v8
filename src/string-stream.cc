@@ -237,7 +237,7 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 
 SmartArrayPointer<const char> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
-  OS::MemCopy(str, buffer_, length_);
+  MemCopy(str, buffer_, length_);
   str[length_] = '\0';
   return SmartArrayPointer<const char>(str);
 }
@@ -546,7 +546,7 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
   if (new_space == NULL) {
     return space_;
   }
-  OS::MemCopy(new_space, space_, *bytes);
+  MemCopy(new_space, space_, *bytes);
   *bytes = new_bytes;
   DeleteArray(space_);
   space_ = new_space;

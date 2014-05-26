@@ -3275,7 +3275,7 @@ Local<String> v8::Object::ObjectProtoToString() {
 
       // Write prefix.
       char* ptr = buf.start();
-      i::OS::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
+      i::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
       ptr += prefix_len;
 
       // Write real content.
@@ -3283,7 +3283,7 @@ Local<String> v8::Object::ObjectProtoToString() {
       ptr += str_len;
 
       // Write postfix.
-      i::OS::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
+      i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
 
       // Copy the buffer into a heap-allocated string and return it.
       Local<String> result = v8::String::NewFromUtf8(
@@ -7414,7 +7414,7 @@ void HandleScopeImplementer::FreeThreadResources() {
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
   HandleScopeData* current = isolate_->handle_scope_data();
   handle_scope_data_ = *current;
-  OS::MemCopy(storage, this, sizeof(*this));
+  MemCopy(storage, this, sizeof(*this));
 
   ResetAfterArchive();
   current->Initialize();
@@ -7429,7 +7429,7 @@ int HandleScopeImplementer::ArchiveSpacePerThread() {
 
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
-  OS::MemCopy(this, storage, sizeof(*this));
+  MemCopy(this, storage, sizeof(*this));
   *isolate_->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }

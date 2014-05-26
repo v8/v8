@@ -66,7 +66,7 @@ Vector<unsigned> CompleteParserRecorder::ExtractData() {
   int total_size = PreparseDataConstants::kHeaderSize + function_size;
   Vector<unsigned> data = Vector<unsigned>::New(total_size);
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = function_size;
-  OS::MemCopy(data.start(), preamble_, sizeof(preamble_));
+  MemCopy(data.start(), preamble_, sizeof(preamble_));
   if (function_size > 0) {
     function_store_.WriteTo(data.SubVector(PreparseDataConstants::kHeaderSize,
                                            total_size));

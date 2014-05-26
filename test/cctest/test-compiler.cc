@@ -278,7 +278,7 @@ TEST(GetScriptLineNumber) {
   for (int i = 0; i < max_rows; ++i) {
     if (i > 0)
       buffer[i - 1] = '\n';
-    OS::MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
+    MemCopy(&buffer[i], function_f, sizeof(function_f) - 1);
     v8::Handle<v8::String> script_body =
         v8::String::NewFromUtf8(CcTest::isolate(), buffer.start());
     v8::Script::Compile(script_body, &origin)->Run();
