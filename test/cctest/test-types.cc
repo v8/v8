@@ -558,7 +558,7 @@ struct Tests : Rep {
     CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
-    CHECK(T.Constant(fac->NewNumber(0.0/0.0))->Is(T.NaN));
+    CHECK(T.Constant(fac->NewNumber(OS::nan_value()))->Is(T.NaN));
     CHECK(T.Constant(fac->NewNumber(1.0/0.0))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(-1.0/0.0))->Is(T.OtherNumber));
   }
