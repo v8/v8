@@ -150,11 +150,18 @@ if (support_smi_only_arrays) {
     a = bar(10);
     assertKind(elements_kind.fast, a);
     assertOptimized(bar);
+    // bar should deopt because the length is too large.
+    a = bar(100000);
+    assertUnoptimized(bar);
+    assertKind(elements_kind.dictionary, a);
+    // The allocation site now has feedback that means the array constructor
+    // will not be inlined.
+    %OptimizeFunctionOnNextCall(bar);
     a = bar(100000);
     assertKind(elements_kind.dictionary, a);
     assertOptimized(bar);
 
-    // If the argument isn't a smi, things should still work.
+    // If the argument isn't a smi, it bails out as well
     a = bar("oops");
     assertOptimized(bar);
     assertKind(elements_kind.fast, a);
@@ -168,6 +175,12 @@ if (support_smi_only_arrays) {
     %OptimizeFunctionOnNextCall(barn);
     barn(1, 2, 3);
     assertOptimized(barn);
+    a = barn(1, "oops", 3);
+    // The method should deopt, but learn from the failure to avoid inlining
+    // the array.
+    assertKind(elements_kind.fast, a);
+    assertUnoptimized(barn);
+    %OptimizeFunctionOnNextCall(barn);
     a = barn(1, "oops", 3);
     assertOptimized(barn);
   })();
@@ -215,8 +228,10 @@ if (support_smi_only_arrays) {
     assertTrue(Realm.eval(contextB, "bar2() instanceof Array"));
   })();
 
-  // Test: create array with packed feedback, then optimize function, which
-  // should deal with arguments that create holey arrays.
+  // Test: create array with packed feedback, then optimize/inline
+  // function. Verify that if we ask for a holey array then we deopt.
+  // Reoptimization will proceed with the correct feedback and we
+  // won't deopt anymore.
   (function() {
     function bar(len) { return new Array(len); }
     bar(0);
@@ -226,16 +241,15 @@ if (support_smi_only_arrays) {
     assertOptimized(bar);
     assertFalse(isHoley(a));
     a = bar(1);  // ouch!
-    assertOptimized(bar);
+    assertUnoptimized(bar);
     assertTrue(isHoley(a));
+    // Try again
+    %OptimizeFunctionOnNextCall(bar);
     a = bar(100);
+    assertOptimized(bar);
     assertTrue(isHoley(a));
     a = bar(0);
     assertOptimized(bar);
-    // Crankshafted functions don't use mementos, so feedback still
-    // indicates a packed array is desired. (unless --nocrankshaft is in use).
-    if (4 != %GetOptimizationStatus(bar)) {
-      assertFalse(isHoley(a));
-    }
+    assertTrue(isHoley(a));
   })();
 }

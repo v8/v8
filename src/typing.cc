@@ -511,9 +511,6 @@ void AstTyper::VisitCall(Call* expr) {
       expr->IsUsingCallFeedbackSlot(isolate()) &&
       oracle()->CallIsMonomorphic(expr->CallFeedbackSlot())) {
     expr->set_target(oracle()->GetCallTarget(expr->CallFeedbackSlot()));
-    Handle<AllocationSite> site =
-        oracle()->GetCallAllocationSite(expr->CallFeedbackSlot());
-    expr->set_allocation_site(site);
   }
 
   ZoneList<Expression*>* args = expr->arguments();

@@ -65,7 +65,6 @@ class TypeFeedbackOracle: public ZoneObject {
                                     Context* native_context);
 
   Handle<JSFunction> GetCallTarget(int slot);
-  Handle<AllocationSite> GetCallAllocationSite(int slot);
   Handle<JSFunction> GetCallNewTarget(int slot);
   Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
