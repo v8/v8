@@ -25,8 +25,8 @@
 
 #include "platform/mutex.h"
 #include "platform/semaphore.h"
-#include "globals.h"
 #include "vector.h"
+#include "v8globals.h"
 
 #ifdef __sun
 # ifndef signbit

@@ -6,7 +6,7 @@
 #define V8_ACCESSORS_H_
 
 #include "allocation.h"
-#include "globals.h"
+#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
