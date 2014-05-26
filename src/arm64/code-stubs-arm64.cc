@@ -3217,10 +3217,10 @@ static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
 }
 
 
-static void CallFunctionNoFeedback(MacroAssembler* masm,
-                                   int argc, bool needs_checks,
-                                   bool call_as_method) {
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  ASM_LOCATION("CallFunctionStub::Generate");
   // x1  function    the function to call
+
   Register function = x1;
   Register type = x4;
   Label slow, non_function, wrap, cont;
@@ -3228,7 +3228,7 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
   // TODO(jbramley): This function has a lot of unnamed registers. Name them,
   // and tidy things up a bit.
 
-  if (needs_checks) {
+  if (NeedsChecks()) {
     // Check that the function is really a JavaScript function.
     __ JumpIfSmi(function, &non_function);
 
@@ -3238,17 +3238,18 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
   // Fast-case: Invoke the function now.
   // x1  function  pushed function
+  int argc = argc_;
   ParameterCount actual(argc);
 
-  if (call_as_method) {
-    if (needs_checks) {
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
       EmitContinueIfStrictOrNative(masm, &cont);
     }
 
     // Compute the receiver in sloppy mode.
     __ Peek(x3, argc * kPointerSize);
 
-    if (needs_checks) {
+    if (NeedsChecks()) {
       __ JumpIfSmi(x3, &wrap);
       __ JumpIfObjectType(x3, x10, type, FIRST_SPEC_OBJECT_TYPE, &wrap, lt);
     } else {
@@ -3262,22 +3263,17 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
                     actual,
                     JUMP_FUNCTION,
                     NullCallWrapper());
-  if (needs_checks) {
+
+  if (NeedsChecks()) {
     // Slow-case: Non-function called.
     __ Bind(&slow);
     EmitSlowCase(masm, argc, function, type, &non_function);
   }
 
-  if (call_as_method) {
+  if (CallAsMethod()) {
     __ Bind(&wrap);
     EmitWrapCase(masm, argc, &cont);
   }
-}
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  ASM_LOCATION("CallFunctionStub::Generate");
-  CallFunctionNoFeedback(masm, argc_, NeedsChecks(), CallAsMethod());
 }
 
 
@@ -3360,59 +3356,6 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 }
 
 
-void CallICStub::Generate_MonomorphicArray(MacroAssembler* masm, Label* miss) {
-  // x1 - function
-  // x2 - feedback vector
-  // x3 - slot id
-  Register function = x1;
-  Register feedback_vector = x2;
-  Register index = x3;
-  Register scratch = x4;
-
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, scratch);
-  __ Cmp(function, scratch);
-  __ B(ne, miss);
-
-  Register allocation_site = feedback_vector;
-  __ Mov(x0, Operand(arg_count()));
-
-  __ Add(scratch, feedback_vector,
-         Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ Ldr(allocation_site, FieldMemOperand(scratch, FixedArray::kHeaderSize));
-
-  // Verify that x2 contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(allocation_site, scratch);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
-  __ TailCallStub(&stub);
-}
-
-
-void CallICStub::Generate_CustomFeedbackCall(MacroAssembler* masm) {
-  // x1 - function
-  // x2 - feedback vector
-  // x3 - slot id
-  Label miss;
-
-  if (state_.stub_type() == CallIC::MONOMORPHIC_ARRAY) {
-    Generate_MonomorphicArray(masm, &miss);
-  } else {
-    // So far there is only one customer for our custom feedback scheme.
-    UNREACHABLE();
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm,
-                         arg_count(),
-                         true,
-                         CallAsMethod());
-
-  __ Unreachable();
-}
-
-
 void CallICStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("CallICStub");
 
@@ -3430,11 +3373,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Register type = x4;
 
   EmitLoadTypeFeedbackVector(masm, feedback_vector);
-
-  if (state_.stub_type() != CallIC::DEFAULT) {
-    Generate_CustomFeedbackCall(masm);
-    return;
-  }
 
   // The checks. First, does x1 match the recorded monomorphic target?
   __ Add(x4, feedback_vector,

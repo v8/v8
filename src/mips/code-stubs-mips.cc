@@ -3094,13 +3094,11 @@ static void EmitWrapCase(MacroAssembler* masm, int argc, Label* cont) {
 }
 
 
-static void CallFunctionNoFeedback(MacroAssembler* masm,
-                                   int argc, bool needs_checks,
-                                   bool call_as_method) {
+void CallFunctionStub::Generate(MacroAssembler* masm) {
   // a1 : the function to call
   Label slow, non_function, wrap, cont;
 
-  if (needs_checks) {
+  if (NeedsChecks()) {
     // Check that the function is really a JavaScript function.
     // a1: pushed function (to be verified)
     __ JumpIfSmi(a1, &non_function);
@@ -3112,17 +3110,18 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
   // Fast-case: Invoke the function now.
   // a1: pushed function
+  int argc = argc_;
   ParameterCount actual(argc);
 
-  if (call_as_method) {
-    if (needs_checks) {
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
       EmitContinueIfStrictOrNative(masm, &cont);
     }
 
     // Compute the receiver in sloppy mode.
     __ lw(a3, MemOperand(sp, argc * kPointerSize));
 
-    if (needs_checks) {
+    if (NeedsChecks()) {
       __ JumpIfSmi(a3, &wrap);
       __ GetObjectType(a3, t0, t0);
       __ Branch(&wrap, lt, t0, Operand(FIRST_SPEC_OBJECT_TYPE));
@@ -3135,22 +3134,17 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
   __ InvokeFunction(a1, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  if (needs_checks) {
+  if (NeedsChecks()) {
     // Slow-case: Non-function called.
     __ bind(&slow);
     EmitSlowCase(masm, argc, &non_function);
   }
 
-  if (call_as_method) {
+  if (CallAsMethod()) {
     __ bind(&wrap);
     // Wrap the receiver and patch it back onto the stack.
     EmitWrapCase(masm, argc, &cont);
   }
-}
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  CallFunctionNoFeedback(masm, argc_, NeedsChecks(), CallAsMethod());
 }
 
 
@@ -3213,8 +3207,8 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ bind(&do_call);
   // Set expected number of arguments to zero (not changing r0).
   __ li(a2, Operand(0, RelocInfo::NONE32));
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-           RelocInfo::CODE_TARGET);
+  __ Jump(isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -3224,51 +3218,6 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
                                 JSFunction::kSharedFunctionInfoOffset));
   __ lw(vector, FieldMemOperand(vector,
                                 SharedFunctionInfo::kFeedbackVectorOffset));
-}
-
-
-void CallICStub::Generate_MonomorphicArray(MacroAssembler* masm, Label* miss) {
-  // a1 - function
-  // a2 - feedback vector
-  // a3 - slot id
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, at);
-  __ Branch(miss, ne, a1, Operand(at));
-
-  __ li(a0, Operand(arg_count()));
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(at, a2, Operand(at));
-  __ lw(a2, FieldMemOperand(at, FixedArray::kHeaderSize));
-  // Verify that a2 contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(a2, at);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
-  __ TailCallStub(&stub);
-}
-
-
-void CallICStub::Generate_CustomFeedbackCall(MacroAssembler* masm) {
-  // a1 - function
-  // a2 - feedback vector
-  // a3 - slot id
-  Label miss;
-
-  if (state_.stub_type() == CallIC::MONOMORPHIC_ARRAY) {
-    Generate_MonomorphicArray(masm, &miss);
-  } else {
-    // So far there is only one customer for our custom feedback scheme.
-    UNREACHABLE();
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm,
-                         arg_count(),
-                         true,
-                         CallAsMethod());
-
-  // Unreachable.
-  __ stop("Unexpected code address");
 }
 
 
@@ -3282,11 +3231,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   ParameterCount actual(argc);
 
   EmitLoadTypeFeedbackVector(masm, a2);
-
-  if (state_.stub_type() != CallIC::DEFAULT) {
-    Generate_CustomFeedbackCall(masm);
-    return;
-  }
 
   // The checks. First, does r1 match the recorded monomorphic target?
   __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);

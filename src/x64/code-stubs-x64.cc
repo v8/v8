@@ -2228,17 +2228,16 @@ static void EmitWrapCase(MacroAssembler* masm,
 }
 
 
-static void CallFunctionNoFeedback(MacroAssembler* masm,
-                                   int argc, bool needs_checks,
-                                   bool call_as_method) {
+void CallFunctionStub::Generate(MacroAssembler* masm) {
   // rdi : the function to call
 
   // wrap_and_call can only be true if we are compiling a monomorphic method.
   Isolate* isolate = masm->isolate();
   Label slow, non_function, wrap, cont;
+  int argc = argc_;
   StackArgumentsAccessor args(rsp, argc);
 
-  if (needs_checks) {
+  if (NeedsChecks()) {
     // Check that the function really is a JavaScript function.
     __ JumpIfSmi(rdi, &non_function);
 
@@ -2250,15 +2249,15 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc);
 
-  if (call_as_method) {
-    if (needs_checks) {
+  if (CallAsMethod()) {
+    if (NeedsChecks()) {
       EmitContinueIfStrictOrNative(masm, &cont);
     }
 
     // Load the receiver from the stack.
     __ movp(rax, args.GetReceiverOperand());
 
-    if (needs_checks) {
+    if (NeedsChecks()) {
       __ JumpIfSmi(rax, &wrap);
 
       __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
@@ -2272,21 +2271,16 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
   __ InvokeFunction(rdi, actual, JUMP_FUNCTION, NullCallWrapper());
 
-  if (needs_checks) {
+  if (NeedsChecks()) {
     // Slow-case: Non-function called.
     __ bind(&slow);
     EmitSlowCase(isolate, masm, &args, argc, &non_function);
   }
 
-  if (call_as_method) {
+  if (CallAsMethod()) {
     __ bind(&wrap);
     EmitWrapCase(masm, &args, &cont);
   }
-}
-
-
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  CallFunctionNoFeedback(masm, argc_, NeedsChecks(), CallAsMethod());
 }
 
 
@@ -2364,54 +2358,6 @@ static void EmitLoadTypeFeedbackVector(MacroAssembler* masm, Register vector) {
 }
 
 
-void CallICStub::Generate_MonomorphicArray(MacroAssembler* masm, Label* miss) {
-  // rdi - function
-  // rbx - feedback vector
-  // rdx - slot id (as integer)
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
-  __ cmpq(rdi, rcx);
-  __ j(not_equal, miss);
-
-  __ movq(rax, Immediate(arg_count()));
-  __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
-                            FixedArray::kHeaderSize));
-
-  // Verify that ecx contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(rbx);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
-  __ TailCallStub(&stub);
-}
-
-
-void CallICStub::Generate_CustomFeedbackCall(MacroAssembler* masm) {
-  // rdi - function
-  // rbx - feedback vector
-  // rdx - slot id
-  Label miss;
-
-  __ SmiToInteger32(rdx, rdx);
-
-  if (state_.stub_type() == CallIC::MONOMORPHIC_ARRAY) {
-    Generate_MonomorphicArray(masm, &miss);
-  } else {
-    // So far there is only one customer for our custom feedback scheme.
-    UNREACHABLE();
-  }
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-
-  // The slow case, we need this no matter what to complete a call after a miss.
-  CallFunctionNoFeedback(masm,
-                         arg_count(),
-                         true,
-                         CallAsMethod());
-
-  // Unreachable.
-  __ int3();
-}
-
-
 void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rbx - vector
@@ -2425,11 +2371,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   ParameterCount actual(argc);
 
   EmitLoadTypeFeedbackVector(masm, rbx);
-
-  if (state_.stub_type() != CallIC::DEFAULT) {
-    Generate_CustomFeedbackCall(masm);
-    return;
-  }
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
