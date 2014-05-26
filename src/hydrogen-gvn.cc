@@ -140,10 +140,10 @@ HInstructionMap::HInstructionMap(Zone* zone, const HInstructionMap* other)
       lists_(zone->NewArray<HInstructionMapListElement>(other->lists_size_)),
       free_list_head_(other->free_list_head_),
       side_effects_tracker_(other->side_effects_tracker_) {
-  MemCopy(array_, other->array_,
-          array_size_ * sizeof(HInstructionMapListElement));
-  MemCopy(lists_, other->lists_,
-          lists_size_ * sizeof(HInstructionMapListElement));
+  OS::MemCopy(
+      array_, other->array_, array_size_ * sizeof(HInstructionMapListElement));
+  OS::MemCopy(
+      lists_, other->lists_, lists_size_ * sizeof(HInstructionMapListElement));
 }
 
 
@@ -270,7 +270,8 @@ void HInstructionMap::ResizeLists(int new_size, Zone* zone) {
   lists_ = new_lists;
 
   if (old_lists != NULL) {
-    MemCopy(lists_, old_lists, old_size * sizeof(HInstructionMapListElement));
+    OS::MemCopy(
+        lists_, old_lists, old_size * sizeof(HInstructionMapListElement));
   }
   for (int i = old_size; i < lists_size_; ++i) {
     lists_[i].next = free_list_head_;
@@ -314,9 +315,9 @@ HSideEffectMap::HSideEffectMap(HSideEffectMap* other) : count_(other->count_) {
 }
 
 
-HSideEffectMap& HSideEffectMap::operator=(const HSideEffectMap& other) {
+HSideEffectMap& HSideEffectMap::operator= (const HSideEffectMap& other) {
   if (this != &other) {
-    MemCopy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
+    OS::MemCopy(data_, other.data_, kNumberOfTrackedSideEffects * kPointerSize);
   }
   return *this;
 }

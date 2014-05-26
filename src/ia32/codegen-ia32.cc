@@ -186,7 +186,7 @@ class LabelConverter {
 };
 
 
-MemMoveFunction CreateMemMoveFunction() {
+OS::MemMoveFunction CreateMemMoveFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
@@ -508,7 +508,7 @@ MemMoveFunction CreateMemMoveFunction() {
   OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
-  return FUNCTION_CAST<MemMoveFunction>(buffer);
+  return FUNCTION_CAST<OS::MemMoveFunction>(buffer);
 }
 
 

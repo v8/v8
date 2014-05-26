@@ -1313,8 +1313,8 @@ class RelocInfoBuffer {
     // Copy the data.
     int curently_used_size =
         static_cast<int>(buffer_ + buffer_size_ - reloc_info_writer_.pos());
-    MemMove(new_buffer + new_buffer_size - curently_used_size,
-            reloc_info_writer_.pos(), curently_used_size);
+    OS::MemMove(new_buffer + new_buffer_size - curently_used_size,
+                reloc_info_writer_.pos(), curently_used_size);
 
     reloc_info_writer_.Reposition(
         new_buffer + new_buffer_size - curently_used_size,
@@ -1367,7 +1367,7 @@ static Handle<Code> PatchPositionsInCode(
 
   if (buffer.length() == code->relocation_size()) {
     // Simply patch relocation area of code.
-    MemCopy(code->relocation_start(), buffer.start(), buffer.length());
+    OS::MemCopy(code->relocation_start(), buffer.start(), buffer.length());
     return code;
   } else {
     // Relocation info section now has different size. We cannot simply
@@ -1636,9 +1636,9 @@ static const char* DropFrames(Vector<StackFrame*> frames,
 
       StackFrame* pre_pre_frame = frames[top_frame_index - 2];
 
-      MemMove(padding_start + kPointerSize - shortage_bytes,
-              padding_start + kPointerSize,
-              Debug::FramePaddingLayout::kFrameBaseSize * kPointerSize);
+      OS::MemMove(padding_start + kPointerSize - shortage_bytes,
+                  padding_start + kPointerSize,
+                  Debug::FramePaddingLayout::kFrameBaseSize * kPointerSize);
 
       pre_top_frame->UpdateFp(pre_top_frame->fp() - shortage_bytes);
       pre_pre_frame->SetCallerFp(pre_top_frame->fp());

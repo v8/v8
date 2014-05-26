@@ -95,7 +95,7 @@ void V8::InitializeOncePerProcessImpl() {
 #endif
   Sampler::SetUp();
   CpuFeatures::Probe(false);
-  init_memcopy_functions();
+  OS::PostSetUp();
   // The custom exp implementation needs 16KB of lookup data; initialize it
   // on demand.
   init_fast_sqrt_function();

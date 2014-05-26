@@ -122,8 +122,8 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  MemCopy(answer->address() + SeqOneByteString::kHeaderSize, str.start(),
-          str.length());
+  OS::MemCopy(answer->address() + SeqOneByteString::kHeaderSize,
+              str.start(), str.length());
 
   return answer;
 }
@@ -154,8 +154,8 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  MemCopy(answer->address() + SeqTwoByteString::kHeaderSize, str.start(),
-          str.length() * kUC16Size);
+  OS::MemCopy(answer->address() + SeqTwoByteString::kHeaderSize,
+              str.start(), str.length() * kUC16Size);
 
   return answer;
 }
@@ -429,7 +429,7 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
       *dst_slot++ = *src_slot++;
     }
   } else {
-    MemMove(dst, src, static_cast<size_t>(byte_size));
+    OS::MemMove(dst, src, static_cast<size_t>(byte_size));
   }
 }
 

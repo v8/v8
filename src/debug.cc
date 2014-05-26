@@ -515,7 +515,7 @@ void Debug::ThreadInit() {
 
 char* Debug::ArchiveDebug(char* storage) {
   char* to = storage;
-  MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
+  OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadInit();
   return storage + ArchiveSpacePerThread();
 }
@@ -523,7 +523,8 @@ char* Debug::ArchiveDebug(char* storage) {
 
 char* Debug::RestoreDebug(char* storage) {
   char* from = storage;
-  MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  OS::MemCopy(
+      reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
   return storage + ArchiveSpacePerThread();
 }
 

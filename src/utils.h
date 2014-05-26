@@ -322,84 +322,6 @@ inline uint32_t ComputePointerHash(void* ptr) {
 
 
 // ----------------------------------------------------------------------------
-// Generated memcpy/memmove
-
-// Initializes the codegen support that depends on CPU features. This is
-// called after CPU initialization.
-void init_memcopy_functions();
-
-#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X87)
-// Limit below which the extra overhead of the MemCopy function is likely
-// to outweigh the benefits of faster copying.
-const int kMinComplexMemCopy = 64;
-
-// Copy memory area. No restrictions.
-void MemMove(void* dest, const void* src, size_t size);
-typedef void (*MemMoveFunction)(void* dest, const void* src, size_t size);
-
-// Keep the distinction of "move" vs. "copy" for the benefit of other
-// architectures.
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  MemMove(dest, src, size);
-}
-#elif defined(V8_HOST_ARCH_ARM)
-typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
-                                     size_t size);
-extern MemCopyUint8Function memcopy_uint8_function;
-void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src, size_t chars) {
-  memcpy(dest, src, chars);
-}
-// For values < 16, the assembler function is slower than the inlined C code.
-const int kMinComplexMemCopy = 16;
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
-                            reinterpret_cast<const uint8_t*>(src), size);
-}
-V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-
-typedef void (*MemCopyUint16Uint8Function)(uint16_t* dest, const uint8_t* src,
-                                           size_t size);
-extern MemCopyUint16Uint8Function memcopy_uint16_uint8_function;
-void MemCopyUint16Uint8Wrapper(uint16_t* dest, const uint8_t* src,
-                               size_t chars);
-// For values < 12, the assembler function is slower than the inlined C code.
-const int kMinComplexConvertMemCopy = 12;
-V8_INLINE void MemCopyUint16Uint8(uint16_t* dest, const uint8_t* src,
-                                  size_t size) {
-  (*memcopy_uint16_uint8_function)(dest, src, size);
-}
-#elif defined(V8_HOST_ARCH_MIPS)
-typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
-                                     size_t size);
-extern MemCopyUint8Function memcopy_uint8_function;
-V8_INLINE void MemCopyUint8Wrapper(uint8_t* dest, const uint8_t* src,
-                                   size_t chars) {
-  memcpy(dest, src, chars);
-}
-// For values < 16, the assembler function is slower than the inlined C code.
-const int kMinComplexMemCopy = 16;
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  (*memcopy_uint8_function)(reinterpret_cast<uint8_t*>(dest),
-                            reinterpret_cast<const uint8_t*>(src), size);
-}
-V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-#else
-// Copy memory area to disjoint memory area.
-V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  memcpy(dest, src, size);
-}
-V8_INLINE void MemMove(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-const int kMinComplexMemCopy = 16 * kPointerSize;
-#endif  // V8_TARGET_ARCH_IA32
-
-
-// ----------------------------------------------------------------------------
 // Miscellaneous
 
 // A static resource holds a static instance that can be reserved in
@@ -480,14 +402,14 @@ class EmbeddedVector : public Vector<T> {
   // When copying, make underlying Vector to reference our buffer.
   EmbeddedVector(const EmbeddedVector& rhs)
       : Vector<T>(rhs) {
-    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     set_start(buffer_);
   }
 
   EmbeddedVector& operator=(const EmbeddedVector& rhs) {
     if (this == &rhs) return *this;
     Vector<T>::operator=(rhs);
-    MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
+    OS::MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     this->set_start(buffer_);
     return *this;
   }
@@ -1218,7 +1140,7 @@ inline void CopyWords(T* dst, const T* src, size_t num_words) {
   //       Max(dst, const_cast<T*>(src)));
   ASSERT(num_words > 0);
 
-  // Use block copying MemCopy if the segment we're copying is
+  // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const size_t kBlockCopyLimit = 16;
 
@@ -1228,7 +1150,7 @@ inline void CopyWords(T* dst, const T* src, size_t num_words) {
       *dst++ = *src++;
     } while (num_words > 0);
   } else {
-    MemCopy(dst, src, num_words * kPointerSize);
+    OS::MemCopy(dst, src, num_words * kPointerSize);
   }
 }
 
@@ -1239,7 +1161,7 @@ inline void MoveWords(T* dst, const T* src, size_t num_words) {
   STATIC_ASSERT(sizeof(T) == kPointerSize);
   ASSERT(num_words > 0);
 
-  // Use block copying MemCopy if the segment we're copying is
+  // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
   static const size_t kBlockCopyLimit = 16;
 
@@ -1251,7 +1173,7 @@ inline void MoveWords(T* dst, const T* src, size_t num_words) {
       *dst++ = *src++;
     } while (num_words > 0);
   } else {
-    MemMove(dst, src, num_words * kPointerSize);
+    OS::MemMove(dst, src, num_words * kPointerSize);
   }
 }
 
@@ -1264,9 +1186,9 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
          Max(dst, const_cast<T*>(src)));
   if (num_bytes == 0) return;
 
-  // Use block copying MemCopy if the segment we're copying is
+  // Use block copying OS::MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = kMinComplexMemCopy;
+  static const int kBlockCopyLimit = OS::kMinComplexMemCopy;
 
   if (num_bytes < static_cast<size_t>(kBlockCopyLimit)) {
     do {
@@ -1274,7 +1196,7 @@ inline void CopyBytes(T* dst, const T* src, size_t num_bytes) {
       *dst++ = *src++;
     } while (num_bytes > 0);
   } else {
-    MemCopy(dst, src, num_bytes);
+    OS::MemCopy(dst, src, num_bytes);
   }
 }
 
@@ -1397,8 +1319,8 @@ void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {
-    if (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest))) {
-      MemCopy(dest, src, chars * sizeof(*dest));
+    if (chars >= static_cast<int>(OS::kMinComplexMemCopy / sizeof(*dest))) {
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
       return;
     }
     // Number of characters in a uintptr_t.
@@ -1469,17 +1391,17 @@ void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
       memcpy(dest, src, 15);
       break;
     default:
-      MemCopy(dest, src, chars);
+      OS::MemCopy(dest, src, chars);
       break;
   }
 }
 
 
 void CopyCharsUnsigned(uint16_t* dest, const uint8_t* src, int chars) {
-  if (chars >= kMinComplexConvertMemCopy) {
-    MemCopyUint16Uint8(dest, src, chars);
+  if (chars >= OS::kMinComplexConvertMemCopy) {
+    OS::MemCopyUint16Uint8(dest, src, chars);
   } else {
-    MemCopyUint16Uint8Wrapper(dest, src, chars);
+    OS::MemCopyUint16Uint8Wrapper(dest, src, chars);
   }
 }
 
@@ -1510,7 +1432,7 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
       memcpy(dest, src, 14);
       break;
     default:
-      MemCopy(dest, src, chars * sizeof(*dest));
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
       break;
   }
 }
@@ -1518,18 +1440,18 @@ void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
 
 #elif defined(V8_HOST_ARCH_MIPS)
 void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars) {
-  if (chars < kMinComplexMemCopy) {
+  if (chars < OS::kMinComplexMemCopy) {
     memcpy(dest, src, chars);
   } else {
-    MemCopy(dest, src, chars);
+    OS::MemCopy(dest, src, chars);
   }
 }
 
 void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars) {
-  if (chars < kMinComplexMemCopy) {
+  if (chars < OS::kMinComplexMemCopy) {
     memcpy(dest, src, chars * sizeof(*dest));
   } else {
-    MemCopy(dest, src, chars * sizeof(*dest));
+    OS::MemCopy(dest, src, chars * sizeof(*dest));
   }
 }
 #endif
