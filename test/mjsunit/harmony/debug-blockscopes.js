@@ -412,10 +412,12 @@ function for_loop_3() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
+  CheckScopeContent({x:3}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_3();
 EndTest();
@@ -434,11 +436,13 @@ function for_loop_4() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:5}, 0, exec_state);
   CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({x:3}, 2, exec_state);
+  CheckScopeContent({}, 3, exec_state);
 };
 for_loop_4();
 EndTest();
@@ -455,10 +459,12 @@ function for_loop_5() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3,y:5}, 0, exec_state);
-  CheckScopeContent({}, 1, exec_state);
+  CheckScopeContent({x:3,y:5}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_5();
 EndTest();

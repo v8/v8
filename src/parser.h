@@ -718,6 +718,10 @@ class Parser : public ParserBase<ParserTraits> {
                                   Expression* each,
                                   Expression* subject,
                                   Statement* body);
+  Statement* DesugarLetBindingsInForStatement(
+      Scope* inner_scope, ZoneStringList* names, ForStatement* loop,
+      Statement* init, Expression* cond, Statement* next, Statement* body,
+      bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
       Handle<String> name,
