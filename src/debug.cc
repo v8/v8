@@ -805,6 +805,8 @@ bool Debug::Load() {
 
 
 void Debug::Unload() {
+  ClearAllBreakPoints();
+
   // Return debugger is not loaded.
   if (!IsLoaded()) return;
 
@@ -3150,7 +3152,6 @@ void Debugger::UpdateState() {
     activate = debug->Load();
   } else if (debug->IsLoaded() && !activate) {
     isolate_->compilation_cache()->Enable();
-    debug->ClearAllBreakPoints();
     debug->Unload();
   }
   is_active_ = activate;
