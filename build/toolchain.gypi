@@ -288,6 +288,13 @@
           'V8_TARGET_ARCH_IA32',
         ],
       }],  # v8_target_arch=="ia32"
+      ['v8_target_arch=="x87"', {
+        'defines': [
+          'V8_TARGET_ARCH_X87',
+        ],
+        'cflags': ['-mfpmath=387'],
+        'ldflags': ['-mfpmath=387'],
+      }],  # v8_target_arch=="x87"
       ['v8_target_arch=="mips"', {
         'defines': [
           'V8_TARGET_ARCH_MIPS',
@@ -440,7 +447,7 @@
       }],
       ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
+        (v8_target_arch=="arm" or v8_target_arch=="ia32" or v8_target_arch=="x87" or\
          v8_target_arch=="mips" or v8_target_arch=="mipsel")', {
         # Check whether the host compiler and target compiler support the
         # '-m32' option and set it if so.

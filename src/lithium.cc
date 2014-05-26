@@ -22,6 +22,9 @@
 #elif V8_TARGET_ARCH_ARM64
 #include "arm64/lithium-arm64.h"
 #include "arm64/lithium-codegen-arm64.h"
+#elif V8_TARGET_ARCH_X87
+#include "x87/lithium-x87.h"
+#include "x87/lithium-codegen-x87.h"
 #else
 #error "Unknown architecture."
 #endif

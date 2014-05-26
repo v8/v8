@@ -115,7 +115,7 @@
       }, {
         'os_posix%': 1,
       }],
-      ['(v8_target_arch=="ia32" or v8_target_arch=="x64") and \
+      ['(v8_target_arch=="ia32" or v8_target_arch=="x64" or v8_target_arch=="x87") and \
         (OS=="linux" or OS=="mac")', {
         'v8_enable_gdbjit%': 1,
       }, {

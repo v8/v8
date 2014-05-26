@@ -1484,11 +1484,19 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
-  void DecodeField(Register reg) {
+  void DecodeField(Register dst, Register src) {
     static const int shift = Field::kShift;
     static const int mask = Field::kMask >> shift;
-    srl(reg, reg, shift);
-    And(reg, reg, Operand(mask));
+    static const int size = Field::kSize;
+    srl(dst, src, shift);
+    if (shift + size != 32) {
+      And(dst, dst, Operand(mask));
+    }
+  }
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    DecodeField<Field>(reg, reg);
   }
 
   // Generates function and stub prologue code.

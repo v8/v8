@@ -322,6 +322,7 @@ class PerfJitLogger : public CodeEventLogger {
   static const uint32_t kElfMachX64 = 62;
   static const uint32_t kElfMachARM = 40;
   static const uint32_t kElfMachMIPS = 10;
+  static const uint32_t kElfMachX87 = 3;
 
   struct jitheader {
     uint32_t magic;
@@ -361,6 +362,8 @@ class PerfJitLogger : public CodeEventLogger {
     return kElfMachARM;
 #elif V8_TARGET_ARCH_MIPS
     return kElfMachMIPS;
+#elif V8_TARGET_ARCH_X87
+    return kElfMachX87;
 #else
     UNIMPLEMENTED();
     return 0;
@@ -557,6 +560,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
+#elif V8_TARGET_ARCH_X87
+  const char arch[] = "x87";
 #else
   const char arch[] = "unknown";
 #endif

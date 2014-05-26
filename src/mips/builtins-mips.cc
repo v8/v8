@@ -319,7 +319,6 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
 
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
-                                           bool count_constructions,
                                            bool create_memento) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
@@ -329,14 +328,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // Should never count constructions for api objects.
-  ASSERT(!is_api_function || !count_constructions);
-
   // Should never create mementos for api functions.
   ASSERT(!is_api_function || !create_memento);
-
-  // Should never create mementos before slack tracking is finished.
-  ASSERT(!count_constructions || !create_memento);
 
   Isolate* isolate = masm->isolate();
 
@@ -359,9 +352,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Preserve the two incoming parameters on the stack.
     __ sll(a0, a0, kSmiTagSize);  // Tag arguments count.
     __ MultiPushReversed(a0.bit() | a1.bit());
-
-    // Use t7 to hold undefined, which is used in several places below.
-    __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
 
     Label rt_call, allocated;
     // Try to allocate the object without transitioning into C code. If any of
@@ -389,22 +379,26 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
       __ Branch(&rt_call, eq, a3, Operand(JS_FUNCTION_TYPE));
 
-      if (count_constructions) {
+      if (!is_api_function) {
         Label allocate;
+        MemOperand bit_field3 = FieldMemOperand(a2, Map::kBitField3Offset);
+        // Check if slack tracking is enabled.
+        __ lw(t0, bit_field3);
+        __ DecodeField<Map::ConstructionCount>(t2, t0);
+        __ Branch(&allocate, eq, t2, Operand(JSFunction::kNoSlackTracking));
         // Decrease generous allocation count.
-        __ lw(a3, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-        MemOperand constructor_count =
-           FieldMemOperand(a3, SharedFunctionInfo::kConstructionCountOffset);
-        __ lbu(t0, constructor_count);
-        __ Subu(t0, t0, Operand(1));
-        __ sb(t0, constructor_count);
-        __ Branch(&allocate, ne, t0, Operand(zero_reg));
+        __ Subu(t0, t0, Operand(1 << Map::ConstructionCount::kShift));
+        __ Branch(USE_DELAY_SLOT,
+            &allocate, ne, t2, Operand(JSFunction::kFinishSlackTracking));
+        __ sw(t0, bit_field3);  // In delay slot.
 
         __ Push(a1, a2, a1);  // a1 = Constructor.
-        // The call will replace the stub, so the countdown is only done once.
         __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
 
         __ Pop(a1, a2);
+        // Slack tracking counter is kNoSlackTracking after runtime call.
+        ASSERT(JSFunction::kNoSlackTracking == 0);
+        __ mov(t2, zero_reg);
 
         __ bind(&allocate);
       }
@@ -441,29 +435,42 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // a3: object size (in words, including memento if create_memento)
       // t4: JSObject (not tagged)
       // t5: First in-object property of JSObject (not tagged)
+      // t2: slack tracking counter (non-API function case)
       ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
 
-      if (count_constructions) {
-        __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
+      // Use t7 to hold undefined, which is used in several places below.
+      __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
+
+      if (!is_api_function) {
+        Label no_inobject_slack_tracking;
+
+        // Check if slack tracking is enabled.
+        __ Branch(&no_inobject_slack_tracking,
+            eq, t2, Operand(JSFunction::kNoSlackTracking));
+
+        // Allocate object with a slack.
         __ lbu(a0, FieldMemOperand(a2, Map::kPreAllocatedPropertyFieldsOffset));
         __ sll(at, a0, kPointerSizeLog2);
         __ addu(a0, t5, at);
-        __ sll(at, a3, kPointerSizeLog2);
-        __ Addu(t6, t4, Operand(at));   // End of object.
         // a0: offset of first field after pre-allocated fields
         if (FLAG_debug_code) {
+          __ sll(at, a3, kPointerSizeLog2);
+          __ Addu(t6, t4, Operand(at));   // End of object.
           __ Assert(le, kUnexpectedNumberOfPreAllocatedPropertyFields,
               a0, Operand(t6));
         }
         __ InitializeFieldsWithFiller(t5, a0, t7);
         // To allow for truncation.
         __ LoadRoot(t7, Heap::kOnePointerFillerMapRootIndex);
-        __ InitializeFieldsWithFiller(t5, t6, t7);
-      } else if (create_memento) {
-        __ Subu(t7, a3, Operand(AllocationMemento::kSize / kPointerSize));
-        __ sll(at, t7, kPointerSizeLog2);
-        __ Addu(a0, t4, Operand(at));  // End of object.
-        __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
+        // Fill the remaining fields with one pointer filler map.
+
+        __ bind(&no_inobject_slack_tracking);
+      }
+
+      if (create_memento) {
+        __ Subu(a0, a3, Operand(AllocationMemento::kSize / kPointerSize));
+        __ sll(a0, a0, kPointerSizeLog2);
+        __ Addu(a0, t4, Operand(a0));  // End of object.
         __ InitializeFieldsWithFiller(t5, a0, t7);
 
         // Fill in memento fields.
@@ -478,7 +485,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ sw(t7, MemOperand(t5));
         __ Addu(t5, t5, kPointerSize);
       } else {
-        __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
         __ sll(at, a3, kPointerSizeLog2);
         __ Addu(a0, t4, Operand(at));  // End of object.
         __ InitializeFieldsWithFiller(t5, a0, t7);
@@ -548,11 +554,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ addu(t6, a2, t3);  // End of object.
       ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
       { Label loop, entry;
-        if (count_constructions) {
+        if (!is_api_function || create_memento) {
           __ LoadRoot(t7, Heap::kUndefinedValueRootIndex);
         } else if (FLAG_debug_code) {
-          __ LoadRoot(t8, Heap::kUndefinedValueRootIndex);
-          __ Assert(eq, kUndefinedValueNotLoaded, t7, Operand(t8));
+          __ LoadRoot(t2, Heap::kUndefinedValueRootIndex);
+          __ Assert(eq, kUndefinedValueNotLoaded, t7, Operand(t2));
         }
         __ jmp(&entry);
         __ bind(&loop);
@@ -676,7 +682,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     }
 
     // Store offset of return address for deoptimizer.
-    if (!is_api_function && !count_constructions) {
+    if (!is_api_function) {
       masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
     }
 
@@ -725,18 +731,13 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 }
 
 
-void Builtins::Generate_JSConstructStubCountdown(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, true, false);
-}
-
-
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, false, false, FLAG_pretenuring_call_new);
+  Generate_JSConstructStubHelper(masm, false, FLAG_pretenuring_call_new);
 }
 
 
 void Builtins::Generate_JSConstructStubApi(MacroAssembler* masm) {
-  Generate_JSConstructStubHelper(masm, true, false, false);
+  Generate_JSConstructStubHelper(masm, true, false);
 }
 
 

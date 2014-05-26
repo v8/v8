@@ -179,7 +179,7 @@
                   '-L<(android_stlport_libs)/mips',
                 ],
               }],
-              ['target_arch=="ia32"', {
+              ['target_arch=="ia32" or target_arch=="x87"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
                 ],
@@ -196,7 +196,7 @@
               }],
             ],
           }],
-          ['target_arch=="ia32"', {
+          ['target_arch=="ia32" or target_arch=="x87"', {
             # The x86 toolchain currently has problems with stack-protector.
             'cflags!': [
               '-fstack-protector',

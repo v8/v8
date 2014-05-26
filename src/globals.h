@@ -77,7 +77,7 @@ namespace internal {
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_X87 &&\
     !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
@@ -141,6 +141,8 @@ namespace internal {
 #else
 #define V8_TARGET_LITTLE_ENDIAN 1
 #endif
+#elif V8_TARGET_ARCH_X87
+#define V8_TARGET_LITTLE_ENDIAN 1
 #else
 #error Unknown target architecture endianness
 #endif

@@ -107,7 +107,7 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 static void MemMoveWrapper(void* dest, const void* src, size_t size) {
   memmove(dest, src, size);
 }
@@ -127,7 +127,7 @@ void OS::MemMove(void* dest, const void* src, size_t size) {
   (*memmove_function)(dest, src, size);
 }
 
-#endif  // V8_TARGET_ARCH_IA32
+#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
 
 
 class TimezoneCache {
@@ -453,7 +453,7 @@ char* Win32Time::LocalTimezone(TimezoneCache* cache) {
 
 
 void OS::PostSetUp() {
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
   if (generated_memmove != NULL) {
     memmove_function = generated_memmove;

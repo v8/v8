@@ -51,7 +51,7 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   // GenerateHashInit takes the first character as an argument so it can't
   // handle the zero length string.
   ASSERT(string.length() > 0);
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __ push(ebx);
   __ push(ecx);
   __ mov(eax, Immediate(0));
@@ -136,7 +136,7 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
 
 
 void generate(MacroAssembler* masm, uint32_t key) {
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __ push(ebx);
   __ mov(eax, Immediate(key));
   __ GetNumberHash(eax, ebx);

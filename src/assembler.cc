@@ -66,6 +66,8 @@
 #include "arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/assembler-mips-inl.h"
+#elif V8_TARGET_ARCH_X87
+#include "x87/assembler-x87-inl.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -82,6 +84,8 @@
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "mips/regexp-macro-assembler-mips.h"
+#elif V8_TARGET_ARCH_X87
+#include "x87/regexp-macro-assembler-x87.h"
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
@@ -1345,6 +1349,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   function = FUNCTION_ADDR(RegExpMacroAssemblerARM::CheckStackGuardState);
 #elif V8_TARGET_ARCH_MIPS
   function = FUNCTION_ADDR(RegExpMacroAssemblerMIPS::CheckStackGuardState);
+#elif V8_TARGET_ARCH_X87
+  function = FUNCTION_ADDR(RegExpMacroAssemblerX87::CheckStackGuardState);
 #else
   UNREACHABLE();
 #endif

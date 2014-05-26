@@ -99,7 +99,7 @@ class FullCodeGenerator: public AstVisitor {
   static const int kMaxBackEdgeWeight = 127;
 
   // Platform-specific code size multiplier.
-#if V8_TARGET_ARCH_IA32
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   static const int kCodeSizeMultiplier = 105;
   static const int kBootCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64

@@ -69,6 +69,11 @@
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #endif
+#if V8_TARGET_ARCH_X87
+#include "x87/assembler-x87.h"
+#include "x87/macro-assembler-x87.h"
+#include "x87/regexp-macro-assembler-x87.h"
+#endif
 #endif  // V8_INTERPRETED_REGEXP
 
 using namespace v8::internal;
@@ -698,6 +703,8 @@ typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 typedef RegExpMacroAssemblerARM64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_MIPS
 typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_X87
+typedef RegExpMacroAssemblerX87 ArchRegExpMacroAssembler;
 #endif
 
 class ContextInitializer {
