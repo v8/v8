@@ -22431,14 +22431,13 @@ void StoringEventLoggerCallback(const char* message, int status) {
 TEST(EventLogging) {
   v8::Isolate* isolate = CcTest::isolate();
   isolate->SetEventLogger(StoringEventLoggerCallback);
-  v8::internal::HistogramTimer* histogramTimer =
-      new v8::internal::HistogramTimer(
-          "V8.Test", 0, 10000, 50,
-          reinterpret_cast<v8::internal::Isolate*>(isolate));
-  histogramTimer->Start();
+  v8::internal::HistogramTimer histogramTimer(
+      "V8.Test", 0, 10000, 50,
+      reinterpret_cast<v8::internal::Isolate*>(isolate));
+  histogramTimer.Start();
   CHECK_EQ("V8.Test", last_event_message);
   CHECK_EQ(0, last_event_status);
-  histogramTimer->Stop();
+  histogramTimer.Stop();
   CHECK_EQ("V8.Test", last_event_message);
   CHECK_EQ(1, last_event_status);
 }

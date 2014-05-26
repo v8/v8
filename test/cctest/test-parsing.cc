@@ -2009,6 +2009,7 @@ TEST(DontRegressPreParserDataSizes) {
           data->function_count());
       CHECK(false);
     }
+    delete data;
   }
 }
 
