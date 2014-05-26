@@ -199,6 +199,7 @@ void FullCodeGenerator::Generate() {
   int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate context");
+    bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in rdi.
     if (FLAG_harmony_scoping && info->scope()->is_global_scope()) {
       __ Push(rdi);
@@ -207,6 +208,8 @@ void FullCodeGenerator::Generate() {
     } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
+      // Result of FastNewContextStub is always in new space.
+      need_write_barrier = false;
     } else {
       __ Push(rdi);
       __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
@@ -230,8 +233,15 @@ void FullCodeGenerator::Generate() {
         int context_offset = Context::SlotOffset(var->index());
         __ movp(Operand(rsi, context_offset), rax);
         // Update the write barrier.  This clobbers rax and rbx.
-        __ RecordWriteContextSlot(
-            rsi, context_offset, rax, rbx, kDontSaveFPRegs);
+        if (need_write_barrier) {
+          __ RecordWriteContextSlot(
+              rsi, context_offset, rax, rbx, kDontSaveFPRegs);
+        } else if (FLAG_debug_code) {
+          Label done;
+          __ JumpIfInNewSpace(rsi, rax, &done, Label::kNear);
+          __ Abort(kExpectedNewSpaceObject);
+          __ bind(&done);
+        }
       }
     }
   }
