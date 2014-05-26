@@ -2200,7 +2200,6 @@ TEST(OptimizedPretenuringAllocationFolding) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
       "function DataObject() {"
@@ -2243,7 +2242,6 @@ TEST(OptimizedPretenuringAllocationFoldingBlocks) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   v8::Local<v8::Value> res = CompileRun(
       "var number_elements = 30000;"
@@ -2590,7 +2588,6 @@ TEST(OptimizedPretenuringCallNew) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
 
   AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   v8::Local<v8::Value> res = CompileRun(
@@ -3721,10 +3718,6 @@ TEST(DisableInlineAllocation) {
 
   // Run test with inline allocation disabled.
   CcTest::heap()->DisableInlineAllocation();
-  CompileRun("run()");
-
-  // Run test with inline allocation disabled and pretenuring.
-  CcTest::heap()->SetNewSpaceHighPromotionModeActive(true);
   CompileRun("run()");
 
   // Run test with inline allocation re-enabled.

@@ -1980,34 +1980,12 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
                                              Register scratch1,
                                              Register scratch2,
                                              Label* gc_required) {
-  Label allocate_new_space, install_map;
-  AllocationFlags flags = TAG_OBJECT;
-
-  ExternalReference high_promotion_mode = ExternalReference::
-      new_space_high_promotion_mode_active_address(isolate());
-  mov(scratch1, Operand(high_promotion_mode));
-  ldr(scratch1, MemOperand(scratch1, 0));
-  cmp(scratch1, Operand::Zero());
-  b(eq, &allocate_new_space);
-
   Allocate(ConsString::kSize,
            result,
            scratch1,
            scratch2,
            gc_required,
-           static_cast<AllocationFlags>(flags | PRETENURE_OLD_POINTER_SPACE));
-
-  jmp(&install_map);
-
-  bind(&allocate_new_space);
-  Allocate(ConsString::kSize,
-           result,
-           scratch1,
-           scratch2,
-           gc_required,
-           flags);
-
-  bind(&install_map);
+           TAG_OBJECT);
 
   InitializeNewString(result,
                       length,

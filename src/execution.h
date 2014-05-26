@@ -155,7 +155,6 @@ class StackGuard V8_FINAL {
   V(DEBUGCOMMAND, DebugCommand)                                 \
   V(TERMINATE_EXECUTION, TerminateExecution)                    \
   V(GC_REQUEST, GC)                                             \
-  V(FULL_DEOPT, FullDeopt)                                      \
   V(INSTALL_CODE, InstallCode)                                  \
   V(API_INTERRUPT, ApiInterrupt)                                \
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites)
