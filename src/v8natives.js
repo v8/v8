@@ -1396,7 +1396,6 @@ function SetUpObject() {
 
   %SetNativeFlag($Object);
   %SetCode($Object, ObjectConstructor);
-  %SetExpectedNumberOfProperties($Object, 4);
 
   %SetProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
 

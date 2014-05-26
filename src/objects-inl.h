@@ -4072,19 +4072,6 @@ bool Map::is_extensible() {
 }
 
 
-void Map::set_attached_to_shared_function_info(bool value) {
-  if (value) {
-    set_bit_field2(bit_field2() | (1 << kAttachedToSharedFunctionInfo));
-  } else {
-    set_bit_field2(bit_field2() & ~(1 << kAttachedToSharedFunctionInfo));
-  }
-}
-
-bool Map::attached_to_shared_function_info() {
-  return ((1 << kAttachedToSharedFunctionInfo) & bit_field2()) != 0;
-}
-
-
 void Map::set_is_shared(bool value) {
   set_bit_field3(IsShared::update(bit_field3(), value));
 }
@@ -4148,6 +4135,26 @@ void Map::set_migration_target(bool value) {
 
 bool Map::is_migration_target() {
   return IsMigrationTarget::decode(bit_field3());
+}
+
+
+void Map::set_done_inobject_slack_tracking(bool value) {
+  set_bit_field3(DoneInobjectSlackTracking::update(bit_field3(), value));
+}
+
+
+bool Map::done_inobject_slack_tracking() {
+  return DoneInobjectSlackTracking::decode(bit_field3());
+}
+
+
+void Map::set_construction_count(int value) {
+  set_bit_field3(ConstructionCount::update(bit_field3(), value));
+}
+
+
+int Map::construction_count() {
+  return ConstructionCount::decode(bit_field3());
 }
 
 
@@ -5051,7 +5058,6 @@ ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
           kFeedbackVectorOffset)
-ACCESSORS(SharedFunctionInfo, initial_map, Object, kInitialMapOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
@@ -5176,28 +5182,6 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
 #endif
 
 
-int SharedFunctionInfo::construction_count() {
-  return READ_BYTE_FIELD(this, kConstructionCountOffset);
-}
-
-
-void SharedFunctionInfo::set_construction_count(int value) {
-  ASSERT(0 <= value && value < 256);
-  WRITE_BYTE_FIELD(this, kConstructionCountOffset, static_cast<byte>(value));
-}
-
-
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               live_objects_may_exist,
-               kLiveObjectsMayExist)
-
-
-bool SharedFunctionInfo::IsInobjectSlackTrackingInProgress() {
-  return initial_map() != GetHeap()->undefined_value();
-}
-
-
 BOOL_GETTER(SharedFunctionInfo,
             compiler_hints,
             optimization_disabled,
@@ -5246,11 +5230,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
-
-void SharedFunctionInfo::BeforeVisitingPointers() {
-  if (IsInobjectSlackTrackingInProgress()) DetachInitialMap();
-}
-
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -5470,6 +5449,12 @@ bool JSFunction::IsMarkedForConcurrentOptimization() {
 bool JSFunction::IsInOptimizationQueue() {
   return code() == GetIsolate()->builtins()->builtin(
       Builtins::kInOptimizationQueue);
+}
+
+
+bool JSFunction::IsInobjectSlackTrackingInProgress() {
+  return has_initial_map() &&
+      initial_map()->construction_count() != JSFunction::kNoSlackTracking;
 }
 
 

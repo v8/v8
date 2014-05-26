@@ -3118,29 +3118,6 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetExpectedNumberOfProperties) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, func, 0);
-  CONVERT_SMI_ARG_CHECKED(num, 1);
-  RUNTIME_ASSERT(num >= 0);
-  // If objects constructed from this function exist then changing
-  // 'estimated_nof_properties' is dangerous since the previous value might
-  // have been compiled into the fast construct stub. Moreover, the inobject
-  // slack tracking logic might have adjusted the previous value, so even
-  // passing the same value is risky.
-  if (!func->shared()->live_objects_may_exist()) {
-    func->shared()->set_expected_nof_properties(num);
-    if (func->has_initial_map()) {
-      Handle<Map> new_initial_map = Map::Copy(handle(func->initial_map()));
-      new_initial_map->set_unused_property_fields(num);
-      func->set_initial_map(*new_initial_map);
-    }
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(RuntimeHidden_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 0);
@@ -8372,15 +8349,6 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
   // available.
   Compiler::EnsureCompiled(function, CLEAR_EXCEPTION);
 
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  if (!function->has_initial_map() &&
-      shared->IsInobjectSlackTrackingInProgress()) {
-    // The tracking is already in progress for another function. We can only
-    // track one initial_map at a time, so we force the completion before the
-    // function is called as a constructor for the first time.
-    shared->CompleteInobjectSlackTracking();
-  }
-
   Handle<JSObject> result;
   if (site.is_null()) {
     result = isolate->factory()->NewJSObject(function);
@@ -8424,7 +8392,7 @@ RUNTIME_FUNCTION(RuntimeHidden_FinalizeInstanceSize) {
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  function->shared()->CompleteInobjectSlackTracking();
+  function->CompleteInobjectSlackTracking();
 
   return isolate->heap()->undefined_value();
 }

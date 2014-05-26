@@ -868,7 +868,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kMathMinMax:
     case HValue::kParameter:
     case HValue::kPhi:
-    case HValue::kPushArgument:
+    case HValue::kPushArguments:
     case HValue::kRegExpLiteral:
     case HValue::kReturn:
     case HValue::kRor:

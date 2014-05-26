@@ -1097,6 +1097,10 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSArrayBuffer()) {
     ExtractJSArrayBufferReferences(entry, JSArrayBuffer::cast(obj));
+  } else if (obj->IsJSWeakSet()) {
+    ExtractJSWeakCollectionReferences(entry, JSWeakSet::cast(obj));
+  } else if (obj->IsJSWeakMap()) {
+    ExtractJSWeakCollectionReferences(entry, JSWeakMap::cast(obj));
   } else if (obj->IsJSObject()) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
@@ -1253,6 +1257,15 @@ void V8HeapExplorer::ExtractSymbolReferences(int entry, Symbol* symbol) {
   SetInternalReference(symbol, entry,
                        "name", symbol->name(),
                        Symbol::kNameOffset);
+}
+
+
+void V8HeapExplorer::ExtractJSWeakCollectionReferences(
+    int entry, JSWeakCollection* collection) {
+  MarkAsWeakContainer(collection->table());
+  SetInternalReference(collection, entry,
+                       "table", collection->table(),
+                       JSWeakCollection::kTableOffset);
 }
 
 
@@ -1421,9 +1434,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "feedback_vector", shared->feedback_vector(),
                        SharedFunctionInfo::kFeedbackVectorOffset);
-  SetWeakReference(obj, entry,
-                   "initial_map", shared->initial_map(),
-                   SharedFunctionInfo::kInitialMapOffset);
 }
 
 

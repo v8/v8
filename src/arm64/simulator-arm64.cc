@@ -2103,10 +2103,12 @@ void Simulator::VisitExtract(Instruction* instr) {
   unsigned lsb = instr->ImmS();
   unsigned reg_size = (instr->SixtyFourBits() == 1) ? kXRegSizeInBits
                                                     : kWRegSizeInBits;
-  set_reg(reg_size,
-          instr->Rd(),
-          (static_cast<uint64_t>(reg(reg_size, instr->Rm())) >> lsb) |
-          (reg(reg_size, instr->Rn()) << (reg_size - lsb)));
+  uint64_t result = reg(reg_size, instr->Rm());
+  if (lsb) {
+    result = (result >> lsb) | (reg(reg_size, instr->Rn()) << (reg_size - lsb));
+  }
+
+  set_reg(reg_size, instr->Rd(), result);
 }
 
 

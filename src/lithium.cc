@@ -509,7 +509,7 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
 
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
-    CHECK(!value->IsPushArgument());  // Do not deopt outgoing arguments
+    CHECK(!value->IsPushArguments());  // Do not deopt outgoing arguments
     if (value->IsArgumentsObject() || value->IsCapturedObject()) {
       op = LEnvironment::materialization_marker();
     } else {
@@ -590,7 +590,7 @@ void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
       // Insert a hole for nested objects
       op = LEnvironment::materialization_marker();
     } else {
-      ASSERT(!arg_value->IsPushArgument());
+      ASSERT(!arg_value->IsPushArguments());
       // For ordinary values, tell the register allocator we need the value
       // to be alive here
       op = UseAny(arg_value);

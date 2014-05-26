@@ -794,7 +794,6 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoStrongCode(
     Heap* heap, HeapObject* object) {
-  StaticVisitor::BeforeVisitingSharedFunctionInfo(object);
   Object** start_slot =
       HeapObject::RawField(object,
                            SharedFunctionInfo::BodyDescriptor::kStartOffset);
@@ -808,7 +807,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoStrongCode(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoWeakCode(
     Heap* heap, HeapObject* object) {
-  StaticVisitor::BeforeVisitingSharedFunctionInfo(object);
   Object** name_slot =
       HeapObject::RawField(object, SharedFunctionInfo::kNameOffset);
   StaticVisitor::VisitPointer(heap, name_slot);

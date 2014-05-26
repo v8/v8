@@ -127,7 +127,7 @@ class LChunkBuilder;
   V(OsrEntry)                                  \
   V(Parameter)                                 \
   V(Power)                                     \
-  V(PushArgument)                              \
+  V(PushArguments)                             \
   V(RegExpLiteral)                             \
   V(Return)                                    \
   V(Ror)                                       \
@@ -714,6 +714,7 @@ class HValue : public ZoneObject {
     if (r.IsTagged()) {
       HType t = type();
       if (t.IsSmi()) return Representation::Smi();
+      // TODO(mstarzinger): This is not correct for mutable HeapNumbers.
       if (t.IsHeapNumber()) return Representation::Double();
       if (t.IsHeapObject()) return r;
       return Representation::None();
@@ -2175,23 +2176,66 @@ class HLeaveInlined V8_FINAL : public HTemplateInstruction<0> {
 };
 
 
-class HPushArgument V8_FINAL : public HUnaryOperation {
+class HPushArguments V8_FINAL : public HInstruction {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HPushArgument, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P1(HPushArguments, Zone*);
+  DECLARE_INSTRUCTION_FACTORY_P2(HPushArguments, Zone*, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P3(HPushArguments, Zone*, HValue*, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P4(HPushArguments, Zone*,
+                                 HValue*, HValue*, HValue*);
+  DECLARE_INSTRUCTION_FACTORY_P5(HPushArguments, Zone*,
+                                 HValue*, HValue*, HValue*, HValue*);
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
 
-  virtual int argument_delta() const V8_OVERRIDE { return 1; }
-  HValue* argument() { return OperandAt(0); }
+  virtual int argument_delta() const V8_OVERRIDE { return inputs_.length(); }
+  HValue* argument(int i) { return OperandAt(i); }
 
-  DECLARE_CONCRETE_INSTRUCTION(PushArgument)
+  virtual int OperandCount() V8_FINAL V8_OVERRIDE { return inputs_.length(); }
+  virtual HValue* OperandAt(int i) const V8_FINAL V8_OVERRIDE {
+    return inputs_[i];
+  }
+
+  void AddArgument(HValue* arg) {
+    inputs_.Add(NULL, zone_);
+    SetOperandAt(inputs_.length() - 1, arg);
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(PushArguments)
+
+ protected:
+  virtual void InternalSetOperandAt(int i, HValue* value) V8_FINAL V8_OVERRIDE {
+    inputs_[i] = value;
+  }
 
  private:
-  explicit HPushArgument(HValue* value) : HUnaryOperation(value) {
+  HPushArguments(Zone* zone,
+                 HValue* arg1 = NULL, HValue* arg2 = NULL,
+                 HValue* arg3 = NULL, HValue* arg4 = NULL)
+      : HInstruction(HType::Tagged()), zone_(zone), inputs_(4, zone) {
     set_representation(Representation::Tagged());
+    if (arg1) {
+      inputs_.Add(NULL, zone);
+      SetOperandAt(0, arg1);
+    }
+    if (arg2) {
+      inputs_.Add(NULL, zone);
+      SetOperandAt(1, arg2);
+    }
+    if (arg3) {
+      inputs_.Add(NULL, zone);
+      SetOperandAt(2, arg3);
+    }
+    if (arg4) {
+      inputs_.Add(NULL, zone);
+      SetOperandAt(3, arg4);
+    }
   }
+
+  Zone* zone_;
+  ZoneList<HValue*> inputs_;
 };
 
 
@@ -5502,6 +5546,10 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
     } else {
       return Representation::Integer32();
     }
+  }
+  // TODO(mstarzinger): Workaround until we track mutable HeapNumber types.
+  virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
+    return representation();
   }
 
   virtual Handle<Map> GetMonomorphicJSObjectMap() {

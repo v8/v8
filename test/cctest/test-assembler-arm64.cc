@@ -4892,26 +4892,30 @@ TEST(extr) {
   __ Mov(x2, 0xfedcba9876543210L);
 
   __ Extr(w10, w1, w2, 0);
-  __ Extr(w11, w1, w2, 1);
-  __ Extr(x12, x2, x1, 2);
+  __ Extr(x11, x1, x2, 0);
+  __ Extr(w12, w1, w2, 1);
+  __ Extr(x13, x2, x1, 2);
 
-  __ Ror(w13, w1, 0);
-  __ Ror(w14, w2, 17);
-  __ Ror(w15, w1, 31);
-  __ Ror(x18, x2, 1);
-  __ Ror(x19, x1, 63);
+  __ Ror(w20, w1, 0);
+  __ Ror(x21, x1, 0);
+  __ Ror(w22, w2, 17);
+  __ Ror(w23, w1, 31);
+  __ Ror(x24, x2, 1);
+  __ Ror(x25, x1, 63);
   END();
 
   RUN();
 
   ASSERT_EQUAL_64(0x76543210, x10);
-  ASSERT_EQUAL_64(0xbb2a1908, x11);
-  ASSERT_EQUAL_64(0x0048d159e26af37bUL, x12);
-  ASSERT_EQUAL_64(0x89abcdef, x13);
-  ASSERT_EQUAL_64(0x19083b2a, x14);
-  ASSERT_EQUAL_64(0x13579bdf, x15);
-  ASSERT_EQUAL_64(0x7f6e5d4c3b2a1908UL, x18);
-  ASSERT_EQUAL_64(0x02468acf13579bdeUL, x19);
+  ASSERT_EQUAL_64(0xfedcba9876543210L, x11);
+  ASSERT_EQUAL_64(0xbb2a1908, x12);
+  ASSERT_EQUAL_64(0x0048d159e26af37bUL, x13);
+  ASSERT_EQUAL_64(0x89abcdef, x20);
+  ASSERT_EQUAL_64(0x0123456789abcdefL, x21);
+  ASSERT_EQUAL_64(0x19083b2a, x22);
+  ASSERT_EQUAL_64(0x13579bdf, x23);
+  ASSERT_EQUAL_64(0x7f6e5d4c3b2a1908UL, x24);
+  ASSERT_EQUAL_64(0x02468acf13579bdeUL, x25);
 
   TEARDOWN();
 }

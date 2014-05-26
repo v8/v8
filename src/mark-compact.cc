@@ -417,8 +417,6 @@ void MarkCompactCollector::CollectGarbage() {
 
   SweepSpaces();
 
-  if (!FLAG_collect_maps) ReattachInitialMaps();
-
 #ifdef DEBUG
   if (FLAG_verify_native_context_separation) {
     VerifyNativeContextSeparation(heap_);
@@ -1472,11 +1470,6 @@ class MarkCompactMarkingVisitor
       VisitUnmarkedObject(collector, obj);
     }
     return true;
-  }
-
-  INLINE(static void BeforeVisitingSharedFunctionInfo(HeapObject* object)) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
-    shared->BeforeVisitingPointers();
   }
 
   static void VisitWeakCollection(Map* map, HeapObject* object) {
@@ -2534,23 +2527,6 @@ void MarkCompactCollector::ProcessMapCaches() {
 }
 
 
-void MarkCompactCollector::ReattachInitialMaps() {
-  HeapObjectIterator map_iterator(heap()->map_space());
-  for (HeapObject* obj = map_iterator.Next();
-       obj != NULL;
-       obj = map_iterator.Next()) {
-    Map* map = Map::cast(obj);
-
-    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-    if (map->instance_type() < FIRST_JS_RECEIVER_TYPE) continue;
-
-    if (map->attached_to_shared_function_info()) {
-      JSFunction::cast(map->constructor())->shared()->AttachInitialMap(map);
-    }
-  }
-}
-
-
 void MarkCompactCollector::ClearNonLiveReferences() {
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
@@ -2564,13 +2540,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     if (!map->CanTransition()) continue;
 
     MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (map_mark.Get() && map->attached_to_shared_function_info()) {
-      // This map is used for inobject slack tracking and has been detached
-      // from SharedFunctionInfo during the mark phase.
-      // Since it survived the GC, reattach it now.
-      JSFunction::cast(map->constructor())->shared()->AttachInitialMap(map);
-    }
-
     ClearNonLivePrototypeTransitions(map);
     ClearNonLiveMapTransitions(map, map_mark);
 

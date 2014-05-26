@@ -456,7 +456,19 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     if (optimized_code.is_null()) {
       if (info()->bailout_reason() == kNoReason) {
         info_->set_bailout_reason(kCodeGenerationFailed);
+      } else if (info()->bailout_reason() == kMapBecameDeprecated) {
+        if (FLAG_trace_opt) {
+          PrintF("[aborted optimizing ");
+          info()->closure()->ShortPrint();
+          PrintF(" because a map became deprecated]\n");
+        }
+        return AbortOptimization();
       } else if (info()->bailout_reason() == kMapBecameUnstable) {
+        if (FLAG_trace_opt) {
+          PrintF("[aborted optimizing ");
+          info()->closure()->ShortPrint();
+          PrintF(" because a map became unstable]\n");
+        }
         return AbortOptimization();
       }
       return AbortAndDisableOptimization();
@@ -510,9 +522,6 @@ void OptimizedCompileJob::RecordOptimizationStats() {
 // Sets the expected number of properties based on estimate from compiler.
 void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
                                           int estimate) {
-  // See the comment in SetExpectedNofProperties.
-  if (shared->live_objects_may_exist()) return;
-
   // If no properties are added in the constructor, they are more likely
   // to be added later.
   if (estimate == 0) estimate = 2;

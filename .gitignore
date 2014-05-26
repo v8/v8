@@ -30,6 +30,8 @@
 bsuite
 d8
 d8_g
+gccauses
+gcsuspects
 shell
 shell_g
 /_*
@@ -49,11 +51,13 @@ shell_g
 /test/benchmarks/sunspider
 /test/mozilla/CHECKED_OUT_VERSION
 /test/mozilla/data
+/test/mozilla/data.old
 /test/mozilla/downloaded_*
 /test/promises-aplus/promises-tests
 /test/promises-aplus/promises-tests.tar.gz
 /test/promises-aplus/sinon
 /test/test262/data
+/test/test262/data.old
 /test/test262/tc39-test262-*
 /third_party
 /tools/jsfunfuzz

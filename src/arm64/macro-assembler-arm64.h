@@ -614,7 +614,11 @@ class MacroAssembler : public Assembler {
       queued_.push_back(rt);
     }
 
-    void PushQueued();
+    enum PreambleDirective {
+      WITH_PREAMBLE,
+      SKIP_PREAMBLE
+    };
+    void PushQueued(PreambleDirective preamble_directive = WITH_PREAMBLE);
     void PopQueued();
 
    private:
@@ -842,10 +846,15 @@ class MacroAssembler : public Assembler {
   void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
-  void DecodeField(Register reg) {
+  void DecodeField(Register dst, Register src) {
     static const uint64_t shift = Field::kShift;
     static const uint64_t setbits = CountSetBits(Field::kMask, 32);
-    Ubfx(reg, reg, shift, setbits);
+    Ubfx(dst, src, shift, setbits);
+  }
+
+  template<typename Field>
+  void DecodeField(Register reg) {
+    DecodeField<Field>(reg, reg);
   }
 
   // ---- SMI and Number Utilities ----
@@ -2007,6 +2016,15 @@ class MacroAssembler : public Assembler {
   void JumpIfDictionaryInPrototypeChain(Register object, Register scratch0,
                                         Register scratch1, Label* found);
 
+  // Perform necessary maintenance operations before a push or after a pop.
+  //
+  // Note that size is specified in bytes.
+  void PushPreamble(Operand total_size);
+  void PopPostamble(Operand total_size);
+
+  void PushPreamble(int count, int size) { PushPreamble(count * size); }
+  void PopPostamble(int count, int size) { PopPostamble(count * size); }
+
  private:
   // Helpers for CopyFields.
   // These each implement CopyFields in a different way.
@@ -2033,15 +2051,6 @@ class MacroAssembler : public Assembler {
   void PopHelper(int count, int size,
                  const CPURegister& dst0, const CPURegister& dst1,
                  const CPURegister& dst2, const CPURegister& dst3);
-
-  // Perform necessary maintenance operations before a push or after a pop.
-  //
-  // Note that size is specified in bytes.
-  void PushPreamble(Operand total_size);
-  void PopPostamble(Operand total_size);
-
-  void PushPreamble(int count, int size) { PushPreamble(count * size); }
-  void PopPostamble(int count, int size) { PopPostamble(count * size); }
 
   // Call Printf. On a native build, a simple call will be generated, but if the
   // simulator is being used then a suitable pseudo-instruction is used. The
