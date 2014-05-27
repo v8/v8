@@ -675,7 +675,7 @@ void AstTyper::VisitBinaryOperation(BinaryOperation* expr) {
       Bounds l = expr->left()->bounds();
       Bounds r = expr->right()->bounds();
       Type* lower =
-          l.lower->Is(Type::None()) || r.lower->Is(Type::None()) ?
+          !l.lower->IsInhabited() || !r.lower->IsInhabited() ?
               Type::None(zone()) :
           l.lower->Is(Type::String()) || r.lower->Is(Type::String()) ?
               Type::String(zone()) :
