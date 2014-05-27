@@ -62,9 +62,8 @@ assertSame(new f().foo, 'other');
 assertSame(Object.getPrototypeOf(new f()), z);
 assertSame(Object.getOwnPropertyDescriptor(f, 'prototype').value, z);
 
-// Verify that non-configurability of other properties is respected, but
-// non-writability is ignored by Object.defineProperty().
-assertDoesNotThrow("Object.defineProperty(f, 'name', { value: {} })");
+// Verify that non-writability of other properties is respected.
+assertThrows("Object.defineProperty(f, 'name', { value: {} })");
 assertThrows("Object.defineProperty(f, 'length', { value: {} })");
 assertThrows("Object.defineProperty(f, 'caller', { value: {} })");
 assertThrows("Object.defineProperty(f, 'arguments', { value: {} })");
