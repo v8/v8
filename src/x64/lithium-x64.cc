@@ -1182,9 +1182,8 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathSqrt* result = new(zone()) LMathSqrt(input);
-  return DefineSameAsFirst(result);
+  LOperand* input = UseAtStart(instr->value());
+  return DefineAsRegister(new(zone()) LMathSqrt(input));
 }
 
 

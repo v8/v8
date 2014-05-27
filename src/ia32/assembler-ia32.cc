@@ -2063,6 +2063,15 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::sqrtsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x51);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::andpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);

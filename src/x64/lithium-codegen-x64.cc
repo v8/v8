@@ -3725,9 +3725,14 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  __ sqrtsd(input_reg, input_reg);
+  XMMRegister output = ToDoubleRegister(instr->result());
+  if (instr->value()->IsDoubleRegister()) {
+    XMMRegister input = ToDoubleRegister(instr->value());
+    __ sqrtsd(output, input);
+  } else {
+    Operand input = ToOperand(instr->value());
+    __ sqrtsd(output, input);
+  }
 }
 
 

@@ -2794,6 +2794,16 @@ void Assembler::sqrtsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::sqrtsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x51);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
