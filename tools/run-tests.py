@@ -257,7 +257,7 @@ def ProcessOptions(options):
     options.extra_flags += GC_STRESS_FLAGS
 
   if options.asan:
-    options.extra_flags.append("--send-idle-notification")
+    options.extra_flags.append("--invoke-weak-callbacks")
 
   if options.j == 0:
     options.j = multiprocessing.cpu_count()
