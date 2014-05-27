@@ -5418,6 +5418,15 @@ bool JSFunction::IsBuiltin() {
 }
 
 
+bool JSFunction::IsNative() {
+  Object* script = shared()->script();
+  bool native = script->IsScript() &&
+                Script::cast(script)->type()->value() == Script::TYPE_NATIVE;
+  ASSERT(!IsBuiltin() || native);  // All builtins are also native.
+  return native;
+}
+
+
 bool JSFunction::NeedsArgumentsAdaption() {
   return shared()->formal_parameter_count() !=
       SharedFunctionInfo::kDontAdaptArgumentsSentinel;
