@@ -2213,7 +2213,7 @@ TEST(OptimizedPretenuringAllocationFolding) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2257,7 +2257,7 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2292,7 +2292,7 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2333,7 +2333,7 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2368,7 +2368,7 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2403,7 +2403,7 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2447,7 +2447,7 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2491,7 +2491,7 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2547,7 +2547,7 @@ TEST(OptimizedPretenuringConstructorCalls) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
@@ -2586,7 +2586,7 @@ TEST(OptimizedPretenuringCallNew) {
       "};"
       "f(); gc();"
       "f(); f();"
-      "%OptimizeFunctionOnNextCall(f);"
+      "%%OptimizeFunctionOnNextCall(f);"
       "f();",
       AllocationSite::kPretenureMinimumCreated);
 
