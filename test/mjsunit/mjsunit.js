@@ -371,11 +371,18 @@ var assertUnoptimized;
     throw new MjsUnitAssertionError(message);
   };
 
+  var OptimizationStatusImpl = undefined;
+
   var OptimizationStatus = function(fun, sync_opt) {
-    try {
-      return eval("%GetOptimizationStatus(fun, sync_opt);");
-    } catch (e) {
-      throw new Error("natives syntax not allowed");
+    if (OptimizationStatusImpl === undefined) {
+      try {
+        OptimizationStatusImpl = new Function(
+            "fun", "sync", "return %GetOptimizationStatus(fun, sync);");
+      } catch (e) {
+        throw new Error("natives syntax not allowed");
+      }
+    } else {
+      OptimizationStatusImpl(fun, sync_opt);
     }
   }
 
