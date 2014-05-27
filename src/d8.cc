@@ -1345,7 +1345,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   {
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    if (options.last_run && options.interactive_shell) {
+    if (options.last_run && options.use_interactive_shell()) {
       // Keep using the same context in the interactive shell.
       evaluation_context_.Reset(isolate, context);
 #ifndef V8_SHARED
@@ -1524,8 +1524,7 @@ int Shell::Main(int argc, char* argv[]) {
 
     // Run interactive shell if explicitly requested or if no script has been
     // executed, but never on --test
-    if (( options.interactive_shell || !options.script_executed )
-        && !options.test_shell ) {
+    if (options.use_interactive_shell()) {
 #ifndef V8_SHARED
       if (!i::FLAG_debugger) {
         InstallUtilityScript(isolate);

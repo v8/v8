@@ -213,6 +213,10 @@ class ShellOptions {
     delete[] isolate_sources;
   }
 
+  bool use_interactive_shell() {
+    return (interactive_shell || !script_executed) && !test_shell;
+  }
+
   bool script_executed;
   bool last_run;
   bool send_idle_notification;
