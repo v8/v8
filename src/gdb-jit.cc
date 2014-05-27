@@ -658,7 +658,7 @@ class ELF BASE_EMBEDDED {
 #else
 #error Unsupported target architecture.
 #endif
-    MemCopy(header->ident, ident, 16);
+    memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
     header->machine = 3;

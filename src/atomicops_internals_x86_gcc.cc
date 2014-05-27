@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "atomicops.h"
-#include "utils.h"
 
 // This file only makes sense with atomicops_internals_x86_gcc.h -- it
 // depends on structs that are defined in that file.  If atomicops.h
@@ -62,9 +61,9 @@ void AtomicOps_Internalx86CPUFeaturesInit() {
   // Get vendor string (issue CPUID with eax = 0)
   cpuid(eax, ebx, ecx, edx, 0);
   char vendor[13];
-  v8::internal::MemCopy(vendor, &ebx, 4);
-  v8::internal::MemCopy(vendor + 4, &edx, 4);
-  v8::internal::MemCopy(vendor + 8, &ecx, 4);
+  memcpy(vendor, &ebx, 4);
+  memcpy(vendor + 4, &edx, 4);
+  memcpy(vendor + 8, &ecx, 4);
   vendor[12] = 0;
 
   // get feature flags in ecx/edx, and family/model in eax

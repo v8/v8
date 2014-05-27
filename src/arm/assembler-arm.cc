@@ -2325,7 +2325,7 @@ void  Assembler::vstm(BlockAddrMode am,
 
 static void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
   uint64_t i;
-  MemCopy(&i, &d, 8);
+  memcpy(&i, &d, 8);
 
   *lo = i & 0xffffffff;
   *hi = i >> 32;
