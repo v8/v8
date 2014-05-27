@@ -1446,8 +1446,7 @@ Handle<Object> LiveEdit::ChangeScriptSource(Handle<Script> original_script,
     Handle<Script> old_script = CreateScriptCopy(original_script);
     old_script->set_name(String::cast(*old_script_name));
     old_script_object = old_script;
-    isolate->debugger()->OnAfterCompile(
-        old_script, Debugger::SEND_WHEN_DEBUGGING);
+    isolate->debug()->OnAfterCompile(old_script, Debug::SEND_WHEN_DEBUGGING);
   } else {
     old_script_object = isolate->factory()->null_value();
   }

@@ -1036,7 +1036,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
 
   // Notify debugger of exception.
   if (catchable_by_javascript) {
-    debugger_->OnException(exception_handle, report_exception);
+    debug()->OnException(exception_handle, report_exception);
   }
 
   // Generate the message if required.
@@ -1520,7 +1520,6 @@ Isolate::Isolate()
 
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
-  debugger_ = new Debugger(this);
 }
 
 
@@ -1732,8 +1731,6 @@ Isolate::~Isolate() {
   delete random_number_generator_;
   random_number_generator_ = NULL;
 
-  delete debugger_;
-  debugger_ = NULL;
   delete debug_;
   debug_ = NULL;
 }

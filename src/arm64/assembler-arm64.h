@@ -869,7 +869,8 @@ class Assembler : public AssemblerBase {
   static const int kPatchDebugBreakSlotAddressOffset =  0;
 
   // Number of instructions necessary to be able to later patch it to a call.
-  // See Debug::GenerateSlot() and BreakLocationIterator::SetDebugBreakAtSlot().
+  // See DebugCodegen::GenerateSlot() and
+  // BreakLocationIterator::SetDebugBreakAtSlot().
   static const int kDebugBreakSlotInstructions = 4;
   static const int kDebugBreakSlotLength =
     kDebugBreakSlotInstructions * kInstructionSize;
@@ -935,9 +936,9 @@ class Assembler : public AssemblerBase {
   // function, compiled with and without debugger support (see for example
   // Debug::PrepareForBreakPoints()).
   // Compiling functions with debugger support generates additional code
-  // (Debug::GenerateSlot()). This may affect the emission of the pools and
-  // cause the version of the code with debugger support to have pools generated
-  // in different places.
+  // (DebugCodegen::GenerateSlot()). This may affect the emission of the pools
+  // and cause the version of the code with debugger support to have pools
+  // generated in different places.
   // Recording the position and size of emitted pools allows to correctly
   // compute the offset mappings between the different versions of a function in
   // all situations.

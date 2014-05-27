@@ -80,8 +80,8 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 
 
 void BreakLocationIterator::SetDebugBreakAtSlot() {
-  // Patch the code emitted by Debug::GenerateSlots, changing the debug break
-  // slot code from
+  // Patch the code emitted by DebugCodegen::GenerateSlots, changing the debug
+  // break slot code from
   //   mov x0, x0    @ nop DEBUG_BREAK_NOP
   //   mov x0, x0    @ nop DEBUG_BREAK_NOP
   //   mov x0, x0    @ nop DEBUG_BREAK_NOP
@@ -215,7 +215,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 }
 
 
-void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
   // Register state for CallICStub
   // ----------- S t a t e -------------
   //  -- x1 : function
@@ -225,7 +225,7 @@ void Debug::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC load (from ic-arm.cc).
   // ----------- S t a t e -------------
   //  -- x2    : name
@@ -239,7 +239,7 @@ void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Calling convention for IC store (from ic-arm.cc).
   // ----------- S t a t e -------------
   //  -- x0    : value
@@ -253,7 +253,7 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- x0     : key
@@ -262,7 +262,7 @@ void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- x0     : value
   //  -- x1     : key
@@ -272,7 +272,7 @@ void Debug::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
   // Register state for CompareNil IC
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -281,7 +281,7 @@ void Debug::GenerateCompareNilICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that r0 is TOS which
   // is an object - this is not generally the case so this should be used with
   // care.
@@ -289,7 +289,7 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // Register state for CallFunctionStub (from code-stubs-arm64.cc).
   // ----------- S t a t e -------------
   //  -- x1 : function
@@ -298,7 +298,7 @@ void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
   // Calling convention for CallConstructStub (from code-stubs-arm64.cc).
   // ----------- S t a t e -------------
   //  -- x0 : number of arguments (not smi)
@@ -308,7 +308,8 @@ void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateCallConstructStubRecordDebugBreak(
+    MacroAssembler* masm) {
   // Calling convention for CallConstructStub (from code-stubs-arm64.cc).
   // ----------- S t a t e -------------
   //  -- x0 : number of arguments (not smi)
@@ -321,7 +322,7 @@ void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateSlot(MacroAssembler* masm) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the constant pool in the debug break slot code.
   InstructionAccurateScope scope(masm, Assembler::kDebugBreakSlotInstructions);
@@ -333,19 +334,19 @@ void Debug::GenerateSlot(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateSlotDebugBreak(MacroAssembler* masm) {
+void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
   // In the places where a debug break slot is inserted no registers can contain
   // object pointers.
   Generate_DebugBreakCallHelper(masm, 0, 0, x10);
 }
 
 
-void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
   masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnARM64);
 }
 
 
-void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
+void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnARM64);
 }
 

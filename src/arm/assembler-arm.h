@@ -1353,9 +1353,9 @@ class Assembler : public AssemblerBase {
   // function, compiled with and without debugger support (see for example
   // Debug::PrepareForBreakPoints()).
   // Compiling functions with debugger support generates additional code
-  // (Debug::GenerateSlot()). This may affect the emission of the constant
-  // pools and cause the version of the code with debugger support to have
-  // constant pools generated in different places.
+  // (DebugCodegen::GenerateSlot()). This may affect the emission of the
+  // constant pools and cause the version of the code with debugger support to
+  // have constant pools generated in different places.
   // Recording the position and size of emitted constant pools allows to
   // correctly compute the offset mappings between the different versions of a
   // function in all situations.

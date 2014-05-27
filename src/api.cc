@@ -6813,8 +6813,8 @@ bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
   if (that != NULL) {
     foreign = isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   }
-  isolate->debugger()->SetEventListener(foreign,
-                                        Utils::OpenHandle(*data, true));
+  isolate->debug()->SetEventListener(foreign,
+                                     Utils::OpenHandle(*data, true));
   return true;
 }
 
@@ -6832,7 +6832,7 @@ void Debug::CancelDebugBreak(Isolate* isolate) {
 
 void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debugger()->EnqueueDebugCommand(data);
+  internal_isolate->debug()->EnqueueDebugCommand(data);
 }
 
 
@@ -6840,7 +6840,7 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
   ENTER_V8(isolate);
-  isolate->debugger()->SetMessageHandler(handler);
+  isolate->debug()->SetMessageHandler(handler);
 }
 
 
@@ -6849,7 +6849,7 @@ void Debug::SendCommand(Isolate* isolate,
                         int length,
                         ClientData* client_data) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debugger()->EnqueueCommandMessage(
+  internal_isolate->debug()->EnqueueCommandMessage(
       i::Vector<const uint16_t>(command, length), client_data);
 }
 
@@ -6863,10 +6863,10 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
   i::MaybeHandle<i::Object> maybe_result;
   EXCEPTION_PREAMBLE(isolate);
   if (data.IsEmpty()) {
-    maybe_result = isolate->debugger()->Call(
+    maybe_result = isolate->debug()->Call(
         Utils::OpenHandle(*fun), isolate->factory()->undefined_value());
   } else {
-    maybe_result = isolate->debugger()->Call(
+    maybe_result = isolate->debug()->Call(
         Utils::OpenHandle(*fun), Utils::OpenHandle(*data));
   }
   i::Handle<i::Object> result;
@@ -6914,13 +6914,13 @@ Local<Context> Debug::GetDebugContext() {
   i::Isolate* isolate = i::Isolate::Current();
   EnsureInitializedForIsolate(isolate, "v8::Debug::GetDebugContext()");
   ENTER_V8(isolate);
-  return Utils::ToLocal(i::Isolate::Current()->debugger()->GetDebugContext());
+  return Utils::ToLocal(i::Isolate::Current()->debug()->GetDebugContext());
 }
 
 
 void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  internal_isolate->debugger()->set_live_edit_enabled(enable);
+  internal_isolate->debug()->set_live_edit_enabled(enable);
 }
 
 
