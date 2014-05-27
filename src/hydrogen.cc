@@ -2293,11 +2293,8 @@ HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
   HValue* total_size = AddUncasted<HAdd>(mul, header_size);
   total_size->ClearFlag(HValue::kCanOverflow);
 
-  PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
-      isolate()->heap()->GetPretenureMode() : NOT_TENURED;
-
-  return Add<HAllocate>(total_size, HType::NonPrimitive(),
-                        pretenure_flag, instance_type);
+  return Add<HAllocate>(total_size, HType::NonPrimitive(), NOT_TENURED,
+                        instance_type);
 }
 
 
@@ -5482,12 +5479,10 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       NoObservableSideEffectsScope no_side_effects(this);
       HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
 
-      PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
-          isolate()->heap()->GetPretenureMode() : NOT_TENURED;
-
+      // TODO(hpayer): Allocation site pretenuring support.
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
           HType::HeapNumber(),
-          pretenure_flag,
+          NOT_TENURED,
           HEAP_NUMBER_TYPE);
       AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
@@ -8605,9 +8600,6 @@ void HOptimizedGraphBuilder::VisitCallNew(CallNew* expr) {
         AllocationSite::AddDependentCompilationInfo(allocation_site,
                                                     AllocationSite::TENURING,
                                                     top_info());
-      } else {
-        allocation_mode = HAllocationMode(
-            isolate()->heap()->GetPretenureMode());
       }
     }
 
@@ -9536,15 +9528,10 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   Maybe<int> fixed_right_arg = expr->fixed_right_arg();
   Handle<AllocationSite> allocation_site = expr->allocation_site();
 
-  PretenureFlag pretenure_flag = !FLAG_allocation_site_pretenuring ?
-      isolate()->heap()->GetPretenureMode() : NOT_TENURED;
-
-  HAllocationMode allocation_mode =
-      FLAG_allocation_site_pretenuring
-      ? (allocation_site.is_null()
-         ? HAllocationMode(NOT_TENURED)
-         : HAllocationMode(allocation_site))
-      : HAllocationMode(pretenure_flag);
+  HAllocationMode allocation_mode;
+  if (FLAG_allocation_site_pretenuring && !allocation_site.is_null()) {
+    allocation_mode = HAllocationMode(allocation_site);
+  }
 
   HValue* result = HGraphBuilder::BuildBinaryOperation(
       expr->op(), left, right, left_type, right_type, result_type,
@@ -10251,7 +10238,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HValue* object_size_constant = Add<HConstant>(
       boilerplate_object->map()->instance_size());
 
-  PretenureFlag pretenure_flag = isolate()->heap()->GetPretenureMode();
+  PretenureFlag pretenure_flag = NOT_TENURED;
   if (FLAG_allocation_site_pretenuring) {
     pretenure_flag = site_context->current()->GetPretenureMode();
     Handle<AllocationSite> site(site_context->current());

@@ -1034,12 +1034,6 @@ class Heap {
   inline int64_t AdjustAmountOfExternalAllocatedMemory(
       int64_t change_in_bytes);
 
-  // Returns the allocation mode (pre-tenuring) based on observed promotion
-  // rates of previous collections.
-  inline PretenureFlag GetPretenureMode() {
-    return FLAG_pretenuring ? TENURED : NOT_TENURED;
-  }
-
   inline intptr_t PromotedTotalSize() {
     int64_t total = PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
     if (total > kMaxInt) return static_cast<intptr_t>(kMaxInt);

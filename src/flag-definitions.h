@@ -190,7 +190,6 @@ DEFINE_bool(compiled_keyed_dictionary_loads, true,
             "use optimizing compiler to generate keyed dictionary load stubs")
 DEFINE_bool(clever_optimizations, true,
             "Optimize object size, Array shift, DOM strings and string +")
-DEFINE_bool(pretenuring, true, "allocate objects in old space")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
 DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
