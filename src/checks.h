@@ -243,7 +243,7 @@ inline void CheckNonEqualsHelper(const char* file,
 // Use C++11 static_assert if possible, which gives error
 // messages that are easier to understand on first sight.
 #if V8_HAS_CXX11_STATIC_ASSERT
-#define STATIC_CHECK(test) static_assert(test, #test)
+#define STATIC_ASSERT(test) static_assert(test, #test)
 #else
 // This is inspired by the static assertion facility in boost.  This
 // is pretty magical.  If it causes you trouble on a platform you may
@@ -260,7 +260,7 @@ template <> class StaticAssertion<true> { };
 // actually causes each use to introduce a new defined type with a
 // name depending on the source line.
 template <int> class StaticAssertionHelper { };
-#define STATIC_CHECK(test)                                                    \
+#define STATIC_ASSERT(test)                                                    \
   typedef                                                                     \
     StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
     SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) V8_UNUSED
@@ -310,12 +310,6 @@ void DumpBacktrace();
 #define ASSERT_LT(v1, v2)      ((void) 0)
 #define ASSERT_LE(v1, v2)      ((void) 0)
 #endif
-// Static asserts has no impact on runtime performance, so they can be
-// safely enabled in release mode. Moreover, the ((void) 0) expression
-// obeys different syntax rules than typedef's, e.g. it can't appear
-// inside class declaration, this leads to inconsistency between debug
-// and release compilation modes behavior.
-#define STATIC_ASSERT(test)  STATIC_CHECK(test)
 
 #define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)
 

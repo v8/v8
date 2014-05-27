@@ -473,7 +473,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     __ Assert(eq, kExternalStringExpectedButNotFound);
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   // TestAndBranchIfAnySet can emit Tbnz. Do not use it because call_runtime
   // can be bound far away in deferred code.
   __ Tst(result, kShortExternalStringMask);

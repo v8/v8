@@ -1005,7 +1005,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
         at, Operand(zero_reg));
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ And(at, result, Operand(kShortExternalStringMask));
   __ Branch(call_runtime, ne, at, Operand(zero_reg));
   __ lw(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));

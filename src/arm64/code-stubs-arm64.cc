@@ -2721,8 +2721,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Ldrb(string_type, FieldMemOperand(x10, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
   // The underlying external string is never a short external string.
-  STATIC_CHECK(ExternalString::kMaxShortLength < ConsString::kMinLength);
-  STATIC_CHECK(ExternalString::kMaxShortLength < SlicedString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
   __ TestAndBranchIfAnySet(string_type.X(),
                            kStringRepresentationMask,
                            &external_string);  // Go to (7).

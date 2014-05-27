@@ -4724,7 +4724,7 @@ class ThreadBarrier V8_FINAL {
   Mutex mutex_;
   int num_blocked_;
 
-  STATIC_CHECK(N > 0);
+  STATIC_ASSERT(N > 0);
 
   DISALLOW_COPY_AND_ASSIGN(ThreadBarrier);
 };

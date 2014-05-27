@@ -7577,8 +7577,8 @@ RUNTIME_FUNCTION(Runtime_StringEquals) {
   // equality is 0 and inequality is 1 so we have to negate the result
   // from String::Equals.
   ASSERT(not_equal == 0 || not_equal == 1);
-  STATIC_CHECK(EQUAL == 0);
-  STATIC_CHECK(NOT_EQUAL == 1);
+  STATIC_ASSERT(EQUAL == 0);
+  STATIC_ASSERT(NOT_EQUAL == 1);
   return Smi::FromInt(not_equal);
 }
 

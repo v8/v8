@@ -398,10 +398,10 @@ uint32_t StringShape::full_representation_tag() {
 }
 
 
-STATIC_CHECK((kStringRepresentationMask | kStringEncodingMask) ==
+STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
              Internals::kFullStringRepresentationMask);
 
-STATIC_CHECK(static_cast<uint32_t>(kStringEncodingMask) ==
+STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
              Internals::kStringEncodingMask);
 
 
@@ -420,10 +420,10 @@ bool StringShape::IsExternalAscii() {
 }
 
 
-STATIC_CHECK((kExternalStringTag | kOneByteStringTag) ==
+STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
              Internals::kExternalAsciiRepresentationTag);
 
-STATIC_CHECK(v8::String::ASCII_ENCODING == kOneByteStringTag);
+STATIC_ASSERT(v8::String::ASCII_ENCODING == kOneByteStringTag);
 
 
 bool StringShape::IsExternalTwoByte() {
@@ -431,10 +431,10 @@ bool StringShape::IsExternalTwoByte() {
 }
 
 
-STATIC_CHECK((kExternalStringTag | kTwoByteStringTag) ==
+STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
              Internals::kExternalTwoByteRepresentationTag);
 
-STATIC_CHECK(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
+STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 uc32 FlatStringReader::Get(int index) {
   ASSERT(0 <= index && index <= length_);
