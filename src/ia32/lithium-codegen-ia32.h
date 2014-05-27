@@ -95,8 +95,7 @@ class LCodeGen: public LCodeGenBase {
   enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   void DoDeferredNumberTagIU(LInstruction* instr,
                              LOperand* value,
-                             LOperand* temp1,
-                             LOperand* temp2,
+                             LOperand* temp,
                              IntegerSignedness signedness);
 
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);

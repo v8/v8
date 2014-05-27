@@ -805,6 +805,11 @@ bool Debug::Load() {
 
 
 void Debug::Unload() {
+  ClearAllBreakPoints();
+
+  // Match unmatched PromiseHandlePrologue calls.
+  while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
+
   // Return debugger is not loaded.
   if (!IsLoaded()) return;
 
@@ -3139,22 +3144,22 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
 
 
 void Debugger::UpdateState() {
+  Debug* debug = isolate_->debug();
   bool activate = message_handler_ != NULL ||
                   !event_listener_.is_null() ||
-                  isolate_->debug()->InDebugger();
+                  debug->InDebugger();
   if (!is_active_ && activate) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    activate = isolate_->debug()->Load();
-  } else if (is_active_ && !activate) {
+    activate = debug->Load();
+  } else if (debug->IsLoaded() && !activate) {
     isolate_->compilation_cache()->Enable();
-    isolate_->debug()->ClearAllBreakPoints();
-    isolate_->debug()->Unload();
+    debug->Unload();
   }
   is_active_ = activate;
   // At this point the debug context is loaded iff the debugger is active.
-  ASSERT(isolate_->debug()->IsLoaded() == is_active_);
+  ASSERT(debug->IsLoaded() == is_active_);
 }
 
 
@@ -3258,9 +3263,6 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
 EnterDebugger::~EnterDebugger() {
   Debug* debug = isolate_->debug();
 
-  // Leaving this debugger entry.
-  debug->set_debugger_entry(prev_);
-
   // Restore to the previous break state.
   debug->SetBreak(break_frame_id_, break_id_);
 
@@ -3271,20 +3273,7 @@ EnterDebugger::~EnterDebugger() {
     // JavaScript. This can happen if the v8::Debug::Call is used in which
     // case the exception should end up in the calling code.
     if (!isolate_->has_pending_exception()) {
-      // Try to avoid any pending debug break breaking in the clear mirror
-      // cache JavaScript code.
-      if (isolate_->stack_guard()->CheckDebugBreak()) {
-        debug->set_has_pending_interrupt(true);
-        isolate_->stack_guard()->ClearDebugBreak();
-      }
       debug->ClearMirrorCache();
-    }
-
-    // Request debug break when leaving the last debugger entry
-    // if one was recorded while debugging.
-    if (debug->has_pending_interrupt()) {
-      debug->set_has_pending_interrupt(false);
-      isolate_->stack_guard()->RequestDebugBreak();
     }
 
     // If there are commands in the queue when leaving the debugger request
@@ -3293,6 +3282,9 @@ EnterDebugger::~EnterDebugger() {
       isolate_->stack_guard()->RequestDebugCommand();
     }
   }
+
+  // Leaving this debugger entry.
+  debug->set_debugger_entry(prev_);
 
   isolate_->debugger()->UpdateState();
 }

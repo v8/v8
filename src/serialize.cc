@@ -487,54 +487,49 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       58,
       "Heap::OldDataSpaceAllocationLimitAddress");
-  Add(ExternalReference::new_space_high_promotion_mode_active_address(isolate).
-      address(),
-      UNCLASSIFIED,
-      59,
-      "Heap::NewSpaceAllocationLimitAddress");
   Add(ExternalReference::allocation_sites_list_address(isolate).address(),
       UNCLASSIFIED,
-      60,
+      59,
       "Heap::allocation_sites_list_address()");
   Add(ExternalReference::address_of_uint32_bias().address(),
       UNCLASSIFIED,
-      61,
+      60,
       "uint32_bias");
   Add(ExternalReference::get_mark_code_as_executed_function(isolate).address(),
       UNCLASSIFIED,
-      62,
+      61,
       "Code::MarkCodeAsExecuted");
 
   Add(ExternalReference::is_profiling_address(isolate).address(),
       UNCLASSIFIED,
-      63,
+      62,
       "CpuProfiler::is_profiling");
 
   Add(ExternalReference::scheduled_exception_address(isolate).address(),
       UNCLASSIFIED,
-      64,
+      63,
       "Isolate::scheduled_exception");
 
   Add(ExternalReference::invoke_function_callback(isolate).address(),
       UNCLASSIFIED,
-      65,
+      64,
       "InvokeFunctionCallback");
 
   Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
       UNCLASSIFIED,
-      66,
+      65,
       "InvokeAccessorGetterCallback");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
       UNCLASSIFIED,
-      67,
+      66,
       "Debug::after_break_target_address()");
 
   Add(ExternalReference::debug_restarter_frame_function_pointer_address(
           isolate).address(),
       UNCLASSIFIED,
-      68,
+      67,
       "Debug::restarter_frame_function_pointer_address()");
 
   // Add a small set of deopt entry addresses to encoder without generating the

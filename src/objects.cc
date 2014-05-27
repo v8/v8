@@ -11205,13 +11205,30 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
   FixedArray* vector = feedback_vector();
   Heap* heap = GetHeap();
-  for (int i = 0; i < vector->length(); i++) {
+  int length = vector->length();
+
+  for (int i = 0; i < length; i++) {
     Object* obj = vector->get(i);
-    if (!obj->IsAllocationSite()) {
-      vector->set(
-          i,
-          TypeFeedbackInfo::RawUninitializedSentinel(heap),
-          SKIP_WRITE_BARRIER);
+    if (obj->IsHeapObject()) {
+      InstanceType instance_type =
+          HeapObject::cast(obj)->map()->instance_type();
+      switch (instance_type) {
+        case ALLOCATION_SITE_TYPE:
+          // AllocationSites are not cleared because they do not store
+          // information that leaks.
+          break;
+        case JS_FUNCTION_TYPE:
+          // No need to clear the native context array function.
+          if (obj == JSFunction::cast(obj)->context()->native_context()->
+              get(Context::ARRAY_FUNCTION_INDEX)) {
+            break;
+          }
+          // Fall through...
+
+        default:
+          vector->set(i, TypeFeedbackInfo::RawUninitializedSentinel(heap),
+                      SKIP_WRITE_BARRIER);
+      }
     }
   }
 }

@@ -1071,6 +1071,7 @@ template <class C> inline bool Is(Object* obj);
     "Expected fixed array in register r2")                                    \
   V(kExpectedFixedArrayInRegisterRbx,                                         \
     "Expected fixed array in register rbx")                                   \
+  V(kExpectedNewSpaceObject, "Expected new space object")                     \
   V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
   V(kExpectedUndefinedOrCell,                                                 \
     "Expected undefined or cell in register")                                 \

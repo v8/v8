@@ -1345,7 +1345,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   {
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
-    if (options.last_run) {
+    if (options.last_run && options.interactive_shell) {
       // Keep using the same context in the interactive shell.
       evaluation_context_.Reset(isolate, context);
 #ifndef V8_SHARED
@@ -1362,12 +1362,10 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       options.isolate_sources[0].Execute(isolate);
     }
   }
-  if (!options.last_run) {
-    if (options.send_idle_notification) {
-      const int kLongIdlePauseInMs = 1000;
-      V8::ContextDisposedNotification();
-      V8::IdleNotification(kLongIdlePauseInMs);
-    }
+  if (options.send_idle_notification) {
+    const int kLongIdlePauseInMs = 1000;
+    V8::ContextDisposedNotification();
+    V8::IdleNotification(kLongIdlePauseInMs);
   }
 
 #ifndef V8_SHARED
@@ -1478,7 +1476,7 @@ int Shell::Main(int argc, char* argv[]) {
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(i::OS::TotalPhysicalMemory(),
                                 i::OS::MaxVirtualMemory(),
-                                i::CPU::NumberOfProcessorsOnline());
+                                i::OS::NumberOfProcessorsOnline());
   v8::SetResourceConstraints(isolate, &constraints);
 #endif
   DumbLineEditor dumb_line_editor(isolate);

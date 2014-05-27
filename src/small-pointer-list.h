@@ -6,7 +6,7 @@
 #define V8_SMALL_POINTER_LIST_H_
 
 #include "checks.h"
-#include "v8globals.h"
+#include "globals.h"
 #include "zone.h"
 
 namespace v8 {

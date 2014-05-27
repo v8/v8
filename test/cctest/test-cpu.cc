@@ -51,5 +51,5 @@ TEST(FeatureImplications) {
 
 
 TEST(NumberOfProcessorsOnline) {
-  CHECK_GT(CPU::NumberOfProcessorsOnline(), 0);
+  CHECK_GT(OS::NumberOfProcessorsOnline(), 0);
 }

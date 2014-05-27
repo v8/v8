@@ -25,8 +25,8 @@
 
 #include "platform/mutex.h"
 #include "platform/semaphore.h"
+#include "globals.h"
 #include "vector.h"
-#include "v8globals.h"
 
 #ifdef __sun
 # ifndef signbit
@@ -273,6 +273,9 @@ class OS {
   // of the CPU and the OS.  The bits in the answer correspond to the bit
   // positions indicated by the members of the CpuFeature enum from globals.h
   static unsigned CpuFeaturesImpliedByPlatform();
+
+  // Returns the number of processors online.
+  static int NumberOfProcessorsOnline();
 
   // The total amount of physical memory available on the current system.
   static uint64_t TotalPhysicalMemory();

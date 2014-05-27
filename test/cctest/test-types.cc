@@ -43,9 +43,10 @@ struct ZoneRep {
   static bool IsBitset(Type* t) { return reinterpret_cast<intptr_t>(t) & 1; }
   static bool IsClass(Type* t) { return IsStruct(t, 0); }
   static bool IsConstant(Type* t) { return IsStruct(t, 1); }
-  static bool IsArray(Type* t) { return IsStruct(t, 2); }
-  static bool IsFunction(Type* t) { return IsStruct(t, 3); }
-  static bool IsUnion(Type* t) { return IsStruct(t, 4); }
+  static bool IsContext(Type* t) { return IsStruct(t, 2); }
+  static bool IsArray(Type* t) { return IsStruct(t, 3); }
+  static bool IsFunction(Type* t) { return IsStruct(t, 4); }
+  static bool IsUnion(Type* t) { return IsStruct(t, 5); }
 
   static Struct* AsStruct(Type* t) {
     return reinterpret_cast<Struct*>(t);
@@ -58,6 +59,9 @@ struct ZoneRep {
   }
   static Object* AsConstant(Type* t) {
     return *static_cast<Object**>(AsStruct(t)[3]);
+  }
+  static Type* AsContext(Type* t) {
+    return *static_cast<Type**>(AsStruct(t)[2]);
   }
   static Struct* AsUnion(Type* t) {
     return AsStruct(t);
@@ -79,15 +83,19 @@ struct HeapRep {
   static bool IsBitset(Handle<HeapType> t) { return t->IsSmi(); }
   static bool IsClass(Handle<HeapType> t) { return t->IsMap(); }
   static bool IsConstant(Handle<HeapType> t) { return t->IsBox(); }
-  static bool IsArray(Handle<HeapType> t) { return IsStruct(t, 2); }
-  static bool IsFunction(Handle<HeapType> t) { return IsStruct(t, 3); }
-  static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 4); }
+  static bool IsContext(Handle<HeapType> t) { return IsStruct(t, 2); }
+  static bool IsArray(Handle<HeapType> t) { return IsStruct(t, 3); }
+  static bool IsFunction(Handle<HeapType> t) { return IsStruct(t, 4); }
+  static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 5); }
 
   static Struct* AsStruct(Handle<HeapType> t) { return FixedArray::cast(*t); }
   static int AsBitset(Handle<HeapType> t) { return Smi::cast(*t)->value(); }
   static Map* AsClass(Handle<HeapType> t) { return Map::cast(*t); }
   static Object* AsConstant(Handle<HeapType> t) {
     return Box::cast(*t)->value();
+  }
+  static HeapType* AsContext(Handle<HeapType> t) {
+    return HeapType::cast(AsStruct(t)->get(1));
   }
   static Struct* AsUnion(Handle<HeapType> t) { return AsStruct(t); }
   static int Length(Struct* structured) { return structured->length() - 1; }
@@ -143,7 +151,7 @@ class Types {
       types.push_back(Type::Constant(*it, region));
     }
 
-    FloatArray = Type::Array(Float, region);
+    NumberArray = Type::Array(Number, region);
     StringArray = Type::Array(String, region);
     AnyArray = Type::Array(Any, region);
 
@@ -183,7 +191,7 @@ class Types {
   TypeHandle ArrayConstant;
   TypeHandle UninitializedConstant;
 
-  TypeHandle FloatArray;
+  TypeHandle NumberArray;
   TypeHandle StringArray;
   TypeHandle AnyArray;
 
@@ -272,13 +280,19 @@ class Types {
         int i = rng_.NextInt(static_cast<int>(values.size()));
         return Type::Constant(values[i], region_);
       }
-      case 3: {  // array
+      case 3: {  // context
+        int depth = rng_.NextInt(3);
+        TypeHandle type = Type::Internal(region_);
+        for (int i = 0; i < depth; ++i) type = Type::Context(type, region_);
+        return type;
+      }
+      case 4: {  // array
         TypeHandle element = Fuzz(depth / 2);
         return Type::Array(element, region_);
       }
-      case 4:
       case 5:
-      case 6: {  // function
+      case 6:
+      case 7: {  // function
         TypeHandle result = Fuzz(depth / 2);
         TypeHandle receiver = Fuzz(depth / 2);
         int arity = rng_.NextInt(3);
@@ -332,6 +346,7 @@ struct Tests : Rep {
         Rep::IsBitset(type1) == Rep::IsBitset(type2) &&
         Rep::IsClass(type1) == Rep::IsClass(type2) &&
         Rep::IsConstant(type1) == Rep::IsConstant(type2) &&
+        Rep::IsContext(type1) == Rep::IsContext(type2) &&
         Rep::IsUnion(type1) == Rep::IsUnion(type2) &&
         type1->NumClasses() == type2->NumClasses() &&
         type1->NumConstants() == type2->NumConstants() &&
@@ -507,6 +522,45 @@ struct Tests : Rep {
         CHECK(Equal(type1, type2) == (*value1 == *value2));
       }
     }
+
+    // Typing of numbers
+    Factory* fac = isolate->factory();
+    CHECK(T.Constant(fac->NewNumber(0))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(1))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(0x3fffffff))->Is(T.UnsignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-1))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x3fffffff))->Is(T.OtherSignedSmall));
+    CHECK(T.Constant(fac->NewNumber(-0x40000000))->Is(T.OtherSignedSmall));
+    if (SmiValuesAre31Bits()) {
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+    } else {
+      CHECK(SmiValuesAre32Bits());
+      CHECK(T.Constant(fac->NewNumber(0x40000000))->Is(T.UnsignedSmall));
+      CHECK(T.Constant(fac->NewNumber(0x7fffffff))->Is(T.UnsignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(0x40000000))->Is(T.OtherUnsigned31));
+      CHECK(!T.Constant(fac->NewNumber(0x7fffffff))->Is(T.OtherUnsigned31));
+      CHECK(T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSignedSmall));
+      CHECK(T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSignedSmall));
+      CHECK(!T.Constant(fac->NewNumber(-0x40000001))->Is(T.OtherSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff))->Is(T.OtherSigned32));
+      CHECK(!T.Constant(fac->NewNumber(-0x7fffffff-1))->Is(T.OtherSigned32));
+    }
+    CHECK(T.Constant(fac->NewNumber(0x80000000u))->Is(T.OtherUnsigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu))->Is(T.OtherUnsigned32));
+    CHECK(T.Constant(fac->NewNumber(0xffffffffu+1.0))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-0x7fffffff-2.0))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(0.1))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
+    CHECK(T.Constant(fac->NewNumber(OS::nan_value()))->Is(T.NaN));
+    CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.OtherNumber));
+    CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.OtherNumber));
   }
 
   void Array() {
@@ -772,10 +826,9 @@ struct Tests : Rep {
 
     CheckSub(T.SignedSmall, T.Number);
     CheckSub(T.Signed32, T.Number);
-    CheckSub(T.Float, T.Number);
     CheckSub(T.SignedSmall, T.Signed32);
-    CheckUnordered(T.SignedSmall, T.Float);
-    CheckUnordered(T.Signed32, T.Float);
+    CheckUnordered(T.SignedSmall, T.MinusZero);
+    CheckUnordered(T.Signed32, T.Unsigned32);
 
     CheckSub(T.UniqueName, T.Name);
     CheckSub(T.String, T.Name);
@@ -823,8 +876,8 @@ struct Tests : Rep {
     CheckUnordered(T.ObjectConstant2, T.ArrayClass);
     CheckUnordered(T.ArrayConstant, T.ObjectClass);
 
-    CheckSub(T.FloatArray, T.Array);
-    CheckSub(T.FloatArray, T.Object);
+    CheckSub(T.NumberArray, T.Array);
+    CheckSub(T.NumberArray, T.Object);
     CheckUnordered(T.StringArray, T.AnyArray);
 
     CheckSub(T.MethodFunction, T.Function);
@@ -1114,8 +1167,8 @@ struct Tests : Rep {
     CheckDisjoint(T.Boolean, T.Undefined, T.Semantic);
 
     CheckOverlap(T.SignedSmall, T.Number, T.Semantic);
-    CheckOverlap(T.Float, T.Number, T.Semantic);
-    CheckDisjoint(T.Signed32, T.Float, T.Semantic);
+    CheckOverlap(T.NaN, T.Number, T.Semantic);
+    CheckDisjoint(T.Signed32, T.NaN, T.Semantic);
 
     CheckOverlap(T.UniqueName, T.Name, T.Semantic);
     CheckOverlap(T.String, T.Name, T.Semantic);
@@ -1145,7 +1198,6 @@ struct Tests : Rep {
     CheckOverlap(T.SmiConstant, T.SignedSmall, T.Semantic);
     CheckOverlap(T.SmiConstant, T.Signed32, T.Semantic);
     CheckOverlap(T.SmiConstant, T.Number, T.Semantic);
-    CheckDisjoint(T.SmiConstant, T.Float, T.Semantic);
     CheckOverlap(T.ObjectConstant1, T.Object, T.Semantic);
     CheckOverlap(T.ObjectConstant2, T.Object, T.Semantic);
     CheckOverlap(T.ArrayConstant, T.Object, T.Semantic);
@@ -1160,9 +1212,9 @@ struct Tests : Rep {
     CheckDisjoint(T.ObjectConstant2, T.ArrayClass, T.Semantic);
     CheckDisjoint(T.ArrayConstant, T.ObjectClass, T.Semantic);
 
-    CheckOverlap(T.FloatArray, T.Array, T.Semantic);
-    CheckDisjoint(T.FloatArray, T.AnyArray, T.Semantic);
-    CheckDisjoint(T.FloatArray, T.StringArray, T.Semantic);
+    CheckOverlap(T.NumberArray, T.Array, T.Semantic);
+    CheckDisjoint(T.NumberArray, T.AnyArray, T.Semantic);
+    CheckDisjoint(T.NumberArray, T.StringArray, T.Semantic);
 
     CheckOverlap(T.MethodFunction, T.Function, T.Semantic);
     CheckDisjoint(T.SignedFunction1, T.NumberFunction1, T.Semantic);
@@ -1303,22 +1355,18 @@ struct Tests : Rep {
 
     // Bitset-array
     CHECK(this->IsBitset(T.Union(T.AnyArray, T.Array)));
-    CHECK(this->IsUnion(T.Union(T.FloatArray, T.Number)));
+    CHECK(this->IsUnion(T.Union(T.NumberArray, T.Number)));
 
     CheckEqual(T.Union(T.AnyArray, T.Array), T.Array);
-    CheckSub(T.None, T.Union(T.FloatArray, T.Number));
-    CheckSub(T.Union(T.FloatArray, T.Number), T.Any);
     CheckUnordered(T.Union(T.AnyArray, T.String), T.Array);
-    CheckOverlap(T.Union(T.FloatArray, T.String), T.Object, T.Semantic);
-    CheckDisjoint(T.Union(T.FloatArray, T.String), T.Number, T.Semantic);
+    CheckOverlap(T.Union(T.NumberArray, T.String), T.Object, T.Semantic);
+    CheckDisjoint(T.Union(T.NumberArray, T.String), T.Number, T.Semantic);
 
     // Bitset-function
     CHECK(this->IsBitset(T.Union(T.MethodFunction, T.Function)));
     CHECK(this->IsUnion(T.Union(T.NumberFunction1, T.Number)));
 
     CheckEqual(T.Union(T.MethodFunction, T.Function), T.Function);
-    CheckSub(T.None, T.Union(T.MethodFunction, T.Number));
-    CheckSub(T.Union(T.MethodFunction, T.Number), T.Any);
     CheckUnordered(T.Union(T.NumberFunction1, T.String), T.Function);
     CheckOverlap(T.Union(T.NumberFunction2, T.String), T.Object, T.Semantic);
     CheckDisjoint(T.Union(T.NumberFunction1, T.String), T.Number, T.Semantic);
@@ -1353,10 +1401,10 @@ struct Tests : Rep {
 
     // Bitset-union
     CheckSub(
-        T.Float,
+        T.NaN,
         T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Number));
     CheckSub(
-        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Float),
+        T.Union(T.Union(T.ArrayClass, T.ObjectConstant1), T.Signed32),
         T.Union(T.ObjectConstant1, T.Union(T.Number, T.ArrayClass)));
 
     // Class-union
@@ -1380,9 +1428,9 @@ struct Tests : Rep {
 
     // Array-union
     CheckEqual(
-        T.Union(T.AnyArray, T.Union(T.FloatArray, T.AnyArray)),
-        T.Union(T.AnyArray, T.FloatArray));
-    CheckSub(T.Union(T.AnyArray, T.FloatArray), T.Array);
+        T.Union(T.AnyArray, T.Union(T.NumberArray, T.AnyArray)),
+        T.Union(T.AnyArray, T.NumberArray));
+    CheckSub(T.Union(T.AnyArray, T.NumberArray), T.Array);
 
     // Function-union
     CheckEqual(
@@ -1524,7 +1572,7 @@ struct Tests : Rep {
     CheckSub(T.Intersect(T.ObjectClass, T.Number), T.Representation);
 
     // Bitset-array
-    CheckEqual(T.Intersect(T.FloatArray, T.Object), T.FloatArray);
+    CheckEqual(T.Intersect(T.NumberArray, T.Object), T.NumberArray);
     CheckSub(T.Intersect(T.AnyArray, T.Function), T.Representation);
 
     // Bitset-function
@@ -1545,13 +1593,13 @@ struct Tests : Rep {
 
     // Array-union
     CheckEqual(
-        T.Intersect(T.FloatArray, T.Union(T.FloatArray, T.ArrayClass)),
-        T.FloatArray);
+        T.Intersect(T.NumberArray, T.Union(T.NumberArray, T.ArrayClass)),
+        T.NumberArray);
     CheckEqual(
         T.Intersect(T.AnyArray, T.Union(T.Object, T.SmiConstant)),
         T.AnyArray);
     CheckEqual(
-        T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.FloatArray),
+        T.Intersect(T.Union(T.AnyArray, T.ArrayConstant), T.NumberArray),
         T.None);
 
     // Function-union

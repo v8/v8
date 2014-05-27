@@ -45,10 +45,14 @@ namespace internal {
 //   Constant(x) < T  iff instance_type(map(x)) < T
 //   Array(T) < Array
 //   Function(R, S, T0, T1, ...) < Function
+//   Context(T) < Internal
 //
-// Both structural Array and Function types are invariant in all parameters.
-// Relaxing this would make Union and Intersect operations more involved.
-// Note that Constant(x) < Class(map(x)) does _not_ hold, since x's map can
+// Both structural Array and Function types are invariant in all parameters;
+// relaxing this would make Union and Intersect operations more involved.
+// There is no subtyping relation between Array, Function, or Context types
+// and respective Constant types, since these types cannot be reconstructed
+// for arbitrary heap values.
+// Note also that Constant(x) < Class(map(x)) does _not_ hold, since x's map can
 // change! (Its instance type cannot, however.)
 // TODO(rossberg): the latter is not currently true for proxies, because of fix,
 // but will hold once we implement direct proxies.
@@ -129,14 +133,15 @@ namespace internal {
 
 
 #define MASK_BITSET_TYPE_LIST(V) \
-  V(Representation, static_cast<int>(0xff800000)) \
-  V(Semantic,       static_cast<int>(0x007fffff))
+  V(Representation, static_cast<int>(0xffc00000)) \
+  V(Semantic,       static_cast<int>(0x003fffff))
 
-#define REPRESENTATION(k) ((k) & kRepresentation)
-#define SEMANTIC(k)       ((k) & kSemantic)
+#define REPRESENTATION(k) ((k) & BitsetType::kRepresentation)
+#define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
 
 #define REPRESENTATION_BITSET_TYPE_LIST(V) \
   V(None,             0)                   \
+  V(UntaggedInt1,     1 << 22 | kSemantic) \
   V(UntaggedInt8,     1 << 23 | kSemantic) \
   V(UntaggedInt16,    1 << 24 | kSemantic) \
   V(UntaggedInt32,    1 << 25 | kSemantic) \
@@ -146,44 +151,54 @@ namespace internal {
   V(TaggedInt,        1 << 29 | kSemantic) \
   V(TaggedPtr,        -1 << 30 | kSemantic)  /* MSB has to be sign-extended */ \
   \
-  V(UntaggedInt,      kUntaggedInt8 | kUntaggedInt16 | kUntaggedInt32) \
-  V(UntaggedFloat,    kUntaggedFloat32 | kUntaggedFloat64)             \
-  V(UntaggedNumber,   kUntaggedInt | kUntaggedFloat)                   \
-  V(Untagged,         kUntaggedNumber | kUntaggedPtr)                  \
+  V(UntaggedInt,      kUntaggedInt1 | kUntaggedInt8 |      \
+                      kUntaggedInt16 | kUntaggedInt32)     \
+  V(UntaggedFloat,    kUntaggedFloat32 | kUntaggedFloat64) \
+  V(UntaggedNumber,   kUntaggedInt | kUntaggedFloat)       \
+  V(Untagged,         kUntaggedNumber | kUntaggedPtr)      \
   V(Tagged,           kTaggedInt | kTaggedPtr)
 
 #define SEMANTIC_BITSET_TYPE_LIST(V) \
   V(Null,                1 << 0  | REPRESENTATION(kTaggedPtr)) \
   V(Undefined,           1 << 1  | REPRESENTATION(kTaggedPtr)) \
   V(Boolean,             1 << 2  | REPRESENTATION(kTaggedPtr)) \
-  V(SignedSmall,         1 << 3  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,       1 << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Unsigned32,          1 << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Float,               1 << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Symbol,              1 << 7  | REPRESENTATION(kTaggedPtr)) \
-  V(InternalizedString,  1 << 8  | REPRESENTATION(kTaggedPtr)) \
-  V(OtherString,         1 << 9  | REPRESENTATION(kTaggedPtr)) \
-  V(Undetectable,        1 << 10 | REPRESENTATION(kTaggedPtr)) \
-  V(Array,               1 << 11 | REPRESENTATION(kTaggedPtr)) \
-  V(Function,            1 << 12 | REPRESENTATION(kTaggedPtr)) \
-  V(RegExp,              1 << 13 | REPRESENTATION(kTaggedPtr)) \
-  V(OtherObject,         1 << 14 | REPRESENTATION(kTaggedPtr)) \
-  V(Proxy,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
-  V(Internal,            1 << 16 | REPRESENTATION(kTagged | kUntagged)) \
+  V(UnsignedSmall,       1 << 3  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSignedSmall,    1 << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned31,     1 << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned32,     1 << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,       1 << 7  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(MinusZero,           1 << 8  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NaN,                 1 << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherNumber,         1 << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1 << 11 | REPRESENTATION(kTaggedPtr)) \
+  V(InternalizedString,  1 << 12 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherString,         1 << 13 | REPRESENTATION(kTaggedPtr)) \
+  V(Undetectable,        1 << 14 | REPRESENTATION(kTaggedPtr)) \
+  V(Array,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
+  V(Buffer,              1 << 16 | REPRESENTATION(kTaggedPtr)) \
+  V(Function,            1 << 17 | REPRESENTATION(kTaggedPtr)) \
+  V(RegExp,              1 << 18 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherObject,         1 << 19 | REPRESENTATION(kTaggedPtr)) \
+  V(Proxy,               1 << 20 | REPRESENTATION(kTaggedPtr)) \
+  V(Internal,            1 << 21 | REPRESENTATION(kTagged | kUntagged)) \
   \
-  V(Signed32,            kSignedSmall | kOtherSigned32)                 \
-  V(Number,              kSigned32 | kUnsigned32 | kFloat)              \
-  V(String,              kInternalizedString | kOtherString)            \
-  V(UniqueName,          kSymbol | kInternalizedString)                 \
-  V(Name,                kSymbol | kString)                             \
-  V(NumberOrString,      kNumber | kString)                             \
-  V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject)   \
-  V(DetectableReceiver,  kDetectableObject | kProxy)                    \
-  V(Detectable,          kDetectableReceiver | kNumber | kName)         \
-  V(Object,              kDetectableObject | kUndetectable)             \
-  V(Receiver,            kObject | kProxy)                              \
-  V(NonNumber,           kBoolean | kName | kNull | kReceiver |         \
-                         kUndefined | kInternal)                        \
+  V(SignedSmall,         kUnsignedSmall | kOtherSignedSmall) \
+  V(Signed32,            kSignedSmall | kOtherUnsigned31 | kOtherSigned32) \
+  V(Unsigned32,          kUnsignedSmall | kOtherUnsigned31 | kOtherUnsigned32) \
+  V(Integral32,          kSigned32 | kUnsigned32) \
+  V(Number,              kIntegral32 | kMinusZero | kNaN | kOtherNumber) \
+  V(String,              kInternalizedString | kOtherString) \
+  V(UniqueName,          kSymbol | kInternalizedString) \
+  V(Name,                kSymbol | kString) \
+  V(NumberOrString,      kNumber | kString) \
+  V(Primitive,           kNumber | kName | kBoolean | kNull | kUndefined) \
+  V(DetectableObject,    kArray | kFunction | kRegExp | kOtherObject) \
+  V(DetectableReceiver,  kDetectableObject | kProxy) \
+  V(Detectable,          kDetectableReceiver | kNumber | kName) \
+  V(Object,              kDetectableObject | kUndetectable) \
+  V(Receiver,            kObject | kProxy) \
+  V(NonNumber,           kBoolean | kName | kNull | kReceiver | \
+                         kUndefined | kInternal) \
   V(Any,                 -1)
 
 #define BITSET_TYPE_LIST(V) \
@@ -230,12 +245,14 @@ class TypeImpl : public Config::Base {
 
   class ClassType;
   class ConstantType;
+  class ContextType;
   class ArrayType;
   class FunctionType;
 
   typedef typename Config::template Handle<TypeImpl>::type TypeHandle;
   typedef typename Config::template Handle<ClassType>::type ClassHandle;
   typedef typename Config::template Handle<ConstantType>::type ConstantHandle;
+  typedef typename Config::template Handle<ContextType>::type ContextHandle;
   typedef typename Config::template Handle<ArrayType>::type ArrayHandle;
   typedef typename Config::template Handle<FunctionType>::type FunctionHandle;
   typedef typename Config::template Handle<UnionType>::type UnionHandle;
@@ -254,6 +271,9 @@ class TypeImpl : public Config::Base {
   }
   static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
     return ConstantType::New(value, region);
+  }
+  static TypeHandle Context(TypeHandle outer, Region* region) {
+    return ContextType::New(outer, region);
   }
   static TypeHandle Array(TypeHandle element, Region* region) {
     return ArrayType::New(element, region);
@@ -278,10 +298,22 @@ class TypeImpl : public Config::Base {
     function->InitParameter(1, param1);
     return function;
   }
+  static TypeHandle Function(
+      TypeHandle result, TypeHandle param0, TypeHandle param1,
+      TypeHandle param2, Region* region) {
+    FunctionHandle function = Function(result, Any(region), 3, region);
+    function->InitParameter(0, param0);
+    function->InitParameter(1, param1);
+    function->InitParameter(2, param2);
+    return function;
+  }
 
   static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
   static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
 
+  static TypeHandle Of(double value, Region* region) {
+    return Config::from_bitset(BitsetType::Lub(value), region);
+  }
   static TypeHandle Of(i::Object* value, Region* region) {
     return Config::from_bitset(BitsetType::Lub(value), region);
   }
@@ -325,6 +357,9 @@ class TypeImpl : public Config::Base {
 
   bool IsClass() { return Config::is_class(this); }
   bool IsConstant() { return Config::is_constant(this); }
+  bool IsContext() {
+    return Config::is_struct(this, StructuralType::kContextTag);
+  }
   bool IsArray() { return Config::is_struct(this, StructuralType::kArrayTag); }
   bool IsFunction() {
     return Config::is_struct(this, StructuralType::kFunctionTag);
@@ -332,6 +367,7 @@ class TypeImpl : public Config::Base {
 
   ClassType* AsClass() { return ClassType::cast(this); }
   ConstantType* AsConstant() { return ConstantType::cast(this); }
+  ContextType* AsContext() { return ContextType::cast(this); }
   ArrayType* AsArray() { return ArrayType::cast(this); }
   FunctionType* AsFunction() { return FunctionType::cast(this); }
 
@@ -355,6 +391,7 @@ class TypeImpl : public Config::Base {
       typename OtherTypeImpl::TypeHandle type, Region* region);
 
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
+  void PrintTo(StringStream* stream, PrintDimension = BOTH_DIMS);
   void TypePrint(PrintDimension = BOTH_DIMS);
   void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
 
@@ -419,10 +456,14 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static int Glb(TypeImpl* type);  // greatest lower bound that's a bitset
   static int Lub(TypeImpl* type);  // least upper bound that's a bitset
   static int Lub(i::Object* value);
+  static int Lub(double value);
+  static int Lub(int32_t value);
+  static int Lub(uint32_t value);
   static int Lub(i::Map* map);
 
   static const char* Name(int bitset);
-  static void BitsetTypePrint(FILE* out, int bitset);
+  static void PrintTo(StringStream* stream, int bitset);
+  using TypeImpl::PrintTo;
 };
 
 
@@ -438,6 +479,7 @@ class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
   enum Tag {
     kClassTag,
     kConstantTag,
+    kContextTag,
     kArrayTag,
     kFunctionTag,
     kUnionTag
@@ -492,6 +534,25 @@ class TypeImpl<Config>::ConstantType : public TypeImpl<Config> {
   static ConstantType* cast(TypeImpl* type) {
     ASSERT(type->IsConstant());
     return static_cast<ConstantType*>(type);
+  }
+};
+
+
+template<class Config>
+class TypeImpl<Config>::ContextType : public StructuralType {
+ public:
+  TypeHandle Outer() { return this->Get(0); }
+
+  static ContextHandle New(TypeHandle outer, Region* region) {
+    ContextHandle type = Config::template cast<ContextType>(
+        StructuralType::New(StructuralType::kContextTag, 1, region));
+    type->Set(0, outer);
+    return type;
+  }
+
+  static ContextType* cast(TypeImpl* type) {
+    ASSERT(type->IsContext());
+    return static_cast<ContextType*>(type);
   }
 };
 

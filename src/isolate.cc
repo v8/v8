@@ -1562,6 +1562,8 @@ void Isolate::Deinit() {
   if (state_ == INITIALIZED) {
     TRACE_ISOLATE(deinit);
 
+    debug()->Unload();
+
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();
       delete optimizing_compiler_thread_;
@@ -1898,7 +1900,7 @@ bool Isolate::Init(Deserializer* des) {
   // once ResourceConstraints becomes an argument to the Isolate constructor.
   if (max_available_threads_ < 1) {
     // Choose the default between 1 and 4.
-    max_available_threads_ = Max(Min(CPU::NumberOfProcessorsOnline(), 4), 1);
+    max_available_threads_ = Max(Min(OS::NumberOfProcessorsOnline(), 4), 1);
   }
 
   if (!FLAG_job_based_sweeping) {

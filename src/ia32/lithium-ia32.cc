@@ -1219,9 +1219,8 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LMathSqrt* result = new(zone()) LMathSqrt(input);
-  return DefineSameAsFirst(result);
+  LOperand* input = UseAtStart(instr->value());
+  return DefineAsRegister(new(zone()) LMathSqrt(input));
 }
 
 
@@ -1941,17 +1940,14 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
   } else if (from.IsInteger32()) {
     info()->MarkAsDeferredCalling();
     if (to.IsTagged()) {
+      LOperand* value = UseRegister(val);
       if (!instr->CheckFlag(HValue::kCanOverflow)) {
-        LOperand* value = UseRegister(val);
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* value = UseRegister(val);
-        LOperand* temp1 = TempRegister();
-        LOperand* temp2 = FixedTemp(xmm1);
-        LNumberTagU* result = new(zone()) LNumberTagU(value, temp1, temp2);
+        LOperand* temp = TempRegister();
+        LNumberTagU* result = new(zone()) LNumberTagU(value, temp);
         return AssignPointerMap(DefineSameAsFirst(result));
       } else {
-        LOperand* value = UseRegister(val);
         LOperand* temp = TempRegister();
         LNumberTagI* result = new(zone()) LNumberTagI(value, temp);
         return AssignPointerMap(DefineSameAsFirst(result));
@@ -1966,9 +1962,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsDouble());
       if (val->CheckFlag(HInstruction::kUint32)) {
-        LOperand* temp = FixedTemp(xmm1);
-        return DefineAsRegister(
-            new(zone()) LUint32ToDouble(UseRegister(val), temp));
+        return DefineAsRegister(new(zone()) LUint32ToDouble(UseRegister(val)));
       } else {
         return DefineAsRegister(new(zone()) LInteger32ToDouble(Use(val)));
       }

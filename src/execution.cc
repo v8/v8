@@ -729,10 +729,6 @@ Object* StackGuard::HandleInterrupts() {
       return isolate_->TerminateExecution();
     }
 
-    if (CheckAndClearInterrupt(FULL_DEOPT, access)) {
-      Deoptimizer::DeoptimizeAll(isolate_);
-    }
-
     if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES, access)) {
       isolate_->heap()->DeoptMarkedAllocationSites();
     }

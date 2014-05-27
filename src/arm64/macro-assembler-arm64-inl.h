@@ -7,7 +7,6 @@
 
 #include <ctype.h>
 
-#include "v8globals.h"
 #include "globals.h"
 
 #include "arm64/assembler-arm64.h"

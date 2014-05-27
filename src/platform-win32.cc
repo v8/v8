@@ -1196,6 +1196,13 @@ unsigned OS::CpuFeaturesImpliedByPlatform() {
 }
 
 
+int OS::NumberOfProcessorsOnline() {
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
+}
+
+
 double OS::nan_value() {
 #ifdef _MSC_VER
   // Positive Quiet NaN with no payload (aka. Indeterminate) has all bits

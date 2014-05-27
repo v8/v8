@@ -496,16 +496,4 @@ CPU::CPU() : stepping_(0),
 #endif
 }
 
-
-// static
-int CPU::NumberOfProcessorsOnline() {
-#if V8_OS_WIN
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  return info.dwNumberOfProcessors;
-#else
-  return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
-#endif
-}
-
 } }  // namespace v8::internal

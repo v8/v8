@@ -28,12 +28,12 @@
 // Basic includes
 #include "../include/v8.h"
 #include "../include/v8-platform.h"
-#include "v8globals.h"
 #include "v8checks.h"
 #include "allocation.h"
 #include "assert-scope.h"
 #include "utils.h"
 #include "flags.h"
+#include "globals.h"
 
 // Objects & heap
 #include "objects-inl.h"

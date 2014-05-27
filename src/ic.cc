@@ -501,7 +501,14 @@ void CallIC::Clear(Isolate* isolate,
                    Code* target,
                    ConstantPoolArray* constant_pool) {
   // Currently, CallIC doesn't have state changes.
-  ASSERT(target->ic_state() == v8::internal::GENERIC);
+  if (target->ic_state() != v8::internal::MONOMORPHIC) return;
+  CallIC::State existing_state(target->extra_ic_state());
+
+  // Monomorphic array stubs don't need to be cleared because
+  // 1) the stub doesn't store information that should be cleared, and
+  // 2) the AllocationSite stored in the type feedback vector is immune
+  //    from gc type feedback clearing.
+  ASSERT(existing_state.stub_type() == MONOMORPHIC_ARRAY);
 }
 
 
@@ -1818,15 +1825,47 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
 CallIC::State::State(ExtraICState extra_ic_state)
     : argc_(ArgcBits::decode(extra_ic_state)),
-      call_type_(CallTypeBits::decode(extra_ic_state)) {
+      call_type_(CallTypeBits::decode(extra_ic_state)),
+      stub_type_(StubTypeBits::decode(extra_ic_state)) {
 }
 
 
 ExtraICState CallIC::State::GetExtraICState() const {
   ExtraICState extra_ic_state =
       ArgcBits::encode(argc_) |
-      CallTypeBits::encode(call_type_);
+      CallTypeBits::encode(call_type_) |
+      StubTypeBits::encode(stub_type_);
   return extra_ic_state;
+}
+
+
+bool CallIC::DoCustomHandler(Handle<Object> receiver,
+                             Handle<Object> function,
+                             Handle<FixedArray> vector,
+                             Handle<Smi> slot,
+                             const State& state) {
+  ASSERT(FLAG_use_ic && function->IsJSFunction());
+
+  // Are we the array function?
+  Handle<JSFunction> array_function = Handle<JSFunction>(
+      isolate()->context()->native_context()->array_function(), isolate());
+  if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
+    // Alter the slot.
+    Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();
+    vector->set(slot->value(), *new_site);
+    State new_state = state.ToMonomorphicArrayCallState();
+    CallICStub stub(isolate(), new_state);
+    set_target(*stub.GetCode());
+    Handle<String> name;
+    if (array_function->shared()->name()->IsString()) {
+      name = Handle<String>(String::cast(array_function->shared()->name()),
+                            isolate());
+    }
+
+    TRACE_IC("CallIC (Array call)", name);
+    return true;
+  }
+  return false;
 }
 
 
@@ -1837,18 +1876,35 @@ void CallIC::HandleMiss(Handle<Object> receiver,
   State state(target()->extra_ic_state());
   Object* feedback = vector->get(slot->value());
 
-  if (feedback->IsJSFunction() || !function->IsJSFunction()) {
+  if (feedback->IsJSFunction() || !function->IsJSFunction() ||
+      state.stub_type() != DEFAULT) {
     // We are going generic.
-    ASSERT(!function->IsJSFunction() || *function != feedback);
-
     vector->set(slot->value(),
                 *TypeFeedbackInfo::MegamorphicSentinel(isolate()),
                 SKIP_WRITE_BARRIER);
+
+    State new_state = state.ToGenericState();
+    if (new_state != state) {
+      // Only happens when the array ic goes generic.
+      ASSERT(state.stub_type() == MONOMORPHIC_ARRAY &&
+             FLAG_use_ic);
+      CallICStub stub(isolate(), new_state);
+      Handle<Code> code = stub.GetCode();
+      set_target(*code);
+    }
+
     TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
   } else {
     // If we came here feedback must be the uninitialized sentinel,
     // and we are going monomorphic.
     ASSERT(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+
+    // Do we want to install a custom handler?
+    if (FLAG_use_ic &&
+        DoCustomHandler(receiver, function, vector, slot, state)) {
+      return;
+    }
+
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
     Handle<Object> name(js_function->shared()->name(), isolate());
     TRACE_IC("CallIC", name);

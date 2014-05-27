@@ -7,9 +7,9 @@
 
 #include "../include/v8.h"
 #include "allocation.h"
+#include "globals.h"
 #include "objects.h"
 #include "platform/elapsed-timer.h"
-#include "v8globals.h"
 
 namespace v8 {
 namespace internal {

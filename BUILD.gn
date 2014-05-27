@@ -13,18 +13,11 @@ v8_enable_i18n_support = true
 v8_enable_verify_heap = false
 v8_interpreted_regexp = false
 v8_object_print = false
-#v8_postmortem_support = false
+v8_postmortem_support = false
 v8_use_default_platform = true
 #v8_use_snapshot = true
-
-if (is_debug) {
-  v8_enable_extra_checks = true
-} else {
-  v8_enable_extra_checks = false
-}
-
-# TODO(jochen): Add support for want_seperate_host_toolset.
-# TODO(jochen): Add toolchain.gypi support.
+v8_enable_extra_checks = is_debug
+v8_target_arch = cpu_arch
 
 
 ###############################################################################
@@ -105,11 +98,55 @@ config("features") {
   }
 }
 
+config("toolchain") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
+  defines = []
+  cflags = []
+
+  # TODO(jochen): Add support for arm, mips, mipsel.
+
+  if (v8_target_arch == "arm64") {
+    defines += [
+      "V8_TARGET_ARCH_ARM64",
+    ]
+  }
+  if (v8_target_arch == "x86") {
+    defines += [
+      "V8_TARGET_ARCH_IA32",
+    ]
+  }
+  if (v8_target_arch == "x64") {
+    defines += [
+      "V8_TARGET_ARCH_X64",
+    ]
+  }
+  if (is_win) {
+    defines += [
+      "WIN32",
+    ]
+    # TODO(jochen): Support v8_enable_prof.
+  }
+
+  # TODO(jochen): Add support for compiling with simulators.
+
+  if (is_debug) {
+    # TODO(jochen): Add support for different debug optimization levels.
+    defines += [
+      "ENABLE_DISASSEMBLER",
+      "V8_ENABLE_CHECKS",
+      "OBJECT_PRINT",
+      "VERIFY_HEAP",
+      "DEBUG",
+      "OPTIMIZED_DEBUG",
+    ]
+  }
+}
+
 ###############################################################################
 # Actions
 #
 
-# TODO(jochen): Do actions need visibility settings as well?
 action("generate_trig_table") {
   visibility = ":*"  # Only targets in this file can depend on this.
 
@@ -162,7 +199,7 @@ action("js2c") {
 
   args =
     rebase_path(outputs, root_build_dir) +
-    [ "EXPERIMENTAL", v8_compress_startup_data ] + 
+    [ "EXPERIMENTAL", v8_compress_startup_data ] +
     rebase_path(sources, root_build_dir)
 }
 
@@ -195,7 +232,7 @@ action("js2c_experimental") {
 
   args =
     rebase_path(outputs, root_build_dir) +
-    [ "CORE", v8_compress_startup_data ] + 
+    [ "CORE", v8_compress_startup_data ] +
     rebase_path(sources, root_build_dir)
 }
 
@@ -241,7 +278,7 @@ source_set("v8_nosnapshot") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features" ]
+  configs += [ ":internal_config", ":features", ":toolchain" ]
 }
 
 source_set("v8_base") {
@@ -590,7 +627,6 @@ source_set("v8_base") {
     "src/v8.cc",
     "src/v8.h",
     "src/v8checks.h",
-    "src/v8globals.h",
     "src/v8memory.h",
     "src/v8threads.cc",
     "src/v8threads.h",
@@ -605,7 +641,7 @@ source_set("v8_base") {
     "src/zone.h",
   ]
 
-  if (cpu_arch == "x86") {
+  if (v8_target_arch == "x86") {
     sources += [
       "src/ia32/assembler-ia32-inl.h",
       "src/ia32/assembler-ia32.cc",
@@ -635,7 +671,7 @@ source_set("v8_base") {
       "src/ia32/regexp-macro-assembler-ia32.h",
       "src/ia32/stub-cache-ia32.cc",
     ]
-  } else if (cpu_arch == "x64") {
+  } else if (v8_target_arch == "x64") {
     sources += [
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
@@ -665,7 +701,7 @@ source_set("v8_base") {
       "src/x64/regexp-macro-assembler-x64.h",
       "src/x64/stub-cache-x64.cc",
     ]
-  } else if (cpu_arch == "arm") {
+  } else if (v8_target_arch == "arm") {
     sources += [
       "src/arm/assembler-arm-inl.h",
       "src/arm/assembler-arm.cc",
@@ -698,7 +734,7 @@ source_set("v8_base") {
       "src/arm/simulator-arm.cc",
       "src/arm/stub-cache-arm.cc",
     ]
-  } else if (cpu_arch == "arm64") {
+  } else if (v8_target_arch == "arm64") {
     sources += [
       "src/arm64/assembler-arm64.cc",
       "src/arm64/assembler-arm64.h",
@@ -742,7 +778,7 @@ source_set("v8_base") {
       "src/arm64/utils-arm64.cc",
       "src/arm64/utils-arm64.h",
     ]
-  } else if (cpu_arch == "mipsel") {
+  } else if (v8_target_arch == "mipsel") {
     sources += [
       "src/mips/assembler-mips.cc",
       "src/mips/assembler-mips.h",
@@ -779,10 +815,10 @@ source_set("v8_base") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features" ]
+  configs += [ ":internal_config", ":features", ":toolchain" ]
 
   defines = []
-  deps = []
+  deps = [ ":v8_libbase" ]
 
   if (is_posix) {
     sources += [
@@ -795,21 +831,30 @@ source_set("v8_base") {
       "src/platform-linux.cc"
     ]
 
-    # TODO(brettw)
-    # 'conditions': [
-    #  ['v8_compress_startup_data=="bz2"', {
-    #    'libraries': [
-    #      '-lbz2',
-    #    ]
-    #   }],
-    # ],
-
     libs = [ "rt" ]
+    if (v8_compress_startup_data == "bz2") {
+      libs += [ "bz2" ]
+    }
   } else if (is_android) {
-    # TODO(brettw) OS=="android" condition from tools/gyp/v8.gyp
+    defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
+    sources += [ "src/platform-posix,cc" ]
+
+    if (build_os == "mac") {
+      if (current_toolchain == host_toolchain) {
+        sources += [ "src/platform-macos.cc" ]
+      } else {
+        sources += [ "src/platform-linux.cc" ]
+      }
+    } else {
+      sources += [ "src/platform-linux.cc" ]
+      if (current_toolchain == host_toolchain) {
+        defines += [ "V8_LIBRT_NOT_AVAILABLE" ]
+      }
+    }
   } else if (is_mac) {
     sources += [ "src/platform-macos,cc" ]
   } else if (is_win) {
+    # TODO(jochen): Add support for cygwin.
     sources += [
       "src/platform-win32.cc",
       "src/win32-math.cc",
@@ -821,12 +866,16 @@ source_set("v8_base") {
     libs = [ "winmm.lib", "ws2_32.lib" ]
   }
 
+  # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
+
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
+    # TODO(jochen): Add support for icu_use_data_file_flag
+    defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
   } else {
     sources -= [
       "src/i18n.cc",
@@ -834,16 +883,29 @@ source_set("v8_base") {
     ]
   }
 
-  # TODO(brettw) other conditions from v8.gyp
-  # TODO(brettw) icu_use_data_file_flag
+  if (v8_postmortem_support) {
+    sources += [ "$target_gen_dir/debug-support.cc" ]
+    deps += [ ":postmortem-metadata" ]
+  }
+}
+
+source_set("v8_libbase") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
+  sources = [
+    "src/base/macros.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ ":internal_config", ":features", ":toolchain" ]
 }
 
 ###############################################################################
 # Executables
 #
 
-# TODO(jochen): Remove this as soon as toolchain.gypi is integrated.
-if (build_cpu_arch != cpu_arch) {
+if (current_toolchain != host_toolchain && is_android) {
 
 source_set("mksnapshot") {
   sources = [
@@ -859,7 +921,7 @@ executable("mksnapshot") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features" ]
+  configs += [ ":internal_config", ":features", ":toolchain" ]
 
   deps = [
     ":v8_base",

@@ -824,6 +824,8 @@ class CallICStub: public PlatformCodeStub {
 
   // Code generation helpers.
   void GenerateMiss(MacroAssembler* masm);
+  void Generate_CustomFeedbackCall(MacroAssembler* masm);
+  void Generate_MonomorphicArray(MacroAssembler* masm, Label* miss);
 
   CallIC::State state_;
 };

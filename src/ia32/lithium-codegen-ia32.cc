@@ -254,10 +254,13 @@ bool LCodeGen::GeneratePrologue() {
   int heap_slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
+    bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in edi.
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
+      // Result of FastNewContextStub is always in new space.
+      need_write_barrier = false;
     } else {
       __ push(edi);
       __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
@@ -281,11 +284,18 @@ bool LCodeGen::GeneratePrologue() {
         int context_offset = Context::SlotOffset(var->index());
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers eax and ebx.
-        __ RecordWriteContextSlot(esi,
-                                  context_offset,
-                                  eax,
-                                  ebx,
-                                  kDontSaveFPRegs);
+        if (need_write_barrier) {
+          __ RecordWriteContextSlot(esi,
+                                    context_offset,
+                                    eax,
+                                    ebx,
+                                    kDontSaveFPRegs);
+        } else if (FLAG_debug_code) {
+          Label done;
+          __ JumpIfInNewSpace(esi, eax, &done, Label::kNear);
+          __ Abort(kExpectedNewSpaceObject);
+          __ bind(&done);
+        }
       }
     }
     Comment(";;; End allocate local context");
@@ -3698,9 +3708,9 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  XMMRegister input_reg = ToDoubleRegister(instr->value());
-  ASSERT(ToDoubleRegister(instr->result()).is(input_reg));
-  __ sqrtsd(input_reg, input_reg);
+  Operand input = ToOperand(instr->value());
+  XMMRegister output = ToDoubleRegister(instr->result());
+  __ sqrtsd(output, input);
 }
 
 
@@ -4447,10 +4457,7 @@ void LCodeGen::DoInteger32ToDouble(LInteger32ToDouble* instr) {
 void LCodeGen::DoUint32ToDouble(LUint32ToDouble* instr) {
   LOperand* input = instr->value();
   LOperand* output = instr->result();
-  LOperand* temp = instr->temp();
-  __ LoadUint32(ToDoubleRegister(output),
-                ToRegister(input),
-                ToDoubleRegister(temp));
+  __ LoadUint32(ToDoubleRegister(output), ToRegister(input));
 }
 
 
@@ -4461,8 +4468,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
                        LNumberTagI* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp(),
-                                       NULL, SIGNED_INT32);
+      codegen()->DoDeferredNumberTagIU(
+          instr_, instr_->value(), instr_->temp(), SIGNED_INT32);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4487,8 +4494,8 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
     DeferredNumberTagU(LCodeGen* codegen, LNumberTagU* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredNumberTagIU(instr_, instr_->value(), instr_->temp1(),
-                                       instr_->temp2(), UNSIGNED_INT32);
+      codegen()->DoDeferredNumberTagIU(
+          instr_, instr_->value(), instr_->temp(), UNSIGNED_INT32);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
    private:
@@ -4510,12 +4517,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
                                      LOperand* value,
-                                     LOperand* temp1,
-                                     LOperand* temp2,
+                                     LOperand* temp,
                                      IntegerSignedness signedness) {
   Label done, slow;
   Register reg = ToRegister(value);
-  Register tmp = ToRegister(temp1);
+  Register tmp = ToRegister(temp);
   XMMRegister xmm_scratch = double_scratch0();
 
   if (signedness == SIGNED_INT32) {
@@ -4526,7 +4532,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
     __ xor_(reg, 0x80000000);
     __ Cvtsi2sd(xmm_scratch, Operand(reg));
   } else {
-    __ LoadUint32(xmm_scratch, reg, ToDoubleRegister(temp2));
+    __ LoadUint32(xmm_scratch, reg);
   }
 
   if (FLAG_inline_new) {

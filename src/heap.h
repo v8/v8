@@ -18,7 +18,6 @@
 #include "spaces.h"
 #include "splay-tree-inl.h"
 #include "store-buffer.h"
-#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -1035,20 +1034,10 @@ class Heap {
   inline int64_t AdjustAmountOfExternalAllocatedMemory(
       int64_t change_in_bytes);
 
-  // This is only needed for testing high promotion mode.
-  void SetNewSpaceHighPromotionModeActive(bool mode) {
-    new_space_high_promotion_mode_active_ = mode;
-  }
-
   // Returns the allocation mode (pre-tenuring) based on observed promotion
   // rates of previous collections.
   inline PretenureFlag GetPretenureMode() {
-    return FLAG_pretenuring && new_space_high_promotion_mode_active_
-        ? TENURED : NOT_TENURED;
-  }
-
-  inline Address* NewSpaceHighPromotionModeActiveAddress() {
-    return reinterpret_cast<Address*>(&new_space_high_promotion_mode_active_);
+    return FLAG_pretenuring ? TENURED : NOT_TENURED;
   }
 
   inline intptr_t PromotedTotalSize() {
@@ -1582,11 +1571,6 @@ class Heap {
   int allocation_timeout_;
 #endif  // DEBUG
 
-  // Indicates that the new space should be kept small due to high promotion
-  // rates caused by the mutator allocating a lot of long-lived objects.
-  // TODO(hpayer): change to bool if no longer accessed from generated code
-  intptr_t new_space_high_promotion_mode_active_;
-
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke, before expanding a paged space in the old
@@ -2027,74 +2011,23 @@ class Heap {
   void AddAllocationSiteToScratchpad(AllocationSite* site,
                                      ScratchpadSlotMode mode);
 
-  void UpdateSurvivalRateTrend(int start_new_space_size);
-
-  enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
+  void UpdateSurvivalStatistics(int start_new_space_size);
 
   static const int kYoungSurvivalRateHighThreshold = 90;
-  static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
 
   static const int kOldSurvivalRateLowThreshold = 10;
 
   int high_survival_rate_period_length_;
-  int low_survival_rate_period_length_;
-  double survival_rate_;
   intptr_t promoted_objects_size_;
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
   double semi_space_copied_rate_;
-  SurvivalRateTrend previous_survival_rate_trend_;
-  SurvivalRateTrend survival_rate_trend_;
 
-  void set_survival_rate_trend(SurvivalRateTrend survival_rate_trend) {
-    ASSERT(survival_rate_trend != FLUCTUATING);
-    previous_survival_rate_trend_ = survival_rate_trend_;
-    survival_rate_trend_ = survival_rate_trend;
-  }
-
-  SurvivalRateTrend survival_rate_trend() {
-    if (survival_rate_trend_ == STABLE) {
-      return STABLE;
-    } else if (previous_survival_rate_trend_ == STABLE) {
-      return survival_rate_trend_;
-    } else if (survival_rate_trend_ != previous_survival_rate_trend_) {
-      return FLUCTUATING;
-    } else {
-      return survival_rate_trend_;
-    }
-  }
-
-  bool IsStableOrIncreasingSurvivalTrend() {
-    switch (survival_rate_trend()) {
-      case STABLE:
-      case INCREASING:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  bool IsStableOrDecreasingSurvivalTrend() {
-    switch (survival_rate_trend()) {
-      case STABLE:
-      case DECREASING:
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  bool IsIncreasingSurvivalTrend() {
-    return survival_rate_trend() == INCREASING;
-  }
-
+  // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
+  // Re-visit incremental marking heuristics.
   bool IsHighSurvivalRate() {
     return high_survival_rate_period_length_ > 0;
-  }
-
-  bool IsLowSurvivalRate() {
-    return low_survival_rate_period_length_ > 0;
   }
 
   void SelectScavengingVisitorsTable();

@@ -7,7 +7,7 @@
 
 #include "atomicops.h"
 #include "frames.h"
-#include "v8globals.h"
+#include "globals.h"
 
 namespace v8 {
 namespace internal {

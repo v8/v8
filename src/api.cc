@@ -1728,6 +1728,13 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
                                    cached_data_mode,
                                    i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
+    if (has_pending_exception && cached_data_mode == i::CONSUME_CACHED_DATA) {
+      // This case won't happen during normal operation; we have compiled
+      // successfully and produced cached data, and but the second compilation
+      // of the same source code fails.
+      delete script_data_impl;
+      script_data_impl = NULL;
+    }
     EXCEPTION_BAILOUT_CHECK(isolate, Local<UnboundScript>());
     raw_result = *result;
     if ((options & kProduceDataToCache) && script_data_impl != NULL) {
