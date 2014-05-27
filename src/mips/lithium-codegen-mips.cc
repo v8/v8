@@ -1921,20 +1921,19 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
   Condition condition = (operation == HMathMinMax::kMathMin) ? le : ge;
   if (instr->hydrogen()->representation().IsSmiOrInteger32()) {
     Register left_reg = ToRegister(left);
-    Operand right_op = (right->IsRegister() || right->IsConstantOperand())
-        ? ToOperand(right)
-        : Operand(EmitLoadRegister(right, at));
+    Register right_reg = EmitLoadRegister(right, scratch0());
     Register result_reg = ToRegister(instr->result());
     Label return_right, done;
-    if (!result_reg.is(left_reg)) {
-      __ Branch(&return_right, NegateCondition(condition), left_reg, right_op);
-      __ mov(result_reg, left_reg);
-      __ Branch(&done);
+    Register scratch = scratch1();
+    __ Slt(scratch, left_reg, Operand(right_reg));
+    if (condition == ge) {
+     __  Movz(result_reg, left_reg, scratch);
+     __  Movn(result_reg, right_reg, scratch);
+    } else {
+     ASSERT(condition == le);
+     __  Movn(result_reg, left_reg, scratch);
+     __  Movz(result_reg, right_reg, scratch);
     }
-    __ Branch(&done, condition, left_reg, right_op);
-    __ bind(&return_right);
-    __ Addu(result_reg, zero_reg, right_op);
-    __ bind(&done);
   } else {
     ASSERT(instr->hydrogen()->representation().IsDouble());
     FPURegister left_reg = ToDoubleRegister(left);
