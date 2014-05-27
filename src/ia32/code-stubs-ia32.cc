@@ -4952,8 +4952,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // but the following masking takes care of that anyway.
   __ mov(ecx, FieldOperand(ecx, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  __ and_(ecx, Map::kElementsKindMask);
-  __ shr(ecx, Map::kElementsKindShift);
+  __ DecodeField<Map::ElementsKindBits>(ecx);
 
   if (FLAG_debug_code) {
     Label done;

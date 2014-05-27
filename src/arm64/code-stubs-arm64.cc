@@ -4687,7 +4687,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(value, &smi_element);
 
   // Jump if array's ElementsKind is not FAST_ELEMENTS or FAST_HOLEY_ELEMENTS.
-  __ Tbnz(bitfield2, MaskToBit(FAST_ELEMENTS << Map::kElementsKindShift),
+  __ Tbnz(bitfield2, MaskToBit(FAST_ELEMENTS << Map::ElementsKindBits::kShift),
           &fast_elements);
 
   // Store into the array literal requires an elements transition. Call into

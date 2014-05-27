@@ -6084,15 +6084,13 @@ class Map: public HeapObject {
 
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
-    ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
-    set_bit_field2((bit_field2() & ~kElementsKindMask) |
-        (elements_kind << kElementsKindShift));
+    ASSERT(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
+    set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
     ASSERT(this->elements_kind() == elements_kind);
   }
 
   inline ElementsKind elements_kind() {
-    return static_cast<ElementsKind>(
-        (bit_field2() & kElementsKindMask) >> kElementsKindShift);
+    return Map::ElementsKindBits::decode(bit_field2());
   }
 
   // Tells whether the instance has fast elements that are only Smis.
@@ -6573,25 +6571,20 @@ class Map: public HeapObject {
   static const int kIsExtensible = 0;
   static const int kStringWrapperSafeForDefaultValueOf = 1;
   // Currently bit 2 is not used.
-  // No bits can be used after kElementsKindFirstBit, they are all reserved for
-  // storing ElementKind.
-  static const int kElementsKindShift = 3;
-  static const int kElementsKindBitCount = 5;
+  class ElementsKindBits: public BitField<ElementsKind, 3, 5> {};
 
   // Derived values from bit field 2
-  static const int kElementsKindMask = (-1 << kElementsKindShift) &
-      ((1 << (kElementsKindShift + kElementsKindBitCount)) - 1);
   static const int8_t kMaximumBitField2FastElementValue = static_cast<int8_t>(
-      (FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
+      (FAST_ELEMENTS + 1) << Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastSmiElementValue =
       static_cast<int8_t>((FAST_SMI_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastHoleyElementValue =
       static_cast<int8_t>((FAST_HOLEY_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastHoleySmiElementValue =
       static_cast<int8_t>((FAST_HOLEY_SMI_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
 
   typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
                               kPointerFieldsEndOffset,
