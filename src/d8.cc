@@ -1190,6 +1190,21 @@ i::Thread::Options SourceGroup::GetThreadOptions() {
 }
 
 
+void SuggestivelyAskForAggressiveGC() {
+  if (Shell::options.send_idle_notification) {
+    const int kLongIdlePauseInMs = 1000;
+    V8::ContextDisposedNotification();
+    V8::IdleNotification(kLongIdlePauseInMs);
+  }
+  if (Shell::options.invoke_weak_callbacks) {
+    // By sending a low memory notifications, we will try hard to collect
+    // all garbage and will therefore also invoke all weak callbacks of
+    // actually unreachable persistent handles.
+    V8::LowMemoryNotification();
+  }
+}
+
+
 void SourceGroup::ExecuteInThread() {
   Isolate* isolate = Isolate::New();
   do {
@@ -1206,14 +1221,11 @@ void SourceGroup::ExecuteInThread() {
           Execute(isolate);
         }
       }
-      if (Shell::options.send_idle_notification) {
-        const int kLongIdlePauseInMs = 1000;
-        V8::ContextDisposedNotification();
-        V8::IdleNotification(kLongIdlePauseInMs);
-      }
+      SuggestivelyAskForAggressiveGC();
     }
     done_semaphore_.Signal();
   } while (!Shell::options.last_run);
+
   isolate->Dispose();
 }
 
@@ -1272,6 +1284,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.test_shell = true;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "--send-idle-notification") == 0) {
+      options.send_idle_notification = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--invoke-weak-callbacks") == 0) {
+      options.invoke_weak_callbacks = true;
+      // TODO(jochen) See issue 3351
       options.send_idle_notification = true;
       argv[i] = NULL;
     } else if (strcmp(argv[i], "-f") == 0) {
@@ -1362,11 +1379,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
       options.isolate_sources[0].Execute(isolate);
     }
   }
-  if (options.send_idle_notification) {
-    const int kLongIdlePauseInMs = 1000;
-    V8::ContextDisposedNotification();
-    V8::IdleNotification(kLongIdlePauseInMs);
-  }
+  SuggestivelyAskForAggressiveGC();
 
 #ifndef V8_SHARED
   for (int i = 1; i < options.num_isolates; ++i) {
