@@ -7777,6 +7777,8 @@ class HForInCacheArray V8_FINAL : public HTemplateInstruction<2> {
 
 class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P2(HLoadFieldByIndex, HValue*, HValue*);
+
   HLoadFieldByIndex(HValue* object,
                     HValue* index) {
     SetOperandAt(0, object);
@@ -7786,7 +7788,11 @@ class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    if (index == 1) {
+      return Representation::Smi();
+    } else {
+      return Representation::Tagged();
+    }
   }
 
   HValue* object() { return OperandAt(0); }

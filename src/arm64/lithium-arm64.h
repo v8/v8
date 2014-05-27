@@ -1288,6 +1288,7 @@ class LDeclareGlobals V8_FINAL : public LTemplateInstruction<0, 1, 0> {
 
 class LDeoptimize V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
+  virtual bool IsControl() const V8_OVERRIDE { return true; }
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
   DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };

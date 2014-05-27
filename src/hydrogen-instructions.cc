@@ -2904,6 +2904,7 @@ bool HConstant::EmitAtUses() {
   if (UseCount() == 0) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
+  if (representation().IsExternal()) return false;
   return true;
 }
 
