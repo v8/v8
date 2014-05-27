@@ -5505,16 +5505,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
                                     value, STORE_TO_INITIALIZED_ENTRY);
     }
   } else {
+    if (field_access.representation().IsHeapObject()) {
+      BuildCheckHeapObject(value);
+    }
+
     if (!info->field_maps()->is_empty()) {
       ASSERT(field_access.representation().IsHeapObject());
-      BuildCheckHeapObject(value);
       value = Add<HCheckMaps>(value, info->field_maps());
-
-      // TODO(bmeurer): This is a dirty hack to avoid repeating the smi check
-      // that was already performed by the HCheckHeapObject above in the
-      // HStoreNamedField below. We should really do this right instead and
-      // make Crankshaft aware of Representation::HeapObject().
-      field_access = field_access.WithRepresentation(Representation::Tagged());
     }
 
     // This is a normal store.

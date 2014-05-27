@@ -6816,6 +6816,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                                            new_space_dominator());
   }
 
+  SmiCheck SmiCheckForWriteBarrier() const {
+    if (field_representation().IsHeapObject()) return OMIT_SMI_CHECK;
+    if (value()->IsHeapObject()) return OMIT_SMI_CHECK;
+    return INLINE_SMI_CHECK;
+  }
+
   Representation field_representation() const {
     return access_.representation();
   }
