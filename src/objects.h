@@ -8793,13 +8793,11 @@ class Name: public HeapObject {
 
   STATIC_ASSERT((kArrayIndexLengthBits > 0));
 
-  static const int kArrayIndexHashLengthShift =
-      kArrayIndexValueBits + kNofHashBitFields;
-
-  static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
-
-  static const int kArrayIndexValueMask =
-      ((1 << kArrayIndexValueBits) - 1) << kHashShift;
+  class ArrayIndexValueBits : public BitField<unsigned int, kNofHashBitFields,
+      kArrayIndexValueBits> {};
+  class ArrayIndexLengthBits : public BitField<unsigned int,
+      kNofHashBitFields + kArrayIndexValueBits,
+      kArrayIndexLengthBits> {};
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
@@ -8807,7 +8805,7 @@ class Name: public HeapObject {
   STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
   static const unsigned int kContainsCachedArrayIndexMask =
-      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
+      (~kMaxCachedArrayIndexLength << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
 
   // Value of empty hash field indicating that the hash is not computed.

@@ -1014,8 +1014,16 @@ class MacroAssembler: public Assembler {
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
     static const int mask = Field::kMask >> Field::kShift;
-    shrp(reg, Immediate(shift));
+    if (shift != 0) {
+      shrp(reg, Immediate(shift));
+    }
     andp(reg, Immediate(mask));
+  }
+
+  template<typename Field>
+  void DecodeFieldToSmi(Register reg) {
+    andp(reg, Immediate(Field::kMask));
+    shlp(reg, Immediate(kSmiShift - Field::kShift));
   }
 
   // Abort execution if argument is not a number, enabled via --debug-code.

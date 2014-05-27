@@ -2047,16 +2047,10 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // reserved for it does not conflict.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  and_(hash, String::kArrayIndexValueMask);
-  STATIC_ASSERT(String::kHashShift >= kSmiTagSize && kSmiTag == 0);
-  if (String::kHashShift > kSmiTagSize) {
-    shr(hash, String::kHashShift - kSmiTagSize);
-  }
   if (!index.is(hash)) {
     mov(index, hash);
   }
+  DecodeFieldToSmi<String::ArrayIndexValueBits>(index);
 }
 
 
