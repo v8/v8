@@ -27,13 +27,8 @@
 
 #include <vector>
 
-#define private public  /* To test private methods :) */
-#define protected public
-#include "types.h"
-#undef private
-#undef protected
-
 #include "cctest.h"
+#include "types.h"
 #include "utils/random-number-generator.h"
 
 using namespace v8::internal;
@@ -76,6 +71,13 @@ struct ZoneRep {
   }
 
   static Zone* ToRegion(Zone* zone, Isolate* isolate) { return zone; }
+
+  struct BitsetType : Type::BitsetType {
+    using Type::BitsetType::New;
+    using Type::BitsetType::Glb;
+    using Type::BitsetType::Lub;
+    using Type::BitsetType::InherentLub;
+  };
 };
 
 
@@ -108,6 +110,16 @@ struct HeapRep {
   static int Length(Struct* structured) { return structured->length() - 1; }
 
   static Isolate* ToRegion(Zone* zone, Isolate* isolate) { return isolate; }
+
+  struct BitsetType : HeapType::BitsetType {
+    using HeapType::BitsetType::New;
+    using HeapType::BitsetType::Glb;
+    using HeapType::BitsetType::Lub;
+    using HeapType::BitsetType::InherentLub;
+    static int Glb(Handle<HeapType> type) { return Glb(*type); }
+    static int Lub(Handle<HeapType> type) { return Lub(*type); }
+    static int InherentLub(Handle<HeapType> type) { return InherentLub(*type); }
+  };
 };
 
 
@@ -739,31 +751,36 @@ struct Tests : Rep {
     // Ordering: (T->BitsetGlb())->Is(T->BitsetLub())
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      TypeHandle glb = Type::BitsetType::New(type->BitsetGlb(), T.region());
-      TypeHandle lub = Type::BitsetType::New(type->BitsetLub(), T.region());
+      TypeHandle glb =
+          Rep::BitsetType::New(Rep::BitsetType::Glb(type), T.region());
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
       CHECK(glb->Is(lub));
     }
 
     // Lower bound: (T->BitsetGlb())->Is(T)
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      TypeHandle glb = Type::BitsetType::New(type->BitsetGlb(), T.region());
+      TypeHandle glb =
+          Rep::BitsetType::New(Rep::BitsetType::Glb(type), T.region());
       CHECK(glb->Is(type));
     }
 
     // Upper bound: T->Is(T->BitsetLub())
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      TypeHandle lub = Type::BitsetType::New(type->BitsetLub(), T.region());
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
       CHECK(type->Is(lub));
     }
 
     // Inherent bound: (T->BitsetLub())->Is(T->InherentBitsetLub())
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       TypeHandle type = *it;
-      TypeHandle lub = Type::BitsetType::New(type->BitsetLub(), T.region());
+      TypeHandle lub =
+          Rep::BitsetType::New(Rep::BitsetType::Lub(type), T.region());
       TypeHandle inherent =
-          Type::BitsetType::New(type->InherentBitsetLub(), T.region());
+          Rep::BitsetType::New(Rep::BitsetType::InherentLub(type), T.region());
       CHECK(lub->Is(inherent));
     }
   }

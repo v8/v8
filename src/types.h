@@ -469,7 +469,7 @@ class TypeImpl : public Config::Base {
 
 template<class Config>
 class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
- private:
+ protected:
   friend class TypeImpl<Config>;
 
   enum {
