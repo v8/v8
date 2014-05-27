@@ -861,9 +861,7 @@ void Heap::MoveElements(FixedArray* array,
 
   ASSERT(array->map() != fixed_cow_array_map());
   Object** dst_objects = array->data_start() + dst_index;
-  OS::MemMove(dst_objects,
-              array->data_start() + src_index,
-              len * kPointerSize);
+  MemMove(dst_objects, array->data_start() + src_index, len * kPointerSize);
   if (!InNewSpace(array)) {
     for (int i = 0; i < len; i++) {
       // TODO(hpayer): check store buffer for entries
@@ -3788,7 +3786,7 @@ static inline void WriteOneByteData(Vector<const char> vector,
                                     int len) {
   // Only works for ascii.
   ASSERT(vector.length() == len);
-  OS::MemCopy(chars, vector.start(), len);
+  MemCopy(chars, vector.start(), len);
 }
 
 static inline void WriteTwoByteData(Vector<const char> vector,
@@ -6424,8 +6422,8 @@ void Heap::CheckpointObjectStats() {
   CODE_AGE_LIST_COMPLETE(ADJUST_LAST_TIME_OBJECT_COUNT)
 #undef ADJUST_LAST_TIME_OBJECT_COUNT
 
-  OS::MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
-  OS::MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
+  MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
+  MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
 }
 

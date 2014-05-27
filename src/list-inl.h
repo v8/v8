@@ -65,7 +65,7 @@ template<typename T, class P>
 void List<T, P>::Resize(int new_capacity, P alloc) {
   ASSERT_LE(length_, new_capacity);
   T* new_data = NewData(new_capacity, alloc);
-  OS::MemCopy(new_data, data_, length_ * sizeof(T));
+  MemCopy(new_data, data_, length_ * sizeof(T));
   List<T, P>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;

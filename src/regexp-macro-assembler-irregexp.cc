@@ -434,7 +434,7 @@ int RegExpMacroAssemblerIrregexp::length() {
 
 
 void RegExpMacroAssemblerIrregexp::Copy(Address a) {
-  OS::MemCopy(a, buffer_.start(), length());
+  MemCopy(a, buffer_.start(), length());
 }
 
 
@@ -443,7 +443,7 @@ void RegExpMacroAssemblerIrregexp::Expand() {
   Vector<byte> old_buffer = buffer_;
   buffer_ = Vector<byte>::New(old_buffer.length() * 2);
   own_buffer_ = true;
-  OS::MemCopy(buffer_.start(), old_buffer.start(), old_buffer.length());
+  MemCopy(buffer_.start(), old_buffer.start(), old_buffer.length());
   if (old_buffer_was_our_own) {
     old_buffer.Dispose();
   }

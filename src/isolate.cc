@@ -1343,8 +1343,8 @@ Handle<Context> Isolate::GetCallingNativeContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
-  OS::MemCopy(to, reinterpret_cast<char*>(thread_local_top()),
-              sizeof(ThreadLocalTop));
+  MemCopy(to, reinterpret_cast<char*>(thread_local_top()),
+          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
   clear_pending_exception();
   clear_pending_message();
@@ -1354,10 +1354,10 @@ char* Isolate::ArchiveThread(char* to) {
 
 
 char* Isolate::RestoreThread(char* from) {
-  OS::MemCopy(reinterpret_cast<char*>(thread_local_top()), from,
-              sizeof(ThreadLocalTop));
-  // This might be just paranoia, but it seems to be needed in case a
-  // thread_local_top_ is restored on a separate OS thread.
+  MemCopy(reinterpret_cast<char*>(thread_local_top()), from,
+          sizeof(ThreadLocalTop));
+// This might be just paranoia, but it seems to be needed in case a
+// thread_local_top_ is restored on a separate OS thread.
 #ifdef USE_SIMULATOR
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif

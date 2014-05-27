@@ -7,7 +7,7 @@
 
 #include "unicode.h"
 #include "checks.h"
-#include "platform.h"
+#include "utils.h"
 
 namespace unibrow {
 
@@ -189,8 +189,8 @@ unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
   // memcpy everything in buffer.
   unsigned buffer_length =
       last_byte_of_buffer_unused_ ? kBufferSize - 1 : kBufferSize;
-  unsigned memcpy_length = length <= buffer_length  ? length : buffer_length;
-  v8::internal::OS::MemCopy(data, buffer_, memcpy_length*sizeof(uint16_t));
+  unsigned memcpy_length = length <= buffer_length ? length : buffer_length;
+  v8::internal::MemCopy(data, buffer_, memcpy_length * sizeof(uint16_t));
   if (length <= buffer_length) return length;
   ASSERT(unbuffered_start_ != NULL);
   // Copy the rest the slow way.

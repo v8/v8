@@ -305,7 +305,7 @@ static void SplitArgument(const char* arg,
       // make a copy so we can NUL-terminate flag name
       size_t n = arg - *name;
       CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
-      OS::MemCopy(buffer, *name, n);
+      MemCopy(buffer, *name, n);
       buffer[n] = '\0';
       *name = buffer;
       // get the value
@@ -475,7 +475,7 @@ static char* SkipBlackSpace(char* p) {
 int FlagList::SetFlagsFromString(const char* str, int len) {
   // make a 0-terminated copy of str
   ScopedVector<char> copy0(len + 1);
-  OS::MemCopy(copy0.start(), str, len);
+  MemCopy(copy0.start(), str, len);
   copy0[len] = '\0';
 
   // strip leading white space

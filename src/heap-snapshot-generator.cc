@@ -2683,10 +2683,10 @@ class OutputStreamWriter {
     ASSERT(static_cast<size_t>(n) <= strlen(s));
     const char* s_end = s + n;
     while (s < s_end) {
-      int s_chunk_size = Min(
-          chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
+      int s_chunk_size =
+          Min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
       ASSERT(s_chunk_size > 0);
-      OS::MemCopy(chunk_.start() + chunk_pos_, s, s_chunk_size);
+      MemCopy(chunk_.start() + chunk_pos_, s, s_chunk_size);
       s += s_chunk_size;
       chunk_pos_ += s_chunk_size;
       MaybeWriteChunk();

@@ -172,15 +172,11 @@ BUILTIN(EmptyFunction) {
 }
 
 
-static void MoveDoubleElements(FixedDoubleArray* dst,
-                               int dst_index,
-                               FixedDoubleArray* src,
-                               int src_index,
-                               int len) {
+static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
+                               FixedDoubleArray* src, int src_index, int len) {
   if (len == 0) return;
-  OS::MemMove(dst->data_start() + dst_index,
-              src->data_start() + src_index,
-              len * kDoubleSize);
+  MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
+          len * kDoubleSize);
 }
 
 
