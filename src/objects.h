@@ -5077,12 +5077,16 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   inline int size();
 
+  inline int TypedArraySize(InstanceType type);
+
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
   inline int DataSize();
 
  private:
+  inline int DataSize(InstanceType type);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
 };
 

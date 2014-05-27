@@ -4262,3 +4262,15 @@ TEST(ArrayShiftSweeping) {
   CHECK(page->WasSwept() ||
         Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
 }
+
+
+#ifdef DEBUG
+TEST(PathTracer) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Value> result = CompileRun("'abc'");
+  Handle<Object> o = v8::Utils::OpenHandle(*result);
+  CcTest::i_isolate()->heap()->TracePathToObject(*o);
+}
+#endif  // DEBUG
