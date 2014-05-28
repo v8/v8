@@ -586,9 +586,6 @@ class FastNewContextStub V8_FINAL : public HydrogenCodeStub {
 
 class FastCloneShallowArrayStub : public HydrogenCodeStub {
  public:
-  // Maximum length of copied elements array.
-  static const int kMaximumInlinedCloneLength = 8;
-
   FastCloneShallowArrayStub(Isolate* isolate,
                             AllocationSiteMode allocation_site_mode)
       : HydrogenCodeStub(isolate),

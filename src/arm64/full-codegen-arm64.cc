@@ -1805,7 +1805,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ Ldr(x3, FieldMemOperand(x3, JSFunction::kLiteralsOffset));
   __ Mov(x2, Smi::FromInt(expr->literal_index()));
   __ Mov(x1, Operand(constant_elements));
-  if (expr->depth() > 1) {
+  if (expr->depth() > 1 || length > JSObject::kInitialMaxFastElementArray) {
     __ Mov(x0, Smi::FromInt(flags));
     __ Push(x3, x2, x1, x0);
     __ CallRuntime(Runtime::kHiddenCreateArrayLiteral, 4);

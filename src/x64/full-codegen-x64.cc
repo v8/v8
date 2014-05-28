@@ -1776,7 +1776,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     allocation_site_mode = DONT_TRACK_ALLOCATION_SITE;
   }
 
-  if (expr->depth() > 1) {
+  if (expr->depth() > 1 || length > JSObject::kInitialMaxFastElementArray) {
     __ movp(rbx, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     __ Push(FieldOperand(rbx, JSFunction::kLiteralsOffset));
     __ Push(Smi::FromInt(expr->literal_index()));
