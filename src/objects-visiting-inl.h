@@ -404,7 +404,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
       reinterpret_cast<JSWeakCollection*>(object);
   MarkCompactCollector* collector = heap->mark_compact_collector();
 
-  // Enqueue weak map in linked list of encountered weak maps.
+  // Enqueue weak collection in linked list of encountered weak collections.
   if (weak_collection->next() == heap->undefined_value()) {
     weak_collection->set_next(collector->encountered_weak_collections());
     collector->set_encountered_weak_collections(weak_collection);
@@ -420,6 +420,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
   STATIC_ASSERT(JSWeakCollection::kNextOffset + kPointerSize ==
       JSWeakCollection::kSize);
 
+  // Partially initialized weak collection is enqueued, but table is ignored.
   if (!weak_collection->table()->IsHashTable()) return;
 
   // Mark the backing hash table without pushing it on the marking stack.

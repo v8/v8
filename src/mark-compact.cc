@@ -2740,21 +2740,22 @@ void MarkCompactCollector::ProcessWeakCollections() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_PROCESS);
   Object* weak_collection_obj = encountered_weak_collections();
   while (weak_collection_obj != Smi::FromInt(0)) {
-    ASSERT(MarkCompactCollector::IsMarked(
-        HeapObject::cast(weak_collection_obj)));
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
-    Object** anchor = reinterpret_cast<Object**>(table->address());
-    for (int i = 0; i < table->Capacity(); i++) {
-      if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
-        Object** key_slot =
-            table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
-        RecordSlot(anchor, key_slot, *key_slot);
-        Object** value_slot =
-            table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
-        MarkCompactMarkingVisitor::MarkObjectByPointer(
-            this, anchor, value_slot);
+    ASSERT(MarkCompactCollector::IsMarked(weak_collection));
+    if (weak_collection->table()->IsHashTable()) {
+      ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
+      Object** anchor = reinterpret_cast<Object**>(table->address());
+      for (int i = 0; i < table->Capacity(); i++) {
+        if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
+          Object** key_slot =
+              table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
+          RecordSlot(anchor, key_slot, *key_slot);
+          Object** value_slot =
+              table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
+          MarkCompactMarkingVisitor::MarkObjectByPointer(
+              this, anchor, value_slot);
+        }
       }
     }
     weak_collection_obj = weak_collection->next();
@@ -2766,14 +2767,16 @@ void MarkCompactCollector::ClearWeakCollections() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_CLEAR);
   Object* weak_collection_obj = encountered_weak_collections();
   while (weak_collection_obj != Smi::FromInt(0)) {
-    ASSERT(MarkCompactCollector::IsMarked(
-        HeapObject::cast(weak_collection_obj)));
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
-    for (int i = 0; i < table->Capacity(); i++) {
-      if (!MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
-        table->RemoveEntry(i);
+    ASSERT(MarkCompactCollector::IsMarked(weak_collection));
+    if (weak_collection->table()->IsHashTable()) {
+      ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
+      for (int i = 0; i < table->Capacity(); i++) {
+        HeapObject* key = HeapObject::cast(table->KeyAt(i));
+        if (!MarkCompactCollector::IsMarked(key)) {
+          table->RemoveEntry(i);
+        }
       }
     }
     weak_collection_obj = weak_collection->next();
