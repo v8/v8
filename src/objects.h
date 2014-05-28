@@ -8798,10 +8798,10 @@ class Name: public HeapObject {
   STATIC_ASSERT((kArrayIndexLengthBits > 0));
 
   class ArrayIndexValueBits : public BitField<unsigned int, kNofHashBitFields,
-      kArrayIndexValueBits> {};
+      kArrayIndexValueBits> {};  // NOLINT
   class ArrayIndexLengthBits : public BitField<unsigned int,
       kNofHashBitFields + kArrayIndexValueBits,
-      kArrayIndexLengthBits> {};
+      kArrayIndexLengthBits> {};  // NOLINT
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
