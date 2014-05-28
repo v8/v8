@@ -1477,10 +1477,26 @@ class Object {
       Handle<Name> key,
       PropertyAttributes* attributes);
 
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
+      Handle<Object> receiver,
+      Handle<Name> name,
+      Handle<JSObject> holder,
+      Handle<Object> structure);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithCallback(
+      Handle<Object> receiver,
+      Handle<Name> name,
+      Handle<Object> value,
+      Handle<JSObject> holder,
+      Handle<Object> structure,
+      StrictMode strict_mode);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
-      Handle<Object> object,
       Handle<Object> receiver,
       Handle<JSReceiver> getter);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithDefinedSetter(
+      Handle<Object> receiver,
+      Handle<JSReceiver> setter,
+      Handle<Object> value);
 
   MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
       Isolate* isolate,
@@ -1994,12 +2010,6 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object,
       KeyCollectionType type);
 
- protected:
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithDefinedSetter(
-      Handle<JSReceiver> object,
-      Handle<JSReceiver> setter,
-      Handle<Object> value);
-
  private:
   static PropertyAttributes GetPropertyAttributeForResult(
       Handle<JSReceiver> object,
@@ -2127,20 +2137,6 @@ class JSObject: public JSReceiver {
   // unexisting elements below limit from position zero of the elements.
   static Handle<Object> PrepareSlowElementsForSort(Handle<JSObject> object,
                                                    uint32_t limit);
-
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      Handle<Object> structure,
-      Handle<Name> name);
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithCallback(
-      Handle<JSObject> object,
-      Handle<Object> structure,
-      Handle<Name> name,
-      Handle<Object> value,
-      Handle<JSObject> holder,
-      StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithInterceptor(
       Handle<JSObject> object,

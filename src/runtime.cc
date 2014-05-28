@@ -5188,12 +5188,9 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
       Handle<Object> result_object;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, result_object,
-          JSObject::SetPropertyWithCallback(js_object,
-                                            callback,
-                                            name,
-                                            obj_value,
+          JSObject::SetPropertyWithCallback(js_object, name, obj_value,
                                             handle(lookup.holder()),
-                                            STRICT));
+                                            callback, STRICT));
       return *result_object;
     }
   }
@@ -10789,7 +10786,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       ASSERT(!structure->IsForeign());
       if (structure->IsAccessorInfo()) {
         MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
-            handle(result->holder(), isolate), receiver, structure, name);
+            receiver, name, handle(result->holder(), isolate), structure);
         if (!obj.ToHandle(&value)) {
           value = handle(isolate->pending_exception(), isolate);
           isolate->clear_pending_exception();
