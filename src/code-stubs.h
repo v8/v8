@@ -818,7 +818,7 @@ class CallICStub: public PlatformCodeStub {
 
  protected:
   virtual int MinorKey() { return GetExtraICState(); }
-  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+  virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
   virtual CodeStub::Major MajorKey() { return CallIC; }
 
@@ -837,7 +837,7 @@ class CallIC_ArrayStub: public CallICStub {
   virtual void Generate(MacroAssembler* masm);
 
  protected:
-  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+  virtual void PrintState(StringStream* stream) V8_OVERRIDE;
 
   virtual CodeStub::Major MajorKey() { return CallIC_Array; }
 };
