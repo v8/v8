@@ -501,14 +501,6 @@ void CallIC::Clear(Isolate* isolate,
                    Code* target,
                    ConstantPoolArray* constant_pool) {
   // Currently, CallIC doesn't have state changes.
-  if (target->ic_state() != v8::internal::MONOMORPHIC) return;
-  CallIC::State existing_state(target->extra_ic_state());
-
-  // Monomorphic array stubs don't need to be cleared because
-  // 1) the stub doesn't store information that should be cleared, and
-  // 2) the AllocationSite stored in the type feedback vector is immune
-  //    from gc type feedback clearing.
-  ASSERT(existing_state.stub_type() == MONOMORPHIC_ARRAY);
 }
 
 
@@ -1351,7 +1343,7 @@ void CallIC::State::Print(StringStream* stream) const {
 Handle<Code> CallIC::initialize_stub(Isolate* isolate,
                                      int argc,
                                      CallType call_type) {
-  CallICStub stub(isolate, State::DefaultCallState(argc, call_type));
+  CallICStub stub(isolate, State(argc, call_type));
   Handle<Code> code = stub.GetCode();
   return code;
 }
@@ -1825,16 +1817,14 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
 CallIC::State::State(ExtraICState extra_ic_state)
     : argc_(ArgcBits::decode(extra_ic_state)),
-      call_type_(CallTypeBits::decode(extra_ic_state)),
-      stub_type_(StubTypeBits::decode(extra_ic_state)) {
+      call_type_(CallTypeBits::decode(extra_ic_state)) {
 }
 
 
 ExtraICState CallIC::State::GetExtraICState() const {
   ExtraICState extra_ic_state =
       ArgcBits::encode(argc_) |
-      CallTypeBits::encode(call_type_) |
-      StubTypeBits::encode(stub_type_);
+      CallTypeBits::encode(call_type_);
   return extra_ic_state;
 }
 
@@ -1853,8 +1843,7 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
     // Alter the slot.
     Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();
     vector->set(slot->value(), *new_site);
-    State new_state = state.ToMonomorphicArrayCallState();
-    CallICStub stub(isolate(), new_state);
+    CallIC_ArrayStub stub(isolate(), state);
     set_target(*stub.GetCode());
     Handle<String> name;
     if (array_function->shared()->name()->IsString()) {
@@ -1869,6 +1858,23 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
 }
 
 
+void CallIC::PatchMegamorphic(Handle<FixedArray> vector,
+                              Handle<Smi> slot) {
+  State state(target()->extra_ic_state());
+
+  // We are going generic.
+  vector->set(slot->value(),
+              *TypeFeedbackInfo::MegamorphicSentinel(isolate()),
+              SKIP_WRITE_BARRIER);
+
+  CallICStub stub(isolate(), state);
+  Handle<Code> code = stub.GetCode();
+  set_target(*code);
+
+  TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
+}
+
+
 void CallIC::HandleMiss(Handle<Object> receiver,
                         Handle<Object> function,
                         Handle<FixedArray> vector,
@@ -1876,22 +1882,11 @@ void CallIC::HandleMiss(Handle<Object> receiver,
   State state(target()->extra_ic_state());
   Object* feedback = vector->get(slot->value());
 
-  if (feedback->IsJSFunction() || !function->IsJSFunction() ||
-      state.stub_type() != DEFAULT) {
+  if (feedback->IsJSFunction() || !function->IsJSFunction()) {
     // We are going generic.
     vector->set(slot->value(),
                 *TypeFeedbackInfo::MegamorphicSentinel(isolate()),
                 SKIP_WRITE_BARRIER);
-
-    State new_state = state.ToGenericState();
-    if (new_state != state) {
-      // Only happens when the array ic goes generic.
-      ASSERT(state.stub_type() == MONOMORPHIC_ARRAY &&
-             FLAG_use_ic);
-      CallICStub stub(isolate(), new_state);
-      Handle<Code> code = stub.GetCode();
-      set_target(*code);
-    }
 
     TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
   } else {
@@ -1930,6 +1925,19 @@ RUNTIME_FUNCTION(CallIC_Miss) {
   Handle<FixedArray> vector = args.at<FixedArray>(2);
   Handle<Smi> slot = args.at<Smi>(3);
   ic.HandleMiss(receiver, function, vector, slot);
+  return *function;
+}
+
+
+RUNTIME_FUNCTION(CallIC_Customization_Miss) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  // A miss on a custom call ic always results in going megamorphic.
+  CallIC ic(isolate);
+  Handle<Object> function = args.at<Object>(1);
+  Handle<FixedArray> vector = args.at<FixedArray>(2);
+  Handle<Smi> slot = args.at<Smi>(3);
+  ic.PatchMegamorphic(vector, slot);
   return *function;
 }
 

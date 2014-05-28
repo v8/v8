@@ -30,6 +30,7 @@ namespace internal {
   V(CompareNilIC)                        \
   V(MathPow)                             \
   V(CallIC)                              \
+  V(CallIC_Array)                        \
   V(FunctionPrototype)                   \
   V(RecordWrite)                         \
   V(StoreBufferOverflow)                 \
@@ -819,15 +820,26 @@ class CallICStub: public PlatformCodeStub {
   virtual int MinorKey() { return GetExtraICState(); }
   virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
 
- private:
   virtual CodeStub::Major MajorKey() { return CallIC; }
 
   // Code generation helpers.
-  void GenerateMiss(MacroAssembler* masm);
-  void Generate_CustomFeedbackCall(MacroAssembler* masm);
-  void Generate_MonomorphicArray(MacroAssembler* masm, Label* miss);
+  void GenerateMiss(MacroAssembler* masm, IC::UtilityId id);
 
-  CallIC::State state_;
+  const CallIC::State state_;
+};
+
+
+class CallIC_ArrayStub: public CallICStub {
+ public:
+  CallIC_ArrayStub(Isolate* isolate, const CallIC::State& state_in)
+      : CallICStub(isolate, state_in) {}
+
+  virtual void Generate(MacroAssembler* masm);
+
+ protected:
+  virtual void PrintState(StringStream* stream) V8_FINAL V8_OVERRIDE;
+
+  virtual CodeStub::Major MajorKey() { return CallIC_Array; }
 };
 
 
