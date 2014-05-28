@@ -1472,44 +1472,6 @@ class MarkCompactMarkingVisitor
     return true;
   }
 
-  static void VisitWeakCollection(Map* map, HeapObject* object) {
-    MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
-    JSWeakCollection* weak_collection =
-        reinterpret_cast<JSWeakCollection*>(object);
-
-    // Enqueue weak map in linked list of encountered weak maps.
-    if (weak_collection->next() == Smi::FromInt(0)) {
-      weak_collection->set_next(collector->encountered_weak_collections());
-      collector->set_encountered_weak_collections(weak_collection);
-    }
-
-    // Skip visiting the backing hash table containing the mappings.
-    int object_size = JSWeakCollection::BodyDescriptor::SizeOf(map, object);
-    BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
-        map->GetHeap(),
-        object,
-        JSWeakCollection::BodyDescriptor::kStartOffset,
-        JSWeakCollection::kTableOffset);
-    BodyVisitorBase<MarkCompactMarkingVisitor>::IteratePointers(
-        map->GetHeap(),
-        object,
-        JSWeakCollection::kTableOffset + kPointerSize,
-        object_size);
-
-    // Mark the backing hash table without pushing it on the marking stack.
-    Object* table_object = weak_collection->table();
-    if (!table_object->IsHashTable()) return;
-    WeakHashTable* table = WeakHashTable::cast(table_object);
-    Object** table_slot =
-        HeapObject::RawField(weak_collection, JSWeakCollection::kTableOffset);
-    MarkBit table_mark = Marking::MarkBitFrom(table);
-    collector->RecordSlot(table_slot, table_slot, table);
-    if (!table_mark.Get()) collector->SetMark(table, table_mark);
-    // Recording the map slot can be skipped, because maps are not compacted.
-    collector->MarkObject(table->map(), Marking::MarkBitFrom(table->map()));
-    ASSERT(MarkCompactCollector::IsMarked(table->map()));
-  }
-
  private:
   template<int id>
   static inline void TrackObjectStatsAndVisit(Map* map, HeapObject* obj);
@@ -2816,7 +2778,7 @@ void MarkCompactCollector::ClearWeakCollections() {
       }
     }
     weak_collection_obj = weak_collection->next();
-    weak_collection->set_next(Smi::FromInt(0));
+    weak_collection->set_next(heap()->undefined_value());
   }
   set_encountered_weak_collections(Smi::FromInt(0));
 }

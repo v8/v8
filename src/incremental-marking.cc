@@ -232,14 +232,6 @@ class IncrementalMarkingMarkingVisitor
     VisitNativeContext(map, context);
   }
 
-  static void VisitWeakCollection(Map* map, HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    VisitPointers(heap,
-                  HeapObject::RawField(object,
-                                       JSWeakCollection::kPropertiesOffset),
-                  HeapObject::RawField(object, JSWeakCollection::kSize));
-  }
-
   INLINE(static void VisitPointer(Heap* heap, Object** p)) {
     Object* obj = *p;
     if (obj->IsHeapObject()) {
