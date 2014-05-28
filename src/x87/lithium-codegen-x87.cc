@@ -221,10 +221,13 @@ bool LCodeGen::GeneratePrologue() {
   int heap_slots = info_->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment(";;; Allocate local context");
+    bool need_write_barrier = true;
     // Argument to NewContext is the function, which is still in edi.
     if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
+      // Result of FastNewContextStub is always in new space.
+      need_write_barrier = false;
     } else {
       __ push(edi);
       __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
@@ -248,10 +251,17 @@ bool LCodeGen::GeneratePrologue() {
         int context_offset = Context::SlotOffset(var->index());
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers eax and ebx.
-        __ RecordWriteContextSlot(esi,
-                                  context_offset,
-                                  eax,
-                                  ebx);
+        if (need_write_barrier) {
+          __ RecordWriteContextSlot(esi,
+                                    context_offset,
+                                    eax,
+                                    ebx);
+        } else if (FLAG_debug_code) {
+          Label done;
+          __ JumpIfInNewSpace(esi, eax, &done, Label::kNear);
+          __ Abort(kExpectedNewSpaceObject);
+          __ bind(&done);
+        }
       }
     }
     Comment(";;; End allocate local context");
