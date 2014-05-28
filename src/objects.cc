@@ -16100,6 +16100,7 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
        if (properties == length) break;
      }
   }
+  CHECK_EQ(length, properties);
   EnumIndexComparator cmp(this);
   Smi** start = reinterpret_cast<Smi**>(storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);
