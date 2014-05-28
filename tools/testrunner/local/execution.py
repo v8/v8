@@ -94,7 +94,9 @@ class Runner(object):
     # while the queue is filled.
     queue = []
     queued_exception = None
-    for test in sorted(self.tests, key=lambda t: t.duration, reverse=True):
+    if not self.context.no_sorting:
+      self.tests = sorted(self.tests, key=lambda t: t.duration, reverse=True)
+    for test in self.tests:
       assert test.id >= 0
       test_map[test.id] = test
       try:
