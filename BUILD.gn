@@ -935,3 +935,6 @@ executable("mksnapshot") {
 }
 
 }
+
+group("v8") {
+}
