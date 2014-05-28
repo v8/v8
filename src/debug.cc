@@ -543,32 +543,6 @@ int Debug::ArchiveSpacePerThread() {
 }
 
 
-// Frame structure (conforms InternalFrame structure):
-//   -- code
-//   -- SMI maker
-//   -- function (slot is called "context")
-//   -- frame base
-Object** Debug::SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                       Handle<Code> code) {
-  ASSERT(bottom_js_frame->is_java_script());
-
-  Address fp = bottom_js_frame->fp();
-
-  // Move function pointer into "context" slot.
-  Memory::Object_at(fp + StandardFrameConstants::kContextOffset) =
-      Memory::Object_at(fp + JavaScriptFrameConstants::kFunctionOffset);
-
-  Memory::Object_at(fp + InternalFrameConstants::kCodeOffset) = *code;
-  Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset) =
-      Smi::FromInt(StackFrame::INTERNAL);
-
-  return reinterpret_cast<Object**>(&Memory::Object_at(
-      fp + StandardFrameConstants::kContextOffset));
-}
-
-const int Debug::kFrameDropperFrameSize = 4;
-
-
 void ScriptCache::Add(Handle<Script> script) {
   GlobalHandles* global_handles = isolate_->global_handles();
   // Create an entry in the hash map for the script.
@@ -837,7 +811,7 @@ Object* Debug::Break(Arguments args) {
   HandleScope scope(isolate_);
   ASSERT(args.length() == 0);
 
-  thread_local_.frame_drop_mode_ = FRAMES_UNTOUCHED;
+  thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate_);
@@ -950,26 +924,26 @@ Object* Debug::Break(Arguments args) {
     PrepareStep(step_action, step_count, StackFrame::NO_ID);
   }
 
-  if (thread_local_.frame_drop_mode_ == FRAMES_UNTOUCHED) {
+  if (thread_local_.frame_drop_mode_ == LiveEdit::FRAMES_UNTOUCHED) {
     SetAfterBreakTarget(frame);
   } else if (thread_local_.frame_drop_mode_ ==
-      FRAME_DROPPED_IN_IC_CALL) {
+      LiveEdit::FRAME_DROPPED_IN_IC_CALL) {
     // We must have been calling IC stub. Do not go there anymore.
     Code* plain_return = isolate_->builtins()->builtin(
         Builtins::kPlainReturn_LiveEdit);
     thread_local_.after_break_target_ = plain_return->entry();
   } else if (thread_local_.frame_drop_mode_ ==
-      FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
+      LiveEdit::FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
     // Debug break slot stub does not return normally, instead it manually
     // cleans the stack and jumps. We should patch the jump address.
     Code* plain_return = isolate_->builtins()->builtin(
         Builtins::kFrameDropper_LiveEdit);
     thread_local_.after_break_target_ = plain_return->entry();
   } else if (thread_local_.frame_drop_mode_ ==
-      FRAME_DROPPED_IN_DIRECT_CALL) {
+      LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL) {
     // Nothing to do, after_break_target is not used here.
   } else if (thread_local_.frame_drop_mode_ ==
-      FRAME_DROPPED_IN_RETURN_CALL) {
+      LiveEdit::FRAME_DROPPED_IN_RETURN_CALL) {
     Code* plain_return = isolate_->builtins()->builtin(
         Builtins::kFrameDropper_LiveEdit);
     thread_local_.after_break_target_ = plain_return->entry();
@@ -2491,22 +2465,15 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
 
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  FrameDropMode mode,
+                                  LiveEdit::FrameDropMode mode,
                                   Object** restarter_frame_function_pointer) {
-  if (mode != CURRENTLY_SET_MODE) {
+  if (mode != LiveEdit::CURRENTLY_SET_MODE) {
     thread_local_.frame_drop_mode_ = mode;
   }
   thread_local_.break_frame_id_ = new_break_frame_id;
   thread_local_.restarter_frame_function_pointer_ =
       restarter_frame_function_pointer;
 }
-
-
-const int Debug::FramePaddingLayout::kInitialSize = 1;
-
-
-// Any even value bigger than kInitialSize as needed for stack scanning.
-const int Debug::FramePaddingLayout::kPaddingValue = kInitialSize + 1;
 
 
 bool Debug::IsDebugGlobal(GlobalObject* global) {
