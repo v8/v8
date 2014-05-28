@@ -370,7 +370,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.command_prefix,
                         options.extra_flags,
                         False,
-                        options.random_seed)
+                        options.random_seed,
+                        True)
 
   # Find available test suites and read test cases from them.
   variables = {
