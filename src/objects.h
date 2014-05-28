@@ -2154,6 +2154,13 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
+  // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
+  // grant an exemption to ExecutableAccessor callbacks in some cases.
+  enum ExecutableAccessorInfoHandling {
+    DEFAULT_HANDLING,
+    DONT_FORCE_FIELD
+  };
+
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object,
       Handle<Name> key,
@@ -2162,7 +2169,8 @@ class JSObject: public JSReceiver {
       ValueType value_type = OPTIMAL_REPRESENTATION,
       StoreMode mode = ALLOW_AS_CONSTANT,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
   static inline Handle<String> ExpectedTransitionKey(Handle<Map> map);
   static inline Handle<Map> ExpectedTransitionTarget(Handle<Map> map);
@@ -10535,6 +10543,8 @@ class ExecutableAccessorInfo: public AccessorInfo {
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
+
+  inline void clear_setter();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExecutableAccessorInfo);

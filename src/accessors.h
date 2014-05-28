@@ -86,6 +86,11 @@ class Accessors : public AllStatic {
       AccessorSetterCallback setter,
       PropertyAttributes attributes);
 
+  static Handle<ExecutableAccessorInfo> CloneAccessor(
+      Isolate* isolate,
+      Handle<ExecutableAccessorInfo> accessor);
+
+
  private:
   // Helper functions.
   static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);

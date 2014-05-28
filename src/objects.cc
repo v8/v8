@@ -4335,9 +4335,6 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
 // callback setter removed.  The two lines looking up the LookupResult
 // result are also added.  If one of the functions is changed, the other
 // should be.
-// Note that this method cannot be used to set the prototype of a function
-// because ConvertDescriptorToField() which is called in "case CALLBACKS:"
-// doesn't handle function prototypes correctly.
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<Name> name,
@@ -4346,7 +4343,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     ValueType value_type,
     StoreMode mode,
     ExtensibilityCheck extensibility_check,
-    StoreFromKeyed store_from_keyed) {
+    StoreFromKeyed store_from_keyed,
+    ExecutableAccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4401,6 +4399,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     old_attributes = lookup.GetAttributes();
   }
 
+  bool executed_set_prototype = false;
+
   // Check of IsReadOnly removed from here in clone.
   if (lookup.IsTransition()) {
     Handle<Object> result;
@@ -4425,8 +4425,48 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         }
         break;
       case CALLBACKS:
-        ConvertAndSetOwnProperty(&lookup, name, value, attributes);
+      {
+        Handle<Object> callback(lookup.GetCallbackObject(), isolate);
+        if (callback->IsExecutableAccessorInfo() &&
+            handling == DONT_FORCE_FIELD) {
+          Handle<Object> result;
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, result,
+              JSObject::SetPropertyWithCallback(object,
+                                                name,
+                                                value,
+                                                handle(lookup.holder()),
+                                                callback,
+                                                STRICT),
+              Object);
+
+          if (attributes != lookup.GetAttributes()) {
+            Handle<ExecutableAccessorInfo> new_data =
+                Accessors::CloneAccessor(
+                    isolate, Handle<ExecutableAccessorInfo>::cast(callback));
+            new_data->set_property_attributes(attributes);
+            if (attributes & READ_ONLY) {
+              // This way we don't have to introduce a lookup to the setter,
+              // simply make it unavailable to reflect the attributes.
+              new_data->clear_setter();
+            }
+
+            SetPropertyCallback(object, name, new_data, attributes);
+          }
+          if (is_observed) {
+            // If we are setting the prototype of a function and are observed,
+            // don't send change records because the prototype handles that
+            // itself.
+            executed_set_prototype = object->IsJSFunction() &&
+                String::Equals(isolate->factory()->prototype_string(),
+                               Handle<String>::cast(name)) &&
+                Handle<JSFunction>::cast(object)->should_have_prototype();
+          }
+        } else {
+          ConvertAndSetOwnProperty(&lookup, name, value, attributes);
+        }
         break;
+      }
       case NONEXISTENT:
       case HANDLER:
       case INTERCEPTOR:
@@ -4434,7 +4474,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     }
   }
 
-  if (is_observed) {
+  if (is_observed && !executed_set_prototype) {
     if (lookup.IsTransition()) {
       EnqueueChangeRecord(object, "add", name, old_value);
     } else if (old_value->IsTheHole()) {
