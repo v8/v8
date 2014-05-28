@@ -413,7 +413,8 @@ class Debug {
   bool IsLoaded() { return !debug_context_.is_null(); }
   bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
 
-  Object* Break(Arguments args);
+  void Break(Arguments args, JavaScriptFrame*);
+  void SetAfterBreakTarget(JavaScriptFrame* frame);
   bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<Object> break_point_object,
                      int* source_position);
@@ -539,7 +540,7 @@ class Debug {
 
   // Support for setting the address to jump to when returning from break point.
   Address after_break_target_address() {
-    return reinterpret_cast<Address>(&thread_local_.after_break_target_);
+    return reinterpret_cast<Address>(&after_break_target_);
   }
 
   Address restarter_frame_function_pointer_address() {
@@ -634,7 +635,6 @@ class Debug {
   void ClearStepNext();
   // Returns whether the compile succeeded.
   void RemoveDebugInfo(Handle<DebugInfo> debug_info);
-  void SetAfterBreakTarget(JavaScriptFrame* frame);
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
@@ -683,6 +683,11 @@ class Debug {
   ScriptCache* script_cache_;  // Cache of all scripts in the heap.
   DebugInfoListNode* debug_info_list_;  // List of active debug info objects.
 
+  // Storage location for jump when exiting debug break calls.
+  // Note that this address is not GC safe.  It should be computed immediately
+  // before returning to the DebugBreakCallHelper.
+  Address after_break_target_;
+
   // Per-thread data.
   class ThreadLocal {
    public:
@@ -719,9 +724,6 @@ class Debug {
     // Frame pointer for the frame where debugger should be called when current
     // step out action is completed.
     Address step_out_fp_;
-
-    // Storage location for jump when exiting debug break calls.
-    Address after_break_target_;
 
     // Pending interrupts scheduled while debugging.
     bool has_pending_interrupt_;

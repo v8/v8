@@ -58,6 +58,24 @@ class LiveEditFunctionTracker {
 
 class LiveEdit : AllStatic {
  public:
+  // Describes how exactly a frame has been dropped from stack.
+  enum FrameDropMode {
+    // No frame has been dropped.
+    FRAMES_UNTOUCHED,
+    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
+    FRAME_DROPPED_IN_IC_CALL,
+    // The top JS frame had been calling debug break slot stub. Patch the
+    // address this stub jumps to in the end.
+    FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
+    // The top JS frame had been calling some C++ function. The return address
+    // gets patched automatically.
+    FRAME_DROPPED_IN_DIRECT_CALL,
+    FRAME_DROPPED_IN_RETURN_CALL,
+    CURRENTLY_SET_MODE
+  };
+
+  static Address AfterBreakTarget(FrameDropMode mode, Isolate* isolate);
+
   MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
       Handle<Script> script,
       Handle<String> source);
@@ -162,23 +180,6 @@ class LiveEdit : AllStatic {
   // A value that padding words are filled with (in form of Smi). Going
   // bottom-top, the first word not having this value is a counter word.
   static const int kFramePaddingValue = kFramePaddingInitialSize + 1;
-
-
-  // Describes how exactly a frame has been dropped from stack.
-  enum FrameDropMode {
-    // No frame has been dropped.
-    FRAMES_UNTOUCHED,
-    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
-    FRAME_DROPPED_IN_IC_CALL,
-    // The top JS frame had been calling debug break slot stub. Patch the
-    // address this stub jumps to in the end.
-    FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
-    // The top JS frame had been calling some C++ function. The return address
-    // gets patched automatically.
-    FRAME_DROPPED_IN_DIRECT_CALL,
-    FRAME_DROPPED_IN_RETURN_CALL,
-    CURRENTLY_SET_MODE
-  };
 };
 
 

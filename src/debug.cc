@@ -514,7 +514,6 @@ void Debug::ThreadInit() {
   thread_local_.queued_step_count_ = 0;
   thread_local_.step_into_fp_ = 0;
   thread_local_.step_out_fp_ = 0;
-  thread_local_.after_break_target_ = 0;
   // TODO(isolates): frames_are_dropped_?
   thread_local_.debugger_entry_ = NULL;
   thread_local_.has_pending_interrupt_ = false;
@@ -806,28 +805,21 @@ void Debug::Unload() {
 }
 
 
-Object* Debug::Break(Arguments args) {
+void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
   ASSERT(args.length() == 0);
 
-  thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
-
-  // Get the top-most JavaScript frame.
-  JavaScriptFrameIterator it(isolate_);
-  JavaScriptFrame* frame = it.frame();
+  if (live_edit_enabled()) {
+    thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
+  }
 
   // Just continue if breaks are disabled or debugger cannot be loaded.
-  if (disable_break()) {
-    SetAfterBreakTarget(frame);
-    return heap->undefined_value();
-  }
+  if (disable_break()) return;
 
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) {
-    return heap->undefined_value();
-  }
+  if (debugger.FailedToEnter()) return;
 
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone(isolate_);
@@ -923,40 +915,15 @@ Object* Debug::Break(Arguments args) {
     // Set up for the remaining steps.
     PrepareStep(step_action, step_count, StackFrame::NO_ID);
   }
-
-  if (thread_local_.frame_drop_mode_ == LiveEdit::FRAMES_UNTOUCHED) {
-    SetAfterBreakTarget(frame);
-  } else if (thread_local_.frame_drop_mode_ ==
-      LiveEdit::FRAME_DROPPED_IN_IC_CALL) {
-    // We must have been calling IC stub. Do not go there anymore.
-    Code* plain_return = isolate_->builtins()->builtin(
-        Builtins::kPlainReturn_LiveEdit);
-    thread_local_.after_break_target_ = plain_return->entry();
-  } else if (thread_local_.frame_drop_mode_ ==
-      LiveEdit::FRAME_DROPPED_IN_DEBUG_SLOT_CALL) {
-    // Debug break slot stub does not return normally, instead it manually
-    // cleans the stack and jumps. We should patch the jump address.
-    Code* plain_return = isolate_->builtins()->builtin(
-        Builtins::kFrameDropper_LiveEdit);
-    thread_local_.after_break_target_ = plain_return->entry();
-  } else if (thread_local_.frame_drop_mode_ ==
-      LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL) {
-    // Nothing to do, after_break_target is not used here.
-  } else if (thread_local_.frame_drop_mode_ ==
-      LiveEdit::FRAME_DROPPED_IN_RETURN_CALL) {
-    Code* plain_return = isolate_->builtins()->builtin(
-        Builtins::kFrameDropper_LiveEdit);
-    thread_local_.after_break_target_ = plain_return->entry();
-  } else {
-    UNREACHABLE();
-  }
-
-  return heap->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(Debug_Break) {
-  return isolate->debug()->Break(args);
+  // Get the top-most JavaScript frame.
+  JavaScriptFrameIterator it(isolate);
+  isolate->debug()->Break(args, it.frame());
+  isolate->debug()->SetAfterBreakTarget(it.frame());
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -2335,8 +2302,13 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
-  HandleScope scope(isolate_);
+  if (live_edit_enabled()) {
+    after_break_target_ =
+        LiveEdit::AfterBreakTarget(thread_local_.frame_drop_mode_, isolate_);
+    if (after_break_target_ != NULL) return;  // LiveEdit did the job.
+  }
 
+  HandleScope scope(isolate_);
   PrepareForBreakPoints();
 
   // Get the executing function in which the debug break occurred.
@@ -2385,18 +2357,17 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // place in the original code. If not the break point was removed during
     // break point processing.
     if (break_at_js_return_active) {
-      addr +=  original_code->instruction_start() - code->instruction_start();
+      addr += original_code->instruction_start() - code->instruction_start();
     }
 
     // Move back to where the call instruction sequence started.
-    thread_local_.after_break_target_ =
-        addr - Assembler::kPatchReturnSequenceAddressOffset;
+    after_break_target_ = addr - Assembler::kPatchReturnSequenceAddressOffset;
   } else if (at_debug_break_slot) {
     // Address of where the debug break slot starts.
     addr = addr - Assembler::kPatchDebugBreakSlotAddressOffset;
 
     // Continue just after the slot.
-    thread_local_.after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
+    after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
   } else if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
     // We now know that there is still a debug break call at the target address,
     // so the break point is still there and the original code will hold the
@@ -2408,15 +2379,13 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Install jump to the call address in the original code. This will be the
     // call which was overwritten by the call to DebugBreakXXX.
-    thread_local_.after_break_target_ =
-        Assembler::target_address_at(addr, *original_code);
+    after_break_target_ = Assembler::target_address_at(addr, *original_code);
   } else {
     // There is no longer a break point present. Don't try to look in the
     // original code as the running code will have the right address. This takes
     // care of the case where the last break point is removed from the function
     // and therefore no "original code" is available.
-    thread_local_.after_break_target_ =
-        Assembler::target_address_at(addr, *code);
+    after_break_target_ = Assembler::target_address_at(addr, *code);
   }
 }
 

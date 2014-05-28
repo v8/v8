@@ -805,6 +805,35 @@ class FunctionInfoListener {
 };
 
 
+Address LiveEdit::AfterBreakTarget(FrameDropMode mode, Isolate* isolate) {
+  Code* code = NULL;
+  switch (mode) {
+    case FRAMES_UNTOUCHED:
+      break;
+    case FRAME_DROPPED_IN_IC_CALL:
+      // We must have been calling IC stub. Do not go there anymore.
+      code = isolate->builtins()->builtin(Builtins::kPlainReturn_LiveEdit);
+      break;
+    case FRAME_DROPPED_IN_DEBUG_SLOT_CALL:
+      // Debug break slot stub does not return normally, instead it manually
+      // cleans the stack and jumps. We should patch the jump address.
+      code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
+      break;
+    case FRAME_DROPPED_IN_DIRECT_CALL:
+      // Nothing to do, after_break_target is not used here.
+      break;
+    case FRAME_DROPPED_IN_RETURN_CALL:
+      code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
+      break;
+    case CURRENTLY_SET_MODE:
+      UNREACHABLE();
+      break;
+  }
+  if (code == NULL) return NULL;
+  return code->entry();
+}
+
+
 MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
                                                  Handle<String> source) {
   Isolate* isolate = script->GetIsolate();
