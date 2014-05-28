@@ -10515,7 +10515,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
         DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
         DeclareGlobalsStrictMode::encode(current_info()->strict_mode());
     Add<HDeclareGlobals>(array, flags);
-    globals_.Clear();
+    globals_.Rewind(0);
   }
 }
 
