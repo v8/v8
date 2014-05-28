@@ -14889,64 +14889,33 @@ RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
-
-  Handle<Context> context(object->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_observe(), isolate);
-  Handle<Object> call_args[] = { object, callback, accept };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function,
-          handle(context->object_function(), isolate),
-          ARRAY_SIZE(call_args), call_args, true));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectGetNotifierInObjectContext) {
+RUNTIME_FUNCTION(Runtime_GetObjectContextObjectObserve) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
 
   Handle<Context> context(object->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_get_notifier(), isolate);
-  Handle<Object> call_args[] = { object };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function,
-          handle(context->object_function(), isolate),
-          ARRAY_SIZE(call_args), call_args, true));
-  return *result;
+  return context->native_object_observe();
 }
 
 
-RUNTIME_FUNCTION(Runtime_ObjectNotifierPerformChangeInObjectContext) {
+RUNTIME_FUNCTION(Runtime_GetObjectContextObjectGetNotifier) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  return context->native_object_get_notifier();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetObjectContextNotifierPerformChange) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, change_type, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, change_fn, 2);
 
   Handle<Context> context(object_info->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_notifier_perform_change(),
-      isolate);
-  Handle<Object> call_args[] = { object_info, change_type, change_fn };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
-                      ARRAY_SIZE(call_args), call_args, true));
-  return *result;
+  return context->native_object_notifier_perform_change();
 }
 
 

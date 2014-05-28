@@ -306,9 +306,9 @@ namespace internal {
   F(ObservationWeakMapCreate, 0, 1) \
   F(ObserverObjectAndRecordHaveSameOrigin, 3, 1) \
   F(ObjectWasCreatedInCurrentOrigin, 1, 1) \
-  F(ObjectObserveInObjectContext, 3, 1) \
-  F(ObjectGetNotifierInObjectContext, 1, 1) \
-  F(ObjectNotifierPerformChangeInObjectContext, 3, 1) \
+  F(GetObjectContextObjectObserve, 1, 1) \
+  F(GetObjectContextObjectGetNotifier, 1, 1) \
+  F(GetObjectContextNotifierPerformChange, 1, 1) \
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
