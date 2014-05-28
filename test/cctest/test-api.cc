@@ -20777,6 +20777,43 @@ TEST(EnqueueMicrotask) {
 }
 
 
+static void MicrotaskExceptionOne(
+    const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("exception1Calls++;");
+  info.GetIsolate()->ThrowException(
+      v8::Exception::Error(v8_str("first")));
+}
+
+
+static void MicrotaskExceptionTwo(
+    const v8::FunctionCallbackInfo<Value>& info) {
+  v8::HandleScope scope(info.GetIsolate());
+  CompileRun("exception2Calls++;");
+  info.GetIsolate()->ThrowException(
+      v8::Exception::Error(v8_str("second")));
+}
+
+
+TEST(RunMicrotasksIgnoresThrownExceptions) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+      "var exception1Calls = 0;"
+      "var exception2Calls = 0;");
+  isolate->EnqueueMicrotask(
+      Function::New(isolate, MicrotaskExceptionOne));
+  isolate->EnqueueMicrotask(
+      Function::New(isolate, MicrotaskExceptionTwo));
+  TryCatch try_catch;
+  CompileRun("1+1;");
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(1, CompileRun("exception1Calls")->Int32Value());
+  CHECK_EQ(1, CompileRun("exception2Calls")->Int32Value());
+}
+
+
 TEST(SetAutorunMicrotasks) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

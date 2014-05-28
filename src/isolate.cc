@@ -2254,11 +2254,11 @@ void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
   if (run_microtasks) RunMicrotasks();
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
-  handle_scope_implementer()->IncrementCallDepth();
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
+      reinterpret_cast<v8::Isolate*>(this));
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
     call_completed_callbacks_.at(i)();
   }
-  handle_scope_implementer()->DecrementCallDepth();
 }
 
 
@@ -2288,7 +2288,8 @@ void Isolate::RunMicrotasks() {
   // ASSERT(handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
-  handle_scope_implementer()->IncrementCallDepth();
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
+      reinterpret_cast<v8::Isolate*>(this));
 
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
@@ -2301,13 +2302,20 @@ void Isolate::RunMicrotasks() {
     for (int i = 0; i < num_tasks; i++) {
       HandleScope scope(this);
       Handle<JSFunction> microtask(JSFunction::cast(queue->get(i)), this);
-      // TODO(adamk): This should ignore/clear exceptions instead of Checking.
-      Execution::Call(this, microtask, factory()->undefined_value(),
-                      0, NULL).Check();
+      Handle<Object> exception;
+      MaybeHandle<Object> result = Execution::TryCall(
+          microtask, factory()->undefined_value(), 0, NULL, &exception);
+      // If execution is terminating, just bail out.
+      if (result.is_null() &&
+          !exception.is_null() &&
+          *exception == heap()->termination_exception()) {
+        // Clear out any remaining callbacks in the queue.
+        heap()->set_microtask_queue(heap()->empty_fixed_array());
+        set_pending_microtask_count(0);
+        return;
+      }
     }
   }
-
-  handle_scope_implementer()->DecrementCallDepth();
 }
 
 
