@@ -5,6 +5,7 @@
 #ifndef V8_PLATFORM_MUTEX_H_
 #define V8_PLATFORM_MUTEX_H_
 
+#include "../checks.h"
 #include "../lazy-instance.h"
 #if V8_OS_WIN
 #include "../win32-headers.h"

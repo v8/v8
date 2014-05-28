@@ -11,7 +11,6 @@
 #endif
 
 #include "atomicops.h"
-#include "checks.h"
 
 namespace v8 {
 namespace internal {

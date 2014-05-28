@@ -6670,9 +6670,6 @@ TEST(UndetectableOptimized) {
 }
 
 
-template <typename T> static void USE(T) { }
-
-
 // The point of this test is type checking. We run it only so compilers
 // don't complain about an unused function.
 TEST(PersistentHandles) {
@@ -15831,19 +15828,19 @@ THREADED_TEST(PixelArray) {
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  USE(no_failure);
   CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  USE(no_failure);
   CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
   ASSERT(!no_failure.is_null());
-  i::USE(no_failure);
+  USE(no_failure);
   CheckElementValue(isolate, 0, jsobj, 1);
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
