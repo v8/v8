@@ -132,6 +132,9 @@ namespace internal {
 // them. For zone types, no query method touches the heap, only constructors do.
 
 
+// -----------------------------------------------------------------------------
+// Values for bitset types
+
 #define MASK_BITSET_TYPE_LIST(V) \
   V(Representation, static_cast<int>(0xffc00000)) \
   V(Semantic,       static_cast<int>(0x003fffff))
@@ -207,6 +210,9 @@ namespace internal {
   SEMANTIC_BITSET_TYPE_LIST(V)
 
 
+// -----------------------------------------------------------------------------
+// The abstract Type class, parameterized over the low-level representation.
+
 // struct Config {
 //   typedef TypeImpl<Config> Type;
 //   typedef Base;
@@ -217,16 +223,13 @@ namespace internal {
 //   template<class T> static Handle<T>::type cast(Handle<Type>::type);
 //   static bool is_bitset(Type*);
 //   static bool is_class(Type*);
-//   static bool is_constant(Type*);
 //   static bool is_struct(Type*, int tag);
 //   static int as_bitset(Type*);
 //   static i::Handle<i::Map> as_class(Type*);
-//   static i::Handle<i::Object> as_constant(Type*);
 //   static Handle<Struct>::type as_struct(Type*);
 //   static Type* from_bitset(int bitset);
 //   static Handle<Type>::type from_bitset(int bitset, Region*);
-//   static Handle<Type>::type from_class(i::Handle<Map>, int lub, Region*);
-//   static Handle<Type>::type from_constant(i::Handle<Object>, int, Region*);
+//   static Handle<Type>::type from_class(i::Handle<Map>, Region*);
 //   static Handle<Type>::type from_struct(Handle<Struct>::type, int tag);
 //   static Handle<Struct>::type struct_create(int tag, int length, Region*);
 //   static void struct_shrink(Handle<Struct>::type, int length);
@@ -234,11 +237,16 @@ namespace internal {
 //   static int struct_length(Handle<Struct>::type);
 //   static Handle<Type>::type struct_get(Handle<Struct>::type, int);
 //   static void struct_set(Handle<Struct>::type, int, Handle<Type>::type);
-//   static int lub_bitset(Type*);
+//   template<class V>
+//   static i::Handle<V> struct_get_value(Handle<Struct>::type, int);
+//   template<class V>
+//   static void struct_set_value(Handle<Struct>::type, int, i::Handle<V>);
 // }
 template<class Config>
 class TypeImpl : public Config::Base {
  public:
+  // Auxiliary types.
+
   class BitsetType;      // Internal
   class StructuralType;  // Internal
   class UnionType;       // Internal
@@ -257,6 +265,8 @@ class TypeImpl : public Config::Base {
   typedef typename Config::template Handle<FunctionType>::type FunctionHandle;
   typedef typename Config::template Handle<UnionType>::type UnionHandle;
   typedef typename Config::Region Region;
+
+  // Constructors.
 
   #define DEFINE_TYPE_CONSTRUCTOR(type, value)                                \
     static TypeImpl* type() { return BitsetType::New(BitsetType::k##type); }  \
@@ -321,9 +331,9 @@ class TypeImpl : public Config::Base {
     return Of(*value, region);
   }
 
-  bool IsInhabited() {
-    return !this->IsBitset() || BitsetType::IsInhabited(this->AsBitset());
-  }
+  // Predicates.
+
+  bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
 
   bool Is(TypeImpl* that) { return this == that || this->SlowIs(that); }
   template<class TypeHandle>
@@ -341,9 +351,9 @@ class TypeImpl : public Config::Base {
   bool Contains(i::Object* val);
   bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
 
-  // State-dependent versions of Of and Is that consider subtyping between
+  // State-dependent versions of the above that consider subtyping between
   // a constant and its map class.
-  static TypeHandle NowOf(i::Object* value, Region* region);
+  inline static TypeHandle NowOf(i::Object* value, Region* region);
   static TypeHandle NowOf(i::Handle<i::Object> value, Region* region) {
     return NowOf(*value, region);
   }
@@ -355,12 +365,21 @@ class TypeImpl : public Config::Base {
 
   bool NowStable();
 
-  bool IsClass() { return Config::is_class(this); }
-  bool IsConstant() { return Config::is_constant(this); }
+  // Inspection.
+
+  bool IsClass() {
+    return Config::is_class(this)
+        || Config::is_struct(this, StructuralType::kClassTag);
+  }
+  bool IsConstant() {
+    return Config::is_struct(this, StructuralType::kConstantTag);
+  }
   bool IsContext() {
     return Config::is_struct(this, StructuralType::kContextTag);
   }
-  bool IsArray() { return Config::is_struct(this, StructuralType::kArrayTag); }
+  bool IsArray() {
+    return Config::is_struct(this, StructuralType::kArrayTag);
+  }
   bool IsFunction() {
     return Config::is_struct(this, StructuralType::kFunctionTag);
   }
@@ -384,25 +403,37 @@ class TypeImpl : public Config::Base {
     return Iterator<i::Object>(Config::handle(this));
   }
 
+  // Casting and conversion.
+
   static inline TypeImpl* cast(typename Config::Base* object);
 
   template<class OtherTypeImpl>
   static TypeHandle Convert(
       typename OtherTypeImpl::TypeHandle type, Region* region);
 
+  // Printing.
+
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
+
   void PrintTo(StringStream* stream, PrintDimension = BOTH_DIMS);
   void TypePrint(PrintDimension = BOTH_DIMS);
   void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
 
  protected:
+  // Friends.
+
   template<class> friend class Iterator;
   template<class> friend class TypeImpl;
+
+  // Handle conversion.
 
   template<class T>
   static typename Config::template Handle<T>::type handle(T* type) {
     return Config::handle(type);
   }
+  TypeImpl* unhandle() { return this; }
+
+  // Internal inspection.
 
   bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
@@ -415,22 +446,30 @@ class TypeImpl : public Config::Base {
   }
   UnionType* AsUnion() { return UnionType::cast(this); }
 
-  bool SlowIs(TypeImpl* that);
-
-  bool InUnion(UnionHandle unioned, int current_size);
-  static int ExtendUnion(
-      UnionHandle unioned, TypeHandle t, int current_size);
-  static int ExtendIntersection(
-      UnionHandle unioned, TypeHandle t, TypeHandle other, int current_size);
+  // Auxiliary functions.
 
   int BitsetGlb() { return BitsetType::Glb(this); }
   int BitsetLub() { return BitsetType::Lub(this); }
+  int InherentBitsetLub() { return BitsetType::InherentLub(this); }
+
+  bool SlowIs(TypeImpl* that);
+
+  TypeHandle Narrow(int bitset, Region* region);
+  int BoundBy(TypeImpl* that);
+  int IndexInUnion(int bound, UnionHandle unioned, int current_size);
+  static int ExtendUnion(
+      UnionHandle unioned, int current_size, TypeHandle t,
+      TypeHandle other, bool is_intersect, Region* region);
+  static int NormalizeUnion(UnionHandle unioned, int current_size, int bitset);
 };
 
 
+// -----------------------------------------------------------------------------
+// Bitset types (internal).
+
 template<class Config>
 class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
- private:
+ protected:
   friend class TypeImpl<Config>;
 
   enum {
@@ -442,7 +481,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   int Bitset() { return Config::as_bitset(this); }
 
-  static BitsetType* New(int bitset) {
+  static TypeImpl* New(int bitset) {
     return static_cast<BitsetType*>(Config::from_bitset(bitset));
   }
   static TypeHandle New(int bitset, Region* region) {
@@ -460,6 +499,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static int Lub(int32_t value);
   static int Lub(uint32_t value);
   static int Lub(i::Map* map);
+  static int InherentLub(TypeImpl* type);
 
   static const char* Name(int bitset);
   static void PrintTo(StringStream* stream, int bitset);
@@ -467,8 +507,10 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 };
 
 
-// Internal
-// A structured type contains a tag and a variable number of type fields.
+// -----------------------------------------------------------------------------
+// Superclass for non-bitset types (internal).
+// Contains a tag and a variable number of type or value fields.
+
 template<class Config>
 class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
  protected:
@@ -489,79 +531,40 @@ class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
     return Config::struct_length(Config::as_struct(this));
   }
   TypeHandle Get(int i) {
+    ASSERT(0 <= i && i < this->Length());
     return Config::struct_get(Config::as_struct(this), i);
   }
   void Set(int i, TypeHandle type) {
+    ASSERT(0 <= i && i < this->Length());
     Config::struct_set(Config::as_struct(this), i, type);
   }
   void Shrink(int length) {
+    ASSERT(2 <= length && length <= this->Length());
     Config::struct_shrink(Config::as_struct(this), length);
+  }
+  template<class V> i::Handle<V> GetValue(int i) {
+    ASSERT(0 <= i && i < this->Length());
+    return Config::template struct_get_value<V>(Config::as_struct(this), i);
+  }
+  template<class V> void SetValue(int i, i::Handle<V> x) {
+    ASSERT(0 <= i && i < this->Length());
+    Config::struct_set_value(Config::as_struct(this), i, x);
   }
 
   static TypeHandle New(Tag tag, int length, Region* region) {
+    ASSERT(1 <= length);
     return Config::from_struct(Config::struct_create(tag, length, region));
   }
 };
 
 
-template<class Config>
-class TypeImpl<Config>::ClassType : public TypeImpl<Config> {
- public:
-  i::Handle<i::Map> Map() { return Config::as_class(this); }
-
-  static ClassHandle New(i::Handle<i::Map> map, Region* region) {
-    return Config::template cast<ClassType>(
-        Config::from_class(map, BitsetType::Lub(*map), region));
-  }
-
-  static ClassType* cast(TypeImpl* type) {
-    ASSERT(type->IsClass());
-    return static_cast<ClassType*>(type);
-  }
-};
-
-
-template<class Config>
-class TypeImpl<Config>::ConstantType : public TypeImpl<Config> {
- public:
-  i::Handle<i::Object> Value() { return Config::as_constant(this); }
-
-  static ConstantHandle New(i::Handle<i::Object> value, Region* region) {
-    return Config::template cast<ConstantType>(
-        Config::from_constant(value, BitsetType::Lub(*value), region));
-  }
-
-  static ConstantType* cast(TypeImpl* type) {
-    ASSERT(type->IsConstant());
-    return static_cast<ConstantType*>(type);
-  }
-};
-
-
-template<class Config>
-class TypeImpl<Config>::ContextType : public StructuralType {
- public:
-  TypeHandle Outer() { return this->Get(0); }
-
-  static ContextHandle New(TypeHandle outer, Region* region) {
-    ContextHandle type = Config::template cast<ContextType>(
-        StructuralType::New(StructuralType::kContextTag, 1, region));
-    type->Set(0, outer);
-    return type;
-  }
-
-  static ContextType* cast(TypeImpl* type) {
-    ASSERT(type->IsContext());
-    return static_cast<ContextType*>(type);
-  }
-};
-
-
-// Internal
+// -----------------------------------------------------------------------------
+// Union types (internal).
 // A union is a structured type with the following invariants:
 // - its length is at least 2
 // - at most one field is a bitset, and it must go into index 0
 // - no field is a union
+// - no field is a subtype of any other field
 template<class Config>
 class TypeImpl<Config>::UnionType : public StructuralType {
  public:
@@ -574,19 +577,136 @@ class TypeImpl<Config>::UnionType : public StructuralType {
     ASSERT(type->IsUnion());
     return static_cast<UnionType*>(type);
   }
+
+  bool Wellformed();
 };
 
+
+// -----------------------------------------------------------------------------
+// Class types.
+
+template<class Config>
+class TypeImpl<Config>::ClassType : public StructuralType {
+ public:
+  TypeHandle Bound(Region* region) {
+    return Config::is_class(this)
+        ? BitsetType::New(BitsetType::Lub(*Config::as_class(this)), region)
+        : this->Get(0);
+  }
+  i::Handle<i::Map> Map() {
+    return Config::is_class(this)
+        ? Config::as_class(this)
+        : this->template GetValue<i::Map>(1);
+  }
+
+  static ClassHandle New(
+      i::Handle<i::Map> map, TypeHandle bound, Region* region) {
+    ClassHandle type = Config::template cast<ClassType>(
+        StructuralType::New(StructuralType::kClassTag, 2, region));
+    type->Set(0, bound);
+    type->SetValue(1, map);
+    return type;
+  }
+
+  static ClassHandle New(i::Handle<i::Map> map, Region* region) {
+    ClassHandle type =
+        Config::template cast<ClassType>(Config::from_class(map, region));
+    if (type->IsClass()) {
+      return type;
+    } else {
+      TypeHandle bound = BitsetType::New(BitsetType::Lub(*map), region);
+      return New(map, bound, region);
+    }
+  }
+
+  static ClassType* cast(TypeImpl* type) {
+    ASSERT(type->IsClass());
+    return static_cast<ClassType*>(type);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+// Constant types.
+
+template<class Config>
+class TypeImpl<Config>::ConstantType : public StructuralType {
+ public:
+  TypeHandle Bound() { return this->Get(0); }
+  i::Handle<i::Object> Value() { return this->template GetValue<i::Object>(1); }
+
+  static ConstantHandle New(
+      i::Handle<i::Object> value, TypeHandle bound, Region* region) {
+    ConstantHandle type = Config::template cast<ConstantType>(
+        StructuralType::New(StructuralType::kConstantTag, 2, region));
+    type->Set(0, bound);
+    type->SetValue(1, value);
+    return type;
+  }
+
+  static ConstantHandle New(i::Handle<i::Object> value, Region* region) {
+    TypeHandle bound = BitsetType::New(BitsetType::Lub(*value), region);
+    return New(value, bound, region);
+  }
+
+  static ConstantType* cast(TypeImpl* type) {
+    ASSERT(type->IsConstant());
+    return static_cast<ConstantType*>(type);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+// Context types.
+
+template<class Config>
+class TypeImpl<Config>::ContextType : public StructuralType {
+ public:
+  TypeHandle Bound() { return this->Get(0); }
+  TypeHandle Outer() { return this->Get(1); }
+
+  static ContextHandle New(TypeHandle outer, TypeHandle bound, Region* region) {
+    ContextHandle type = Config::template cast<ContextType>(
+        StructuralType::New(StructuralType::kContextTag, 2, region));
+    type->Set(0, bound);
+    type->Set(1, outer);
+    return type;
+  }
+
+  static ContextHandle New(TypeHandle outer, Region* region) {
+    TypeHandle bound = BitsetType::New(
+        BitsetType::kInternal & BitsetType::kTaggedPtr, region);
+    return New(outer, bound, region);
+  }
+
+  static ContextType* cast(TypeImpl* type) {
+    ASSERT(type->IsContext());
+    return static_cast<ContextType*>(type);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+// Array types.
 
 template<class Config>
 class TypeImpl<Config>::ArrayType : public StructuralType {
  public:
-  TypeHandle Element() { return this->Get(0); }
+  TypeHandle Bound() { return this->Get(0); }
+  TypeHandle Element() { return this->Get(1); }
+
+  static ArrayHandle New(TypeHandle element, TypeHandle bound, Region* region) {
+    ASSERT(SEMANTIC(bound->AsBitset()) == SEMANTIC(BitsetType::kArray));
+    ArrayHandle type = Config::template cast<ArrayType>(
+        StructuralType::New(StructuralType::kArrayTag, 2, region));
+    type->Set(0, bound);
+    type->Set(1, element);
+    return type;
+  }
 
   static ArrayHandle New(TypeHandle element, Region* region) {
-    ArrayHandle type = Config::template cast<ArrayType>(
-        StructuralType::New(StructuralType::kArrayTag, 1, region));
-    type->Set(0, element);
-    return type;
+    TypeHandle bound = BitsetType::New(BitsetType::kArray, region);
+    return New(element, bound, region);
   }
 
   static ArrayType* cast(TypeImpl* type) {
@@ -596,23 +716,36 @@ class TypeImpl<Config>::ArrayType : public StructuralType {
 };
 
 
+// -----------------------------------------------------------------------------
+// Function types.
+
 template<class Config>
 class TypeImpl<Config>::FunctionType : public StructuralType {
  public:
-  int Arity() { return this->Length() - 2; }
-  TypeHandle Result() { return this->Get(0); }
-  TypeHandle Receiver() { return this->Get(1); }
-  TypeHandle Parameter(int i) { return this->Get(2 + i); }
+  int Arity() { return this->Length() - 3; }
+  TypeHandle Bound() { return this->Get(0); }
+  TypeHandle Result() { return this->Get(1); }
+  TypeHandle Receiver() { return this->Get(2); }
+  TypeHandle Parameter(int i) { return this->Get(3 + i); }
 
-  void InitParameter(int i, TypeHandle type) { this->Set(2 + i, type); }
+  void InitParameter(int i, TypeHandle type) { this->Set(3 + i, type); }
+
+  static FunctionHandle New(
+      TypeHandle result, TypeHandle receiver, TypeHandle bound,
+      int arity, Region* region) {
+    ASSERT(SEMANTIC(bound->AsBitset()) == SEMANTIC(BitsetType::kFunction));
+    FunctionHandle type = Config::template cast<FunctionType>(
+        StructuralType::New(StructuralType::kFunctionTag, 3 + arity, region));
+    type->Set(0, bound);
+    type->Set(1, result);
+    type->Set(2, receiver);
+    return type;
+  }
 
   static FunctionHandle New(
       TypeHandle result, TypeHandle receiver, int arity, Region* region) {
-    FunctionHandle type = Config::template cast<FunctionType>(
-        StructuralType::New(StructuralType::kFunctionTag, 2 + arity, region));
-    type->Set(0, result);
-    type->Set(1, receiver);
-    return type;
+    TypeHandle bound = BitsetType::New(BitsetType::kFunction, region);
+    return New(result, receiver, bound, arity, region);
   }
 
   static FunctionType* cast(TypeImpl* type) {
@@ -621,6 +754,9 @@ class TypeImpl<Config>::FunctionType : public StructuralType {
   }
 };
 
+
+// -----------------------------------------------------------------------------
+// Type iterators.
 
 template<class Config> template<class T>
 class TypeImpl<Config>::Iterator {
@@ -645,8 +781,10 @@ class TypeImpl<Config>::Iterator {
 };
 
 
-// Zone-allocated types are either (odd) integers to represent bitsets, or
+// -----------------------------------------------------------------------------
+// Zone-allocated types; they are either (odd) integers to represent bitsets, or
 // (even) pointers to structures for everything else.
+
 struct ZoneTypeConfig {
   typedef TypeImpl<ZoneTypeConfig> Type;
   class Base {};
@@ -659,36 +797,36 @@ struct ZoneTypeConfig {
 
   static inline bool is_bitset(Type* type);
   static inline bool is_class(Type* type);
-  static inline bool is_constant(Type* type);
   static inline bool is_struct(Type* type, int tag);
 
   static inline int as_bitset(Type* type);
-  static inline Struct* as_struct(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
-  static inline i::Handle<i::Object> as_constant(Type* type);
+  static inline Struct* as_struct(Type* type);
 
   static inline Type* from_bitset(int bitset);
   static inline Type* from_bitset(int bitset, Zone* zone);
+  static inline Type* from_class(i::Handle<i::Map> map, Zone* zone);
   static inline Type* from_struct(Struct* structured);
-  static inline Type* from_class(i::Handle<i::Map> map, int lub, Zone* zone);
-  static inline Type* from_constant(
-      i::Handle<i::Object> value, int lub, Zone* zone);
 
   static inline Struct* struct_create(int tag, int length, Zone* zone);
-  static inline void struct_shrink(Struct* structured, int length);
-  static inline int struct_tag(Struct* structured);
-  static inline int struct_length(Struct* structured);
-  static inline Type* struct_get(Struct* structured, int i);
-  static inline void struct_set(Struct* structured, int i, Type* type);
-
-  static inline int lub_bitset(Type* type);
+  static inline void struct_shrink(Struct* structure, int length);
+  static inline int struct_tag(Struct* structure);
+  static inline int struct_length(Struct* structure);
+  static inline Type* struct_get(Struct* structure, int i);
+  static inline void struct_set(Struct* structure, int i, Type* type);
+  template<class V>
+  static inline i::Handle<V> struct_get_value(Struct* structure, int i);
+  template<class V> static inline void struct_set_value(
+      Struct* structure, int i, i::Handle<V> x);
 };
 
 typedef TypeImpl<ZoneTypeConfig> Type;
 
 
-// Heap-allocated types are either smis for bitsets, maps for classes, boxes for
+// -----------------------------------------------------------------------------
+// Heap-allocated types; either smis for bitsets, maps for classes, boxes for
 // constants, or fixed arrays for unions.
+
 struct HeapTypeConfig {
   typedef TypeImpl<HeapTypeConfig> Type;
   typedef i::Object Base;
@@ -701,38 +839,40 @@ struct HeapTypeConfig {
 
   static inline bool is_bitset(Type* type);
   static inline bool is_class(Type* type);
-  static inline bool is_constant(Type* type);
   static inline bool is_struct(Type* type, int tag);
 
   static inline int as_bitset(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
-  static inline i::Handle<i::Object> as_constant(Type* type);
   static inline i::Handle<Struct> as_struct(Type* type);
 
   static inline Type* from_bitset(int bitset);
   static inline i::Handle<Type> from_bitset(int bitset, Isolate* isolate);
   static inline i::Handle<Type> from_class(
-      i::Handle<i::Map> map, int lub, Isolate* isolate);
-  static inline i::Handle<Type> from_constant(
-      i::Handle<i::Object> value, int lub, Isolate* isolate);
-  static inline i::Handle<Type> from_struct(i::Handle<Struct> structured);
+      i::Handle<i::Map> map, Isolate* isolate);
+  static inline i::Handle<Type> from_struct(i::Handle<Struct> structure);
 
   static inline i::Handle<Struct> struct_create(
       int tag, int length, Isolate* isolate);
-  static inline void struct_shrink(i::Handle<Struct> structured, int length);
-  static inline int struct_tag(i::Handle<Struct> structured);
-  static inline int struct_length(i::Handle<Struct> structured);
-  static inline i::Handle<Type> struct_get(i::Handle<Struct> structured, int i);
+  static inline void struct_shrink(i::Handle<Struct> structure, int length);
+  static inline int struct_tag(i::Handle<Struct> structure);
+  static inline int struct_length(i::Handle<Struct> structure);
+  static inline i::Handle<Type> struct_get(i::Handle<Struct> structure, int i);
   static inline void struct_set(
-      i::Handle<Struct> structured, int i, i::Handle<Type> type);
-
-  static inline int lub_bitset(Type* type);
+      i::Handle<Struct> structure, int i, i::Handle<Type> type);
+  template<class V>
+  static inline i::Handle<V> struct_get_value(
+      i::Handle<Struct> structure, int i);
+  template<class V>
+  static inline void struct_set_value(
+      i::Handle<Struct> structure, int i, i::Handle<V> x);
 };
 
 typedef TypeImpl<HeapTypeConfig> HeapType;
 
 
-// A simple struct to represent a pair of lower/upper type bounds.
+// -----------------------------------------------------------------------------
+// Type bounds. A simple struct to represent a pair of lower/upper types.
+
 template<class Config>
 struct BoundsImpl {
   typedef TypeImpl<Config> Type;

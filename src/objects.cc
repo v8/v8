@@ -9668,7 +9668,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     uint32_t field = hash_field();
     if ((field & kIsNotArrayIndexMask) != 0) return false;
     // Isolate the array index form the full hash field.
-    *index = (kArrayIndexHashMask & field) >> kHashShift;
+    *index = ArrayIndexValueBits::decode(field);
     return true;
   } else {
     return ComputeArrayIndex(index);
@@ -9726,8 +9726,8 @@ uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, int length) {
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
 
-  value <<= String::kHashShift;
-  value |= length << String::kArrayIndexHashLengthShift;
+  value <<= String::ArrayIndexValueBits::kShift;
+  value |= length << String::ArrayIndexLengthBits::kShift;
 
   ASSERT((value & String::kIsNotArrayIndexMask) == 0);
   ASSERT((length > String::kMaxCachedArrayIndexLength) ||
@@ -16724,7 +16724,7 @@ Handle<DeclaredAccessorDescriptor> DeclaredAccessorDescriptor::Create(
     if (previous_length != 0) {
       uint8_t* previous_array =
           previous->serialized_data()->GetDataStartAddress();
-      OS::MemCopy(array, previous_array, previous_length);
+      MemCopy(array, previous_array, previous_length);
       array += previous_length;
     }
     ASSERT(reinterpret_cast<uintptr_t>(array) % sizeof(uintptr_t) == 0);

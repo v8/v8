@@ -633,6 +633,19 @@ LUnallocated* LChunkBuilder::TempRegister() {
 }
 
 
+LUnallocated* LChunkBuilder::TempDoubleRegister() {
+  LUnallocated* operand =
+      new(zone()) LUnallocated(LUnallocated::MUST_HAVE_DOUBLE_REGISTER);
+  int vreg = allocator_->GetVirtualRegister();
+  if (!allocator_->AllocationOk()) {
+    Abort(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister);
+    vreg = 0;
+  }
+  operand->set_virtual_register(vreg);
+  return operand;
+}
+
+
 LOperand* LChunkBuilder::FixedTemp(Register reg) {
   LUnallocated* operand = ToUnallocated(reg);
   ASSERT(operand->HasFixedPolicy());
@@ -1134,7 +1147,7 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LOperand* double_temp = FixedTemp(f6);  // Chosen by fair dice roll.
+  LOperand* double_temp = TempDoubleRegister();
   LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
   return DefineAsRegister(result);
 }
@@ -1143,7 +1156,7 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathPowHalf(HUnaryMathOperation* instr) {
   // Input cannot be the same as the result, see LCodeGen::DoMathPowHalf.
   LOperand* input = UseFixedDouble(instr->value(), f8);
-  LOperand* temp = FixedTemp(f6);
+  LOperand* temp = TempDoubleRegister();
   LMathPowHalf* result = new(zone()) LMathPowHalf(input, temp);
   return DefineFixedDouble(result, f4);
 }
@@ -1180,7 +1193,7 @@ LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());
-  LOperand* temp = FixedTemp(f6);
+  LOperand* temp = TempDoubleRegister();
   LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
@@ -1842,7 +1855,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         LOperand* value = UseRegister(val);
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 = FixedTemp(f22);
+        LOperand* temp2 = TempDoubleRegister();
         LInstruction* result =
             DefineSameAsFirst(new(zone()) LTaggedToI(value, temp1, temp2));
         if (!val->representation().IsSmi()) result = AssignEnvironment(result);
@@ -1954,14 +1967,14 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   LOperand* reg = UseRegister(value);
   if (input_rep.IsDouble()) {
     // Revisit this decision, here and 8 lines below.
-    return DefineAsRegister(new(zone()) LClampDToUint8(reg, FixedTemp(f22)));
+    return DefineAsRegister(new(zone()) LClampDToUint8(reg,
+        TempDoubleRegister()));
   } else if (input_rep.IsInteger32()) {
     return DefineAsRegister(new(zone()) LClampIToUint8(reg));
   } else {
     ASSERT(input_rep.IsSmiOrTagged());
-    // Register allocator doesn't (yet) support allocation of double
-    // temps. Reserve f22 explicitly.
-    LClampTToUint8* result = new(zone()) LClampTToUint8(reg, FixedTemp(f22));
+    LClampTToUint8* result =
+        new(zone()) LClampTToUint8(reg, TempDoubleRegister());
     return AssignEnvironment(DefineAsRegister(result));
   }
 }
@@ -2267,13 +2280,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We need a temporary register for write barrier of the map field.
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
-  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (!instr->access().IsExternalMemory() &&
-      instr->field_representation().IsHeapObject() &&
-      !instr->value()->type().IsHeapObject()) {
-    result = AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 

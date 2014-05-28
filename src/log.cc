@@ -106,7 +106,7 @@ class CodeEventLogger::NameBuffer {
 
   void AppendBytes(const char* bytes, int size) {
     size = Min(size, kUtf8BufferSize - utf8_pos_);
-    OS::MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
+    MemCopy(utf8_buffer_ + utf8_pos_, bytes, size);
     utf8_pos_ += size;
   }
 
@@ -536,8 +536,8 @@ LowLevelLogger::LowLevelLogger(const char* name)
   // Open the low-level log file.
   size_t len = strlen(name);
   ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
-  OS::MemCopy(ll_name.start(), name, len);
-  OS::MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
+  MemCopy(ll_name.start(), name, len);
+  MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
   ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
   setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
 

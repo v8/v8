@@ -71,8 +71,7 @@ UnaryMathFunction CreateExpFunction() {
 
 
 #if defined(V8_HOST_ARCH_MIPS)
-OS::MemCopyUint8Function CreateMemCopyUint8Function(
-    OS::MemCopyUint8Function stub) {
+MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
@@ -597,7 +596,7 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<OS::MemCopyUint8Function>(buffer);
+  return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
 #endif
@@ -1006,7 +1005,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
         at, Operand(zero_reg));
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ And(at, result, Operand(kShortExternalStringMask));
   __ Branch(call_runtime, ne, at, Operand(zero_reg));
   __ lw(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));

@@ -1034,12 +1034,6 @@ class Heap {
   inline int64_t AdjustAmountOfExternalAllocatedMemory(
       int64_t change_in_bytes);
 
-  // Returns the allocation mode (pre-tenuring) based on observed promotion
-  // rates of previous collections.
-  inline PretenureFlag GetPretenureMode() {
-    return FLAG_pretenuring ? TENURED : NOT_TENURED;
-  }
-
   inline intptr_t PromotedTotalSize() {
     int64_t total = PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
     if (total > kMaxInt) return static_cast<intptr_t>(kMaxInt);
@@ -1138,11 +1132,12 @@ class Heap {
     kSmiRootsStart = kStringTableRootIndex + 1
   };
 
-  STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
-  STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
-  STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
-  STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
-  STATIC_CHECK(kempty_stringRootIndex == Internals::kEmptyStringRootIndex);
+  STATIC_ASSERT(kUndefinedValueRootIndex ==
+                Internals::kUndefinedValueRootIndex);
+  STATIC_ASSERT(kNullValueRootIndex == Internals::kNullValueRootIndex);
+  STATIC_ASSERT(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
+  STATIC_ASSERT(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
+  STATIC_ASSERT(kempty_stringRootIndex == Internals::kEmptyStringRootIndex);
 
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.

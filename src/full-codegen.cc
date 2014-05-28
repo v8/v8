@@ -823,7 +823,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
-      Debug::GenerateSlot(masm_);
+      DebugCodegen::GenerateSlot(masm_);
     }
   }
 }
@@ -849,7 +849,7 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
     // If the position recording did record a new position generate a debug
     // break slot to make the statement breakable.
     if (position_recorded) {
-      Debug::GenerateSlot(masm_);
+      DebugCodegen::GenerateSlot(masm_);
     }
   }
 }

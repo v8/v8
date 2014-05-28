@@ -545,8 +545,8 @@ class Context: public FixedArray {
   static bool IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object);
 #endif
 
-  STATIC_CHECK(kHeaderSize == Internals::kContextHeaderSize);
-  STATIC_CHECK(EMBEDDER_DATA_INDEX == Internals::kContextEmbedderDataIndex);
+  STATIC_ASSERT(kHeaderSize == Internals::kContextHeaderSize);
+  STATIC_ASSERT(EMBEDDER_DATA_INDEX == Internals::kContextEmbedderDataIndex);
 };
 
 } }  // namespace v8::internal

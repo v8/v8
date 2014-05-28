@@ -548,16 +548,10 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // reserved for it does not conflict.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key. Even if we subsequently go to
-  // the slow case, converting the key to a smi is always valid.
-  // key: string key
-  // hash: key's hash field, including its array index value.
-  andp(hash, Immediate(String::kArrayIndexValueMask));
-  shrp(hash, Immediate(String::kHashShift));
-  // Here we actually clobber the key which will be used if calling into
-  // runtime later. However as the new key is the numeric value of a string key
-  // there is no difference in using either key.
-  Integer32ToSmi(index, hash);
+  if (!hash.is(index)) {
+    movl(index, hash);
+  }
+  DecodeFieldToSmi<String::ArrayIndexValueBits>(index);
 }
 
 
@@ -924,6 +918,11 @@ void MacroAssembler::Store(const Operand& dst, Register src, Representation r) {
   } else if (r.IsInteger32()) {
     movl(dst, src);
   } else {
+    if (r.IsHeapObject()) {
+      AssertNotSmi(src);
+    } else if (r.IsSmi()) {
+      AssertSmi(src);
+    }
     movp(dst, src);
   }
 }
@@ -5192,8 +5191,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   bind(&loop_again);
   movp(current, FieldOperand(current, HeapObject::kMapOffset));
   movp(scratch1, FieldOperand(current, Map::kBitField2Offset));
-  andp(scratch1, Immediate(Map::kElementsKindMask));
-  shrp(scratch1, Immediate(Map::kElementsKindShift));
+  DecodeField<Map::ElementsKindBits>(scratch1);
   cmpp(scratch1, Immediate(DICTIONARY_ELEMENTS));
   j(equal, found);
   movp(current, FieldOperand(current, Map::kPrototypeOffset));

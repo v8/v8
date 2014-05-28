@@ -878,6 +878,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
     case HValue::kStoreKeyed:
+    case HValue::kStoreNamedField:
     case HValue::kStoreNamedGeneric:
     case HValue::kStringCharCodeAt:
     case HValue::kStringCharFromCode:
@@ -926,7 +927,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kStoreContextSlot:
     case HValue::kStoreGlobalCell:
     case HValue::kStoreKeyedGeneric:
-    case HValue::kStoreNamedField:
     case HValue::kStringAdd:
     case HValue::kStringCompareAndBranch:
     case HValue::kSub:
@@ -2904,6 +2904,7 @@ bool HConstant::EmitAtUses() {
   if (UseCount() == 0) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
+  if (representation().IsExternal()) return false;
   return true;
 }
 

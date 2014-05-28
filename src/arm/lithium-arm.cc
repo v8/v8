@@ -628,6 +628,19 @@ LUnallocated* LChunkBuilder::TempRegister() {
 }
 
 
+LUnallocated* LChunkBuilder::TempDoubleRegister() {
+  LUnallocated* operand =
+      new(zone()) LUnallocated(LUnallocated::MUST_HAVE_DOUBLE_REGISTER);
+  int vreg = allocator_->GetVirtualRegister();
+  if (!allocator_->AllocationOk()) {
+    Abort(kOutOfVirtualRegistersWhileTryingToAllocateTempRegister);
+    vreg = 0;
+  }
+  operand->set_virtual_register(vreg);
+  return operand;
+}
+
+
 LOperand* LChunkBuilder::FixedTemp(Register reg) {
   LUnallocated* operand = ToUnallocated(reg);
   ASSERT(operand->HasFixedPolicy());
@@ -1119,7 +1132,7 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());
-  LOperand* temp = FixedTemp(d3);
+  LOperand* temp = TempDoubleRegister();
   LMathRound* result = new(zone()) LMathRound(input, temp);
   return AssignEnvironment(DefineAsRegister(result));
 }
@@ -1160,7 +1173,7 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   LOperand* input = UseRegister(instr->value());
   LOperand* temp1 = TempRegister();
   LOperand* temp2 = TempRegister();
-  LOperand* double_temp = FixedTemp(d3);  // Chosen by fair dice roll.
+  LOperand* double_temp = TempDoubleRegister();
   LMathExp* result = new(zone()) LMathExp(input, double_temp, temp1, temp2);
   return DefineAsRegister(result);
 }
@@ -1286,7 +1299,8 @@ LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+  LOperand* temp =
+      CpuFeatures::IsSupported(SUDIV) ? NULL : TempDoubleRegister();
   LInstruction* result =
       DefineAsRegister(new(zone()) LDivI(dividend, divisor, temp));
   if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
@@ -1358,7 +1372,8 @@ LInstruction* LChunkBuilder::DoFlooringDivI(HMathFloorOfDiv* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d4);
+  LOperand* temp =
+      CpuFeatures::IsSupported(SUDIV) ? NULL : TempDoubleRegister();
   LFlooringDivI* div = new(zone()) LFlooringDivI(dividend, divisor, temp);
   return AssignEnvironment(DefineAsRegister(div));
 }
@@ -1411,8 +1426,10 @@ LInstruction* LChunkBuilder::DoModI(HMod* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
-  LOperand* temp = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d10);
-  LOperand* temp2 = CpuFeatures::IsSupported(SUDIV) ? NULL : FixedTemp(d11);
+  LOperand* temp =
+      CpuFeatures::IsSupported(SUDIV) ? NULL : TempDoubleRegister();
+  LOperand* temp2 =
+      CpuFeatures::IsSupported(SUDIV) ? NULL : TempDoubleRegister();
   LInstruction* result = DefineAsRegister(new(zone()) LModI(
           dividend, divisor, temp, temp2));
   if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
@@ -1892,7 +1909,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else {
         LOperand* value = UseRegister(val);
         LOperand* temp1 = TempRegister();
-        LOperand* temp2 = FixedTemp(d11);
+        LOperand* temp2 = TempDoubleRegister();
         LInstruction* result =
             DefineSameAsFirst(new(zone()) LTaggedToI(value, temp1, temp2));
         if (!val->representation().IsSmi()) result = AssignEnvironment(result);
@@ -2010,7 +2027,8 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     ASSERT(input_rep.IsSmiOrTagged());
     // Register allocator doesn't (yet) support allocation of double
     // temps. Reserve d1 explicitly.
-    LClampTToUint8* result = new(zone()) LClampTToUint8(reg, FixedTemp(d11));
+    LClampTToUint8* result =
+        new(zone()) LClampTToUint8(reg, TempDoubleRegister());
     return AssignEnvironment(DefineAsRegister(result));
   }
 }
@@ -2316,13 +2334,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We need a temporary register for write barrier of the map field.
   LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
 
-  LInstruction* result = new(zone()) LStoreNamedField(obj, val, temp);
-  if (!instr->access().IsExternalMemory() &&
-      instr->field_representation().IsHeapObject() &&
-      !instr->value()->type().IsHeapObject()) {
-    result = AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 

@@ -386,47 +386,45 @@ void Genesis::SetFunctionInstanceDescriptor(
   int size = (prototypeMode == DONT_ADD_PROTOTYPE) ? 4 : 5;
   Map::EnsureDescriptorSlack(map, size);
 
-  PropertyAttributes ro_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  PropertyAttributes roc_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+  PropertyAttributes attribs = static_cast<PropertyAttributes>(
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   Handle<AccessorInfo> length =
-      Accessors::FunctionLengthInfo(isolate(), ro_attribs);
+      Accessors::FunctionLengthInfo(isolate(), attribs);
   {  // Add length.
     CallbacksDescriptor d(Handle<Name>(Name::cast(length->name())),
-                          length, ro_attribs);
+                          length, attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), roc_attribs);
+      Accessors::FunctionNameInfo(isolate(), attribs);
   {  // Add name.
     CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, roc_attribs);
+                          name, attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> args =
-      Accessors::FunctionArgumentsInfo(isolate(), ro_attribs);
+      Accessors::FunctionArgumentsInfo(isolate(), attribs);
   {  // Add arguments.
     CallbacksDescriptor d(Handle<Name>(Name::cast(args->name())),
-                          args, ro_attribs);
+                          args, attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> caller =
-      Accessors::FunctionCallerInfo(isolate(), ro_attribs);
+      Accessors::FunctionCallerInfo(isolate(), attribs);
   {  // Add caller.
     CallbacksDescriptor d(Handle<Name>(Name::cast(caller->name())),
-                          caller, ro_attribs);
+                          caller, attribs);
     map->AppendDescriptor(&d);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
-      ro_attribs = static_cast<PropertyAttributes>(ro_attribs & ~READ_ONLY);
+      attribs = static_cast<PropertyAttributes>(attribs & ~READ_ONLY);
     }
     Handle<AccessorInfo> prototype =
-        Accessors::FunctionPrototypeInfo(isolate(), ro_attribs);
+        Accessors::FunctionPrototypeInfo(isolate(), attribs);
     CallbacksDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                          prototype, ro_attribs);
+                          prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -535,8 +533,6 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   PropertyAttributes ro_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-  PropertyAttributes roc_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
   Handle<AccessorInfo> length =
       Accessors::FunctionLengthInfo(isolate(), ro_attribs);
@@ -546,10 +542,10 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), roc_attribs);
+      Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
     CallbacksDescriptor d(Handle<Name>(Name::cast(name->name())),
-                          name, roc_attribs);
+                          name, ro_attribs);
     map->AppendDescriptor(&d);
   }
   {  // Add arguments.
@@ -1481,7 +1477,7 @@ bool Genesis::CompileNative(Isolate* isolate,
                             Vector<const char> name,
                             Handle<String> source) {
   HandleScope scope(isolate);
-  Debugger::IgnoreScope compiling_natives(isolate->debugger());
+  Debug::IgnoreScope compiling_natives(isolate->debug());
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
   // before entering JS code to catch overflow early.

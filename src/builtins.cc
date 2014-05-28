@@ -172,15 +172,11 @@ BUILTIN(EmptyFunction) {
 }
 
 
-static void MoveDoubleElements(FixedDoubleArray* dst,
-                               int dst_index,
-                               FixedDoubleArray* src,
-                               int src_index,
-                               int len) {
+static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
+                               FixedDoubleArray* src, int src_index, int len) {
   if (len == 0) return;
-  OS::MemMove(dst->data_start() + dst_index,
-              src->data_start() + src_index,
-              len * kDoubleSize);
+  MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
+          len * kDoubleSize);
 }
 
 
@@ -1431,68 +1427,68 @@ static void Generate_KeyedStoreIC_SloppyArguments(MacroAssembler* masm) {
 
 
 static void Generate_CallICStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallICStubDebugBreak(masm);
+  DebugCodegen::GenerateCallICStubDebugBreak(masm);
 }
 
 
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateLoadICDebugBreak(masm);
+  DebugCodegen::GenerateLoadICDebugBreak(masm);
 }
 
 
 static void Generate_StoreIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateStoreICDebugBreak(masm);
+  DebugCodegen::GenerateStoreICDebugBreak(masm);
 }
 
 
 static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateKeyedLoadICDebugBreak(masm);
+  DebugCodegen::GenerateKeyedLoadICDebugBreak(masm);
 }
 
 
 static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateKeyedStoreICDebugBreak(masm);
+  DebugCodegen::GenerateKeyedStoreICDebugBreak(masm);
 }
 
 
 static void Generate_CompareNilIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCompareNilICDebugBreak(masm);
+  DebugCodegen::GenerateCompareNilICDebugBreak(masm);
 }
 
 
 static void Generate_Return_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateReturnDebugBreak(masm);
+  DebugCodegen::GenerateReturnDebugBreak(masm);
 }
 
 
 static void Generate_CallFunctionStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallFunctionStubDebugBreak(masm);
+  DebugCodegen::GenerateCallFunctionStubDebugBreak(masm);
 }
 
 
 static void Generate_CallConstructStub_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallConstructStubDebugBreak(masm);
+  DebugCodegen::GenerateCallConstructStubDebugBreak(masm);
 }
 
 
 static void Generate_CallConstructStub_Recording_DebugBreak(
     MacroAssembler* masm) {
-  Debug::GenerateCallConstructStubRecordDebugBreak(masm);
+  DebugCodegen::GenerateCallConstructStubRecordDebugBreak(masm);
 }
 
 
 static void Generate_Slot_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateSlotDebugBreak(masm);
+  DebugCodegen::GenerateSlotDebugBreak(masm);
 }
 
 
 static void Generate_PlainReturn_LiveEdit(MacroAssembler* masm) {
-  Debug::GeneratePlainReturnLiveEdit(masm);
+  DebugCodegen::GeneratePlainReturnLiveEdit(masm);
 }
 
 
 static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
-  Debug::GenerateFrameDropperLiveEdit(masm);
+  DebugCodegen::GenerateFrameDropperLiveEdit(masm);
 }
 
 

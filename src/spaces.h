@@ -734,7 +734,7 @@ class MemoryChunk {
 };
 
 
-STATIC_CHECK(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
 
 
 // -----------------------------------------------------------------------------
@@ -841,7 +841,7 @@ class Page : public MemoryChunk {
 };
 
 
-STATIC_CHECK(sizeof(Page) <= MemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 
 class LargePage : public MemoryChunk {
@@ -863,7 +863,7 @@ class LargePage : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
-STATIC_CHECK(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
+STATIC_ASSERT(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
 
 // ----------------------------------------------------------------------------
 // Space is the abstract superclass for all allocation spaces.

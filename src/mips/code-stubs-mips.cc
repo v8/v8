@@ -2642,8 +2642,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSeqStringTag == 0);
   __ And(at, a0, Operand(kStringRepresentationMask));
   // The underlying external string is never a short external string.
-  STATIC_CHECK(ExternalString::kMaxShortLength < ConsString::kMinLength);
-  STATIC_CHECK(ExternalString::kMaxShortLength < SlicedString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
   __ Branch(&external_string, ne, at, Operand(zero_reg));  // Go to (7).
 
   // (5) Sequential string.  Load regexp code according to encoding.
@@ -3839,7 +3839,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Handle external string.
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ And(t0, a1, Operand(kShortExternalStringTag));
   __ Branch(&runtime, ne, t0, Operand(zero_reg));
   __ lw(t1, FieldMemOperand(t1, ExternalString::kResourceDataOffset));
@@ -5349,7 +5349,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // but the following bit field extraction takes care of that anyway.
   __ lbu(a3, FieldMemOperand(a3, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  __ Ext(a3, a3, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  __ DecodeField<Map::ElementsKindBits>(a3);
 
   if (FLAG_debug_code) {
     Label done;

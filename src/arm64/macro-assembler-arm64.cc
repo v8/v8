@@ -559,6 +559,11 @@ void MacroAssembler::Store(const Register& rt,
     Str(rt.W(), addr);
   } else {
     ASSERT(rt.Is64Bits());
+    if (r.IsHeapObject()) {
+      AssertNotSmi(rt);
+    } else if (r.IsSmi()) {
+      AssertSmi(rt);
+    }
     Str(rt, addr);
   }
 }
@@ -3764,7 +3769,7 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   // Load the map's "bit field 2".
   __ Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  __ Ubfx(result, result, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  DecodeField<Map::ElementsKindBits>(result);
 }
 
 
@@ -3970,11 +3975,8 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // conflict.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  STATIC_ASSERT(kSmiTag == 0);
-  Ubfx(hash, hash, String::kHashShift, String::kArrayIndexValueBits);
-  SmiTag(index, hash);
+  DecodeField<String::ArrayIndexValueBits>(index, hash);
+  SmiTag(index, index);
 }
 
 
@@ -4539,7 +4541,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   Bind(&loop_again);
   Ldr(current, FieldMemOperand(current, HeapObject::kMapOffset));
   Ldrb(scratch1, FieldMemOperand(current, Map::kBitField2Offset));
-  Ubfx(scratch1, scratch1, Map::kElementsKindShift, Map::kElementsKindBitCount);
+  DecodeField<Map::ElementsKindBits>(scratch1);
   CompareAndBranch(scratch1, DICTIONARY_ELEMENTS, eq, found);
   Ldr(current, FieldMemOperand(current, Map::kPrototypeOffset));
   CompareAndBranch(current, Operand(factory->null_value()), ne, &loop_again);

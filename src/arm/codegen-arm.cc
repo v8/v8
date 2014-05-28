@@ -78,8 +78,7 @@ UnaryMathFunction CreateExpFunction() {
 }
 
 #if defined(V8_HOST_ARCH_ARM)
-OS::MemCopyUint8Function CreateMemCopyUint8Function(
-    OS::MemCopyUint8Function stub) {
+MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
@@ -228,14 +227,14 @@ OS::MemCopyUint8Function CreateMemCopyUint8Function(
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<OS::MemCopyUint8Function>(buffer);
+  return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
 
 
 // Convert 8 to 16. The number of character to copy must be at least 8.
-OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-    OS::MemCopyUint16Uint8Function stub) {
+MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
+    MemCopyUint16Uint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
@@ -315,7 +314,7 @@ OS::MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
 
-  return FUNCTION_CAST<OS::MemCopyUint16Uint8Function>(buffer);
+  return FUNCTION_CAST<MemCopyUint16Uint8Function>(buffer);
 #endif
 }
 #endif
@@ -709,7 +708,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     __ Assert(eq, kExternalStringExpectedButNotFound);
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ tst(result, Operand(kShortExternalStringMask));
   __ b(ne, call_runtime);
   __ ldr(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));

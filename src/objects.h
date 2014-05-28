@@ -808,10 +808,10 @@ enum InstanceType {
 const int kExternalArrayTypeCount =
     LAST_EXTERNAL_ARRAY_TYPE - FIRST_EXTERNAL_ARRAY_TYPE + 1;
 
-STATIC_CHECK(JS_OBJECT_TYPE == Internals::kJSObjectType);
-STATIC_CHECK(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
-STATIC_CHECK(ODDBALL_TYPE == Internals::kOddballType);
-STATIC_CHECK(FOREIGN_TYPE == Internals::kForeignType);
+STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
+STATIC_ASSERT(FIRST_NONSTRING_TYPE == Internals::kFirstNonstringType);
+STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
+STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
@@ -1744,7 +1744,7 @@ class HeapObject: public Object {
   static const int kMapOffset = Object::kHeaderSize;
   static const int kHeaderSize = kMapOffset + kPointerSize;
 
-  STATIC_CHECK(kMapOffset == Internals::kHeapObjectMapOffset);
+  STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
 
  protected:
   // helpers for calling an ObjectVisitor to iterate over pointers in the
@@ -2653,7 +2653,7 @@ class JSObject: public JSReceiver {
   static const int kElementsOffset = kPropertiesOffset + kPointerSize;
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
-  STATIC_CHECK(kHeaderSize == Internals::kJSObjectHeaderSize);
+  STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
 
   class BodyDescriptor : public FlexibleBodyDescriptor<kPropertiesOffset> {
    public:
@@ -3035,7 +3035,7 @@ class FixedArray: public FixedArrayBase {
                                                   Object* value);
 
  private:
-  STATIC_CHECK(kHeaderSize == Internals::kFixedArrayHeaderSize);
+  STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
@@ -5077,12 +5077,16 @@ class FixedTypedArrayBase: public FixedArrayBase {
 
   inline int size();
 
+  inline int TypedArraySize(InstanceType type);
+
   // Use with care: returns raw pointer into heap.
   inline void* DataPtr();
 
   inline int DataSize();
 
  private:
+  inline int DataSize(InstanceType type);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedTypedArrayBase);
 };
 
@@ -6084,15 +6088,13 @@ class Map: public HeapObject {
 
   inline void set_elements_kind(ElementsKind elements_kind) {
     ASSERT(elements_kind < kElementsKindCount);
-    ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
-    set_bit_field2((bit_field2() & ~kElementsKindMask) |
-        (elements_kind << kElementsKindShift));
+    ASSERT(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
+    set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
     ASSERT(this->elements_kind() == elements_kind);
   }
 
   inline ElementsKind elements_kind() {
-    return static_cast<ElementsKind>(
-        (bit_field2() & kElementsKindMask) >> kElementsKindShift);
+    return Map::ElementsKindBits::decode(bit_field2());
   }
 
   // Tells whether the instance has fast elements that are only Smis.
@@ -6557,7 +6559,7 @@ class Map: public HeapObject {
   static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
   static const int kBitField2Offset = kInstanceAttributesOffset + 3;
 
-  STATIC_CHECK(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+  STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   // Bit positions for bit field.
   static const int kHasNonInstancePrototype = 0;
@@ -6573,25 +6575,20 @@ class Map: public HeapObject {
   static const int kIsExtensible = 0;
   static const int kStringWrapperSafeForDefaultValueOf = 1;
   // Currently bit 2 is not used.
-  // No bits can be used after kElementsKindFirstBit, they are all reserved for
-  // storing ElementKind.
-  static const int kElementsKindShift = 3;
-  static const int kElementsKindBitCount = 5;
+  class ElementsKindBits: public BitField<ElementsKind, 3, 5> {};
 
   // Derived values from bit field 2
-  static const int kElementsKindMask = (-1 << kElementsKindShift) &
-      ((1 << (kElementsKindShift + kElementsKindBitCount)) - 1);
   static const int8_t kMaximumBitField2FastElementValue = static_cast<int8_t>(
-      (FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
+      (FAST_ELEMENTS + 1) << Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastSmiElementValue =
       static_cast<int8_t>((FAST_SMI_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastHoleyElementValue =
       static_cast<int8_t>((FAST_HOLEY_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
   static const int8_t kMaximumBitField2FastHoleySmiElementValue =
       static_cast<int8_t>((FAST_HOLEY_SMI_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
+                          Map::ElementsKindBits::kShift) - 1;
 
   typedef FixedBodyDescriptor<kPointerFieldsBeginOffset,
                               kPointerFieldsEndOffset,
@@ -7498,6 +7495,9 @@ class JSFunction: public JSObject {
 
   // Tells whether this function is builtin.
   inline bool IsBuiltin();
+
+  // Tells whether this function is defined in a native script.
+  inline bool IsNative();
 
   // Tells whether or not the function needs arguments adaption.
   inline bool NeedsArgumentsAdaption();
@@ -8791,23 +8791,21 @@ class Name: public HeapObject {
   static const int kArrayIndexLengthBits =
       kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
 
-  STATIC_CHECK((kArrayIndexLengthBits > 0));
+  STATIC_ASSERT((kArrayIndexLengthBits > 0));
 
-  static const int kArrayIndexHashLengthShift =
-      kArrayIndexValueBits + kNofHashBitFields;
-
-  static const int kArrayIndexHashMask = (1 << kArrayIndexHashLengthShift) - 1;
-
-  static const int kArrayIndexValueMask =
-      ((1 << kArrayIndexValueBits) - 1) << kHashShift;
+  class ArrayIndexValueBits : public BitField<unsigned int, kNofHashBitFields,
+      kArrayIndexValueBits> {};
+  class ArrayIndexLengthBits : public BitField<unsigned int,
+      kNofHashBitFields + kArrayIndexValueBits,
+      kArrayIndexLengthBits> {};
 
   // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
   // could use a mask to test if the length of string is less than or equal to
   // kMaxCachedArrayIndexLength.
-  STATIC_CHECK(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+  STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
   static const unsigned int kContainsCachedArrayIndexMask =
-      (~kMaxCachedArrayIndexLength << kArrayIndexHashLengthShift) |
+      (~kMaxCachedArrayIndexLength << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
 
   // Value of empty hash field indicating that the hash is not computed.
@@ -9053,7 +9051,7 @@ class String: public Name {
   // Maximum number of characters to consider when trying to convert a string
   // value into an array index.
   static const int kMaxArrayIndexSize = 10;
-  STATIC_CHECK(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
+  STATIC_ASSERT(kMaxArrayIndexSize < (1 << kArrayIndexLengthBits));
 
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
@@ -9211,7 +9209,7 @@ class SeqOneByteString: public SeqString {
 
   // Maximal memory usage for a single sequential ASCII string.
   static const int kMaxSize = 512 * MB - 1;
-  STATIC_CHECK((kMaxSize - kHeaderSize) >= String::kMaxLength);
+  STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqOneByteString);
@@ -9251,7 +9249,7 @@ class SeqTwoByteString: public SeqString {
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxSize = 512 * MB - 1;
-  STATIC_CHECK(static_cast<int>((kMaxSize - kHeaderSize)/sizeof(uint16_t)) >=
+  STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize)/sizeof(uint16_t)) >=
                String::kMaxLength);
 
  private:
@@ -9380,7 +9378,7 @@ class ExternalString: public String {
   // Return whether external string is short (data pointer is not cached).
   inline bool is_short();
 
-  STATIC_CHECK(kResourceOffset == Internals::kStringResourceOffset);
+  STATIC_ASSERT(kResourceOffset == Internals::kStringResourceOffset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalString);
@@ -9650,9 +9648,9 @@ class Oddball: public HeapObject {
                               kToNumberOffset + kPointerSize,
                               kSize> BodyDescriptor;
 
-  STATIC_CHECK(kKindOffset == Internals::kOddballKindOffset);
-  STATIC_CHECK(kNull == Internals::kNullOddballKind);
-  STATIC_CHECK(kUndefined == Internals::kUndefinedOddballKind);
+  STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
+  STATIC_ASSERT(kNull == Internals::kNullOddballKind);
+  STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
@@ -9821,7 +9819,7 @@ class JSProxy: public JSReceiver {
   static const int kHeaderSize = kPaddingOffset;
   static const int kPaddingSize = kSize - kPaddingOffset;
 
-  STATIC_CHECK(kPaddingSize >= 0);
+  STATIC_ASSERT(kPaddingSize >= 0);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kPaddingOffset,
@@ -9887,7 +9885,7 @@ class JSFunctionProxy: public JSProxy {
   static const int kSize = JSFunction::kSize;
   static const int kPaddingSize = kSize - kPaddingOffset;
 
-  STATIC_CHECK(kPaddingSize >= 0);
+  STATIC_ASSERT(kPaddingSize >= 0);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kConstructTrapOffset + kPointerSize,
@@ -10261,7 +10259,7 @@ class Foreign: public HeapObject {
   static const int kForeignAddressOffset = HeapObject::kHeaderSize;
   static const int kSize = kForeignAddressOffset + kPointerSize;
 
-  STATIC_CHECK(kForeignAddressOffset == Internals::kForeignAddressOffset);
+  STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);

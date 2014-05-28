@@ -202,6 +202,145 @@ class DebugInfoListNode {
   DebugInfoListNode* next_;
 };
 
+
+
+// Message delivered to the message handler callback. This is either a debugger
+// event or the response to a command.
+class MessageImpl: public v8::Debug::Message {
+ public:
+  // Create a message object for a debug event.
+  static MessageImpl NewEvent(DebugEvent event,
+                              bool running,
+                              Handle<JSObject> exec_state,
+                              Handle<JSObject> event_data);
+
+  // Create a message object for the response to a debug command.
+  static MessageImpl NewResponse(DebugEvent event,
+                                 bool running,
+                                 Handle<JSObject> exec_state,
+                                 Handle<JSObject> event_data,
+                                 Handle<String> response_json,
+                                 v8::Debug::ClientData* client_data);
+
+  // Implementation of interface v8::Debug::Message.
+  virtual bool IsEvent() const;
+  virtual bool IsResponse() const;
+  virtual DebugEvent GetEvent() const;
+  virtual bool WillStartRunning() const;
+  virtual v8::Handle<v8::Object> GetExecutionState() const;
+  virtual v8::Handle<v8::Object> GetEventData() const;
+  virtual v8::Handle<v8::String> GetJSON() const;
+  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Debug::ClientData* GetClientData() const;
+  virtual v8::Isolate* GetIsolate() const;
+
+ private:
+  MessageImpl(bool is_event,
+              DebugEvent event,
+              bool running,
+              Handle<JSObject> exec_state,
+              Handle<JSObject> event_data,
+              Handle<String> response_json,
+              v8::Debug::ClientData* client_data);
+
+  bool is_event_;  // Does this message represent a debug event?
+  DebugEvent event_;  // Debug event causing the break.
+  bool running_;  // Will the VM start running after this event?
+  Handle<JSObject> exec_state_;  // Current execution state.
+  Handle<JSObject> event_data_;  // Data associated with the event.
+  Handle<String> response_json_;  // Response JSON if message holds a response.
+  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
+};
+
+
+// Details of the debug event delivered to the debug event listener.
+class EventDetailsImpl : public v8::Debug::EventDetails {
+ public:
+  EventDetailsImpl(DebugEvent event,
+                   Handle<JSObject> exec_state,
+                   Handle<JSObject> event_data,
+                   Handle<Object> callback_data,
+                   v8::Debug::ClientData* client_data);
+  virtual DebugEvent GetEvent() const;
+  virtual v8::Handle<v8::Object> GetExecutionState() const;
+  virtual v8::Handle<v8::Object> GetEventData() const;
+  virtual v8::Handle<v8::Context> GetEventContext() const;
+  virtual v8::Handle<v8::Value> GetCallbackData() const;
+  virtual v8::Debug::ClientData* GetClientData() const;
+ private:
+  DebugEvent event_;  // Debug event causing the break.
+  Handle<JSObject> exec_state_;         // Current execution state.
+  Handle<JSObject> event_data_;         // Data associated with the event.
+  Handle<Object> callback_data_;        // User data passed with the callback
+                                        // when it was registered.
+  v8::Debug::ClientData* client_data_;  // Data passed to DebugBreakForCommand.
+};
+
+
+// Message send by user to v8 debugger or debugger output message.
+// In addition to command text it may contain a pointer to some user data
+// which are expected to be passed along with the command reponse to message
+// handler.
+class CommandMessage {
+ public:
+  static CommandMessage New(const Vector<uint16_t>& command,
+                            v8::Debug::ClientData* data);
+  CommandMessage();
+  ~CommandMessage();
+
+  // Deletes user data and disposes of the text.
+  void Dispose();
+  Vector<uint16_t> text() const { return text_; }
+  v8::Debug::ClientData* client_data() const { return client_data_; }
+ private:
+  CommandMessage(const Vector<uint16_t>& text,
+                 v8::Debug::ClientData* data);
+
+  Vector<uint16_t> text_;
+  v8::Debug::ClientData* client_data_;
+};
+
+
+// A Queue of CommandMessage objects.  A thread-safe version is
+// LockingCommandMessageQueue, based on this class.
+class CommandMessageQueue BASE_EMBEDDED {
+ public:
+  explicit CommandMessageQueue(int size);
+  ~CommandMessageQueue();
+  bool IsEmpty() const { return start_ == end_; }
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
+  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
+ private:
+  // Doubles the size of the message queue, and copies the messages.
+  void Expand();
+
+  CommandMessage* messages_;
+  int start_;
+  int end_;
+  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
+};
+
+
+// LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
+// messages.  The message data is not managed by LockingCommandMessageQueue.
+// Pointers to the data are passed in and out. Implemented by adding a
+// Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
+class LockingCommandMessageQueue BASE_EMBEDDED {
+ public:
+  LockingCommandMessageQueue(Logger* logger, int size);
+  bool IsEmpty() const;
+  CommandMessage Get();
+  void Put(const CommandMessage& message);
+  void Clear();
+ private:
+  Logger* logger_;
+  CommandMessageQueue queue_;
+  mutable Mutex mutex_;
+  DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
+};
+
+
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -211,6 +350,63 @@ class DebugInfoListNode {
 // DebugInfo.
 class Debug {
  public:
+  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
+  void OnException(Handle<Object> exception, bool uncaught);
+  void OnBeforeCompile(Handle<Script> script);
+
+  enum AfterCompileFlags {
+    NO_AFTER_COMPILE_FLAGS,
+    SEND_WHEN_DEBUGGING
+  };
+  void OnAfterCompile(Handle<Script> script,
+                      AfterCompileFlags after_compile_flags);
+  void OnScriptCollected(int id);
+
+  void SetEventListener(Handle<Object> callback, Handle<Object> data);
+  void SetMessageHandler(v8::Debug::MessageHandler handler);
+
+  // Add a debugger command to the command queue.
+  void EnqueueCommandMessage(Vector<const uint16_t> command,
+                             v8::Debug::ClientData* client_data = NULL);
+
+  // Check whether there are commands in the command queue.
+  bool HasCommands();
+
+  // Enqueue a debugger command to the command queue for event listeners.
+  void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
+
+  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
+                                           Handle<Object> data);
+
+  Handle<Context> GetDebugContext();
+
+  bool ignore_debugger() const { return ignore_debugger_; }
+  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
+  bool live_edit_enabled() const {
+    return FLAG_enable_liveedit && live_edit_enabled_ ;
+  }
+
+  bool is_active() { return is_active_; }
+
+  class IgnoreScope {
+   public:
+    explicit IgnoreScope(Debug* debug)
+        : debug_(debug),
+          old_state_(debug->ignore_debugger_) {
+      debug_->ignore_debugger_ = true;
+    }
+
+    ~IgnoreScope() {
+      debug_->ignore_debugger_ = old_state_;
+    }
+
+   private:
+    Debug* debug_;
+    bool old_state_;
+    DISALLOW_COPY_AND_ASSIGN(IgnoreScope);
+  };
+
+
   bool Load();
   void Unload();
   bool IsLoaded() { return !debug_context_.is_null(); }
@@ -358,7 +554,6 @@ class Debug {
   static void HandleWeakDebugInfo(
       const v8::WeakCallbackData<v8::Value, void>& data);
 
-  friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
 
@@ -382,27 +577,6 @@ class Debug {
 
   // Garbage collection notifications.
   void AfterGarbageCollection();
-
-  // Code generator routines.
-  static void GenerateSlot(MacroAssembler* masm);
-  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
-  static void GenerateLoadICDebugBreak(MacroAssembler* masm);
-  static void GenerateStoreICDebugBreak(MacroAssembler* masm);
-  static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
-  static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
-  static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
-  static void GenerateReturnDebugBreak(MacroAssembler* masm);
-  static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
-  static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
-  static void GenerateSlotDebugBreak(MacroAssembler* masm);
-  static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
-
-  // FrameDropper is a code replacement for a JavaScript frame with possibly
-  // several frames above.
-  // There is no calling conventions here, because it never actually gets
-  // called, it only gets returned to.
-  static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
 
   // Describes how exactly a frame has been dropped from stack.
   enum FrameDropMode {
@@ -487,6 +661,52 @@ class Debug {
  private:
   explicit Debug(Isolate* isolate);
 
+  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
+      Vector<const char> constructor_name,
+      int argc,
+      Handle<Object> argv[]);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
+  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
+      Handle<Object> break_points_hit);
+  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
+      Handle<Object> exception,
+      bool uncaught,
+      Handle<Object> promise);
+  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
+      Handle<Script> script, bool before);
+  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
+
+  void CallEventCallback(v8::DebugEvent event,
+                         Handle<Object> exec_state,
+                         Handle<Object> event_data,
+                         v8::Debug::ClientData* client_data);
+  void CallCEventCallback(v8::DebugEvent event,
+                          Handle<Object> exec_state,
+                          Handle<Object> event_data,
+                          v8::Debug::ClientData* client_data);
+  void CallJSEventCallback(v8::DebugEvent event,
+                           Handle<Object> exec_state,
+                           Handle<Object> event_data);
+  void UpdateState();
+
+  void ProcessDebugEvent(v8::DebugEvent event,
+                         Handle<JSObject> event_data,
+                         bool auto_continue);
+  void NotifyMessageHandler(v8::DebugEvent event,
+                            Handle<JSObject> exec_state,
+                            Handle<JSObject> event_data,
+                            bool auto_continue);
+
+  // Invoke the message handler function.
+  void InvokeMessageHandler(MessageImpl message);
+
+  inline bool EventActive() {
+    // Check whether the message handler was been cleared.
+    // TODO(yangguo): handle loading and unloading of the debugger differently.
+    // Currently argument event is not used.
+    return !ignore_debugger_ && is_active_;
+  }
+
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
   void ActivateStepIn(StackFrame* frame);
@@ -503,22 +723,7 @@ class Debug {
   void RecompileAndRelocateSuspendedGenerators(
       const List<Handle<JSGeneratorObject> > &suspended_generators);
 
-  // Global handle to debug context where all the debugger JavaScript code is
-  // loaded.
-  Handle<Context> debug_context_;
-
-  // Boolean state indicating whether any break points are set.
-  bool has_break_points_;
-
-  // Cache of all scripts in the heap.
-  ScriptCache* script_cache_;
-
-  // List of active debug info objects.
-  DebugInfoListNode* debug_info_list_;
-
-  bool disable_break_;
-  bool break_on_exception_;
-  bool break_on_uncaught_exception_;
+  void ThreadInit();
 
   class PromiseOnStack {
    public:
@@ -535,6 +740,29 @@ class Debug {
     Handle<JSFunction> getter_;
     PromiseOnStack* prev_;
   };
+
+  // Global handles.
+  Handle<Context> debug_context_;
+  Handle<Object> event_listener_;
+  Handle<Object> event_listener_data_;
+
+  v8::Debug::MessageHandler message_handler_;
+
+  static const int kQueueInitialSize = 4;
+  Semaphore command_received_;  // Signaled for each command received.
+  LockingCommandMessageQueue command_queue_;
+  LockingCommandMessageQueue event_command_queue_;
+
+  bool is_active_;
+  bool ignore_debugger_;
+  bool live_edit_enabled_;
+  bool has_break_points_;
+  bool disable_break_;
+  bool break_on_exception_;
+  bool break_on_uncaught_exception_;
+
+  ScriptCache* script_cache_;  // Cache of all scripts in the heap.
+  DebugInfoListNode* debug_info_list_;  // List of active debug info objects.
 
   // Per-thread data.
   class ThreadLocal {
@@ -598,286 +826,17 @@ class Debug {
 
   // Storage location for registers when handling debug break calls
   ThreadLocal thread_local_;
-  void ThreadInit();
 
   Isolate* isolate_;
 
   friend class Isolate;
+  friend class EnterDebugger;
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
 
 
 DECLARE_RUNTIME_FUNCTION(Debug_Break);
-
-
-// Message delivered to the message handler callback. This is either a debugger
-// event or the response to a command.
-class MessageImpl: public v8::Debug::Message {
- public:
-  // Create a message object for a debug event.
-  static MessageImpl NewEvent(DebugEvent event,
-                              bool running,
-                              Handle<JSObject> exec_state,
-                              Handle<JSObject> event_data);
-
-  // Create a message object for the response to a debug command.
-  static MessageImpl NewResponse(DebugEvent event,
-                                 bool running,
-                                 Handle<JSObject> exec_state,
-                                 Handle<JSObject> event_data,
-                                 Handle<String> response_json,
-                                 v8::Debug::ClientData* client_data);
-
-  // Implementation of interface v8::Debug::Message.
-  virtual bool IsEvent() const;
-  virtual bool IsResponse() const;
-  virtual DebugEvent GetEvent() const;
-  virtual bool WillStartRunning() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::String> GetJSON() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Debug::ClientData* GetClientData() const;
-  virtual v8::Isolate* GetIsolate() const;
-
- private:
-  MessageImpl(bool is_event,
-              DebugEvent event,
-              bool running,
-              Handle<JSObject> exec_state,
-              Handle<JSObject> event_data,
-              Handle<String> response_json,
-              v8::Debug::ClientData* client_data);
-
-  bool is_event_;  // Does this message represent a debug event?
-  DebugEvent event_;  // Debug event causing the break.
-  bool running_;  // Will the VM start running after this event?
-  Handle<JSObject> exec_state_;  // Current execution state.
-  Handle<JSObject> event_data_;  // Data associated with the event.
-  Handle<String> response_json_;  // Response JSON if message holds a response.
-  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
-};
-
-
-// Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public v8::Debug::EventDetails {
- public:
-  EventDetailsImpl(DebugEvent event,
-                   Handle<JSObject> exec_state,
-                   Handle<JSObject> event_data,
-                   Handle<Object> callback_data,
-                   v8::Debug::ClientData* client_data);
-  virtual DebugEvent GetEvent() const;
-  virtual v8::Handle<v8::Object> GetExecutionState() const;
-  virtual v8::Handle<v8::Object> GetEventData() const;
-  virtual v8::Handle<v8::Context> GetEventContext() const;
-  virtual v8::Handle<v8::Value> GetCallbackData() const;
-  virtual v8::Debug::ClientData* GetClientData() const;
- private:
-  DebugEvent event_;  // Debug event causing the break.
-  Handle<JSObject> exec_state_;         // Current execution state.
-  Handle<JSObject> event_data_;         // Data associated with the event.
-  Handle<Object> callback_data_;        // User data passed with the callback
-                                        // when it was registered.
-  v8::Debug::ClientData* client_data_;  // Data passed to DebugBreakForCommand.
-};
-
-
-// Message send by user to v8 debugger or debugger output message.
-// In addition to command text it may contain a pointer to some user data
-// which are expected to be passed along with the command reponse to message
-// handler.
-class CommandMessage {
- public:
-  static CommandMessage New(const Vector<uint16_t>& command,
-                            v8::Debug::ClientData* data);
-  CommandMessage();
-  ~CommandMessage();
-
-  // Deletes user data and disposes of the text.
-  void Dispose();
-  Vector<uint16_t> text() const { return text_; }
-  v8::Debug::ClientData* client_data() const { return client_data_; }
- private:
-  CommandMessage(const Vector<uint16_t>& text,
-                 v8::Debug::ClientData* data);
-
-  Vector<uint16_t> text_;
-  v8::Debug::ClientData* client_data_;
-};
-
-// A Queue of CommandMessage objects.  A thread-safe version is
-// LockingCommandMessageQueue, based on this class.
-class CommandMessageQueue BASE_EMBEDDED {
- public:
-  explicit CommandMessageQueue(int size);
-  ~CommandMessageQueue();
-  bool IsEmpty() const { return start_ == end_; }
-  CommandMessage Get();
-  void Put(const CommandMessage& message);
-  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
- private:
-  // Doubles the size of the message queue, and copies the messages.
-  void Expand();
-
-  CommandMessage* messages_;
-  int start_;
-  int end_;
-  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
-};
-
-
-class MessageDispatchHelperThread;
-
-
-// LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
-// messages.  The message data is not managed by LockingCommandMessageQueue.
-// Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
-class LockingCommandMessageQueue BASE_EMBEDDED {
- public:
-  LockingCommandMessageQueue(Logger* logger, int size);
-  bool IsEmpty() const;
-  CommandMessage Get();
-  void Put(const CommandMessage& message);
-  void Clear();
- private:
-  Logger* logger_;
-  CommandMessageQueue queue_;
-  mutable Mutex mutex_;
-  DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
-};
-
-
-class Debugger {
- public:
-  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
-  void OnBeforeCompile(Handle<Script> script);
-
-  enum AfterCompileFlags {
-    NO_AFTER_COMPILE_FLAGS,
-    SEND_WHEN_DEBUGGING
-  };
-  void OnAfterCompile(Handle<Script> script,
-                      AfterCompileFlags after_compile_flags);
-  void OnScriptCollected(int id);
-
-  void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  void SetMessageHandler(v8::Debug::MessageHandler handler);
-
-  // Add a debugger command to the command queue.
-  void EnqueueCommandMessage(Vector<const uint16_t> command,
-                             v8::Debug::ClientData* client_data = NULL);
-
-  // Check whether there are commands in the command queue.
-  bool HasCommands();
-
-  // Enqueue a debugger command to the command queue for event listeners.
-  void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
-
-  MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
-                                           Handle<Object> data);
-
-  Handle<Context> GetDebugContext();
-
-  bool ignore_debugger() const { return ignore_debugger_; }
-  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
-  bool live_edit_enabled() const {
-    return FLAG_enable_liveedit && live_edit_enabled_ ;
-  }
-
-  bool is_active() { return is_active_; }
-
-  class IgnoreScope {
-   public:
-    explicit IgnoreScope(Debugger* debugger)
-        : debugger_(debugger),
-          old_state_(debugger_->ignore_debugger_) {
-      debugger_->ignore_debugger_ = true;
-    }
-
-    ~IgnoreScope() {
-      debugger_->ignore_debugger_ = old_state_;
-    }
-
-   private:
-    Debugger* debugger_;
-    bool old_state_;
-    DISALLOW_COPY_AND_ASSIGN(IgnoreScope);
-  };
-
- private:
-  explicit Debugger(Isolate* isolate);
-  ~Debugger();
-
-  MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
-      Vector<const char> constructor_name,
-      int argc,
-      Handle<Object> argv[]);
-  MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
-  MUST_USE_RESULT MaybeHandle<Object> MakeBreakEvent(
-      Handle<Object> break_points_hit);
-  MUST_USE_RESULT MaybeHandle<Object> MakeExceptionEvent(
-      Handle<Object> exception,
-      bool uncaught,
-      Handle<Object> promise);
-  MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
-      Handle<Script> script, bool before);
-  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
-
-  void CallEventCallback(v8::DebugEvent event,
-                         Handle<Object> exec_state,
-                         Handle<Object> event_data,
-                         v8::Debug::ClientData* client_data);
-  void CallCEventCallback(v8::DebugEvent event,
-                          Handle<Object> exec_state,
-                          Handle<Object> event_data,
-                          v8::Debug::ClientData* client_data);
-  void CallJSEventCallback(v8::DebugEvent event,
-                           Handle<Object> exec_state,
-                           Handle<Object> event_data);
-  void UpdateState();
-
-  void ProcessDebugEvent(v8::DebugEvent event,
-                         Handle<JSObject> event_data,
-                         bool auto_continue);
-  void NotifyMessageHandler(v8::DebugEvent event,
-                            Handle<JSObject> exec_state,
-                            Handle<JSObject> event_data,
-                            bool auto_continue);
-
-  // Invoke the message handler function.
-  void InvokeMessageHandler(MessageImpl message);
-
-  inline bool EventActive() {
-    // Check whether the message handler was been cleared.
-    // TODO(yangguo): handle loading and unloading of the debugger differently.
-    // Currently argument event is not used.
-    return !ignore_debugger_ && is_active_;
-  }
-
-  Handle<Object> event_listener_;  // Global handle to listener.
-  Handle<Object> event_listener_data_;
-  bool is_active_;
-  bool ignore_debugger_;  // Are we temporarily ignoring the debugger?
-  bool live_edit_enabled_;  // Enable LiveEdit.
-  v8::Debug::MessageHandler message_handler_;
-  bool debugger_unload_pending_;  // Was message handler cleared?
-
-  static const int kQueueInitialSize = 4;
-  LockingCommandMessageQueue command_queue_;
-  Semaphore command_received_;  // Signaled for each command received.
-  LockingCommandMessageQueue event_command_queue_;
-
-  Isolate* isolate_;
-
-  friend class EnterDebugger;
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(Debugger);
-};
 
 
 // This class is used for entering the debugger. Create an instance in the stack
@@ -926,6 +885,31 @@ class DisableBreak BASE_EMBEDDED {
   // The previous state of the disable break used to restore the value when this
   // object is destructed.
   bool prev_disable_break_;
+};
+
+
+// Code generator routines.
+class DebugCodegen : public AllStatic {
+ public:
+  static void GenerateSlot(MacroAssembler* masm);
+  static void GenerateCallICStubDebugBreak(MacroAssembler* masm);
+  static void GenerateLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateCompareNilICDebugBreak(MacroAssembler* masm);
+  static void GenerateReturnDebugBreak(MacroAssembler* masm);
+  static void GenerateCallFunctionStubDebugBreak(MacroAssembler* masm);
+  static void GenerateCallConstructStubDebugBreak(MacroAssembler* masm);
+  static void GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm);
+  static void GenerateSlotDebugBreak(MacroAssembler* masm);
+  static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
+
+  // FrameDropper is a code replacement for a JavaScript frame with possibly
+  // several frames above.
+  // There is no calling conventions here, because it never actually gets
+  // called, it only gets returned to.
+  static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
 };
 
 } }  // namespace v8::internal

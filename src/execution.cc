@@ -104,7 +104,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   if (has_exception) {
     isolate->ReportPendingMessages();
     // Reset stepping state when script exits with uncaught exception.
-    if (isolate->debugger()->is_active()) {
+    if (isolate->debug()->is_active()) {
       isolate->debug()->ClearStepping();
     }
     return MaybeHandle<Object>();
@@ -380,7 +380,7 @@ bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag,
 
 char* StackGuard::ArchiveStackGuard(char* to) {
   ExecutionAccess access(isolate_);
-  OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
+  MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadLocal blank;
 
   // Set the stack limits using the old thread_local_.
@@ -397,8 +397,7 @@ char* StackGuard::ArchiveStackGuard(char* to) {
 
 char* StackGuard::RestoreStackGuard(char* from) {
   ExecutionAccess access(isolate_);
-  OS::MemCopy(
-      reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
   isolate_->heap()->SetStackLimits();
   return from + sizeof(ThreadLocal);
 }
@@ -663,7 +662,7 @@ void Execution::DebugBreakHelper(Isolate* isolate) {
   if (isolate->bootstrapper()->IsActive()) return;
 
   // Ignore debug break if debugger is not active.
-  if (!isolate->debugger()->is_active()) return;
+  if (!isolate->debug()->is_active()) return;
 
   StackLimitCheck check(isolate);
   if (check.HasOverflowed()) return;
@@ -704,8 +703,8 @@ void Execution::ProcessDebugMessages(Isolate* isolate,
 
   // Notify the debug event listeners. Indicate auto continue if the break was
   // a debug command break.
-  isolate->debugger()->OnDebugBreak(isolate->factory()->undefined_value(),
-                                    debug_command_only);
+  isolate->debug()->OnDebugBreak(isolate->factory()->undefined_value(),
+                                 debug_command_only);
 }
 
 

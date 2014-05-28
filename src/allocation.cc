@@ -66,7 +66,7 @@ void AllStatic::operator delete(void* p) {
 char* StrDup(const char* str) {
   int length = StrLength(str);
   char* result = NewArray<char>(length + 1);
-  OS::MemCopy(result, str, length);
+  MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }
@@ -76,7 +76,7 @@ char* StrNDup(const char* str, int n) {
   int length = StrLength(str);
   if (n < length) length = n;
   char* result = NewArray<char>(length + 1);
-  OS::MemCopy(result, str, length);
+  MemCopy(result, str, length);
   result[length] = '\0';
   return result;
 }

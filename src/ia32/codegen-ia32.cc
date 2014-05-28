@@ -186,7 +186,7 @@ class LabelConverter {
 };
 
 
-OS::MemMoveFunction CreateMemMoveFunction() {
+MemMoveFunction CreateMemMoveFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
@@ -508,7 +508,7 @@ OS::MemMoveFunction CreateMemMoveFunction() {
   OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
-  return FUNCTION_CAST<OS::MemMoveFunction>(buffer);
+  return FUNCTION_CAST<MemMoveFunction>(buffer);
 }
 
 
@@ -857,7 +857,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
     __ Assert(zero, kExternalStringExpectedButNotFound);
   }
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ test_b(result, kShortExternalStringMask);
   __ j(not_zero, call_runtime);
   // Check encoding.

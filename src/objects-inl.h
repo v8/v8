@@ -398,10 +398,10 @@ uint32_t StringShape::full_representation_tag() {
 }
 
 
-STATIC_CHECK((kStringRepresentationMask | kStringEncodingMask) ==
+STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
              Internals::kFullStringRepresentationMask);
 
-STATIC_CHECK(static_cast<uint32_t>(kStringEncodingMask) ==
+STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
              Internals::kStringEncodingMask);
 
 
@@ -420,10 +420,10 @@ bool StringShape::IsExternalAscii() {
 }
 
 
-STATIC_CHECK((kExternalStringTag | kOneByteStringTag) ==
+STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
              Internals::kExternalAsciiRepresentationTag);
 
-STATIC_CHECK(v8::String::ASCII_ENCODING == kOneByteStringTag);
+STATIC_ASSERT(v8::String::ASCII_ENCODING == kOneByteStringTag);
 
 
 bool StringShape::IsExternalTwoByte() {
@@ -431,10 +431,10 @@ bool StringShape::IsExternalTwoByte() {
 }
 
 
-STATIC_CHECK((kExternalStringTag | kTwoByteStringTag) ==
+STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
              Internals::kExternalTwoByteRepresentationTag);
 
-STATIC_CHECK(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
+STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 uc32 FlatStringReader::Get(int index) {
   ASSERT(0 <= index && index <= length_);
@@ -1566,7 +1566,7 @@ inline bool AllocationSite::IncrementMementoFoundCount() {
 
   int value = memento_found_count();
   set_memento_found_count(value + 1);
-  return value == kPretenureMinimumCreated;
+  return memento_found_count() == kPretenureMinimumCreated;
 }
 
 
@@ -3673,10 +3673,9 @@ void* FixedTypedArrayBase::DataPtr() {
 }
 
 
-int FixedTypedArrayBase::DataSize() {
-  InstanceType instance_type = map()->instance_type();
+int FixedTypedArrayBase::DataSize(InstanceType type) {
   int element_size;
-  switch (instance_type) {
+  switch (type) {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
     case FIXED_##TYPE##_ARRAY_TYPE:                                           \
       element_size = size;                                                    \
@@ -3692,8 +3691,18 @@ int FixedTypedArrayBase::DataSize() {
 }
 
 
+int FixedTypedArrayBase::DataSize() {
+  return DataSize(map()->instance_type());
+}
+
+
 int FixedTypedArrayBase::size() {
   return OBJECT_POINTER_ALIGN(kDataOffset + DataSize());
+}
+
+
+int FixedTypedArrayBase::TypedArraySize(InstanceType type) {
+  return OBJECT_POINTER_ALIGN(kDataOffset + DataSize(type));
 }
 
 
@@ -3918,7 +3927,7 @@ int HeapObject::SizeFromMap(Map* map) {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
-  int instance_type = static_cast<int>(map->instance_type());
+  InstanceType instance_type = map->instance_type();
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
@@ -3951,7 +3960,8 @@ int HeapObject::SizeFromMap(Map* map) {
   }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {
-    return reinterpret_cast<FixedTypedArrayBase*>(this)->size();
+    return reinterpret_cast<FixedTypedArrayBase*>(
+        this)->TypedArraySize(instance_type);
   }
   ASSERT(instance_type == CODE_TYPE);
   return reinterpret_cast<Code*>(this)->CodeSize();
@@ -5415,6 +5425,15 @@ void SharedFunctionInfo::TryReenableOptimization() {
 
 bool JSFunction::IsBuiltin() {
   return context()->global_object()->IsJSBuiltinsObject();
+}
+
+
+bool JSFunction::IsNative() {
+  Object* script = shared()->script();
+  bool native = script->IsScript() &&
+                Script::cast(script)->type()->value() == Script::TYPE_NATIVE;
+  ASSERT(!IsBuiltin() || native);  // All builtins are also native.
+  return native;
 }
 
 

@@ -31,12 +31,22 @@ namespace v8 {
 namespace internal {
 
 Debug::Debug(Isolate* isolate)
-    : has_break_points_(false),
-      script_cache_(NULL),
-      debug_info_list_(NULL),
+    : debug_context_(Handle<Context>()),
+      event_listener_(Handle<Object>()),
+      event_listener_data_(Handle<Object>()),
+      message_handler_(NULL),
+      command_received_(0),
+      command_queue_(isolate->logger(), kQueueInitialSize),
+      event_command_queue_(isolate->logger(), kQueueInitialSize),
+      is_active_(false),
+      ignore_debugger_(false),
+      live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
+      has_break_points_(false),
       disable_break_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
+      script_cache_(NULL),
+      debug_info_list_(NULL),
       isolate_(isolate) {
   ThreadInit();
 }
@@ -515,7 +525,7 @@ void Debug::ThreadInit() {
 
 char* Debug::ArchiveDebug(char* storage) {
   char* to = storage;
-  OS::MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
+  MemCopy(to, reinterpret_cast<char*>(&thread_local_), sizeof(ThreadLocal));
   ThreadInit();
   return storage + ArchiveSpacePerThread();
 }
@@ -523,8 +533,7 @@ char* Debug::ArchiveDebug(char* storage) {
 
 char* Debug::RestoreDebug(char* storage) {
   char* from = storage;
-  OS::MemCopy(
-      reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
+  MemCopy(reinterpret_cast<char*>(&thread_local_), from, sizeof(ThreadLocal));
   return storage + ArchiveSpacePerThread();
 }
 
@@ -597,9 +606,9 @@ Handle<FixedArray> ScriptCache::GetScripts() {
 
 
 void ScriptCache::ProcessCollectedScripts() {
-  Debugger* debugger = isolate_->debugger();
+  Debug* debug = isolate_->debug();
   for (int i = 0; i < collected_scripts_.length(); i++) {
-    debugger->OnScriptCollected(collected_scripts_[i]);
+    debug->OnScriptCollected(collected_scripts_[i]);
   }
   collected_scripts_.Clear();
 }
@@ -750,8 +759,8 @@ bool Debug::Load() {
 
   // Bail out if we're already in the process of compiling the native
   // JavaScript source code for the debugger.
-  if (isolate_->debugger()->ignore_debugger()) return false;
-  Debugger::IgnoreScope during_create(isolate_->debugger());
+  if (isolate_->debug()->ignore_debugger()) return false;
+  Debug::IgnoreScope during_create(isolate_->debug());
 
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
@@ -806,6 +815,7 @@ bool Debug::Load() {
 
 void Debug::Unload() {
   ClearAllBreakPoints();
+  ClearStepping();
 
   // Match unmatched PromiseHandlePrologue calls.
   while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
@@ -902,7 +912,7 @@ Object* Debug::Break(Arguments args) {
       PrepareStep(StepNext, step_count, StackFrame::NO_ID);
     } else {
       // Notify the debug event listeners.
-      isolate_->debugger()->OnDebugBreak(break_points_hit, false);
+      OnDebugBreak(break_points_hit, false);
     }
   } else if (thread_local_.last_step_action_ != StepNone) {
     // Hold on to last step action as it is cleared by the call to
@@ -1210,7 +1220,7 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
                         isolate_);
 
   if (!bindee.is_null() && bindee->IsJSFunction() &&
-      !JSFunction::cast(*bindee)->IsBuiltin()) {
+      !JSFunction::cast(*bindee)->IsNative()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
     Debug::FloodWithOneShot(bindee_function);
   }
@@ -1431,7 +1441,7 @@ void Debug::PrepareStep(StepAction step_action,
       frames_it.Advance();
     }
     // Skip builtin functions on the stack.
-    while (!frames_it.done() && frames_it.frame()->function()->IsBuiltin()) {
+    while (!frames_it.done() && frames_it.frame()->function()->IsNative()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
@@ -1518,7 +1528,7 @@ void Debug::PrepareStep(StepAction step_action,
         Handle<JSFunction> js_function(JSFunction::cast(fun));
         if (js_function->shared()->bound()) {
           Debug::FloodBoundFunctionWithOneShot(js_function);
-        } else if (!js_function->IsBuiltin()) {
+        } else if (!js_function->IsNative()) {
           // Don't step into builtins.
           // It will also compile target function if it's not compiled yet.
           FloodWithOneShot(js_function);
@@ -1732,7 +1742,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
     if (function->shared()->bound()) {
       // Handle Function.prototype.bind
       Debug::FloodBoundFunctionWithOneShot(function);
-    } else if (!function->IsBuiltin()) {
+    } else if (!function->IsNative()) {
       // Don't allow step into functions in the native context.
       if (function->shared()->code() ==
           isolate->builtins()->builtin(Builtins::kFunctionApply) ||
@@ -1744,7 +1754,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         // function.
         if (!holder.is_null() && holder->IsJSFunction()) {
           Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
-          if (!js_function->IsBuiltin()) {
+          if (!js_function->IsNative()) {
             Debug::FloodWithOneShot(js_function);
           } else if (js_function->shared()->bound()) {
             // Handle Function.prototype.bind
@@ -2086,7 +2096,7 @@ void Debug::PrepareForBreakPoints() {
 
           if (!shared->allows_lazy_compilation()) continue;
           if (!shared->script()->IsScript()) continue;
-          if (function->IsBuiltin()) continue;
+          if (function->IsNative()) continue;
           if (shared->code()->gc_metadata() == active_code_marker) continue;
 
           if (shared->is_generator()) {
@@ -2611,24 +2621,7 @@ void Debug::AfterGarbageCollection() {
 }
 
 
-Debugger::Debugger(Isolate* isolate)
-    : event_listener_(Handle<Object>()),
-      event_listener_data_(Handle<Object>()),
-      is_active_(false),
-      ignore_debugger_(false),
-      live_edit_enabled_(true),
-      message_handler_(NULL),
-      command_queue_(isolate->logger(), kQueueInitialSize),
-      command_received_(0),
-      event_command_queue_(isolate->logger(), kQueueInitialSize),
-      isolate_(isolate) {
-}
-
-
-Debugger::~Debugger() {}
-
-
-MaybeHandle<Object> Debugger::MakeJSObject(
+MaybeHandle<Object> Debug::MakeJSObject(
     Vector<const char> constructor_name,
     int argc,
     Handle<Object> argv[]) {
@@ -2650,7 +2643,7 @@ MaybeHandle<Object> Debugger::MakeJSObject(
 }
 
 
-MaybeHandle<Object> Debugger::MakeExecutionState() {
+MaybeHandle<Object> Debug::MakeExecutionState() {
   // Create the execution state object.
   Handle<Object> break_id = isolate_->factory()->NewNumberFromInt(
       isolate_->debug()->break_id());
@@ -2659,7 +2652,7 @@ MaybeHandle<Object> Debugger::MakeExecutionState() {
 }
 
 
-MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
+MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
   Handle<Object> exec_state;
   if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new break event object.
@@ -2668,7 +2661,7 @@ MaybeHandle<Object> Debugger::MakeBreakEvent(Handle<Object> break_points_hit) {
 }
 
 
-MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
+MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
                                                  bool uncaught,
                                                  Handle<Object> promise) {
   Handle<Object> exec_state;
@@ -2682,7 +2675,7 @@ MaybeHandle<Object> Debugger::MakeExceptionEvent(Handle<Object> exception,
 }
 
 
-MaybeHandle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
+MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
                                                bool before) {
   Handle<Object> exec_state;
   if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
@@ -2695,7 +2688,7 @@ MaybeHandle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
 }
 
 
-MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
+MaybeHandle<Object> Debug::MakeScriptCollectedEvent(int id) {
   Handle<Object> exec_state;
   if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the script collected event object.
@@ -2707,13 +2700,13 @@ MaybeHandle<Object> Debugger::MakeScriptCollectedEvent(int id) {
 }
 
 
-void Debugger::OnException(Handle<Object> exception, bool uncaught) {
+void Debug::OnException(Handle<Object> exception, bool uncaught) {
   HandleScope scope(isolate_);
   Debug* debug = isolate_->debug();
 
   // Bail out based on state or if there is no listener for this event
   if (debug->InDebugger()) return;
-  if (!Debugger::EventActive()) return;
+  if (!EventActive()) return;
 
   Handle<Object> promise = debug->GetPromiseForUncaughtException();
   uncaught |= !promise->IsUndefined();
@@ -2749,18 +2742,15 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
 }
 
 
-void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
+void Debug::OnDebugBreak(Handle<Object> break_points_hit,
                             bool auto_continue) {
   HandleScope scope(isolate_);
 
   // Debugger has already been entered by caller.
-  ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
+  ASSERT(isolate_->context() == *debug_context());
 
   // Bail out if there is no listener for this event
-  if (!Debugger::EventActive()) return;
-
-  // Debugger must be entered in advance.
-  ASSERT(isolate_->context() == *isolate_->debug()->debug_context());
+  if (!EventActive()) return;
 
   // Create the event data object.
   Handle<Object> event_data;
@@ -2774,11 +2764,11 @@ void Debugger::OnDebugBreak(Handle<Object> break_points_hit,
 }
 
 
-void Debugger::OnBeforeCompile(Handle<Script> script) {
+void Debug::OnBeforeCompile(Handle<Script> script) {
   HandleScope scope(isolate_);
 
   // Bail out based on state or if there is no listener for this event
-  if (isolate_->debug()->InDebugger()) return;
+  if (InDebugger()) return;
   if (!EventActive()) return;
 
   // Enter the debugger.
@@ -2798,19 +2788,18 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
 
 // Handle debugger actions when a new script is compiled.
-void Debugger::OnAfterCompile(Handle<Script> script,
+void Debug::OnAfterCompile(Handle<Script> script,
                               AfterCompileFlags after_compile_flags) {
   HandleScope scope(isolate_);
-  Debug* debug = isolate_->debug();
 
   // Add the newly compiled script to the script cache.
-  debug->AddScriptToScriptCache(script);
+  AddScriptToScriptCache(script);
 
   // No more to do if not debugging.
-  if (!Debugger::EventActive()) return;
+  if (!EventActive()) return;
 
   // Store whether in debugger before entering debugger.
-  bool in_debugger = debug->InDebugger();
+  bool in_debugger = InDebugger();
 
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
@@ -2823,7 +2812,7 @@ void Debugger::OnAfterCompile(Handle<Script> script,
   Handle<String> update_script_break_points_string =
       isolate_->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("UpdateScriptBreakPoints"));
-  Handle<GlobalObject> debug_global(debug->debug_context()->global_object());
+  Handle<GlobalObject> debug_global(debug_context()->global_object());
   Handle<Object> update_script_break_points =
       Object::GetProperty(
           debug_global, update_script_break_points_string).ToHandleChecked();
@@ -2857,12 +2846,12 @@ void Debugger::OnAfterCompile(Handle<Script> script,
 }
 
 
-void Debugger::OnScriptCollected(int id) {
+void Debug::OnScriptCollected(int id) {
   HandleScope scope(isolate_);
 
   // No more to do if not debugging.
-  if (isolate_->debug()->InDebugger()) return;
-  if (!Debugger::EventActive()) return;
+  if (InDebugger()) return;
+  if (!EventActive()) return;
 
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
@@ -2880,15 +2869,13 @@ void Debugger::OnScriptCollected(int id) {
 }
 
 
-void Debugger::ProcessDebugEvent(v8::DebugEvent event,
-                                 Handle<JSObject> event_data,
-                                 bool auto_continue) {
+void Debug::ProcessDebugEvent(v8::DebugEvent event,
+                              Handle<JSObject> event_data,
+                              bool auto_continue) {
   HandleScope scope(isolate_);
 
   // Clear any pending debug break if this is a real break.
-  if (!auto_continue) {
-    isolate_->debug()->set_has_pending_interrupt(false);
-  }
+  if (!auto_continue) set_has_pending_interrupt(false);
 
   // Create the execution state.
   Handle<Object> exec_state;
@@ -2924,10 +2911,10 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 }
 
 
-void Debugger::CallEventCallback(v8::DebugEvent event,
-                                 Handle<Object> exec_state,
-                                 Handle<Object> event_data,
-                                 v8::Debug::ClientData* client_data) {
+void Debug::CallEventCallback(v8::DebugEvent event,
+                              Handle<Object> exec_state,
+                              Handle<Object> event_data,
+                              v8::Debug::ClientData* client_data) {
   if (event_listener_->IsForeign()) {
     CallCEventCallback(event, exec_state, event_data, client_data);
   } else {
@@ -2936,10 +2923,10 @@ void Debugger::CallEventCallback(v8::DebugEvent event,
 }
 
 
-void Debugger::CallCEventCallback(v8::DebugEvent event,
-                                  Handle<Object> exec_state,
-                                  Handle<Object> event_data,
-                                  v8::Debug::ClientData* client_data) {
+void Debug::CallCEventCallback(v8::DebugEvent event,
+                               Handle<Object> exec_state,
+                               Handle<Object> event_data,
+                               v8::Debug::ClientData* client_data) {
   Handle<Foreign> callback_obj(Handle<Foreign>::cast(event_listener_));
   v8::Debug::EventCallback2 callback =
       FUNCTION_CAST<v8::Debug::EventCallback2>(
@@ -2954,9 +2941,9 @@ void Debugger::CallCEventCallback(v8::DebugEvent event,
 }
 
 
-void Debugger::CallJSEventCallback(v8::DebugEvent event,
-                                   Handle<Object> exec_state,
-                                   Handle<Object> event_data) {
+void Debug::CallJSEventCallback(v8::DebugEvent event,
+                                Handle<Object> exec_state,
+                                Handle<Object> event_data) {
   ASSERT(event_listener_->IsJSFunction());
   Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
 
@@ -2973,17 +2960,17 @@ void Debugger::CallJSEventCallback(v8::DebugEvent event,
 }
 
 
-Handle<Context> Debugger::GetDebugContext() {
+Handle<Context> Debug::GetDebugContext() {
   EnterDebugger debugger(isolate_);
   // The global handle may be destroyed soon after.  Return it reboxed.
-  return handle(*isolate_->debug()->debug_context(), isolate_);
+  return handle(*debug_context(), isolate_);
 }
 
 
-void Debugger::NotifyMessageHandler(v8::DebugEvent event,
-                                    Handle<JSObject> exec_state,
-                                    Handle<JSObject> event_data,
-                                    bool auto_continue) {
+void Debug::NotifyMessageHandler(v8::DebugEvent event,
+                                 Handle<JSObject> exec_state,
+                                 Handle<JSObject> event_data,
+                                 bool auto_continue) {
   ASSERT(is_active_);
   HandleScope scope(isolate_);
   // Process the individual events.
@@ -3013,7 +3000,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
   // The debug command interrupt flag might have been set when the command was
   // added. It should be enough to clear the flag only once while we are in the
   // debugger.
-  ASSERT(isolate_->debug()->InDebugger());
+  ASSERT(InDebugger());
   isolate_->stack_guard()->ClearDebugCommand();
 
   // Notify the debugger that a debug event has occurred unless auto continue is
@@ -3058,7 +3045,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     CommandMessage command = command_queue_.Get();
     isolate_->logger()->DebugTag(
         "Got request from command queue, in interactive loop.");
-    if (!Debugger::is_active()) {
+    if (!is_active()) {
       // Delete command text and user data.
       command.Dispose();
       return;
@@ -3111,8 +3098,8 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
 }
 
 
-void Debugger::SetEventListener(Handle<Object> callback,
-                                Handle<Object> data) {
+void Debug::SetEventListener(Handle<Object> callback,
+                             Handle<Object> data) {
   GlobalHandles* global_handles = isolate_->global_handles();
 
   // Remove existing entry.
@@ -3132,10 +3119,10 @@ void Debugger::SetEventListener(Handle<Object> callback,
 }
 
 
-void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
+void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   message_handler_ = handler;
   UpdateState();
-  if (handler == NULL && isolate_->debug()->InDebugger()) {
+  if (handler == NULL && InDebugger()) {
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
     EnqueueCommandMessage(Vector<const uint16_t>::empty());
@@ -3143,29 +3130,29 @@ void Debugger::SetMessageHandler(v8::Debug::MessageHandler handler) {
 }
 
 
-void Debugger::UpdateState() {
-  Debug* debug = isolate_->debug();
+
+void Debug::UpdateState() {
   bool activate = message_handler_ != NULL ||
                   !event_listener_.is_null() ||
-                  debug->InDebugger();
+                  InDebugger();
   if (!is_active_ && activate) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    activate = debug->Load();
-  } else if (debug->IsLoaded() && !activate) {
+    activate = Load();
+  } else if (IsLoaded() && !activate) {
     isolate_->compilation_cache()->Enable();
-    debug->Unload();
+    Unload();
   }
   is_active_ = activate;
   // At this point the debug context is loaded iff the debugger is active.
-  ASSERT(debug->IsLoaded() == is_active_);
+  ASSERT(IsLoaded() == is_active_);
 }
 
 
 // Calls the registered debug message handler. This callback is part of the
 // public API.
-void Debugger::InvokeMessageHandler(MessageImpl message) {
+void Debug::InvokeMessageHandler(MessageImpl message) {
   if (message_handler_ != NULL) message_handler_(message);
 }
 
@@ -3174,8 +3161,8 @@ void Debugger::InvokeMessageHandler(MessageImpl message) {
 // a copy of the command string managed by the debugger.  Up to this
 // point, the command data was managed by the API client.  Called
 // by the API client thread.
-void Debugger::EnqueueCommandMessage(Vector<const uint16_t> command,
-                                     v8::Debug::ClientData* client_data) {
+void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
+                                  v8::Debug::ClientData* client_data) {
   // Need to cast away const.
   CommandMessage message = CommandMessage::New(
       Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
@@ -3192,24 +3179,21 @@ void Debugger::EnqueueCommandMessage(Vector<const uint16_t> command,
 }
 
 
-bool Debugger::HasCommands() {
+bool Debug::HasCommands() {
   return !command_queue_.IsEmpty();
 }
 
 
-void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
+void Debug::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
   CommandMessage message = CommandMessage::New(Vector<uint16_t>(), client_data);
   event_command_queue_.Put(message);
 
   // Set the debug command break flag to have the command processed.
-  if (!isolate_->debug()->InDebugger()) {
-    isolate_->stack_guard()->RequestDebugCommand();
-  }
+  if (!InDebugger()) isolate_->stack_guard()->RequestDebugCommand();
 }
 
 
-MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
-                                   Handle<Object> data) {
+MaybeHandle<Object> Debug::Call(Handle<JSFunction> fun, Handle<Object> data) {
   // Enter the debugger.
   EnterDebugger debugger(isolate_);
   if (debugger.FailedToEnter()) {
@@ -3226,8 +3210,7 @@ MaybeHandle<Object> Debugger::Call(Handle<JSFunction> fun,
   return Execution::Call(
       isolate_,
       fun,
-      Handle<Object>(isolate_->debug()->debug_context_->global_proxy(),
-                     isolate_),
+      Handle<Object>(debug_context()->global_proxy(), isolate_),
       ARRAY_SIZE(argv),
       argv);
 }
@@ -3252,7 +3235,7 @@ EnterDebugger::EnterDebugger(Isolate* isolate)
   has_js_frames_ = !it.done();
   debug->NewBreak(has_js_frames_ ? it.frame()->id() : StackFrame::NO_ID);
 
-  isolate_->debugger()->UpdateState();
+  debug->UpdateState();
   // Make sure that debugger is loaded and enter the debugger context.
   // The previous context is kept in save_.
   load_failed_ = !debug->IsLoaded();
@@ -3278,7 +3261,7 @@ EnterDebugger::~EnterDebugger() {
 
     // If there are commands in the queue when leaving the debugger request
     // that these commands are processed.
-    if (isolate_->debugger()->HasCommands()) {
+    if (debug->HasCommands()) {
       isolate_->stack_guard()->RequestDebugCommand();
     }
   }
@@ -3286,7 +3269,7 @@ EnterDebugger::~EnterDebugger() {
   // Leaving this debugger entry.
   debug->set_debugger_entry(prev_);
 
-  isolate_->debugger()->UpdateState();
+  debug->UpdateState();
 }
 
 

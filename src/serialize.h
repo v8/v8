@@ -283,7 +283,7 @@ int SnapshotByteSource::GetInt() {
 
 
 void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
-  OS::MemCopy(to, data_ + position_, number_of_bytes);
+  MemCopy(to, data_ + position_, number_of_bytes);
   position_ += number_of_bytes;
 }
 

@@ -1449,8 +1449,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (5b) Is subject external?  If yes, go to (8).
   __ testb(rbx, Immediate(kStringRepresentationMask));
   // The underlying external string is never a short external string.
-  STATIC_CHECK(ExternalString::kMaxShortLength < ConsString::kMinLength);
-  STATIC_CHECK(ExternalString::kMaxShortLength < SlicedString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < ConsString::kMinLength);
+  STATIC_ASSERT(ExternalString::kMaxShortLength < SlicedString::kMinLength);
   __ j(not_zero, &external_string);  // Go to (8)
 
   // (6) One byte sequential.  Load regexp code for one byte.
@@ -3423,7 +3423,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Handle external string.
   // Rule out short external strings.
-  STATIC_CHECK(kShortExternalStringTag != 0);
+  STATIC_ASSERT(kShortExternalStringTag != 0);
   __ testb(rbx, Immediate(kShortExternalStringMask));
   __ j(not_zero, &runtime);
   __ movp(rdi, FieldOperand(rdi, ExternalString::kResourceDataOffset));
@@ -4895,8 +4895,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // but the following masking takes care of that anyway.
   __ movzxbp(rcx, FieldOperand(rcx, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
-  __ andp(rcx, Immediate(Map::kElementsKindMask));
-  __ shrp(rcx, Immediate(Map::kElementsKindShift));
+  __ DecodeField<Map::ElementsKindBits>(rcx);
 
   if (FLAG_debug_code) {
     Label done;

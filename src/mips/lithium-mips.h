@@ -421,6 +421,7 @@ class LDummyUse V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LDeoptimize V8_FINAL : public LTemplateInstruction<0, 0, 0> {
  public:
+  virtual bool IsControl() const V8_OVERRIDE { return true; }
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
   DECLARE_HYDROGEN_ACCESSOR(Deoptimize)
 };
@@ -2763,6 +2764,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   // Temporary operand that must be in a register.
   MUST_USE_RESULT LUnallocated* TempRegister();
+  MUST_USE_RESULT LUnallocated* TempDoubleRegister();
   MUST_USE_RESULT LOperand* FixedTemp(Register reg);
   MUST_USE_RESULT LOperand* FixedTemp(DoubleRegister reg);
 

@@ -3304,8 +3304,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   bind(&loop_again);
   mov(current, FieldOperand(current, HeapObject::kMapOffset));
   mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
-  and_(scratch1, Map::kElementsKindMask);
-  shr(scratch1, Map::kElementsKindShift);
+  DecodeField<Map::ElementsKindBits>(scratch1);
   cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
   j(equal, found);
   mov(current, FieldOperand(current, Map::kPrototypeOffset));

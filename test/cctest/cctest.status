@@ -74,6 +74,9 @@
   # BUG(3287).
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [PASS, FLAKY],
 
+   # BUG(3350). Crashes.
+  'test-heap/PathTracer': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

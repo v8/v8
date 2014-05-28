@@ -258,7 +258,7 @@ class LiteralBuffer {
 
   void ExpandBuffer() {
     Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
-    OS::MemCopy(new_store.start(), backing_store_.start(), position_);
+    MemCopy(new_store.start(), backing_store_.start(), position_);
     backing_store_.Dispose();
     backing_store_ = new_store;
   }

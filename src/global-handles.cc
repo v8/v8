@@ -207,6 +207,7 @@ class GlobalHandles::Node {
   void MakeWeak(void* parameter, WeakCallback weak_callback) {
     ASSERT(weak_callback != NULL);
     ASSERT(state() != FREE);
+    CHECK(object_ != NULL);
     set_state(WEAK);
     set_parameter(parameter);
     weak_callback_ = weak_callback;

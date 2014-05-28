@@ -4,8 +4,6 @@
 
 #include "worker-thread.h"
 
-// TODO(jochen): We should have our own version of checks.h.
-#include "../checks.h"
 #include "../../include/v8-platform.h"
 #include "task-queue.h"
 

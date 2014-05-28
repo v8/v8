@@ -55,6 +55,11 @@ void MacroAssembler::Store(Register src, const Operand& dst, Representation r) {
   } else if (r.IsInteger16() || r.IsUInteger16()) {
     mov_w(dst, src);
   } else {
+    if (r.IsHeapObject()) {
+      AssertNotSmi(src);
+    } else if (r.IsSmi()) {
+      AssertSmi(src);
+    }
     mov(dst, src);
   }
 }
@@ -2042,16 +2047,10 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
   // reserved for it does not conflict.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
          (1 << String::kArrayIndexValueBits));
-  // We want the smi-tagged index in key.  kArrayIndexValueMask has zeros in
-  // the low kHashShift bits.
-  and_(hash, String::kArrayIndexValueMask);
-  STATIC_ASSERT(String::kHashShift >= kSmiTagSize && kSmiTag == 0);
-  if (String::kHashShift > kSmiTagSize) {
-    shr(hash, String::kHashShift - kSmiTagSize);
-  }
   if (!index.is(hash)) {
     mov(index, hash);
   }
+  DecodeFieldToSmi<String::ArrayIndexValueBits>(index);
 }
 
 
@@ -3417,8 +3416,7 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
   bind(&loop_again);
   mov(current, FieldOperand(current, HeapObject::kMapOffset));
   mov(scratch1, FieldOperand(current, Map::kBitField2Offset));
-  and_(scratch1, Map::kElementsKindMask);
-  shr(scratch1, Map::kElementsKindShift);
+  DecodeField<Map::ElementsKindBits>(scratch1);
   cmp(scratch1, Immediate(DICTIONARY_ELEMENTS));
   j(equal, found);
   mov(current, FieldOperand(current, Map::kPrototypeOffset));

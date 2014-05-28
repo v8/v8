@@ -694,12 +694,12 @@ void Simulator::CheckICache(v8::internal::HashMap* i_cache,
   char* cached_line = cache_page->CachedData(offset & ~CachePage::kLineMask);
   if (cache_hit) {
     // Check that the data in memory matches the contents of the I-cache.
-    CHECK_EQ(0, memcmp(reinterpret_cast<void*>(instr),
-                       cache_page->CachedData(offset),
-                       Instruction::kInstrSize));
+    CHECK_EQ(0,
+             memcmp(reinterpret_cast<void*>(instr),
+                    cache_page->CachedData(offset), Instruction::kInstrSize));
   } else {
     // Cache miss.  Load memory into the cache.
-    OS::MemCopy(cached_line, line, CachePage::kLineLength);
+    memcpy(cached_line, line, CachePage::kLineLength);
     *cache_valid_byte = CachePage::LINE_VALID;
   }
 }
@@ -894,8 +894,8 @@ double Simulator::get_double_from_register_pair(int reg) {
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
   char buffer[2 * sizeof(vfp_registers_[0])];
-  OS::MemCopy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
-  OS::MemCopy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
 }
 
@@ -999,9 +999,9 @@ void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  OS::MemCopy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
-  OS::MemCopy(&vfp_registers_[reg_index * register_size], buffer,
-              register_size * sizeof(vfp_registers_[0]));
+  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
+  memcpy(&vfp_registers_[reg_index * register_size], buffer,
+         register_size * sizeof(vfp_registers_[0]));
 }
 
 
@@ -1013,9 +1013,9 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 
   ReturnType value = 0;
   char buffer[register_size * sizeof(vfp_registers_[0])];
-  OS::MemCopy(buffer, &vfp_registers_[register_size * reg_index],
-              register_size * sizeof(vfp_registers_[0]));
-  OS::MemCopy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
+  memcpy(buffer, &vfp_registers_[register_size * reg_index],
+         register_size * sizeof(vfp_registers_[0]));
+  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
   return value;
 }
 
@@ -1044,14 +1044,14 @@ void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
     char buffer[2 * sizeof(vfp_registers_[0])];
-    OS::MemCopy(buffer, &result, sizeof(buffer));
+    memcpy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    OS::MemCopy(vfp_registers_, buffer, sizeof(buffer));
+    memcpy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
-    OS::MemCopy(buffer, &result, sizeof(buffer));
+    memcpy(buffer, &result, sizeof(buffer));
     // Copy result to r0 and r1.
-    OS::MemCopy(registers_, buffer, sizeof(buffer));
+    memcpy(registers_, buffer, sizeof(buffer));
   }
 }
 
@@ -1635,12 +1635,12 @@ void Simulator::HandleVList(Instruction* instr) {
           ReadW(reinterpret_cast<int32_t>(address + 1), instr)
         };
         double d;
-        OS::MemCopy(&d, data, 8);
+        memcpy(&d, data, 8);
         set_d_register_from_double(reg, d);
       } else {
         int32_t data[2];
         double d = get_double_from_d_register(reg);
-        OS::MemCopy(data, &d, 8);
+        memcpy(data, &d, 8);
         WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
         WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
       }
@@ -3020,9 +3020,9 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int vd = instr->Bits(19, 16) | (instr->Bit(7) << 4);
       double dd_value = get_double_from_d_register(vd);
       int32_t data[2];
-      OS::MemCopy(data, &dd_value, 8);
+      memcpy(data, &dd_value, 8);
       data[instr->Bit(21)] = get_register(instr->RtValue());
-      OS::MemCopy(&dd_value, data, 8);
+      memcpy(&dd_value, data, 8);
       set_d_register_from_double(vd, dd_value);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x1) &&
@@ -3031,7 +3031,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int vn = instr->Bits(19, 16) | (instr->Bit(7) << 4);
       double dn_value = get_double_from_d_register(vn);
       int32_t data[2];
-      OS::MemCopy(data, &dn_value, 8);
+      memcpy(data, &dn_value, 8);
       set_register(instr->RtValue(), data[instr->Bit(21)]);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x0) &&
@@ -3382,13 +3382,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
           if (instr->HasL()) {
             int32_t data[2];
             double d = get_double_from_d_register(vm);
-            OS::MemCopy(data, &d, 8);
+            memcpy(data, &d, 8);
             set_register(rt, data[0]);
             set_register(rn, data[1]);
           } else {
             int32_t data[] = { get_register(rt), get_register(rn) };
             double d;
-            OS::MemCopy(&d, data, 8);
+            memcpy(&d, data, 8);
             set_d_register_from_double(vm, d);
           }
         }
@@ -3411,13 +3411,13 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
             ReadW(address + 4, instr)
           };
           double val;
-          OS::MemCopy(&val, data, 8);
+          memcpy(&val, data, 8);
           set_d_register_from_double(vd, val);
         } else {
           // Store double to memory: vstr.
           int32_t data[2];
           double val = get_double_from_d_register(vd);
-          OS::MemCopy(data, &val, 8);
+          memcpy(data, &val, 8);
           WriteW(address, data[0], instr);
           WriteW(address + 4, data[1], instr);
         }

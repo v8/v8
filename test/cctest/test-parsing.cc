@@ -84,7 +84,7 @@ TEST(ScanKeywords) {
     // Adding characters will make keyword matching fail.
     static const char chars_to_append[] = { 'z', '0', '_' };
     for (int j = 0; j < static_cast<int>(ARRAY_SIZE(chars_to_append)); ++j) {
-      i::OS::MemMove(buffer, keyword, length);
+      i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       i::Utf8ToUtf16CharacterStream stream(buffer, length + 1);
       i::Scanner scanner(&unicode_cache);
@@ -94,7 +94,7 @@ TEST(ScanKeywords) {
     }
     // Replacing characters will make keyword matching fail.
     {
-      i::OS::MemMove(buffer, keyword, length);
+      i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       i::Utf8ToUtf16CharacterStream stream(buffer, length);
       i::Scanner scanner(&unicode_cache);

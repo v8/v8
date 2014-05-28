@@ -107,29 +107,6 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-static void MemMoveWrapper(void* dest, const void* src, size_t size) {
-  memmove(dest, src, size);
-}
-
-
-// Initialize to library version so we can call this at any time during startup.
-static OS::MemMoveFunction memmove_function = &MemMoveWrapper;
-
-// Defined in codegen-ia32.cc.
-OS::MemMoveFunction CreateMemMoveFunction();
-
-// Copy memory area to disjoint memory area.
-void OS::MemMove(void* dest, const void* src, size_t size) {
-  if (size == 0) return;
-  // Note: here we rely on dependent reads being ordered. This is true
-  // on all architectures we currently support.
-  (*memmove_function)(dest, src, size);
-}
-
-#endif  // V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-
-
 class TimezoneCache {
  public:
   TimezoneCache() : initialized_(false) { }
@@ -449,16 +426,6 @@ char* Win32Time::LocalTimezone(TimezoneCache* cache) {
   // Return the standard or DST time zone name based on whether daylight
   // saving is in effect at the given time.
   return InDST(cache) ? cache->dst_tz_name_ : cache->std_tz_name_;
-}
-
-
-void OS::PostSetUp() {
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
-  OS::MemMoveFunction generated_memmove = CreateMemMoveFunction();
-  if (generated_memmove != NULL) {
-    memmove_function = generated_memmove;
-  }
-#endif
 }
 
 
@@ -913,7 +880,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
   if (file_mapping == NULL) return NULL;
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
-  if (memory) OS::MemMove(memory, initial, size);
+  if (memory) MemMove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
 

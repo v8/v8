@@ -714,7 +714,6 @@ class HValue : public ZoneObject {
     if (r.IsTagged()) {
       HType t = type();
       if (t.IsSmi()) return Representation::Smi();
-      // TODO(mstarzinger): This is not correct for mutable HeapNumbers.
       if (t.IsHeapNumber()) return Representation::Double();
       if (t.IsHeapObject()) return r;
       return Representation::None();
@@ -5547,10 +5546,6 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
       return Representation::Integer32();
     }
   }
-  // TODO(mstarzinger): Workaround until we track mutable HeapNumber types.
-  virtual Representation KnownOptimalRepresentation() V8_OVERRIDE {
-    return representation();
-  }
 
   virtual Handle<Map> GetMonomorphicJSObjectMap() {
     return known_initial_map_;
@@ -6816,6 +6811,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                                            new_space_dominator());
   }
 
+  SmiCheck SmiCheckForWriteBarrier() const {
+    if (field_representation().IsHeapObject()) return OMIT_SMI_CHECK;
+    if (value()->IsHeapObject()) return OMIT_SMI_CHECK;
+    return INLINE_SMI_CHECK;
+  }
+
   Representation field_representation() const {
     return access_.representation();
   }
@@ -7776,6 +7777,8 @@ class HForInCacheArray V8_FINAL : public HTemplateInstruction<2> {
 
 class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
  public:
+  DECLARE_INSTRUCTION_FACTORY_P2(HLoadFieldByIndex, HValue*, HValue*);
+
   HLoadFieldByIndex(HValue* object,
                     HValue* index) {
     SetOperandAt(0, object);
@@ -7785,7 +7788,11 @@ class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
   }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
+    if (index == 1) {
+      return Representation::Smi();
+    } else {
+      return Representation::Tagged();
+    }
   }
 
   HValue* object() { return OperandAt(0); }

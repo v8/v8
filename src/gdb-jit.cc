@@ -658,7 +658,7 @@ class ELF BASE_EMBEDDED {
 #else
 #error Unsupported target architecture.
 #endif
-    OS::MemCopy(header->ident, ident, 16);
+    memcpy(header->ident, ident, 16);
     header->type = 1;
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
     header->machine = 3;
@@ -1833,7 +1833,7 @@ static JITCodeEntry* CreateCodeEntry(Address symfile_addr,
 
   entry->symfile_addr_ = reinterpret_cast<Address>(entry + 1);
   entry->symfile_size_ = symfile_size;
-  OS::MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
+  MemCopy(entry->symfile_addr_, symfile_addr, symfile_size);
 
   entry->prev_ = entry->next_ = NULL;
 

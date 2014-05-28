@@ -110,15 +110,15 @@ void TestMemMove(byte* area1,
     area1[i] = i & 0xFF;
     area2[i] = i & 0xFF;
   }
-  OS::MemMove(area1 + dest_offset, area1 + src_offset, length);
+  MemMove(area1 + dest_offset, area1 + src_offset, length);
   memmove(area2 + dest_offset, area2 + src_offset, length);
   if (memcmp(area1, area2, kAreaSize) != 0) {
-    printf("OS::MemMove(): src_offset: %d, dest_offset: %d, length: %d\n",
+    printf("MemMove(): src_offset: %d, dest_offset: %d, length: %d\n",
            src_offset, dest_offset, length);
     for (int i = 0; i < kAreaSize; i++) {
       if (area1[i] == area2[i]) continue;
-      printf("diff at offset %d (%p): is %d, should be %d\n",
-             i, reinterpret_cast<void*>(area1 + i), area1[i], area2[i]);
+      printf("diff at offset %d (%p): is %d, should be %d\n", i,
+             reinterpret_cast<void*>(area1 + i), area1[i], area2[i]);
     }
     CHECK(false);
   }
