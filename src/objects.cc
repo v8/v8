@@ -11217,14 +11217,7 @@ void SharedFunctionInfo::ClearTypeFeedbackInfo() {
           // AllocationSites are not cleared because they do not store
           // information that leaks.
           break;
-        case JS_FUNCTION_TYPE:
-          // No need to clear the native context array function.
-          if (obj == JSFunction::cast(obj)->context()->native_context()->
-              get(Context::ARRAY_FUNCTION_INDEX)) {
-            break;
-          }
           // Fall through...
-
         default:
           vector->set(i, TypeFeedbackInfo::RawUninitializedSentinel(heap),
                       SKIP_WRITE_BARRIER);
