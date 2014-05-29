@@ -26,7 +26,7 @@
 #define V8_ATOMICOPS_H_
 
 #include "../include/v8.h"
-#include "globals.h"
+#include "base/build_config.h"
 
 #if defined(_WIN32) && defined(V8_HOST_ARCH_64_BIT)
 // windows.h #defines this (only on x64). This causes problems because the

@@ -123,7 +123,6 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
                      Assembler::kDebugBreakSlotInstructions);
 }
 
-const bool Debug::FramePaddingLayout::kIsSupported = false;
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
@@ -350,7 +349,8 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnARM64);
 }
 
-const bool Debug::kFrameDropperSupported = false;
+
+const bool LiveEdit::kFrameDropperSupported = false;
 
 } }  // namespace v8::internal
 

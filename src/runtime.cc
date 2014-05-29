@@ -1710,7 +1710,6 @@ static Handle<JSWeakCollection> WeakCollectionInitialize(
   ASSERT(weak_collection->map()->inobject_properties() == 0);
   Handle<ObjectHashTable> table = ObjectHashTable::New(isolate, 0);
   weak_collection->set_table(*table);
-  weak_collection->set_next(Smi::FromInt(0));
   return weak_collection;
 }
 
@@ -5176,29 +5175,6 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
   LookupResult lookup(isolate);
   js_object->LookupOwnRealNamedProperty(name, &lookup);
 
-  // Special case for callback properties.
-  if (lookup.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup.GetCallbackObject(), isolate);
-    // Avoid redefining callback as data property, just use the stored
-    // setter to update the value instead.
-    // TODO(mstarzinger): So far this only works if property attributes don't
-    // change, this should be fixed once we cleanup the underlying code.
-    ASSERT(!callback->IsForeign());
-    if (callback->IsAccessorInfo() &&
-        lookup.GetAttributes() == attr) {
-      Handle<Object> result_object;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, result_object,
-          JSObject::SetPropertyWithCallback(js_object,
-                                            callback,
-                                            name,
-                                            obj_value,
-                                            handle(lookup.holder()),
-                                            STRICT));
-      return *result_object;
-    }
-  }
-
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
   // to not worry about changing the instance_descriptor and creating a new
@@ -5213,14 +5189,25 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineDataProperty) {
       // we don't have to check for null.
       js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
     }
-    JSObject::NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+
+    if (attr != lookup.GetAttributes() ||
+        (lookup.IsPropertyCallbacks() &&
+         !lookup.GetCallbackObject()->IsAccessorInfo())) {
+      JSObject::NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
+    }
+
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
-            js_object, name, obj_value, attr));
+            js_object, name, obj_value, attr,
+            Object::OPTIMAL_REPRESENTATION,
+            ALLOW_AS_CONSTANT,
+            JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+            JSReceiver::MAY_BE_STORE_FROM_KEYED,
+            JSObject::DONT_FORCE_FIELD));
     return *result;
   }
 
@@ -10790,7 +10777,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       ASSERT(!structure->IsForeign());
       if (structure->IsAccessorInfo()) {
         MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
-            handle(result->holder(), isolate), receiver, structure, name);
+            receiver, name, handle(result->holder(), isolate), structure);
         if (!obj.ToHandle(&value)) {
           value = handle(isolate->pending_exception(), isolate);
           isolate->clear_pending_exception();

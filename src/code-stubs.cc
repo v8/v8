@@ -470,6 +470,12 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
+void CallIC_ArrayStub::PrintState(StringStream* stream) {
+  state_.Print(stream);
+  stream->Add(" (Array)");
+}
+
+
 void CallICStub::PrintState(StringStream* stream) {
   state_.Print(stream);
 }

@@ -1,3 +1,11 @@
+2014-05-29: Version 3.27.16
+
+        Allow microtasks to throw exceptions and handle them gracefully
+        (Chromium issue 371566).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-28: Version 3.27.15
 
         Performance and stability improvements on all platforms.

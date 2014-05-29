@@ -6420,6 +6420,11 @@ bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
 }
 
 
+void ExecutableAccessorInfo::clear_setter() {
+  set_setter(GetIsolate()->heap()->undefined_value(), SKIP_WRITE_BARRIER);
+}
+
+
 void AccessorPair::set_access_flags(v8::AccessControl access_control) {
   int current = access_flags()->value();
   current = BooleanBit::set(current,

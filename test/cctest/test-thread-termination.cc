@@ -358,3 +358,47 @@ TEST(TerminateCancelTerminateFromThreadItself) {
   // Check that execution completed with correct return value.
   CHECK(v8::Script::Compile(source)->Run()->Equals(v8_str("completed")));
 }
+
+
+void MicrotaskShouldNotRun(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(false);
+}
+
+
+void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::HandleScope scope(isolate);
+  // Enqueue another should-not-run task to ensure we clean out the queue
+  // when we terminate.
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
+  CompileRun("terminate(); while (true) { }");
+  CHECK(v8::V8::IsExecutionTerminating());
+}
+
+
+TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
+  semaphore = new v8::internal::Semaphore(0);
+  TerminatorThread thread(CcTest::i_isolate());
+  thread.Start();
+
+  v8::Isolate* isolate = CcTest::isolate();
+  isolate->SetAutorunMicrotasks(false);
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(CcTest::isolate(), Signal, DoLoop);
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global);
+  v8::Context::Scope context_scope(context);
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskLoopForever));
+  // The second task should never be run because we bail out if we're
+  // terminating.
+  isolate->EnqueueMicrotask(v8::Function::New(isolate, MicrotaskShouldNotRun));
+  isolate->RunMicrotasks();
+
+  v8::V8::CancelTerminateExecution(isolate);
+  isolate->RunMicrotasks();  // should not run MicrotaskShouldNotRun
+
+  thread.Join();
+  delete semaphore;
+  semaphore = NULL;
+}

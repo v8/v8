@@ -4380,6 +4380,7 @@ class V8_EXPORT Isolate {
 
   /**
    * Experimental: Runs the Microtask Work Queue until empty
+   * Any exceptions thrown by microtask callbacks are swallowed.
    */
   void RunMicrotasks();
 

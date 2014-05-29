@@ -51,6 +51,21 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
 }
 
 
+Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
+    Isolate* isolate,
+    Handle<ExecutableAccessorInfo> accessor) {
+  Factory* factory = isolate->factory();
+  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  info->set_name(accessor->name());
+  info->set_flag(accessor->flag());
+  info->set_expected_receiver_type(accessor->expected_receiver_type());
+  info->set_getter(accessor->getter());
+  info->set_setter(accessor->setter());
+  info->set_data(accessor->data());
+  return info;
+}
+
+
 template <class C>
 static C* FindInstanceOf(Isolate* isolate, Object* obj) {
   for (Object* cur = obj; !cur->IsNull(); cur = cur->GetPrototype(isolate)) {

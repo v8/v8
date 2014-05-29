@@ -299,7 +299,7 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     int size_in_bytes = allocate->size()->GetInteger32Constant();
     number_of_values_ = size_in_bytes / kPointerSize;
     number_of_objects_++;
-    block_states_.Clear();
+    block_states_.Rewind(0);
 
     // Perform actual analysis step.
     AnalyzeDataFlow(allocate);
@@ -320,7 +320,7 @@ void HEscapeAnalysisPhase::Run() {
     CollectCapturedValues();
     if (captured_.is_empty()) break;
     PerformScalarReplacement();
-    captured_.Clear();
+    captured_.Rewind(0);
   }
 }
 

@@ -68,7 +68,7 @@
 #ifndef V8_LAZY_INSTANCE_H_
 #define V8_LAZY_INSTANCE_H_
 
-#include "checks.h"
+#include "base/macros.h"
 #include "once.h"
 
 namespace v8 {

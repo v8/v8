@@ -2525,8 +2525,7 @@ void HGraphBuilder::BuildCopyElements(HValue* array,
       capacity->IsConstant() &&
       HConstant::cast(capacity)->HasInteger32Value()) {
     int constant_candidate = HConstant::cast(capacity)->Integer32Value();
-    if (constant_candidate <=
-        FastCloneShallowArrayStub::kMaximumInlinedCloneLength) {
+    if (constant_candidate <= kElementLoopUnrollThreshold) {
       constant_capacity = constant_candidate;
     }
   }
@@ -2701,6 +2700,12 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
   extra->ClearFlag(HValue::kCanOverflow);
   extra = AddUncasted<HAdd>(extra, Add<HConstant>(FixedArray::kHeaderSize));
   extra->ClearFlag(HValue::kCanOverflow);
+  // This function implicitly relies on the fact that the
+  // FastCloneShallowArrayStub is called only for literals shorter than
+  // JSObject::kInitialMaxFastElementArray and therefore the size of the
+  // resulting folded allocation will always be in allowed range.
+  // Can't add HBoundsCheck here because otherwise the stub will eager a frame.
+
   HValue* elements = NULL;
   HValue* result = BuildCloneShallowArrayCommon(boilerplate,
       allocation_site, extra, &elements, mode);
@@ -10515,7 +10520,7 @@ void HOptimizedGraphBuilder::VisitDeclarations(
         DeclareGlobalsNativeFlag::encode(current_info()->is_native()) |
         DeclareGlobalsStrictMode::encode(current_info()->strict_mode());
     Add<HDeclareGlobals>(array, flags);
-    globals_.Clear();
+    globals_.Rewind(0);
   }
 }
 

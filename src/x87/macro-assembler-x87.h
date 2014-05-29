@@ -478,7 +478,23 @@ class MacroAssembler: public Assembler {
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;
     static const int mask = Field::kMask >> Field::kShift;
-    sar(reg, shift);
+    if (shift != 0) {
+      sar(reg, shift);
+    }
+    and_(reg, Immediate(mask));
+  }
+
+  template<typename Field>
+  void DecodeFieldToSmi(Register reg) {
+    static const int shift = Field::kShift;
+    static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+    STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
+    STATIC_ASSERT(kSmiTag == 0);
+    if (shift < kSmiTagSize) {
+      shl(reg, kSmiTagSize - shift);
+    } else if (shift > kSmiTagSize) {
+      sar(reg, shift - kSmiTagSize);
+    }
     and_(reg, Immediate(mask));
   }
 

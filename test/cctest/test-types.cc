@@ -1725,7 +1725,7 @@ struct Tests : Rep {
         T.Union(T.ObjectConstant2, T.ObjectConstant1));
   }
 
-  void Distributivity() {
+  void Distributivity1() {
     // Distributivity:
     // Union(T1, Intersect(T2, T3)) = Intersect(Union(T1, T2), Union(T1, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -1743,7 +1743,9 @@ struct Tests : Rep {
         }
       }
     }
+  }
 
+  void Distributivity2() {
     // Distributivity:
     // Intersect(T1, Union(T2, T3)) = Union(Intersect(T1, T2), Intersect(T1,T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -1899,10 +1901,17 @@ TEST(Intersect2) {
 }
 
 
-TEST(Distributivity) {
+TEST(Distributivity1) {
   CcTest::InitializeVM();
-  ZoneTests().Distributivity();
-  HeapTests().Distributivity();
+  ZoneTests().Distributivity1();
+  HeapTests().Distributivity1();
+}
+
+
+TEST(Distributivity2) {
+  CcTest::InitializeVM();
+  ZoneTests().Distributivity2();
+  HeapTests().Distributivity2();
 }
 
 

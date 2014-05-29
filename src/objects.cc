@@ -361,10 +361,24 @@ Handle<FixedArray> JSObject::EnsureWritableFastElements(
 }
 
 
-MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
-                                                      Handle<Object> receiver,
-                                                      Handle<Object> structure,
-                                                      Handle<Name> name) {
+MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
+                                                    Handle<Object> receiver,
+                                                    Handle<Name> name) {
+  Isolate* isolate = proxy->GetIsolate();
+
+  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+  if (name->IsSymbol()) return isolate->factory()->undefined_value();
+
+  Handle<Object> args[] = { receiver, name };
+  return CallTrap(
+      proxy, "get",  isolate->derived_get_trap(), ARRAY_SIZE(args), args);
+}
+
+
+MaybeHandle<Object> Object::GetPropertyWithCallback(Handle<Object> receiver,
+                                                    Handle<Name> name,
+                                                    Handle<JSObject> holder,
+                                                    Handle<Object> structure) {
   Isolate* isolate = name->GetIsolate();
   ASSERT(!structure->IsForeign());
   // api style callbacks.
@@ -395,8 +409,8 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
     Handle<String> key = Handle<String>::cast(name);
-    LOG(isolate, ApiNamedPropertyAccess("load", *object, *name));
-    PropertyCallbackArguments args(isolate, data->data(), *receiver, *object);
+    LOG(isolate, ApiNamedPropertyAccess("load", *holder, *name));
+    PropertyCallbackArguments args(isolate, data->data(), *receiver, *holder);
     v8::Handle<v8::Value> result =
         args.Call(call_fun, v8::Utils::ToLocal(key));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -415,29 +429,79 @@ MaybeHandle<Object> JSObject::GetPropertyWithCallback(Handle<JSObject> object,
   if (getter->IsSpecFunction()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(
-        object, receiver, Handle<JSReceiver>::cast(getter));
+        receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
   return isolate->factory()->undefined_value();
 }
 
 
-MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
-                                                    Handle<Object> receiver,
-                                                    Handle<Name> name) {
-  Isolate* isolate = proxy->GetIsolate();
+MaybeHandle<Object> Object::SetPropertyWithCallback(Handle<Object> receiver,
+                                                    Handle<Name> name,
+                                                    Handle<Object> value,
+                                                    Handle<JSObject> holder,
+                                                    Handle<Object> structure,
+                                                    StrictMode strict_mode) {
+  Isolate* isolate = name->GetIsolate();
 
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return isolate->factory()->undefined_value();
+  // We should never get here to initialize a const with the hole
+  // value since a const declaration would conflict with the setter.
+  ASSERT(!value->IsTheHole());
+  ASSERT(!structure->IsForeign());
+  if (structure->IsExecutableAccessorInfo()) {
+    // api style callbacks
+    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(*structure);
+    if (!data->IsCompatibleReceiver(*receiver)) {
+      Handle<Object> args[2] = { name, receiver };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("incompatible_method_receiver",
+                                           HandleVector(args,
+                                                        ARRAY_SIZE(args)));
+      return isolate->Throw<Object>(error);
+    }
+    // TODO(rossberg): Support symbols in the API.
+    if (name->IsSymbol()) return value;
+    Object* call_obj = data->setter();
+    v8::AccessorSetterCallback call_fun =
+        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
+    if (call_fun == NULL) return value;
+    Handle<String> key = Handle<String>::cast(name);
+    LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
+    PropertyCallbackArguments args(isolate, data->data(), *receiver, *holder);
+    args.Call(call_fun,
+              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(value));
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    return value;
+  }
 
-  Handle<Object> args[] = { receiver, name };
-  return CallTrap(
-      proxy, "get",  isolate->derived_get_trap(), ARRAY_SIZE(args), args);
+  if (structure->IsAccessorPair()) {
+    Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
+    if (setter->IsSpecFunction()) {
+      // TODO(rossberg): nicer would be to cast to some JSCallable here...
+      return SetPropertyWithDefinedSetter(
+          receiver, Handle<JSReceiver>::cast(setter), value);
+    } else {
+      if (strict_mode == SLOPPY) return value;
+      Handle<Object> args[2] = { name, holder };
+      Handle<Object> error =
+          isolate->factory()->NewTypeError("no_setter_in_callback",
+                                           HandleVector(args, 2));
+      return isolate->Throw<Object>(error);
+    }
+  }
+
+  // TODO(dcarney): Handle correctly.
+  if (structure->IsDeclaredAccessorInfo()) {
+    return value;
+  }
+
+  UNREACHABLE();
+  return MaybeHandle<Object>();
 }
 
 
 MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
-    Handle<Object> object,
     Handle<Object> receiver,
     Handle<JSReceiver> getter) {
   Isolate* isolate = getter->GetIsolate();
@@ -450,6 +514,29 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   }
 
   return Execution::Call(isolate, getter, receiver, 0, NULL, true);
+}
+
+
+MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
+    Handle<Object> receiver,
+    Handle<JSReceiver> setter,
+    Handle<Object> value) {
+  Isolate* isolate = setter->GetIsolate();
+
+  Debug* debug = isolate->debug();
+  // Handle stepping into a setter if step into is active.
+  // TODO(rossberg): should this apply to getters that are function proxies?
+  if (debug->StepInActive() && setter->IsJSFunction()) {
+    debug->HandleStepIn(
+        Handle<JSFunction>::cast(setter), Handle<Object>::null(), 0, false);
+  }
+
+  Handle<Object> argv[] = { value };
+  RETURN_ON_EXCEPTION(
+      isolate,
+      Execution::Call(isolate, setter, receiver, ARRAY_SIZE(argv), argv),
+      Object);
+  return value;
 }
 
 
@@ -477,7 +564,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
           break;
         }
         Handle<JSObject> holder(result->holder(), isolate);
-        return GetPropertyWithCallback(holder, receiver, callback_obj, name);
+        return GetPropertyWithCallback(receiver, name, holder, callback_obj);
       }
       case NORMAL:
       case FIELD:
@@ -791,11 +878,9 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
     case CONSTANT:
       return handle(result->GetConstant(), isolate);
     case CALLBACKS:
-      return JSObject::GetPropertyWithCallback(
-          handle(result->holder(), isolate),
-          receiver,
-          handle(result->GetCallbackObject(), isolate),
-          name);
+      return GetPropertyWithCallback(
+          receiver, name, handle(result->holder(), isolate),
+          handle(result->GetCallbackObject(), isolate));
     case HANDLER:
       return JSProxy::GetPropertyWithHandler(
           handle(result->proxy(), isolate), receiver, name);
@@ -3005,94 +3090,6 @@ MaybeHandle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
 }
 
 
-MaybeHandle<Object> JSObject::SetPropertyWithCallback(Handle<JSObject> object,
-                                                      Handle<Object> structure,
-                                                      Handle<Name> name,
-                                                      Handle<Object> value,
-                                                      Handle<JSObject> holder,
-                                                      StrictMode strict_mode) {
-  Isolate* isolate = object->GetIsolate();
-
-  // We should never get here to initialize a const with the hole
-  // value since a const declaration would conflict with the setter.
-  ASSERT(!value->IsTheHole());
-  ASSERT(!structure->IsForeign());
-  if (structure->IsExecutableAccessorInfo()) {
-    // api style callbacks
-    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(*structure);
-    if (!data->IsCompatibleReceiver(*object)) {
-      Handle<Object> args[2] = { name, object };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("incompatible_method_receiver",
-                                           HandleVector(args,
-                                                        ARRAY_SIZE(args)));
-      return isolate->Throw<Object>(error);
-    }
-    // TODO(rossberg): Support symbols in the API.
-    if (name->IsSymbol()) return value;
-    Object* call_obj = data->setter();
-    v8::AccessorSetterCallback call_fun =
-        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
-    if (call_fun == NULL) return value;
-    Handle<String> key = Handle<String>::cast(name);
-    LOG(isolate, ApiNamedPropertyAccess("store", *object, *name));
-    PropertyCallbackArguments args(isolate, data->data(), *object, *holder);
-    args.Call(call_fun,
-              v8::Utils::ToLocal(key),
-              v8::Utils::ToLocal(value));
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return value;
-  }
-
-  if (structure->IsAccessorPair()) {
-    Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
-    if (setter->IsSpecFunction()) {
-      // TODO(rossberg): nicer would be to cast to some JSCallable here...
-      return SetPropertyWithDefinedSetter(
-          object, Handle<JSReceiver>::cast(setter), value);
-    } else {
-      if (strict_mode == SLOPPY) return value;
-      Handle<Object> args[2] = { name, holder };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("no_setter_in_callback",
-                                           HandleVector(args, 2));
-      return isolate->Throw<Object>(error);
-    }
-  }
-
-  // TODO(dcarney): Handle correctly.
-  if (structure->IsDeclaredAccessorInfo()) {
-    return value;
-  }
-
-  UNREACHABLE();
-  return MaybeHandle<Object>();
-}
-
-
-MaybeHandle<Object> JSReceiver::SetPropertyWithDefinedSetter(
-    Handle<JSReceiver> object,
-    Handle<JSReceiver> setter,
-    Handle<Object> value) {
-  Isolate* isolate = object->GetIsolate();
-
-  Debug* debug = isolate->debug();
-  // Handle stepping into a setter if step into is active.
-  // TODO(rossberg): should this apply to getters that are function proxies?
-  if (debug->StepInActive() && setter->IsJSFunction()) {
-    debug->HandleStepIn(
-        Handle<JSFunction>::cast(setter), Handle<Object>::null(), 0, false);
-  }
-
-  Handle<Object> argv[] = { value };
-  RETURN_ON_EXCEPTION(
-      isolate,
-      Execution::Call(isolate, setter, object, ARRAY_SIZE(argv), argv),
-      Object);
-  return value;
-}
-
-
 MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     Handle<JSObject> object,
     uint32_t index,
@@ -3166,8 +3163,9 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
         *done = true;
         if (!result.IsReadOnly()) {
           Handle<Object> callback_object(result.GetCallbackObject(), isolate);
-          return SetPropertyWithCallback(object, callback_object, name, value,
-                                         handle(result.holder()), strict_mode);
+          return SetPropertyWithCallback(object, name, value,
+                                         handle(result.holder()),
+                                         callback_object, strict_mode);
         }
         break;
       }
@@ -3625,22 +3623,16 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
           if (obj->IsAccessorInfo()) {
             Handle<AccessorInfo> info(AccessorInfo::cast(obj));
             if (info->all_can_write()) {
-              return SetPropertyWithCallback(object,
-                                             info,
-                                             name,
-                                             value,
+              return SetPropertyWithCallback(object, name, value,
                                              handle(result->holder()),
-                                             strict_mode);
+                                             info, strict_mode);
             }
           } else if (obj->IsAccessorPair()) {
             Handle<AccessorPair> pair(AccessorPair::cast(obj));
             if (pair->all_can_read()) {
-              return SetPropertyWithCallback(object,
-                                             pair,
-                                             name,
-                                             value,
+              return SetPropertyWithCallback(object, name, value,
                                              handle(result->holder()),
-                                             strict_mode);
+                                             pair, strict_mode);
             }
           }
           break;
@@ -4300,8 +4292,9 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
         break;
       case CALLBACKS: {
         Handle<Object> callback_object(lookup->GetCallbackObject(), isolate);
-        return SetPropertyWithCallback(object, callback_object, name, value,
-                                      handle(lookup->holder()), strict_mode);
+        return SetPropertyWithCallback(object, name, value,
+                                       handle(lookup->holder()),
+                                       callback_object, strict_mode);
       }
       case INTERCEPTOR:
         maybe_result = SetPropertyWithInterceptor(
@@ -4342,9 +4335,6 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
 // callback setter removed.  The two lines looking up the LookupResult
 // result are also added.  If one of the functions is changed, the other
 // should be.
-// Note that this method cannot be used to set the prototype of a function
-// because ConvertDescriptorToField() which is called in "case CALLBACKS:"
-// doesn't handle function prototypes correctly.
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object,
     Handle<Name> name,
@@ -4353,7 +4343,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     ValueType value_type,
     StoreMode mode,
     ExtensibilityCheck extensibility_check,
-    StoreFromKeyed store_from_keyed) {
+    StoreFromKeyed store_from_keyed,
+    ExecutableAccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4408,6 +4399,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     old_attributes = lookup.GetAttributes();
   }
 
+  bool executed_set_prototype = false;
+
   // Check of IsReadOnly removed from here in clone.
   if (lookup.IsTransition()) {
     Handle<Object> result;
@@ -4432,8 +4425,48 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         }
         break;
       case CALLBACKS:
-        ConvertAndSetOwnProperty(&lookup, name, value, attributes);
+      {
+        Handle<Object> callback(lookup.GetCallbackObject(), isolate);
+        if (callback->IsExecutableAccessorInfo() &&
+            handling == DONT_FORCE_FIELD) {
+          Handle<Object> result;
+          ASSIGN_RETURN_ON_EXCEPTION(
+              isolate, result,
+              JSObject::SetPropertyWithCallback(object,
+                                                name,
+                                                value,
+                                                handle(lookup.holder()),
+                                                callback,
+                                                STRICT),
+              Object);
+
+          if (attributes != lookup.GetAttributes()) {
+            Handle<ExecutableAccessorInfo> new_data =
+                Accessors::CloneAccessor(
+                    isolate, Handle<ExecutableAccessorInfo>::cast(callback));
+            new_data->set_property_attributes(attributes);
+            if (attributes & READ_ONLY) {
+              // This way we don't have to introduce a lookup to the setter,
+              // simply make it unavailable to reflect the attributes.
+              new_data->clear_setter();
+            }
+
+            SetPropertyCallback(object, name, new_data, attributes);
+          }
+          if (is_observed) {
+            // If we are setting the prototype of a function and are observed,
+            // don't send change records because the prototype handles that
+            // itself.
+            executed_set_prototype = object->IsJSFunction() &&
+                String::Equals(isolate->factory()->prototype_string(),
+                               Handle<String>::cast(name)) &&
+                Handle<JSFunction>::cast(object)->should_have_prototype();
+          }
+        } else {
+          ConvertAndSetOwnProperty(&lookup, name, value, attributes);
+        }
         break;
+      }
       case NONEXISTENT:
       case HANDLER:
       case INTERCEPTOR:
@@ -4441,7 +4474,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     }
   }
 
-  if (is_observed) {
+  if (is_observed && !executed_set_prototype) {
     if (lookup.IsTransition()) {
       EnqueueChangeRecord(object, "add", name, old_value);
     } else if (old_value->IsTheHole()) {
@@ -11217,14 +11250,7 @@ void SharedFunctionInfo::ClearTypeFeedbackInfo() {
           // AllocationSites are not cleared because they do not store
           // information that leaks.
           break;
-        case JS_FUNCTION_TYPE:
-          // No need to clear the native context array function.
-          if (obj == JSFunction::cast(obj)->context()->native_context()->
-              get(Context::ARRAY_FUNCTION_INDEX)) {
-            break;
-          }
           // Fall through...
-
         default:
           vector->set(i, TypeFeedbackInfo::RawUninitializedSentinel(heap),
                       SKIP_WRITE_BARRIER);
@@ -12588,7 +12614,7 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return GetPropertyWithDefinedGetter(
-          object, receiver, Handle<JSReceiver>::cast(getter));
+          receiver, Handle<JSReceiver>::cast(getter));
     }
     // Getter is not a function.
     return isolate->factory()->undefined_value();
@@ -16074,6 +16100,7 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
        if (properties == length) break;
      }
   }
+  CHECK_EQ(length, properties);
   EnumIndexComparator cmp(this);
   Smi** start = reinterpret_cast<Smi**>(storage->GetFirstElementAddress());
   std::sort(start, start + length, cmp);

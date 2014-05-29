@@ -279,13 +279,13 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define DECLARE_RUNTIME_FUNCTION(Name)    \
 Object* Name(int args_length, Object** args_object, Isolate* isolate)
 
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                     \
-static Type __RT_impl_##Name(Arguments args, Isolate* isolate);       \
-Type Name(int args_length, Object** args_object, Isolate* isolate) {  \
-  CLOBBER_DOUBLE_REGISTERS();                                         \
-  Arguments args(args_length, args_object);                           \
-  return __RT_impl_##Name(args, isolate);                             \
-}                                                                     \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                        \
+static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));  \
+Type Name(int args_length, Object** args_object, Isolate* isolate) {     \
+  CLOBBER_DOUBLE_REGISTERS();                                            \
+  Arguments args(args_length, args_object);                              \
+  return __RT_impl_##Name(args, isolate);                                \
+}                                                                        \
 static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 
 

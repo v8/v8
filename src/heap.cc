@@ -1850,11 +1850,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
 
-    table_.Register(kVisitJSWeakMap,
-                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
-                    Visit);
-
-    table_.Register(kVisitJSWeakSet,
+    table_.Register(kVisitJSWeakCollection,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                     Visit);
 

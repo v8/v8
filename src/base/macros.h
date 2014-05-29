@@ -75,4 +75,38 @@
 #define V8_IMMEDIATE_CRASH() ((void(*)())0)()
 #endif
 
+
+// Use C++11 static_assert if possible, which gives error
+// messages that are easier to understand on first sight.
+#if V8_HAS_CXX11_STATIC_ASSERT
+#define STATIC_ASSERT(test) static_assert(test, #test)
+#else
+// This is inspired by the static assertion facility in boost.  This
+// is pretty magical.  If it causes you trouble on a platform you may
+// find a fix in the boost code.
+template <bool> class StaticAssertion;
+template <> class StaticAssertion<true> { };
+// This macro joins two tokens.  If one of the tokens is a macro the
+// helper call causes it to be resolved before joining.
+#define SEMI_STATIC_JOIN(a, b) SEMI_STATIC_JOIN_HELPER(a, b)
+#define SEMI_STATIC_JOIN_HELPER(a, b) a##b
+// Causes an error during compilation of the condition is not
+// statically known to be true.  It is formulated as a typedef so that
+// it can be used wherever a typedef can be used.  Beware that this
+// actually causes each use to introduce a new defined type with a
+// name depending on the source line.
+template <int> class StaticAssertionHelper { };
+#define STATIC_ASSERT(test)                                                    \
+  typedef                                                                     \
+    StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
+    SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) V8_UNUSED
+
+#endif
+
+
+// The USE(x) template is used to silence C++ compiler warnings
+// issued for (yet) unused variables (typically parameters).
+template <typename T>
+inline void USE(T) { }
+
 #endif   // V8_BASE_MACROS_H_
