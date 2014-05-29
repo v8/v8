@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "cctest.h"
+#include "hydrogen-types.h"
 #include "types.h"
 #include "utils/random-number-generator.h"
 
@@ -1776,6 +1777,18 @@ struct Tests : Rep {
       CheckEqual(type1, type3);
     }
   }
+
+  void HTypeFromType() {
+    for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
+      for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
+        TypeHandle type1 = *it1;
+        TypeHandle type2 = *it2;
+        HType htype1 = HType::FromType<Type>(type1);
+        HType htype2 = HType::FromType<Type>(type2);
+        CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
+      }
+    }
+  }
 };
 
 typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
@@ -1919,4 +1932,11 @@ TEST(Convert) {
   CcTest::InitializeVM();
   ZoneTests().Convert<HeapType, Handle<HeapType>, Isolate, HeapRep>();
   HeapTests().Convert<Type, Type*, Zone, ZoneRep>();
+}
+
+
+TEST(HTypeFromType) {
+  CcTest::InitializeVM();
+  ZoneTests().HTypeFromType();
+  HeapTests().HTypeFromType();
 }

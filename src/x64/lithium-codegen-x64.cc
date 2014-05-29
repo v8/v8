@@ -2414,7 +2414,7 @@ void LCodeGen::DoIsStringAndBranch(LIsStringAndBranch* instr) {
   Register temp = ToRegister(instr->temp());
 
   SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
+      instr->hydrogen()->value()->type().IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
 
   Condition true_cond = EmitIsString(
@@ -2441,7 +2441,7 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
   Register input = ToRegister(instr->value());
   Register temp = ToRegister(instr->temp());
 
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
+  if (!instr->hydrogen()->value()->type().IsHeapObject()) {
     __ JumpIfSmi(input, instr->FalseLabel(chunk_));
   }
   __ movp(temp, FieldOperand(input, HeapObject::kMapOffset));
@@ -2488,7 +2488,7 @@ static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
 void LCodeGen::DoHasInstanceTypeAndBranch(LHasInstanceTypeAndBranch* instr) {
   Register input = ToRegister(instr->value());
 
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
+  if (!instr->hydrogen()->value()->type().IsHeapObject()) {
     __ JumpIfSmi(input, instr->FalseLabel(chunk_));
   }
 
@@ -2877,7 +2877,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
 
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     SmiCheck check_needed =
-      instr->hydrogen()->value()->IsHeapObject()
+      instr->hydrogen()->value()->type().IsHeapObject()
           ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     int offset = Context::SlotOffset(instr->slot_index());
     Register scratch = ToRegister(instr->temp());
@@ -4305,7 +4305,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     ASSERT(instr->value()->IsRegister());
     Register value = ToRegister(instr->value());
     ASSERT(!key->IsConstantOperand());
-    SmiCheck check_needed = hinstr->value()->IsHeapObject()
+    SmiCheck check_needed = hinstr->value()->type().IsHeapObject()
             ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
     Register key_reg(ToRegister(key));
@@ -4909,7 +4909,7 @@ void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
 
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
-  if (!instr->hydrogen()->value()->IsHeapObject()) {
+  if (!instr->hydrogen()->value()->type().IsHeapObject()) {
     LOperand* input = instr->value();
     Condition cc = masm()->CheckSmi(ToRegister(input));
     DeoptimizeIf(cc, instr->environment());

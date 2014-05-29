@@ -1976,7 +1976,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
   LOperand* value = UseAtStart(instr->value());
   LInstruction* result = new(zone()) LCheckNonSmi(value);
-  if (!instr->value()->IsHeapObject()) result = AssignEnvironment(result);
+  if (!instr->value()->type().IsHeapObject()) {
+    result = AssignEnvironment(result);
+  }
   return result;
 }
 

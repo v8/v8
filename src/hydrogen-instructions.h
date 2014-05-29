@@ -12,6 +12,7 @@
 #include "conversions.h"
 #include "data-flow.h"
 #include "deoptimizer.h"
+#include "hydrogen-types.h"
 #include "small-pointer-list.h"
 #include "string-stream.h"
 #include "unique.h"
@@ -279,124 +280,6 @@ class Range V8_FINAL : public ZoneObject {
   int32_t upper_;
   Range* next_;
   bool can_be_minus_zero_;
-};
-
-
-class HType V8_FINAL {
- public:
-  static HType None() { return HType(kNone); }
-  static HType Tagged() { return HType(kTagged); }
-  static HType TaggedPrimitive() { return HType(kTaggedPrimitive); }
-  static HType TaggedNumber() { return HType(kTaggedNumber); }
-  static HType Smi() { return HType(kSmi); }
-  static HType HeapNumber() { return HType(kHeapNumber); }
-  static HType String() { return HType(kString); }
-  static HType Boolean() { return HType(kBoolean); }
-  static HType NonPrimitive() { return HType(kNonPrimitive); }
-  static HType JSArray() { return HType(kJSArray); }
-  static HType JSObject() { return HType(kJSObject); }
-
-  // Return the weakest (least precise) common type.
-  HType Combine(HType other) {
-    return HType(static_cast<Type>(type_ & other.type_));
-  }
-
-  bool Equals(const HType& other) const {
-    return type_ == other.type_;
-  }
-
-  bool IsSubtypeOf(const HType& other) {
-    return Combine(other).Equals(other);
-  }
-
-  bool IsTaggedPrimitive() const {
-    return ((type_ & kTaggedPrimitive) == kTaggedPrimitive);
-  }
-
-  bool IsTaggedNumber() const {
-    return ((type_ & kTaggedNumber) == kTaggedNumber);
-  }
-
-  bool IsSmi() const {
-    return ((type_ & kSmi) == kSmi);
-  }
-
-  bool IsHeapNumber() const {
-    return ((type_ & kHeapNumber) == kHeapNumber);
-  }
-
-  bool IsString() const {
-    return ((type_ & kString) == kString);
-  }
-
-  bool IsNonString() const {
-    return IsTaggedPrimitive() || IsSmi() || IsHeapNumber() ||
-        IsBoolean() || IsJSArray();
-  }
-
-  bool IsBoolean() const {
-    return ((type_ & kBoolean) == kBoolean);
-  }
-
-  bool IsNonPrimitive() const {
-    return ((type_ & kNonPrimitive) == kNonPrimitive);
-  }
-
-  bool IsJSArray() const {
-    return ((type_ & kJSArray) == kJSArray);
-  }
-
-  bool IsJSObject() const {
-    return ((type_ & kJSObject) == kJSObject);
-  }
-
-  bool IsHeapObject() const {
-    return IsHeapNumber() || IsString() || IsBoolean() || IsNonPrimitive();
-  }
-
-  bool ToStringOrToNumberCanBeObserved(Representation representation) {
-    switch (type_) {
-      case kTaggedPrimitive:  // fallthru
-      case kTaggedNumber:     // fallthru
-      case kSmi:              // fallthru
-      case kHeapNumber:       // fallthru
-      case kString:           // fallthru
-      case kBoolean:
-        return false;
-      case kJSArray:          // fallthru
-      case kJSObject:
-        return true;
-      case kTagged:
-        break;
-    }
-    return !representation.IsSmiOrInteger32() && !representation.IsDouble();
-  }
-
-  static HType TypeFromValue(Handle<Object> value);
-
-  const char* ToString();
-
- private:
-  enum Type {
-    kNone = 0x0,             // 0000 0000 0000 0000
-    kTagged = 0x1,           // 0000 0000 0000 0001
-    kTaggedPrimitive = 0x5,  // 0000 0000 0000 0101
-    kTaggedNumber = 0xd,     // 0000 0000 0000 1101
-    kSmi = 0x1d,             // 0000 0000 0001 1101
-    kHeapNumber = 0x2d,      // 0000 0000 0010 1101
-    kString = 0x45,          // 0000 0000 0100 0101
-    kBoolean = 0x85,         // 0000 0000 1000 0101
-    kNonPrimitive = 0x101,   // 0000 0001 0000 0001
-    kJSObject = 0x301,       // 0000 0011 0000 0001
-    kJSArray = 0x701         // 0000 0111 0000 0001
-  };
-
-  // Make sure type fits in int16.
-  STATIC_ASSERT(kJSArray < (1 << (2 * kBitsPerByte)));
-
-  explicit HType(Type t) : type_(t) { }
-
-  int16_t type_;
 };
 
 
@@ -727,10 +610,6 @@ class HValue : public ZoneObject {
     type_ = new_type;
   }
 
-  bool IsHeapObject() {
-    return representation_.IsHeapObject() || type_.IsHeapObject();
-  }
-
   // There are HInstructions that do not really change a value, they
   // only add pieces of information to it (like bounds checks, map checks,
   // smi checks...).
@@ -933,13 +812,13 @@ class HValue : public ZoneObject {
   // Returns true conservatively if the program might be able to observe a
   // ToString() operation on this value.
   bool ToStringCanBeObserved() const {
-    return type().ToStringOrToNumberCanBeObserved(representation());
+    return ToStringOrToNumberCanBeObserved();
   }
 
   // Returns true conservatively if the program might be able to observe a
   // ToNumber() operation on this value.
   bool ToNumberCanBeObserved() const {
-    return type().ToStringOrToNumberCanBeObserved(representation());
+    return ToStringOrToNumberCanBeObserved();
   }
 
   MinusZeroMode GetMinusZeroMode() {
@@ -953,6 +832,12 @@ class HValue : public ZoneObject {
   virtual bool DataEquals(HValue* other) {
     UNREACHABLE();
     return false;
+  }
+
+  bool ToStringOrToNumberCanBeObserved() const {
+    if (type().IsTaggedPrimitive()) return false;
+    if (type().IsJSObject()) return true;
+    return !representation().IsSmiOrInteger32() && !representation().IsDouble();
   }
 
   virtual Representation RepresentationFromInputs() {
@@ -2839,10 +2724,16 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
+
+  virtual HType CalculateInferredType() V8_OVERRIDE {
+    if (value()->type().IsHeapObject()) return value()->type();
+    return HType::HeapObject();
+  }
+
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
-  HValue* value() { return OperandAt(0); }
-  HValue* typecheck() { return OperandAt(1); }
+  HValue* value() const { return OperandAt(0); }
+  HValue* typecheck() const { return OperandAt(1); }
 
   const UniqueSet<Map>* maps() const { return maps_; }
   void set_maps(const UniqueSet<Map>* maps) { maps_ = maps; }
@@ -2881,7 +2772,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
 
  private:
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, bool maps_are_stable)
-      : HTemplateInstruction<2>(value->type()), maps_(maps),
+      : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
         has_migration_target_(false), is_stability_check_(false),
         maps_are_stable_(maps_are_stable) {
     ASSERT_NE(0, maps->size());
@@ -2895,7 +2786,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
   }
 
   HCheckMaps(HValue* value, const UniqueSet<Map>* maps, HValue* typecheck)
-      : HTemplateInstruction<2>(value->type()), maps_(maps),
+      : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
         has_migration_target_(false), is_stability_check_(false),
         maps_are_stable_(true) {
     ASSERT_NE(0, maps->size());
@@ -2999,6 +2890,17 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() V8_OVERRIDE {
+    switch (check_) {
+      case IS_SPEC_OBJECT: return HType::JSObject();
+      case IS_JS_ARRAY: return HType::JSArray();
+      case IS_STRING: return HType::String();
+      case IS_INTERNALIZED_STRING: return HType::String();
+    }
+    UNREACHABLE();
+    return HType::Tagged();
+  }
+
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
   bool is_interval_check() const { return check_ <= LAST_INTERVAL_CHECK; }
@@ -3022,7 +2924,7 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
   const char* GetCheckName();
 
   HCheckInstanceType(HValue* value, Check check)
-      : HUnaryOperation(value), check_(check) {
+      : HUnaryOperation(value, HType::HeapObject()), check_(check) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
@@ -3069,6 +2971,11 @@ class HCheckHeapObject V8_FINAL : public HUnaryOperation {
     return Representation::Tagged();
   }
 
+  virtual HType CalculateInferredType() V8_OVERRIDE {
+    if (value()->type().IsHeapObject()) return value()->type();
+    return HType::HeapObject();
+  }
+
 #ifdef DEBUG
   virtual void Verify() V8_OVERRIDE;
 #endif
@@ -3083,8 +2990,7 @@ class HCheckHeapObject V8_FINAL : public HUnaryOperation {
   virtual bool DataEquals(HValue* other) V8_OVERRIDE { return true; }
 
  private:
-  explicit HCheckHeapObject(HValue* value)
-      : HUnaryOperation(value, HType::NonPrimitive()) {
+  explicit HCheckHeapObject(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
   }
@@ -3566,7 +3472,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                           HInstruction* instruction) {
     return instruction->Prepend(new(zone) HConstant(
         map, Unique<Map>(Handle<Map>::null()), map_is_stable,
-        Representation::Tagged(), HType::Tagged(), true,
+        Representation::Tagged(), HType::HeapObject(), true,
         false, false, MAP_TYPE));
   }
 
@@ -3576,7 +3482,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
                                          HInstruction* instruction) {
     return instruction->Append(new(zone) HConstant(
             map, Unique<Map>(Handle<Map>::null()), map_is_stable,
-            Representation::Tagged(), HType::Tagged(), true,
+            Representation::Tagged(), HType::HeapObject(), true,
             false, false, MAP_TYPE));
   }
 
@@ -4187,7 +4093,7 @@ class HBoundsCheckBaseIndexInformation V8_FINAL
 class HBitwiseBinaryOperation : public HBinaryOperation {
  public:
   HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right,
-                          HType type = HType::Tagged())
+                          HType type = HType::TaggedNumber())
       : HBinaryOperation(context, left, right, type) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
@@ -5140,7 +5046,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
            Token::Value op,
            HValue* left,
            HValue* right)
-      : HBitwiseBinaryOperation(context, left, right, HType::TaggedNumber()),
+      : HBitwiseBinaryOperation(context, left, right),
         op_(op) {
     ASSERT(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
     // BIT_AND with a smi-range positive value will always unset the
@@ -5719,7 +5625,7 @@ class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<2> {
                                     HValue* context,
                                     HValue* value,
                                     HValue* offset,
-                                    HType type = HType::Tagged()) {
+                                    HType type) {
     return new(zone) HInnerAllocatedObject(value, offset, type);
   }
 
@@ -5737,20 +5643,21 @@ class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<2> {
  private:
   HInnerAllocatedObject(HValue* value,
                         HValue* offset,
-                        HType type = HType::Tagged())
-      : HTemplateInstruction<2>(type) {
+                        HType type) : HTemplateInstruction<2>(type) {
     ASSERT(value->IsAllocate());
+    ASSERT(type.IsHeapObject());
     SetOperandAt(0, value);
     SetOperandAt(1, offset);
-    set_type(type);
     set_representation(Representation::Tagged());
   }
 };
 
 
 inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  return !value->type().IsBoolean()
-      && !value->type().IsSmi()
+  return !value->type().IsSmi()
+      && !value->type().IsNull()
+      && !value->type().IsBoolean()
+      && !value->type().IsUndefined()
       && !(value->IsConstant() && HConstant::cast(value)->ImmortalImmovable());
 }
 
@@ -6371,9 +6278,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
                representation.IsInteger32()) {
       set_representation(representation);
     } else if (representation.IsHeapObject()) {
-      // TODO(bmeurer): This is probably broken. What we actually want to to
-      // instead is set_representation(Representation::HeapObject()).
-      set_type(HType::NonPrimitive());
+      set_type(HType::HeapObject());
       set_representation(Representation::Tagged());
     } else {
       set_representation(Representation::Tagged());
@@ -6395,9 +6300,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
     SetOperandAt(1, dependency ? dependency : object);
 
     ASSERT(access.representation().IsHeapObject());
-    // TODO(bmeurer): This is probably broken. What we actually want to to
-    // instead is set_representation(Representation::HeapObject()).
-    if (!type.IsHeapObject()) set_type(HType::NonPrimitive());
+    ASSERT(type.IsHeapObject());
     set_representation(Representation::Tagged());
 
     access.SetGVNFlags(this, LOAD);
@@ -6813,7 +6716,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
 
   SmiCheck SmiCheckForWriteBarrier() const {
     if (field_representation().IsHeapObject()) return OMIT_SMI_CHECK;
-    if (value()->IsHeapObject()) return OMIT_SMI_CHECK;
+    if (value()->type().IsHeapObject()) return OMIT_SMI_CHECK;
     return INLINE_SMI_CHECK;
   }
 
@@ -7673,11 +7576,12 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
 
   virtual HType CalculateInferredType() V8_OVERRIDE {
-    return HType::Tagged();
+    if (value()->type().IsHeapObject()) return value()->type();
+    return HType::HeapObject();
   }
 
-  HValue* value() { return OperandAt(0); }
-  HValue* map() { return OperandAt(1); }
+  HValue* value() const { return OperandAt(0); }
+  HValue* map() const { return OperandAt(1); }
 
   virtual HValue* Canonicalize() V8_OVERRIDE;
 
@@ -7691,8 +7595,8 @@ class HCheckMapValue V8_FINAL : public HTemplateInstruction<2> {
   }
 
  private:
-  HCheckMapValue(HValue* value,
-                 HValue* map) {
+  HCheckMapValue(HValue* value, HValue* map)
+      : HTemplateInstruction<2>(HType::HeapObject()) {
     SetOperandAt(0, value);
     SetOperandAt(1, map);
     set_representation(Representation::Tagged());
