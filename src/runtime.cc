@@ -3027,7 +3027,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  ASSERT(fun->should_have_prototype());
+  RUNTIME_ASSERT(fun->should_have_prototype());
   Accessors::FunctionSetPrototype(fun, value);
   return args[0];  // return TOS
 }

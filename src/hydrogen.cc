@@ -8733,7 +8733,6 @@ void HOptimizedGraphBuilder::GenerateDataViewInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
 
-  NoObservableSideEffectsScope scope(this);
   ASSERT(arguments->length()== 4);
   CHECK_ALIVE(VisitForValue(arguments->at(0)));
   HValue* obj = Pop();
@@ -8747,8 +8746,11 @@ void HOptimizedGraphBuilder::GenerateDataViewInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(3)));
   HValue* byte_length = Pop();
 
-  BuildArrayBufferViewInitialization<JSDataView>(
-      obj, buffer, byte_offset, byte_length);
+  {
+    NoObservableSideEffectsScope scope(this);
+    BuildArrayBufferViewInitialization<JSDataView>(
+        obj, buffer, byte_offset, byte_length);
+  }
 }
 
 
@@ -8869,7 +8871,6 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
     CallRuntime* expr) {
   ZoneList<Expression*>* arguments = expr->arguments();
 
-  NoObservableSideEffectsScope scope(this);
   static const int kObjectArg = 0;
   static const int kArrayIdArg = 1;
   static const int kBufferArg = 2;
@@ -8924,6 +8925,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(kByteLengthArg)));
   HValue* byte_length = Pop();
 
+  NoObservableSideEffectsScope scope(this);
   IfBuilder byte_offset_smi(this);
 
   if (!is_zero_byte_offset) {
