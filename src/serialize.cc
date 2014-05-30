@@ -150,6 +150,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
     "Runtime::" #name },
 
   RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
+  INLINE_OPTIMIZED_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
 
 #define RUNTIME_HIDDEN_ENTRY(name, nargs, ressize) \
