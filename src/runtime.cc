@@ -9487,18 +9487,6 @@ RUNTIME_FUNCTION(RuntimeHidden_ThrowNotDateError) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeHidden_ThrowMessage) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  const char* message = GetBailoutReason(
-      static_cast<BailoutReason>(message_id));
-  Handle<String> message_handle =
-      isolate->factory()->NewStringFromAsciiChecked(message);
-  return isolate->Throw(*message_handle);
-}
-
-
 RUNTIME_FUNCTION(RuntimeHidden_StackGuard) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
