@@ -831,8 +831,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kPushArguments:
     case HValue::kRegExpLiteral:
     case HValue::kReturn:
-    case HValue::kRor:
-    case HValue::kSar:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
     case HValue::kStoreKeyed:
@@ -877,6 +875,8 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kMul:
     case HValue::kOsrEntry:
     case HValue::kPower:
+    case HValue::kRor:
+    case HValue::kSar:
     case HValue::kSeqStringSetChar:
     case HValue::kShl:
     case HValue::kShr:
