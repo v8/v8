@@ -1677,26 +1677,32 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
                                       static_cast<HValue*>(NULL),
                                       FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
-        // Check if key is a heap number (the number string cache contains only
-        // SMIs and heap number, so it is sufficient to do a SMI check here).
+        // Check if the key is a heap number and compare it with the object.
         IfBuilder if_keyisnotsmi(this);
         HValue* keyisnotsmi = if_keyisnotsmi.IfNot<HIsSmiAndBranch>(key);
         if_keyisnotsmi.Then();
         {
-          // Check if values of key and object match.
-          IfBuilder if_keyeqobject(this);
-          if_keyeqobject.If<HCompareNumericAndBranch>(
-              Add<HLoadNamedField>(key, keyisnotsmi,
-                                   HObjectAccess::ForHeapNumberValue()),
-              Add<HLoadNamedField>(object, objectisnumber,
-                                   HObjectAccess::ForHeapNumberValue()),
-              Token::EQ);
-          if_keyeqobject.Then();
+          IfBuilder if_keyisheapnumber(this);
+          if_keyisheapnumber.If<HCompareMap>(
+              key, isolate()->factory()->heap_number_map());
+          if_keyisheapnumber.Then();
           {
-            // Make the key_index available.
-            Push(key_index);
+            // Check if values of key and object match.
+            IfBuilder if_keyeqobject(this);
+            if_keyeqobject.If<HCompareNumericAndBranch>(
+                Add<HLoadNamedField>(key, keyisnotsmi,
+                                     HObjectAccess::ForHeapNumberValue()),
+                Add<HLoadNamedField>(object, objectisnumber,
+                                     HObjectAccess::ForHeapNumberValue()),
+                Token::EQ);
+            if_keyeqobject.Then();
+            {
+              // Make the key_index available.
+              Push(key_index);
+            }
+            if_keyeqobject.JoinContinuation(&found);
           }
-          if_keyeqobject.JoinContinuation(&found);
+          if_keyisheapnumber.JoinContinuation(&found);
         }
         if_keyisnotsmi.JoinContinuation(&found);
       }
