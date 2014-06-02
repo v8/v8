@@ -203,7 +203,7 @@ enum InterruptFlag {
   bool CheckInterrupt(int flagbit);
   void RequestInterrupt(int flagbit);
   void ClearInterrupt(int flagbit);
-  bool CheckAndClearInterrupt(InterruptFlag flag, const ExecutionAccess& lock);
+  bool CheckAndClearInterrupt(InterruptFlag flag);
 
   // You should hold the ExecutionAccess lock when calling this method.
   bool has_pending_interrupts(const ExecutionAccess& lock) {

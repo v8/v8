@@ -366,13 +366,13 @@ void StackGuard::ClearInterrupt(int flagbit) {
 }
 
 
-bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag,
-                                        const ExecutionAccess& lock) {
+bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag) {
+  ExecutionAccess access(isolate_);
   int flagbit = 1 << flag;
   bool result = (thread_local_.interrupt_flags_ & flagbit);
   thread_local_.interrupt_flags_ &= ~flagbit;
-  if (!should_postpone_interrupts(lock) && !has_pending_interrupts(lock)) {
-    reset_limits(lock);
+  if (!should_postpone_interrupts(access) && !has_pending_interrupts(access)) {
+    reset_limits(access);
   }
   return result;
 }
@@ -655,45 +655,42 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 
 
 Object* StackGuard::HandleInterrupts() {
-  bool has_api_interrupt = false;
   {
     ExecutionAccess access(isolate_);
     if (should_postpone_interrupts(access)) {
       return isolate_->heap()->undefined_value();
     }
-
-    if (CheckAndClearInterrupt(GC_REQUEST, access)) {
-      isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
-    }
-
-    if (CheckDebugBreak() || CheckDebugCommand()) {
-      isolate_->debug()->DebugBreakHelper();
-    }
-
-    if (CheckAndClearInterrupt(TERMINATE_EXECUTION, access)) {
-      return isolate_->TerminateExecution();
-    }
-
-    if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES, access)) {
-      isolate_->heap()->DeoptMarkedAllocationSites();
-    }
-
-    if (CheckAndClearInterrupt(INSTALL_CODE, access)) {
-      ASSERT(isolate_->concurrent_recompilation_enabled());
-      isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
-    }
-
-    has_api_interrupt = CheckAndClearInterrupt(API_INTERRUPT, access);
-
-    isolate_->counters()->stack_interrupts()->Increment();
-    isolate_->counters()->runtime_profiler_ticks()->Increment();
-    isolate_->runtime_profiler()->OptimizeNow();
   }
 
-  if (has_api_interrupt) {
+  if (CheckAndClearInterrupt(GC_REQUEST)) {
+    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
+  }
+
+  if (CheckDebugBreak() || CheckDebugCommand()) {
+    isolate_->debug()->DebugBreakHelper();
+  }
+
+  if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
+    return isolate_->TerminateExecution();
+  }
+
+  if (CheckAndClearInterrupt(DEOPT_MARKED_ALLOCATION_SITES)) {
+    isolate_->heap()->DeoptMarkedAllocationSites();
+  }
+
+  if (CheckAndClearInterrupt(INSTALL_CODE)) {
+    ASSERT(isolate_->concurrent_recompilation_enabled());
+    isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
+  }
+
+  if (CheckAndClearInterrupt(API_INTERRUPT)) {
     // Callback must be invoked outside of ExecusionAccess lock.
     isolate_->InvokeApiInterruptCallback();
   }
+
+  isolate_->counters()->stack_interrupts()->Increment();
+  isolate_->counters()->runtime_profiler_ticks()->Increment();
+  isolate_->runtime_profiler()->OptimizeNow();
 
   return isolate_->heap()->undefined_value();
 }

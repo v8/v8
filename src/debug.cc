@@ -2541,6 +2541,8 @@ MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
       isolate_, isolate_->global_object(), constructor_name).ToHandleChecked();
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
+  // We do not handle interrupts here.  In particular, termination interrupts.
+  PostponeInterruptsScope no_interrupts(isolate_);
   return Execution::TryCall(Handle<JSFunction>::cast(constructor),
                             Handle<JSObject>(debug_context()->global_object()),
                             argc,
@@ -2852,6 +2854,9 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
                                  Handle<JSObject> exec_state,
                                  Handle<JSObject> event_data,
                                  bool auto_continue) {
+  // Prevent other interrupts from triggering, for example API callbacks,
+  // while dispatching message handler callbacks.
+  PostponeInterruptsScope no_interrupts(isolate_);
   ASSERT(is_active_);
   HandleScope scope(isolate_);
   // Process the individual events.

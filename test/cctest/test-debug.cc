@@ -7425,3 +7425,49 @@ TEST(DebugBreakStackTrace) {
              "  }"
              "})()");
 }
+
+
+v8::internal::Semaphore terminate_requested_semaphore(0);
+v8::internal::Semaphore terminate_fired_semaphore(0);
+bool terminate_already_fired = false;
+
+
+static void DebugBreakTriggerTerminate(
+    const v8::Debug::EventDetails& event_details) {
+  if (event_details.GetEvent() != v8::Break || terminate_already_fired) return;
+  terminate_requested_semaphore.Signal();
+  // Wait for at most 2 seconds for the terminate request.
+  CHECK(terminate_fired_semaphore.WaitFor(i::TimeDelta::FromSeconds(2)));
+  terminate_already_fired = true;
+  v8::internal::Isolate* isolate =
+      v8::Utils::OpenHandle(*event_details.GetEventContext())->GetIsolate();
+  CHECK(isolate->stack_guard()->CheckTerminateExecution());
+}
+
+
+class TerminationThread : public v8::internal::Thread {
+ public:
+  explicit TerminationThread(v8::Isolate* isolate) : Thread("terminator"),
+                                                     isolate_(isolate) { }
+
+  virtual void Run() {
+    terminate_requested_semaphore.Wait();
+    v8::V8::TerminateExecution(isolate_);
+    terminate_fired_semaphore.Signal();
+  }
+
+ private:
+  v8::Isolate* isolate_;
+};
+
+
+TEST(DebugBreakOffThreadTerminate) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Debug::SetDebugEventListener(DebugBreakTriggerTerminate);
+  TerminationThread terminator(isolate);
+  terminator.Start();
+  v8::Debug::DebugBreak(isolate);
+  CompileRun("while (true);");
+}
