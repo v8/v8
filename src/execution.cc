@@ -667,7 +667,7 @@ Object* StackGuard::HandleInterrupts() {
   }
 
   if (CheckDebugBreak() || CheckDebugCommand()) {
-    isolate_->debug()->DebugBreakHelper();
+    isolate_->debug()->HandleDebugBreak();
   }
 
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {

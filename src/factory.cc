@@ -2039,7 +2039,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   // debug info object to avoid allocation while setting up the debug info
   // object.
   Handle<FixedArray> break_points(
-      NewFixedArray(Debug::kEstimatedNofBreakPointsInFunction));
+      NewFixedArray(DebugInfo::kEstimatedNofBreakPointsInFunction));
 
   // Create and set up the debug info object. Debug info contains function, a
   // copy of the original code, the executing code and initial fixed array for

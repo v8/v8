@@ -10698,7 +10698,7 @@ RUNTIME_FUNCTION(Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  isolate->debug()->DebugBreakHelper();
+  isolate->debug()->HandleDebugBreak();
   return isolate->heap()->undefined_value();
 }
 

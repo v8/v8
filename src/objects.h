@@ -10882,6 +10882,8 @@ class DebugInfo: public Struct {
       kActiveBreakPointsCountIndex + kPointerSize;
   static const int kSize = kBreakPointsStateIndex + kPointerSize;
 
+  static const int kEstimatedNofBreakPointsInFunction = 16;
+
  private:
   static const int kNoBreakPointInfo = -1;
 
