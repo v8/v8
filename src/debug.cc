@@ -2864,8 +2864,8 @@ void Debug::CallCEventCallback(v8::DebugEvent event,
                                Handle<Object> event_data,
                                v8::Debug::ClientData* client_data) {
   Handle<Foreign> callback_obj(Handle<Foreign>::cast(event_listener_));
-  v8::Debug::EventCallback2 callback =
-      FUNCTION_CAST<v8::Debug::EventCallback2>(
+  v8::Debug::EventCallback callback =
+      FUNCTION_CAST<v8::Debug::EventCallback>(
           callback_obj->foreign_address());
   EventDetailsImpl event_details(
       event,

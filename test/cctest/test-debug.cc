@@ -6647,7 +6647,7 @@ TEST(ProcessDebugMessagesThreaded) {
 
   counting_message_handler_counter = 0;
 
-  v8::Debug::SetMessageHandler2(CountingMessageHandler);
+  v8::Debug::SetMessageHandler(CountingMessageHandler);
   send_command_thread_ = new SendCommandThread(isolate);
   send_command_thread_->Start();
 
@@ -6659,7 +6659,7 @@ TEST(ProcessDebugMessagesThreaded) {
 
   CHECK_EQ(100, counting_message_handler_counter);
 
-  v8::Debug::SetMessageHandler2(NULL);
+  v8::Debug::SetMessageHandler(NULL);
   CheckDebuggerUnloaded();
 }
 

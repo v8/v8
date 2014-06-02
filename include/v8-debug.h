@@ -139,9 +139,6 @@ class V8_EXPORT Debug {
    */
   typedef void (*EventCallback)(const EventDetails& event_details);
 
-  // TODO(yangguo) Deprecate this.
-  typedef EventCallback EventCallback2;
-
   /**
    * Debug message callback function.
    *
@@ -152,9 +149,6 @@ class V8_EXPORT Debug {
    */
   typedef void (*MessageHandler)(const Message& message);
 
-  // TODO(yangguo) Deprecate this.
-  typedef MessageHandler MessageHandler2;
-
   /**
    * Callback function for the host to ensure debug messages are processed.
    */
@@ -162,12 +156,6 @@ class V8_EXPORT Debug {
 
   static bool SetDebugEventListener(EventCallback that,
                                     Handle<Value> data = Handle<Value>());
-
-  // TODO(yangguo) Deprecate this.
-  static bool SetDebugEventListener2(EventCallback2 that,
-                                     Handle<Value> data = Handle<Value>()) {
-    return SetDebugEventListener(that, data);
-  }
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
@@ -191,11 +179,6 @@ class V8_EXPORT Debug {
 
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(MessageHandler handler);
-
-  // TODO(yangguo) Deprecate this.
-  static void SetMessageHandler2(MessageHandler2 handler) {
-    SetMessageHandler(handler);
-  }
 
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
