@@ -3054,8 +3054,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
   // Build the sequence for the graph.
   LPlatformChunk* Build();
 
-  LInstruction* CheckElideControlInstruction(HControlInstruction* instr);
-
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
