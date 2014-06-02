@@ -2909,8 +2909,6 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
   void GetCheckInterval(InstanceType* first, InstanceType* last);
   void GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag);
 
-  Check check() const { return check_; }
-
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType)
 
  protected:
@@ -4427,12 +4425,6 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
-  static const int kNoKnownSuccessorIndex = -1;
-  int known_successor_index() const { return known_successor_index_; }
-  void set_known_successor_index(int known_successor_index) {
-    known_successor_index_ = known_successor_index;
-  }
-
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
  protected:
@@ -4442,10 +4434,7 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
   HIsStringAndBranch(HValue* value,
                      HBasicBlock* true_target = NULL,
                      HBasicBlock* false_target = NULL)
-    : HUnaryControlInstruction(value, true_target, false_target),
-      known_successor_index_(kNoKnownSuccessorIndex) { }
-
-  int known_successor_index_;
+    : HUnaryControlInstruction(value, true_target, false_target) {}
 };
 
 
