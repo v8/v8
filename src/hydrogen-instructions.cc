@@ -3256,9 +3256,25 @@ bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
 
 
 bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (known_successor_index() != kNoKnownSuccessorIndex) {
+    *block = SuccessorAt(known_successor_index());
+    return true;
+  }
   if (FLAG_fold_constants && value()->IsConstant()) {
     *block = HConstant::cast(value())->HasStringValue()
         ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  if (value()->type().IsString()) {
+    *block = FirstSuccessor();
+    return true;
+  }
+  if (value()->type().IsSmi() ||
+      value()->type().IsNull() ||
+      value()->type().IsBoolean() ||
+      value()->type().IsUndefined() ||
+      value()->type().IsJSObject()) {
+    *block = SecondSuccessor();
     return true;
   }
   *block = NULL;

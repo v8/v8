@@ -104,6 +104,10 @@ class HCheckTable : public ZoneObject {
         ReduceCompareObjectEqAndBranch(HCompareObjectEqAndBranch::cast(instr));
         break;
       }
+      case HValue::kIsStringAndBranch: {
+        ReduceIsStringAndBranch(HIsStringAndBranch::cast(instr));
+        break;
+      }
       case HValue::kTransitionElementsKind: {
         ReduceTransitionElementsKind(
             HTransitionElementsKind::cast(instr));
@@ -111,6 +115,10 @@ class HCheckTable : public ZoneObject {
       }
       case HValue::kCheckHeapObject: {
         ReduceCheckHeapObject(HCheckHeapObject::cast(instr));
+        break;
+      }
+      case HValue::kCheckInstanceType: {
+        ReduceCheckInstanceType(HCheckInstanceType::cast(instr));
         break;
       }
       default: {
@@ -125,7 +133,7 @@ class HCheckTable : public ZoneObject {
         }
       }
       // Improvements possible:
-      // - eliminate redundant HCheckSmi, HCheckInstanceType instructions
+      // - eliminate redundant HCheckSmi instructions
       // - track which values have been HCheckHeapObject'd
     }
 
@@ -261,6 +269,28 @@ class HCheckTable : public ZoneObject {
           ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, re->state_);
         }
         learned = true;
+      } else if (end->IsIsStringAndBranch()) {
+        HIsStringAndBranch* cmp = HIsStringAndBranch::cast(end);
+        HValue* object = cmp->value()->ActualValue();
+        HCheckTableEntry* entry = copy->Find(object);
+        if (is_true_branch) {
+          // Learn on the true branch of if(IsString(x)).
+          if (entry == NULL) {
+            copy->Insert(object, NULL, string_maps(),
+                         HCheckTableEntry::CHECKED);
+          } else {
+            EnsureChecked(entry, object, cmp);
+            entry->maps_ = entry->maps_->Intersect(string_maps(), zone);
+            ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+          }
+        } else {
+          // Learn on the false branch of if(IsString(x)).
+          if (entry != NULL) {
+            EnsureChecked(entry, object, cmp);
+            entry->maps_ = entry->maps_->Subtract(string_maps(), zone);
+            ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+          }
+        }
       }
       // Learning on false branches requires storing negative facts.
     }
@@ -415,6 +445,50 @@ class HCheckTable : public ZoneObject {
     }
   }
 
+  void ReduceCheckInstanceType(HCheckInstanceType* instr) {
+    HValue* value = instr->value()->ActualValue();
+    HCheckTableEntry* entry = Find(value);
+    if (entry == NULL) {
+      if (instr->check() == HCheckInstanceType::IS_STRING) {
+        Insert(value, NULL, string_maps(), HCheckTableEntry::CHECKED);
+      }
+      return;
+    }
+    UniqueSet<Map>* maps = new(zone()) UniqueSet<Map>(
+        entry->maps_->size(), zone());
+    for (int i = 0; i < entry->maps_->size(); ++i) {
+      InstanceType type;
+      Unique<Map> map = entry->maps_->at(i);
+      {
+        // This is safe, because maps don't move and their instance type does
+        // not change.
+        AllowHandleDereference allow_deref;
+        type = map.handle()->instance_type();
+      }
+      if (instr->is_interval_check()) {
+        InstanceType first_type, last_type;
+        instr->GetCheckInterval(&first_type, &last_type);
+        if (first_type <= type && type <= last_type) maps->Add(map, zone());
+      } else {
+        uint8_t mask, tag;
+        instr->GetCheckMaskAndTag(&mask, &tag);
+        if ((type & mask) == tag) maps->Add(map, zone());
+      }
+    }
+    if (maps->size() == entry->maps_->size()) {
+      TRACE(("Removing redundant CheckInstanceType #%d at B%d\n",
+              instr->id(), instr->block()->block_id()));
+      EnsureChecked(entry, value, instr);
+      instr->DeleteAndReplaceWith(value);
+      INC_STAT(removed_cit_);
+    } else if (maps->size() != 0) {
+      entry->maps_ = maps;
+      if (entry->state_ == HCheckTableEntry::UNCHECKED_STABLE) {
+        entry->state_ = HCheckTableEntry::CHECKED_STABLE;
+      }
+    }
+  }
+
   void ReduceLoadNamedField(HLoadNamedField* instr) {
     // Reduce a load of the map field when it is known to be a constant.
     if (!instr->access().IsMap()) {
@@ -524,6 +598,28 @@ class HCheckTable : public ZoneObject {
     int succ = 1;
     instr->set_known_successor_index(succ);
 
+    int unreachable_succ = 1 - succ;
+    instr->block()->MarkSuccEdgeUnreachable(unreachable_succ);
+  }
+
+  void ReduceIsStringAndBranch(HIsStringAndBranch* instr) {
+    HValue* value = instr->value()->ActualValue();
+    HCheckTableEntry* entry = Find(value);
+    if (entry == NULL) return;
+    EnsureChecked(entry, value, instr);
+    int succ;
+    if (entry->maps_->IsSubset(string_maps())) {
+      TRACE(("Marking redundant IsStringAndBranch #%d at B%d as true\n",
+             instr->id(), instr->block()->block_id()));
+      succ = 0;
+    } else {
+      MapSet intersection = entry->maps_->Intersect(string_maps(), zone());
+      if (intersection->size() > 0) return;
+      TRACE(("Marking redundant IsStringAndBranch #%d at B%d as false\n",
+            instr->id(), instr->block()->block_id()));
+      succ = 1;
+    }
+    instr->set_known_successor_index(succ);
     int unreachable_succ = 1 - succ;
     instr->block()->MarkSuccEdgeUnreachable(unreachable_succ);
   }
@@ -688,6 +784,7 @@ class HCheckTable : public ZoneObject {
   }
 
   Zone* zone() const { return phase_->zone(); }
+  MapSet string_maps() const { return phase_->string_maps(); }
 
   friend class HCheckMapsEffects;
   friend class HCheckEliminationPhase;
@@ -794,6 +891,7 @@ void HCheckEliminationPhase::PrintStats() {
   PRINT_STAT(redundant);
   PRINT_STAT(removed);
   PRINT_STAT(removed_cho);
+  PRINT_STAT(removed_cit);
   PRINT_STAT(narrowed);
   PRINT_STAT(loads);
   PRINT_STAT(empty);
