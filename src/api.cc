@@ -6905,7 +6905,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
 
 
 void Debug::ProcessDebugMessages() {
-  i::Execution::ProcessDebugMessages(i::Isolate::Current(), true);
+  i::Isolate::Current()->debug()->ProcessDebugMessages(true);
 }
 
 

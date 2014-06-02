@@ -4189,7 +4189,7 @@ TEST(DisableBreak) {
   {
     v8::Debug::DebugBreak(env->GetIsolate());
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
-    v8::internal::DisableBreak disable_break(isolate, true);
+    v8::internal::DisableBreak disable_break(isolate->debug(), true);
     f->Call(env->Global(), 0, NULL);
     CHECK_EQ(1, break_point_hit_count);
   }

@@ -104,9 +104,6 @@ class Execution V8_FINAL : public AllStatic {
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
 
-  static void DebugBreakHelper(Isolate* isolate);
-  static void ProcessDebugMessages(Isolate* isolate, bool debug_command_only);
-
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Isolate* isolate,
