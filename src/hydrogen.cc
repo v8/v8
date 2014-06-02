@@ -7940,13 +7940,96 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           handle(JSObject::cast(receiver_map->prototype()), isolate()),
           Handle<JSObject>::null());
 
+      // Threshold for fast inlined Array.shift().
+      HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
+
       Drop(expr->arguments()->length());
       HValue* receiver = Pop();
-      Drop(1);  // function
+      HValue* function = Pop();
+      HValue* result;
 
-      receiver = AddCheckMap(receiver, receiver_map);
-      HInstruction* result = NewUncasted<HArrayShift>(receiver, kind);
-      ast_context()->ReturnInstruction(result, expr->id());
+      {
+        NoObservableSideEffectsScope scope(this);
+
+        HValue* length = Add<HLoadNamedField>(
+            receiver, static_cast<HValue*>(NULL),
+            HObjectAccess::ForArrayLength(kind));
+
+        IfBuilder if_lengthiszero(this);
+        HValue* lengthiszero = if_lengthiszero.If<HCompareNumericAndBranch>(
+            length, graph()->GetConstant0(), Token::EQ);
+        if_lengthiszero.Then();
+        {
+          if (!ast_context()->IsEffect()) Push(graph()->GetConstantUndefined());
+        }
+        if_lengthiszero.Else();
+        {
+          HValue* elements = AddLoadElements(receiver);
+
+          // Check if we can use the fast inlined Array.shift().
+          IfBuilder if_inline(this);
+          if_inline.If<HCompareNumericAndBranch>(
+              length, inline_threshold, Token::LTE);
+          if (IsFastSmiOrObjectElementsKind(kind)) {
+            // We cannot handle copy-on-write backing stores here.
+            if_inline.AndIf<HCompareMap>(
+                elements, isolate()->factory()->fixed_array_map());
+          }
+          if_inline.Then();
+          {
+            // Remember the result.
+            if (!ast_context()->IsEffect()) {
+              Push(AddElementAccess(elements, graph()->GetConstant0(), NULL,
+                                    lengthiszero, kind, LOAD));
+            }
+
+            // Compute the new length.
+            HValue* new_length = AddUncasted<HSub>(
+                length, graph()->GetConstant1());
+            new_length->ClearFlag(HValue::kCanOverflow);
+
+            // Copy the remaining elements.
+            LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
+            {
+              HValue* new_key = loop.BeginBody(
+                  graph()->GetConstant0(), new_length, Token::LT);
+              HValue* key = AddUncasted<HAdd>(new_key, graph()->GetConstant1());
+              key->ClearFlag(HValue::kCanOverflow);
+              HValue* element = AddUncasted<HLoadKeyed>(
+                  elements, key, lengthiszero, kind, ALLOW_RETURN_HOLE);
+              HStoreKeyed* store = Add<HStoreKeyed>(
+                  elements, new_key, element, kind);
+              store->SetFlag(HValue::kAllowUndefinedAsNaN);
+            }
+            loop.EndBody();
+
+            // Put a hole at the end.
+            HValue* hole = IsFastSmiOrObjectElementsKind(kind)
+                ? Add<HConstant>(isolate()->factory()->the_hole_value())
+                : Add<HConstant>(FixedDoubleArray::hole_nan_as_double());
+            if (IsFastSmiOrObjectElementsKind(kind)) kind = FAST_HOLEY_ELEMENTS;
+            Add<HStoreKeyed>(
+                elements, new_length, hole, kind, INITIALIZING_STORE);
+
+            // Remember new length.
+            Add<HStoreNamedField>(
+                receiver, HObjectAccess::ForArrayLength(kind),
+                new_length, STORE_TO_INITIALIZED_ENTRY);
+          }
+          if_inline.Else();
+          {
+            Add<HPushArguments>(receiver);
+            result = Add<HCallJSFunction>(function, 1, true);
+            if (!ast_context()->IsEffect()) Push(result);
+          }
+          if_inline.End();
+        }
+        if_lengthiszero.End();
+      }
+      result = ast_context()->IsEffect() ? graph()->GetConstant0() : Top();
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+      ast_context()->ReturnValue(result);
       return true;
     }
     default:

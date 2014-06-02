@@ -779,11 +779,9 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsElements:
     case HValue::kArgumentsLength:
     case HValue::kArgumentsObject:
-    case HValue::kArrayShift:
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
     case HValue::kCallFunction:
-    case HValue::kCallJSFunction:
     case HValue::kCallNew:
     case HValue::kCallNewArray:
     case HValue::kCallStub:
@@ -849,6 +847,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
     case HValue::kBranch:
+    case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
     case HValue::kChange:
     case HValue::kCheckHeapObject:
@@ -3606,12 +3605,6 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
               *transitioned_map().handle(),
               ElementsAccessor::ForKind(to_kind)->name());
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
-}
-
-
-void HArrayShift::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(" [%s]", ElementsAccessor::ForKind(kind())->name());
 }
 
 

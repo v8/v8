@@ -51,7 +51,6 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
-  V(ArrayShift)                                \
   V(Bitwise)                                   \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
@@ -7087,52 +7086,6 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
   Unique<Map> transitioned_map_;
   ElementsKind from_kind_;
   ElementsKind to_kind_;
-};
-
-
-class HArrayShift V8_FINAL : public HTemplateInstruction<2> {
- public:
-  static HArrayShift* New(Zone* zone,
-                          HValue* context,
-                          HValue* object,
-                          ElementsKind kind) {
-    return new(zone) HArrayShift(context, object, kind);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  HValue* context() const { return OperandAt(0); }
-  HValue* object() const { return OperandAt(1); }
-  ElementsKind kind() const { return kind_; }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  DECLARE_CONCRETE_INSTRUCTION(ArrayShift);
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HArrayShift* that = HArrayShift::cast(other);
-    return this->kind_ == that->kind_;
-  }
-
- private:
-  HArrayShift(HValue* context, HValue* object, ElementsKind kind)
-      : kind_(kind) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, object);
-    SetChangesFlag(kArrayLengths);
-    SetChangesFlag(kNewSpacePromotion);
-    set_representation(Representation::Tagged());
-    if (IsFastSmiOrObjectElementsKind(kind)) {
-      SetChangesFlag(kArrayElements);
-    } else {
-      SetChangesFlag(kDoubleArrayElements);
-    }
-  }
-
-  ElementsKind kind_;
 };
 
 

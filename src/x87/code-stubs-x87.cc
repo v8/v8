@@ -323,16 +323,6 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 }
 
 
-void ArrayShiftStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { eax };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Builtins::c_function_address(Builtins::c_ArrayShift);
-}
-
-
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { edx, eax };
