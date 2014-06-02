@@ -298,7 +298,7 @@ HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
 
   // Convert the parameter to number using the builtin.
   HValue* function = AddLoadJSBuiltin(Builtins::TO_NUMBER);
-  Add<HPushArguments>(zone(), value);
+  Add<HPushArguments>(value);
   Push(Add<HInvokeFunction>(function, 1));
 
   if_number.End();

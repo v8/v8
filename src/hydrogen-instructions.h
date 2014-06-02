@@ -2062,13 +2062,38 @@ class HLeaveInlined V8_FINAL : public HTemplateInstruction<0> {
 
 class HPushArguments V8_FINAL : public HInstruction {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HPushArguments, Zone*);
-  DECLARE_INSTRUCTION_FACTORY_P2(HPushArguments, Zone*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P3(HPushArguments, Zone*, HValue*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P4(HPushArguments, Zone*,
-                                 HValue*, HValue*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P5(HPushArguments, Zone*,
-                                 HValue*, HValue*, HValue*, HValue*);
+  static HPushArguments* New(Zone* zone, HValue* context) {
+    return new(zone) HPushArguments(zone);
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2, HValue* arg3) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    instr->AddInput(arg3);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2, HValue* arg3, HValue* arg4) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    instr->AddInput(arg3);
+    instr->AddInput(arg4);
+    return instr;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2082,10 +2107,7 @@ class HPushArguments V8_FINAL : public HInstruction {
     return inputs_[i];
   }
 
-  void AddArgument(HValue* arg) {
-    inputs_.Add(NULL, zone_);
-    SetOperandAt(inputs_.length() - 1, arg);
-  }
+  void AddInput(HValue* value);
 
   DECLARE_CONCRETE_INSTRUCTION(PushArguments)
 
@@ -2095,30 +2117,11 @@ class HPushArguments V8_FINAL : public HInstruction {
   }
 
  private:
-  HPushArguments(Zone* zone,
-                 HValue* arg1 = NULL, HValue* arg2 = NULL,
-                 HValue* arg3 = NULL, HValue* arg4 = NULL)
-      : HInstruction(HType::Tagged()), zone_(zone), inputs_(4, zone) {
+  explicit HPushArguments(Zone* zone)
+      : HInstruction(HType::Tagged()), inputs_(4, zone) {
     set_representation(Representation::Tagged());
-    if (arg1) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(0, arg1);
-    }
-    if (arg2) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(1, arg2);
-    }
-    if (arg3) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(2, arg3);
-    }
-    if (arg4) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(3, arg4);
-    }
   }
 
-  Zone* zone_;
   ZoneList<HValue*> inputs_;
 };
 

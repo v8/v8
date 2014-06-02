@@ -2434,6 +2434,12 @@ Range* HMathMinMax::InferRange(Zone* zone) {
 }
 
 
+void HPushArguments::AddInput(HValue* value) {
+  inputs_.Add(NULL, value->block()->zone());
+  SetOperandAt(OperandCount() - 1, value);
+}
+
+
 void HPhi::PrintTo(StringStream* stream) {
   stream->Add("[");
   for (int i = 0; i < OperandCount(); ++i) {
