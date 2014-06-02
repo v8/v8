@@ -3027,7 +3027,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  ASSERT(fun->should_have_prototype());
+  RUNTIME_ASSERT(fun->should_have_prototype());
   Accessors::FunctionSetPrototype(fun, value);
   return args[0];  // return TOS
 }
@@ -9487,18 +9487,6 @@ RUNTIME_FUNCTION(RuntimeHidden_ThrowNotDateError) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeHidden_ThrowMessage) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  const char* message = GetBailoutReason(
-      static_cast<BailoutReason>(message_id));
-  Handle<String> message_handle =
-      isolate->factory()->NewStringFromAsciiChecked(message);
-  return isolate->Throw(*message_handle);
-}
-
-
 RUNTIME_FUNCTION(RuntimeHidden_StackGuard) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
@@ -14690,7 +14678,8 @@ RUNTIME_FUNCTION(Runtime_ListNatives) {
   int entry_count = 0
       RUNTIME_FUNCTION_LIST(COUNT_ENTRY)
       RUNTIME_HIDDEN_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_FUNCTION_LIST(COUNT_ENTRY);
+      INLINE_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_OPTIMIZED_FUNCTION_LIST(COUNT_ENTRY);
 #undef COUNT_ENTRY
   Factory* factory = isolate->factory();
   Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
@@ -14714,6 +14703,7 @@ RUNTIME_FUNCTION(Runtime_ListNatives) {
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  INLINE_OPTIMIZED_FUNCTION_LIST(ADD_ENTRY)
   // Calling hidden runtime functions should just throw.
   RUNTIME_HIDDEN_FUNCTION_LIST(ADD_ENTRY)
   inline_runtime_functions = true;
@@ -14889,64 +14879,33 @@ RUNTIME_FUNCTION(Runtime_ObjectWasCreatedInCurrentOrigin) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ObjectObserveInObjectContext) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, accept, 2);
-
-  Handle<Context> context(object->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_observe(), isolate);
-  Handle<Object> call_args[] = { object, callback, accept };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function,
-          handle(context->object_function(), isolate),
-          ARRAY_SIZE(call_args), call_args, true));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectGetNotifierInObjectContext) {
+RUNTIME_FUNCTION(Runtime_GetObjectContextObjectObserve) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
 
   Handle<Context> context(object->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_get_notifier(), isolate);
-  Handle<Object> call_args[] = { object };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function,
-          handle(context->object_function(), isolate),
-          ARRAY_SIZE(call_args), call_args, true));
-  return *result;
+  return context->native_object_observe();
 }
 
 
-RUNTIME_FUNCTION(Runtime_ObjectNotifierPerformChangeInObjectContext) {
+RUNTIME_FUNCTION(Runtime_GetObjectContextObjectGetNotifier) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  Handle<Context> context(object->GetCreationContext(), isolate);
+  return context->native_object_get_notifier();
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetObjectContextNotifierPerformChange) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, change_type, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, change_fn, 2);
 
   Handle<Context> context(object_info->GetCreationContext(), isolate);
-  Handle<JSFunction> function(context->native_object_notifier_perform_change(),
-      isolate);
-  Handle<Object> call_args[] = { object_info, change_type, change_fn };
-  Handle<Object> result;
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, function, isolate->factory()->undefined_value(),
-                      ARRAY_SIZE(call_args), call_args, true));
-  return *result;
+  return context->native_object_notifier_perform_change();
 }
 
 
@@ -15119,6 +15078,7 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
 
 static const Runtime::Function kIntrinsicFunctions[] = {
   RUNTIME_FUNCTION_LIST(F)
+  INLINE_OPTIMIZED_FUNCTION_LIST(F)
   RUNTIME_HIDDEN_FUNCTION_LIST(FH)
   INLINE_FUNCTION_LIST(I)
   INLINE_OPTIMIZED_FUNCTION_LIST(IO)

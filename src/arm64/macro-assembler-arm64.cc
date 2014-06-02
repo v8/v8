@@ -1549,48 +1549,6 @@ void MacroAssembler::ThrowUncatchable(Register value,
 }
 
 
-void MacroAssembler::Throw(BailoutReason reason) {
-  Label throw_start;
-  Bind(&throw_start);
-#ifdef DEBUG
-  const char* msg = GetBailoutReason(reason);
-  RecordComment("Throw message: ");
-  RecordComment((msg != NULL) ? msg : "UNKNOWN");
-#endif
-
-  Mov(x0, Smi::FromInt(reason));
-  Push(x0);
-
-  // Disable stub call restrictions to always allow calls to throw.
-  if (!has_frame_) {
-    // We don't actually want to generate a pile of code for this, so just
-    // claim there is a stack frame, without generating one.
-    FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kHiddenThrowMessage, 1);
-  } else {
-    CallRuntime(Runtime::kHiddenThrowMessage, 1);
-  }
-  // ThrowMessage should not return here.
-  Unreachable();
-}
-
-
-void MacroAssembler::ThrowIf(Condition cond, BailoutReason reason) {
-  Label ok;
-  B(InvertCondition(cond), &ok);
-  Throw(reason);
-  Bind(&ok);
-}
-
-
-void MacroAssembler::ThrowIfSmi(const Register& value, BailoutReason reason) {
-  Label ok;
-  JumpIfNotSmi(value, &ok);
-  Throw(reason);
-  Bind(&ok);
-}
-
-
 void MacroAssembler::SmiAbs(const Register& smi, Label* slow) {
   ASSERT(smi.Is64Bits());
   Abs(smi, smi, slow);

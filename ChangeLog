@@ -1,3 +1,15 @@
+2014-06-02: Version 3.27.17
+
+        BuildNumberToString: Check for undefined keys in the cache (Chromium
+        issue 368114).
+
+        HRor and HSar can deoptimize (issue 3359).
+
+        Simplify, speed-up correct-context ObjectObserve calls.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-05-29: Version 3.27.16
 
         Allow microtasks to throw exceptions and handle them gracefully

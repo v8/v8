@@ -3,4 +3,4 @@
 // Flags: --allow-natives-syntax --harmony
 var _hi = 32;
 var _lo = 32;
-%_ConstructDouble(_hi, _lo);
+%ConstructDouble(_hi, _lo);

@@ -28,7 +28,7 @@ class FuzzNativesTestSuite(testsuite.TestSuite):
     if output.exit_code != 0:
       print output.stdout
       print output.stderr
-      assert false, "Failed to get natives list."
+      assert False, "Failed to get natives list."
     tests = []
     for line in output.stdout.strip().split():
       (name, argc) = line.split(",")

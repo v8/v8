@@ -1235,6 +1235,10 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   if (this->context() != NULL && this->context()->IsContext()) {
     context = Context::cast(this->context());
   }
+  while (context->IsWithContext()) {
+    context = context->previous();
+    ASSERT(context != NULL);
+  }
 
   // Print heap-allocated local variables.
   if (heap_locals_count > 0) {
@@ -1245,8 +1249,9 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->PrintName(scope_info->ContextLocalName(i));
     accumulator->Add(" = ");
     if (context != NULL) {
-      if (i < context->length()) {
-        accumulator->Add("%o", context->get(Context::MIN_CONTEXT_SLOTS + i));
+      int index = Context::MIN_CONTEXT_SLOTS + i;
+      if (index < context->length()) {
+        accumulator->Add("%o", context->get(index));
       } else {
         accumulator->Add(
             "// warning: missing context slot - inconsistent frame?");

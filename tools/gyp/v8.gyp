@@ -421,6 +421,8 @@
         '../../src/hydrogen-sce.h',
         '../../src/hydrogen-store-elimination.cc',
         '../../src/hydrogen-store-elimination.h',
+        '../../src/hydrogen-types.cc',
+        '../../src/hydrogen-types.h',
         '../../src/hydrogen-uint32-analysis.cc',
         '../../src/hydrogen-uint32-analysis.h',
         '../../src/i18n.cc',

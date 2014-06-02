@@ -67,6 +67,7 @@
 
   # This tests only the type system, so there is no point in running several
   # variants.
+  'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
 
   # BUG(2999).

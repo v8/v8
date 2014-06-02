@@ -308,48 +308,6 @@ bool Range::MulAndCheckOverflow(const Representation& r, Range* other) {
 }
 
 
-const char* HType::ToString() {
-  // Note: The c1visualizer syntax for locals allows only a sequence of the
-  // following characters: A-Za-z0-9_-|:
-  switch (type_) {
-    case kNone: return "none";
-    case kTagged: return "tagged";
-    case kTaggedPrimitive: return "primitive";
-    case kTaggedNumber: return "number";
-    case kSmi: return "smi";
-    case kHeapNumber: return "heap-number";
-    case kString: return "string";
-    case kBoolean: return "boolean";
-    case kNonPrimitive: return "non-primitive";
-    case kJSArray: return "array";
-    case kJSObject: return "object";
-  }
-  UNREACHABLE();
-  return "unreachable";
-}
-
-
-HType HType::TypeFromValue(Handle<Object> value) {
-  HType result = HType::Tagged();
-  if (value->IsSmi()) {
-    result = HType::Smi();
-  } else if (value->IsHeapNumber()) {
-    result = HType::HeapNumber();
-  } else if (value->IsString()) {
-    result = HType::String();
-  } else if (value->IsBoolean()) {
-    result = HType::Boolean();
-  } else if (value->IsJSObject()) {
-    result = HType::JSObject();
-  } else if (value->IsJSArray()) {
-    result = HType::JSArray();
-  } else if (value->IsHeapObject()) {
-    result = HType::NonPrimitive();
-  }
-  return result;
-}
-
-
 bool HValue::IsDefinedAfter(HBasicBlock* other) const {
   return block()->block_id() > other->block_id();
 }
@@ -873,8 +831,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kPushArguments:
     case HValue::kRegExpLiteral:
     case HValue::kReturn:
-    case HValue::kRor:
-    case HValue::kSar:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:
     case HValue::kStoreKeyed:
@@ -919,6 +875,8 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kMul:
     case HValue::kOsrEntry:
     case HValue::kPower:
+    case HValue::kRor:
+    case HValue::kSar:
     case HValue::kSeqStringSetChar:
     case HValue::kShl:
     case HValue::kShr:
@@ -1638,7 +1596,9 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
 
 HValue* HCheckInstanceType::Canonicalize() {
-  if (check_ == IS_STRING && value()->type().IsString()) {
+  if ((check_ == IS_SPEC_OBJECT && value()->type().IsJSObject()) ||
+      (check_ == IS_JS_ARRAY && value()->type().IsJSArray()) ||
+      (check_ == IS_STRING && value()->type().IsString())) {
     return value();
   }
 
@@ -2698,7 +2658,7 @@ static bool IsInteger32(double value) {
 
 
 HConstant::HConstant(Handle<Object> object, Representation r)
-  : HTemplateInstruction<0>(HType::TypeFromValue(object)),
+  : HTemplateInstruction<0>(HType::FromValue(object)),
     object_(Unique<Object>::CreateUninitialized(object)),
     object_map_(Handle<Map>::null()),
     has_stable_map_value_(false),
@@ -2757,7 +2717,7 @@ HConstant::HConstant(Unique<Object> object,
     is_undetectable_(is_undetectable),
     instance_type_(instance_type) {
   ASSERT(!object.handle().is_null());
-  ASSERT(!type.IsTaggedNumber());
+  ASSERT(!type.IsTaggedNumber() || type.IsNone());
   Initialize(r);
 }
 
@@ -2815,7 +2775,7 @@ HConstant::HConstant(double double_value,
 
 
 HConstant::HConstant(ExternalReference reference)
-  : HTemplateInstruction<0>(HType::None()),
+  : HTemplateInstruction<0>(HType::Any()),
     object_(Unique<Object>(Handle<Object>::null())),
     object_map_(Handle<Map>::null()),
     has_stable_map_value_(false),

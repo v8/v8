@@ -5,4 +5,4 @@ var _holder = new DataView(new ArrayBuffer(24));
 var _buffer = new ArrayBuffer(8);
 var _byte_offset = 1.5;
 var _byte_length = 1.5;
-%_DataViewInitialize(_holder, _buffer, _byte_offset, _byte_length);
+%DataViewInitialize(_holder, _buffer, _byte_offset, _byte_length);

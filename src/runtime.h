@@ -306,9 +306,9 @@ namespace internal {
   F(ObservationWeakMapCreate, 0, 1) \
   F(ObserverObjectAndRecordHaveSameOrigin, 3, 1) \
   F(ObjectWasCreatedInCurrentOrigin, 1, 1) \
-  F(ObjectObserveInObjectContext, 3, 1) \
-  F(ObjectGetNotifierInObjectContext, 1, 1) \
-  F(ObjectNotifierPerformChangeInObjectContext, 3, 1) \
+  F(GetObjectContextObjectObserve, 1, 1) \
+  F(GetObjectContextObjectGetNotifier, 1, 1) \
+  F(GetObjectContextNotifierPerformChange, 1, 1) \
   \
   /* Harmony typed arrays */ \
   F(ArrayBufferInitialize, 2, 1)\
@@ -582,7 +582,6 @@ namespace internal {
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
   F(ThrowNotDateError, 0, 1) \
-  F(ThrowMessage, 1, 1) \
   F(StackGuard, 0, 1) \
   F(Interrupt, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
@@ -662,6 +661,8 @@ namespace internal {
 // INLINE_OPTIMIZED_FUNCTION_LIST defines all inlined functions accessed
 // with a native call of the form %_name from within JS code that also have
 // a corresponding runtime function, that is called from non-optimized code.
+// For the benefit of (fuzz) tests, the runtime version can also be called
+// directly as %name (i.e. without the leading underscore).
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_OPTIMIZED_FUNCTION_LIST(F) \
   /* Typed Arrays */                                                         \
@@ -734,6 +735,7 @@ class Runtime : public AllStatic {
   enum FunctionId {
 #define F(name, nargs, ressize) k##name,
     RUNTIME_FUNCTION_LIST(F)
+    INLINE_OPTIMIZED_FUNCTION_LIST(F)
 #undef F
 #define F(name, nargs, ressize) kHidden##name,
     RUNTIME_HIDDEN_FUNCTION_LIST(F)

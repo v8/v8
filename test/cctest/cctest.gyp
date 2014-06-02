@@ -83,6 +83,7 @@
         'test-hashmap.cc',
         'test-heap.cc',
         'test-heap-profiler.cc',
+        'test-hydrogen-types.cc',
         'test-libplatform-task-queue.cc',
         'test-libplatform-worker-thread.cc',
         'test-list.cc',

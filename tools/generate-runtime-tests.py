@@ -828,7 +828,6 @@ def FindInlineRuntimeFunctions():
   inline_functions = []
   with open(HEADERFILENAME, "r") as f:
     inline_list = "#define INLINE_FUNCTION_LIST(F) \\\n"
-    inline_opt_list = "#define INLINE_OPTIMIZED_FUNCTION_LIST(F) \\\n"
     inline_function = re.compile(r"^\s*F\((\w+), \d+, \d+\)\s*\\?")
     mode = "SEARCHING"
     for line in f:
@@ -839,7 +838,7 @@ def FindInlineRuntimeFunctions():
         if not line.endswith("\\\n"):
           mode = "SEARCHING"
       elif mode == "SEARCHING":
-        if line == inline_list or line == inline_opt_list:
+        if line == inline_list:
           mode = "ACTIVE"
   return inline_functions
 

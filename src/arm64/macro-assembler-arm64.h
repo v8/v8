@@ -1072,15 +1072,6 @@ class MacroAssembler : public Assembler {
                         Register scratch3,
                         Register scratch4);
 
-  // Throw a message string as an exception.
-  void Throw(BailoutReason reason);
-
-  // Throw a message string as an exception if a condition is not true.
-  void ThrowIf(Condition cond, BailoutReason reason);
-
-  // Throw a message string as an exception if the value is a smi.
-  void ThrowIfSmi(const Register& value, BailoutReason reason);
-
   void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
   void TailCallStub(CodeStub* stub);
 
