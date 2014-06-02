@@ -292,8 +292,7 @@
         'defines': [
           'V8_TARGET_ARCH_X87',
         ],
-        'cflags': ['-mfpmath=387'],
-        'ldflags': ['-mfpmath=387'],
+        'cflags': ['-march=i586'],
       }],  # v8_target_arch=="x87"
       ['v8_target_arch=="mips"', {
         'defines': [
