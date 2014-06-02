@@ -50,9 +50,6 @@ namespace internal {
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   CPU cpu;
-  // SAHF must be available in compat/legacy mode.
-  CHECK(cpu.has_sahf());
-  supported_ |= 1u << SAHF;
   supported_ |= OS::CpuFeaturesImpliedByPlatform();
 
   // Only use statically determined features for cross compile (snapshot).
