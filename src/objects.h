@@ -2222,22 +2222,22 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<JSObject> receiver,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetPropertyAttributeWithInterceptor(
       Handle<JSObject> object,
       Handle<JSObject> receiver,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
       Handle<JSObject> object,
       LookupResult* result,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetElementAttributeWithReceiver(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
       uint32_t index,
-      bool continue_search);
+      bool check_prototype);
 
   // Retrieves an AccessorPair property from the given object. Might return
   // undefined if the property doesn't exist or is of a different kind.
