@@ -6328,20 +6328,6 @@ void JSReceiver::Lookup(Handle<Name> name, LookupResult* result) {
 }
 
 
-// Search object and its prototype chain for callback properties.
-void JSObject::LookupCallbackProperty(Handle<Name> name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  Handle<Object> null_value = GetIsolate()->factory()->null_value();
-  for (Object* current = this;
-       current != *null_value && current->IsJSObject();
-       current = JSObject::cast(current)->GetPrototype()) {
-    JSObject::cast(current)->LookupOwnRealNamedProperty(name, result);
-    if (result->IsPropertyCallbacks()) return;
-  }
-  result->NotFound();
-}
-
-
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
@@ -6726,32 +6712,6 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
 }
 
 
-bool JSObject::CanSetCallback(Handle<JSObject> object, Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
-  ASSERT(!object->IsAccessCheckNeeded() ||
-         isolate->MayNamedAccess(object, name, v8::ACCESS_SET));
-
-  // Check if there is an API defined callback object which prohibits
-  // callback overwriting in this object or its prototype chain.
-  // This mechanism is needed for instance in a browser setting, where
-  // certain accessors such as window.location should not be allowed
-  // to be overwritten because allowing overwriting could potentially
-  // cause security problems.
-  LookupResult callback_result(isolate);
-  object->LookupCallbackProperty(name, &callback_result);
-  if (callback_result.IsFound()) {
-    Object* callback_obj = callback_result.GetCallbackObject();
-    if (callback_obj->IsAccessorInfo()) {
-      return !AccessorInfo::cast(callback_obj)->prohibits_overwriting();
-    }
-    if (callback_obj->IsAccessorPair()) {
-      return !AccessorPair::cast(callback_obj)->prohibits_overwriting();
-    }
-  }
-  return true;
-}
-
-
 bool Map::DictionaryElementsInPrototypeChainOnly() {
   Heap* heap = GetHeap();
 
@@ -6877,8 +6837,6 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
 
   // Try to flatten before operating on the string.
   if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-
-  if (!JSObject::CanSetCallback(object, name)) return;
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
@@ -7050,10 +7008,6 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
 
   // Try to flatten before operating on the string.
   if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-
-  if (!JSObject::CanSetCallback(object, name)) {
-    return factory->undefined_value();
-  }
 
   uint32_t index = 0;
   bool is_element = name->AsArrayIndex(&index);
