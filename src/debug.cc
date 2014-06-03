@@ -2459,17 +2459,17 @@ void Debug::ClearMirrorCache() {
   PostponeInterruptsScope postpone(isolate_);
   HandleScope scope(isolate_);
   ASSERT(isolate_->context() == *Debug::debug_context());
-
-  // Clear the mirror cache.
-  Handle<Object> fun = Object::GetProperty(
-      isolate_,
-      isolate_->global_object(),
-      "ClearMirrorCache").ToHandleChecked();
-  ASSERT(fun->IsJSFunction());
-  Execution::TryCall(Handle<JSFunction>::cast(fun),
-                     Handle<JSObject>(Debug::debug_context()->global_object()),
-                     0,
-                     NULL);
+  Factory* factory = isolate_->factory();
+  JSObject::SetProperty(isolate_->global_object(),
+      factory->NewStringFromAsciiChecked("next_handle_"),
+      handle(Smi::FromInt(0), isolate_),
+      NONE,
+      SLOPPY).Check();
+  JSObject::SetProperty(isolate_->global_object(),
+      factory->NewStringFromAsciiChecked("mirror_cache_"),
+      factory->NewJSArray(0, FAST_ELEMENTS),
+      NONE,
+      SLOPPY).Check();
 }
 
 
