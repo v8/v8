@@ -220,6 +220,7 @@ action("js2c_experimental") {
     "src/symbol.js",
     "src/proxy.js",
     "src/collection.js",
+    "src/collection-iterator.js",
     "src/generator.js",
     "src/array-iterator.js",
     "src/harmony-string.js",
@@ -268,7 +269,7 @@ action("run_mksnapshot") {
   ]
 
   args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($host_toolchain)", 
+    "./" + rebase_path(get_label_info(":mksnapshot($host_toolchain)",
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--log-snapshot-positions",
