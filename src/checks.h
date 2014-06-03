@@ -7,8 +7,8 @@
 
 #include <string.h>
 
-#include "base/build_config.h"
 #include "include/v8stdint.h"
+#include "src/base/build_config.h"
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
