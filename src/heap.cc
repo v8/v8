@@ -5853,9 +5853,8 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
 
   HeapObject* obj = HeapObject::cast(*p);
 
-  Object* map = obj->map();
-
-  if (!map->IsHeapObject()) return;  // visited before
+  MapWord map_word = obj->map_word();
+  if (!map_word.ToMap()->IsHeapObject()) return;  // visited before
 
   if (found_target_in_trace_) return;  // stop if target found
   object_stack_.Add(obj);
@@ -5869,11 +5868,11 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   bool is_native_context = SafeIsNativeContext(obj);
 
   // not visited yet
-  Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
+  Map* map = Map::cast(map_word.ToMap());
 
-  Address map_addr = map_p->address();
-
-  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
+  MapWord marked_map_word =
+      MapWord::FromRawValue(obj->map_word().ToRawValue() + kMarkTag);
+  obj->set_map_word(marked_map_word);
 
   // Scan the object body.
   if (is_native_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
@@ -5884,17 +5883,16 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
         Context::kHeaderSize + Context::FIRST_WEAK_SLOT * kPointerSize);
     mark_visitor->VisitPointers(start, end);
   } else {
-    obj->IterateBody(map_p->instance_type(),
-                     obj->SizeFromMap(map_p),
-                     mark_visitor);
+    obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), mark_visitor);
   }
 
   // Scan the map after the body because the body is a lot more interesting
   // when doing leak detection.
-  MarkRecursively(&map, mark_visitor);
+  MarkRecursively(reinterpret_cast<Object**>(&map), mark_visitor);
 
-  if (!found_target_in_trace_)  // don't pop if found the target
+  if (!found_target_in_trace_) {  // don't pop if found the target
     object_stack_.RemoveLast();
+  }
 }
 
 
@@ -5903,25 +5901,18 @@ void PathTracer::UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor) {
 
   HeapObject* obj = HeapObject::cast(*p);
 
-  Object* map = obj->map();
+  MapWord map_word = obj->map_word();
+  if (map_word.ToMap()->IsHeapObject()) return;  // unmarked already
 
-  if (map->IsHeapObject()) return;  // unmarked already
+  MapWord unmarked_map_word =
+      MapWord::FromRawValue(map_word.ToRawValue() - kMarkTag);
+  obj->set_map_word(unmarked_map_word);
 
-  Address map_addr = reinterpret_cast<Address>(map);
+  Map* map = Map::cast(unmarked_map_word.ToMap());
 
-  map_addr -= kMarkTag;
+  UnmarkRecursively(reinterpret_cast<Object**>(&map), unmark_visitor);
 
-  ASSERT_TAG_ALIGNED(map_addr);
-
-  HeapObject* map_p = HeapObject::FromAddress(map_addr);
-
-  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_p));
-
-  UnmarkRecursively(reinterpret_cast<Object**>(&map_p), unmark_visitor);
-
-  obj->IterateBody(Map::cast(map_p)->instance_type(),
-                   obj->SizeFromMap(Map::cast(map_p)),
-                   unmark_visitor);
+  obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), unmark_visitor);
 }
 
 

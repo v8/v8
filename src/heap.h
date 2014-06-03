@@ -2727,6 +2727,9 @@ class PathTracer : public ObjectVisitor {
     FIND_FIRST  // Will stop the search after first match.
   };
 
+  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
+  static const int kMarkTag = 2;
+
   // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
   // after the first match.  If FIND_ALL is specified, then tracing will be
   // done for all matches.
@@ -2757,9 +2760,6 @@ class PathTracer : public ObjectVisitor {
   void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
   void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
   virtual void ProcessResults();
-
-  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-  static const int kMarkTag = 2;
 
   Object* search_target_;
   bool found_target_;

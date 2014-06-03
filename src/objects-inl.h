@@ -1328,7 +1328,14 @@ Isolate* HeapObject::GetIsolate() {
 
 
 Map* HeapObject::map() {
+#ifdef DEBUG
+  // Clear mark potentially added by PathTracer.
+  uintptr_t raw_value =
+      map_word().ToRawValue() & ~static_cast<uintptr_t>(PathTracer::kMarkTag);
+  return MapWord::FromRawValue(raw_value).ToMap();
+#else
   return map_word().ToMap();
+#endif
 }
 
 
