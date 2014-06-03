@@ -2072,11 +2072,7 @@ typedef void (*AccessorSetterCallback)(
  * accessors have an explicit access control parameter which specifies
  * the kind of cross-context access that should be allowed.
  *
- * Additionally, for security, accessors can prohibit overwriting by
- * accessors defined in JavaScript.  For objects that have such
- * accessors either locally or in their prototype chain it is not
- * possible to overwrite the accessor by using __defineGetter__ or
- * __defineSetter__ from JavaScript code.
+ * TODO(dcarney): Remove PROHIBITS_OVERWRITING as it is now unused.
  */
 enum AccessControl {
   DEFAULT               = 0,

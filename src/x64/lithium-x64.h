@@ -26,7 +26,6 @@ class LCodeGen;
   V(ArgumentsLength)                            \
   V(ArithmeticD)                                \
   V(ArithmeticT)                                \
-  V(ArrayShift)                                 \
   V(BitI)                                       \
   V(BoundsCheck)                                \
   V(Branch)                                     \
@@ -2245,21 +2244,6 @@ class LTransitionElementsKind V8_FINAL : public LTemplateInstruction<0, 2, 2> {
 };
 
 
-class LArrayShift V8_FINAL : public LTemplateInstruction<1, 2, 0> {
- public:
-  LArrayShift(LOperand* context, LOperand* object) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-  }
-
-  LOperand* context() const { return inputs_[0]; }
-  LOperand* object() const { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(ArrayShift, "array-shift")
-  DECLARE_HYDROGEN_ACCESSOR(ArrayShift)
-};
-
-
 class LTrapAllocationMemento V8_FINAL : public LTemplateInstruction<0, 1, 1> {
  public:
   LTrapAllocationMemento(LOperand* object,
@@ -2679,8 +2663,6 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
-
-  LInstruction* CheckElideControlInstruction(HControlInstruction* instr);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);

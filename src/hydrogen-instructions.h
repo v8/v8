@@ -51,7 +51,6 @@ class LChunkBuilder;
   V(ArgumentsElements)                         \
   V(ArgumentsLength)                           \
   V(ArgumentsObject)                           \
-  V(ArrayShift)                                \
   V(Bitwise)                                   \
   V(BlockEntry)                                \
   V(BoundsCheck)                               \
@@ -2062,13 +2061,38 @@ class HLeaveInlined V8_FINAL : public HTemplateInstruction<0> {
 
 class HPushArguments V8_FINAL : public HInstruction {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HPushArguments, Zone*);
-  DECLARE_INSTRUCTION_FACTORY_P2(HPushArguments, Zone*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P3(HPushArguments, Zone*, HValue*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P4(HPushArguments, Zone*,
-                                 HValue*, HValue*, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P5(HPushArguments, Zone*,
-                                 HValue*, HValue*, HValue*, HValue*);
+  static HPushArguments* New(Zone* zone, HValue* context) {
+    return new(zone) HPushArguments(zone);
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2, HValue* arg3) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    instr->AddInput(arg3);
+    return instr;
+  }
+  static HPushArguments* New(Zone* zone, HValue* context, HValue* arg1,
+                             HValue* arg2, HValue* arg3, HValue* arg4) {
+    HPushArguments* instr = new(zone) HPushArguments(zone);
+    instr->AddInput(arg1);
+    instr->AddInput(arg2);
+    instr->AddInput(arg3);
+    instr->AddInput(arg4);
+    return instr;
+  }
 
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
@@ -2082,10 +2106,7 @@ class HPushArguments V8_FINAL : public HInstruction {
     return inputs_[i];
   }
 
-  void AddArgument(HValue* arg) {
-    inputs_.Add(NULL, zone_);
-    SetOperandAt(inputs_.length() - 1, arg);
-  }
+  void AddInput(HValue* value);
 
   DECLARE_CONCRETE_INSTRUCTION(PushArguments)
 
@@ -2095,30 +2116,11 @@ class HPushArguments V8_FINAL : public HInstruction {
   }
 
  private:
-  HPushArguments(Zone* zone,
-                 HValue* arg1 = NULL, HValue* arg2 = NULL,
-                 HValue* arg3 = NULL, HValue* arg4 = NULL)
-      : HInstruction(HType::Tagged()), zone_(zone), inputs_(4, zone) {
+  explicit HPushArguments(Zone* zone)
+      : HInstruction(HType::Tagged()), inputs_(4, zone) {
     set_representation(Representation::Tagged());
-    if (arg1) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(0, arg1);
-    }
-    if (arg2) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(1, arg2);
-    }
-    if (arg3) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(2, arg3);
-    }
-    if (arg4) {
-      inputs_.Add(NULL, zone);
-      SetOperandAt(3, arg4);
-    }
   }
 
-  Zone* zone_;
   ZoneList<HValue*> inputs_;
 };
 
@@ -2906,6 +2908,8 @@ class HCheckInstanceType V8_FINAL : public HUnaryOperation {
   bool is_interval_check() const { return check_ <= LAST_INTERVAL_CHECK; }
   void GetCheckInterval(InstanceType* first, InstanceType* last);
   void GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag);
+
+  Check check() const { return check_; }
 
   DECLARE_CONCRETE_INSTRUCTION(CheckInstanceType)
 
@@ -4423,6 +4427,12 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
 
   virtual bool KnownSuccessorBlock(HBasicBlock** block) V8_OVERRIDE;
 
+  static const int kNoKnownSuccessorIndex = -1;
+  int known_successor_index() const { return known_successor_index_; }
+  void set_known_successor_index(int known_successor_index) {
+    known_successor_index_ = known_successor_index;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(IsStringAndBranch)
 
  protected:
@@ -4432,7 +4442,10 @@ class HIsStringAndBranch V8_FINAL : public HUnaryControlInstruction {
   HIsStringAndBranch(HValue* value,
                      HBasicBlock* true_target = NULL,
                      HBasicBlock* false_target = NULL)
-    : HUnaryControlInstruction(value, true_target, false_target) {}
+    : HUnaryControlInstruction(value, true_target, false_target),
+      known_successor_index_(kNoKnownSuccessorIndex) { }
+
+  int known_successor_index_;
 };
 
 
@@ -7084,52 +7097,6 @@ class HTransitionElementsKind V8_FINAL : public HTemplateInstruction<2> {
   Unique<Map> transitioned_map_;
   ElementsKind from_kind_;
   ElementsKind to_kind_;
-};
-
-
-class HArrayShift V8_FINAL : public HTemplateInstruction<2> {
- public:
-  static HArrayShift* New(Zone* zone,
-                          HValue* context,
-                          HValue* object,
-                          ElementsKind kind) {
-    return new(zone) HArrayShift(context, object, kind);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
-    return Representation::Tagged();
-  }
-
-  HValue* context() const { return OperandAt(0); }
-  HValue* object() const { return OperandAt(1); }
-  ElementsKind kind() const { return kind_; }
-
-  virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
-
-  DECLARE_CONCRETE_INSTRUCTION(ArrayShift);
-
- protected:
-  virtual bool DataEquals(HValue* other) V8_OVERRIDE {
-    HArrayShift* that = HArrayShift::cast(other);
-    return this->kind_ == that->kind_;
-  }
-
- private:
-  HArrayShift(HValue* context, HValue* object, ElementsKind kind)
-      : kind_(kind) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, object);
-    SetChangesFlag(kArrayLengths);
-    SetChangesFlag(kNewSpacePromotion);
-    set_representation(Representation::Tagged());
-    if (IsFastSmiOrObjectElementsKind(kind)) {
-      SetChangesFlag(kArrayElements);
-    } else {
-      SetChangesFlag(kDoubleArrayElements);
-    }
-  }
-
-  ElementsKind kind_;
 };
 
 

@@ -2222,22 +2222,22 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<JSObject> receiver,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetPropertyAttributeWithInterceptor(
       Handle<JSObject> object,
       Handle<JSObject> receiver,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
       Handle<JSObject> object,
       LookupResult* result,
       Handle<Name> name,
-      bool continue_search);
+      bool check_prototype);
   static PropertyAttributes GetElementAttributeWithReceiver(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
       uint32_t index,
-      bool continue_search);
+      bool check_prototype);
 
   // Retrieves an AccessorPair property from the given object. Might return
   // undefined if the property doesn't exist or is of a different kind.
@@ -2441,7 +2441,6 @@ class JSObject: public JSReceiver {
   void LookupRealNamedProperty(Handle<Name> name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(Handle<Name> name,
                                            LookupResult* result);
-  void LookupCallbackProperty(Handle<Name> name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -10373,9 +10372,6 @@ class AccessorInfo: public Struct {
   inline bool all_can_write();
   inline void set_all_can_write(bool value);
 
-  inline bool prohibits_overwriting();
-  inline void set_prohibits_overwriting(bool value);
-
   inline PropertyAttributes property_attributes();
   inline void set_property_attributes(PropertyAttributes attributes);
 
@@ -10402,8 +10398,7 @@ class AccessorInfo: public Struct {
   // Bit positions in flag.
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
-  static const int kProhibitsOverwritingBit = 2;
-  class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
+  class AttributesField: public BitField<PropertyAttributes, 2, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };
@@ -10568,7 +10563,6 @@ class AccessorPair: public Struct {
   inline void set_access_flags(v8::AccessControl access_control);
   inline bool all_can_read();
   inline bool all_can_write();
-  inline bool prohibits_overwriting();
 
   static inline AccessorPair* cast(Object* obj);
 
@@ -10611,7 +10605,6 @@ class AccessorPair: public Struct {
  private:
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
-  static const int kProhibitsOverwritingBit = 2;
 
   // Strangely enough, in addition to functions and harmony proxies, the spec
   // requires us to consider undefined as a kind of accessor, too:
@@ -10888,6 +10881,8 @@ class DebugInfo: public Struct {
   static const int kBreakPointsStateIndex =
       kActiveBreakPointsCountIndex + kPointerSize;
   static const int kSize = kBreakPointsStateIndex + kPointerSize;
+
+  static const int kEstimatedNofBreakPointsInFunction = 16;
 
  private:
   static const int kNoBreakPointInfo = -1;

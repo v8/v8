@@ -298,7 +298,7 @@ HValue* CodeStubGraphBuilder<ToNumberStub>::BuildCodeStub() {
 
   // Convert the parameter to number using the builtin.
   HValue* function = AddLoadJSBuiltin(Builtins::TO_NUMBER);
-  Add<HPushArguments>(zone(), value);
+  Add<HPushArguments>(value);
   Push(Add<HInvokeFunction>(function, 1));
 
   if_number.End();
@@ -1116,86 +1116,6 @@ HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
 
 
 Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ArrayShiftStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(ArrayShiftStub::kReceiver);
-  ElementsKind kind = casted_stub()->kind();
-
-  // We may use double registers for copying.
-  if (IsFastDoubleElementsKind(kind)) info()->MarkAsSavesCallerDoubles();
-
-  HValue* length = Add<HLoadNamedField>(
-      receiver, static_cast<HValue*>(NULL),
-      HObjectAccess::ForArrayLength(kind));
-
-  IfBuilder if_lengthiszero(this);
-  HValue* lengthiszero = if_lengthiszero.If<HCompareNumericAndBranch>(
-      length, graph()->GetConstant0(), Token::EQ);
-  if_lengthiszero.Then();
-  {
-    Push(graph()->GetConstantUndefined());
-  }
-  if_lengthiszero.Else();
-  {
-    // Check if array length is below threshold.
-    IfBuilder if_inline(this);
-    if_inline.If<HCompareNumericAndBranch>(
-        length, Add<HConstant>(ArrayShiftStub::kInlineThreshold), Token::LTE);
-    if_inline.Then();
-    if_inline.ElseDeopt("Array length exceeds threshold");
-    if_inline.End();
-
-    // We cannot handle copy-on-write backing stores here.
-    HValue* elements = AddLoadElements(receiver);
-    if (IsFastSmiOrObjectElementsKind(kind)) {
-      Add<HCheckMaps>(elements, isolate()->factory()->fixed_array_map());
-    }
-
-    // Remember the result.
-    Push(AddElementAccess(elements, graph()->GetConstant0(), NULL,
-                          lengthiszero, kind, LOAD));
-
-    // Compute the new length.
-    HValue* new_length = AddUncasted<HSub>(length, graph()->GetConstant1());
-    new_length->ClearFlag(HValue::kCanOverflow);
-
-    // Copy the remaining elements.
-    LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
-    {
-      HValue* new_key = loop.BeginBody(
-          graph()->GetConstant0(), new_length, Token::LT);
-      HValue* key = AddUncasted<HAdd>(new_key, graph()->GetConstant1());
-      key->ClearFlag(HValue::kCanOverflow);
-      HValue* element = AddUncasted<HLoadKeyed>(
-          elements, key, lengthiszero, kind, ALLOW_RETURN_HOLE);
-      HStoreKeyed* store = Add<HStoreKeyed>(elements, new_key, element, kind);
-      store->SetFlag(HValue::kAllowUndefinedAsNaN);
-    }
-    loop.EndBody();
-
-    // Put a hole at the end.
-    HValue* hole = IsFastSmiOrObjectElementsKind(kind)
-        ? Add<HConstant>(isolate()->factory()->the_hole_value())
-        : Add<HConstant>(FixedDoubleArray::hole_nan_as_double());
-    if (IsFastSmiOrObjectElementsKind(kind)) kind = FAST_HOLEY_ELEMENTS;
-    Add<HStoreKeyed>(elements, new_length, hole, kind, INITIALIZING_STORE);
-
-    // Remember new length.
-    Add<HStoreNamedField>(
-        receiver, HObjectAccess::ForArrayLength(kind),
-        new_length, STORE_TO_INITIALIZED_ENTRY);
-  }
-  if_lengthiszero.End();
-
-  return Pop();
-}
-
-
-Handle<Code> ArrayShiftStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

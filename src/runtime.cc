@@ -10698,7 +10698,7 @@ RUNTIME_FUNCTION(Runtime_LookupAccessor) {
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  Execution::DebugBreakHelper(isolate);
+  isolate->debug()->HandleDebugBreak();
   return isolate->heap()->undefined_value();
 }
 
@@ -10815,7 +10815,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // could have the assumption that its own native context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);
-  if (isolate->debug()->InDebugger()) {
+  if (isolate->debug()->is_entered()) {
     isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
 
@@ -12862,7 +12862,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 5);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(isolate, disable_break);
+  DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
@@ -12926,7 +12926,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   CONVERT_ARG_HANDLE_CHECKED(Object, context_extension, 3);
 
   // Handle the processing of break.
-  DisableBreak disable_break_save(isolate, disable_break);
+  DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);

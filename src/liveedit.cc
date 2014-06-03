@@ -1850,8 +1850,8 @@ static const char* DropActivationsInActiveThreadImpl(
       break;
     }
   }
-  debug->FramesHaveBeenDropped(new_id, drop_mode,
-                               restarter_frame_function_pointer);
+  debug->FramesHaveBeenDropped(
+      new_id, drop_mode, restarter_frame_function_pointer);
   return NULL;
 }
 

@@ -4298,15 +4298,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
 }
 
 
-void LCodeGen::DoArrayShift(LArrayShift* instr) {
-  ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->object()).is(eax));
-  ASSERT(ToRegister(instr->result()).is(eax));
-  ArrayShiftStub stub(isolate(), instr->hydrogen()->kind());
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   class DeferredStringCharCodeAt V8_FINAL : public LDeferredCode {
    public:

@@ -229,54 +229,6 @@ THREADED_TEST(AccessorIC) {
 }
 
 
-static void AccessorProhibitsOverwritingGetter(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  ApiTestFuzzer::Fuzz();
-  info.GetReturnValue().Set(true);
-}
-
-
-THREADED_TEST(AccessorProhibitsOverwriting) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetAccessor(v8_str("x"),
-                     AccessorProhibitsOverwritingGetter,
-                     0,
-                     v8::Handle<Value>(),
-                     v8::PROHIBITS_OVERWRITING,
-                     v8::ReadOnly);
-  Local<v8::Object> instance = templ->NewInstance();
-  context->Global()->Set(v8_str("obj"), instance);
-  Local<Value> value = CompileRun(
-      "obj.__defineGetter__('x', function() { return false; });"
-      "obj.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj.__defineSetter__('x', function() { setter_called = true; });"
-      "obj.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
-  value = CompileRun(
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineGetter__('x', function() { return false; });"
-      "obj2.x");
-  CHECK(value->BooleanValue());
-  value = CompileRun(
-      "var setter_called = false;"
-      "obj2 = {};"
-      "obj2.__proto__ = obj;"
-      "obj2.__defineSetter__('x', function() { setter_called = true; });"
-      "obj2.x = 42;"
-      "setter_called");
-  CHECK(!value->BooleanValue());
-}
-
-
 template <int C>
 static void HandleAllocatingGetter(
     Local<String> name,

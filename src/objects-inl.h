@@ -6393,16 +6393,6 @@ void AccessorInfo::set_all_can_write(bool value) {
 }
 
 
-bool AccessorInfo::prohibits_overwriting() {
-  return BooleanBit::get(flag(), kProhibitsOverwritingBit);
-}
-
-
-void AccessorInfo::set_prohibits_overwriting(bool value) {
-  set_flag(BooleanBit::set(flag(), kProhibitsOverwritingBit, value));
-}
-
-
 PropertyAttributes AccessorInfo::property_attributes() {
   return AttributesField::decode(static_cast<uint32_t>(flag()->value()));
 }
@@ -6428,9 +6418,6 @@ void ExecutableAccessorInfo::clear_setter() {
 void AccessorPair::set_access_flags(v8::AccessControl access_control) {
   int current = access_flags()->value();
   current = BooleanBit::set(current,
-                            kProhibitsOverwritingBit,
-                            access_control & PROHIBITS_OVERWRITING);
-  current = BooleanBit::set(current,
                             kAllCanReadBit,
                             access_control & ALL_CAN_READ);
   current = BooleanBit::set(current,
@@ -6447,11 +6434,6 @@ bool AccessorPair::all_can_read() {
 
 bool AccessorPair::all_can_write() {
   return BooleanBit::get(access_flags(), kAllCanWriteBit);
-}
-
-
-bool AccessorPair::prohibits_overwriting() {
-  return BooleanBit::get(access_flags(), kProhibitsOverwritingBit);
 }
 
 

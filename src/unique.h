@@ -275,6 +275,26 @@ class UniqueSet V8_FINAL : public ZoneObject {
     return out;
   }
 
+  // Returns a new set representing all elements from this set which are not in
+  // that set. O(|this| * |that|).
+  UniqueSet<T>* Subtract(const UniqueSet<T>* that, Zone* zone) const {
+    if (that->size_ == 0) return this->Copy(zone);
+
+    UniqueSet<T>* out = new(zone) UniqueSet<T>(this->size_, zone);
+
+    int i = 0, j = 0;
+    while (i < this->size_) {
+      Unique<T> cand = this->array_[i];
+      if (!that->Contains(cand)) {
+        out->array_[j++] = cand;
+      }
+      i++;
+    }
+
+    out->size_ = j;
+    return out;
+  }
+
   // Makes an exact copy of this set. O(|this|).
   UniqueSet<T>* Copy(Zone* zone) const {
     UniqueSet<T>* copy = new(zone) UniqueSet<T>(this->size_, zone);

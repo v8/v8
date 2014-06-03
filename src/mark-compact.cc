@@ -4248,7 +4248,7 @@ void MarkCompactCollector::ParallelSweepSpacesComplete() {
 
 
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
-  if (isolate()->debug()->IsLoaded() ||
+  if (isolate()->debug()->is_loaded() ||
       isolate()->debug()->has_break_points()) {
     enable = false;
   }

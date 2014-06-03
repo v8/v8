@@ -1734,7 +1734,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
   if_found.Else();
   {
     // Cache miss, fallback to runtime.
-    Add<HPushArguments>(zone(), object);
+    Add<HPushArguments>(object);
     Push(Add<HCallRuntime>(
             isolate()->factory()->empty_string(),
             Runtime::FunctionForId(Runtime::kHiddenNumberToStringSkipCache),
@@ -2058,7 +2058,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
     if_sameencodingandsequential.Else();
     {
       // Fallback to the runtime to add the two strings.
-      Add<HPushArguments>(zone(), left, right);
+      Add<HPushArguments>(left, right);
       Push(Add<HCallRuntime>(
             isolate()->factory()->empty_string(),
             Runtime::FunctionForId(Runtime::kHiddenStringAdd),
@@ -4197,9 +4197,9 @@ void HOptimizedGraphBuilder::PushArgumentsFromEnvironment(int count) {
     arguments.Add(Pop(), zone());
   }
 
-  HPushArguments* push_args = New<HPushArguments>(zone());
+  HPushArguments* push_args = New<HPushArguments>();
   while (!arguments.is_empty()) {
-    push_args->AddArgument(arguments.RemoveLast());
+    push_args->AddInput(arguments.RemoveLast());
   }
   AddInstruction(push_args);
 }
@@ -5195,8 +5195,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     flags |= expr->has_function()
         ? ObjectLiteral::kHasFunction : ObjectLiteral::kNoFlags;
 
-    Add<HPushArguments>(zone(),
-                        Add<HConstant>(closure_literals),
+    Add<HPushArguments>(Add<HConstant>(closure_literals),
                         Add<HConstant>(literal_index),
                         Add<HConstant>(constant_properties),
                         Add<HConstant>(flags));
@@ -5354,8 +5353,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
         : ArrayLiteral::kNoFlags;
     flags |= ArrayLiteral::kDisableMementos;
 
-    Add<HPushArguments>(zone(),
-                        Add<HConstant>(literals),
+    Add<HPushArguments>(Add<HConstant>(literals),
                         Add<HConstant>(literal_index),
                         Add<HConstant>(constants),
                         Add<HConstant>(flags));
@@ -6373,7 +6371,7 @@ void HOptimizedGraphBuilder::VisitThrow(Throw* expr) {
 
   HValue* value = environment()->Pop();
   if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
-  Add<HPushArguments>(zone(), value);
+  Add<HPushArguments>(value);
   Add<HCallRuntime>(isolate()->factory()->empty_string(),
                     Runtime::FunctionForId(Runtime::kHiddenThrow), 1);
   Add<HSimulate>(expr->id());
@@ -6775,7 +6773,7 @@ void HOptimizedGraphBuilder::EnsureArgumentsArePushedForAccess() {
   HInstruction* insert_after = entry;
   for (int i = 0; i < arguments_values->length(); i++) {
     HValue* argument = arguments_values->at(i);
-    HInstruction* push_argument = New<HPushArguments>(zone(), argument);
+    HInstruction* push_argument = New<HPushArguments>(argument);
     push_argument->InsertAfter(insert_after);
     insert_after = push_argument;
   }
@@ -7942,13 +7940,96 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           handle(JSObject::cast(receiver_map->prototype()), isolate()),
           Handle<JSObject>::null());
 
+      // Threshold for fast inlined Array.shift().
+      HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
+
       Drop(expr->arguments()->length());
       HValue* receiver = Pop();
-      Drop(1);  // function
+      HValue* function = Pop();
+      HValue* result;
 
-      receiver = AddCheckMap(receiver, receiver_map);
-      HInstruction* result = NewUncasted<HArrayShift>(receiver, kind);
-      ast_context()->ReturnInstruction(result, expr->id());
+      {
+        NoObservableSideEffectsScope scope(this);
+
+        HValue* length = Add<HLoadNamedField>(
+            receiver, static_cast<HValue*>(NULL),
+            HObjectAccess::ForArrayLength(kind));
+
+        IfBuilder if_lengthiszero(this);
+        HValue* lengthiszero = if_lengthiszero.If<HCompareNumericAndBranch>(
+            length, graph()->GetConstant0(), Token::EQ);
+        if_lengthiszero.Then();
+        {
+          if (!ast_context()->IsEffect()) Push(graph()->GetConstantUndefined());
+        }
+        if_lengthiszero.Else();
+        {
+          HValue* elements = AddLoadElements(receiver);
+
+          // Check if we can use the fast inlined Array.shift().
+          IfBuilder if_inline(this);
+          if_inline.If<HCompareNumericAndBranch>(
+              length, inline_threshold, Token::LTE);
+          if (IsFastSmiOrObjectElementsKind(kind)) {
+            // We cannot handle copy-on-write backing stores here.
+            if_inline.AndIf<HCompareMap>(
+                elements, isolate()->factory()->fixed_array_map());
+          }
+          if_inline.Then();
+          {
+            // Remember the result.
+            if (!ast_context()->IsEffect()) {
+              Push(AddElementAccess(elements, graph()->GetConstant0(), NULL,
+                                    lengthiszero, kind, LOAD));
+            }
+
+            // Compute the new length.
+            HValue* new_length = AddUncasted<HSub>(
+                length, graph()->GetConstant1());
+            new_length->ClearFlag(HValue::kCanOverflow);
+
+            // Copy the remaining elements.
+            LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
+            {
+              HValue* new_key = loop.BeginBody(
+                  graph()->GetConstant0(), new_length, Token::LT);
+              HValue* key = AddUncasted<HAdd>(new_key, graph()->GetConstant1());
+              key->ClearFlag(HValue::kCanOverflow);
+              HValue* element = AddUncasted<HLoadKeyed>(
+                  elements, key, lengthiszero, kind, ALLOW_RETURN_HOLE);
+              HStoreKeyed* store = Add<HStoreKeyed>(
+                  elements, new_key, element, kind);
+              store->SetFlag(HValue::kAllowUndefinedAsNaN);
+            }
+            loop.EndBody();
+
+            // Put a hole at the end.
+            HValue* hole = IsFastSmiOrObjectElementsKind(kind)
+                ? Add<HConstant>(isolate()->factory()->the_hole_value())
+                : Add<HConstant>(FixedDoubleArray::hole_nan_as_double());
+            if (IsFastSmiOrObjectElementsKind(kind)) kind = FAST_HOLEY_ELEMENTS;
+            Add<HStoreKeyed>(
+                elements, new_length, hole, kind, INITIALIZING_STORE);
+
+            // Remember new length.
+            Add<HStoreNamedField>(
+                receiver, HObjectAccess::ForArrayLength(kind),
+                new_length, STORE_TO_INITIALIZED_ENTRY);
+          }
+          if_inline.Else();
+          {
+            Add<HPushArguments>(receiver);
+            result = Add<HCallJSFunction>(function, 1, true);
+            if (!ast_context()->IsEffect()) Push(result);
+          }
+          if_inline.End();
+        }
+        if_lengthiszero.End();
+      }
+      result = ast_context()->IsEffect() ? graph()->GetConstant0() : Top();
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+      ast_context()->ReturnValue(result);
       return true;
     }
     default:
@@ -8070,7 +8151,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
       ASSERT_EQ(NULL, receiver);
       // Receiver is on expression stack.
       receiver = Pop();
-      Add<HPushArguments>(zone(), receiver);
+      Add<HPushArguments>(receiver);
       break;
     case kCallApiSetter:
       {
@@ -8081,7 +8162,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
         // Receiver and value are on expression stack.
         HValue* value = Pop();
         receiver = Pop();
-        Add<HPushArguments>(zone(), receiver, value);
+        Add<HPushArguments>(receiver, value);
         break;
      }
   }
@@ -9127,8 +9208,7 @@ void HOptimizedGraphBuilder::VisitDelete(UnaryOperation* expr) {
     HValue* key = Pop();
     HValue* obj = Pop();
     HValue* function = AddLoadJSBuiltin(Builtins::DELETE);
-    Add<HPushArguments>(zone(),
-                        obj, key, Add<HConstant>(function_strict_mode()));
+    Add<HPushArguments>(obj, key, Add<HConstant>(function_strict_mode()));
     // TODO(olivf) InvokeFunction produces a check for the parameter count,
     // even though we are certain to pass the correct number of arguments here.
     HInstruction* instr = New<HInvokeFunction>(function, 3);
@@ -9608,7 +9688,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     } else if (!left_type->Is(Type::String())) {
       ASSERT(right_type->Is(Type::String()));
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_RIGHT);
-      Add<HPushArguments>(zone(), left, right);
+      Add<HPushArguments>(left, right);
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
@@ -9619,7 +9699,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     } else if (!right_type->Is(Type::String())) {
       ASSERT(left_type->Is(Type::String()));
       HValue* function = AddLoadJSBuiltin(Builtins::STRING_ADD_LEFT);
-      Add<HPushArguments>(zone(), left, right);
+      Add<HPushArguments>(left, right);
       return AddUncasted<HInvokeFunction>(function, 2);
     }
 
@@ -9681,7 +9761,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // operation in optimized code, which is more expensive, than a stub call.
   if (graph()->info()->IsStub() && is_non_primitive) {
     HValue* function = AddLoadJSBuiltin(BinaryOpIC::TokenToJSBuiltin(op));
-    Add<HPushArguments>(zone(), left, right);
+    Add<HPushArguments>(left, right);
     instr = AddUncasted<HInvokeFunction>(function, 2);
   } else {
     switch (op) {
@@ -10045,7 +10125,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     UNREACHABLE();
   } else if (op == Token::IN) {
     HValue* function = AddLoadJSBuiltin(Builtins::IN);
-    Add<HPushArguments>(zone(), left, right);
+    Add<HPushArguments>(left, right);
     // TODO(olivf) InvokeFunction produces a check for the parameter count,
     // even though we are certain to pass the correct number of arguments here.
     HInstruction* result = New<HInvokeFunction>(function, 2);

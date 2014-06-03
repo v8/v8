@@ -612,14 +612,6 @@ void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
 }
 
 
-LInstruction* LChunkBuilder::CheckElideControlInstruction(
-    HControlInstruction* instr) {
-  HBasicBlock* successor;
-  if (!instr->KnownSuccessorBlock(&successor)) return NULL;
-  return new(zone()) LGoto(successor);
-}
-
-
 LPhase::~LPhase() {
   if (ShouldProduceTraceOutput()) {
     isolate()->GetHTracer()->TraceLithium(name(), chunk_);

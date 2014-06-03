@@ -779,11 +779,9 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsElements:
     case HValue::kArgumentsLength:
     case HValue::kArgumentsObject:
-    case HValue::kArrayShift:
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
     case HValue::kCallFunction:
-    case HValue::kCallJSFunction:
     case HValue::kCallNew:
     case HValue::kCallNewArray:
     case HValue::kCallStub:
@@ -849,6 +847,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
     case HValue::kBranch:
+    case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
     case HValue::kChange:
     case HValue::kCheckHeapObject:
@@ -2434,6 +2433,12 @@ Range* HMathMinMax::InferRange(Zone* zone) {
 }
 
 
+void HPushArguments::AddInput(HValue* value) {
+  inputs_.Add(NULL, value->block()->zone());
+  SetOperandAt(OperandCount() - 1, value);
+}
+
+
 void HPhi::PrintTo(StringStream* stream) {
   stream->Add("[");
   for (int i = 0; i < OperandCount(); ++i) {
@@ -3251,9 +3256,25 @@ bool HIsObjectAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
 
 
 bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
+  if (known_successor_index() != kNoKnownSuccessorIndex) {
+    *block = SuccessorAt(known_successor_index());
+    return true;
+  }
   if (FLAG_fold_constants && value()->IsConstant()) {
     *block = HConstant::cast(value())->HasStringValue()
         ? FirstSuccessor() : SecondSuccessor();
+    return true;
+  }
+  if (value()->type().IsString()) {
+    *block = FirstSuccessor();
+    return true;
+  }
+  if (value()->type().IsSmi() ||
+      value()->type().IsNull() ||
+      value()->type().IsBoolean() ||
+      value()->type().IsUndefined() ||
+      value()->type().IsJSObject()) {
+    *block = SecondSuccessor();
     return true;
   }
   *block = NULL;
@@ -3600,12 +3621,6 @@ void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
               *transitioned_map().handle(),
               ElementsAccessor::ForKind(to_kind)->name());
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
-}
-
-
-void HArrayShift::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(" [%s]", ElementsAccessor::ForKind(kind())->name());
 }
 
 

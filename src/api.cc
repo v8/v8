@@ -1144,7 +1144,6 @@ static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
-  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
   obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
   if (!signature.IsEmpty()) {
     obj->set_expected_receiver_type(*Utils::OpenHandle(*signature));
@@ -6906,7 +6905,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
 
 
 void Debug::ProcessDebugMessages() {
-  i::Execution::ProcessDebugMessages(i::Isolate::Current(), true);
+  i::Isolate::Current()->debug()->ProcessDebugMessages(true);
 }
 
 

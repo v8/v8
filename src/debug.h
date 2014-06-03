@@ -150,10 +150,7 @@ class BreakLocationIterator {
 // the cache is the script id.
 class ScriptCache : private HashMap {
  public:
-  explicit ScriptCache(Isolate* isolate)
-      : HashMap(HashMap::PointersMatch),
-        isolate_(isolate),
-        collected_scripts_(10) {}
+  explicit ScriptCache(Isolate* isolate);
   virtual ~ScriptCache() { Clear(); }
 
   // Add script to the cache.
@@ -287,7 +284,6 @@ class CommandMessage {
   static CommandMessage New(const Vector<uint16_t>& command,
                             v8::Debug::ClientData* data);
   CommandMessage();
-  ~CommandMessage();
 
   // Deletes user data and disposes of the text.
   void Dispose();
@@ -342,6 +338,23 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 };
 
 
+class PromiseOnStack {
+ public:
+  PromiseOnStack(Isolate* isolate,
+                 PromiseOnStack* prev,
+                 Handle<JSFunction> getter);
+  ~PromiseOnStack();
+  StackHandler* handler() { return handler_; }
+  Handle<JSFunction> getter() { return getter_; }
+  PromiseOnStack* prev() { return prev_; }
+ private:
+  Isolate* isolate_;
+  StackHandler* handler_;
+  Handle<JSFunction> getter_;
+  PromiseOnStack* prev_;
+};
+
+
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -351,70 +364,41 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 // DebugInfo.
 class Debug {
  public:
-  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
-  void OnBeforeCompile(Handle<Script> script);
-
   enum AfterCompileFlags {
     NO_AFTER_COMPILE_FLAGS,
     SEND_WHEN_DEBUGGING
   };
+
+  // Debug event triggers.
+  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
+  void OnException(Handle<Object> exception, bool uncaught);
+  void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script,
                       AfterCompileFlags after_compile_flags);
   void OnScriptCollected(int id);
 
+  // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
   void SetMessageHandler(v8::Debug::MessageHandler handler);
-
-  // Add a debugger command to the command queue.
   void EnqueueCommandMessage(Vector<const uint16_t> command,
                              v8::Debug::ClientData* client_data = NULL);
-
-  // Check whether there are commands in the command queue.
-  bool HasCommands();
-
   // Enqueue a debugger command to the command queue for event listeners.
   void EnqueueDebugCommand(v8::Debug::ClientData* client_data = NULL);
-
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<JSFunction> fun,
                                            Handle<Object> data);
-
   Handle<Context> GetDebugContext();
+  void HandleDebugBreak();
+  void ProcessDebugMessages(bool debug_command_only);
 
-  bool ignore_debugger() const { return ignore_debugger_; }
-  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
-  bool live_edit_enabled() const {
-    return FLAG_enable_liveedit && live_edit_enabled_ ;
-  }
-
-  bool is_active() { return is_active_; }
-
-  class IgnoreScope {
-   public:
-    explicit IgnoreScope(Debug* debug)
-        : debug_(debug),
-          old_state_(debug->ignore_debugger_) {
-      debug_->ignore_debugger_ = true;
-    }
-
-    ~IgnoreScope() {
-      debug_->ignore_debugger_ = old_state_;
-    }
-
-   private:
-    Debug* debug_;
-    bool old_state_;
-    DISALLOW_COPY_AND_ASSIGN(IgnoreScope);
-  };
-
-
+  // Internal logic
   bool Load();
-  void Unload();
-  bool IsLoaded() { return !debug_context_.is_null(); }
-  bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
-
   void Break(Arguments args, JavaScriptFrame*);
   void SetAfterBreakTarget(JavaScriptFrame* frame);
+
+  // Scripts handling.
+  Handle<FixedArray> GetLoadedScripts();
+
+  // Break point handling.
   bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<Object> break_point_object,
                      int* source_position);
@@ -430,11 +414,7 @@ class Debug {
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
-  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
-  void PromiseHandleEpilogue();
-  // Returns a promise if it does not have a reject handler.
-  Handle<Object> GetPromiseForUncaughtException();
-
+  // Stepping handling.
   void PrepareStep(StepAction step_action,
                    int step_count,
                    StackFrame::Id frame_id);
@@ -443,19 +423,26 @@ class Debug {
   bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocationIterator* break_location_iterator,
                         JavaScriptFrame* frame);
-  static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
-  static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
+  bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
+  void HandleStepIn(Handle<JSFunction> function,
+                    Handle<Object> holder,
+                    Address fp,
+                    bool is_constructor);
+  bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
+  // Purge all code objects that have no debug break slots.
   void PrepareForBreakPoints();
-
-  // This function is used in FunctionNameUsing* tests.
-  Object* FindSharedFunctionInfoInScript(Handle<Script> script, int position);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
   // function needs to be compiled already.
   bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
                        Handle<JSFunction> function);
+  static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
+  static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  // This function is used in FunctionNameUsing* tests.
+  Object* FindSharedFunctionInfoInScript(Handle<Script> script, int position);
 
   // Returns true if the current stub call is patched to call the debugger.
   static bool IsDebugBreak(Address addr);
@@ -463,20 +450,9 @@ class Debug {
   // a debugger breakpoint.
   static bool IsDebugBreakAtReturn(RelocInfo* rinfo);
 
-  // Check whether a code stub with the specified major key is a possible break
-  // point location.
-  static bool IsSourceBreakStub(Code* code);
-  static bool IsBreakStub(Code* code);
-
-  // Find the builtin to use for invoking the debug break
-  static Handle<Code> FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode);
-
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared,
       BreakPositionAlignment position_aligment);
-
-  // Getter for the debug_context.
-  inline Handle<Context> debug_context() { return debug_context_; }
 
   // Check whether a global object is the debug global object.
   bool IsDebugGlobal(GlobalObject* global);
@@ -484,61 +460,51 @@ class Debug {
   // Check whether this frame is just about to return.
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
-  // Fast check to see if any break points are active.
-  inline bool has_break_points() { return has_break_points_; }
+  // Promise handling.
+  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
+  void PromiseHandleEpilogue();
 
-  void NewBreak(StackFrame::Id break_frame_id);
-  void SetBreak(StackFrame::Id break_frame_id, int break_id);
-  StackFrame::Id break_frame_id() {
-    return thread_local_.break_frame_id_;
-  }
-  int break_id() { return thread_local_.break_id_; }
-
-  bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
-  void HandleStepIn(Handle<JSFunction> function,
-                    Handle<Object> holder,
-                    Address fp,
-                    bool is_constructor);
-  Address step_in_fp() { return thread_local_.step_into_fp_; }
-  Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
-
-  bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
-  Address step_out_fp() { return thread_local_.step_out_fp_; }
-
-  EnterDebugger* debugger_entry() {
-    return thread_local_.debugger_entry_;
-  }
-  void set_debugger_entry(EnterDebugger* entry) {
-    thread_local_.debugger_entry_ = entry;
-  }
-
-  // Check whether any of the specified interrupts are pending.
-  bool has_pending_interrupt() {
-    return thread_local_.has_pending_interrupt_;
-  }
-
-  // Set specified interrupts as pending.
-  void set_has_pending_interrupt(bool value) {
-    thread_local_.has_pending_interrupt_ = value;
-  }
-
-  // Getter and setter for the disable break state.
-  bool disable_break() { return disable_break_; }
-  void set_disable_break(bool disable_break) {
-    disable_break_ = disable_break;
-  }
-
-  // Getters for the current exception break state.
-  bool break_on_exception() { return break_on_exception_; }
-  bool break_on_uncaught_exception() {
-    return break_on_uncaught_exception_;
-  }
-
+  // Support for LiveEdit
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
                              LiveEdit::FrameDropMode mode,
                              Object** restarter_frame_function_pointer);
 
-  // Support for setting the address to jump to when returning from break point.
+  // Passed to MakeWeak.
+  static void HandleWeakDebugInfo(
+      const v8::WeakCallbackData<v8::Value, void>& data);
+
+  // Threading support.
+  char* ArchiveDebug(char* to);
+  char* RestoreDebug(char* from);
+  static int ArchiveSpacePerThread();
+  void FreeThreadResources() { }
+
+  // Record function from which eval was called.
+  static void RecordEvalCaller(Handle<Script> script);
+
+  // Garbage collection notifications.
+  void AfterGarbageCollection();
+
+  // Flags and states.
+  EnterDebugger* debugger_entry() { return thread_local_.debugger_entry_; }
+  inline Handle<Context> debug_context() { return debug_context_; }
+  void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
+  bool live_edit_enabled() const {
+    return FLAG_enable_liveedit && live_edit_enabled_ ;
+  }
+
+  inline bool is_active() const { return is_active_; }
+  inline bool is_loaded() const { return !debug_context_.is_null(); }
+  inline bool has_break_points() const { return has_break_points_; }
+  inline bool is_entered() const {
+    return thread_local_.debugger_entry_ != NULL;
+  }
+  void set_disable_break(bool v) { break_disabled_ = v; }
+
+  StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
+  int break_id() { return thread_local_.break_id_; }
+
+  // Support for embedding into generated code.
   Address after_break_target_address() {
     return reinterpret_cast<Address>(&after_break_target_);
   }
@@ -548,41 +514,26 @@ class Debug {
     return reinterpret_cast<Address>(address);
   }
 
-  static const int kEstimatedNofBreakPointsInFunction = 16;
-
-  // Passed to MakeWeak.
-  static void HandleWeakDebugInfo(
-      const v8::WeakCallbackData<v8::Value, void>& data);
-
-  friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
-  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
-
-  // Threading support.
-  char* ArchiveDebug(char* to);
-  char* RestoreDebug(char* from);
-  static int ArchiveSpacePerThread();
-  void FreeThreadResources() { }
-
-  // Mirror cache handling.
-  void ClearMirrorCache();
-
-  // Script cache handling.
-  void CreateScriptCache();
-  void DestroyScriptCache();
-  void AddScriptToScriptCache(Handle<Script> script);
-  Handle<FixedArray> GetLoadedScripts();
-
-  // Record function from which eval was called.
-  static void RecordEvalCaller(Handle<Script> script);
-
-  // Garbage collection notifications.
-  void AfterGarbageCollection();
+  Address step_in_fp_addr() {
+    return reinterpret_cast<Address>(&thread_local_.step_into_fp_);
+  }
 
  private:
   explicit Debug(Isolate* isolate);
 
+  void UpdateState();
+  void Unload();
+  void SetNextBreakId() {
+    thread_local_.break_id_ = ++thread_local_.break_count_;
+  }
+
+  // Check whether there are commands in the command queue.
+  inline bool has_commands() const { return !command_queue_.IsEmpty(); }
+  inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
+
+  // Constructors for debug event objects.
   MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
-      Vector<const char> constructor_name,
+      const char* constructor_name,
       int argc,
       Handle<Object> argv[]);
   MUST_USE_RESULT MaybeHandle<Object> MakeExecutionState();
@@ -596,19 +547,16 @@ class Debug {
       Handle<Script> script, bool before);
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
+  // Mirror cache handling.
+  void ClearMirrorCache();
+
+  // Returns a promise if it does not have a reject handler.
+  Handle<Object> GetPromiseForUncaughtException();
+
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,
                          Handle<Object> event_data,
                          v8::Debug::ClientData* client_data);
-  void CallCEventCallback(v8::DebugEvent event,
-                          Handle<Object> exec_state,
-                          Handle<Object> event_data,
-                          v8::Debug::ClientData* client_data);
-  void CallJSEventCallback(v8::DebugEvent event,
-                           Handle<Object> exec_state,
-                           Handle<Object> event_data);
-  void UpdateState();
-
   void ProcessDebugEvent(v8::DebugEvent event,
                          Handle<JSObject> event_data,
                          bool auto_continue);
@@ -616,16 +564,7 @@ class Debug {
                             Handle<JSObject> exec_state,
                             Handle<JSObject> event_data,
                             bool auto_continue);
-
-  // Invoke the message handler function.
   void InvokeMessageHandler(MessageImpl message);
-
-  inline bool EventActive() {
-    // Check whether the message handler was been cleared.
-    // TODO(yangguo): handle loading and unloading of the debugger differently.
-    // Currently argument event is not used.
-    return !ignore_debugger_ && is_active_;
-  }
 
   static bool CompileDebuggerScript(Isolate* isolate, int index);
   void ClearOneShot();
@@ -638,27 +577,7 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
-  void EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function);
-  void RecompileAndRelocateSuspendedGenerators(
-      const List<Handle<JSGeneratorObject> > &suspended_generators);
-
   void ThreadInit();
-
-  class PromiseOnStack {
-   public:
-    PromiseOnStack(Isolate* isolate,
-                   PromiseOnStack* prev,
-                   Handle<JSFunction> getter);
-    ~PromiseOnStack();
-    StackHandler* handler() { return handler_; }
-    Handle<JSFunction> getter() { return getter_; }
-    PromiseOnStack* prev() { return prev_; }
-   private:
-    Isolate* isolate_;
-    StackHandler* handler_;
-    Handle<JSFunction> getter_;
-    PromiseOnStack* prev_;
-  };
 
   // Global handles.
   Handle<Context> debug_context_;
@@ -673,10 +592,10 @@ class Debug {
   LockingCommandMessageQueue event_command_queue_;
 
   bool is_active_;
-  bool ignore_debugger_;
+  bool is_suppressed_;
   bool live_edit_enabled_;
   bool has_break_points_;
-  bool disable_break_;
+  bool break_disabled_;
   bool break_on_exception_;
   bool break_on_uncaught_exception_;
 
@@ -725,9 +644,6 @@ class Debug {
     // step out action is completed.
     Address step_out_fp_;
 
-    // Pending interrupts scheduled while debugging.
-    bool has_pending_interrupt_;
-
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.
     LiveEdit::FrameDropMode frame_drop_mode_;
@@ -753,6 +669,11 @@ class Debug {
   friend class Isolate;
   friend class EnterDebugger;
   friend class FrameDropper;
+  friend class DisableBreak;
+  friend class SuppressDebug;
+
+  friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
 
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
@@ -773,16 +694,12 @@ class EnterDebugger BASE_EMBEDDED {
   // Check whether the debugger could be entered.
   inline bool FailedToEnter() { return load_failed_; }
 
-  // Check whether there are any JavaScript frames on the stack.
-  inline bool HasJavaScriptFrames() { return has_js_frames_; }
-
   // Get the active context from before entering the debugger.
   inline Handle<Context> GetContext() { return save_.context(); }
 
  private:
   Isolate* isolate_;
   EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
-  bool has_js_frames_;  // Were there any JavaScript frames?
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;  // Previous break id.
   bool load_failed_;  // Did the debugger fail to load?
@@ -793,20 +710,31 @@ class EnterDebugger BASE_EMBEDDED {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(Isolate* isolate, bool disable_break)
-    : isolate_(isolate) {
-    prev_disable_break_ = isolate_->debug()->disable_break();
-    isolate_->debug()->set_disable_break(disable_break);
+  explicit DisableBreak(Debug* debug, bool disable_break)
+    : debug_(debug), old_state_(debug->break_disabled_) {
+    debug_->break_disabled_ = disable_break;
   }
-  ~DisableBreak() {
-    isolate_->debug()->set_disable_break(prev_disable_break_);
-  }
+  ~DisableBreak() { debug_->break_disabled_ = old_state_; }
 
  private:
-  Isolate* isolate_;
-  // The previous state of the disable break used to restore the value when this
-  // object is destructed.
-  bool prev_disable_break_;
+  Debug* debug_;
+  bool old_state_;
+  DISALLOW_COPY_AND_ASSIGN(DisableBreak);
+};
+
+
+class SuppressDebug BASE_EMBEDDED {
+ public:
+  explicit SuppressDebug(Debug* debug)
+      : debug_(debug), old_state_(debug->is_suppressed_) {
+    debug_->is_suppressed_ = true;
+  }
+  ~SuppressDebug() { debug_->is_suppressed_ = old_state_; }
+
+ private:
+  Debug* debug_;
+  bool old_state_;
+  DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
 };
 
 

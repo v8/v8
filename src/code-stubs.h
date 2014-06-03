@@ -16,7 +16,6 @@ namespace internal {
 
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
-  V(ArrayShift)                          \
   V(CallFunction)                        \
   V(CallConstruct)                       \
   V(BinaryOpIC)                          \
@@ -2409,36 +2408,6 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   KeyedAccessStoreMode store_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
-};
-
-
-class ArrayShiftStub V8_FINAL : public HydrogenCodeStub {
- public:
-  ArrayShiftStub(Isolate* isolate, ElementsKind kind)
-      : HydrogenCodeStub(isolate), kind_(kind) { }
-
-  ElementsKind kind() const { return kind_; }
-
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
-
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
-
-  // Inline Array.shift() for arrays up to this length.
-  static const int kInlineThreshold = 16;
-
-  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
-  static const int kReceiver = 0;
-
- private:
-  Major MajorKey() { return ArrayShift; }
-  int NotMissMinorKey() {
-    return kind_;
-  }
-
-  ElementsKind kind_;
-
-  DISALLOW_COPY_AND_ASSIGN(ArrayShiftStub);
 };
 
 

@@ -832,51 +832,82 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateDeoptJumpTable() {
+  Label needs_frame, restore_caller_doubles, call_deopt_entry;
+
   if (deopt_jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
-  }
-  Label table_start;
-  __ bind(&table_start);
-  Label needs_frame;
-  for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    __ Bind(&deopt_jump_table_[i]->label);
-    Address entry = deopt_jump_table_[i]->address;
-    Deoptimizer::BailoutType type = deopt_jump_table_[i]->bailout_type;
-    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    if (id == Deoptimizer::kNotDeoptimizationEntry) {
-      Comment(";;; jump table entry %d.", i);
-    } else {
-      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-    }
-    if (deopt_jump_table_[i]->needs_frame) {
-      ASSERT(!info()->saves_caller_doubles());
+    Address base = deopt_jump_table_[0]->address;
 
-      UseScratchRegisterScope temps(masm());
-      Register stub_deopt_entry = temps.AcquireX();
-      Register stub_marker = temps.AcquireX();
+    UseScratchRegisterScope temps(masm());
+    Register entry_offset = temps.AcquireX();
 
-      __ Mov(stub_deopt_entry, ExternalReference::ForDeoptEntry(entry));
-      if (needs_frame.is_bound()) {
-        __ B(&needs_frame);
+    int length = deopt_jump_table_.length();
+    for (int i = 0; i < length; i++) {
+      __ Bind(&deopt_jump_table_[i]->label);
+
+      Deoptimizer::BailoutType type = deopt_jump_table_[i]->bailout_type;
+      Address entry = deopt_jump_table_[i]->address;
+      int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
+      if (id == Deoptimizer::kNotDeoptimizationEntry) {
+        Comment(";;; jump table entry %d.", i);
       } else {
-        __ Bind(&needs_frame);
-        // This variant of deopt can only be used with stubs. Since we don't
-        // have a function pointer to install in the stack frame that we're
-        // building, install a special marker there instead.
-        ASSERT(info()->IsStub());
-        __ Mov(stub_marker, Smi::FromInt(StackFrame::STUB));
-        __ Push(lr, fp, cp, stub_marker);
-        __ Add(fp, __ StackPointer(), 2 * kPointerSize);
-        __ Call(stub_deopt_entry);
+        Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
       }
-    } else {
-      if (info()->saves_caller_doubles()) {
+
+      // Second-level deopt table entries are contiguous and small, so instead
+      // of loading the full, absolute address of each one, load the base
+      // address and add an immediate offset.
+      __ Mov(entry_offset, entry - base);
+
+      // The last entry can fall through into `call_deopt_entry`, avoiding a
+      // branch.
+      bool last_entry = (i + 1) == length;
+
+      if (deopt_jump_table_[i]->needs_frame) {
+        ASSERT(!info()->saves_caller_doubles());
+        if (!needs_frame.is_bound()) {
+          // This variant of deopt can only be used with stubs. Since we don't
+          // have a function pointer to install in the stack frame that we're
+          // building, install a special marker there instead.
+          ASSERT(info()->IsStub());
+
+          UseScratchRegisterScope temps(masm());
+          Register stub_marker = temps.AcquireX();
+          __ Bind(&needs_frame);
+          __ Mov(stub_marker, Smi::FromInt(StackFrame::STUB));
+          __ Push(lr, fp, cp, stub_marker);
+          __ Add(fp, __ StackPointer(), 2 * kPointerSize);
+          if (!last_entry) __ B(&call_deopt_entry);
+        } else {
+          // Reuse the existing needs_frame code.
+          __ B(&needs_frame);
+        }
+      } else if (info()->saves_caller_doubles()) {
         ASSERT(info()->IsStub());
-        RestoreCallerDoubles();
+        if (!restore_caller_doubles.is_bound()) {
+          __ Bind(&restore_caller_doubles);
+          RestoreCallerDoubles();
+          if (!last_entry) __ B(&call_deopt_entry);
+        } else {
+          // Reuse the existing restore_caller_doubles code.
+          __ B(&restore_caller_doubles);
+        }
+      } else {
+        // There is nothing special to do, so just continue to the second-level
+        // table.
+        if (!last_entry) __ B(&call_deopt_entry);
       }
-      __ Call(entry, RelocInfo::RUNTIME_ENTRY);
+
+      masm()->CheckConstPool(false, last_entry);
     }
-    masm()->CheckConstPool(false, false);
+
+    // Generate common code for calling the second-level deopt table.
+    Register deopt_entry = temps.AcquireX();
+    __ Bind(&call_deopt_entry);
+    __ Mov(deopt_entry, Operand(reinterpret_cast<uint64_t>(base),
+                                RelocInfo::RUNTIME_ENTRY));
+    __ Add(deopt_entry, deopt_entry, entry_offset);
+    __ Call(deopt_entry);
   }
 
   // Force constant pool emission at the end of the deopt jump table to make
@@ -5751,15 +5782,6 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
         instr->pointer_map(), 0, Safepoint::kLazyDeopt);
   }
   __ Bind(&not_applicable);
-}
-
-
-void LCodeGen::DoArrayShift(LArrayShift* instr) {
-  ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->object()).is(x0));
-  ASSERT(ToRegister(instr->result()).is(x0));
-  ArrayShiftStub stub(isolate(), instr->hydrogen()->kind());
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
