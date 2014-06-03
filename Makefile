@@ -468,7 +468,7 @@ dependencies:
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
 	    third_party/icu --revision 258359
-	( cd buildtools || \
+	( test -d buildtools || \
 	  git clone https://chromium.googlesource.com/chromium/buildtools.git; \
 	  cd buildtools; \
 	  git fetch origin; \
