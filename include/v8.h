@@ -3966,6 +3966,9 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
 // --- Leave Script Callback ---
 typedef void (*CallCompletedCallback)();
 
+// --- Microtask Callback ---
+typedef void (*MicrotaskCallback)(void* data);
+
 // --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
@@ -4384,6 +4387,11 @@ class V8_EXPORT Isolate {
    * Experimental: Enqueues the callback to the Microtask Work Queue
    */
   void EnqueueMicrotask(Handle<Function> microtask);
+
+  /**
+   * Experimental: Enqueues the callback to the Microtask Work Queue
+   */
+  void EnqueueMicrotask(MicrotaskCallback microtask, void* data = NULL);
 
    /**
    * Experimental: Controls whether the Microtask Work Queue is automatically

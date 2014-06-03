@@ -2262,7 +2262,8 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 
-void Isolate::EnqueueMicrotask(Handle<JSFunction> microtask) {
+void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
+  ASSERT(microtask->IsJSFunction() || microtask->IsCallHandlerInfo());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
   ASSERT(num_tasks <= queue->length());
@@ -2301,18 +2302,30 @@ void Isolate::RunMicrotasks() {
 
     for (int i = 0; i < num_tasks; i++) {
       HandleScope scope(this);
-      Handle<JSFunction> microtask(JSFunction::cast(queue->get(i)), this);
-      Handle<Object> exception;
-      MaybeHandle<Object> result = Execution::TryCall(
-          microtask, factory()->undefined_value(), 0, NULL, &exception);
-      // If execution is terminating, just bail out.
-      if (result.is_null() &&
-          !exception.is_null() &&
-          *exception == heap()->termination_exception()) {
-        // Clear out any remaining callbacks in the queue.
-        heap()->set_microtask_queue(heap()->empty_fixed_array());
-        set_pending_microtask_count(0);
-        return;
+      Handle<Object> microtask(queue->get(i), this);
+      if (microtask->IsJSFunction()) {
+        Handle<JSFunction> microtask_function =
+            Handle<JSFunction>::cast(microtask);
+        Handle<Object> exception;
+        MaybeHandle<Object> result = Execution::TryCall(
+            microtask_function, factory()->undefined_value(),
+            0, NULL, &exception);
+        // If execution is terminating, just bail out.
+        if (result.is_null() &&
+            !exception.is_null() &&
+            *exception == heap()->termination_exception()) {
+          // Clear out any remaining callbacks in the queue.
+          heap()->set_microtask_queue(heap()->empty_fixed_array());
+          set_pending_microtask_count(0);
+          return;
+        }
+      } else {
+        Handle<CallHandlerInfo> callback_info =
+            Handle<CallHandlerInfo>::cast(microtask);
+        v8::MicrotaskCallback callback =
+            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
+        void* data = v8::ToCData<void*>(callback_info->data());
+        callback(data);
       }
     }
   }

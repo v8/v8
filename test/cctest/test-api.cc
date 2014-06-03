@@ -20689,6 +20689,14 @@ static void MicrotaskTwo(const v8::FunctionCallbackInfo<Value>& info) {
 }
 
 
+void* g_passed_to_three = NULL;
+
+
+static void MicrotaskThree(void* data) {
+  g_passed_to_three = data;
+}
+
+
 TEST(EnqueueMicrotask) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -20722,6 +20730,25 @@ TEST(EnqueueMicrotask) {
   CompileRun("1+1;");
   CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
   CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  g_passed_to_three = NULL;
+  env->GetIsolate()->EnqueueMicrotask(MicrotaskThree);
+  CompileRun("1+1;");
+  CHECK_EQ(NULL, g_passed_to_three);
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(2, CompileRun("ext2Calls")->Int32Value());
+
+  int dummy;
+  env->GetIsolate()->EnqueueMicrotask(
+      Function::New(env->GetIsolate(), MicrotaskOne));
+  env->GetIsolate()->EnqueueMicrotask(MicrotaskThree, &dummy);
+  env->GetIsolate()->EnqueueMicrotask(
+      Function::New(env->GetIsolate(), MicrotaskTwo));
+  CompileRun("1+1;");
+  CHECK_EQ(&dummy, g_passed_to_three);
+  CHECK_EQ(3, CompileRun("ext1Calls")->Int32Value());
+  CHECK_EQ(3, CompileRun("ext2Calls")->Int32Value());
+  g_passed_to_three = NULL;
 }
 
 
