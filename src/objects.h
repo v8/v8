@@ -4133,11 +4133,15 @@ class ObjectHashTable: public HashTable<ObjectHashTable,
   // returned in case the key is not present.
   Object* Lookup(Handle<Object> key);
 
-  // Adds (or overwrites) the value associated with the given key. Mapping a
-  // key to the hole value causes removal of the whole entry.
+  // Adds (or overwrites) the value associated with the given key.
   static Handle<ObjectHashTable> Put(Handle<ObjectHashTable> table,
                                      Handle<Object> key,
                                      Handle<Object> value);
+
+  // Returns an ObjectHashTable (possibly |table|) where |key| has been removed.
+  static Handle<ObjectHashTable> Remove(Handle<ObjectHashTable> table,
+                                        Handle<Object> key,
+                                        bool* was_present);
 
  private:
   friend class MarkCompactCollector;
@@ -4203,9 +4207,14 @@ class OrderedHashTable: public FixedArray {
   // if possible.
   static Handle<Derived> Shrink(Handle<Derived> table);
 
-  // Returns a new empty OrderedHashTable and updates all the iterators to
-  // point to the new table.
+  // Returns a new empty OrderedHashTable and records the clearing so that
+  // exisiting iterators can be updated.
   static Handle<Derived> Clear(Handle<Derived> table);
+
+  // Returns an OrderedHashTable (possibly |table|) where |key| has been
+  // removed.
+  static Handle<Derived> Remove(Handle<Derived> table, Handle<Object> key,
+      bool* was_present);
 
   // Returns kNotFound if the key isn't present.
   int FindEntry(Handle<Object> key);
@@ -4330,8 +4339,6 @@ class OrderedHashSet: public OrderedHashTable<
   bool Contains(Handle<Object> key);
   static Handle<OrderedHashSet> Add(
       Handle<OrderedHashSet> table, Handle<Object> key);
-  static Handle<OrderedHashSet> Remove(
-      Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
 };
 
 

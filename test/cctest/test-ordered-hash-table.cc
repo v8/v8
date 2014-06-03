@@ -123,8 +123,9 @@ TEST(Map) {
   ordered_map = OrderedHashMap::Put(ordered_map, obj, val);
   CHECK_EQ(1, ordered_map->NumberOfElements());
   CHECK(ordered_map->Lookup(obj)->SameValue(*val));
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj, factory->the_hole_value());
+  bool was_present = false;
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj, &was_present);
+  CHECK(was_present);
   CHECK_EQ(0, ordered_map->NumberOfElements());
   CHECK(ordered_map->Lookup(obj)->IsTheHole());
 
@@ -157,14 +158,14 @@ TEST(Map) {
   CHECK_EQ(4, ordered_map->NumberOfBuckets());
 
   // Test shrinking
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj1, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj2, factory->the_hole_value());
-  ordered_map = OrderedHashMap::Put(
-      ordered_map, obj3, factory->the_hole_value());
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj1, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj2, &was_present);
+  CHECK(was_present);
+  ordered_map = OrderedHashMap::Remove(ordered_map, obj3, &was_present);
+  CHECK(was_present);
   CHECK_EQ(1, ordered_map->NumberOfElements());
   CHECK_EQ(2, ordered_map->NumberOfBuckets());
 }

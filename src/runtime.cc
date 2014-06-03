@@ -1646,11 +1646,11 @@ RUNTIME_FUNCTION(Runtime_MapDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(key), isolate);
+  bool was_present = false;
   Handle<OrderedHashMap> new_table =
-      OrderedHashMap::Put(table, key, isolate->factory()->the_hole_value());
+      OrderedHashMap::Remove(table, key, &was_present);
   holder->set_table(*new_table);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 
@@ -1767,11 +1767,11 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(
       weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  Handle<Object> lookup(table->Lookup(key), isolate);
+  bool was_present = false;
   Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Remove(table, key, &was_present);
   weak_collection->set_table(*new_table);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 

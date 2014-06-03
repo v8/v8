@@ -5214,7 +5214,8 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
   Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
-  ObjectHashTable::Put(hashtable, key, isolate->factory()->the_hole_value());
+  bool was_present = false;
+  ObjectHashTable::Remove(hashtable, key, &was_present);
 }
 
 
@@ -16039,6 +16040,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> key,
                                              Handle<Object> value) {
   ASSERT(table->IsKey(*key));
+  ASSERT(!value->IsTheHole());
 
   Isolate* isolate = table->GetIsolate();
 
@@ -16046,13 +16048,6 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   Handle<Smi> hash = Object::GetOrCreateHash(isolate, key);
 
   int entry = table->FindEntry(key);
-
-  // Check whether to perform removal operation.
-  if (value->IsTheHole()) {
-    if (entry == kNotFound) return table;
-    table->RemoveEntry(entry);
-    return Shrink(table, key);
-  }
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
@@ -16066,6 +16061,29 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                   *key,
                   *value);
   return table;
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
+                                                Handle<Object> key,
+                                                bool* was_present) {
+  ASSERT(table->IsKey(*key));
+
+  Object* hash = key->GetHash();
+  if (hash->IsUndefined()) {
+    *was_present = false;
+    return table;
+  }
+
+  int entry = table->FindEntry(key);
+  if (entry == kNotFound) {
+    *was_present = false;
+    return table;
+  }
+
+  *was_present = true;
+  table->RemoveEntry(entry);
+  return Shrink(table, key);
 }
 
 
@@ -16201,6 +16219,20 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
 
 
 template<class Derived, class Iterator, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Remove(
+    Handle<Derived> table, Handle<Object> key, bool* was_present) {
+  int entry = table->FindEntry(key);
+  if (entry == kNotFound) {
+    *was_present = false;
+    return table;
+  }
+  *was_present = true;
+  table->RemoveEntry(entry);
+  return Shrink(table);
+}
+
+
+template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   ASSERT(!table->IsObsolete());
@@ -16309,6 +16341,10 @@ template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Clear(
     Handle<OrderedHashSet> table);
 
+template Handle<OrderedHashSet>
+OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Remove(
+    Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
+
 template int
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
     Handle<Object> key);
@@ -16335,6 +16371,10 @@ OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Shrink(
 template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Clear(
     Handle<OrderedHashMap> table);
+
+template Handle<OrderedHashMap>
+OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Remove(
+    Handle<OrderedHashMap> table, Handle<Object> key, bool* was_present);
 
 template int
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
@@ -16365,20 +16405,6 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 }
 
 
-Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
-                                              Handle<Object> key,
-                                              bool* was_present) {
-  int entry = table->FindEntry(key);
-  if (entry == kNotFound) {
-    *was_present = false;
-    return table;
-  }
-  *was_present = true;
-  table->RemoveEntry(entry);
-  return Shrink(table);
-}
-
-
 Object* OrderedHashMap::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
   int entry = FindEntry(key);
@@ -16390,13 +16416,9 @@ Object* OrderedHashMap::Lookup(Handle<Object> key) {
 Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
                                            Handle<Object> key,
                                            Handle<Object> value) {
-  int entry = table->FindEntry(key);
+  ASSERT(!key->IsTheHole());
 
-  if (value->IsTheHole()) {
-    if (entry == kNotFound) return table;
-    table->RemoveEntry(entry);
-    return Shrink(table);
-  }
+  int entry = table->FindEntry(key);
 
   if (entry != kNotFound) {
     table->set(table->EntryToIndex(entry) + kValueOffset, *value);

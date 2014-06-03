@@ -51,6 +51,7 @@ static void TestHashMap(Handle<HashMap> table) {
   table = HashMap::Put(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(a), *b);
+  // When the key does not exist in the map, Lookup returns the hole.
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
@@ -64,8 +65,10 @@ static void TestHashMap(Handle<HashMap> table) {
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(a), *b);
 
-  // Keys mapped to the hole should be removed permanently.
-  table = HashMap::Put(table, a, factory->the_hole_value());
+  // Keys that have been removed are mapped to the hole.
+  bool was_present = false;
+  table = HashMap::Remove(table, a, &was_present);
+  CHECK(was_present);
   CHECK_EQ(table->NumberOfElements(), 0);
   CHECK_EQ(table->Lookup(a), CcTest::heap()->the_hole_value());
 
