@@ -12,6 +12,7 @@
 #include "src/allocation.h"
 #include "src/checks.h"
 #include "src/globals.h"
+#include "src/list.h"
 #include "src/platform.h"
 #include "src/vector.h"
 

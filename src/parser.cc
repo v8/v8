@@ -2107,7 +2107,7 @@ Block* Parser::ParseVariableDeclarations(
     Declare(declaration, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
-      ReportMessageAt(scanner()->location(), "too_many_variables");
+      ReportMessage("too_many_variables");
       *ok = false;
       return NULL;
     }
@@ -2405,7 +2405,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
     if (!label.is_null()) {
       message = "unknown_label";
     }
-    ParserTraits::ReportMessageAt(scanner()->location(), message, label);
+    ParserTraits::ReportMessage(message, label);
     *ok = false;
     return NULL;
   }
@@ -2441,7 +2441,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
     if (!label.is_null()) {
       message = "unknown_label";
     }
-    ParserTraits::ReportMessageAt(scanner()->location(), message, label);
+    ParserTraits::ReportMessage(message, label);
     *ok = false;
     return NULL;
   }
@@ -3389,7 +3389,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       scope_->DeclareParameter(param_name, VAR);
       num_parameters++;
       if (num_parameters > Code::kMaxArguments) {
-        ReportMessageAt(scanner()->location(), "too_many_parameters");
+        ReportMessage("too_many_parameters");
         *ok = false;
         return NULL;
       }

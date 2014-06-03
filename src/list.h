@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+template<typename T> class Vector;
 
 // ----------------------------------------------------------------------------
 // The list is a template for very light-weight lists. We are not
