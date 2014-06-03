@@ -4,6 +4,8 @@
 
 vars = {
   "chromium_trunk": "https://src.chromium.org/svn/trunk",
+
+  "buildtools_revision": "83ed7189066fd9b4b9ea15ffc2d4ab6d2da62571",
 }
 
 deps = {
@@ -13,6 +15,10 @@ deps = {
 
   "v8/third_party/icu":
     Var("chromium_trunk") + "/deps/third_party/icu46@258359",
+
+  "v8/buildtools":
+    "https://chromium.googlesource.com/chromium/buildtools.git@" +
+    Var("buildtools_revision"),
 }
 
 deps_os = {
