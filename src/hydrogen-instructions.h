@@ -6681,7 +6681,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kNewSpacePromotion);
     if (!FLAG_use_write_barrier_elimination) return false;
-    new_space_dominator_ = dominator;
+    dominator_ = dominator;
     return false;
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -6691,7 +6691,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* transition() const { return OperandAt(2); }
 
   HObjectAccess access() const { return access_; }
-  HValue* new_space_dominator() const { return new_space_dominator_; }
+  HValue* dominator() const { return dominator_; }
   bool has_transition() const { return has_transition_; }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
@@ -6718,13 +6718,12 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (field_representation().IsInteger32()) return false;
     if (field_representation().IsExternal()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
-        ReceiverObjectNeedsWriteBarrier(object(), value(),
-                                        new_space_dominator());
+        ReceiverObjectNeedsWriteBarrier(object(), value(), dominator());
   }
 
   bool NeedsWriteBarrierForMap() {
     return ReceiverObjectNeedsWriteBarrier(object(), transition(),
-                                           new_space_dominator());
+                                           dominator());
   }
 
   SmiCheck SmiCheckForWriteBarrier() const {
@@ -6760,7 +6759,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                    HValue* val,
                    StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
-        new_space_dominator_(NULL),
+        dominator_(NULL),
         has_transition_(false),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
@@ -6774,7 +6773,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
 
   HObjectAccess access_;
-  HValue* new_space_dominator_;
+  HValue* dominator_;
   bool has_transition_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };
@@ -6922,19 +6921,18 @@ class HStoreKeyed V8_FINAL
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kNewSpacePromotion);
-    new_space_dominator_ = dominator;
+    dominator_ = dominator;
     return false;
   }
 
-  HValue* new_space_dominator() const { return new_space_dominator_; }
+  HValue* dominator() const { return dominator_; }
 
   bool NeedsWriteBarrier() {
     if (value_is_smi()) {
       return false;
     } else {
       return StoringValueNeedsWriteBarrier(value()) &&
-          ReceiverObjectNeedsWriteBarrier(elements(), value(),
-                                          new_space_dominator());
+          ReceiverObjectNeedsWriteBarrier(elements(), value(), dominator());
     }
   }
 
@@ -6956,7 +6954,7 @@ class HStoreKeyed V8_FINAL
       is_dehoisted_(false),
       is_uninitialized_(false),
       store_mode_(store_mode),
-      new_space_dominator_(NULL) {
+      dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -6996,7 +6994,7 @@ class HStoreKeyed V8_FINAL
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
   StoreFieldOrKeyedMode store_mode_: 1;
-  HValue* new_space_dominator_;
+  HValue* dominator_;
 };
 
 
