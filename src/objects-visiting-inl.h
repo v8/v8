@@ -402,12 +402,11 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
   Heap* heap = map->GetHeap();
   JSWeakCollection* weak_collection =
       reinterpret_cast<JSWeakCollection*>(object);
-  MarkCompactCollector* collector = heap->mark_compact_collector();
 
   // Enqueue weak collection in linked list of encountered weak collections.
   if (weak_collection->next() == heap->undefined_value()) {
-    weak_collection->set_next(collector->encountered_weak_collections());
-    collector->set_encountered_weak_collections(weak_collection);
+    weak_collection->set_next(heap->encountered_weak_collections());
+    heap->set_encountered_weak_collections(weak_collection);
   }
 
   // Skip visiting the backing hash table containing the mappings and the

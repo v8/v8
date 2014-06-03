@@ -849,6 +849,13 @@ class Heap {
 
   Object* weak_object_to_code_table() { return weak_object_to_code_table_; }
 
+  void set_encountered_weak_collections(Object* weak_collection) {
+    encountered_weak_collections_ = weak_collection;
+  }
+  Object* encountered_weak_collections() const {
+    return encountered_weak_collections_;
+  }
+
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
 
@@ -1612,6 +1619,11 @@ class Heap {
   // code list. It is initilized lazily and contains the undefined_value at
   // start.
   Object* weak_object_to_code_table_;
+
+  // List of encountered weak collections (JSWeakMap and JSWeakSet) during
+  // marking. It is initialized during marking, destroyed after marking and
+  // contains Smi(0) while marking is not active.
+  Object* encountered_weak_collections_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 

@@ -146,6 +146,7 @@ Heap::Heap()
   set_native_contexts_list(NULL);
   set_array_buffers_list(Smi::FromInt(0));
   set_allocation_sites_list(Smi::FromInt(0));
+  set_encountered_weak_collections(Smi::FromInt(0));
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -1528,6 +1529,9 @@ void Heap::Scavenge() {
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
     }
   }
+
+  // Copy objects reachable from the encountered weak collections list.
+  scavenge_visitor.VisitPointer(&encountered_weak_collections_);
 
   // Copy objects reachable from the code flushing candidates list.
   MarkCompactCollector* collector = mark_compact_collector();

@@ -649,13 +649,6 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
-  inline Object* encountered_weak_collections() {
-    return encountered_weak_collections_;
-  }
-  inline void set_encountered_weak_collections(Object* weak_collection) {
-    encountered_weak_collections_ = weak_collection;
-  }
-
   void InvalidateCode(Code* code);
 
   void ClearMarkbits();
@@ -913,7 +906,6 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
-  Object* encountered_weak_collections_;
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;

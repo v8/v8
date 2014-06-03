@@ -51,7 +51,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap) :  // NOLINT
       migration_slots_buffer_(NULL),
       heap_(heap),
       code_flusher_(NULL),
-      encountered_weak_collections_(NULL),
       have_code_to_deoptimize_(false) { }
 
 #ifdef VERIFY_HEAP
@@ -2738,7 +2737,7 @@ void MarkCompactCollector::ClearNonLiveDependentCode(DependentCode* entries) {
 
 void MarkCompactCollector::ProcessWeakCollections() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_PROCESS);
-  Object* weak_collection_obj = encountered_weak_collections();
+  Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::FromInt(0)) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
@@ -2765,7 +2764,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
 
 void MarkCompactCollector::ClearWeakCollections() {
   GCTracer::Scope gc_scope(tracer_, GCTracer::Scope::MC_WEAKCOLLECTION_CLEAR);
-  Object* weak_collection_obj = encountered_weak_collections();
+  Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::FromInt(0)) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
@@ -2782,7 +2781,7 @@ void MarkCompactCollector::ClearWeakCollections() {
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
   }
-  set_encountered_weak_collections(Smi::FromInt(0));
+  heap()->set_encountered_weak_collections(Smi::FromInt(0));
 }
 
 
