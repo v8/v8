@@ -61,6 +61,9 @@
             # has some sources to link into the component.
             '../../src/v8dll-main.cc',
           ],
+          'include_dirs': [
+            '../..',
+          ],
           'defines': [
             'V8_SHARED',
             'BUILDING_V8_SHARED',
