@@ -2982,21 +2982,16 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 
 
 void Debug::UpdateState() {
-  bool activate = message_handler_ != NULL ||
-                  !event_listener_.is_null() ||
-                  is_entered();
-  if (!is_active_ && activate) {
+  is_active_ = message_handler_ != NULL || !event_listener_.is_null();
+  if (is_active_ || is_entered()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    activate = Load();
-  } else if (is_loaded() && !activate) {
+    is_active_ = Load();
+  } else if (is_loaded() && !is_active_) {
     isolate_->compilation_cache()->Enable();
     Unload();
   }
-  is_active_ = activate;
-  // At this point the debug context is loaded iff the debugger is active.
-  ASSERT(is_loaded() == is_active());
 }
 
 
