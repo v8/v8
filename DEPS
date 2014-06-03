@@ -31,6 +31,18 @@ deps_os = {
   }
 }
 
+include_rules = [
+  # Everybody can use some things.
+  "+include",
+  "+unicode",
+]
+
+# checkdeps.py shouldn't check for includes in these directories:
+skip_child_includes = [
+  "build",
+  "third_party",
+]
+
 hooks = [
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
