@@ -125,7 +125,7 @@ class BenchmarksTest(unittest.TestCase):
       self._test_input,
     ]
     all_args += args
-    run_benchmarks.Main(all_args)
+    return run_benchmarks.Main(all_args)
 
   def _LoadResults(self):
     with open(self._test_output) as f:
@@ -157,7 +157,7 @@ class BenchmarksTest(unittest.TestCase):
   def testOneRun(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(["."], ["x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n"])
-    self._CallMain()
+    self.assertEquals(0, self._CallMain())
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["1.234"]},
       {"name": "DeltaBlue", "results": ["10657567"]},
@@ -174,7 +174,7 @@ class BenchmarksTest(unittest.TestCase):
     self._MockCommand([".", "."],
                       ["Richards: 100\nDeltaBlue: 200\n",
                        "Richards: 50\nDeltaBlue: 300\n"])
-    self._CallMain()
+    self.assertEquals(0, self._CallMain())
     self._VerifyResults("v8", "ms", [
       {"name": "Richards", "results": ["50", "100"]},
       {"name": "DeltaBlue", "results": ["300", "200"]},
@@ -192,7 +192,7 @@ class BenchmarksTest(unittest.TestCase):
     self._MockCommand([".", "."],
                       ["Richards: 100\nDeltaBlue: 200\n",
                        "Richards: 50\nDeltaBlue: 300\n"])
-    self._CallMain()
+    self.assertEquals(0, self._CallMain())
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["50", "100"]},
       {"name": "DeltaBlue", "results": ["300", "200"]},
@@ -209,7 +209,7 @@ class BenchmarksTest(unittest.TestCase):
                        "Simple: 3 ms.\n",
                        "Richards: 100\n",
                        "Richards: 50\n"])
-    self._CallMain()
+    self.assertEquals(0, self._CallMain())
     self.assertEquals([
       {"units": "score",
        "graphs": ["test", "Richards"],
@@ -235,7 +235,7 @@ class BenchmarksTest(unittest.TestCase):
   def testBuildbot(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(["."], ["Richards: 1.234\nDeltaBlue: 10657567\n"])
-    self._CallMain("--buildbot")
+    self.assertEquals(0, self._CallMain("--buildbot"))
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": ["1.234"]},
       {"name": "DeltaBlue", "results": ["10657567"]},
@@ -246,7 +246,7 @@ class BenchmarksTest(unittest.TestCase):
   def testRegexpNoMatch(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(["."], ["x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n"])
-    self._CallMain()
+    self.assertEquals(1, self._CallMain())
     self._VerifyResults("test", "score", [
       {"name": "Richards", "results": []},
       {"name": "DeltaBlue", "results": ["10657567"]},
