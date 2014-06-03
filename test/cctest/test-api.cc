@@ -7890,7 +7890,7 @@ THREADED_TEST(StringWrite) {
 
 
 static void Utf16Helper(
-    LocalContext& context,
+    LocalContext& context,  // NOLINT
     const char* name,
     const char* lengths_name,
     int len) {
@@ -7917,7 +7917,7 @@ static uint16_t StringGet(Handle<String> str, int index) {
 
 
 static void WriteUtf8Helper(
-    LocalContext& context,
+    LocalContext& context,  // NOLINT
     const char* name,
     const char* lengths_name,
     int len) {

@@ -92,7 +92,7 @@ class StubCache {
   // ---
 
   Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
-                                 CompareNilICStub& stub);
+                                 CompareNilICStub* stub);
 
   // ---
 

@@ -2293,7 +2293,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
       HValue* target,
       int argument_count,
       const CallInterfaceDescriptor* descriptor,
-      Vector<HValue*>& operands) {
+      const Vector<HValue*>& operands) {
     ASSERT(operands.length() == descriptor->environment_length());
     HCallWithDescriptor* res =
         new(zone) HCallWithDescriptor(target, argument_count,
@@ -2346,7 +2346,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
   HCallWithDescriptor(HValue* target,
                       int argument_count,
                       const CallInterfaceDescriptor* descriptor,
-                      Vector<HValue*>& operands,
+                      const Vector<HValue*>& operands,
                       Zone* zone)
     : descriptor_(descriptor),
       values_(descriptor->environment_length() + 1, zone) {

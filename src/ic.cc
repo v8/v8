@@ -2960,7 +2960,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
     Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
                                 ? FirstTargetMap()
                                 : HeapObject::cast(*object)->map());
-    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, stub);
+    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, &stub);
   } else {
     code = stub.GetCode();
   }

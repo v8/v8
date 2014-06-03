@@ -1205,8 +1205,8 @@ int Trace::FindAffectedRegisters(OutSet* affected_registers,
 
 void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
                                      int max_register,
-                                     OutSet& registers_to_pop,
-                                     OutSet& registers_to_clear) {
+                                     const OutSet& registers_to_pop,
+                                     const OutSet& registers_to_clear) {
   for (int reg = max_register; reg >= 0; reg--) {
     if (registers_to_pop.Get(reg)) assembler->PopRegister(reg);
     else if (registers_to_clear.Get(reg)) {
@@ -1222,7 +1222,7 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
 
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    int max_register,
-                                   OutSet& affected_registers,
+                                   const OutSet& affected_registers,
                                    OutSet* registers_to_pop,
                                    OutSet* registers_to_clear,
                                    Zone* zone) {
@@ -5547,7 +5547,7 @@ void OutSet::Set(unsigned value, Zone *zone) {
 }
 
 
-bool OutSet::Get(unsigned value) {
+bool OutSet::Get(unsigned value) const {
   if (value < kFirstLimit) {
     return (first_ & (1 << value)) != 0;
   } else if (remaining_ == NULL) {

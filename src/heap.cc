@@ -1806,8 +1806,10 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
-STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) == 0);
-STATIC_ASSERT((ConstantPoolArray::kHeaderSize & kDoubleAlignmentMask) == 0);
+STATIC_ASSERT((FixedDoubleArray::kHeaderSize &
+               kDoubleAlignmentMask) == 0);  // NOLINT
+STATIC_ASSERT((ConstantPoolArray::kHeaderSize &
+               kDoubleAlignmentMask) == 0);  // NOLINT
 
 
 INLINE(static HeapObject* EnsureDoubleAligned(Heap* heap,

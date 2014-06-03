@@ -316,8 +316,8 @@ class LCodeGen: public LCodeGenBase {
                          Label* false_label,
                          Register input,
                          Handle<String> type_name,
-                         Register& cmp1,
-                         Operand& cmp2);
+                         Register* cmp1,
+                         Operand* cmp2);
 
   // Emits optimized code for %_IsObject(x).  Preserves input register.
   // Returns the condition on which a final split to

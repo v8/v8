@@ -302,17 +302,17 @@ Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
 
 
 Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
-                                          CompareNilICStub& stub) {
+                                          CompareNilICStub* stub) {
   Handle<String> name(isolate_->heap()->empty_string());
   if (!receiver_map->is_shared()) {
     Handle<Code> cached_ic = FindIC(name, receiver_map, Code::COMPARE_NIL_IC,
-                                    stub.GetExtraICState());
+                                    stub->GetExtraICState());
     if (!cached_ic.is_null()) return cached_ic;
   }
 
   Code::FindAndReplacePattern pattern;
   pattern.Add(isolate_->factory()->meta_map(), receiver_map);
-  Handle<Code> ic = stub.GetCodeCopy(pattern);
+  Handle<Code> ic = stub->GetCodeCopy(pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);

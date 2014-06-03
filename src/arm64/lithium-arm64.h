@@ -1518,7 +1518,7 @@ class LInteger32ToDouble V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
  public:
   LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
-                      ZoneList<LOperand*>& operands,
+                      const ZoneList<LOperand*>& operands,
                       Zone* zone)
     : descriptor_(descriptor),
       inputs_(descriptor->environment_length() + 1, zone) {
