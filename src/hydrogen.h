@@ -2251,6 +2251,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void BuildArrayCall(Expression* expr, int arguments_count, HValue* function,
                       Handle<AllocationSite> cell);
 
+  enum ArrayIndexOfMode { kFirstIndexOf, kLastIndexOf };
+  HValue* BuildArrayIndexOf(HValue* receiver,
+                            HValue* search_element,
+                            ElementsKind kind,
+                            ArrayIndexOfMode mode);
+
   HValue* ImplicitReceiverFor(HValue* function,
                               Handle<JSFunction> target);
 

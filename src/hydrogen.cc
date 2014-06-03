@@ -8032,6 +8032,43 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ast_context()->ReturnValue(result);
       return true;
     }
+    case kArrayIndexOf:
+    case kArrayLastIndexOf: {
+      if (receiver_map.is_null()) return false;
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      if (argument_count != 2) return false;
+      ASSERT(receiver_map->is_extensible());
+
+      // If there may be elements accessors in the prototype chain, the fast
+      // inlined version can't be used.
+      if (receiver_map->DictionaryElementsInPrototypeChainOnly()) return false;
+
+      // If there currently can be no elements accessors on the prototype chain,
+      // it doesn't mean that there won't be any later. Install a full prototype
+      // chain check to trap element accessors being installed on the prototype
+      // chain, which would cause elements to go to dictionary mode and result
+      // in a map change.
+      BuildCheckPrototypeMaps(
+          handle(JSObject::cast(receiver_map->prototype()), isolate()),
+          Handle<JSObject>::null());
+
+      HValue* search_element = Pop();
+      HValue* receiver = Pop();
+      Drop(1);  // Drop function.
+
+      ArrayIndexOfMode mode = (id == kArrayIndexOf)
+          ? kFirstIndexOf : kLastIndexOf;
+      HValue* index = BuildArrayIndexOf(receiver, search_element, kind, mode);
+
+      if (!ast_context()->IsEffect()) Push(index);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+      ast_context()->ReturnValue(index);
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
@@ -8321,6 +8358,148 @@ void HOptimizedGraphBuilder::BuildArrayCall(Expression* expression,
     Drop(1);
   }
   ast_context()->ReturnInstruction(call, expression->id());
+}
+
+
+HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
+                                                  HValue* search_element,
+                                                  ElementsKind kind,
+                                                  ArrayIndexOfMode mode) {
+  ASSERT(IsFastElementsKind(kind));
+
+  NoObservableSideEffectsScope no_effects(this);
+
+  HValue* elements = AddLoadElements(receiver);
+  HValue* length = AddLoadArrayLength(receiver, kind);
+
+  HValue* initial;
+  HValue* terminating;
+  Token::Value token;
+  LoopBuilder::Direction direction;
+  if (mode == kFirstIndexOf) {
+    initial = graph()->GetConstant0();
+    terminating = length;
+    token = Token::LT;
+    direction = LoopBuilder::kPostIncrement;
+  } else {
+    ASSERT_EQ(kLastIndexOf, mode);
+    initial = length;
+    terminating = graph()->GetConstant0();
+    token = Token::GTE;
+    direction = LoopBuilder::kPreDecrement;
+  }
+
+  Push(graph()->GetConstantMinus1());
+  if (IsFastDoubleElementsKind(kind) || IsFastSmiElementsKind(kind)) {
+    LoopBuilder loop(this, context(), direction);
+    {
+      HValue* index = loop.BeginBody(initial, terminating, token);
+      HValue* element = AddUncasted<HLoadKeyed>(
+          elements, index, static_cast<HValue*>(NULL),
+          kind, ALLOW_RETURN_HOLE);
+      IfBuilder if_issame(this);
+      if (IsFastDoubleElementsKind(kind)) {
+        if_issame.If<HCompareNumericAndBranch>(
+            element, search_element, Token::EQ_STRICT);
+      } else {
+        if_issame.If<HCompareObjectEqAndBranch>(element, search_element);
+      }
+      if_issame.Then();
+      {
+        Drop(1);
+        Push(index);
+        loop.Break();
+      }
+      if_issame.End();
+    }
+    loop.EndBody();
+  } else {
+    IfBuilder if_isstring(this);
+    if_isstring.If<HIsStringAndBranch>(search_element);
+    if_isstring.Then();
+    {
+      LoopBuilder loop(this, context(), direction);
+      {
+        HValue* index = loop.BeginBody(initial, terminating, token);
+        HValue* element = AddUncasted<HLoadKeyed>(
+            elements, index, static_cast<HValue*>(NULL),
+            kind, ALLOW_RETURN_HOLE);
+        IfBuilder if_issame(this);
+        if_issame.If<HIsStringAndBranch>(element);
+        if_issame.AndIf<HStringCompareAndBranch>(
+            element, search_element, Token::EQ_STRICT);
+        if_issame.Then();
+        {
+          Drop(1);
+          Push(index);
+          loop.Break();
+        }
+        if_issame.End();
+      }
+      loop.EndBody();
+    }
+    if_isstring.Else();
+    {
+      IfBuilder if_isheapnumber(this);
+      if_isheapnumber.IfNot<HIsSmiAndBranch>(search_element);
+      HCompareMap* isheapnumber = if_isheapnumber.AndIf<HCompareMap>(
+          search_element, isolate()->factory()->heap_number_map());
+      if_isheapnumber.Then();
+      {
+        HValue* search_number = Add<HLoadNamedField>(
+            search_element, isheapnumber,
+            HObjectAccess::ForHeapNumberValue());
+        LoopBuilder loop(this, context(), direction);
+        {
+          HValue* index = loop.BeginBody(initial, terminating, token);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, static_cast<HValue*>(NULL),
+              kind, ALLOW_RETURN_HOLE);
+          IfBuilder if_issame(this);
+          HCompareMap* issame = if_issame.If<HCompareMap>(
+              element, isolate()->factory()->heap_number_map());
+          if_issame.And();
+          HValue* number = Add<HLoadNamedField>(
+              element, issame, HObjectAccess::ForHeapNumberValue());
+          if_issame.If<HCompareNumericAndBranch>(
+              number, search_number, Token::EQ_STRICT);
+          if_issame.Then();
+          {
+            Drop(1);
+            Push(index);
+            loop.Break();
+          }
+          if_issame.End();
+        }
+        loop.EndBody();
+      }
+      if_isheapnumber.Else();
+      {
+        LoopBuilder loop(this, context(), direction);
+        {
+          HValue* index = loop.BeginBody(initial, terminating, token);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, static_cast<HValue*>(NULL),
+              kind, ALLOW_RETURN_HOLE);
+          IfBuilder if_issame(this);
+          if_issame.If<HCompareObjectEqAndBranch>(
+              element, search_element);
+          if_issame.Then();
+          {
+            Drop(1);
+            Push(index);
+            loop.Break();
+          }
+          if_issame.End();
+        }
+        loop.EndBody();
+      }
+      if_isheapnumber.End();
+    }
+    if_isstring.End();
+  }
+
+  return Pop();
 }
 
 

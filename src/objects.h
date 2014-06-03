@@ -6858,24 +6858,26 @@ class Script: public Struct {
 //
 // Installation of ids for the selected builtin functions is handled
 // by the bootstrapper.
-#define FUNCTIONS_WITH_ID_LIST(V)                   \
-  V(Array.prototype, push, ArrayPush)               \
-  V(Array.prototype, pop, ArrayPop)                 \
-  V(Array.prototype, shift, ArrayShift)             \
-  V(Function.prototype, apply, FunctionApply)       \
-  V(String.prototype, charCodeAt, StringCharCodeAt) \
-  V(String.prototype, charAt, StringCharAt)         \
-  V(String, fromCharCode, StringFromCharCode)       \
-  V(Math, floor, MathFloor)                         \
-  V(Math, round, MathRound)                         \
-  V(Math, ceil, MathCeil)                           \
-  V(Math, abs, MathAbs)                             \
-  V(Math, log, MathLog)                             \
-  V(Math, exp, MathExp)                             \
-  V(Math, sqrt, MathSqrt)                           \
-  V(Math, pow, MathPow)                             \
-  V(Math, max, MathMax)                             \
-  V(Math, min, MathMin)                             \
+#define FUNCTIONS_WITH_ID_LIST(V)                     \
+  V(Array.prototype, indexOf, ArrayIndexOf)           \
+  V(Array.prototype, lastIndexOf, ArrayLastIndexOf)   \
+  V(Array.prototype, push, ArrayPush)                 \
+  V(Array.prototype, pop, ArrayPop)                   \
+  V(Array.prototype, shift, ArrayShift)               \
+  V(Function.prototype, apply, FunctionApply)         \
+  V(String.prototype, charCodeAt, StringCharCodeAt)   \
+  V(String.prototype, charAt, StringCharAt)           \
+  V(String, fromCharCode, StringFromCharCode)         \
+  V(Math, floor, MathFloor)                           \
+  V(Math, round, MathRound)                           \
+  V(Math, ceil, MathCeil)                             \
+  V(Math, abs, MathAbs)                               \
+  V(Math, log, MathLog)                               \
+  V(Math, exp, MathExp)                               \
+  V(Math, sqrt, MathSqrt)                             \
+  V(Math, pow, MathPow)                               \
+  V(Math, max, MathMax)                               \
+  V(Math, min, MathMin)                               \
   V(Math, imul, MathImul)
 
 enum BuiltinFunctionId {
