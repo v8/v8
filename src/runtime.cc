@@ -8624,9 +8624,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
       // Start patching from the currently patched loop nesting level.
       int current_level = unoptimized->allow_osr_at_loop_nesting_level();
       ASSERT(BackEdgeTable::Verify(isolate, unoptimized, current_level));
-      for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
-        unoptimized->set_allow_osr_at_loop_nesting_level(i);
-        isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+      if (FLAG_use_osr) {
+        for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
+          unoptimized->set_allow_osr_at_loop_nesting_level(i);
+          isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+        }
       }
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
@@ -8726,6 +8728,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
+
+  RUNTIME_ASSERT(FLAG_use_osr);
 
   // Passing the PC in the javascript frame from the caller directly is
   // not GC safe, so we walk the stack to get it.
