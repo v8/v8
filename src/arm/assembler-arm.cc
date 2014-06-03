@@ -3592,15 +3592,14 @@ Handle<ConstantPoolArray> ConstantPoolBuilder::New(Isolate* isolate) {
 
 void ConstantPoolBuilder::Populate(Assembler* assm,
                                    ConstantPoolArray* constant_pool) {
-  ConstantPoolArray::LayoutSection section = ConstantPoolArray::SMALL_SECTION;
-  ASSERT(count_of_64bit_ ==
-      constant_pool->number_of_entries(ConstantPoolArray::INT64, section));
-  ASSERT(count_of_code_ptr_ ==
-      constant_pool->number_of_entries(ConstantPoolArray::CODE_PTR, section));
-  ASSERT(count_of_heap_ptr_ ==
-      constant_pool->number_of_entries(ConstantPoolArray::HEAP_PTR, section));
-  ASSERT(count_of_32bit_ ==
-      constant_pool->number_of_entries(ConstantPoolArray::INT32, section));
+  ASSERT(count_of_64bit_ == constant_pool->number_of_entries(
+             ConstantPoolArray::INT64, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_code_ptr_ == constant_pool->number_of_entries(
+             ConstantPoolArray::CODE_PTR, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_heap_ptr_ == constant_pool->number_of_entries(
+             ConstantPoolArray::HEAP_PTR, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_32bit_ == constant_pool->number_of_entries(
+             ConstantPoolArray::INT32, ConstantPoolArray::SMALL_SECTION));
   ASSERT(entries_.size() == merged_indexes_.size());
 
   int index_64bit = 0;
