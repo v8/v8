@@ -8762,8 +8762,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   Compiler::ConcurrencyMode mode =
       isolate->concurrent_osr_enabled() &&
-      (caller_code->CodeSize() > 32 * FullCodeGenerator::kCodeSizeMultiplier)
-          ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
+      (function->shared()->ast_node_count() > 512) ? Compiler::CONCURRENT
+                                                   : Compiler::NOT_CONCURRENT;
   Handle<Code> result = Handle<Code>::null();
 
   OptimizedCompileJob* job = NULL;
@@ -10833,7 +10833,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // could have the assumption that its own native context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);
-  if (isolate->debug()->is_entered()) {
+  if (isolate->debug()->in_debug_scope()) {
     isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
 
@@ -13615,7 +13615,7 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
                                    0,
                                    NULL);
   } else {
-    EnterDebugger enter_debugger(isolate);
+    DebugScope debug_scope(isolate->debug());
     maybe_result = Execution::Call(isolate,
                                    function,
                                    isolate->global_object(),

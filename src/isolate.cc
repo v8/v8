@@ -1324,7 +1324,7 @@ Handle<Context> Isolate::global_context() {
 
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
-  if (debug_->is_entered()) {
+  if (debug_->in_debug_scope()) {
     while (!it.done()) {
       JavaScriptFrame* frame = it.frame();
       Context* context = Context::cast(frame->context());
