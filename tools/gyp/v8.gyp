@@ -1129,6 +1129,7 @@
           '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
+          '../../src/collection-iterator.js',
           '../../src/generator.js',
           '../../src/array-iterator.js',
           '../../src/harmony-string.js',

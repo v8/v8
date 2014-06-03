@@ -16480,32 +16480,12 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
 }
 
 
-template<class Derived, class TableType>
-Handle<Derived> OrderedHashTableIterator<Derived, TableType>::CreateInternal(
-    Handle<Map> map,
-    Handle<TableType> table,
-    int kind) {
-  Isolate* isolate = table->GetIsolate();
-
-  Handle<Derived> new_iterator = Handle<Derived>::cast(
-      isolate->factory()->NewJSObjectFromMap(map));
-  new_iterator->set_table(*table);
-  new_iterator->set_index(Smi::FromInt(0));
-  new_iterator->set_kind(Smi::FromInt(kind));
-  return new_iterator;
-}
-
-
 template Handle<JSObject>
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Next(
     Handle<JSSetIterator> iterator);
 
 template void
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Transition();
-
-template Handle<JSSetIterator>
-OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::CreateInternal(
-    Handle<Map> map, Handle<OrderedHashSet> table, int kind);
 
 
 template Handle<JSObject>
@@ -16514,10 +16494,6 @@ OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Next(
 
 template void
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Transition();
-
-template Handle<JSMapIterator>
-OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::CreateInternal(
-    Handle<Map> map, Handle<OrderedHashMap> table, int kind);
 
 
 Handle<Object> JSSetIterator::ValueForKind(

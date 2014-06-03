@@ -9985,10 +9985,6 @@ class OrderedHashTableIterator: public JSObject {
   // end.
   static Handle<JSObject> Next(Handle<Derived> iterator);
 
- protected:
-  static Handle<Derived> CreateInternal(
-      Handle<Map> map, Handle<TableType> table, int kind);
-
  private:
   // Transitions the iterator to the non obsolote backing store. This is a NOP
   // if the [table] is not obsolete.
@@ -10001,11 +9997,6 @@ class OrderedHashTableIterator: public JSObject {
 class JSSetIterator: public OrderedHashTableIterator<JSSetIterator,
                                                      OrderedHashSet> {
  public:
-  // Creates a new iterator associated with [table].
-  // [kind] needs to be one of the OrderedHashTableIterator Kind enum values.
-  static inline Handle<JSSetIterator> Create(
-      Handle<OrderedHashSet> table, int kind);
-
   // Dispatched behavior.
   DECLARE_PRINTER(JSSetIterator)
   DECLARE_VERIFIER(JSSetIterator)
@@ -10025,11 +10016,6 @@ class JSSetIterator: public OrderedHashTableIterator<JSSetIterator,
 class JSMapIterator: public OrderedHashTableIterator<JSMapIterator,
                                                      OrderedHashMap> {
  public:
-  // Creates a new iterator associated with [table].
-  // [kind] needs to be one of the OrderedHashTableIterator Kind enum values.
-  static inline Handle<JSMapIterator> Create(
-      Handle<OrderedHashMap> table, int kind);
-
   // Dispatched behavior.
   DECLARE_PRINTER(JSMapIterator)
   DECLARE_VERIFIER(JSMapIterator)

@@ -701,8 +701,8 @@ void JSSetIterator::JSSetIteratorVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(kind()->IsSmi());
+  CHECK(index()->IsSmi() || index()->IsUndefined());
+  CHECK(kind()->IsSmi() || kind()->IsUndefined());
 }
 
 
@@ -711,8 +711,8 @@ void JSMapIterator::JSMapIteratorVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsOrderedHashTable() || table()->IsUndefined());
-  CHECK(index()->IsSmi());
-  CHECK(kind()->IsSmi());
+  CHECK(index()->IsSmi() || index()->IsUndefined());
+  CHECK(kind()->IsSmi() || kind()->IsUndefined());
 }
 
 

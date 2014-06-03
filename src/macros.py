@@ -126,6 +126,8 @@ macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
+macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
+macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_UNDETECTABLE(arg)      = (%_IsUndetectableObject(arg));
 macro FLOOR(arg)                = $floor(arg);
 

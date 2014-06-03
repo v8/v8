@@ -79,7 +79,7 @@ function SetForEach(f, receiver) {
     throw MakeTypeError('called_non_callable', [f]);
   }
 
-  var iterator = %SetCreateIterator(this, ITERATOR_KIND_VALUES);
+  var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
   var entry;
   var stepping = %_DebugCallbackSupportsStepping(f);
   while (!(entry = %SetIteratorNext(iterator)).done) {
@@ -190,7 +190,7 @@ function MapForEach(f, receiver) {
     throw MakeTypeError('called_non_callable', [f]);
   }
 
-  var iterator = %MapCreateIterator(this, ITERATOR_KIND_ENTRIES);
+  var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
   var entry;
   var stepping = %_DebugCallbackSupportsStepping(f);
   while (!(entry = %MapIteratorNext(iterator)).done) {

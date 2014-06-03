@@ -1584,15 +1584,19 @@ RUNTIME_FUNCTION(Runtime_SetGetSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetCreateIterator) {
+RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSSet, set, 1);
+  CONVERT_SMI_ARG_CHECKED(kind, 2)
   RUNTIME_ASSERT(kind == JSSetIterator::kKindValues ||
                  kind == JSSetIterator::kKindEntries);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  return *JSSetIterator::Create(table, kind);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
+  holder->set_table(*table);
+  holder->set_index(Smi::FromInt(0));
+  holder->set_kind(Smi::FromInt(kind));
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -1683,16 +1687,20 @@ RUNTIME_FUNCTION(Runtime_MapGetSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MapCreateIterator) {
+RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, map, 1);
+  CONVERT_SMI_ARG_CHECKED(kind, 2)
   RUNTIME_ASSERT(kind == JSMapIterator::kKindKeys
       || kind == JSMapIterator::kKindValues
       || kind == JSMapIterator::kKindEntries);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  return *JSMapIterator::Create(table, kind);
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
+  holder->set_table(*table);
+  holder->set_index(Smi::FromInt(0));
+  holder->set_kind(Smi::FromInt(kind));
+  return isolate->heap()->undefined_value();
 }
 
 

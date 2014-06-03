@@ -6127,20 +6127,6 @@ SeededNumberDictionary* JSObject::element_dictionary() {
 }
 
 
-Handle<JSSetIterator> JSSetIterator::Create(
-    Handle<OrderedHashSet> table,
-    int kind) {
-  return CreateInternal(table->GetIsolate()->set_iterator_map(), table, kind);
-}
-
-
-Handle<JSMapIterator> JSMapIterator::Create(
-    Handle<OrderedHashMap> table,
-    int kind) {
-  return CreateInternal(table->GetIsolate()->map_iterator_map(), table, kind);
-}
-
-
 bool Name::IsHashFieldComputed(uint32_t field) {
   return (field & kHashNotComputedMask) == 0;
 }
