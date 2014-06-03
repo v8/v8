@@ -208,7 +208,9 @@ class ShellOptions {
      mock_arraybuffer_allocator(false),
      num_isolates(1),
      isolate_sources(NULL),
-     icu_data_file(NULL) { }
+     icu_data_file(NULL),
+     natives_blob(NULL),
+     snapshot_blob(NULL) { }
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -232,6 +234,8 @@ class ShellOptions {
   int num_isolates;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
+  const char* natives_blob;
+  const char* snapshot_blob;
 };
 
 #ifdef V8_SHARED
