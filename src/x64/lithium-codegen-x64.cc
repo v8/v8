@@ -4024,13 +4024,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ Move(kScratchRegister, transition);
       __ movp(FieldOperand(object, HeapObject::kMapOffset), kScratchRegister);
       // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          kScratchRegister,
-                          temp,
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
+      __ RecordWriteForMap(object,
+                           kScratchRegister,
+                           temp,
+                           kSaveFPRegs);
     }
   }
 
@@ -4090,7 +4087,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         temp,
                         kSaveFPRegs,
                         EMIT_REMEMBERED_SET,
-                        hinstr->SmiCheckForWriteBarrier());
+                        hinstr->SmiCheckForWriteBarrier(),
+                        hinstr->PointersToHereCheckForValue());
   }
 }
 
@@ -4315,7 +4313,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
                    value,
                    kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
-                   check_needed);
+                   check_needed,
+                   hinstr->PointersToHereCheckForValue());
   }
 }
 
@@ -4360,9 +4359,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ Move(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
     __ movp(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
-    ASSERT_NE(instr->temp(), NULL);
-    __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
-                        ToRegister(instr->temp()), kDontSaveFPRegs);
+    __ RecordWriteForMap(object_reg, new_map_reg, ToRegister(instr->temp()),
+                         kDontSaveFPRegs);
   } else {
     ASSERT(object_reg.is(rax));
     ASSERT(ToRegister(instr->context()).is(rsi));

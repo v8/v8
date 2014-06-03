@@ -5320,7 +5320,8 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
     // Compute address of modified element and store it into key register.
     __ Add(element_addr, mem_op.base(), mem_op.OffsetAsOperand());
     __ RecordWrite(elements, element_addr, value, GetLinkRegisterState(),
-                   kSaveFPRegs, EMIT_REMEMBERED_SET, check_needed);
+                   kSaveFPRegs, EMIT_REMEMBERED_SET, check_needed,
+                   instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 
@@ -5379,14 +5380,11 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ Str(new_map_value, FieldMemOperand(object, HeapObject::kMapOffset));
     if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
       // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          new_map_value,
-                          ToRegister(instr->temp1()),
-                          GetLinkRegisterState(),
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
+      __ RecordWriteForMap(object,
+                           new_map_value,
+                           ToRegister(instr->temp1()),
+                           GetLinkRegisterState(),
+                           kSaveFPRegs);
     }
   }
 
@@ -5428,7 +5426,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         GetLinkRegisterState(),
                         kSaveFPRegs,
                         EMIT_REMEMBERED_SET,
-                        instr->hydrogen()->SmiCheckForWriteBarrier());
+                        instr->hydrogen()->SmiCheckForWriteBarrier(),
+                        instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 
@@ -5760,8 +5759,8 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ Mov(new_map, Operand(to_map));
     __ Str(new_map, FieldMemOperand(object, HeapObject::kMapOffset));
     // Write barrier.
-    __ RecordWriteField(object, HeapObject::kMapOffset, new_map, temp1,
-                        GetLinkRegisterState(), kDontSaveFPRegs);
+    __ RecordWriteForMap(object, new_map, temp1, GetLinkRegisterState(),
+                         kDontSaveFPRegs);
   } else {
     {
       UseScratchRegisterScope temps(masm());

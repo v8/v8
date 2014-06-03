@@ -5715,6 +5715,20 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
 }
 
 
+inline PointersToHereCheck PointersToHereCheckForObject(HValue* object,
+                                                        HValue* dominator) {
+  while (object->IsInnerAllocatedObject()) {
+    object = HInnerAllocatedObject::cast(object)->base_object();
+  }
+  if (object == dominator &&
+      object->IsAllocate() &&
+      HAllocate::cast(object)->IsNewSpaceAllocation()) {
+    return kPointersToHereAreAlwaysInteresting;
+  }
+  return kPointersToHereMaybeInteresting;
+}
+
+
 class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreGlobalCell, HValue*,
@@ -6732,6 +6746,10 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     return INLINE_SMI_CHECK;
   }
 
+  PointersToHereCheck PointersToHereCheckForValue() const {
+    return PointersToHereCheckForObject(value(), dominator());
+  }
+
   Representation field_representation() const {
     return access_.representation();
   }
@@ -6890,9 +6908,9 @@ class HStoreKeyed V8_FINAL
     return Representation::None();
   }
 
-  HValue* elements() { return OperandAt(0); }
-  HValue* key() { return OperandAt(1); }
-  HValue* value() { return OperandAt(2); }
+  HValue* elements() const { return OperandAt(0); }
+  HValue* key() const { return OperandAt(1); }
+  HValue* value() const { return OperandAt(2); }
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
@@ -6934,6 +6952,10 @@ class HStoreKeyed V8_FINAL
       return StoringValueNeedsWriteBarrier(value()) &&
           ReceiverObjectNeedsWriteBarrier(elements(), value(), dominator());
     }
+  }
+
+  PointersToHereCheck PointersToHereCheckForValue() const {
+    return PointersToHereCheckForObject(value(), dominator());
   }
 
   bool NeedsCanonicalization();
