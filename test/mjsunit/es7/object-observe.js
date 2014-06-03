@@ -1142,8 +1142,7 @@ var properties = ["a", "1", 1, "length", "setPrototype", "name", "caller"];
 function blacklisted(obj, prop) {
   return (obj instanceof Int32Array && prop == 1) ||
          (obj instanceof Int32Array && prop === "length") ||
-         (obj instanceof ArrayBuffer && prop == 1) ||
-         (obj instanceof Function && prop === "name")
+         (obj instanceof ArrayBuffer && prop == 1)
 }
 
 for (var i in objects) for (var j in properties) {
