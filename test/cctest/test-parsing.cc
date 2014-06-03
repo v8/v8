@@ -2519,6 +2519,8 @@ TEST(FuncNameInferrerTwoByte) {
   v8::Local<v8::String> expected_name =
       v8::String::NewFromTwoByte(isolate, two_byte_name);
   CHECK(result->Equals(expected_name));
+  i::DeleteArray(two_byte_source);
+  i::DeleteArray(two_byte_name);
 }
 
 
@@ -2542,4 +2544,6 @@ TEST(FuncNameInferrerEscaped) {
   v8::Local<v8::String> expected_name =
       v8::String::NewFromTwoByte(isolate, two_byte_name);
   CHECK(result->Equals(expected_name));
+  i::DeleteArray(two_byte_source);
+  i::DeleteArray(two_byte_name);
 }
