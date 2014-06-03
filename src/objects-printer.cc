@@ -579,18 +579,35 @@ void FixedDoubleArray::FixedDoubleArrayPrint(FILE* out) {
 void ConstantPoolArray::ConstantPoolArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ConstantPoolArray");
   PrintF(out, " - length: %d", length());
-  for (int i = 0; i < length(); i++) {
-    if (i < first_code_ptr_index()) {
+  for (int i = 0; i <= last_index(INT32, SMALL_SECTION); i++) {
+    if (i < last_index(INT64, SMALL_SECTION)) {
       PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
-    } else if (i < first_heap_ptr_index()) {
+    } else if (i <= last_index(CODE_PTR, SMALL_SECTION)) {
       PrintF(out, "\n  [%d]: code target pointer: %p", i,
              reinterpret_cast<void*>(get_code_ptr_entry(i)));
-    } else if (i < first_int32_index()) {
+    } else if (i <= last_index(HEAP_PTR, SMALL_SECTION)) {
       PrintF(out, "\n  [%d]: heap pointer: %p", i,
              reinterpret_cast<void*>(get_heap_ptr_entry(i)));
-    } else {
+    } else if (i <= last_index(INT32, SMALL_SECTION)) {
       PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
     }
+  }
+  if (is_extended_layout()) {
+    PrintF(out, "\n  Extended section:");
+    for (int i = first_extended_section_index();
+         i <= last_index(INT32, EXTENDED_SECTION); i++) {
+    if (i < last_index(INT64, EXTENDED_SECTION)) {
+      PrintF(out, "\n  [%d]: double: %g", i, get_int64_entry_as_double(i));
+    } else if (i <= last_index(CODE_PTR, EXTENDED_SECTION)) {
+      PrintF(out, "\n  [%d]: code target pointer: %p", i,
+             reinterpret_cast<void*>(get_code_ptr_entry(i)));
+    } else if (i <= last_index(HEAP_PTR, EXTENDED_SECTION)) {
+      PrintF(out, "\n  [%d]: heap pointer: %p", i,
+             reinterpret_cast<void*>(get_heap_ptr_entry(i)));
+    } else if (i <= last_index(INT32, EXTENDED_SECTION)) {
+      PrintF(out, "\n  [%d]: int32: %d", i, get_int32_entry(i));
+    }
+  }
   }
   PrintF(out, "\n");
 }

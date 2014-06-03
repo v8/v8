@@ -2217,136 +2217,161 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
-void ConstantPoolArray::set_weak_object_state(
-      ConstantPoolArray::WeakObjectState state) {
-  int old_layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
-  int new_layout_field = WeakObjectStateField::update(old_layout_field, state);
-  WRITE_INT_FIELD(this, kArrayLayoutOffset, new_layout_field);
+bool ConstantPoolArray::is_extended_layout() {
+  uint32_t small_layout_1 = READ_UINT32_FIELD(this, kSmallLayout1Offset);
+  return IsExtendedField::decode(small_layout_1);
+}
+
+
+ConstantPoolArray::LayoutSection ConstantPoolArray::final_section() {
+  return is_extended_layout() ? EXTENDED_SECTION : SMALL_SECTION;
+}
+
+
+int ConstantPoolArray::first_extended_section_index() {
+  ASSERT(is_extended_layout());
+  uint32_t small_layout_2 = READ_UINT32_FIELD(this, kSmallLayout2Offset);
+  return TotalCountField::decode(small_layout_2);
+}
+
+
+int ConstantPoolArray::get_extended_section_header_offset() {
+  return RoundUp(SizeFor(NumberOfEntries(this, SMALL_SECTION)), kInt64Size);
 }
 
 
 ConstantPoolArray::WeakObjectState ConstantPoolArray::get_weak_object_state() {
-  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
-  return WeakObjectStateField::decode(layout_field);
+  uint32_t small_layout_2 = READ_UINT32_FIELD(this, kSmallLayout2Offset);
+  return WeakObjectStateField::decode(small_layout_2);
 }
 
 
-int ConstantPoolArray::first_int64_index() {
-  return 0;
+void ConstantPoolArray::set_weak_object_state(
+      ConstantPoolArray::WeakObjectState state) {
+  uint32_t small_layout_2 = READ_UINT32_FIELD(this, kSmallLayout2Offset);
+  small_layout_2 = WeakObjectStateField::update(small_layout_2, state);
+  WRITE_INT32_FIELD(this, kSmallLayout2Offset, small_layout_2);
 }
 
 
-int ConstantPoolArray::first_code_ptr_index() {
-  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
-  return first_int64_index() +
-      NumberOfInt64EntriesField::decode(layout_field);
+int ConstantPoolArray::first_index(Type type, LayoutSection section) {
+  int index = 0;
+  if (section == EXTENDED_SECTION) {
+    ASSERT(is_extended_layout());
+    index += first_extended_section_index();
+  }
+
+  for (Type type_iter = FIRST_TYPE; type_iter < type;
+       type_iter = next_type(type_iter)) {
+    index += number_of_entries(type_iter, section);
+  }
+
+  return index;
 }
 
 
-int ConstantPoolArray::first_heap_ptr_index() {
-  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
-  return first_code_ptr_index() +
-      NumberOfCodePtrEntriesField::decode(layout_field);
+int ConstantPoolArray::last_index(Type type, LayoutSection section) {
+  return first_index(type, section) + number_of_entries(type, section) - 1;
 }
 
 
-int ConstantPoolArray::first_int32_index() {
-  int layout_field = READ_INT_FIELD(this, kArrayLayoutOffset);
-  return first_heap_ptr_index() +
-      NumberOfHeapPtrEntriesField::decode(layout_field);
+int ConstantPoolArray::number_of_entries(Type type, LayoutSection section) {
+  if (section == SMALL_SECTION) {
+    uint32_t small_layout_1 = READ_UINT32_FIELD(this, kSmallLayout1Offset);
+    uint32_t small_layout_2 = READ_UINT32_FIELD(this, kSmallLayout2Offset);
+    switch (type) {
+      case INT64:
+        return Int64CountField::decode(small_layout_1);
+      case CODE_PTR:
+        return CodePtrCountField::decode(small_layout_1);
+      case HEAP_PTR:
+        return HeapPtrCountField::decode(small_layout_1);
+      case INT32:
+        return Int32CountField::decode(small_layout_2);
+      default:
+        UNREACHABLE();
+        return 0;
+    }
+  } else {
+    ASSERT(section == EXTENDED_SECTION && is_extended_layout());
+    int offset = get_extended_section_header_offset();
+    switch (type) {
+      case INT64:
+        offset += kExtendedInt64CountOffset;
+        break;
+      case CODE_PTR:
+        offset += kExtendedCodePtrCountOffset;
+        break;
+      case HEAP_PTR:
+        offset += kExtendedHeapPtrCountOffset;
+        break;
+      case INT32:
+        offset += kExtendedInt32CountOffset;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    return READ_INT_FIELD(this, offset);
+  }
 }
 
 
-int ConstantPoolArray::count_of_int64_entries() {
-  return first_code_ptr_index();
-}
+ConstantPoolArray::Type ConstantPoolArray::get_type(int index) {
+  LayoutSection section;
+  if (is_extended_layout() && index >= first_extended_section_index()) {
+    section = EXTENDED_SECTION;
+  } else {
+    section = SMALL_SECTION;
+  }
 
-
-int ConstantPoolArray::count_of_code_ptr_entries() {
-  return first_heap_ptr_index() - first_code_ptr_index();
-}
-
-
-int ConstantPoolArray::count_of_heap_ptr_entries() {
-  return first_int32_index() - first_heap_ptr_index();
-}
-
-
-int ConstantPoolArray::count_of_int32_entries() {
-  return length() - first_int32_index();
-}
-
-
-void ConstantPoolArray::Init(int number_of_int64_entries,
-                             int number_of_code_ptr_entries,
-                             int number_of_heap_ptr_entries,
-                             int number_of_int32_entries) {
-  set_length(number_of_int64_entries +
-             number_of_code_ptr_entries +
-             number_of_heap_ptr_entries +
-             number_of_int32_entries);
-  int layout_field =
-      NumberOfInt64EntriesField::encode(number_of_int64_entries) |
-      NumberOfCodePtrEntriesField::encode(number_of_code_ptr_entries) |
-      NumberOfHeapPtrEntriesField::encode(number_of_heap_ptr_entries) |
-      WeakObjectStateField::encode(NO_WEAK_OBJECTS);
-  WRITE_INT_FIELD(this, kArrayLayoutOffset, layout_field);
+  Type type = FIRST_TYPE;
+  while (index > last_index(type, section)) {
+    type = next_type(type);
+  }
+  ASSERT(type <= LAST_TYPE);
+  return type;
 }
 
 
 int64_t ConstantPoolArray::get_int64_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= 0 && index < first_code_ptr_index());
+  ASSERT(get_type(index) == INT64);
   return READ_INT64_FIELD(this, OffsetOfElementAt(index));
 }
+
 
 double ConstantPoolArray::get_int64_entry_as_double(int index) {
   STATIC_ASSERT(kDoubleSize == kInt64Size);
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= 0 && index < first_code_ptr_index());
+  ASSERT(get_type(index) == INT64);
   return READ_DOUBLE_FIELD(this, OffsetOfElementAt(index));
 }
 
 
 Address ConstantPoolArray::get_code_ptr_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_code_ptr_index() && index < first_heap_ptr_index());
+  ASSERT(get_type(index) == CODE_PTR);
   return reinterpret_cast<Address>(READ_FIELD(this, OffsetOfElementAt(index)));
 }
 
 
 Object* ConstantPoolArray::get_heap_ptr_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_heap_ptr_index() && index < first_int32_index());
+  ASSERT(get_type(index) == HEAP_PTR);
   return READ_FIELD(this, OffsetOfElementAt(index));
 }
 
 
 int32_t ConstantPoolArray::get_int32_entry(int index) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_int32_index() && index < length());
+  ASSERT(get_type(index) == INT32);
   return READ_INT32_FIELD(this, OffsetOfElementAt(index));
-}
-
-
-void ConstantPoolArray::set(int index, Address value) {
-  ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_code_ptr_index() && index < first_heap_ptr_index());
-  WRITE_FIELD(this, OffsetOfElementAt(index), reinterpret_cast<Object*>(value));
-}
-
-
-void ConstantPoolArray::set(int index, Object* value) {
-  ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_code_ptr_index() && index < first_int32_index());
-  WRITE_FIELD(this, OffsetOfElementAt(index), value);
-  WRITE_BARRIER(GetHeap(), this, OffsetOfElementAt(index), value);
 }
 
 
 void ConstantPoolArray::set(int index, int64_t value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_int64_index() && index < first_code_ptr_index());
+  ASSERT(get_type(index) == INT64);
   WRITE_INT64_FIELD(this, OffsetOfElementAt(index), value);
 }
 
@@ -2354,15 +2379,119 @@ void ConstantPoolArray::set(int index, int64_t value) {
 void ConstantPoolArray::set(int index, double value) {
   STATIC_ASSERT(kDoubleSize == kInt64Size);
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= first_int64_index() && index < first_code_ptr_index());
+  ASSERT(get_type(index) == INT64);
   WRITE_DOUBLE_FIELD(this, OffsetOfElementAt(index), value);
+}
+
+
+void ConstantPoolArray::set(int index, Address value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(get_type(index) == CODE_PTR);
+  WRITE_FIELD(this, OffsetOfElementAt(index), reinterpret_cast<Object*>(value));
+}
+
+
+void ConstantPoolArray::set(int index, Object* value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(get_type(index) == HEAP_PTR);
+  WRITE_FIELD(this, OffsetOfElementAt(index), value);
+  WRITE_BARRIER(GetHeap(), this, OffsetOfElementAt(index), value);
 }
 
 
 void ConstantPoolArray::set(int index, int32_t value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
-  ASSERT(index >= this->first_int32_index() && index < length());
+  ASSERT(get_type(index) == INT32);
   WRITE_INT32_FIELD(this, OffsetOfElementAt(index), value);
+}
+
+
+void ConstantPoolArray::Init(const NumberOfEntries& small) {
+  uint32_t small_layout_1 =
+      Int64CountField::encode(small.count_of(INT64)) |
+      CodePtrCountField::encode(small.count_of(CODE_PTR)) |
+      HeapPtrCountField::encode(small.count_of(HEAP_PTR)) |
+      IsExtendedField::encode(false);
+  uint32_t small_layout_2 =
+      Int32CountField::encode(small.count_of(INT32)) |
+      TotalCountField::encode(small.total_count()) |
+      WeakObjectStateField::encode(NO_WEAK_OBJECTS);
+  WRITE_UINT32_FIELD(this, kSmallLayout1Offset, small_layout_1);
+  WRITE_UINT32_FIELD(this, kSmallLayout2Offset, small_layout_2);
+  if (kHeaderSize != kFirstEntryOffset) {
+    ASSERT(kFirstEntryOffset - kHeaderSize == kInt32Size);
+    WRITE_UINT32_FIELD(this, kHeaderSize, 0);  // Zero out header padding.
+  }
+}
+
+
+void ConstantPoolArray::InitExtended(const NumberOfEntries& small,
+                                     const NumberOfEntries& extended) {
+  // Initialize small layout fields first.
+  Init(small);
+
+  // Set is_extended_layout field.
+  uint32_t small_layout_1 = READ_UINT32_FIELD(this, kSmallLayout1Offset);
+  small_layout_1 = IsExtendedField::update(small_layout_1, true);
+  WRITE_INT32_FIELD(this, kSmallLayout1Offset, small_layout_1);
+
+  // Initialize the extended layout fields.
+  int extended_header_offset = get_extended_section_header_offset();
+  WRITE_INT_FIELD(this, extended_header_offset + kExtendedInt64CountOffset,
+      extended.count_of(INT64));
+  WRITE_INT_FIELD(this, extended_header_offset + kExtendedCodePtrCountOffset,
+      extended.count_of(CODE_PTR));
+  WRITE_INT_FIELD(this, extended_header_offset + kExtendedHeapPtrCountOffset,
+      extended.count_of(HEAP_PTR));
+  WRITE_INT_FIELD(this, extended_header_offset + kExtendedInt32CountOffset,
+      extended.count_of(INT32));
+}
+
+
+int ConstantPoolArray::size() {
+  NumberOfEntries small(this, SMALL_SECTION);
+  if (!is_extended_layout()) {
+    return SizeFor(small);
+  } else {
+    NumberOfEntries extended(this, EXTENDED_SECTION);
+    return SizeForExtended(small, extended);
+  }
+}
+
+
+int ConstantPoolArray::length() {
+  uint32_t small_layout_2 = READ_UINT32_FIELD(this, kSmallLayout2Offset);
+  int length = TotalCountField::decode(small_layout_2);
+  if (is_extended_layout()) {
+    length += number_of_entries(INT64, EXTENDED_SECTION) +
+              number_of_entries(CODE_PTR, EXTENDED_SECTION) +
+              number_of_entries(HEAP_PTR, EXTENDED_SECTION) +
+              number_of_entries(INT32, EXTENDED_SECTION);
+  }
+  return length;
+}
+
+
+int ConstantPoolArray::Iterator::next_index() {
+  ASSERT(!is_finished());
+  int ret = next_index_++;
+  update_section();
+  return ret;
+}
+
+
+bool ConstantPoolArray::Iterator::is_finished() {
+  return next_index_ > array_->last_index(type_, final_section_);
+}
+
+
+void ConstantPoolArray::Iterator::update_section() {
+  if (next_index_ > array_->last_index(type_, current_section_) &&
+      current_section_ != final_section_) {
+    ASSERT(final_section_ == EXTENDED_SECTION);
+    current_section_ = EXTENDED_SECTION;
+    next_index_ = array_->first_index(type_, EXTENDED_SECTION);
+  }
 }
 
 
@@ -3977,11 +4106,7 @@ int HeapObject::SizeFromMap(Map* map) {
         reinterpret_cast<FixedDoubleArray*>(this)->length());
   }
   if (instance_type == CONSTANT_POOL_ARRAY_TYPE) {
-    return ConstantPoolArray::SizeFor(
-        reinterpret_cast<ConstantPoolArray*>(this)->count_of_int64_entries(),
-        reinterpret_cast<ConstantPoolArray*>(this)->count_of_code_ptr_entries(),
-        reinterpret_cast<ConstantPoolArray*>(this)->count_of_heap_ptr_entries(),
-        reinterpret_cast<ConstantPoolArray*>(this)->count_of_int32_entries());
+    return reinterpret_cast<ConstantPoolArray*>(this)->size();
   }
   if (instance_type >= FIRST_FIXED_TYPED_ARRAY_TYPE &&
       instance_type <= LAST_FIXED_TYPED_ARRAY_TYPE) {

@@ -3094,16 +3094,41 @@ class FixedDoubleArray: public FixedArrayBase {
 
 
 // ConstantPoolArray describes a fixed-sized array containing constant pool
-// entires.
-// The format of the pool is:
-//   [0]: Field holding the first index which is a raw code target pointer entry
-//   [1]: Field holding the first index which is a heap pointer entry
-//   [2]: Field holding the first index which is a int32 entry
-//   [3]                      ... [first_code_ptr_index() - 1] : 64 bit entries
-//   [first_code_ptr_index()] ... [first_heap_ptr_index() - 1] : code pointers
-//   [first_heap_ptr_index()] ... [first_int32_index() - 1]    : heap pointers
-//   [first_int32_index()]    ... [length - 1]                 : 32 bit entries
-class ConstantPoolArray: public FixedArrayBase {
+// entries.
+//
+// A ConstantPoolArray can be structured in two different ways depending upon
+// whether it is extended or small. The is_extended_layout() method can be used
+// to discover which layout the constant pool has.
+//
+// The format of a small constant pool is:
+//   [kSmallLayout1Offset]                    : Small section layout bitmap 1
+//   [kSmallLayout2Offset]                    : Small section layout bitmap 2
+//   [first_index(INT64, SMALL_SECTION)]      : 64 bit entries
+//    ...                                     :  ...
+//   [first_index(CODE_PTR, SMALL_SECTION)]   : code pointer entries
+//    ...                                     :  ...
+//   [first_index(HEAP_PTR, SMALL_SECTION)]   : heap pointer entries
+//    ...                                     :  ...
+//   [first_index(INT32, SMALL_SECTION)]      : 32 bit entries
+//    ...                                     :  ...
+//
+// If the constant pool has an extended layout, the extended section constant
+// pool also contains an extended section, which has the following format at
+// location get_extended_section_header_offset():
+//   [kExtendedInt64CountOffset]              : count of extended 64 bit entries
+//   [kExtendedCodePtrCountOffset]            : count of extended code pointers
+//   [kExtendedHeapPtrCountOffset]            : count of extended heap pointers
+//   [kExtendedInt32CountOffset]              : count of extended 32 bit entries
+//   [first_index(INT64, EXTENDED_SECTION)]   : 64 bit entries
+//    ...                                     :  ...
+//   [first_index(CODE_PTR, EXTENDED_SECTION)]: code pointer entries
+//    ...                                     :  ...
+//   [first_index(HEAP_PTR, EXTENDED_SECTION)]: heap pointer entries
+//    ...                                     :  ...
+//   [first_index(INT32, EXTENDED_SECTION)]   : 32 bit entries
+//    ...                                     :  ...
+//
+class ConstantPoolArray: public HeapObject {
  public:
   enum WeakObjectState {
     NO_WEAK_OBJECTS,
@@ -3111,17 +3136,94 @@ class ConstantPoolArray: public FixedArrayBase {
     WEAK_OBJECTS_IN_IC
   };
 
-  // Getters for the field storing the first index for different type entries.
-  inline int first_code_ptr_index();
-  inline int first_heap_ptr_index();
-  inline int first_int64_index();
-  inline int first_int32_index();
+  enum Type {
+    INT64 = 0,
+    CODE_PTR,
+    HEAP_PTR,
+    INT32,
+    // Number of types stored by the ConstantPoolArrays.
+    NUMBER_OF_TYPES,
+    FIRST_TYPE = INT64,
+    LAST_TYPE = INT32
+  };
 
-  // Getters for counts of different type entries.
-  inline int count_of_code_ptr_entries();
-  inline int count_of_heap_ptr_entries();
-  inline int count_of_int64_entries();
-  inline int count_of_int32_entries();
+  enum LayoutSection {
+    SMALL_SECTION = 0,
+    EXTENDED_SECTION
+  };
+
+  class NumberOfEntries BASE_EMBEDDED {
+   public:
+    inline NumberOfEntries(int int64_count, int code_ptr_count,
+                           int heap_ptr_count, int int32_count) {
+      element_counts_[INT64] = int64_count;
+      element_counts_[CODE_PTR] = code_ptr_count;
+      element_counts_[HEAP_PTR] = heap_ptr_count;
+      element_counts_[INT32] = int32_count;
+    }
+
+    inline NumberOfEntries(ConstantPoolArray* array, LayoutSection section) {
+      element_counts_[INT64] = array->number_of_entries(INT64, section);
+      element_counts_[CODE_PTR] = array->number_of_entries(CODE_PTR, section);
+      element_counts_[HEAP_PTR] = array->number_of_entries(HEAP_PTR, section);
+      element_counts_[INT32] = array->number_of_entries(INT32, section);
+    }
+
+    inline int count_of(Type type) const {
+      ASSERT(type < NUMBER_OF_TYPES);
+      return element_counts_[type];
+    }
+
+    inline int total_count() const {
+      int count = 0;
+      for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+        count += element_counts_[i];
+      }
+      return count;
+    }
+
+    inline int are_in_range(int min, int max) const {
+      for (int i = FIRST_TYPE; i < NUMBER_OF_TYPES; i++) {
+        if (element_counts_[i] < min || element_counts_[i] > max) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+   private:
+    int element_counts_[NUMBER_OF_TYPES];
+  };
+
+  class Iterator BASE_EMBEDDED {
+   public:
+    inline Iterator(ConstantPoolArray* array, Type type)
+        : array_(array), type_(type), final_section_(array->final_section()) {
+      current_section_ = SMALL_SECTION;
+      next_index_ = array->first_index(type, SMALL_SECTION);
+      update_section();
+    }
+
+    inline int next_index();
+    inline bool is_finished();
+   private:
+    inline void update_section();
+    ConstantPoolArray* array_;
+    const Type type_;
+    const LayoutSection final_section_;
+
+    LayoutSection current_section_;
+    int next_index_;
+  };
+
+  // Getters for the first index, the last index and the count of entries of
+  // a given type for a given layout section.
+  inline int first_index(Type type, LayoutSection layout_section);
+  inline int last_index(Type type, LayoutSection layout_section);
+  inline int number_of_entries(Type type, LayoutSection layout_section);
+
+  // Returns the type of the entry at the given index.
+  inline Type get_type(int index);
 
   // Setter and getter for pool elements.
   inline Address get_code_ptr_entry(int index);
@@ -3130,49 +3232,98 @@ class ConstantPoolArray: public FixedArrayBase {
   inline int32_t get_int32_entry(int index);
   inline double get_int64_entry_as_double(int index);
 
-  // Setter and getter for weak objects state
-  inline void set_weak_object_state(WeakObjectState state);
-  inline WeakObjectState get_weak_object_state();
-
   inline void set(int index, Address value);
   inline void set(int index, Object* value);
   inline void set(int index, int64_t value);
   inline void set(int index, double value);
   inline void set(int index, int32_t value);
 
-  // Set up initial state.
-  inline void Init(int number_of_int64_entries,
-                   int number_of_code_ptr_entries,
-                   int number_of_heap_ptr_entries,
-                   int number_of_int32_entries);
+  // Setter and getter for weak objects state
+  inline void set_weak_object_state(WeakObjectState state);
+  inline WeakObjectState get_weak_object_state();
+
+  // Returns true if the constant pool has an extended layout, false if it has
+  // only the small layout.
+  inline bool is_extended_layout();
+
+  // Returns the last LayoutSection in this constant pool array.
+  inline LayoutSection final_section();
+
+  // Set up initial state for a small layout constant pool array.
+  inline void Init(const NumberOfEntries& small);
+
+  // Set up initial state for an extended layout constant pool array.
+  inline void InitExtended(const NumberOfEntries& small,
+                           const NumberOfEntries& extended);
+
+  // Clears the pointer entries with GC safe values.
+  void ClearPtrEntries(Isolate* isolate);
+
+  // returns the total number of entries in the constant pool array.
+  inline int length();
 
   // Garbage collection support.
-  inline static int SizeFor(int number_of_int64_entries,
-                            int number_of_code_ptr_entries,
-                            int number_of_heap_ptr_entries,
-                            int number_of_int32_entries) {
-    return RoundUp(OffsetAt(number_of_int64_entries,
-                            number_of_code_ptr_entries,
-                            number_of_heap_ptr_entries,
-                            number_of_int32_entries),
-                   kPointerSize);
+  inline int size();
+
+  inline static int SizeFor(const NumberOfEntries& small) {
+    int size = kFirstEntryOffset +
+        (small.count_of(INT64)  * kInt64Size) +
+        (small.count_of(CODE_PTR) * kPointerSize) +
+        (small.count_of(HEAP_PTR) * kPointerSize) +
+        (small.count_of(INT32) * kInt32Size);
+    return RoundUp(size, kPointerSize);
+  }
+
+  inline static int SizeForExtended(const NumberOfEntries& small,
+                                    const NumberOfEntries& extended) {
+    int size = SizeFor(small);
+    size = RoundUp(size, kInt64Size);  // Align extended header to 64 bits.
+    size += kExtendedFirstOffset +
+        (extended.count_of(INT64) * kInt64Size) +
+        (extended.count_of(CODE_PTR) * kPointerSize) +
+        (extended.count_of(HEAP_PTR) * kPointerSize) +
+        (extended.count_of(INT32) * kInt32Size);
+    return RoundUp(size, kPointerSize);
+  }
+
+  inline static int entry_size(Type type) {
+    switch (type) {
+      case INT32:
+        return kInt32Size;
+      case INT64:
+        return kInt64Size;
+      case CODE_PTR:
+      case HEAP_PTR:
+        return kPointerSize;
+      default:
+        UNREACHABLE();
+        return 0;
+    }
   }
 
   // Code Generation support.
   inline int OffsetOfElementAt(int index) {
-    ASSERT(index < length());
-    if (index >= first_int32_index()) {
-      return OffsetAt(count_of_int64_entries(), count_of_code_ptr_entries(),
-                      count_of_heap_ptr_entries(), index - first_int32_index());
-    } else if (index >= first_heap_ptr_index()) {
-      return OffsetAt(count_of_int64_entries(), count_of_code_ptr_entries(),
-                      index - first_heap_ptr_index(), 0);
-    } else if (index >= first_code_ptr_index()) {
-      return OffsetAt(count_of_int64_entries(), index - first_code_ptr_index(),
-                      0, 0);
+    int offset;
+    LayoutSection section;
+    if (is_extended_layout() && index >= first_extended_section_index()) {
+      section = EXTENDED_SECTION;
+      offset = get_extended_section_header_offset() + kExtendedFirstOffset;
     } else {
-      return OffsetAt(index, 0, 0, 0);
+      section = SMALL_SECTION;
+      offset = kFirstEntryOffset;
     }
+
+    // Add offsets for the preceding type sections.
+    ASSERT(index <= last_index(LAST_TYPE, section));
+    for (Type type = FIRST_TYPE; index > last_index(type, section);
+         type = next_type(type)) {
+      offset += entry_size(type) * number_of_entries(type, section);
+    }
+
+    // Add offset for the index in it's type.
+    Type type = get_type(index);
+    offset += entry_size(type) * (index - first_index(type, section));
+    return offset;
   }
 
   // Casting.
@@ -3183,17 +3334,37 @@ class ConstantPoolArray: public FixedArrayBase {
     return HeapObject::RawField(this, OffsetOfElementAt(index));
   }
 
-  // Layout description.
-  static const int kArrayLayoutOffset = FixedArray::kHeaderSize;
-  static const int kFirstOffset = kArrayLayoutOffset + kPointerSize;
+  // Small Layout description.
+  static const int kSmallLayout1Offset = HeapObject::kHeaderSize;
+  static const int kSmallLayout2Offset = kSmallLayout1Offset + kInt32Size;
+  static const int kHeaderSize = kSmallLayout2Offset + kInt32Size;
+  static const int kFirstEntryOffset = ROUND_UP(kHeaderSize, kInt64Size);
 
-  static const int kFieldBitSize = 10;
-  static const int kMaxEntriesPerType = (1 << kFieldBitSize) - 1;
+  static const int kSmallLayoutCountBits = 10;
+  static const int kMaxSmallEntriesPerType = (1 << kSmallLayoutCountBits) - 1;
 
-  class NumberOfInt64EntriesField: public BitField<int, 0, kFieldBitSize> {};
-  class NumberOfCodePtrEntriesField: public BitField<int, 10, kFieldBitSize> {};
-  class NumberOfHeapPtrEntriesField: public BitField<int, 20, kFieldBitSize> {};
-  class WeakObjectStateField: public BitField<WeakObjectState, 30, 2> {};
+  // Fields in kSmallLayout1Offset.
+  class Int64CountField: public BitField<int, 1, kSmallLayoutCountBits> {};
+  class CodePtrCountField: public BitField<int, 11, kSmallLayoutCountBits> {};
+  class HeapPtrCountField: public BitField<int, 21, kSmallLayoutCountBits> {};
+  class IsExtendedField: public BitField<bool, 31, 1> {};
+
+  // Fields in kSmallLayout2Offset.
+  class Int32CountField: public BitField<int, 1, kSmallLayoutCountBits> {};
+  class TotalCountField: public BitField<int, 11, 12> {};
+  class WeakObjectStateField: public BitField<WeakObjectState, 23, 2> {};
+
+  // Extended layout description, which starts at
+  // get_extended_section_header_offset().
+  static const int kExtendedInt64CountOffset = 0;
+  static const int kExtendedCodePtrCountOffset =
+      kExtendedInt64CountOffset + kPointerSize;
+  static const int kExtendedHeapPtrCountOffset =
+      kExtendedCodePtrCountOffset + kPointerSize;
+  static const int kExtendedInt32CountOffset =
+      kExtendedHeapPtrCountOffset + kPointerSize;
+  static const int kExtendedFirstOffset =
+      kExtendedInt32CountOffset + kPointerSize;
 
   // Dispatched behavior.
   void ConstantPoolIterateBody(ObjectVisitor* v);
@@ -3202,15 +3373,13 @@ class ConstantPoolArray: public FixedArrayBase {
   DECLARE_VERIFIER(ConstantPoolArray)
 
  private:
-  inline static int OffsetAt(int number_of_int64_entries,
-                             int number_of_code_ptr_entries,
-                             int number_of_heap_ptr_entries,
-                             int number_of_int32_entries) {
-    return kFirstOffset
-        + (number_of_int64_entries * kInt64Size)
-        + (number_of_code_ptr_entries * kPointerSize)
-        + (number_of_heap_ptr_entries * kPointerSize)
-        + (number_of_int32_entries * kInt32Size);
+  inline int first_extended_section_index();
+  inline int get_extended_section_header_offset();
+
+  inline static Type next_type(Type type) {
+    ASSERT(type >= FIRST_TYPE && type < NUMBER_OF_TYPES);
+    int type_int = static_cast<int>(type);
+    return static_cast<Type>(++type_int);
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantPoolArray);

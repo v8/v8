@@ -498,23 +498,24 @@ template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitConstantPoolArray(
     Map* map, HeapObject* object) {
   Heap* heap = map->GetHeap();
-  ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
-  for (int i = 0; i < constant_pool->count_of_code_ptr_entries(); i++) {
-    int index = constant_pool->first_code_ptr_index() + i;
-    Address code_entry =
-        reinterpret_cast<Address>(constant_pool->RawFieldOfElementAt(index));
+  ConstantPoolArray* array = ConstantPoolArray::cast(object);
+  ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
+  while (!code_iter.is_finished()) {
+    Address code_entry = reinterpret_cast<Address>(
+        array->RawFieldOfElementAt(code_iter.next_index()));
     StaticVisitor::VisitCodeEntry(heap, code_entry);
   }
-  for (int i = 0; i < constant_pool->count_of_heap_ptr_entries(); i++) {
-    int index = constant_pool->first_heap_ptr_index() + i;
-    Object** slot = constant_pool->RawFieldOfElementAt(index);
+
+  ConstantPoolArray::Iterator heap_iter(array, ConstantPoolArray::HEAP_PTR);
+  while (!heap_iter.is_finished()) {
+    Object** slot = array->RawFieldOfElementAt(heap_iter.next_index());
     HeapObject* object = HeapObject::cast(*slot);
     heap->mark_compact_collector()->RecordSlot(slot, slot, object);
     bool is_weak_object =
-        (constant_pool->get_weak_object_state() ==
+        (array->get_weak_object_state() ==
               ConstantPoolArray::WEAK_OBJECTS_IN_OPTIMIZED_CODE &&
          Code::IsWeakObjectInOptimizedCode(object)) ||
-        (constant_pool->get_weak_object_state() ==
+        (array->get_weak_object_state() ==
               ConstantPoolArray::WEAK_OBJECTS_IN_IC &&
          Code::IsWeakObjectInIC(object));
     if (!is_weak_object) {

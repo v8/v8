@@ -2847,10 +2847,11 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
                            SlotsBuffer::IGNORE_OVERFLOW);
       }
     } else if (compacting_ && dst->IsConstantPoolArray()) {
-      ConstantPoolArray* constant_pool = ConstantPoolArray::cast(dst);
-      for (int i = 0; i < constant_pool->count_of_code_ptr_entries(); i++) {
+      ConstantPoolArray* array = ConstantPoolArray::cast(dst);
+      ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
+      while (!code_iter.is_finished()) {
         Address code_entry_slot =
-            dst_addr + constant_pool->OffsetOfElementAt(i);
+            dst_addr + array->OffsetOfElementAt(code_iter.next_index());
         Address code_entry = Memory::Address_at(code_entry_slot);
 
         if (Page::FromAddress(code_entry)->IsEvacuationCandidate()) {
