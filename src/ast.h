@@ -1352,20 +1352,6 @@ class Literal V8_FINAL : public Expression {
     return !value_->BooleanValue();
   }
 
-  // Identity testers.
-  bool IsNull() const {
-    ASSERT(!value_.is_null());
-    return value_->IsNull();
-  }
-  bool IsTrue() const {
-    ASSERT(!value_.is_null());
-    return value_->IsTrue();
-  }
-  bool IsFalse() const {
-    ASSERT(!value_.is_null());
-    return value_->IsFalse();
-  }
-
   Handle<Object> value() const { return value_; }
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works

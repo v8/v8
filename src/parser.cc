@@ -525,7 +525,7 @@ Expression* ParserTraits::BuildUnaryExpression(
     Expression* expression, Token::Value op, int pos,
     AstNodeFactory<AstConstructionVisitor>* factory) {
   ASSERT(expression != NULL);
-  if (expression->AsLiteral() != NULL) {
+  if (expression->IsLiteral()) {
     Handle<Object> literal = expression->AsLiteral()->value();
     if (op == Token::NOT) {
       // Convert the literal to a boolean condition and negate it.
@@ -3224,7 +3224,7 @@ void Parser::ReportInvalidCachedData(Handle<String> name, bool* ok) {
 
 
 bool CompileTimeValue::IsCompileTimeValue(Expression* expression) {
-  if (expression->AsLiteral() != NULL) return true;
+  if (expression->IsLiteral()) return true;
   MaterializedLiteral* lit = expression->AsMaterializedLiteral();
   return lit != NULL && lit->is_simple();
 }

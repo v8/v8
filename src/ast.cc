@@ -34,17 +34,17 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 
 bool Expression::IsSmiLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsSmi();
+  return IsLiteral() && AsLiteral()->value()->IsSmi();
 }
 
 
 bool Expression::IsStringLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsString();
+  return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
 
 bool Expression::IsNullLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsNull();
+  return IsLiteral() && AsLiteral()->value()->IsNull();
 }
 
 
@@ -192,7 +192,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
-  } else if (value_->AsLiteral() != NULL) {
+  } else if (value_->IsLiteral()) {
     kind_ = CONSTANT;
   } else {
     kind_ = COMPUTED;
@@ -390,7 +390,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
-  if (expression->AsLiteral() != NULL) {
+  if (expression->IsLiteral()) {
     return expression->AsLiteral()->value();
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
@@ -499,7 +499,7 @@ static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != NULL &&
       maybe_unary->op() == Token::VOID &&
-      maybe_unary->expression()->AsLiteral() != NULL;
+      maybe_unary->expression()->IsLiteral();
 }
 
 
