@@ -4,12 +4,12 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include "include/v8stdint.h"
+#include "src/checks.h"
+#include "src/utils.h"
 
-#include "double.h"
-#include "fixed-dtoa.h"
+#include "src/double.h"
+#include "src/fixed-dtoa.h"
 
 namespace v8 {
 namespace internal {

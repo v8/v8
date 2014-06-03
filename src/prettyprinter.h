@@ -5,8 +5,8 @@
 #ifndef V8_PRETTYPRINTER_H_
 #define V8_PRETTYPRINTER_H_
 
-#include "allocation.h"
-#include "ast.h"
+#include "src/allocation.h"
+#include "src/ast.h"
 
 namespace v8 {
 namespace internal {

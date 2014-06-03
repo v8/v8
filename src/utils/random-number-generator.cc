@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "utils/random-number-generator.h"
+#include "src/utils/random-number-generator.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "flags.h"
-#include "platform/mutex.h"
-#include "platform/time.h"
-#include "utils.h"
+#include "src/flags.h"
+#include "src/platform/mutex.h"
+#include "src/platform/time.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

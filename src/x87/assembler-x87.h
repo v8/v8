@@ -37,8 +37,8 @@
 #ifndef V8_X87_ASSEMBLER_X87_H_
 #define V8_X87_ASSEMBLER_X87_H_
 
-#include "isolate.h"
-#include "serialize.h"
+#include "src/isolate.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

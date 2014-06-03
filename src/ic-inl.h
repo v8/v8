@@ -5,11 +5,11 @@
 #ifndef V8_IC_INL_H_
 #define V8_IC_INL_H_
 
-#include "ic.h"
+#include "src/ic.h"
 
-#include "compiler.h"
-#include "debug.h"
-#include "macro-assembler.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

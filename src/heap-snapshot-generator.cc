@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "heap-snapshot-generator-inl.h"
+#include "src/heap-snapshot-generator-inl.h"
 
-#include "allocation-tracker.h"
-#include "code-stubs.h"
-#include "conversions.h"
-#include "debug.h"
-#include "heap-profiler.h"
-#include "types.h"
+#include "src/allocation-tracker.h"
+#include "src/code-stubs.h"
+#include "src/conversions.h"
+#include "src/debug.h"
+#include "src/heap-profiler.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {

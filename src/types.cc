@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "types.h"
+#include "src/types.h"
 
-#include "string-stream.h"
-#include "types-inl.h"
+#include "src/string-stream.h"
+#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {

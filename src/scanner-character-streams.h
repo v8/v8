@@ -5,7 +5,7 @@
 #ifndef V8_SCANNER_CHARACTER_STREAMS_H_
 #define V8_SCANNER_CHARACTER_STREAMS_H_
 
-#include "scanner.h"
+#include "src/scanner.h"
 
 namespace v8 {
 namespace internal {

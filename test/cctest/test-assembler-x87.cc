@@ -27,14 +27,14 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "platform.h"
-#include "serialize.h"
-#include "cctest.h"
+#include "src/disassembler.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/platform.h"
+#include "src/serialize.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

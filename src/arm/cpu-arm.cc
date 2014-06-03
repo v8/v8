@@ -12,13 +12,13 @@
 #endif
 #endif
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM
 
-#include "cpu.h"
-#include "macro-assembler.h"
-#include "simulator.h"  // for cache flushing.
+#include "src/cpu.h"
+#include "src/macro-assembler.h"
+#include "src/simulator.h"  // for cache flushing.
 
 namespace v8 {
 namespace internal {

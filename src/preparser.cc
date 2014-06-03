@@ -4,20 +4,20 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
+#include "include/v8stdint.h"
 
-#include "allocation.h"
-#include "checks.h"
-#include "conversions.h"
-#include "conversions-inl.h"
-#include "globals.h"
-#include "hashmap.h"
-#include "list.h"
-#include "preparse-data-format.h"
-#include "preparse-data.h"
-#include "preparser.h"
-#include "unicode.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/conversions.h"
+#include "src/conversions-inl.h"
+#include "src/globals.h"
+#include "src/hashmap.h"
+#include "src/list.h"
+#include "src/preparse-data-format.h"
+#include "src/preparse-data.h"
+#include "src/preparser.h"
+#include "src/unicode.h"
+#include "src/utils.h"
 
 #if V8_LIBC_MSVCRT && (_MSC_VER < 1800)
 namespace std {

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ic-inl.h"
-#include "objects-visiting.h"
+#include "src/ic-inl.h"
+#include "src/objects-visiting.h"
 
 namespace v8 {
 namespace internal {

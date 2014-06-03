@@ -31,17 +31,17 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "messages.h"
-#include "platform.h"
-#include "runtime.h"
-#include "scanner-character-streams.h"
-#include "scopeinfo.h"
-#include "shell-utils.h"
-#include "string-stream.h"
-#include "scanner.h"
+#include "src/api.h"
+#include "src/messages.h"
+#include "src/platform.h"
+#include "src/runtime.h"
+#include "src/scanner-character-streams.h"
+#include "src/scopeinfo.h"
+#include "tools/shell-utils.h"
+#include "src/string-stream.h"
+#include "src/scanner.h"
 
 
 using namespace v8::internal;

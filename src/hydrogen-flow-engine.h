@@ -5,9 +5,9 @@
 #ifndef V8_HYDROGEN_FLOW_ENGINE_H_
 #define V8_HYDROGEN_FLOW_ENGINE_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "zone.h"
+#include "src/hydrogen.h"
+#include "src/hydrogen-instructions.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

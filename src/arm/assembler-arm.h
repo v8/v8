@@ -43,9 +43,9 @@
 #include <stdio.h>
 #include <vector>
 
-#include "assembler.h"
-#include "constants-arm.h"
-#include "serialize.h"
+#include "src/assembler.h"
+#include "src/arm/constants-arm.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

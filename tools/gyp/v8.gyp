@@ -138,7 +138,7 @@
         'v8_base',
       ],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -181,7 +181,7 @@
         'v8_base',
       ],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
@@ -241,7 +241,7 @@
         'optimize': 'max',
       },
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [  ### gcmole(all) ###
         '../../src/accessors.cc',
@@ -1060,7 +1060,7 @@
         'optimize': 'max',
       },
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '../../src/base/build_config.h',
@@ -1211,7 +1211,7 @@
       'type': 'executable',
       'dependencies': ['v8_base', 'v8_nosnapshot'],
       'include_dirs+': [
-        '../../src',
+        '../..',
       ],
       'sources': [
         '../../src/mksnapshot.cc',

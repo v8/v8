@@ -26,25 +26,25 @@
 #endif
 
 // Basic includes
-#include "../include/v8.h"
-#include "../include/v8-platform.h"
-#include "v8checks.h"
-#include "allocation.h"
-#include "assert-scope.h"
-#include "utils.h"
-#include "flags.h"
-#include "globals.h"
+#include "include/v8.h"
+#include "include/v8-platform.h"
+#include "src/v8checks.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/utils.h"
+#include "src/flags.h"
+#include "src/globals.h"
 
 // Objects & heap
-#include "objects-inl.h"
-#include "spaces-inl.h"
-#include "heap-inl.h"
-#include "incremental-marking-inl.h"
-#include "mark-compact-inl.h"
-#include "log-inl.h"
-#include "handles-inl.h"
-#include "types-inl.h"
-#include "zone-inl.h"
+#include "src/objects-inl.h"
+#include "src/spaces-inl.h"
+#include "src/heap-inl.h"
+#include "src/incremental-marking-inl.h"
+#include "src/mark-compact-inl.h"
+#include "src/log-inl.h"
+#include "src/handles-inl.h"
+#include "src/types-inl.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -8,7 +8,7 @@
 #include <time.h>
 #include <limits>
 
-#include "../allocation.h"
+#include "src/allocation.h"
 
 // Forward declarations.
 extern "C" {

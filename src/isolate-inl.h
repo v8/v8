@@ -5,9 +5,9 @@
 #ifndef V8_ISOLATE_INL_H_
 #define V8_ISOLATE_INL_H_
 
-#include "debug.h"
-#include "isolate.h"
-#include "utils/random-number-generator.h"
+#include "src/debug.h"
+#include "src/isolate.h"
+#include "src/utils/random-number-generator.h"
 
 namespace v8 {
 namespace internal {

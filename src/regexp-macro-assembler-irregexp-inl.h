@@ -5,9 +5,9 @@
 // A light-weight assembler for the Irregexp byte code.
 
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
+#include "src/v8.h"
+#include "src/ast.h"
+#include "src/bytecodes-irregexp.h"
 
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_INL_H_

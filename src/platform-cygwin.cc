@@ -16,11 +16,11 @@
 
 #undef MAP_TYPE
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "v8threads.h"
-#include "win32-headers.h"
+#include "src/platform.h"
+#include "src/v8threads.h"
+#include "src/win32-headers.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/time.h"
+#include "src/platform/time.h"
 
 #if V8_OS_POSIX
 #include <sys/time.h>
@@ -13,11 +13,11 @@
 
 #include <string.h>
 
-#include "checks.h"
-#include "cpu.h"
-#include "platform.h"
+#include "src/checks.h"
+#include "src/cpu.h"
+#include "src/platform.h"
 #if V8_OS_WIN
-#include "win32-headers.h"
+#include "src/win32-headers.h"
 #endif
 
 namespace v8 {

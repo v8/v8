@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "mips/lithium-gap-resolver-mips.h"
-#include "mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-gap-resolver-mips.h"
+#include "src/mips/lithium-codegen-mips.h"
 
 namespace v8 {
 namespace internal {

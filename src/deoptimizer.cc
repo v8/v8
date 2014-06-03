@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "disasm.h"
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "macro-assembler.h"
-#include "prettyprinter.h"
+#include "src/accessors.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/disasm.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/macro-assembler.h"
+#include "src/prettyprinter.h"
 
 
 namespace v8 {

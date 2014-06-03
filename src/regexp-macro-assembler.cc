@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
-#include "ast.h"
-#include "assembler.h"
-#include "regexp-stack.h"
-#include "regexp-macro-assembler.h"
-#include "simulator.h"
+#include "src/v8.h"
+#include "src/ast.h"
+#include "src/assembler.h"
+#include "src/regexp-stack.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {

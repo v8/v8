@@ -4,14 +4,14 @@
 
 #include <cmath>
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include "include/v8stdint.h"
+#include "src/checks.h"
+#include "src/utils.h"
 
-#include "bignum-dtoa.h"
+#include "src/bignum-dtoa.h"
 
-#include "bignum.h"
-#include "double.h"
+#include "src/bignum.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {

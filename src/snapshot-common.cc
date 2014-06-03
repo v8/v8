@@ -4,12 +4,12 @@
 
 // The common functionality when building with or without snapshots.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "serialize.h"
-#include "snapshot.h"
-#include "platform.h"
+#include "src/api.h"
+#include "src/serialize.h"
+#include "src/snapshot.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

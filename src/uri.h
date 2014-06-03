@@ -5,11 +5,11 @@
 #ifndef V8_URI_H_
 #define V8_URI_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "conversions.h"
-#include "string-search.h"
-#include "utils.h"
+#include "src/conversions.h"
+#include "src/string-search.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

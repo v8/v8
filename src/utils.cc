@@ -5,11 +5,11 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "checks.h"
-#include "platform.h"
-#include "utils.h"
+#include "src/checks.h"
+#include "src/platform.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

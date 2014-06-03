@@ -3,21 +3,21 @@
 // found in the LICENSE file.
 
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "liveedit.h"
+#include "src/liveedit.h"
 
-#include "code-stubs.h"
-#include "compilation-cache.h"
-#include "compiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "global-handles.h"
-#include "messages.h"
-#include "parser.h"
-#include "scopeinfo.h"
-#include "scopes.h"
-#include "v8memory.h"
+#include "src/code-stubs.h"
+#include "src/compilation-cache.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/global-handles.h"
+#include "src/messages.h"
+#include "src/parser.h"
+#include "src/scopeinfo.h"
+#include "src/scopes.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

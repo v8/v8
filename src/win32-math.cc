@@ -8,13 +8,13 @@
 // (http://www.opengroup.org/onlinepubs/000095399/)
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 
-#include "win32-headers.h"
+#include "src/win32-headers.h"
 #include <limits.h>        // Required for INT_MAX etc.
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
 #include <cmath>
-#include "win32-math.h"
+#include "src/win32-math.h"
 
-#include "checks.h"
+#include "src/checks.h"
 
 
 namespace std {

@@ -5,7 +5,7 @@
 #ifndef V8_SERIALIZE_H_
 #define V8_SERIALIZE_H_
 
-#include "hashmap.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {

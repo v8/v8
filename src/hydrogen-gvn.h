@@ -5,10 +5,10 @@
 #ifndef V8_HYDROGEN_GVN_H_
 #define V8_HYDROGEN_GVN_H_
 
-#include "hydrogen.h"
-#include "hydrogen-instructions.h"
-#include "compiler.h"
-#include "zone.h"
+#include "src/hydrogen.h"
+#include "src/hydrogen-instructions.h"
+#include "src/compiler.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

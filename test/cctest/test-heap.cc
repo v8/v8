@@ -28,15 +28,15 @@
 #include <stdlib.h>
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "compilation-cache.h"
-#include "execution.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "global-handles.h"
-#include "stub-cache.h"
-#include "cctest.h"
+#include "src/compilation-cache.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/global-handles.h"
+#include "src/macro-assembler.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

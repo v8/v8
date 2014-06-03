@@ -7,8 +7,8 @@
 #ifndef V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
 #define V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
 
-#include "base/macros.h"
-#include "win32-headers.h"
+#include "src/base/macros.h"
+#include "src/win32-headers.h"
 
 #if defined(V8_HOST_ARCH_64_BIT)
 // windows.h #defines this (only on x64). This causes problems because the

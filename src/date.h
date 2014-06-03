@@ -5,9 +5,9 @@
 #ifndef V8_DATE_H_
 #define V8_DATE_H_
 
-#include "allocation.h"
-#include "globals.h"
-#include "platform.h"
+#include "src/allocation.h"
+#include "src/globals.h"
+#include "src/platform.h"
 
 
 namespace v8 {

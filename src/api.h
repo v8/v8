@@ -5,13 +5,13 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "../include/v8-testing.h"
-#include "contexts.h"
-#include "factory.h"
-#include "isolate.h"
-#include "list-inl.h"
+#include "include/v8-testing.h"
+#include "src/contexts.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
 
 namespace v8 {
 

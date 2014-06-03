@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "compilation-cache.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "isolate.h"
-#include "platform.h"
-#include "stub-cache.h"
+#include "src/api.h"
+#include "src/compilation-cache.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/isolate.h"
+#include "src/platform.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using ::v8::internal::Deoptimizer;
 using ::v8::internal::EmbeddedVector;

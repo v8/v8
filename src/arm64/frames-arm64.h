@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "arm64/constants-arm64.h"
-#include "arm64/assembler-arm64.h"
+#include "src/arm64/constants-arm64.h"
+#include "src/arm64/assembler-arm64.h"
 
 #ifndef V8_ARM64_FRAMES_ARM64_H_
 #define V8_ARM64_FRAMES_ARM64_H_

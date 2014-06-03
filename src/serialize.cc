@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "api.h"
-#include "bootstrapper.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "global-handles.h"
-#include "ic-inl.h"
-#include "natives.h"
-#include "platform.h"
-#include "runtime.h"
-#include "serialize.h"
-#include "snapshot.h"
-#include "stub-cache.h"
-#include "v8threads.h"
+#include "src/accessors.h"
+#include "src/api.h"
+#include "src/bootstrapper.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/global-handles.h"
+#include "src/ic-inl.h"
+#include "src/natives.h"
+#include "src/platform.h"
+#include "src/runtime.h"
+#include "src/serialize.h"
+#include "src/snapshot.h"
+#include "src/stub-cache.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

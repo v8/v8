@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "runtime-profiler.h"
+#include "src/runtime-profiler.h"
 
-#include "assembler.h"
-#include "bootstrapper.h"
-#include "code-stubs.h"
-#include "compilation-cache.h"
-#include "execution.h"
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "isolate-inl.h"
-#include "mark-compact.h"
-#include "platform.h"
-#include "scopeinfo.h"
+#include "src/assembler.h"
+#include "src/bootstrapper.h"
+#include "src/code-stubs.h"
+#include "src/compilation-cache.h"
+#include "src/execution.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/isolate-inl.h"
+#include "src/mark-compact.h"
+#include "src/platform.h"
+#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {

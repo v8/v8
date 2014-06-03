@@ -2,28 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assembler.h"
-#include "isolate.h"
-#include "elements.h"
-#include "bootstrapper.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "frames.h"
-#include "heap-profiler.h"
-#include "hydrogen.h"
+#include "src/assembler.h"
+#include "src/isolate.h"
+#include "src/elements.h"
+#include "src/bootstrapper.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/frames.h"
+#include "src/heap-profiler.h"
+#include "src/hydrogen.h"
 #ifdef V8_USE_DEFAULT_PLATFORM
-#include "libplatform/default-platform.h"
+#include "src/libplatform/default-platform.h"
 #endif
-#include "lithium-allocator.h"
-#include "objects.h"
-#include "once.h"
-#include "platform.h"
-#include "sampler.h"
-#include "runtime-profiler.h"
-#include "serialize.h"
-#include "store-buffer.h"
+#include "src/lithium-allocator.h"
+#include "src/objects.h"
+#include "src/once.h"
+#include "src/platform.h"
+#include "src/sampler.h"
+#include "src/runtime-profiler.h"
+#include "src/serialize.h"
+#include "src/store-buffer.h"
 
 namespace v8 {
 namespace internal {

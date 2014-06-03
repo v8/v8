@@ -5,12 +5,12 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
-#include "allocation.h"
-#include "atomicops.h"
-#include "circular-queue.h"
-#include "platform/time.h"
-#include "sampler.h"
-#include "unbound-queue.h"
+#include "src/allocation.h"
+#include "src/atomicops.h"
+#include "src/circular-queue.h"
+#include "src/platform/time.h"
+#include "src/sampler.h"
+#include "src/unbound-queue.h"
 
 namespace v8 {
 namespace internal {

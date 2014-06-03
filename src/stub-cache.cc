@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "arguments.h"
-#include "ast.h"
-#include "code-stubs.h"
-#include "cpu-profiler.h"
-#include "gdb-jit.h"
-#include "ic-inl.h"
-#include "stub-cache.h"
-#include "type-info.h"
-#include "vm-state-inl.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/ast.h"
+#include "src/code-stubs.h"
+#include "src/cpu-profiler.h"
+#include "src/gdb-jit.h"
+#include "src/ic-inl.h"
+#include "src/stub-cache.h"
+#include "src/type-info.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

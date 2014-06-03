@@ -5,24 +5,24 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
-#include "allocation.h"
-#include "assert-scope.h"
-#include "builtins.h"
-#include "elements-kind.h"
-#include "flags.h"
-#include "list.h"
-#include "property-details.h"
-#include "smart-pointers.h"
-#include "unicode-inl.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/builtins.h"
+#include "src/elements-kind.h"
+#include "src/flags.h"
+#include "src/list.h"
+#include "src/property-details.h"
+#include "src/smart-pointers.h"
+#include "src/unicode-inl.h"
 #if V8_TARGET_ARCH_ARM64
-#include "arm64/constants-arm64.h"
+#include "src/arm64/constants-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/constants-arm.h"
+#include "src/arm/constants-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/constants-mips.h"
+#include "src/mips/constants-mips.h"
 #endif
-#include "v8checks.h"
-#include "zone.h"
+#include "src/v8checks.h"
+#include "src/zone.h"
 
 
 //

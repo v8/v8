@@ -5,7 +5,7 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
-#include "isolate.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

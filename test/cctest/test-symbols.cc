@@ -5,10 +5,10 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "objects.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

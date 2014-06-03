@@ -5,10 +5,10 @@
 #ifndef V8_SPACES_INL_H_
 #define V8_SPACES_INL_H_
 
-#include "heap-profiler.h"
-#include "isolate.h"
-#include "spaces.h"
-#include "v8memory.h"
+#include "src/heap-profiler.h"
+#include "src/isolate.h"
+#include "src/spaces.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

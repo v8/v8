@@ -13,8 +13,8 @@
 #ifndef V8_MIPS_SIMULATOR_MIPS_H_
 #define V8_MIPS_SIMULATOR_MIPS_H_
 
-#include "allocation.h"
-#include "constants-mips.h"
+#include "src/allocation.h"
+#include "src/mips/constants-mips.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native mips platform.
@@ -70,8 +70,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "hashmap.h"
-#include "assembler.h"
+#include "src/hashmap.h"
+#include "src/assembler.h"
 
 namespace v8 {
 namespace internal {

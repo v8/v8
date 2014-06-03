@@ -27,7 +27,7 @@ v8_random_seed = "314159265"
 config("internal_config") {
   visibility = ":*"  # Only targets in this file can depend on this.
 
-  include_dirs = [ "src" ]
+  include_dirs = [ "." ]
 
   if (component_mode == "shared_library") {
     defines = [

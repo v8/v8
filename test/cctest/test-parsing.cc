@@ -29,18 +29,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "compiler.h"
-#include "execution.h"
-#include "isolate.h"
-#include "objects.h"
-#include "parser.h"
-#include "preparser.h"
-#include "scanner-character-streams.h"
-#include "token.h"
-#include "utils.h"
+#include "src/compiler.h"
+#include "src/execution.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/parser.h"
+#include "src/preparser.h"
+#include "src/scanner-character-streams.h"
+#include "src/token.h"
+#include "src/utils.h"
+#include "test/cctest/cctest.h"
 
 TEST(ScanKeywords) {
   struct KeywordToken {

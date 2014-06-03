@@ -5,11 +5,11 @@
 #ifndef V8_X64_LITHIUM_X64_H_
 #define V8_X64_LITHIUM_X64_H_
 
-#include "hydrogen.h"
-#include "lithium-allocator.h"
-#include "lithium.h"
-#include "safepoint-table.h"
-#include "utils.h"
+#include "src/hydrogen.h"
+#include "src/lithium-allocator.h"
+#include "src/lithium.h"
+#include "src/safepoint-table.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

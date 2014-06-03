@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "objects.h"
-#include "transitions-inl.h"
-#include "utils.h"
+#include "src/objects.h"
+#include "src/transitions-inl.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

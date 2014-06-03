@@ -5,9 +5,9 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
-#include "isolate.h"
-#include "factory.h"
-#include "types.h"
+#include "src/isolate.h"
+#include "src/factory.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {

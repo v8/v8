@@ -34,15 +34,16 @@
 #include <cmath>
 #endif  // __linux__
 
-#include "v8.h"
-#include "log.h"
-#include "log-utils.h"
-#include "cpu-profiler.h"
-#include "natives.h"
-#include "utils.h"
-#include "v8threads.h"
-#include "cctest.h"
-#include "vm-state-inl.h"
+#include "src/v8.h"
+
+#include "src/cpu-profiler.h"
+#include "src/log-utils.h"
+#include "src/log.h"
+#include "src/natives.h"
+#include "src/utils.h"
+#include "src/v8threads.h"
+#include "src/vm-state-inl.h"
+#include "test/cctest/cctest.h"
 
 using v8::internal::Address;
 using v8::internal::EmbeddedVector;

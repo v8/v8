@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "allocation-site-scopes.h"
+#include "src/allocation-site-scopes.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "isolate.h"
+#include "src/isolate.h"
 
 #ifndef V8_SNAPSHOT_H_
 #define V8_SNAPSHOT_H_

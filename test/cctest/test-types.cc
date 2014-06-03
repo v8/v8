@@ -27,10 +27,10 @@
 
 #include <vector>
 
-#include "cctest.h"
-#include "hydrogen-types.h"
-#include "types.h"
-#include "utils/random-number-generator.h"
+#include "src/hydrogen-types.h"
+#include "src/types.h"
+#include "src/utils/random-number-generator.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

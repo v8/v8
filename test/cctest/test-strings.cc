@@ -32,12 +32,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "factory.h"
-#include "objects.h"
-#include "cctest.h"
+#include "src/api.h"
+#include "src/factory.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
 class MyRandomNumberGenerator {

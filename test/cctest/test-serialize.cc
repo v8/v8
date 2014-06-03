@@ -27,21 +27,21 @@
 
 #include <signal.h>
 
-#include "sys/stat.h"
+#include <sys/stat.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "debug.h"
-#include "ic-inl.h"
-#include "runtime.h"
-#include "serialize.h"
-#include "scopeinfo.h"
-#include "snapshot.h"
-#include "cctest.h"
-#include "spaces.h"
-#include "objects.h"
-#include "natives.h"
-#include "bootstrapper.h"
+#include "src/bootstrapper.h"
+#include "src/debug.h"
+#include "src/ic-inl.h"
+#include "src/natives.h"
+#include "src/objects.h"
+#include "src/runtime.h"
+#include "src/scopeinfo.h"
+#include "src/serialize.h"
+#include "src/snapshot.h"
+#include "src/spaces.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

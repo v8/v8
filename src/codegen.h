@@ -5,8 +5,8 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "code-stubs.h"
-#include "runtime.h"
+#include "src/code-stubs.h"
+#include "src/runtime.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
 // The contract  to the shared code is that the the CodeGenerator is a subclass
@@ -46,17 +46,17 @@
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/codegen-ia32.h"
+#include "src/ia32/codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/codegen-x64.h"
+#include "src/x64/codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/codegen-arm64.h"
+#include "src/arm64/codegen-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/codegen-arm.h"
+#include "src/arm/codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/codegen-mips.h"
+#include "src/mips/codegen-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/codegen-x87.h"
+#include "src/x87/codegen-x87.h"
 #else
 #error Unsupported target architecture.
 #endif

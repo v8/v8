@@ -5,11 +5,11 @@
 #ifndef V8_X64_ASSEMBLER_X64_INL_H_
 #define V8_X64_ASSEMBLER_X64_INL_H_
 
-#include "x64/assembler-x64.h"
+#include "src/x64/assembler-x64.h"
 
-#include "cpu.h"
-#include "debug.h"
-#include "v8memory.h"
+#include "src/cpu.h"
+#include "src/debug.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-escape-analysis.h"
+#include "src/hydrogen-escape-analysis.h"
 
 namespace v8 {
 namespace internal {

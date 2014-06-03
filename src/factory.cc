@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "factory.h"
+#include "src/factory.h"
 
-#include "conversions.h"
-#include "isolate-inl.h"
-#include "macro-assembler.h"
+#include "src/conversions.h"
+#include "src/isolate-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

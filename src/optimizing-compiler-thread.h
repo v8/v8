@@ -5,13 +5,13 @@
 #ifndef V8_OPTIMIZING_COMPILER_THREAD_H_
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
-#include "atomicops.h"
-#include "flags.h"
-#include "list.h"
-#include "platform.h"
-#include "platform/mutex.h"
-#include "platform/time.h"
-#include "unbound-queue-inl.h"
+#include "src/atomicops.h"
+#include "src/flags.h"
+#include "src/list.h"
+#include "src/platform.h"
+#include "src/platform/mutex.h"
+#include "src/platform/time.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

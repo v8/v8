@@ -5,8 +5,8 @@
 #ifndef V8_LIST_INL_H_
 #define V8_LIST_INL_H_
 
-#include "list.h"
-#include "platform.h"
+#include "src/list.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

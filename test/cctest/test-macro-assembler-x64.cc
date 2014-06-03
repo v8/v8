@@ -27,13 +27,13 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "macro-assembler.h"
-#include "factory.h"
-#include "platform.h"
-#include "serialize.h"
-#include "cctest.h"
+#include "src/macro-assembler.h"
+#include "src/factory.h"
+#include "src/platform.h"
+#include "src/serialize.h"
+#include "test/cctest/cctest.h"
 
 namespace i = v8::internal;
 using i::Address;

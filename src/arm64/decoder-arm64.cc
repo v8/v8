@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "globals.h"
-#include "utils.h"
-#include "arm64/decoder-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
+#include "src/arm64/decoder-arm64.h"
 
 
 namespace v8 {

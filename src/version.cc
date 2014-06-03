@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "version.h"
+#include "src/version.h"
 
 // These macros define the version number for the current version.
 // NOTE these macros are used by some of the tool scripts and the build

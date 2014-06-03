@@ -5,7 +5,7 @@
 #ifndef V8_MIPS_CODE_STUBS_ARM_H_
 #define V8_MIPS_CODE_STUBS_ARM_H_
 
-#include "ic-inl.h"
+#include "src/ic-inl.h"
 
 
 namespace v8 {

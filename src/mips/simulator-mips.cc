@@ -7,16 +7,16 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "cpu.h"
-#include "disasm.h"
-#include "assembler.h"
-#include "globals.h"    // Need the BitCast.
-#include "mips/constants-mips.h"
-#include "mips/simulator-mips.h"
+#include "src/cpu.h"
+#include "src/disasm.h"
+#include "src/assembler.h"
+#include "src/globals.h"    // Need the BitCast.
+#include "src/mips/constants-mips.h"
+#include "src/mips/simulator-mips.h"
 
 
 // Only build the simulator if not compiling for real MIPS hardware.

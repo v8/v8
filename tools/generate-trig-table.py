@@ -39,8 +39,8 @@ TEMPLATE = """\
 
 // This file was generated from a python script.
 
-#include "v8.h"
-#include "trig-table.h"
+#include "src/v8.h"
+#include "src/trig-table.h"
 
 namespace v8 {
 namespace internal {

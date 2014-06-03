@@ -28,53 +28,53 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "char-predicates-inl.h"
-#include "cctest.h"
-#include "jsregexp.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-irregexp.h"
-#include "string-stream.h"
-#include "zone-inl.h"
+#include "src/ast.h"
+#include "src/char-predicates-inl.h"
+#include "src/jsregexp.h"
+#include "src/parser.h"
+#include "src/regexp-macro-assembler-irregexp.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/string-stream.h"
+#include "src/zone-inl.h"
 #ifdef V8_INTERPRETED_REGEXP
-#include "interpreter-irregexp.h"
+#include "src/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
-#include "macro-assembler.h"
-#include "code.h"
+#include "src/macro-assembler.h"
+#include "src/code.h"
 #if V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm.h"
-#include "arm/macro-assembler-arm.h"
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/arm/assembler-arm.h"
+#include "src/arm/macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 #endif
 #if V8_TARGET_ARCH_ARM64
-#include "arm64/assembler-arm64.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"
 #endif
 #if V8_TARGET_ARCH_MIPS
-#include "mips/assembler-mips.h"
-#include "mips/macro-assembler-mips.h"
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/mips/assembler-mips.h"
+#include "src/mips/macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"
 #endif
 #if V8_TARGET_ARCH_X64
-#include "x64/assembler-x64.h"
-#include "x64/macro-assembler-x64.h"
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/x64/assembler-x64.h"
+#include "src/x64/macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"
 #endif
 #if V8_TARGET_ARCH_IA32
-#include "ia32/assembler-ia32.h"
-#include "ia32/macro-assembler-ia32.h"
-#include "ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/assembler-ia32.h"
+#include "src/ia32/macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"
 #endif
 #if V8_TARGET_ARCH_X87
-#include "x87/assembler-x87.h"
-#include "x87/macro-assembler-x87.h"
-#include "x87/regexp-macro-assembler-x87.h"
+#include "src/x87/assembler-x87.h"
+#include "src/x87/macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"
 #endif
 #endif  // V8_INTERPRETED_REGEXP
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

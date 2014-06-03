@@ -5,14 +5,14 @@
 #ifndef V8_ARM64_LITHIUM_CODEGEN_ARM64_H_
 #define V8_ARM64_LITHIUM_CODEGEN_ARM64_H_
 
-#include "arm64/lithium-arm64.h"
+#include "src/arm64/lithium-arm64.h"
 
-#include "arm64/lithium-gap-resolver-arm64.h"
-#include "deoptimizer.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
+#include "src/arm64/lithium-gap-resolver-arm64.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

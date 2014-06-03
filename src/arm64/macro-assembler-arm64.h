@@ -7,9 +7,9 @@
 
 #include <vector>
 
-#include "globals.h"
+#include "src/globals.h"
 
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"
 
 namespace v8 {
 namespace internal {

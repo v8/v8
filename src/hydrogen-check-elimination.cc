@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-check-elimination.h"
+#include "src/hydrogen-check-elimination.h"
 
-#include "hydrogen-alias-analysis.h"
-#include "hydrogen-flow-engine.h"
+#include "src/hydrogen-alias-analysis.h"
+#include "src/hydrogen-flow-engine.h"
 
 #define GLOBAL 1
 

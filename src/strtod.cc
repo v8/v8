@@ -5,12 +5,12 @@
 #include <stdarg.h>
 #include <cmath>
 
-#include "globals.h"
-#include "utils.h"
-#include "strtod.h"
-#include "bignum.h"
-#include "cached-powers.h"
-#include "double.h"
+#include "src/globals.h"
+#include "src/utils.h"
+#include "src/strtod.h"
+#include "src/bignum.h"
+#include "src/cached-powers.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {

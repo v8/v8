@@ -5,9 +5,9 @@
 #ifndef V8_UNICODE_INL_H_
 #define V8_UNICODE_INL_H_
 
-#include "unicode.h"
-#include "checks.h"
-#include "utils.h"
+#include "src/unicode.h"
+#include "src/checks.h"
+#include "src/utils.h"
 
 namespace unibrow {
 

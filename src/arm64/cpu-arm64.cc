@@ -4,12 +4,12 @@
 
 // CPU specific code for arm independent of OS goes here.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "cpu.h"
-#include "arm64/utils-arm64.h"
+#include "src/cpu.h"
+#include "src/arm64/utils-arm64.h"
 
 namespace v8 {
 namespace internal {

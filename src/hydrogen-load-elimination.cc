@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-alias-analysis.h"
-#include "hydrogen-load-elimination.h"
-#include "hydrogen-instructions.h"
-#include "hydrogen-flow-engine.h"
+#include "src/hydrogen-alias-analysis.h"
+#include "src/hydrogen-load-elimination.h"
+#include "src/hydrogen-instructions.h"
+#include "src/hydrogen-flow-engine.h"
 
 namespace v8 {
 namespace internal {

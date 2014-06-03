@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "externalize-string-extension.h"
+#include "src/extensions/externalize-string-extension.h"
 
 namespace v8 {
 namespace internal {

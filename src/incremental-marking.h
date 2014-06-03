@@ -6,9 +6,9 @@
 #define V8_INCREMENTAL_MARKING_H_
 
 
-#include "execution.h"
-#include "mark-compact.h"
-#include "objects.h"
+#include "src/execution.h"
+#include "src/mark-compact.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {

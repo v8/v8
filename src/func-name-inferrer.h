@@ -5,8 +5,8 @@
 #ifndef V8_FUNC_NAME_INFERRER_H_
 #define V8_FUNC_NAME_INFERRER_H_
 
-#include "handles.h"
-#include "zone.h"
+#include "src/handles.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

@@ -5,8 +5,8 @@
 #ifndef V8_VARIABLES_H_
 #define V8_VARIABLES_H_
 
-#include "zone.h"
-#include "interface.h"
+#include "src/zone.h"
+#include "src/interface.h"
 
 namespace v8 {
 namespace internal {

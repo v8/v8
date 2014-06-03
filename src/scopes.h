@@ -5,8 +5,8 @@
 #ifndef V8_SCOPES_H_
 #define V8_SCOPES_H_
 
-#include "ast.h"
-#include "zone.h"
+#include "src/ast.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

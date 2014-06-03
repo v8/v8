@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "code-stubs.h"
-#include "compiler.h"
-#include "ic.h"
-#include "macro-assembler.h"
-#include "stub-cache.h"
-#include "type-info.h"
+#include "src/ast.h"
+#include "src/code-stubs.h"
+#include "src/compiler.h"
+#include "src/ic.h"
+#include "src/macro-assembler.h"
+#include "src/stub-cache.h"
+#include "src/type-info.h"
 
-#include "ic-inl.h"
-#include "objects-inl.h"
+#include "src/ic-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

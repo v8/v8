@@ -7,8 +7,8 @@
 
 #include <list>
 
-#include "globals.h"
-#include "arm64/instructions-arm64.h"
+#include "src/globals.h"
+#include "src/arm64/instructions-arm64.h"
 
 namespace v8 {
 namespace internal {

@@ -5,20 +5,20 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
-#include "allocation.h"
-#include "arguments.h"
-#include "assembler.h"
-#include "execution.h"
-#include "factory.h"
-#include "flags.h"
-#include "frames-inl.h"
-#include "hashmap.h"
-#include "liveedit.h"
-#include "platform.h"
-#include "string-stream.h"
-#include "v8threads.h"
+#include "src/allocation.h"
+#include "src/arguments.h"
+#include "src/assembler.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/flags.h"
+#include "src/frames-inl.h"
+#include "src/hashmap.h"
+#include "src/liveedit.h"
+#include "src/platform.h"
+#include "src/string-stream.h"
+#include "src/v8threads.h"
 
-#include "../include/v8-debug.h"
+#include "include/v8-debug.h"
 
 namespace v8 {
 namespace internal {

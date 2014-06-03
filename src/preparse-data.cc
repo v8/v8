@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "../include/v8stdint.h"
+#include "include/v8stdint.h"
 
-#include "preparse-data-format.h"
-#include "preparse-data.h"
+#include "src/preparse-data-format.h"
+#include "src/preparse-data.h"
 
-#include "checks.h"
-#include "globals.h"
-#include "hashmap.h"
+#include "src/checks.h"
+#include "src/globals.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {

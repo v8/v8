@@ -26,8 +26,8 @@
 // instantiate newly compiled functions.
 
 
-#include "allocation.h"
-#include "compiler.h"
+#include "src/allocation.h"
+#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,7 @@
 #ifndef V8_CHAR_PREDICATES_INL_H_
 #define V8_CHAR_PREDICATES_INL_H_
 
-#include "char-predicates.h"
+#include "src/char-predicates.h"
 
 namespace v8 {
 namespace internal {

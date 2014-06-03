@@ -7,10 +7,10 @@
 
 #include <limits>
 
-#include "checks.h"
-#include "handles.h"
-#include "objects.h"
-#include "utils.h"
+#include "src/checks.h"
+#include "src/handles.h"
+#include "src/objects.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

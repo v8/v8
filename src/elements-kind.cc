@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "elements-kind.h"
+#include "src/elements-kind.h"
 
-#include "api.h"
-#include "elements.h"
-#include "objects.h"
+#include "src/api.h"
+#include "src/elements.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {

@@ -5,9 +5,9 @@
 #ifndef V8_SMALL_POINTER_LIST_H_
 #define V8_SMALL_POINTER_LIST_H_
 
-#include "checks.h"
-#include "globals.h"
-#include "zone.h"
+#include "src/checks.h"
+#include "src/globals.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM
 
-#include "cpu-profiler.h"
-#include "unicode.h"
-#include "log.h"
-#include "code-stubs.h"
-#include "regexp-stack.h"
-#include "macro-assembler.h"
-#include "regexp-macro-assembler.h"
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/cpu-profiler.h"
+#include "src/unicode.h"
+#include "src/log.h"
+#include "src/code-stubs.h"
+#include "src/regexp-stack.h"
+#include "src/macro-assembler.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 
 namespace v8 {
 namespace internal {

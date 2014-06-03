@@ -5,8 +5,8 @@
 #ifndef V8_IA32_CODE_STUBS_IA32_H_
 #define V8_IA32_CODE_STUBS_IA32_H_
 
-#include "macro-assembler.h"
-#include "ic-inl.h"
+#include "src/macro-assembler.h"
+#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -5,9 +5,9 @@
 #ifndef V8_HASHMAP_H_
 #define V8_HASHMAP_H_
 
-#include "allocation.h"
-#include "checks.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

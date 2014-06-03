@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "factory.h"
+#include "src/factory.h"
+#include "test/cctest/cctest.h"
 
 namespace {
 

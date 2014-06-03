@@ -5,8 +5,8 @@
 #ifndef V8_MARK_COMPACT_H_
 #define V8_MARK_COMPACT_H_
 
-#include "compiler-intrinsics.h"
-#include "spaces.h"
+#include "src/compiler-intrinsics.h"
+#include "src/spaces.h"
 
 namespace v8 {
 namespace internal {

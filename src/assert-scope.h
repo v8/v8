@@ -5,9 +5,9 @@
 #ifndef V8_ASSERT_SCOPE_H_
 #define V8_ASSERT_SCOPE_H_
 
-#include "allocation.h"
-#include "platform.h"
-#include "utils.h"
+#include "src/allocation.h"
+#include "src/platform.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

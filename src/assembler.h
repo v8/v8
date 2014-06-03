@@ -35,14 +35,14 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "builtins.h"
-#include "gdb-jit.h"
-#include "isolate.h"
-#include "runtime.h"
-#include "token.h"
+#include "src/allocation.h"
+#include "src/builtins.h"
+#include "src/gdb-jit.h"
+#include "src/isolate.h"
+#include "src/runtime.h"
+#include "src/token.h"
 
 namespace v8 {
 

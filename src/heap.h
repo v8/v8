@@ -7,17 +7,17 @@
 
 #include <cmath>
 
-#include "allocation.h"
-#include "assert-scope.h"
-#include "counters.h"
-#include "globals.h"
-#include "incremental-marking.h"
-#include "list.h"
-#include "mark-compact.h"
-#include "objects-visiting.h"
-#include "spaces.h"
-#include "splay-tree-inl.h"
-#include "store-buffer.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/counters.h"
+#include "src/globals.h"
+#include "src/incremental-marking.h"
+#include "src/list.h"
+#include "src/mark-compact.h"
+#include "src/objects-visiting.h"
+#include "src/spaces.h"
+#include "src/splay-tree-inl.h"
+#include "src/store-buffer.h"
 
 namespace v8 {
 namespace internal {

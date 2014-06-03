@@ -5,10 +5,10 @@
 #ifndef V8_TYPES_INL_H_
 #define V8_TYPES_INL_H_
 
-#include "types.h"
+#include "src/types.h"
 
-#include "factory.h"
-#include "handles-inl.h"
+#include "src/factory.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {

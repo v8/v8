@@ -27,14 +27,15 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "v8.h"
-#include "cpu-profiler-inl.h"
-#include "cctest.h"
-#include "platform.h"
-#include "profiler-extension.h"
-#include "smart-pointers.h"
-#include "utils.h"
-#include "../include/v8-profiler.h"
+#include "src/v8.h"
+
+#include "include/v8-profiler.h"
+#include "src/cpu-profiler-inl.h"
+#include "src/platform.h"
+#include "src/smart-pointers.h"
+#include "src/utils.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/profiler-extension.h"
 using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;

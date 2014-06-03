@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "sweeper-thread.h"
+#include "src/sweeper-thread.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "isolate.h"
-#include "v8threads.h"
+#include "src/isolate.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

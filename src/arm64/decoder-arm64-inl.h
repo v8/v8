@@ -5,9 +5,9 @@
 #ifndef V8_ARM64_DECODER_ARM64_INL_H_
 #define V8_ARM64_DECODER_ARM64_INL_H_
 
-#include "arm64/decoder-arm64.h"
-#include "globals.h"
-#include "utils.h"
+#include "src/arm64/decoder-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 
 namespace v8 {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "platform/semaphore.h"
+#include "src/platform/semaphore.h"
 
 #if V8_OS_MACOSX
 #include <mach/mach_init.h>
@@ -11,8 +11,8 @@
 
 #include <errno.h>
 
-#include "checks.h"
-#include "platform/time.h"
+#include "src/checks.h"
+#include "src/platform/time.h"
 
 namespace v8 {
 namespace internal {

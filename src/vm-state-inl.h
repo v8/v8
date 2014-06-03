@@ -5,9 +5,9 @@
 #ifndef V8_VM_STATE_INL_H_
 #define V8_VM_STATE_INL_H_
 
-#include "vm-state.h"
-#include "log.h"
-#include "simulator.h"
+#include "src/vm-state.h"
+#include "src/log.h"
+#include "src/simulator.h"
 
 namespace v8 {
 namespace internal {

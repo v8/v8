@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "bootstrapper.h"
+#include "src/bootstrapper.h"
 
-#include "accessors.h"
-#include "isolate-inl.h"
-#include "natives.h"
-#include "snapshot.h"
-#include "trig-table.h"
-#include "extensions/externalize-string-extension.h"
-#include "extensions/free-buffer-extension.h"
-#include "extensions/gc-extension.h"
-#include "extensions/statistics-extension.h"
-#include "extensions/trigger-failure-extension.h"
-#include "code-stubs.h"
+#include "src/accessors.h"
+#include "src/isolate-inl.h"
+#include "src/natives.h"
+#include "src/snapshot.h"
+#include "src/trig-table.h"
+#include "src/extensions/externalize-string-extension.h"
+#include "src/extensions/free-buffer-extension.h"
+#include "src/extensions/gc-extension.h"
+#include "src/extensions/statistics-extension.h"
+#include "src/extensions/trigger-failure-extension.h"
+#include "src/code-stubs.h"
 
 namespace v8 {
 namespace internal {

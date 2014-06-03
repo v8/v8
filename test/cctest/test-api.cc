@@ -30,27 +30,27 @@
 #include <string>
 #include <map>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_OS_POSIX
 #include <unistd.h>  // NOLINT
 #endif
 
-#include "api.h"
-#include "arguments.h"
-#include "cctest.h"
-#include "compilation-cache.h"
-#include "cpu-profiler.h"
-#include "execution.h"
-#include "isolate.h"
-#include "objects.h"
-#include "parser.h"
-#include "platform.h"
-#include "snapshot.h"
-#include "unicode-inl.h"
-#include "utils.h"
-#include "vm-state.h"
-#include "../include/v8-util.h"
+#include "include/v8-util.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/compilation-cache.h"
+#include "src/cpu-profiler.h"
+#include "src/execution.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/parser.h"
+#include "src/platform.h"
+#include "src/snapshot.h"
+#include "src/unicode-inl.h"
+#include "src/utils.h"
+#include "src/vm-state.h"
+#include "test/cctest/cctest.h"
 
 static const bool kLogThreading = false;
 

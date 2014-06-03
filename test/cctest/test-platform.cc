@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 
-#include "cctest.h"
-#include "platform.h"
+#include "src/platform.h"
+#include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 

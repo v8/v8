@@ -5,10 +5,10 @@
 #ifndef V8_PROPERTY_DETAILS_INL_H_
 #define V8_PROPERTY_DETAILS_INL_H_
 
-#include "conversions.h"
-#include "objects.h"
-#include "property-details.h"
-#include "types.h"
+#include "src/conversions.h"
+#include "src/objects.h"
+#include "src/property-details.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {

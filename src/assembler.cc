@@ -32,42 +32,42 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "assembler.h"
+#include "src/assembler.h"
 
 #include <cmath>
-#include "api.h"
-#include "builtins.h"
-#include "counters.h"
-#include "cpu.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "ic.h"
-#include "isolate-inl.h"
-#include "jsregexp.h"
-#include "lazy-instance.h"
-#include "platform.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-stack.h"
-#include "runtime.h"
-#include "serialize.h"
-#include "store-buffer-inl.h"
-#include "stub-cache.h"
-#include "token.h"
+#include "src/api.h"
+#include "src/builtins.h"
+#include "src/counters.h"
+#include "src/cpu.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/ic.h"
+#include "src/isolate-inl.h"
+#include "src/jsregexp.h"
+#include "src/lazy-instance.h"
+#include "src/platform.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/runtime.h"
+#include "src/serialize.h"
+#include "src/store-buffer-inl.h"
+#include "src/stub-cache.h"
+#include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/assembler-ia32-inl.h"
+#include "src/ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/assembler-x64-inl.h"
+#include "src/x64/assembler-x64-inl.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/assembler-arm-inl.h"
+#include "src/arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/assembler-mips-inl.h"
+#include "src/mips/assembler-mips-inl.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/assembler-x87-inl.h"
+#include "src/x87/assembler-x87-inl.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -75,17 +75,17 @@
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/regexp-macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.

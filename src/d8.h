@@ -6,12 +6,12 @@
 #define V8_D8_H_
 
 #ifndef V8_SHARED
-#include "allocation.h"
-#include "hashmap.h"
-#include "smart-pointers.h"
-#include "v8.h"
+#include "src/allocation.h"
+#include "src/hashmap.h"
+#include "src/smart-pointers.h"
+#include "src/v8.h"
 #else
-#include "../include/v8.h"
+#include "include/v8.h"
 #endif  // !V8_SHARED
 
 namespace v8 {

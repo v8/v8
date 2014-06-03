@@ -5,9 +5,9 @@
 #ifndef V8_EFFECTS_H_
 #define V8_EFFECTS_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "types.h"
+#include "src/types.h"
 
 namespace v8 {
 namespace internal {

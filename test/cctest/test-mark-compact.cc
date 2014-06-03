@@ -37,12 +37,12 @@
 
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "snapshot.h"
-#include "cctest.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/snapshot.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

@@ -31,15 +31,15 @@
 #include <cmath>
 #include <limits>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "macro-assembler.h"
-#include "arm64/simulator-arm64.h"
-#include "arm64/decoder-arm64-inl.h"
-#include "arm64/disasm-arm64.h"
-#include "arm64/utils-arm64.h"
-#include "cctest.h"
-#include "test-utils-arm64.h"
+#include "src/macro-assembler.h"
+#include "src/arm64/simulator-arm64.h"
+#include "src/arm64/decoder-arm64-inl.h"
+#include "src/arm64/disasm-arm64.h"
+#include "src/arm64/utils-arm64.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/test-utils-arm64.h"
 
 using namespace v8::internal;
 

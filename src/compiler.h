@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
-#include "allocation.h"
-#include "ast.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

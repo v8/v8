@@ -5,9 +5,9 @@
 #ifndef V8_ARM64_ASSEMBLER_ARM64_INL_H_
 #define V8_ARM64_ASSEMBLER_ARM64_INL_H_
 
-#include "arm64/assembler-arm64.h"
-#include "cpu.h"
-#include "debug.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/cpu.h"
+#include "src/debug.h"
 
 
 namespace v8 {

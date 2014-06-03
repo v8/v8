@@ -29,17 +29,17 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "codegen.h"
-#include "disassembler.h"
-#include "isolate.h"
-#include "log.h"
-#include "sampler.h"
-#include "trace-extension.h"
-#include "vm-state-inl.h"
+#include "src/api.h"
+#include "src/codegen.h"
+#include "src/disassembler.h"
+#include "src/isolate.h"
+#include "src/log.h"
+#include "src/sampler.h"
+#include "src/vm-state-inl.h"
+#include "test/cctest/cctest.h"
+#include "test/cctest/trace-extension.h"
 
 using v8::Function;
 using v8::Local;

@@ -5,12 +5,12 @@
 #ifndef V8_PREPARSER_H
 #define V8_PREPARSER_H
 
-#include "func-name-inferrer.h"
-#include "hashmap.h"
-#include "scopes.h"
-#include "token.h"
-#include "scanner.h"
-#include "v8.h"
+#include "src/func-name-inferrer.h"
+#include "src/hashmap.h"
+#include "src/scopes.h"
+#include "src/token.h"
+#include "src/scanner.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

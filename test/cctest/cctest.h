@@ -28,7 +28,7 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
 #ifndef TEST
 #define TEST(Name)                                                             \

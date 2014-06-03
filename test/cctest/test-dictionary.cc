@@ -25,16 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "debug.h"
-#include "execution.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "objects.h"
-#include "global-handles.h"
-#include "cctest.h"
+#include "src/api.h"
+#include "src/debug.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/objects.h"
+#include "src/global-handles.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

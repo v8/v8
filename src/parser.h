@@ -5,13 +5,13 @@
 #ifndef V8_PARSER_H_
 #define V8_PARSER_H_
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"  // For CachedDataMode
-#include "preparse-data-format.h"
-#include "preparse-data.h"
-#include "scopes.h"
-#include "preparser.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/compiler.h"  // For CachedDataMode
+#include "src/preparse-data-format.h"
+#include "src/preparse-data.h"
+#include "src/scopes.h"
+#include "src/preparser.h"
 
 namespace v8 {
 class ScriptCompiler;

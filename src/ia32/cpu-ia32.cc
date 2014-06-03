@@ -5,15 +5,15 @@
 // CPU specific code for ia32 independent of OS goes here.
 
 #ifdef __GNUC__
-#include "third_party/valgrind/valgrind.h"
+#include "src/third_party/valgrind/valgrind.h"
 #endif
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "cpu.h"
-#include "macro-assembler.h"
+#include "src/cpu.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

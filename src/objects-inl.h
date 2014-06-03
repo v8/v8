@@ -12,21 +12,21 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
-#include "elements.h"
-#include "objects.h"
-#include "contexts.h"
-#include "conversions-inl.h"
-#include "heap.h"
-#include "isolate.h"
-#include "heap-inl.h"
-#include "property.h"
-#include "spaces.h"
-#include "store-buffer.h"
-#include "v8memory.h"
-#include "factory.h"
-#include "incremental-marking.h"
-#include "transitions-inl.h"
-#include "objects-visiting.h"
+#include "src/elements.h"
+#include "src/objects.h"
+#include "src/contexts.h"
+#include "src/conversions-inl.h"
+#include "src/heap.h"
+#include "src/isolate.h"
+#include "src/heap-inl.h"
+#include "src/property.h"
+#include "src/spaces.h"
+#include "src/store-buffer.h"
+#include "src/v8memory.h"
+#include "src/factory.h"
+#include "src/incremental-marking.h"
+#include "src/transitions-inl.h"
+#include "src/objects-visiting.h"
 
 namespace v8 {
 namespace internal {

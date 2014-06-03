@@ -5,8 +5,8 @@
 #ifndef V8_CIRCULAR_QUEUE_H_
 #define V8_CIRCULAR_QUEUE_H_
 
-#include "atomicops.h"
-#include "globals.h"
+#include "src/atomicops.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

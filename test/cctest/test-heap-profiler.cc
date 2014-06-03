@@ -29,16 +29,16 @@
 
 #include <ctype.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation-tracker.h"
-#include "cctest.h"
-#include "hashmap.h"
-#include "heap-profiler.h"
-#include "snapshot.h"
-#include "debug.h"
-#include "utils-inl.h"
-#include "../include/v8-profiler.h"
+#include "include/v8-profiler.h"
+#include "src/allocation-tracker.h"
+#include "src/debug.h"
+#include "src/hashmap.h"
+#include "src/heap-profiler.h"
+#include "src/snapshot.h"
+#include "src/utils-inl.h"
+#include "test/cctest/cctest.h"
 
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;

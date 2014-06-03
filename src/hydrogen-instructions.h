@@ -5,19 +5,19 @@
 #ifndef V8_HYDROGEN_INSTRUCTIONS_H_
 #define V8_HYDROGEN_INSTRUCTIONS_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "code-stubs.h"
-#include "conversions.h"
-#include "data-flow.h"
-#include "deoptimizer.h"
-#include "hydrogen-types.h"
-#include "small-pointer-list.h"
-#include "string-stream.h"
-#include "unique.h"
-#include "utils.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/code-stubs.h"
+#include "src/conversions.h"
+#include "src/data-flow.h"
+#include "src/deoptimizer.h"
+#include "src/hydrogen-types.h"
+#include "src/small-pointer-list.h"
+#include "src/string-stream.h"
+#include "src/unique.h"
+#include "src/utils.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

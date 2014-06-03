@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ast.h"
+#include "src/ast.h"
 
 #include <cmath>  // For isfinite.
-#include "builtins.h"
-#include "code-stubs.h"
-#include "contexts.h"
-#include "conversions.h"
-#include "hashmap.h"
-#include "parser.h"
-#include "property-details.h"
-#include "property.h"
-#include "scopes.h"
-#include "string-stream.h"
-#include "type-info.h"
+#include "src/builtins.h"
+#include "src/code-stubs.h"
+#include "src/contexts.h"
+#include "src/conversions.h"
+#include "src/hashmap.h"
+#include "src/parser.h"
+#include "src/property-details.h"
+#include "src/property.h"
+#include "src/scopes.h"
+#include "src/string-stream.h"
+#include "src/type-info.h"
 
 namespace v8 {
 namespace internal {

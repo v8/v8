@@ -27,16 +27,16 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "factory.h"
-#include "macro-assembler.h"
-#include "cctest.h"
-#include "code-stubs.h"
-#include "objects.h"
+#include "src/code-stubs.h"
+#include "src/factory.h"
+#include "src/macro-assembler.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 #ifdef USE_SIMULATOR
-#include "simulator.h"
+#include "src/simulator.h"
 #endif
 
 using namespace v8::internal;

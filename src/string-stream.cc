@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "string-stream.h"
+#include "src/string-stream.h"
 
-#include "handles-inl.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {

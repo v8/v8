@@ -37,7 +37,7 @@
 #ifndef V8_X64_ASSEMBLER_X64_H_
 #define V8_X64_ASSEMBLER_X64_H_
 
-#include "serialize.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

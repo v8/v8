@@ -28,12 +28,12 @@
 #ifndef V8_ARM64_TEST_UTILS_ARM64_H_
 #define V8_ARM64_TEST_UTILS_ARM64_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "macro-assembler.h"
-#include "arm64/macro-assembler-arm64.h"
-#include "arm64/utils-arm64.h"
-#include "cctest.h"
+#include "src/macro-assembler.h"
+#include "src/arm64/macro-assembler-arm64.h"
+#include "src/arm64/utils-arm64.h"
+#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;

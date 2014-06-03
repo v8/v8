@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "ast.h"
-#include "bootstrapper.h"
-#include "char-predicates-inl.h"
-#include "codegen.h"
-#include "compiler.h"
-#include "messages.h"
-#include "parser.h"
-#include "platform.h"
-#include "preparser.h"
-#include "runtime.h"
-#include "scanner-character-streams.h"
-#include "scopeinfo.h"
-#include "string-stream.h"
+#include "src/api.h"
+#include "src/ast.h"
+#include "src/bootstrapper.h"
+#include "src/char-predicates-inl.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/messages.h"
+#include "src/parser.h"
+#include "src/platform.h"
+#include "src/preparser.h"
+#include "src/runtime.h"
+#include "src/scanner-character-streams.h"
+#include "src/scopeinfo.h"
+#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {

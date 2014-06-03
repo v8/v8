@@ -5,7 +5,7 @@
 #ifndef V8_CIRCULAR_QUEUE_INL_H_
 #define V8_CIRCULAR_QUEUE_INL_H_
 
-#include "circular-queue.h"
+#include "src/circular-queue.h"
 
 namespace v8 {
 namespace internal {

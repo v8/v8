@@ -5,11 +5,11 @@
 #ifndef V8_LITHIUM_ALLOCATOR_H_
 #define V8_LITHIUM_ALLOCATOR_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "lithium.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/lithium.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

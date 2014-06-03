@@ -40,10 +40,10 @@
 #include <android/log.h>
 #endif
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "isolate-inl.h"
-#include "platform.h"
+#include "src/isolate-inl.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

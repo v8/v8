@@ -15,9 +15,9 @@
 #include <signal.h>
 
 
-#include "d8.h"
-#include "d8-debug.h"
-#include "debug.h"
+#include "src/d8.h"
+#include "src/d8-debug.h"
+#include "src/debug.h"
 
 
 namespace v8 {

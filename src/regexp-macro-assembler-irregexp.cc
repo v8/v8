@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-irregexp.h"
-#include "regexp-macro-assembler-irregexp-inl.h"
+#include "src/v8.h"
+#include "src/ast.h"
+#include "src/bytecodes-irregexp.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-macro-assembler-irregexp.h"
+#include "src/regexp-macro-assembler-irregexp-inl.h"
 
 
 namespace v8 {

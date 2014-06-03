@@ -13,7 +13,7 @@
 #ifndef V8_ARM_SIMULATOR_ARM_H_
 #define V8_ARM_SIMULATOR_ARM_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native arm platform.
@@ -60,9 +60,9 @@ class SimulatorStack : public v8::internal::AllStatic {
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "constants-arm.h"
-#include "hashmap.h"
-#include "assembler.h"
+#include "src/arm/constants-arm.h"
+#include "src/hashmap.h"
+#include "src/assembler.h"
 
 namespace v8 {
 namespace internal {

@@ -5,12 +5,12 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
-#include "../include/v8.h"
-#include "../include/v8-profiler.h"
+#include "include/v8.h"
+#include "include/v8-profiler.h"
 
-#include "handles.h"
-#include "list.h"
-#include "utils.h"
+#include "src/handles.h"
+#include "src/list.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

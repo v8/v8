@@ -5,9 +5,9 @@
 #ifndef V8_ARM_MACRO_ASSEMBLER_ARM_H_
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
-#include "assembler.h"
-#include "frames.h"
-#include "globals.h"
+#include "src/assembler.h"
+#include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

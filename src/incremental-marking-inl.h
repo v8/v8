@@ -5,7 +5,7 @@
 #ifndef V8_INCREMENTAL_MARKING_INL_H_
 #define V8_INCREMENTAL_MARKING_INL_H_
 
-#include "incremental-marking.h"
+#include "src/incremental-marking.h"
 
 namespace v8 {
 namespace internal {

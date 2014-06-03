@@ -5,7 +5,7 @@
 #ifndef V8_TRANSITIONS_INL_H_
 #define V8_TRANSITIONS_INL_H_
 
-#include "transitions.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {

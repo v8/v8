@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "disasm.h"
-#include "jsregexp.h"
-#include "macro-assembler.h"
-#include "objects-visiting.h"
+#include "src/disassembler.h"
+#include "src/disasm.h"
+#include "src/jsregexp.h"
+#include "src/macro-assembler.h"
+#include "src/objects-visiting.h"
 
 namespace v8 {
 namespace internal {

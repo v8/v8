@@ -5,9 +5,9 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
-#include "allocation.h"
-#include "assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/assembler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

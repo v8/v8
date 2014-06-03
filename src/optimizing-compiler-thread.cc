@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "optimizing-compiler-thread.h"
+#include "src/optimizing-compiler-thread.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "full-codegen.h"
-#include "hydrogen.h"
-#include "isolate.h"
-#include "v8threads.h"
+#include "src/full-codegen.h"
+#include "src/hydrogen.h"
+#include "src/isolate.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

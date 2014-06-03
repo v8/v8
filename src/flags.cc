@@ -5,23 +5,23 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assembler.h"
-#include "platform.h"
-#include "smart-pointers.h"
-#include "string-stream.h"
+#include "src/assembler.h"
+#include "src/platform.h"
+#include "src/smart-pointers.h"
+#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 
 namespace {
 
@@ -160,7 +160,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);
@@ -545,7 +545,7 @@ void FlagList::PrintHelp() {
 // static
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
 }
 

@@ -2,11 +2,11 @@
 
 // Test constant pool array code.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "factory.h"
-#include "objects.h"
-#include "cctest.h"
+#include "src/factory.h"
+#include "src/objects.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

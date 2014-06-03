@@ -6,11 +6,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "disasm.h"
+#include "src/disasm.h"
 
 namespace disasm {
 

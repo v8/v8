@@ -29,11 +29,11 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "win32-headers.h"
+#include "src/platform.h"
+#include "src/win32-headers.h"
+#include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 

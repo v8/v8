@@ -2,24 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "code-stubs.h"
-#include "compilation-cache.h"
-#include "cpu-profiler.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "gdb-jit.h"
-#include "global-handles.h"
-#include "heap-profiler.h"
-#include "ic-inl.h"
-#include "incremental-marking.h"
-#include "mark-compact.h"
-#include "objects-visiting.h"
-#include "objects-visiting-inl.h"
-#include "spaces-inl.h"
-#include "stub-cache.h"
-#include "sweeper-thread.h"
+#include "src/code-stubs.h"
+#include "src/compilation-cache.h"
+#include "src/cpu-profiler.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/gdb-jit.h"
+#include "src/global-handles.h"
+#include "src/heap-profiler.h"
+#include "src/ic-inl.h"
+#include "src/incremental-marking.h"
+#include "src/mark-compact.h"
+#include "src/objects-visiting.h"
+#include "src/objects-visiting-inl.h"
+#include "src/spaces-inl.h"
+#include "src/stub-cache.h"
+#include "src/sweeper-thread.h"
 
 namespace v8 {
 namespace internal {

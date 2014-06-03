@@ -225,9 +225,9 @@ HEADER_TEMPLATE = """\
 // want to make changes to this file you should either change the
 // javascript source files or the GYP script.
 
-#include "v8.h"
-#include "natives.h"
-#include "utils.h"
+#include "src/v8.h"
+#include "src/natives.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

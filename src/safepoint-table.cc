@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "safepoint-table.h"
+#include "src/safepoint-table.h"
 
-#include "deoptimizer.h"
-#include "disasm.h"
-#include "macro-assembler.h"
-#include "zone-inl.h"
+#include "src/deoptimizer.h"
+#include "src/disasm.h"
+#include "src/macro-assembler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

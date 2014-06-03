@@ -5,7 +5,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
-#include "objects.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {

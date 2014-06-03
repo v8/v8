@@ -37,10 +37,10 @@
 #ifndef V8_IA32_ASSEMBLER_IA32_INL_H_
 #define V8_IA32_ASSEMBLER_IA32_INL_H_
 
-#include "ia32/assembler-ia32.h"
+#include "src/ia32/assembler-ia32.h"
 
-#include "cpu.h"
-#include "debug.h"
+#include "src/cpu.h"
+#include "src/debug.h"
 
 namespace v8 {
 namespace internal {

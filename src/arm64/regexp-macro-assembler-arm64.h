@@ -5,9 +5,9 @@
 #ifndef V8_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 #define V8_ARM64_REGEXP_MACRO_ASSEMBLER_ARM64_H_
 
-#include "arm64/assembler-arm64.h"
-#include "arm64/assembler-arm64-inl.h"
-#include "macro-assembler.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/assembler-arm64-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
