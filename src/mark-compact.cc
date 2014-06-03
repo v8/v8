@@ -3030,7 +3030,6 @@ void MarkCompactCollector::EvacuateNewSpace() {
   // sweep collection by failing allocations.  But since we are already in
   // a mark-sweep allocation, there is no sense in trying to trigger one.
   AlwaysAllocateScope scope(isolate());
-  heap()->CheckNewSpaceExpansionCriteria();
 
   NewSpace* new_space = heap()->new_space();
 

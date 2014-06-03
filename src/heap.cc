@@ -101,6 +101,7 @@ Heap::Heap()
       promotion_rate_(0),
       semi_space_copied_object_size_(0),
       semi_space_copied_rate_(0),
+      maximum_size_scavenges_(0),
       max_gc_pause_(0.0),
       total_gc_time_ms_(0.0),
       max_alive_after_gc_(0),
@@ -438,6 +439,13 @@ void Heap::GarbageCollectionPrologue() {
   if (isolate()->concurrent_osr_enabled()) {
     isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
   }
+
+  if (new_space_.IsAtMaximumCapacity()) {
+    maximum_size_scavenges_++;
+  } else {
+    maximum_size_scavenges_ = 0;
+  }
+  CheckNewSpaceExpansionCriteria();
 }
 
 
@@ -485,12 +493,19 @@ void Heap::ProcessPretenuringFeedback() {
 
     // If the scratchpad overflowed, we have to iterate over the allocation
     // sites list.
+    // TODO(hpayer): We iterate over the whole list of allocation sites when
+    // we grew to the maximum semi-space size to deopt maybe tenured
+    // allocation sites. We could hold the maybe tenured allocation sites
+    // in a seperate data structure if this is a performance problem.
     bool use_scratchpad =
-        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize;
+        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize &&
+        new_space_.IsAtMaximumCapacity() &&
+        maximum_size_scavenges_ == 0;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
     bool trigger_deoptimization = false;
+    bool maximum_size_scavenge = MaximumSizeScavenge();
     while (use_scratchpad ?
               i < allocation_sites_scratchpad_length_ :
               list_element->IsAllocationSite()) {
@@ -500,14 +515,17 @@ void Heap::ProcessPretenuringFeedback() {
       allocation_mementos_found += site->memento_found_count();
       if (site->memento_found_count() > 0) {
         active_allocation_sites++;
+        if (site->DigestPretenuringFeedback(maximum_size_scavenge)) {
+          trigger_deoptimization = true;
+        }
+        if (site->GetPretenureMode() == TENURED) {
+          tenure_decisions++;
+        } else {
+          dont_tenure_decisions++;
+        }
+        allocation_sites++;
       }
-      if (site->DigestPretenuringFeedback()) trigger_deoptimization = true;
-      if (site->GetPretenureMode() == TENURED) {
-        tenure_decisions++;
-      } else {
-        dont_tenure_decisions++;
-      }
-      allocation_sites++;
+
       if (use_scratchpad) {
         i++;
       } else {
@@ -1432,8 +1450,6 @@ void Heap::Scavenge() {
 
   // Used for updating survived_since_last_expansion_ at function end.
   intptr_t survived_watermark = PromotedSpaceSizeOfObjects();
-
-  CheckNewSpaceExpansionCriteria();
 
   SelectScavengingVisitorsTable();
 

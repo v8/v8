@@ -2200,6 +2200,11 @@ TEST(OptimizedPretenuringAllocationFolding) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2244,6 +2249,11 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2278,6 +2288,12 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2320,6 +2336,11 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2355,6 +2376,11 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2389,6 +2415,11 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2434,6 +2465,11 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2477,6 +2513,11 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2530,6 +2571,11 @@ TEST(OptimizedPretenuringConstructorCalls) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   // Call new is doing slack tracking for the first
   // JSFunction::kGenerousAllocationCount allocations, and we can't find
@@ -2575,6 +2621,11 @@ TEST(OptimizedPretenuringCallNew) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   // Call new is doing slack tracking for the first

@@ -1359,6 +1359,10 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
+  bool MaximumSizeScavenge() {
+    return maximum_size_scavenges_ > 0;
+  }
+
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
@@ -2018,6 +2022,12 @@ class Heap {
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
   double semi_space_copied_rate_;
+
+  // This is the pretenuring trigger for allocation sites that are in maybe
+  // tenure state. When we switched to the maximum new space size we deoptimize
+  // the code that belongs to the allocation site and derive the lifetime
+  // of the allocation site.
+  unsigned int maximum_size_scavenges_;
 
   // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
   // Re-visit incremental marking heuristics.

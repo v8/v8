@@ -8412,10 +8412,13 @@ class AllocationSite: public Struct {
   enum PretenureDecision {
     kUndecided = 0,
     kDontTenure = 1,
-    kTenure = 2,
-    kZombie = 3,
+    kMaybeTenure = 2,
+    kTenure = 3,
+    kZombie = 4,
     kLastPretenureDecisionValue = kZombie
   };
+
+  const char* PretenureDecisionName(PretenureDecision decision);
 
   DECL_ACCESSORS(transition_info, Object)
   // nested_site threads a list of sites that represent nested literals
@@ -8438,8 +8441,8 @@ class AllocationSite: public Struct {
   class DoNotInlineBit:         public BitField<bool,         29,  1> {};
 
   // Bitfields for pretenure_data
-  class MementoFoundCountBits:  public BitField<int,               0, 27> {};
-  class PretenureDecisionBits:  public BitField<PretenureDecision, 27, 2> {};
+  class MementoFoundCountBits:  public BitField<int,               0, 26> {};
+  class PretenureDecisionBits:  public BitField<PretenureDecision, 26, 3> {};
   class DeoptDependentCodeBit:  public BitField<bool,              29, 1> {};
   STATIC_ASSERT(PretenureDecisionBits::kMax >= kLastPretenureDecisionValue);
 
@@ -8502,7 +8505,11 @@ class AllocationSite: public Struct {
 
   inline void MarkZombie();
 
-  inline bool DigestPretenuringFeedback();
+  inline bool MakePretenureDecision(PretenureDecision current_decision,
+                                    double ratio,
+                                    bool maximum_size_scavenge);
+
+  inline bool DigestPretenuringFeedback(bool maximum_size_scavenge);
 
   ElementsKind GetElementsKind() {
     ASSERT(!SitePointsToLiteral());

@@ -13303,6 +13303,19 @@ void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
 }
 
 
+const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
+  switch (decision) {
+    case kUndecided: return "undecided";
+    case kDontTenure: return "don't tenure";
+    case kMaybeTenure: return "maybe tenure";
+    case kTenure: return "tenure";
+    case kZombie: return "zombie";
+    default: UNREACHABLE();
+  }
+  return NULL;
+}
+
+
 void JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
   if (!object->IsJSArray()) return;

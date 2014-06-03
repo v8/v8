@@ -2499,6 +2499,10 @@ class NewSpace : public Space {
     return to_space_.MaximumCapacity();
   }
 
+  bool IsAtMaximumCapacity() {
+    return Capacity() == MaximumCapacity();
+  }
+
   // Returns the initial capacity of a semispace.
   int InitialCapacity() {
     ASSERT(to_space_.InitialCapacity() == from_space_.InitialCapacity());
