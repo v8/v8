@@ -8503,6 +8503,10 @@ class AllocationSite: public Struct {
     return pretenure_decision() == kZombie;
   }
 
+  bool IsMaybeTenure() {
+    return pretenure_decision() == kMaybeTenure;
+  }
+
   inline void MarkZombie();
 
   inline bool MakePretenureDecision(PretenureDecision current_decision,

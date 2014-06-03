@@ -497,10 +497,10 @@ void Heap::ProcessPretenuringFeedback() {
     // we grew to the maximum semi-space size to deopt maybe tenured
     // allocation sites. We could hold the maybe tenured allocation sites
     // in a seperate data structure if this is a performance problem.
+    bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
     bool use_scratchpad =
-        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize &&
-        new_space_.IsAtMaximumCapacity() &&
-        maximum_size_scavenges_ == 0;
+         allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize &&
+         !deopt_maybe_tenured;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
@@ -524,6 +524,11 @@ void Heap::ProcessPretenuringFeedback() {
           dont_tenure_decisions++;
         }
         allocation_sites++;
+      }
+
+      if (deopt_maybe_tenured && site->IsMaybeTenure()) {
+        site->set_deopt_dependent_code(true);
+        trigger_deoptimization = true;
       }
 
       if (use_scratchpad) {
