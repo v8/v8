@@ -99,50 +99,6 @@ void RunWithProfiler(void (*test)()) {
 }
 
 
-static void ExpectString(const char* code, const char* expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsString());
-  String::Utf8Value utf8(result);
-  CHECK_EQ(expected, *utf8);
-}
-
-
-static void ExpectInt32(const char* code, int expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
-}
-
-
-static void ExpectBoolean(const char* code, bool expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue());
-}
-
-
-static void ExpectTrue(const char* code) {
-  ExpectBoolean(code, true);
-}
-
-
-static void ExpectFalse(const char* code) {
-  ExpectBoolean(code, false);
-}
-
-
-static void ExpectObject(const char* code, Local<Value> expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->Equals(expected));
-}
-
-
-static void ExpectUndefined(const char* code) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsUndefined());
-}
-
-
 static int signature_callback_count;
 static Local<Value> signature_expected_receiver;
 static void IncrementingSignatureCallback(
@@ -448,14 +404,6 @@ THREADED_TEST(Script) {
   const char* source = "1 + 2 + 3";
   Local<Script> script = v8_compile(source);
   CHECK_EQ(6, script->Run()->Int32Value());
-}
-
-
-static uint16_t* AsciiToTwoByteString(const char* source) {
-  int array_length = i::StrLength(source) + 1;
-  uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (int i = 0; i < array_length; i++) converted[i] = source[i];
-  return converted;
 }
 
 
