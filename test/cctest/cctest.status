@@ -70,10 +70,10 @@
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
 
-  # BUG(2999).
-  'test-cpu-profiler/CollectCpuProfile': [PASS, FLAKY],
-  # BUG(3287).
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [PASS, FLAKY],
+  # The cpu profiler tests are notoriously flaky.
+  # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
+  # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
+  'test-cpu-profiler/*': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.
@@ -147,7 +147,6 @@
 
   # BUG(2999).
   'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
-  'test-cpu-profiler/JsNativeJsSample': [PASS, FLAKY],
 
   # BUG(3055).
   'test-cpu-profiler/JsNative1JsNative2JsSample': [PASS, ['mode == release', FAIL], ['mode == debug', FLAKY]],
