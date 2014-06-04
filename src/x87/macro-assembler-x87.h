@@ -18,6 +18,10 @@ typedef Operand MemOperand;
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum PointersToHereCheck {
+  kPointersToHereMaybeInteresting,
+  kPointersToHereAreAlwaysInteresting
+};
 
 
 enum RegisterValueType {
@@ -138,7 +142,9 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // As above, but the offset has the tag presubtracted.  For use with
   // Operand(reg, off).
@@ -148,13 +154,16 @@ class MacroAssembler: public Assembler {
       Register value,
       Register scratch,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK) {
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
                      scratch,
                      remembered_set_action,
-                     smi_check);
+                     smi_check,
+                     pointers_to_here_check_for_value);
   }
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
@@ -168,7 +177,9 @@ class MacroAssembler: public Assembler {
       Register value,
       Register index,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -180,7 +191,9 @@ class MacroAssembler: public Assembler {
       Register address,
       Register value,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // For page containing |object| mark the region covering the object's map
   // dirty. |object| is the object being stored into, |map| is the Map object
