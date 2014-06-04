@@ -661,7 +661,7 @@ void MacroAssembler::B(Label* label, Condition cond) {
     NeedExtraInstructionsOrRegisterBranch(label, CondBranchType);
 
   if (need_extra_instructions) {
-    b(&done, InvertCondition(cond));
+    b(&done, NegateCondition(cond));
     B(label);
   } else {
     b(label, cond);
@@ -3826,7 +3826,7 @@ void MacroAssembler::CompareAndSplit(const Register& lhs,
   } else if (if_false == fall_through) {
     CompareAndBranch(lhs, rhs, cond, if_true);
   } else if (if_true == fall_through) {
-    CompareAndBranch(lhs, rhs, InvertCondition(cond), if_false);
+    CompareAndBranch(lhs, rhs, NegateCondition(cond), if_false);
   } else {
     CompareAndBranch(lhs, rhs, cond, if_true);
     B(if_false);

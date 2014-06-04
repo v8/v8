@@ -258,7 +258,7 @@ enum Condition {
   nv = 15  // Behaves as always/al.
 };
 
-inline Condition InvertCondition(Condition cond) {
+inline Condition NegateCondition(Condition cond) {
   // Conditions al and nv behave identically, as "always true". They can't be
   // inverted, because there is no never condition.
   ASSERT((cond != al) && (cond != nv));
@@ -266,7 +266,7 @@ inline Condition InvertCondition(Condition cond) {
 }
 
 // Corresponds to transposing the operands of a comparison.
-inline Condition ReverseConditionForCmp(Condition cond) {
+inline Condition ReverseCondition(Condition cond) {
   switch (cond) {
     case lo:
       return hi;

@@ -56,7 +56,7 @@ class BranchOnCondition : public BranchGenerator {
 
   virtual void EmitInverted(Label* label) const {
     if (cond_ != al) {
-      __ B(InvertCondition(cond_), label);
+      __ B(NegateCondition(cond_), label);
     }
   }
 
@@ -86,7 +86,7 @@ class CompareAndBranch : public BranchGenerator {
   }
 
   virtual void EmitInverted(Label* label) const {
-    __ CompareAndBranch(lhs_, rhs_, InvertCondition(cond_), label);
+    __ CompareAndBranch(lhs_, rhs_, NegateCondition(cond_), label);
   }
 
  private:
@@ -136,7 +136,7 @@ class TestAndBranch : public BranchGenerator {
         break;
       default:
         __ Tst(value_, mask_);
-        __ B(InvertCondition(cond_), label);
+        __ B(NegateCondition(cond_), label);
     }
   }
 
@@ -1848,14 +1848,14 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
     Operand index = ToOperand32I(instr->index());
     Register length = ToRegister32(instr->length());
     __ Cmp(length, index);
-    cond = ReverseConditionForCmp(cond);
+    cond = ReverseCondition(cond);
   } else {
     Register index = ToRegister32(instr->index());
     Operand length = ToOperand32I(instr->length());
     __ Cmp(index, length);
   }
   if (FLAG_debug_code && instr->hydrogen()->skip_check()) {
-    __ Assert(InvertCondition(cond), kEliminatedBoundsCheckFailed);
+    __ Assert(NegateCondition(cond), kEliminatedBoundsCheckFailed);
   } else {
     DeoptimizeIf(cond, instr->environment());
   }
@@ -2489,7 +2489,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         // Transpose the operands and reverse the condition.
         __ Fcmp(ToDoubleRegister(right),
                 ToDouble(LConstantOperand::cast(left)));
-        cond = ReverseConditionForCmp(cond);
+        cond = ReverseCondition(cond);
       } else {
         __ Fcmp(ToDoubleRegister(left), ToDoubleRegister(right));
       }
@@ -2508,7 +2508,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         } else {
           // Transpose the operands and reverse the condition.
           EmitCompareAndBranch(instr,
-                               ReverseConditionForCmp(cond),
+                               ReverseCondition(cond),
                                ToRegister32(right),
                                ToOperand32I(left));
         }
@@ -2524,7 +2524,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
           // Transpose the operands and reverse the condition.
           int32_t value = ToInteger32(LConstantOperand::cast(left));
           EmitCompareAndBranch(instr,
-                               ReverseConditionForCmp(cond),
+                               ReverseCondition(cond),
                                ToRegister(right),
                                Operand(Smi::FromInt(value)));
         } else {

@@ -1559,7 +1559,7 @@ int Disassembler::SubstituteConditionField(Instruction* instr,
   switch (format[1]) {
     case 'B': cond = instr->ConditionBranch(); break;
     case 'I': {
-      cond = InvertCondition(static_cast<Condition>(instr->Condition()));
+      cond = NegateCondition(static_cast<Condition>(instr->Condition()));
       break;
     }
     default: cond = instr->Condition();

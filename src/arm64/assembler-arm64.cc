@@ -1130,32 +1130,32 @@ void Assembler::csneg(const Register& rd,
 void Assembler::cset(const Register &rd, Condition cond) {
   ASSERT((cond != al) && (cond != nv));
   Register zr = AppropriateZeroRegFor(rd);
-  csinc(rd, zr, zr, InvertCondition(cond));
+  csinc(rd, zr, zr, NegateCondition(cond));
 }
 
 
 void Assembler::csetm(const Register &rd, Condition cond) {
   ASSERT((cond != al) && (cond != nv));
   Register zr = AppropriateZeroRegFor(rd);
-  csinv(rd, zr, zr, InvertCondition(cond));
+  csinv(rd, zr, zr, NegateCondition(cond));
 }
 
 
 void Assembler::cinc(const Register &rd, const Register &rn, Condition cond) {
   ASSERT((cond != al) && (cond != nv));
-  csinc(rd, rn, rn, InvertCondition(cond));
+  csinc(rd, rn, rn, NegateCondition(cond));
 }
 
 
 void Assembler::cinv(const Register &rd, const Register &rn, Condition cond) {
   ASSERT((cond != al) && (cond != nv));
-  csinv(rd, rn, rn, InvertCondition(cond));
+  csinv(rd, rn, rn, NegateCondition(cond));
 }
 
 
 void Assembler::cneg(const Register &rd, const Register &rn, Condition cond) {
   ASSERT((cond != al) && (cond != nv));
-  csneg(rd, rn, rn, InvertCondition(cond));
+  csneg(rd, rn, rn, NegateCondition(cond));
 }
 
 

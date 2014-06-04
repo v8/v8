@@ -1460,7 +1460,7 @@ void RegExpMacroAssemblerARM64::BranchOrBacktrack(Condition condition,
     to = &backtrack_label_;
   }
   // TODO(ulan): do direct jump when jump distance is known and fits in imm19.
-  Condition inverted_condition = InvertCondition(condition);
+  Condition inverted_condition = NegateCondition(condition);
   Label no_branch;
   __ B(inverted_condition, &no_branch);
   __ B(to);
@@ -1601,7 +1601,7 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
 
 void RegExpMacroAssemblerARM64::CallIf(Label* to, Condition condition) {
   Label skip_call;
-  if (condition != al) __ B(&skip_call, InvertCondition(condition));
+  if (condition != al) __ B(&skip_call, NegateCondition(condition));
   __ Bl(to);
   __ Bind(&skip_call);
 }

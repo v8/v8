@@ -81,7 +81,7 @@ enum BranchType {
 inline BranchType InvertBranchType(BranchType type) {
   if (kBranchTypeFirstCondition <= type && type <= kBranchTypeLastCondition) {
     return static_cast<BranchType>(
-        InvertCondition(static_cast<Condition>(type)));
+        NegateCondition(static_cast<Condition>(type)));
   } else {
     return static_cast<BranchType>(type ^ 1);
   }
