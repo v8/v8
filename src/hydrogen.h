@@ -1396,6 +1396,8 @@ class HGraphBuilder {
     return Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
                                  Add<HConstant>(map));
   }
+  HLoadNamedField* AddLoadMap(HValue* object,
+                              HValue* dependency = NULL);
   HLoadNamedField* AddLoadElements(HValue* object,
                                    HValue* dependency = NULL);
 
@@ -1688,10 +1690,24 @@ class HGraphBuilder {
     };
 
     ElementsKind kind() { return kind_; }
+    HAllocate* elements_location() { return elements_location_; }
 
-    HValue* AllocateEmptyArray();
-    HValue* AllocateArray(HValue* capacity, HValue* length_field,
-                          FillMode fill_mode = FILL_WITH_HOLE);
+    HAllocate* AllocateEmptyArray();
+    HAllocate* AllocateArray(HValue* capacity,
+                             HValue* length_field,
+                             FillMode fill_mode = FILL_WITH_HOLE);
+    // Use these allocators when capacity could be unknown at compile time
+    // but its limit is known. For constant |capacity| the value of
+    // |capacity_upper_bound| is ignored and the actual |capacity|
+    // value is used as an upper bound.
+    HAllocate* AllocateArray(HValue* capacity,
+                             int capacity_upper_bound,
+                             HValue* length_field,
+                             FillMode fill_mode = FILL_WITH_HOLE);
+    HAllocate* AllocateArray(HValue* capacity,
+                             HConstant* capacity_upper_bound,
+                             HValue* length_field,
+                             FillMode fill_mode = FILL_WITH_HOLE);
     HValue* GetElementsLocation() { return elements_location_; }
     HValue* EmitMapCode();
 
@@ -1708,25 +1724,23 @@ class HGraphBuilder {
     }
 
     HValue* EmitInternalMapCode();
-    HValue* EstablishEmptyArrayAllocationSize();
-    HValue* EstablishAllocationSize(HValue* length_node);
-    HValue* AllocateArray(HValue* size_in_bytes, HValue* capacity,
-                          HValue* length_field,
-                          FillMode fill_mode = FILL_WITH_HOLE);
 
     HGraphBuilder* builder_;
     ElementsKind kind_;
     AllocationSiteMode mode_;
     HValue* allocation_site_payload_;
     HValue* constructor_function_;
-    HInnerAllocatedObject* elements_location_;
+    HAllocate* elements_location_;
   };
 
   HValue* BuildAllocateArrayFromLength(JSArrayBuilder* array_builder,
                                        HValue* length_argument);
+  HValue* BuildCalculateElementsSize(ElementsKind kind,
+                                     HValue* capacity);
+  HAllocate* AllocateJSArrayObject(AllocationSiteMode mode);
+  HConstant* EstablishElementsAllocationSize(ElementsKind kind, int capacity);
 
-  HValue* BuildAllocateElements(ElementsKind kind,
-                                HValue* capacity);
+  HAllocate* BuildAllocateElements(ElementsKind kind, HValue* size_in_bytes);
 
   void BuildInitializeElementsHeader(HValue* elements,
                                      ElementsKind kind,
@@ -1735,16 +1749,17 @@ class HGraphBuilder {
   HValue* BuildAllocateElementsAndInitializeElementsHeader(ElementsKind kind,
                                                            HValue* capacity);
 
-  // array must have been allocated with enough room for
-  // 1) the JSArray, 2) a AllocationMemento if mode requires it,
-  // 3) a FixedArray or FixedDoubleArray.
-  // A pointer to the Fixed(Double)Array is returned.
-  HInnerAllocatedObject* BuildJSArrayHeader(HValue* array,
-                                            HValue* array_map,
-                                            AllocationSiteMode mode,
-                                            ElementsKind elements_kind,
-                                            HValue* allocation_site_payload,
-                                            HValue* length_field);
+  // |array| must have been allocated with enough room for
+  // 1) the JSArray and 2) an AllocationMemento if mode requires it.
+  // If the |elements| value provided is NULL then the array elements storage
+  // is initialized with empty array.
+  void BuildJSArrayHeader(HValue* array,
+                          HValue* array_map,
+                          HValue* elements,
+                          AllocationSiteMode mode,
+                          ElementsKind elements_kind,
+                          HValue* allocation_site_payload,
+                          HValue* length_field);
 
   HValue* BuildGrowElementsCapacity(HValue* object,
                                     HValue* elements,
@@ -1753,24 +1768,23 @@ class HGraphBuilder {
                                     HValue* length,
                                     HValue* new_capacity);
 
+  void BuildFillElementsWithValue(HValue* elements,
+                                  ElementsKind elements_kind,
+                                  HValue* from,
+                                  HValue* to,
+                                  HValue* value);
+
   void BuildFillElementsWithHole(HValue* elements,
                                  ElementsKind elements_kind,
                                  HValue* from,
                                  HValue* to);
 
-  void BuildCopyElements(HValue* array,
-                         HValue* from_elements,
+  void BuildCopyElements(HValue* from_elements,
                          ElementsKind from_elements_kind,
                          HValue* to_elements,
                          ElementsKind to_elements_kind,
                          HValue* length,
                          HValue* capacity);
-
-  HValue* BuildCloneShallowArrayCommon(HValue* boilerplate,
-                                       HValue* allocation_site,
-                                       HValue* extra_size,
-                                       HValue** return_elements,
-                                       AllocationSiteMode mode);
 
   HValue* BuildCloneShallowArrayCow(HValue* boilerplate,
                                     HValue* allocation_site,
