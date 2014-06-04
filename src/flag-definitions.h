@@ -193,7 +193,7 @@ DEFINE_bool(clever_optimizations, true,
             "Optimize object size, Array shift, DOM strings and string +")
 // TODO(hpayer): We will remove this flag as soon as we have pretenuring
 // support for specific allocation sites.
-DEFINE_bool(pretenuring_call_new, true, "pretenure call new")
+DEFINE_bool(pretenuring_call_new, false, "pretenure call new")
 DEFINE_bool(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
 DEFINE_bool(trace_pretenuring, false,
