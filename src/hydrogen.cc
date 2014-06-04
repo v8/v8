@@ -8385,7 +8385,7 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
     ASSERT_EQ(kLastIndexOf, mode);
     initial = length;
     terminating = graph()->GetConstant0();
-    token = Token::GTE;
+    token = Token::GT;
     direction = LoopBuilder::kPreDecrement;
   }
 
