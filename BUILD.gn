@@ -976,8 +976,14 @@ executable("mksnapshot") {
     ":v8_nosnapshot",
   ]
 
+  libs = []
+
   if (v8_compress_startup_data == "bz2") {
-    libs = [ "bz2" ]
+    libs += [ "bz2" ]
+  }
+
+  if (is_android && current_toolchain != host_toolchain) {
+    libs += [ "log" ]
   }
 }
 
@@ -1002,10 +1008,6 @@ component("v8") {
       ":v8_base",
       ":v8_nosnapshot",
     ]
-  }
-
-  if (is_android && current_toolchain != host_toolchain) {
-    libs = [ "log" ]
   }
 
   configs -= [ "//build/config/compiler:chromium_code" ]
