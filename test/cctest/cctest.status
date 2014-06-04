@@ -205,6 +205,23 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
+['arch == x87', {
+
+  # TODO (weiliang): Enable below tests after fixing the double register
+  # allocation limit in X87 port.
+  'test-serialize/Serialize': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/Deserialize': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/SerializeTwice': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/ContextSerialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/ContextDeserialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/PartialDeserialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/PartialSerialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeAndRunScript2': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeFromSecondSerialization': [PASS, ['mode == debug', SKIP]],
+}],  # 'arch == x87'
+
+##############################################################################
 ['arch == android_arm or arch == android_ia32', {
 
   # Tests crash as there is no /tmp directory in Android.
