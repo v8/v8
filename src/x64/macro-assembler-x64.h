@@ -1499,6 +1499,11 @@ class MacroAssembler: public Assembler {
                                Register scratch,
                                AllocationFlags flags);
 
+  void MakeSureDoubleAlignedHelper(Register result,
+                                   Register scratch,
+                                   Label* gc_required,
+                                   AllocationFlags flags);
+
   // Update allocation top with value in result_end register.
   // If scratch is valid, it contains the address of the allocation top.
   void UpdateAllocationTopHelper(Register result_end,

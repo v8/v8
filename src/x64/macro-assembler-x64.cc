@@ -4325,6 +4325,41 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
 }
 
 
+void MacroAssembler::MakeSureDoubleAlignedHelper(Register result,
+                                                 Register scratch,
+                                                 Label* gc_required,
+                                                 AllocationFlags flags) {
+  if (kPointerSize == kDoubleSize) {
+    if (FLAG_debug_code) {
+      testl(result, Immediate(kDoubleAlignmentMask));
+      Check(zero, kAllocationIsNotDoubleAligned);
+    }
+  } else {
+    // Align the next allocation. Storing the filler map without checking top
+    // is safe in new-space because the limit of the heap is aligned there.
+    ASSERT(kPointerSize * 2 == kDoubleSize);
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+    ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
+    // Make sure scratch is not clobbered by this function as it might be
+    // used in UpdateAllocationTopHelper later.
+    ASSERT(!scratch.is(kScratchRegister));
+    Label aligned;
+    testl(result, Immediate(kDoubleAlignmentMask));
+    j(zero, &aligned, Label::kNear);
+    if ((flags & PRETENURE_OLD_DATA_SPACE) != 0) {
+      ExternalReference allocation_limit =
+          AllocationUtils::GetAllocationLimitReference(isolate(), flags);
+      cmpp(result, ExternalOperand(allocation_limit));
+      j(above_equal, gc_required);
+    }
+    LoadRoot(kScratchRegister, Heap::kOnePointerFillerMapRootIndex);
+    movp(Operand(result, 0), kScratchRegister);
+    addp(result, Immediate(kDoubleSize / 2));
+    bind(&aligned);
+  }
+}
+
+
 void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
                                                Register scratch,
                                                AllocationFlags flags) {
@@ -4373,11 +4408,8 @@ void MacroAssembler::Allocate(int object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
-  // Align the next allocation. Storing the filler map without checking top is
-  // safe in new-space because the limit of the heap is aligned there.
-  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
-    testq(result, Immediate(kDoubleAlignmentMask));
-    Check(zero, kAllocationIsNotDoubleAligned);
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    MakeSureDoubleAlignedHelper(result, scratch, gc_required, flags);
   }
 
   // Calculate new top and bail out if new space is exhausted.
@@ -4452,11 +4484,8 @@ void MacroAssembler::Allocate(Register object_size,
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
 
-  // Align the next allocation. Storing the filler map without checking top is
-  // safe in new-space because the limit of the heap is aligned there.
-  if (((flags & DOUBLE_ALIGNMENT) != 0) && FLAG_debug_code) {
-    testq(result, Immediate(kDoubleAlignmentMask));
-    Check(zero, kAllocationIsNotDoubleAligned);
+  if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    MakeSureDoubleAlignedHelper(result, scratch, gc_required, flags);
   }
 
   // Calculate new top and bail out if new space is exhausted.
