@@ -5,7 +5,7 @@
 #ifndef V8_ZONE_INL_H_
 #define V8_ZONE_INL_H_
 
-#include "zone.h"
+#include "src/zone.h"
 
 #ifdef V8_USE_ADDRESS_SANITIZER
   #include <sanitizer/asan_interface.h>
@@ -13,9 +13,9 @@
   #define ASAN_UNPOISON_MEMORY_REGION(start, size) ((void) 0)
 #endif
 
-#include "counters.h"
-#include "isolate.h"
-#include "utils.h"
+#include "src/counters.h"
+#include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

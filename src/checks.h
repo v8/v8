@@ -7,7 +7,8 @@
 
 #include <string.h>
 
-#include "../include/v8stdint.h"
+#include "include/v8stdint.h"
+#include "src/base/build_config.h"
 
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 
@@ -30,7 +31,8 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 #endif
 
 // Simulator specific helpers.
-#if defined(USE_SIMULATOR) && defined(V8_TARGET_ARCH_ARM64)
+// We can't use USE_SIMULATOR here because it isn't defined yet.
+#if V8_TARGET_ARCH_ARM64 && !V8_HOST_ARCH_ARM64
   // TODO(all): If possible automatically prepend an indicator like
   // UNIMPLEMENTED or LOCATION.
   #define ASM_UNIMPLEMENTED(message)                                         \

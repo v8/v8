@@ -4,34 +4,34 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "compilation-cache.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "heap-profiler.h"
-#include "hydrogen.h"
-#include "isolate-inl.h"
-#include "lithium-allocator.h"
-#include "log.h"
-#include "messages.h"
-#include "platform.h"
-#include "regexp-stack.h"
-#include "runtime-profiler.h"
-#include "sampler.h"
-#include "scopeinfo.h"
-#include "serialize.h"
-#include "simulator.h"
-#include "spaces.h"
-#include "stub-cache.h"
-#include "sweeper-thread.h"
-#include "utils/random-number-generator.h"
-#include "version.h"
-#include "vm-state-inl.h"
+#include "src/ast.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/compilation-cache.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/heap-profiler.h"
+#include "src/hydrogen.h"
+#include "src/isolate-inl.h"
+#include "src/lithium-allocator.h"
+#include "src/log.h"
+#include "src/messages.h"
+#include "src/platform.h"
+#include "src/regexp-stack.h"
+#include "src/runtime-profiler.h"
+#include "src/sampler.h"
+#include "src/scopeinfo.h"
+#include "src/serialize.h"
+#include "src/simulator.h"
+#include "src/spaces.h"
+#include "src/stub-cache.h"
+#include "src/sweeper-thread.h"
+#include "src/utils/random-number-generator.h"
+#include "src/version.h"
+#include "src/vm-state-inl.h"
 
 
 namespace v8 {
@@ -1324,7 +1324,7 @@ Handle<Context> Isolate::global_context() {
 
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
-  if (debug_->is_entered()) {
+  if (debug_->in_debug_scope()) {
     while (!it.done()) {
       JavaScriptFrame* frame = it.frame();
       Context* context = Context::cast(frame->context());

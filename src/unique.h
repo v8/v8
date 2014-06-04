@@ -5,10 +5,10 @@
 #ifndef V8_HYDROGEN_UNIQUE_H_
 #define V8_HYDROGEN_UNIQUE_H_
 
-#include "handles.h"
-#include "objects.h"
-#include "utils.h"
-#include "zone.h"
+#include "src/handles.h"
+#include "src/objects.h"
+#include "src/utils.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

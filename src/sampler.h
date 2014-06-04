@@ -5,9 +5,9 @@
 #ifndef V8_SAMPLER_H_
 #define V8_SAMPLER_H_
 
-#include "atomicops.h"
-#include "frames.h"
-#include "globals.h"
+#include "src/atomicops.h"
+#include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

@@ -28,7 +28,7 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
 #ifndef TEST
 #define TEST(Name)                                                             \
@@ -311,6 +311,15 @@ class LocalContext {
   v8::Isolate* isolate_;
 };
 
+
+static inline uint16_t* AsciiToTwoByteString(const char* source) {
+  int array_length = i::StrLength(source) + 1;
+  uint16_t* converted = i::NewArray<uint16_t>(array_length);
+  for (int i = 0; i < array_length; i++) converted[i] = source[i];
+  return converted;
+}
+
+
 static inline v8::Local<v8::Value> v8_num(double x) {
   return v8::Number::New(v8::Isolate::GetCurrent(), x);
 }
@@ -400,6 +409,52 @@ static inline v8::Local<v8::Value> CompileRunWithOrigin(
 static inline v8::Local<v8::Value> CompileRunWithOrigin(
     const char* source, const char* origin_url) {
   return CompileRunWithOrigin(v8_str(source), origin_url);
+}
+
+
+
+static inline void ExpectString(const char* code, const char* expected) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsString());
+  v8::String::Utf8Value utf8(result);
+  CHECK_EQ(expected, *utf8);
+}
+
+
+static inline void ExpectInt32(const char* code, int expected) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsInt32());
+  CHECK_EQ(expected, result->Int32Value());
+}
+
+
+static inline void ExpectBoolean(const char* code, bool expected) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsBoolean());
+  CHECK_EQ(expected, result->BooleanValue());
+}
+
+
+static inline void ExpectTrue(const char* code) {
+  ExpectBoolean(code, true);
+}
+
+
+static inline void ExpectFalse(const char* code) {
+  ExpectBoolean(code, false);
+}
+
+
+static inline void ExpectObject(const char* code,
+                                v8::Local<v8::Value> expected) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->SameValue(expected));
+}
+
+
+static inline void ExpectUndefined(const char* code) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsUndefined());
 }
 
 

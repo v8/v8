@@ -9,11 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "allocation.h"
-#include "checks.h"
-#include "globals.h"
-#include "platform.h"
-#include "vector.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/globals.h"
+#include "src/list.h"
+#include "src/platform.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

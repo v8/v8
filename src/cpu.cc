@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cpu.h"
+#include "src/cpu.h"
 
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
@@ -21,9 +21,9 @@
 #include <string.h>
 #include <algorithm>
 
-#include "checks.h"
+#include "src/checks.h"
 #if V8_OS_WIN
-#include "win32-headers.h"
+#include "src/win32-headers.h"
 #endif
 
 namespace v8 {

@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "frames-inl.h"
-#include "string-stream.h"
+#include "src/api.h"
+#include "src/frames-inl.h"
+#include "src/string-stream.h"
+#include "test/cctest/cctest.h"
 
 using ::v8::ObjectTemplate;
 using ::v8::Value;

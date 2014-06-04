@@ -30,27 +30,27 @@
 #include <string>
 #include <map>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_OS_POSIX
 #include <unistd.h>  // NOLINT
 #endif
 
-#include "api.h"
-#include "arguments.h"
-#include "cctest.h"
-#include "compilation-cache.h"
-#include "cpu-profiler.h"
-#include "execution.h"
-#include "isolate.h"
-#include "objects.h"
-#include "parser.h"
-#include "platform.h"
-#include "snapshot.h"
-#include "unicode-inl.h"
-#include "utils.h"
-#include "vm-state.h"
-#include "../include/v8-util.h"
+#include "include/v8-util.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/compilation-cache.h"
+#include "src/cpu-profiler.h"
+#include "src/execution.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/parser.h"
+#include "src/platform.h"
+#include "src/snapshot.h"
+#include "src/unicode-inl.h"
+#include "src/utils.h"
+#include "src/vm-state.h"
+#include "test/cctest/cctest.h"
 
 static const bool kLogThreading = false;
 
@@ -96,50 +96,6 @@ void RunWithProfiler(void (*test)()) {
   cpu_profiler->StartProfiling(profile_name);
   (*test)();
   reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->DeleteAllProfiles();
-}
-
-
-static void ExpectString(const char* code, const char* expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsString());
-  String::Utf8Value utf8(result);
-  CHECK_EQ(expected, *utf8);
-}
-
-
-static void ExpectInt32(const char* code, int expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
-}
-
-
-static void ExpectBoolean(const char* code, bool expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsBoolean());
-  CHECK_EQ(expected, result->BooleanValue());
-}
-
-
-static void ExpectTrue(const char* code) {
-  ExpectBoolean(code, true);
-}
-
-
-static void ExpectFalse(const char* code) {
-  ExpectBoolean(code, false);
-}
-
-
-static void ExpectObject(const char* code, Local<Value> expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->Equals(expected));
-}
-
-
-static void ExpectUndefined(const char* code) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsUndefined());
 }
 
 
@@ -448,14 +404,6 @@ THREADED_TEST(Script) {
   const char* source = "1 + 2 + 3";
   Local<Script> script = v8_compile(source);
   CHECK_EQ(6, script->Run()->Int32Value());
-}
-
-
-static uint16_t* AsciiToTwoByteString(const char* source) {
-  int array_length = i::StrLength(source) + 1;
-  uint16_t* converted = i::NewArray<uint16_t>(array_length);
-  for (int i = 0; i < array_length; i++) converted[i] = source[i];
-  return converted;
 }
 
 
@@ -7942,7 +7890,7 @@ THREADED_TEST(StringWrite) {
 
 
 static void Utf16Helper(
-    LocalContext& context,
+    LocalContext& context,  // NOLINT
     const char* name,
     const char* lengths_name,
     int len) {
@@ -7969,7 +7917,7 @@ static uint16_t StringGet(Handle<String> str, int index) {
 
 
 static void WriteUtf8Helper(
-    LocalContext& context,
+    LocalContext& context,  // NOLINT
     const char* name,
     const char* lengths_name,
     int len) {
@@ -21466,6 +21414,7 @@ THREADED_TEST(Regress157124) {
 
 THREADED_TEST(Regress2535) {
   i::FLAG_harmony_collections = true;
+  i::FLAG_harmony_symbols = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Local<Value> set_value = CompileRun("new Set();");

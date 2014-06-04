@@ -9,16 +9,16 @@
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
 #include <stdarg.h>
 #include <cmath>
-#include "globals.h"       // Required for V8_INFINITY
+#include "src/globals.h"       // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
-#include "conversions.h"
-#include "double.h"
-#include "platform.h"
-#include "scanner.h"
-#include "strtod.h"
+#include "src/conversions.h"
+#include "src/double.h"
+#include "src/platform.h"
+#include "src/scanner.h"
+#include "src/strtod.h"
 
 namespace v8 {
 namespace internal {

@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "platform.h"
-#include "cctest.h"
-#include "diy-fp.h"
-#include "double.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
+#include "src/platform.h"
+#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;

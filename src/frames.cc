@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "deoptimizer.h"
-#include "frames-inl.h"
-#include "full-codegen.h"
-#include "lazy-instance.h"
-#include "mark-compact.h"
-#include "safepoint-table.h"
-#include "scopeinfo.h"
-#include "string-stream.h"
-#include "vm-state-inl.h"
+#include "src/ast.h"
+#include "src/deoptimizer.h"
+#include "src/frames-inl.h"
+#include "src/full-codegen.h"
+#include "src/lazy-instance.h"
+#include "src/mark-compact.h"
+#include "src/safepoint-table.h"
+#include "src/scopeinfo.h"
+#include "src/string-stream.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

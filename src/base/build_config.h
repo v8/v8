@@ -5,7 +5,7 @@
 #ifndef V8_BASE_BUILD_CONFIG_H_
 #define V8_BASE_BUILD_CONFIG_H_
 
-#include "../../include/v8config.h"
+#include "include/v8config.h"
 
 // Processor architecture detection.  For more info on what's defined, see:
 //   http://msdn.microsoft.com/en-us/library/b0084kay.aspx

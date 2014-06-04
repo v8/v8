@@ -23,10 +23,10 @@
 
 #include <stdarg.h>
 
-#include "platform/mutex.h"
-#include "platform/semaphore.h"
-#include "globals.h"
-#include "vector.h"
+#include "src/platform/mutex.h"
+#include "src/platform/semaphore.h"
+#include "src/globals.h"
+#include "src/vector.h"
 
 #ifdef __sun
 # ifndef signbit
@@ -37,14 +37,14 @@ int signbit(double x);
 #endif
 
 #if V8_OS_QNX
-#include "qnx-math.h"
+#include "src/qnx-math.h"
 #endif
 
 // Microsoft Visual C++ specific stuff.
 #if V8_LIBC_MSVCRT
 
-#include "win32-headers.h"
-#include "win32-math.h"
+#include "src/win32-headers.h"
+#include "src/win32-math.h"
 
 int strncasecmp(const char* s1, const char* s2, int n);
 

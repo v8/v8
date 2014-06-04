@@ -4,11 +4,11 @@
 
 #include <stdarg.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "prettyprinter.h"
-#include "scopes.h"
-#include "platform.h"
+#include "src/prettyprinter.h"
+#include "src/scopes.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

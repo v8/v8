@@ -5,15 +5,15 @@
 #ifndef V8_IA32_LITHIUM_CODEGEN_IA32_H_
 #define V8_IA32_LITHIUM_CODEGEN_IA32_H_
 
-#include "ia32/lithium-ia32.h"
+#include "src/ia32/lithium-ia32.h"
 
-#include "checks.h"
-#include "deoptimizer.h"
-#include "ia32/lithium-gap-resolver-ia32.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
+#include "src/checks.h"
+#include "src/deoptimizer.h"
+#include "src/ia32/lithium-gap-resolver-ia32.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

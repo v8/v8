@@ -5,10 +5,10 @@
 #ifndef V8_STORE_BUFFER_H_
 #define V8_STORE_BUFFER_H_
 
-#include "allocation.h"
-#include "checks.h"
-#include "globals.h"
-#include "platform.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/globals.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,7 @@
 #ifndef V8_STORE_BUFFER_INL_H_
 #define V8_STORE_BUFFER_INL_H_
 
-#include "store-buffer.h"
+#include "src/store-buffer.h"
 
 namespace v8 {
 namespace internal {

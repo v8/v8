@@ -2,20 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ast.h"
+#include "src/ast.h"
 
 #include <cmath>  // For isfinite.
-#include "builtins.h"
-#include "code-stubs.h"
-#include "contexts.h"
-#include "conversions.h"
-#include "hashmap.h"
-#include "parser.h"
-#include "property-details.h"
-#include "property.h"
-#include "scopes.h"
-#include "string-stream.h"
-#include "type-info.h"
+#include "src/builtins.h"
+#include "src/code-stubs.h"
+#include "src/contexts.h"
+#include "src/conversions.h"
+#include "src/hashmap.h"
+#include "src/parser.h"
+#include "src/property-details.h"
+#include "src/property.h"
+#include "src/scopes.h"
+#include "src/string-stream.h"
+#include "src/type-info.h"
 
 namespace v8 {
 namespace internal {
@@ -34,17 +34,17 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 
 bool Expression::IsSmiLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsSmi();
+  return IsLiteral() && AsLiteral()->value()->IsSmi();
 }
 
 
 bool Expression::IsStringLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsString();
+  return IsLiteral() && AsLiteral()->value()->IsString();
 }
 
 
 bool Expression::IsNullLiteral() const {
-  return AsLiteral() != NULL && AsLiteral()->value()->IsNull();
+  return IsLiteral() && AsLiteral()->value()->IsNull();
 }
 
 
@@ -192,7 +192,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
-  } else if (value_->AsLiteral() != NULL) {
+  } else if (value_->IsLiteral()) {
     kind_ = CONSTANT;
   } else {
     kind_ = COMPUTED;
@@ -390,7 +390,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
-  if (expression->AsLiteral() != NULL) {
+  if (expression->IsLiteral()) {
     return expression->AsLiteral()->value();
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
@@ -499,7 +499,7 @@ static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != NULL &&
       maybe_unary->op() == Token::VOID &&
-      maybe_unary->expression()->AsLiteral() != NULL;
+      maybe_unary->expression()->IsLiteral();
 }
 
 

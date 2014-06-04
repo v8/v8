@@ -27,11 +27,11 @@
 //
 // Tests of fast TLS support.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "checks.h"
-#include "platform.h"
+#include "src/checks.h"
+#include "src/platform.h"
+#include "test/cctest/cctest.h"
 
 using v8::internal::Thread;
 

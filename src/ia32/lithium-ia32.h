@@ -5,11 +5,11 @@
 #ifndef V8_IA32_LITHIUM_IA32_H_
 #define V8_IA32_LITHIUM_IA32_H_
 
-#include "hydrogen.h"
-#include "lithium-allocator.h"
-#include "lithium.h"
-#include "safepoint-table.h"
-#include "utils.h"
+#include "src/hydrogen.h"
+#include "src/lithium-allocator.h"
+#include "src/lithium.h"
+#include "src/safepoint-table.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1862,7 +1862,7 @@ class LCallJSFunction V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
  public:
   LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
-                      ZoneList<LOperand*>& operands,
+                      const ZoneList<LOperand*>& operands,
                       Zone* zone)
     : inputs_(descriptor->environment_length() + 1, zone) {
     ASSERT(descriptor->environment_length() + 1 == operands.length());

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
 #define ARM64_DEFINE_FP_STATICS
 
-#include "arm64/instructions-arm64.h"
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/instructions-arm64.h"
+#include "src/arm64/assembler-arm64-inl.h"
 
 namespace v8 {
 namespace internal {

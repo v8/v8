@@ -27,10 +27,10 @@
 
 #include <vector>
 
-#include "cctest.h"
-#include "hydrogen-types.h"
-#include "types.h"
-#include "utils/random-number-generator.h"
+#include "src/hydrogen-types.h"
+#include "src/types.h"
+#include "src/utils/random-number-generator.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -1160,13 +1160,13 @@ struct Tests : Rep {
       }
     }
 
-    // T1->Maybe(T2) iff Intersect(T1, T2) inhabited
+    // T1->Maybe(T2) implies Intersect(T1, T2) inhabited
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         TypeHandle type1 = *it1;
         TypeHandle type2 = *it2;
         TypeHandle intersect12 = T.Intersect(type1, type2);
-        CHECK(type1->Maybe(type2) == intersect12->IsInhabited());
+        CHECK(!type1->Maybe(type2) || intersect12->IsInhabited());
       }
     }
 

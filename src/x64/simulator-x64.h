@@ -5,7 +5,7 @@
 #ifndef V8_X64_SIMULATOR_X64_H_
 #define V8_X64_SIMULATOR_X64_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 namespace v8 {
 namespace internal {

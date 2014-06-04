@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
-#include "cctest.h"
+#include "include/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "print-extension.h"
-#include "profiler-extension.h"
-#include "trace-extension.h"
-#include "debug.h"
+#include "src/debug.h"
+#include "test/cctest/print-extension.h"
+#include "test/cctest/profiler-extension.h"
+#include "test/cctest/trace-extension.h"
 
 enum InitializationState {kUnset, kUnintialized, kInitialized};
 static InitializationState initialization_state_  = kUnset;

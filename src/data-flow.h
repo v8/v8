@@ -5,12 +5,12 @@
 #ifndef V8_DATAFLOW_H_
 #define V8_DATAFLOW_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

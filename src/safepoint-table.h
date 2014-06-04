@@ -5,10 +5,10 @@
 #ifndef V8_SAFEPOINT_TABLE_H_
 #define V8_SAFEPOINT_TABLE_H_
 
-#include "allocation.h"
-#include "heap.h"
-#include "v8memory.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/heap.h"
+#include "src/v8memory.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

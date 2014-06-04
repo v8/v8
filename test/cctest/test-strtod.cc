@@ -27,14 +27,14 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bignum.h"
-#include "cctest.h"
-#include "diy-fp.h"
-#include "double.h"
-#include "strtod.h"
-#include "utils/random-number-generator.h"
+#include "src/bignum.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
+#include "src/strtod.h"
+#include "src/utils/random-number-generator.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

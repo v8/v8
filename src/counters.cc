@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "counters.h"
-#include "isolate.h"
-#include "platform.h"
+#include "src/counters.h"
+#include "src/isolate.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

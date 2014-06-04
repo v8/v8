@@ -26,24 +26,24 @@
 #endif  // !V8_SHARED
 
 #ifdef V8_SHARED
-#include "../include/v8-testing.h"
+#include "include/v8-testing.h"
 #endif  // V8_SHARED
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-#include "third_party/vtune/v8-vtune.h"
+#include "src/third_party/vtune/v8-vtune.h"
 #endif
 
-#include "d8.h"
+#include "src/d8.h"
 
 #ifndef V8_SHARED
-#include "api.h"
-#include "checks.h"
-#include "cpu.h"
-#include "d8-debug.h"
-#include "debug.h"
-#include "natives.h"
-#include "platform.h"
-#include "v8.h"
+#include "src/api.h"
+#include "src/checks.h"
+#include "src/cpu.h"
+#include "src/d8-debug.h"
+#include "src/debug.h"
+#include "src/natives.h"
+#include "src/platform.h"
+#include "src/v8.h"
 #endif  // !V8_SHARED
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -1320,6 +1320,15 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       return false;
     }
 #endif  // V8_SHARED
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+    else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
+      options.natives_blob = argv[i] + 15;
+      argv[i] = NULL;
+    } else if (strncmp(argv[i], "--snapshot_blob=", 16) == 0) {
+      options.snapshot_blob = argv[i] + 16;
+      argv[i] = NULL;
+    }
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
   }
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
@@ -1477,9 +1486,65 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+class StartupDataHandler {
+ public:
+  StartupDataHandler(const char* natives_blob,
+                     const char* snapshot_blob) {
+    Load(natives_blob, &natives_, v8::V8::SetNativesDataBlob);
+    Load(snapshot_blob, &snapshot_, v8::V8::SetSnapshotDataBlob);
+  }
+
+  ~StartupDataHandler() {
+    delete[] natives_.data;
+    delete[] snapshot_.data;
+  }
+
+ private:
+  void Load(const char* blob_file,
+            v8::StartupData* startup_data,
+            void (*setter_fn)(v8::StartupData*)) {
+    startup_data->data = NULL;
+    startup_data->compressed_size = 0;
+    startup_data->raw_size = 0;
+
+    if (!blob_file)
+      return;
+
+    FILE* file = fopen(blob_file, "rb");
+    if (!file)
+      return;
+
+    fseek(file, 0, SEEK_END);
+    startup_data->raw_size = ftell(file);
+    rewind(file);
+
+    startup_data->data = new char[startup_data->raw_size];
+    startup_data->compressed_size = fread(
+        const_cast<char*>(startup_data->data), 1, startup_data->raw_size,
+        file);
+    fclose(file);
+
+    if (startup_data->raw_size == startup_data->compressed_size)
+      (*setter_fn)(startup_data);
+  }
+
+  v8::StartupData natives_;
+  v8::StartupData snapshot_;
+
+  // Disallow copy & assign.
+  StartupDataHandler(const StartupDataHandler& other);
+  void operator=(const StartupDataHandler& other);
+};
+#endif  // V8_USE_EXTERNAL_STARTUP_DATA
+
+
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  StartupDataHandler startup_data(options.natives_blob, options.snapshot_blob);
+#endif
   SetFlagsFromString("--trace-hydrogen-file=hydrogen.cfg");
   SetFlagsFromString("--redirect-code-traces-to=code.asm");
   ShellArrayBufferAllocator array_buffer_allocator;

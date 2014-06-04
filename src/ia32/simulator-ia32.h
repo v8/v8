@@ -5,7 +5,7 @@
 #ifndef V8_IA32_SIMULATOR_IA32_H_
 #define V8_IA32_SIMULATOR_IA32_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 namespace v8 {
 namespace internal {

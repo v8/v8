@@ -5,11 +5,12 @@
 #ifndef V8_LIST_H_
 #define V8_LIST_H_
 
-#include "utils.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
 
+template<typename T> class Vector;
 
 // ----------------------------------------------------------------------------
 // The list is a template for very light-weight lists. We are not

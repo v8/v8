@@ -5,12 +5,12 @@
 #ifndef V8_PREPARSER_H
 #define V8_PREPARSER_H
 
-#include "func-name-inferrer.h"
-#include "hashmap.h"
-#include "scopes.h"
-#include "token.h"
-#include "scanner.h"
-#include "v8.h"
+#include "src/func-name-inferrer.h"
+#include "src/hashmap.h"
+#include "src/scopes.h"
+#include "src/token.h"
+#include "src/scanner.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -1234,8 +1234,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
     default:
       const char* name = Token::String(token);
       ASSERT(name != NULL);
-      Traits::ReportMessageAt(
-          source_location, "unexpected_token", name);
+      Traits::ReportMessageAt(source_location, "unexpected_token", name);
   }
 }
 
@@ -1249,7 +1248,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     IdentifierT name = this->GetSymbol(scanner());
     if (allow_eval_or_arguments == kDontAllowEvalOrArguments &&
         strict_mode() == STRICT && this->IsEvalOrArguments(name)) {
-      ReportMessageAt(scanner()->location(), "strict_eval_arguments");
+      ReportMessage("strict_eval_arguments");
       *ok = false;
     }
     return name;
@@ -1326,7 +1325,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   IdentifierT js_pattern = this->NextLiteralString(scanner(), TENURED);
   if (!scanner()->ScanRegExpFlags()) {
     Next();
-    ReportMessageAt(scanner()->location(), "invalid_regexp_flags");
+    ReportMessage("invalid_regexp_flags");
     *ok = false;
     return Traits::EmptyExpression();
   }
@@ -1669,7 +1668,7 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
         true, CHECK_OK_CUSTOM(NullExpressionList));
     result->Add(argument, zone_);
     if (result->length() > Code::kMaxArguments) {
-      ReportMessageAt(scanner()->location(), "too_many_arguments");
+      ReportMessage("too_many_arguments");
       *ok = false;
       return this->NullExpressionList();
     }
@@ -2152,17 +2151,14 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
     if (IsDataDataConflict(old_type, type)) {
       // Both are data properties.
       if (strict_mode_ == SLOPPY) return;
-      parser()->ReportMessageAt(scanner()->location(),
-                               "strict_duplicate_property");
+      parser()->ReportMessage("strict_duplicate_property");
     } else if (IsDataAccessorConflict(old_type, type)) {
       // Both a data and an accessor property with the same name.
-      parser()->ReportMessageAt(scanner()->location(),
-                               "accessor_data_property");
+      parser()->ReportMessage("accessor_data_property");
     } else {
       ASSERT(IsAccessorAccessorConflict(old_type, type));
       // Both accessors of the same type.
-      parser()->ReportMessageAt(scanner()->location(),
-                               "accessor_get_set");
+      parser()->ReportMessage("accessor_get_set");
     }
     *ok = false;
   }

@@ -5,15 +5,15 @@
 #include <stdlib.h>
 #include <cmath>
 #include <cstdarg>
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "disasm.h"
-#include "assembler.h"
-#include "arm64/decoder-arm64-inl.h"
-#include "arm64/simulator-arm64.h"
-#include "macro-assembler.h"
+#include "src/disasm.h"
+#include "src/assembler.h"
+#include "src/arm64/decoder-arm64-inl.h"
+#include "src/arm64/simulator-arm64.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

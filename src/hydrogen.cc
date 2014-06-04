@@ -2,57 +2,57 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen.h"
+#include "src/hydrogen.h"
 
 #include <algorithm>
 
-#include "v8.h"
-#include "allocation-site-scopes.h"
-#include "codegen.h"
-#include "full-codegen.h"
-#include "hashmap.h"
-#include "hydrogen-bce.h"
-#include "hydrogen-bch.h"
-#include "hydrogen-canonicalize.h"
-#include "hydrogen-check-elimination.h"
-#include "hydrogen-dce.h"
-#include "hydrogen-dehoist.h"
-#include "hydrogen-environment-liveness.h"
-#include "hydrogen-escape-analysis.h"
-#include "hydrogen-infer-representation.h"
-#include "hydrogen-infer-types.h"
-#include "hydrogen-load-elimination.h"
-#include "hydrogen-gvn.h"
-#include "hydrogen-mark-deoptimize.h"
-#include "hydrogen-mark-unreachable.h"
-#include "hydrogen-osr.h"
-#include "hydrogen-range-analysis.h"
-#include "hydrogen-redundant-phi.h"
-#include "hydrogen-removable-simulates.h"
-#include "hydrogen-representation-changes.h"
-#include "hydrogen-sce.h"
-#include "hydrogen-store-elimination.h"
-#include "hydrogen-uint32-analysis.h"
-#include "lithium-allocator.h"
-#include "parser.h"
-#include "runtime.h"
-#include "scopeinfo.h"
-#include "scopes.h"
-#include "stub-cache.h"
-#include "typing.h"
+#include "src/v8.h"
+#include "src/allocation-site-scopes.h"
+#include "src/codegen.h"
+#include "src/full-codegen.h"
+#include "src/hashmap.h"
+#include "src/hydrogen-bce.h"
+#include "src/hydrogen-bch.h"
+#include "src/hydrogen-canonicalize.h"
+#include "src/hydrogen-check-elimination.h"
+#include "src/hydrogen-dce.h"
+#include "src/hydrogen-dehoist.h"
+#include "src/hydrogen-environment-liveness.h"
+#include "src/hydrogen-escape-analysis.h"
+#include "src/hydrogen-infer-representation.h"
+#include "src/hydrogen-infer-types.h"
+#include "src/hydrogen-load-elimination.h"
+#include "src/hydrogen-gvn.h"
+#include "src/hydrogen-mark-deoptimize.h"
+#include "src/hydrogen-mark-unreachable.h"
+#include "src/hydrogen-osr.h"
+#include "src/hydrogen-range-analysis.h"
+#include "src/hydrogen-redundant-phi.h"
+#include "src/hydrogen-removable-simulates.h"
+#include "src/hydrogen-representation-changes.h"
+#include "src/hydrogen-sce.h"
+#include "src/hydrogen-store-elimination.h"
+#include "src/hydrogen-uint32-analysis.h"
+#include "src/lithium-allocator.h"
+#include "src/parser.h"
+#include "src/runtime.h"
+#include "src/scopeinfo.h"
+#include "src/scopes.h"
+#include "src/stub-cache.h"
+#include "src/typing.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-codegen-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/lithium-codegen-arm64.h"
+#include "src/arm64/lithium-codegen-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-codegen-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/lithium-codegen-x87.h"
+#include "src/x87/lithium-codegen-x87.h"
 #else
 #error Unsupported target architecture.
 #endif
@@ -8032,6 +8032,43 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ast_context()->ReturnValue(result);
       return true;
     }
+    case kArrayIndexOf:
+    case kArrayLastIndexOf: {
+      if (receiver_map.is_null()) return false;
+      if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      ElementsKind kind = receiver_map->elements_kind();
+      if (!IsFastElementsKind(kind)) return false;
+      if (receiver_map->is_observed()) return false;
+      if (argument_count != 2) return false;
+      ASSERT(receiver_map->is_extensible());
+
+      // If there may be elements accessors in the prototype chain, the fast
+      // inlined version can't be used.
+      if (receiver_map->DictionaryElementsInPrototypeChainOnly()) return false;
+
+      // If there currently can be no elements accessors on the prototype chain,
+      // it doesn't mean that there won't be any later. Install a full prototype
+      // chain check to trap element accessors being installed on the prototype
+      // chain, which would cause elements to go to dictionary mode and result
+      // in a map change.
+      BuildCheckPrototypeMaps(
+          handle(JSObject::cast(receiver_map->prototype()), isolate()),
+          Handle<JSObject>::null());
+
+      HValue* search_element = Pop();
+      HValue* receiver = Pop();
+      Drop(1);  // Drop function.
+
+      ArrayIndexOfMode mode = (id == kArrayIndexOf)
+          ? kFirstIndexOf : kLastIndexOf;
+      HValue* index = BuildArrayIndexOf(receiver, search_element, kind, mode);
+
+      if (!ast_context()->IsEffect()) Push(index);
+      Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+      ast_context()->ReturnValue(index);
+      return true;
+    }
     default:
       // Not yet supported for inlining.
       break;
@@ -8321,6 +8358,148 @@ void HOptimizedGraphBuilder::BuildArrayCall(Expression* expression,
     Drop(1);
   }
   ast_context()->ReturnInstruction(call, expression->id());
+}
+
+
+HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
+                                                  HValue* search_element,
+                                                  ElementsKind kind,
+                                                  ArrayIndexOfMode mode) {
+  ASSERT(IsFastElementsKind(kind));
+
+  NoObservableSideEffectsScope no_effects(this);
+
+  HValue* elements = AddLoadElements(receiver);
+  HValue* length = AddLoadArrayLength(receiver, kind);
+
+  HValue* initial;
+  HValue* terminating;
+  Token::Value token;
+  LoopBuilder::Direction direction;
+  if (mode == kFirstIndexOf) {
+    initial = graph()->GetConstant0();
+    terminating = length;
+    token = Token::LT;
+    direction = LoopBuilder::kPostIncrement;
+  } else {
+    ASSERT_EQ(kLastIndexOf, mode);
+    initial = length;
+    terminating = graph()->GetConstant0();
+    token = Token::GTE;
+    direction = LoopBuilder::kPreDecrement;
+  }
+
+  Push(graph()->GetConstantMinus1());
+  if (IsFastDoubleElementsKind(kind) || IsFastSmiElementsKind(kind)) {
+    LoopBuilder loop(this, context(), direction);
+    {
+      HValue* index = loop.BeginBody(initial, terminating, token);
+      HValue* element = AddUncasted<HLoadKeyed>(
+          elements, index, static_cast<HValue*>(NULL),
+          kind, ALLOW_RETURN_HOLE);
+      IfBuilder if_issame(this);
+      if (IsFastDoubleElementsKind(kind)) {
+        if_issame.If<HCompareNumericAndBranch>(
+            element, search_element, Token::EQ_STRICT);
+      } else {
+        if_issame.If<HCompareObjectEqAndBranch>(element, search_element);
+      }
+      if_issame.Then();
+      {
+        Drop(1);
+        Push(index);
+        loop.Break();
+      }
+      if_issame.End();
+    }
+    loop.EndBody();
+  } else {
+    IfBuilder if_isstring(this);
+    if_isstring.If<HIsStringAndBranch>(search_element);
+    if_isstring.Then();
+    {
+      LoopBuilder loop(this, context(), direction);
+      {
+        HValue* index = loop.BeginBody(initial, terminating, token);
+        HValue* element = AddUncasted<HLoadKeyed>(
+            elements, index, static_cast<HValue*>(NULL),
+            kind, ALLOW_RETURN_HOLE);
+        IfBuilder if_issame(this);
+        if_issame.If<HIsStringAndBranch>(element);
+        if_issame.AndIf<HStringCompareAndBranch>(
+            element, search_element, Token::EQ_STRICT);
+        if_issame.Then();
+        {
+          Drop(1);
+          Push(index);
+          loop.Break();
+        }
+        if_issame.End();
+      }
+      loop.EndBody();
+    }
+    if_isstring.Else();
+    {
+      IfBuilder if_isheapnumber(this);
+      if_isheapnumber.IfNot<HIsSmiAndBranch>(search_element);
+      HCompareMap* isheapnumber = if_isheapnumber.AndIf<HCompareMap>(
+          search_element, isolate()->factory()->heap_number_map());
+      if_isheapnumber.Then();
+      {
+        HValue* search_number = Add<HLoadNamedField>(
+            search_element, isheapnumber,
+            HObjectAccess::ForHeapNumberValue());
+        LoopBuilder loop(this, context(), direction);
+        {
+          HValue* index = loop.BeginBody(initial, terminating, token);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, static_cast<HValue*>(NULL),
+              kind, ALLOW_RETURN_HOLE);
+          IfBuilder if_issame(this);
+          HCompareMap* issame = if_issame.If<HCompareMap>(
+              element, isolate()->factory()->heap_number_map());
+          if_issame.And();
+          HValue* number = Add<HLoadNamedField>(
+              element, issame, HObjectAccess::ForHeapNumberValue());
+          if_issame.If<HCompareNumericAndBranch>(
+              number, search_number, Token::EQ_STRICT);
+          if_issame.Then();
+          {
+            Drop(1);
+            Push(index);
+            loop.Break();
+          }
+          if_issame.End();
+        }
+        loop.EndBody();
+      }
+      if_isheapnumber.Else();
+      {
+        LoopBuilder loop(this, context(), direction);
+        {
+          HValue* index = loop.BeginBody(initial, terminating, token);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, static_cast<HValue*>(NULL),
+              kind, ALLOW_RETURN_HOLE);
+          IfBuilder if_issame(this);
+          if_issame.If<HCompareObjectEqAndBranch>(
+              element, search_element);
+          if_issame.Then();
+          {
+            Drop(1);
+            Push(index);
+            loop.Break();
+          }
+          if_issame.End();
+        }
+        loop.EndBody();
+      }
+      if_isheapnumber.End();
+    }
+    if_isstring.End();
+  }
+
+  return Pop();
 }
 
 
@@ -8970,7 +9149,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   CHECK_ALIVE(VisitForValue(arguments->at(kObjectArg)));
   HValue* obj = Pop();
 
-  if (arguments->at(kArrayIdArg)->node_type() != AstNode::kLiteral) {
+  if (arguments->at(kArrayIdArg)->IsLiteral()) {
     // This should never happen in real use, but can happen when fuzzing.
     // Just bail out.
     Bailout(kNeedSmiLiteral);
@@ -8997,7 +9176,7 @@ void HOptimizedGraphBuilder::GenerateTypedArrayInitialize(
   HValue* byte_offset;
   bool is_zero_byte_offset;
 
-  if (arguments->at(kByteOffsetArg)->node_type() == AstNode::kLiteral
+  if (arguments->at(kByteOffsetArg)->IsLiteral()
       && Smi::FromInt(0) ==
       *static_cast<Literal*>(arguments->at(kByteOffsetArg))->value()) {
     byte_offset = Add<HConstant>(static_cast<int32_t>(0));

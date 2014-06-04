@@ -51,7 +51,7 @@ EXPECTED_FUNCTION_COUNT = 358
 EXPECTED_FUZZABLE_COUNT = 325
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 5
-EXPECTED_BUILTINS_COUNT = 782
+EXPECTED_BUILTINS_COUNT = 798
 
 
 # Don't call these at all.
@@ -159,7 +159,7 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "RegExpExecMultiple": [None, None, "['a']", "['a']", None],
   "SetAccessorProperty": [None, None, "undefined", "undefined", None, None,
                           None],
-  "SetCreateIterator": [None, "2", None],
+  "SetIteratorInitialize": [None, None, "2", None],
   "SetDebugEventListener": ["undefined", None, None],
   "SetFunctionBreakPoint": [None, 200, None, None],
   "StringBuilderConcat": ["[1, 2, 3]", 3, None, None],
@@ -523,8 +523,8 @@ class Generator(object):
   def _JSMapIterator(self, name, recursion_budget):
     map_name = name + "_map"
     result = self._JSMap(map_name, recursion_budget)
-    iterator_type = random.randint(1, 3)
-    return (result + self._Variable(name, "%%MapCreateIterator(%s, %d)" %
+    iterator_type = random.choice(['keys', 'values', 'entries'])
+    return (result + self._Variable(name, "%s.%s()" %
                                           (map_name, iterator_type)))
 
   def _JSProxy(self, name, recursion_budget):
@@ -552,8 +552,8 @@ class Generator(object):
   def _JSSetIterator(self, name, recursion_budget):
     set_name = name + "_set"
     result = self._JSSet(set_name, recursion_budget)
-    iterator_type = random.randint(2, 3)
-    return (result + self._Variable(name, "%%SetCreateIterator(%s, %d)" %
+    iterator_type = random.choice(['values', 'entries'])
+    return (result + self._Variable(name, "%s.%s()" %
                                           (set_name, iterator_type)))
 
   def _JSTypedArray(self, name, recursion_budget):
@@ -666,13 +666,13 @@ class Generator(object):
                         _JSFunctionProxy],
     "JSGeneratorObject": ["(function*(){ yield 1; })()", _JSGeneratorObject],
     "JSMap": ["new Map()", _JSMap],
-    "JSMapIterator": ["%MapCreateIterator(new Map(), 3)", _JSMapIterator],
+    "JSMapIterator": ["new Map().entries()", _JSMapIterator],
     "JSObject": ["new Object()", _JSObject],
     "JSProxy": ["Proxy.create({})", _JSProxy],
     "JSReceiver": ["new Object()", _JSReceiver],
     "JSRegExp": ["/ab/g", _JSRegExp],
     "JSSet": ["new Set()", _JSSet],
-    "JSSetIterator": ["%SetCreateIterator(new Set(), 2)", _JSSetIterator],
+    "JSSetIterator": ["new Set().values()", _JSSetIterator],
     "JSTypedArray": ["new Int32Array(2)", _JSTypedArray],
     "JSValue": ["new String('foo')", _JSValue],
     "JSWeakCollection": ["new WeakMap()", _JSWeakCollection],

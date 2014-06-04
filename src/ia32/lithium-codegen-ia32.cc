@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "ia32/lithium-codegen-ia32.h"
-#include "ic.h"
-#include "code-stubs.h"
-#include "deoptimizer.h"
-#include "stub-cache.h"
-#include "codegen.h"
-#include "hydrogen-osr.h"
+#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ic.h"
+#include "src/code-stubs.h"
+#include "src/deoptimizer.h"
+#include "src/stub-cache.h"
+#include "src/codegen.h"
+#include "src/hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {
@@ -3995,21 +3995,12 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->hydrogen()->has_transition()) {
     Handle<Map> transition = instr->hydrogen()->transition_map();
     AddDeprecationDependency(transition);
-    if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
-      __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
-    } else {
+    __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
+    if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
       Register temp = ToRegister(instr->temp());
       Register temp_map = ToRegister(instr->temp_map());
-      __ mov(temp_map, transition);
-      __ mov(FieldOperand(object, HeapObject::kMapOffset), temp_map);
       // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          temp_map,
-                          temp,
-                          kSaveFPRegs,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
+      __ RecordWriteForMap(object, transition, temp_map, temp, kSaveFPRegs);
     }
   }
 
@@ -4050,7 +4041,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         temp,
                         kSaveFPRegs,
                         EMIT_REMEMBERED_SET,
-                        instr->hydrogen()->SmiCheckForWriteBarrier());
+                        instr->hydrogen()->SmiCheckForWriteBarrier(),
+                        instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 
@@ -4219,7 +4211,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
                    value,
                    kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
-                   check_needed);
+                   check_needed,
+                   instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 

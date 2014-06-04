@@ -2,41 +2,41 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "api.h"
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "compilation-cache.h"
-#include "conversions.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "global-handles.h"
-#include "heap-profiler.h"
-#include "incremental-marking.h"
-#include "isolate-inl.h"
-#include "mark-compact.h"
-#include "natives.h"
-#include "objects-visiting.h"
-#include "objects-visiting-inl.h"
-#include "once.h"
-#include "runtime-profiler.h"
-#include "scopeinfo.h"
-#include "snapshot.h"
-#include "store-buffer.h"
-#include "utils/random-number-generator.h"
-#include "utils.h"
-#include "v8threads.h"
-#include "vm-state-inl.h"
+#include "src/accessors.h"
+#include "src/api.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/compilation-cache.h"
+#include "src/conversions.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/global-handles.h"
+#include "src/heap-profiler.h"
+#include "src/incremental-marking.h"
+#include "src/isolate-inl.h"
+#include "src/mark-compact.h"
+#include "src/natives.h"
+#include "src/objects-visiting.h"
+#include "src/objects-visiting-inl.h"
+#include "src/once.h"
+#include "src/runtime-profiler.h"
+#include "src/scopeinfo.h"
+#include "src/snapshot.h"
+#include "src/store-buffer.h"
+#include "src/utils/random-number-generator.h"
+#include "src/utils.h"
+#include "src/v8threads.h"
+#include "src/vm-state-inl.h"
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#include "regexp-macro-assembler.h"
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 #endif
 #if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
-#include "regexp-macro-assembler.h"
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/mips/regexp-macro-assembler-mips.h"
 #endif
 
 namespace v8 {
@@ -101,6 +101,7 @@ Heap::Heap()
       promotion_rate_(0),
       semi_space_copied_object_size_(0),
       semi_space_copied_rate_(0),
+      maximum_size_scavenges_(0),
       max_gc_pause_(0.0),
       total_gc_time_ms_(0.0),
       max_alive_after_gc_(0),
@@ -145,6 +146,7 @@ Heap::Heap()
   set_native_contexts_list(NULL);
   set_array_buffers_list(Smi::FromInt(0));
   set_allocation_sites_list(Smi::FromInt(0));
+  set_encountered_weak_collections(Smi::FromInt(0));
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -438,6 +440,13 @@ void Heap::GarbageCollectionPrologue() {
   if (isolate()->concurrent_osr_enabled()) {
     isolate()->optimizing_compiler_thread()->AgeBufferedOsrJobs();
   }
+
+  if (new_space_.IsAtMaximumCapacity()) {
+    maximum_size_scavenges_++;
+  } else {
+    maximum_size_scavenges_ = 0;
+  }
+  CheckNewSpaceExpansionCriteria();
 }
 
 
@@ -485,12 +494,19 @@ void Heap::ProcessPretenuringFeedback() {
 
     // If the scratchpad overflowed, we have to iterate over the allocation
     // sites list.
+    // TODO(hpayer): We iterate over the whole list of allocation sites when
+    // we grew to the maximum semi-space size to deopt maybe tenured
+    // allocation sites. We could hold the maybe tenured allocation sites
+    // in a seperate data structure if this is a performance problem.
+    bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
     bool use_scratchpad =
-        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize;
+         allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize &&
+         !deopt_maybe_tenured;
 
     int i = 0;
     Object* list_element = allocation_sites_list();
     bool trigger_deoptimization = false;
+    bool maximum_size_scavenge = MaximumSizeScavenge();
     while (use_scratchpad ?
               i < allocation_sites_scratchpad_length_ :
               list_element->IsAllocationSite()) {
@@ -500,14 +516,22 @@ void Heap::ProcessPretenuringFeedback() {
       allocation_mementos_found += site->memento_found_count();
       if (site->memento_found_count() > 0) {
         active_allocation_sites++;
+        if (site->DigestPretenuringFeedback(maximum_size_scavenge)) {
+          trigger_deoptimization = true;
+        }
+        if (site->GetPretenureMode() == TENURED) {
+          tenure_decisions++;
+        } else {
+          dont_tenure_decisions++;
+        }
+        allocation_sites++;
       }
-      if (site->DigestPretenuringFeedback()) trigger_deoptimization = true;
-      if (site->GetPretenureMode() == TENURED) {
-        tenure_decisions++;
-      } else {
-        dont_tenure_decisions++;
+
+      if (deopt_maybe_tenured && site->IsMaybeTenure()) {
+        site->set_deopt_dependent_code(true);
+        trigger_deoptimization = true;
       }
-      allocation_sites++;
+
       if (use_scratchpad) {
         i++;
       } else {
@@ -1433,8 +1457,6 @@ void Heap::Scavenge() {
   // Used for updating survived_since_last_expansion_ at function end.
   intptr_t survived_watermark = PromotedSpaceSizeOfObjects();
 
-  CheckNewSpaceExpansionCriteria();
-
   SelectScavengingVisitorsTable();
 
   incremental_marking()->PrepareForScavenge();
@@ -1507,6 +1529,9 @@ void Heap::Scavenge() {
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(type_address));
     }
   }
+
+  // Copy objects reachable from the encountered weak collections list.
+  scavenge_visitor.VisitPointer(&encountered_weak_collections_);
 
   // Copy objects reachable from the code flushing candidates list.
   MarkCompactCollector* collector = mark_compact_collector();
@@ -1785,8 +1810,12 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 }
 
 
-STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) == 0);
-STATIC_ASSERT((ConstantPoolArray::kHeaderSize & kDoubleAlignmentMask) == 0);
+STATIC_ASSERT((FixedDoubleArray::kHeaderSize &
+               kDoubleAlignmentMask) == 0);  // NOLINT
+STATIC_ASSERT((ConstantPoolArray::kFirstEntryOffset &
+               kDoubleAlignmentMask) == 0);  // NOLINT
+STATIC_ASSERT((ConstantPoolArray::kExtendedFirstOffset &
+               kDoubleAlignmentMask) == 0);  // NOLINT
 
 
 INLINE(static HeapObject* EnsureDoubleAligned(Heap* heap,
@@ -4023,23 +4052,26 @@ AllocationResult Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
 
 AllocationResult Heap::CopyConstantPoolArrayWithMap(ConstantPoolArray* src,
                                                     Map* map) {
-  int int64_entries = src->count_of_int64_entries();
-  int code_ptr_entries = src->count_of_code_ptr_entries();
-  int heap_ptr_entries = src->count_of_heap_ptr_entries();
-  int int32_entries = src->count_of_int32_entries();
   HeapObject* obj;
-  { AllocationResult allocation =
-        AllocateConstantPoolArray(int64_entries, code_ptr_entries,
-                                  heap_ptr_entries, int32_entries);
+  if (src->is_extended_layout()) {
+    ConstantPoolArray::NumberOfEntries small(src,
+        ConstantPoolArray::SMALL_SECTION);
+    ConstantPoolArray::NumberOfEntries extended(src,
+        ConstantPoolArray::EXTENDED_SECTION);
+    AllocationResult allocation =
+        AllocateExtendedConstantPoolArray(small, extended);
+    if (!allocation.To(&obj)) return allocation;
+  } else {
+    ConstantPoolArray::NumberOfEntries small(src,
+        ConstantPoolArray::SMALL_SECTION);
+    AllocationResult allocation = AllocateConstantPoolArray(small);
     if (!allocation.To(&obj)) return allocation;
   }
   obj->set_map_no_write_barrier(map);
-  int size = ConstantPoolArray::SizeFor(
-        int64_entries, code_ptr_entries, heap_ptr_entries, int32_entries);
   CopyBlock(
-      obj->address() + ConstantPoolArray::kLengthOffset,
-      src->address() + ConstantPoolArray::kLengthOffset,
-      size - ConstantPoolArray::kLengthOffset);
+      obj->address() + ConstantPoolArray::kFirstEntryOffset,
+      src->address() + ConstantPoolArray::kFirstEntryOffset,
+      src->size() - ConstantPoolArray::kFirstEntryOffset);
   return obj;
 }
 
@@ -4131,22 +4163,10 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
 }
 
 
-AllocationResult Heap::AllocateConstantPoolArray(int number_of_int64_entries,
-                                                 int number_of_code_ptr_entries,
-                                                 int number_of_heap_ptr_entries,
-                                                 int number_of_int32_entries) {
-  CHECK(number_of_int64_entries >= 0 &&
-        number_of_int64_entries <= ConstantPoolArray::kMaxEntriesPerType &&
-        number_of_code_ptr_entries >= 0 &&
-        number_of_code_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
-        number_of_heap_ptr_entries >= 0 &&
-        number_of_heap_ptr_entries <= ConstantPoolArray::kMaxEntriesPerType &&
-        number_of_int32_entries >= 0 &&
-        number_of_int32_entries <= ConstantPoolArray::kMaxEntriesPerType);
-  int size = ConstantPoolArray::SizeFor(number_of_int64_entries,
-                                        number_of_code_ptr_entries,
-                                        number_of_heap_ptr_entries,
-                                        number_of_int32_entries);
+AllocationResult Heap::AllocateConstantPoolArray(
+      const ConstantPoolArray::NumberOfEntries& small) {
+  CHECK(small.are_in_range(0, ConstantPoolArray::kMaxSmallEntriesPerType));
+  int size = ConstantPoolArray::SizeFor(small);
 #ifndef V8_HOST_ARCH_64_BIT
   size += kPointerSize;
 #endif
@@ -4160,39 +4180,47 @@ AllocationResult Heap::AllocateConstantPoolArray(int number_of_int64_entries,
   object->set_map_no_write_barrier(constant_pool_array_map());
 
   ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
-  constant_pool->Init(number_of_int64_entries,
-                      number_of_code_ptr_entries,
-                      number_of_heap_ptr_entries,
-                      number_of_int32_entries);
-  if (number_of_code_ptr_entries > 0) {
-    int offset =
-        constant_pool->OffsetOfElementAt(constant_pool->first_code_ptr_index());
-    MemsetPointer(
-        reinterpret_cast<Address*>(HeapObject::RawField(constant_pool, offset)),
-        isolate()->builtins()->builtin(Builtins::kIllegal)->entry(),
-        number_of_code_ptr_entries);
+  constant_pool->Init(small);
+  constant_pool->ClearPtrEntries(isolate());
+  return constant_pool;
+}
+
+
+AllocationResult Heap::AllocateExtendedConstantPoolArray(
+    const ConstantPoolArray::NumberOfEntries& small,
+    const ConstantPoolArray::NumberOfEntries& extended) {
+  CHECK(small.are_in_range(0, ConstantPoolArray::kMaxSmallEntriesPerType));
+  CHECK(extended.are_in_range(0, kMaxInt));
+  int size = ConstantPoolArray::SizeForExtended(small, extended);
+#ifndef V8_HOST_ARCH_64_BIT
+  size += kPointerSize;
+#endif
+  AllocationSpace space = SelectSpace(size, OLD_POINTER_SPACE, TENURED);
+
+  HeapObject* object;
+  { AllocationResult allocation = AllocateRaw(size, space, OLD_POINTER_SPACE);
+    if (!allocation.To(&object)) return allocation;
   }
-  if (number_of_heap_ptr_entries > 0) {
-    int offset =
-        constant_pool->OffsetOfElementAt(constant_pool->first_heap_ptr_index());
-    MemsetPointer(
-        HeapObject::RawField(constant_pool, offset),
-        undefined_value(),
-        number_of_heap_ptr_entries);
-  }
+  object = EnsureDoubleAligned(this, object, size);
+  object->set_map_no_write_barrier(constant_pool_array_map());
+
+  ConstantPoolArray* constant_pool = ConstantPoolArray::cast(object);
+  constant_pool->InitExtended(small, extended);
+  constant_pool->ClearPtrEntries(isolate());
   return constant_pool;
 }
 
 
 AllocationResult Heap::AllocateEmptyConstantPoolArray() {
-  int size = ConstantPoolArray::SizeFor(0, 0, 0, 0);
+  ConstantPoolArray::NumberOfEntries small(0, 0, 0, 0);
+  int size = ConstantPoolArray::SizeFor(small);
   HeapObject* result;
   { AllocationResult allocation =
         AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
   result->set_map_no_write_barrier(constant_pool_array_map());
-  ConstantPoolArray::cast(result)->Init(0, 0, 0, 0);
+  ConstantPoolArray::cast(result)->Init(small);
   return result;
 }
 
@@ -4937,7 +4965,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
     max_semi_space_size_ = Page::kPageSize;
   }
 
-  if (Snapshot::IsEnabled()) {
+  if (Snapshot::HaveASnapshotToStartFrom()) {
     // If we are using a snapshot we always reserve the default amount
     // of memory for each semispace because code in the snapshot has
     // write-barrier code that relies on the size and alignment of new
@@ -5837,9 +5865,8 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
 
   HeapObject* obj = HeapObject::cast(*p);
 
-  Object* map = obj->map();
-
-  if (!map->IsHeapObject()) return;  // visited before
+  MapWord map_word = obj->map_word();
+  if (!map_word.ToMap()->IsHeapObject()) return;  // visited before
 
   if (found_target_in_trace_) return;  // stop if target found
   object_stack_.Add(obj);
@@ -5853,11 +5880,11 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   bool is_native_context = SafeIsNativeContext(obj);
 
   // not visited yet
-  Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
+  Map* map = Map::cast(map_word.ToMap());
 
-  Address map_addr = map_p->address();
-
-  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
+  MapWord marked_map_word =
+      MapWord::FromRawValue(obj->map_word().ToRawValue() + kMarkTag);
+  obj->set_map_word(marked_map_word);
 
   // Scan the object body.
   if (is_native_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
@@ -5868,17 +5895,16 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
         Context::kHeaderSize + Context::FIRST_WEAK_SLOT * kPointerSize);
     mark_visitor->VisitPointers(start, end);
   } else {
-    obj->IterateBody(map_p->instance_type(),
-                     obj->SizeFromMap(map_p),
-                     mark_visitor);
+    obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), mark_visitor);
   }
 
   // Scan the map after the body because the body is a lot more interesting
   // when doing leak detection.
-  MarkRecursively(&map, mark_visitor);
+  MarkRecursively(reinterpret_cast<Object**>(&map), mark_visitor);
 
-  if (!found_target_in_trace_)  // don't pop if found the target
+  if (!found_target_in_trace_) {  // don't pop if found the target
     object_stack_.RemoveLast();
+  }
 }
 
 
@@ -5887,25 +5913,18 @@ void PathTracer::UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor) {
 
   HeapObject* obj = HeapObject::cast(*p);
 
-  Object* map = obj->map();
+  MapWord map_word = obj->map_word();
+  if (map_word.ToMap()->IsHeapObject()) return;  // unmarked already
 
-  if (map->IsHeapObject()) return;  // unmarked already
+  MapWord unmarked_map_word =
+      MapWord::FromRawValue(map_word.ToRawValue() - kMarkTag);
+  obj->set_map_word(unmarked_map_word);
 
-  Address map_addr = reinterpret_cast<Address>(map);
+  Map* map = Map::cast(unmarked_map_word.ToMap());
 
-  map_addr -= kMarkTag;
+  UnmarkRecursively(reinterpret_cast<Object**>(&map), unmark_visitor);
 
-  ASSERT_TAG_ALIGNED(map_addr);
-
-  HeapObject* map_p = HeapObject::FromAddress(map_addr);
-
-  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_p));
-
-  UnmarkRecursively(reinterpret_cast<Object**>(&map_p), unmark_visitor);
-
-  obj->IterateBody(Map::cast(map_p)->instance_type(),
-                   obj->SizeFromMap(Map::cast(map_p)),
-                   unmark_visitor);
+  obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), unmark_visitor);
 }
 
 

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bootstrapper.h"
-#include "debug.h"
-#include "scopeinfo.h"
+#include "src/bootstrapper.h"
+#include "src/debug.h"
+#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {

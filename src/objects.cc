@@ -2,37 +2,37 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "allocation-site-scopes.h"
-#include "api.h"
-#include "arguments.h"
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "code-stubs.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "date.h"
-#include "elements.h"
-#include "execution.h"
-#include "full-codegen.h"
-#include "hydrogen.h"
-#include "isolate-inl.h"
-#include "log.h"
-#include "objects-inl.h"
-#include "objects-visiting-inl.h"
-#include "macro-assembler.h"
-#include "mark-compact.h"
-#include "safepoint-table.h"
-#include "string-search.h"
-#include "string-stream.h"
-#include "utils.h"
+#include "src/accessors.h"
+#include "src/allocation-site-scopes.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/code-stubs.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/date.h"
+#include "src/elements.h"
+#include "src/execution.h"
+#include "src/full-codegen.h"
+#include "src/hydrogen.h"
+#include "src/isolate-inl.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
+#include "src/objects-visiting-inl.h"
+#include "src/macro-assembler.h"
+#include "src/mark-compact.h"
+#include "src/safepoint-table.h"
+#include "src/string-search.h"
+#include "src/string-stream.h"
+#include "src/utils.h"
 
 #ifdef ENABLE_DISASSEMBLER
-#include "disasm.h"
-#include "disassembler.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
 #endif
 
 namespace v8 {
@@ -5214,7 +5214,8 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
   if (inline_value->IsUndefined() || inline_value->IsSmi()) return;
 
   Handle<ObjectHashTable> hashtable(ObjectHashTable::cast(inline_value));
-  ObjectHashTable::Put(hashtable, key, isolate->factory()->the_hole_value());
+  bool was_present = false;
+  ObjectHashTable::Remove(hashtable, key, &was_present);
 }
 
 
@@ -9862,13 +9863,36 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  for (int i = 0; i < count_of_code_ptr_entries(); i++) {
-    int index = first_code_ptr_index() + i;
-    v->VisitCodeEntry(reinterpret_cast<Address>(RawFieldOfElementAt(index)));
+  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
+  while (!code_iter.is_finished()) {
+    v->VisitCodeEntry(reinterpret_cast<Address>(
+        RawFieldOfElementAt(code_iter.next_index())));
   }
-  for (int i = 0; i < count_of_heap_ptr_entries(); i++) {
-    int index = first_heap_ptr_index() + i;
-    v->VisitPointer(RawFieldOfElementAt(index));
+
+  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
+  while (!heap_iter.is_finished()) {
+    v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+  }
+}
+
+
+void ConstantPoolArray::ClearPtrEntries(Isolate* isolate) {
+  Type type[] = { CODE_PTR, HEAP_PTR };
+  Address default_value[] = {
+        isolate->builtins()->builtin(Builtins::kIllegal)->entry(),
+        reinterpret_cast<Address>(isolate->heap()->undefined_value()) };
+
+  for (int i = 0; i < 2; ++i) {
+    for (int s = 0; s <= final_section(); ++s) {
+      LayoutSection section = static_cast<LayoutSection>(s);
+      if (number_of_entries(type[i], section) > 0) {
+        int offset = OffsetOfElementAt(first_index(type[i], section));
+        MemsetPointer(
+          reinterpret_cast<Address*>(HeapObject::RawField(this, offset)),
+          default_value[i],
+          number_of_entries(type[i], section));
+      }
+    }
   }
 }
 
@@ -13302,6 +13326,19 @@ void AllocationSite::AddDependentCompilationInfo(Handle<AllocationSite> site,
 }
 
 
+const char* AllocationSite::PretenureDecisionName(PretenureDecision decision) {
+  switch (decision) {
+    case kUndecided: return "undecided";
+    case kDontTenure: return "don't tenure";
+    case kMaybeTenure: return "maybe tenure";
+    case kTenure: return "tenure";
+    case kZombie: return "zombie";
+    default: UNREACHABLE();
+  }
+  return NULL;
+}
+
+
 void JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
   if (!object->IsJSArray()) return;
@@ -16039,6 +16076,7 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                                              Handle<Object> key,
                                              Handle<Object> value) {
   ASSERT(table->IsKey(*key));
+  ASSERT(!value->IsTheHole());
 
   Isolate* isolate = table->GetIsolate();
 
@@ -16046,13 +16084,6 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
   Handle<Smi> hash = Object::GetOrCreateHash(isolate, key);
 
   int entry = table->FindEntry(key);
-
-  // Check whether to perform removal operation.
-  if (value->IsTheHole()) {
-    if (entry == kNotFound) return table;
-    table->RemoveEntry(entry);
-    return Shrink(table, key);
-  }
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
@@ -16066,6 +16097,29 @@ Handle<ObjectHashTable> ObjectHashTable::Put(Handle<ObjectHashTable> table,
                   *key,
                   *value);
   return table;
+}
+
+
+Handle<ObjectHashTable> ObjectHashTable::Remove(Handle<ObjectHashTable> table,
+                                                Handle<Object> key,
+                                                bool* was_present) {
+  ASSERT(table->IsKey(*key));
+
+  Object* hash = key->GetHash();
+  if (hash->IsUndefined()) {
+    *was_present = false;
+    return table;
+  }
+
+  int entry = table->FindEntry(key);
+  if (entry == kNotFound) {
+    *was_present = false;
+    return table;
+  }
+
+  *was_present = true;
+  table->RemoveEntry(entry);
+  return Shrink(table, key);
 }
 
 
@@ -16201,6 +16255,20 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
 
 
 template<class Derived, class Iterator, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Remove(
+    Handle<Derived> table, Handle<Object> key, bool* was_present) {
+  int entry = table->FindEntry(key);
+  if (entry == kNotFound) {
+    *was_present = false;
+    return table;
+  }
+  *was_present = true;
+  table->RemoveEntry(entry);
+  return Shrink(table);
+}
+
+
+template<class Derived, class Iterator, int entrysize>
 Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   ASSERT(!table->IsObsolete());
@@ -16309,6 +16377,10 @@ template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Clear(
     Handle<OrderedHashSet> table);
 
+template Handle<OrderedHashSet>
+OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Remove(
+    Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
+
 template int
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
     Handle<Object> key);
@@ -16335,6 +16407,10 @@ OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Shrink(
 template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Clear(
     Handle<OrderedHashMap> table);
+
+template Handle<OrderedHashMap>
+OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Remove(
+    Handle<OrderedHashMap> table, Handle<Object> key, bool* was_present);
 
 template int
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
@@ -16365,20 +16441,6 @@ Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
 }
 
 
-Handle<OrderedHashSet> OrderedHashSet::Remove(Handle<OrderedHashSet> table,
-                                              Handle<Object> key,
-                                              bool* was_present) {
-  int entry = table->FindEntry(key);
-  if (entry == kNotFound) {
-    *was_present = false;
-    return table;
-  }
-  *was_present = true;
-  table->RemoveEntry(entry);
-  return Shrink(table);
-}
-
-
 Object* OrderedHashMap::Lookup(Handle<Object> key) {
   DisallowHeapAllocation no_gc;
   int entry = FindEntry(key);
@@ -16390,13 +16452,9 @@ Object* OrderedHashMap::Lookup(Handle<Object> key) {
 Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
                                            Handle<Object> key,
                                            Handle<Object> value) {
-  int entry = table->FindEntry(key);
+  ASSERT(!key->IsTheHole());
 
-  if (value->IsTheHole()) {
-    if (entry == kNotFound) return table;
-    table->RemoveEntry(entry);
-    return Shrink(table);
-  }
+  int entry = table->FindEntry(key);
 
   if (entry != kNotFound) {
     table->set(table->EntryToIndex(entry) + kValueOffset, *value);
@@ -16480,32 +16538,12 @@ void OrderedHashTableIterator<Derived, TableType>::Transition() {
 }
 
 
-template<class Derived, class TableType>
-Handle<Derived> OrderedHashTableIterator<Derived, TableType>::CreateInternal(
-    Handle<Map> map,
-    Handle<TableType> table,
-    int kind) {
-  Isolate* isolate = table->GetIsolate();
-
-  Handle<Derived> new_iterator = Handle<Derived>::cast(
-      isolate->factory()->NewJSObjectFromMap(map));
-  new_iterator->set_table(*table);
-  new_iterator->set_index(Smi::FromInt(0));
-  new_iterator->set_kind(Smi::FromInt(kind));
-  return new_iterator;
-}
-
-
 template Handle<JSObject>
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Next(
     Handle<JSSetIterator> iterator);
 
 template void
 OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::Transition();
-
-template Handle<JSSetIterator>
-OrderedHashTableIterator<JSSetIterator, OrderedHashSet>::CreateInternal(
-    Handle<Map> map, Handle<OrderedHashSet> table, int kind);
 
 
 template Handle<JSObject>
@@ -16514,10 +16552,6 @@ OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Next(
 
 template void
 OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::Transition();
-
-template Handle<JSMapIterator>
-OrderedHashTableIterator<JSMapIterator, OrderedHashMap>::CreateInternal(
-    Handle<Map> map, Handle<OrderedHashMap> table, int kind);
 
 
 Handle<Object> JSSetIterator::ValueForKind(

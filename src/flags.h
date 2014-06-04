@@ -5,15 +5,15 @@
 #ifndef V8_FLAGS_H_
 #define V8_FLAGS_H_
 
-#include "atomicops.h"
-#include "globals.h"
+#include "src/atomicops.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
-#include "flag-definitions.h"
+#include "src/flag-definitions.h"
 
 // The global list of all flags.
 class FlagList {

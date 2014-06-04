@@ -5,7 +5,7 @@
 #ifndef V8_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "ast.h"
+#include "src/ast.h"
 
 namespace v8 {
 namespace internal {

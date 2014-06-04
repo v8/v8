@@ -104,7 +104,7 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
       .. " -D" .. arch_define
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -DV8_I18N_SUPPORT"
-      .. " -Isrc"
+      .. " -I./"
       .. " -Ithird_party/icu/source/common"
       .. " -Ithird_party/icu/source/i18n"
 end

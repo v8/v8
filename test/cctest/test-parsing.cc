@@ -29,18 +29,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "cctest.h"
-#include "compiler.h"
-#include "execution.h"
-#include "isolate.h"
-#include "objects.h"
-#include "parser.h"
-#include "preparser.h"
-#include "scanner-character-streams.h"
-#include "token.h"
-#include "utils.h"
+#include "src/compiler.h"
+#include "src/execution.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/parser.h"
+#include "src/preparser.h"
+#include "src/scanner-character-streams.h"
+#include "src/token.h"
+#include "src/utils.h"
+#include "test/cctest/cctest.h"
 
 TEST(ScanKeywords) {
   struct KeywordToken {
@@ -2456,4 +2456,94 @@ TEST(InvalidLeftHandSide) {
 
   RunParserSyncTest(postfix_context_data, good_statement_data, kSuccess);
   RunParserSyncTest(postfix_context_data, bad_statement_data_common, kError);
+}
+
+
+TEST(FuncNameInferrerBasic) {
+  // Tests that function names are inferred properly.
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  CompileRun("var foo1 = function() {}; "
+             "var foo2 = function foo3() {}; "
+             "function not_ctor() { "
+             "  var foo4 = function() {}; "
+             "  return %FunctionGetInferredName(foo4); "
+             "} "
+             "function Ctor() { "
+             "  var foo5 = function() {}; "
+             "  return %FunctionGetInferredName(foo5); "
+             "} "
+             "var obj1 = { foo6: function() {} }; "
+             "var obj2 = { 'foo7': function() {} }; "
+             "var obj3 = {}; "
+             "obj3[1] = function() {}; "
+             "var obj4 = {}; "
+             "obj4[1] = function foo8() {}; "
+             "var obj5 = {}; "
+             "obj5['foo9'] = function() {}; "
+             "var obj6 = { obj7 : { foo10: function() {} } };");
+  ExpectString("%FunctionGetInferredName(foo1)", "foo1");
+  // foo2 is not unnamed -> its name is not inferred.
+  ExpectString("%FunctionGetInferredName(foo2)", "");
+  ExpectString("not_ctor()", "foo4");
+  ExpectString("Ctor()", "Ctor.foo5");
+  ExpectString("%FunctionGetInferredName(obj1.foo6)", "obj1.foo6");
+  ExpectString("%FunctionGetInferredName(obj2.foo7)", "obj2.foo7");
+  ExpectString("%FunctionGetInferredName(obj3[1])",
+               "obj3.(anonymous function)");
+  ExpectString("%FunctionGetInferredName(obj4[1])", "");
+  ExpectString("%FunctionGetInferredName(obj5['foo9'])", "obj5.foo9");
+  ExpectString("%FunctionGetInferredName(obj6.obj7.foo10)", "obj6.obj7.foo10");
+}
+
+
+TEST(FuncNameInferrerTwoByte) {
+  // Tests function name inferring in cases where some parts of the inferred
+  // function name are two-byte strings.
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  uint16_t* two_byte_source = AsciiToTwoByteString(
+      "var obj1 = { oXj2 : { foo1: function() {} } }; "
+      "%FunctionGetInferredName(obj1.oXj2.foo1)");
+  uint16_t* two_byte_name = AsciiToTwoByteString("obj1.oXj2.foo1");
+  // Make it really non-ASCII (replace the Xs with a non-ASCII character).
+  two_byte_source[14] = two_byte_source[78] = two_byte_name[6] = 0x010d;
+  v8::Local<v8::String> source =
+      v8::String::NewFromTwoByte(isolate, two_byte_source);
+  v8::Local<v8::Value> result = CompileRun(source);
+  CHECK(result->IsString());
+  v8::Local<v8::String> expected_name =
+      v8::String::NewFromTwoByte(isolate, two_byte_name);
+  CHECK(result->Equals(expected_name));
+  i::DeleteArray(two_byte_source);
+  i::DeleteArray(two_byte_name);
+}
+
+
+TEST(FuncNameInferrerEscaped) {
+  // The same as FuncNameInferrerTwoByte, except that we express the two-byte
+  // character as a unicode escape.
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  uint16_t* two_byte_source = AsciiToTwoByteString(
+      "var obj1 = { o\\u010dj2 : { foo1: function() {} } }; "
+      "%FunctionGetInferredName(obj1.o\\u010dj2.foo1)");
+  uint16_t* two_byte_name = AsciiToTwoByteString("obj1.oXj2.foo1");
+  // Fix to correspond to the non-ASCII name in two_byte_source.
+  two_byte_name[6] = 0x010d;
+  v8::Local<v8::String> source =
+      v8::String::NewFromTwoByte(isolate, two_byte_source);
+  v8::Local<v8::Value> result = CompileRun(source);
+  CHECK(result->IsString());
+  v8::Local<v8::String> expected_name =
+      v8::String::NewFromTwoByte(isolate, two_byte_name);
+  CHECK(result->Equals(expected_name));
+  i::DeleteArray(two_byte_source);
+  i::DeleteArray(two_byte_name);
 }

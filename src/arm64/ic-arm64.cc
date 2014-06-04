@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "arm64/assembler-arm64.h"
-#include "code-stubs.h"
-#include "codegen.h"
-#include "disasm.h"
-#include "ic-inl.h"
-#include "runtime.h"
-#include "stub-cache.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/disasm.h"
+#include "src/ic-inl.h"
+#include "src/runtime.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

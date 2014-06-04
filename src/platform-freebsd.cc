@@ -27,10 +27,10 @@
 
 #undef MAP_TYPE
 
-#include "v8.h"
-#include "v8threads.h"
+#include "src/v8.h"
+#include "src/v8threads.h"
 
-#include "platform.h"
+#include "src/platform.h"
 
 
 namespace v8 {

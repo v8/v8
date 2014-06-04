@@ -5,9 +5,9 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
-#include "allocation.h"
-#include "handles.h"
-#include "safepoint-table.h"
+#include "src/allocation.h"
+#include "src/handles.h"
+#include "src/safepoint-table.h"
 
 namespace v8 {
 namespace internal {

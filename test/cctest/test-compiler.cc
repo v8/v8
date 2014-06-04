@@ -28,11 +28,11 @@
 #include <stdlib.h>
 #include <wchar.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "compiler.h"
-#include "disasm.h"
-#include "cctest.h"
+#include "src/compiler.h"
+#include "src/disasm.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

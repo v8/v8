@@ -37,10 +37,10 @@
 #ifndef V8_MIPS_ASSEMBLER_MIPS_INL_H_
 #define V8_MIPS_ASSEMBLER_MIPS_INL_H_
 
-#include "mips/assembler-mips.h"
+#include "src/mips/assembler-mips.h"
 
-#include "cpu.h"
-#include "debug.h"
+#include "src/cpu.h"
+#include "src/debug.h"
 
 
 namespace v8 {

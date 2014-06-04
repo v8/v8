@@ -25,9 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "platform.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "src/platform.h"
+#include "test/cctest/cctest.h"
 
 
 v8::internal::Semaphore* semaphore = NULL;

@@ -6,8 +6,8 @@
 #define V8_ARM64_UTILS_ARM64_H_
 
 #include <cmath>
-#include "v8.h"
-#include "arm64/constants-arm64.h"
+#include "src/v8.h"
+#include "src/arm64/constants-arm64.h"
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \

@@ -345,7 +345,7 @@ def Main(args):
 
   if not options.arch in SUPPORTED_ARCHS:  # pragma: no cover
     print "Unknown architecture %s" % options.arch
-    return False
+    return 1
 
   workspace = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -394,6 +394,8 @@ def Main(args):
     results.WriteToFile(options.json_test_results)
   else:  # pragma: no cover
     print results
+
+  return min(1, len(results.errors))
 
 if __name__ == "__main__":  # pragma: no cover
   sys.exit(Main(sys.argv[1:]))

@@ -5,11 +5,11 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "macro-assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/macro-assembler.h"
+#include "src/zone-inl.h"
 
 
 namespace v8 {

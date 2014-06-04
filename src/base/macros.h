@@ -5,7 +5,7 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
-#include "../../include/v8stdint.h"
+#include "include/v8stdint.h"
 
 
 // The expression OFFSET_OF(type, field) computes the byte-offset

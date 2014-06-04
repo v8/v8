@@ -5,7 +5,7 @@
 #ifndef V8_V8CHECKS_H_
 #define V8_V8CHECKS_H_
 
-#include "checks.h"
+#include "src/checks.h"
 
 namespace v8 {
   class Value;

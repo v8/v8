@@ -27,18 +27,18 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "cctest.h"
-#include "compilation-cache.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "frames.h"
-#include "platform.h"
-#include "platform/condition-variable.h"
-#include "stub-cache.h"
-#include "utils.h"
+#include "src/api.h"
+#include "src/compilation-cache.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/frames.h"
+#include "src/platform.h"
+#include "src/platform/condition-variable.h"
+#include "src/stub-cache.h"
+#include "src/utils.h"
+#include "test/cctest/cctest.h"
 
 
 using ::v8::internal::Mutex;

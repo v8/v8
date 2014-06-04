@@ -10,7 +10,7 @@
 // The readline includes leaves RETURN defined which breaks V8 compilation.
 #undef RETURN
 
-#include "d8.h"
+#include "src/d8.h"
 
 // There are incompatibilities between different versions and different
 // implementations of readline.  This smooths out one known incompatibility.

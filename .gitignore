@@ -39,6 +39,7 @@ shell_g
 /build/gyp
 /build/ipch/
 /build/Release
+/buildtools
 /hydrogen.cfg
 /obj
 /out

@@ -5,7 +5,7 @@
 #ifndef V8_OBJECTS_VISITING_H_
 #define V8_OBJECTS_VISITING_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.

@@ -6,12 +6,12 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_X64
 
-#include "disasm.h"
-#include "lazy-instance.h"
+#include "src/disasm.h"
+#include "src/lazy-instance.h"
 
 namespace disasm {
 

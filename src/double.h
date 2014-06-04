@@ -5,7 +5,7 @@
 #ifndef V8_DOUBLE_H_
 #define V8_DOUBLE_H_
 
-#include "diy-fp.h"
+#include "src/diy-fp.h"
 
 namespace v8 {
 namespace internal {

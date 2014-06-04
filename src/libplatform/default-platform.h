@@ -7,10 +7,10 @@
 
 #include <vector>
 
-#include "../../include/v8-platform.h"
-#include "../base/macros.h"
-#include "../platform/mutex.h"
-#include "task-queue.h"
+#include "include/v8-platform.h"
+#include "src/base/macros.h"
+#include "src/platform/mutex.h"
+#include "src/libplatform/task-queue.h"
 
 namespace v8 {
 namespace internal {

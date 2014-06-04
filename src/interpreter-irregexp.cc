@@ -5,14 +5,14 @@
 // A simple interpreter for the Irregexp byte code.
 
 
-#include "v8.h"
-#include "unicode.h"
-#include "utils.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-#include "interpreter-irregexp.h"
-#include "jsregexp.h"
-#include "regexp-macro-assembler.h"
+#include "src/v8.h"
+#include "src/unicode.h"
+#include "src/utils.h"
+#include "src/ast.h"
+#include "src/bytecodes-irregexp.h"
+#include "src/interpreter-irregexp.h"
+#include "src/jsregexp.h"
+#include "src/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {

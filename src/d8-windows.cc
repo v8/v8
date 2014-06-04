@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 
-#include "d8.h"
-#include "d8-debug.h"
-#include "debug.h"
-#include "api.h"
+#include "src/d8.h"
+#include "src/d8-debug.h"
+#include "src/debug.h"
+#include "src/api.h"
 
 
 namespace v8 {

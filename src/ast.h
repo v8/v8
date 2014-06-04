@@ -5,23 +5,23 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assembler.h"
-#include "factory.h"
-#include "feedback-slots.h"
-#include "isolate.h"
-#include "jsregexp.h"
-#include "list-inl.h"
-#include "runtime.h"
-#include "small-pointer-list.h"
-#include "smart-pointers.h"
-#include "token.h"
-#include "types.h"
-#include "utils.h"
-#include "variables.h"
-#include "interface.h"
-#include "zone-inl.h"
+#include "src/assembler.h"
+#include "src/factory.h"
+#include "src/feedback-slots.h"
+#include "src/isolate.h"
+#include "src/jsregexp.h"
+#include "src/list-inl.h"
+#include "src/runtime.h"
+#include "src/small-pointer-list.h"
+#include "src/smart-pointers.h"
+#include "src/token.h"
+#include "src/types.h"
+#include "src/utils.h"
+#include "src/variables.h"
+#include "src/interface.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1350,20 +1350,6 @@ class Literal V8_FINAL : public Expression {
   }
   virtual bool ToBooleanIsFalse() const V8_OVERRIDE {
     return !value_->BooleanValue();
-  }
-
-  // Identity testers.
-  bool IsNull() const {
-    ASSERT(!value_.is_null());
-    return value_->IsNull();
-  }
-  bool IsTrue() const {
-    ASSERT(!value_.is_null());
-    return value_->IsTrue();
-  }
-  bool IsFalse() const {
-    ASSERT(!value_.is_null());
-    return value_->IsFalse();
   }
 
   Handle<Object> value() const { return value_; }

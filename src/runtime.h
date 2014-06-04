@@ -5,8 +5,8 @@
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
 
-#include "allocation.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -272,8 +272,8 @@ namespace internal {
   F(SetDelete, 2, 1) \
   F(SetClear, 1, 1) \
   F(SetGetSize, 1, 1) \
-  F(SetCreateIterator, 2, 1) \
   \
+  F(SetIteratorInitialize, 3, 1) \
   F(SetIteratorNext, 1, 1) \
   \
   /* Harmony maps */ \
@@ -284,8 +284,8 @@ namespace internal {
   F(MapClear, 1, 1) \
   F(MapSet, 3, 1) \
   F(MapGetSize, 1, 1) \
-  F(MapCreateIterator, 2, 1) \
   \
+  F(MapIteratorInitialize, 3, 1) \
   F(MapIteratorNext, 1, 1) \
   \
   /* Harmony weak maps and sets */ \

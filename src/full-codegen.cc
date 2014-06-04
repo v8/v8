@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "codegen.h"
-#include "compiler.h"
-#include "debug.h"
-#include "full-codegen.h"
-#include "liveedit.h"
-#include "macro-assembler.h"
-#include "prettyprinter.h"
-#include "scopes.h"
-#include "scopeinfo.h"
-#include "snapshot.h"
-#include "stub-cache.h"
+#include "src/codegen.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/full-codegen.h"
+#include "src/liveedit.h"
+#include "src/macro-assembler.h"
+#include "src/prettyprinter.h"
+#include "src/scopes.h"
+#include "src/scopeinfo.h"
+#include "src/snapshot.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

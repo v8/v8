@@ -6,10 +6,10 @@
 #include <limits.h>
 #include <cmath>
 
-#include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "cached-powers.h"
+#include "include/v8stdint.h"
+#include "src/globals.h"
+#include "src/checks.h"
+#include "src/cached-powers.h"
 
 namespace v8 {
 namespace internal {

@@ -178,6 +178,7 @@ DEFINE_implication(harmony, harmony_numeric_literals)
 DEFINE_implication(harmony, harmony_strings)
 DEFINE_implication(harmony, harmony_arrays)
 DEFINE_implication(harmony_modules, harmony_scoping)
+DEFINE_implication(harmony_collections, harmony_symbols)
 
 DEFINE_implication(harmony, es_staging)
 DEFINE_implication(es_staging, harmony_maths)
@@ -636,8 +637,8 @@ DEFINE_string(raw_file, NULL, "A file to write the raw snapshot bytes to. "
                               "(mksnapshot only)")
 DEFINE_string(raw_context_file, NULL, "A file to write the raw context "
                                       "snapshot bytes to. (mksnapshot only)")
-DEFINE_bool(omit, false, "Omit raw snapshot bytes in generated code. "
-                         "(mksnapshot only)")
+DEFINE_string(startup_blob, NULL, "Write V8 startup blob file. "
+                                  "(mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,

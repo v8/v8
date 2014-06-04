@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "bootstrapper.h"
+#include "src/bootstrapper.h"
 
-#include "accessors.h"
-#include "isolate-inl.h"
-#include "natives.h"
-#include "snapshot.h"
-#include "trig-table.h"
-#include "extensions/externalize-string-extension.h"
-#include "extensions/free-buffer-extension.h"
-#include "extensions/gc-extension.h"
-#include "extensions/statistics-extension.h"
-#include "extensions/trigger-failure-extension.h"
-#include "code-stubs.h"
+#include "src/accessors.h"
+#include "src/isolate-inl.h"
+#include "src/natives.h"
+#include "src/snapshot.h"
+#include "src/trig-table.h"
+#include "src/extensions/externalize-string-extension.h"
+#include "src/extensions/free-buffer-extension.h"
+#include "src/extensions/gc-extension.h"
+#include "src/extensions/statistics-extension.h"
+#include "src/extensions/trigger-failure-extension.h"
+#include "src/code-stubs.h"
 
 namespace v8 {
 namespace internal {
@@ -1343,16 +1343,24 @@ void Genesis::InitializeExperimentalGlobal() {
     InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
                     isolate()->initial_object_prototype(), Builtins::kIllegal);
     {   // -- S e t I t e r a t o r
-      Handle<Map> map = isolate()->factory()->NewMap(
-          JS_SET_ITERATOR_TYPE, JSSetIterator::kSize);
-      map->set_constructor(native_context()->closure());
-      native_context()->set_set_iterator_map(*map);
+      Handle<JSObject> builtins(native_context()->builtins());
+      Handle<JSFunction> set_iterator_function =
+          InstallFunction(builtins, "SetIterator", JS_SET_ITERATOR_TYPE,
+                          JSSetIterator::kSize,
+                          isolate()->initial_object_prototype(),
+                          Builtins::kIllegal);
+      native_context()->set_set_iterator_map(
+          set_iterator_function->initial_map());
     }
     {   // -- M a p I t e r a t o r
-      Handle<Map> map = isolate()->factory()->NewMap(
-          JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize);
-      map->set_constructor(native_context()->closure());
-      native_context()->set_map_iterator_map(*map);
+      Handle<JSObject> builtins(native_context()->builtins());
+      Handle<JSFunction> map_iterator_function =
+          InstallFunction(builtins, "MapIterator", JS_MAP_ITERATOR_TYPE,
+                          JSMapIterator::kSize,
+                          isolate()->initial_object_prototype(),
+                          Builtins::kIllegal);
+      native_context()->set_map_iterator_map(
+          map_iterator_function->initial_map());
     }
   }
 
@@ -2009,6 +2017,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")

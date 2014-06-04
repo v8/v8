@@ -44,7 +44,7 @@
       ],
       # Generated source files need this explicitly:
       'include_dirs+': [
-        '../src',
+        '..',
       ],
       'sources': [
         'd8.cc',

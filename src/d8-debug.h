@@ -6,8 +6,8 @@
 #define V8_D8_DEBUG_H_
 
 
-#include "d8.h"
-#include "debug.h"
+#include "src/d8.h"
+#include "src/debug.h"
 
 
 namespace v8 {

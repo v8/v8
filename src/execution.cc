@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "execution.h"
+#include "src/execution.h"
 
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "isolate-inl.h"
-#include "vm-state-inl.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/isolate-inl.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,7 @@
 #ifndef V8_UTILS_RANDOM_NUMBER_GENERATOR_H_
 #define V8_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
-#include "globals.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

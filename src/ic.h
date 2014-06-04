@@ -5,7 +5,7 @@
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
-#include "macro-assembler.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "full-codegen.h"
-#include "macro-assembler.h"
-#include "mark-compact.h"
-#include "msan.h"
-#include "platform.h"
+#include "src/full-codegen.h"
+#include "src/macro-assembler.h"
+#include "src/mark-compact.h"
+#include "src/msan.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

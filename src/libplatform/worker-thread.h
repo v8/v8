@@ -7,8 +7,8 @@
 
 #include <queue>
 
-#include "../base/macros.h"
-#include "../platform.h"
+#include "src/base/macros.h"
+#include "src/platform.h"
 
 namespace v8 {
 

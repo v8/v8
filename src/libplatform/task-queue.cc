@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "task-queue.h"
+#include "src/libplatform/task-queue.h"
 
 // TODO(jochen): We should have our own version of checks.h.
-#include "../checks.h"
+#include "src/checks.h"
 
 namespace v8 {
 namespace internal {

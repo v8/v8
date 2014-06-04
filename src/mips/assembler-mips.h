@@ -38,9 +38,9 @@
 
 #include <stdio.h>
 
-#include "assembler.h"
-#include "constants-mips.h"
-#include "serialize.h"
+#include "src/assembler.h"
+#include "src/mips/constants-mips.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {

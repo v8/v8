@@ -5,22 +5,22 @@
 #ifndef V8_FRAMES_INL_H_
 #define V8_FRAMES_INL_H_
 
-#include "frames.h"
-#include "isolate.h"
-#include "v8memory.h"
+#include "src/frames.h"
+#include "src/isolate.h"
+#include "src/v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "ia32/frames-ia32.h"
+#include "src/ia32/frames-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/frames-x64.h"
+#include "src/x64/frames-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/frames-arm64.h"
+#include "src/arm64/frames-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/frames-arm.h"
+#include "src/arm/frames-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/frames-mips.h"
+#include "src/mips/frames-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/frames-x87.h"
+#include "src/x87/frames-x87.h"
 #else
 #error Unsupported target architecture.
 #endif

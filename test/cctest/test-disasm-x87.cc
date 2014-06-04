@@ -27,15 +27,15 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "debug.h"
-#include "disasm.h"
-#include "disassembler.h"
-#include "macro-assembler.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "cctest.h"
+#include "src/debug.h"
+#include "src/disasm.h"
+#include "src/disassembler.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

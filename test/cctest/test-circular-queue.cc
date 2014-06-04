@@ -27,9 +27,9 @@
 //
 // Tests of the circular queue.
 
-#include "v8.h"
-#include "circular-queue-inl.h"
-#include "cctest.h"
+#include "src/v8.h"
+#include "src/circular-queue-inl.h"
+#include "test/cctest/cctest.h"
 
 using i::SamplingCircularQueue;
 

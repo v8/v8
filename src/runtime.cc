@@ -5,47 +5,47 @@
 #include <stdlib.h>
 #include <limits>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "allocation-site-scopes.h"
-#include "api.h"
-#include "arguments.h"
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "compilation-cache.h"
-#include "compiler.h"
-#include "conversions.h"
-#include "cpu.h"
-#include "cpu-profiler.h"
-#include "dateparser-inl.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "date.h"
-#include "execution.h"
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "isolate-inl.h"
-#include "jsregexp.h"
-#include "jsregexp-inl.h"
-#include "json-parser.h"
-#include "json-stringifier.h"
-#include "liveedit.h"
-#include "misc-intrinsics.h"
-#include "parser.h"
-#include "platform.h"
-#include "runtime-profiler.h"
-#include "runtime.h"
-#include "scopeinfo.h"
-#include "smart-pointers.h"
-#include "string-search.h"
-#include "stub-cache.h"
-#include "uri.h"
-#include "v8threads.h"
-#include "vm-state-inl.h"
+#include "src/accessors.h"
+#include "src/allocation-site-scopes.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/compilation-cache.h"
+#include "src/compiler.h"
+#include "src/conversions.h"
+#include "src/cpu.h"
+#include "src/cpu-profiler.h"
+#include "src/dateparser-inl.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/date.h"
+#include "src/execution.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/isolate-inl.h"
+#include "src/jsregexp.h"
+#include "src/jsregexp-inl.h"
+#include "src/json-parser.h"
+#include "src/json-stringifier.h"
+#include "src/liveedit.h"
+#include "src/misc-intrinsics.h"
+#include "src/parser.h"
+#include "src/platform.h"
+#include "src/runtime-profiler.h"
+#include "src/runtime.h"
+#include "src/scopeinfo.h"
+#include "src/smart-pointers.h"
+#include "src/string-search.h"
+#include "src/stub-cache.h"
+#include "src/uri.h"
+#include "src/v8threads.h"
+#include "src/vm-state-inl.h"
 
 #ifdef V8_I18N_SUPPORT
-#include "i18n.h"
+#include "src/i18n.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"
@@ -1584,15 +1584,19 @@ RUNTIME_FUNCTION(Runtime_SetGetSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetCreateIterator) {
+RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSSet, holder, 0);
-  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSSet, set, 1);
+  CONVERT_SMI_ARG_CHECKED(kind, 2)
   RUNTIME_ASSERT(kind == JSSetIterator::kKindValues ||
                  kind == JSSetIterator::kKindEntries);
-  Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
-  return *JSSetIterator::Create(table, kind);
+  Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
+  holder->set_table(*table);
+  holder->set_index(Smi::FromInt(0));
+  holder->set_kind(Smi::FromInt(kind));
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -1642,11 +1646,11 @@ RUNTIME_FUNCTION(Runtime_MapDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  Handle<Object> lookup(table->Lookup(key), isolate);
+  bool was_present = false;
   Handle<OrderedHashMap> new_table =
-      OrderedHashMap::Put(table, key, isolate->factory()->the_hole_value());
+      OrderedHashMap::Remove(table, key, &was_present);
   holder->set_table(*new_table);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 
@@ -1683,16 +1687,20 @@ RUNTIME_FUNCTION(Runtime_MapGetSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MapCreateIterator) {
+RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSMap, holder, 0);
-  CONVERT_SMI_ARG_CHECKED(kind, 1)
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSMap, map, 1);
+  CONVERT_SMI_ARG_CHECKED(kind, 2)
   RUNTIME_ASSERT(kind == JSMapIterator::kKindKeys
       || kind == JSMapIterator::kKindValues
       || kind == JSMapIterator::kKindEntries);
-  Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
-  return *JSMapIterator::Create(table, kind);
+  Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
+  holder->set_table(*table);
+  holder->set_index(Smi::FromInt(0));
+  holder->set_kind(Smi::FromInt(kind));
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -1759,11 +1767,11 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   Handle<ObjectHashTable> table(ObjectHashTable::cast(
       weak_collection->table()));
   RUNTIME_ASSERT(table->IsKey(*key));
-  Handle<Object> lookup(table->Lookup(key), isolate);
+  bool was_present = false;
   Handle<ObjectHashTable> new_table =
-      ObjectHashTable::Put(table, key, isolate->factory()->the_hole_value());
+      ObjectHashTable::Remove(table, key, &was_present);
   weak_collection->set_table(*new_table);
-  return isolate->heap()->ToBoolean(!lookup->IsTheHole());
+  return isolate->heap()->ToBoolean(was_present);
 }
 
 
@@ -3258,6 +3266,12 @@ RUNTIME_FUNCTION(Runtime_ObjectFreeze) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+
+  // %ObjectFreeze is a fast path and these cases are handled elsewhere.
+  RUNTIME_ASSERT(!object->HasSloppyArgumentsElements() &&
+                 !object->map()->is_observed() &&
+                 !object->IsJSProxy());
+
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, JSObject::Freeze(object));
   return *result;
@@ -8616,9 +8630,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
       // Start patching from the currently patched loop nesting level.
       int current_level = unoptimized->allow_osr_at_loop_nesting_level();
       ASSERT(BackEdgeTable::Verify(isolate, unoptimized, current_level));
-      for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
-        unoptimized->set_allow_osr_at_loop_nesting_level(i);
-        isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+      if (FLAG_use_osr) {
+        for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
+          unoptimized->set_allow_osr_at_loop_nesting_level(i);
+          isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
+        }
       }
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
@@ -8719,6 +8735,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   // We're not prepared to handle a function with arguments object.
   ASSERT(!function->shared()->uses_arguments());
 
+  RUNTIME_ASSERT(FLAG_use_osr);
+
   // Passing the PC in the javascript frame from the caller directly is
   // not GC safe, so we walk the stack to get it.
   JavaScriptFrameIterator it(isolate);
@@ -8744,8 +8762,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
 
   Compiler::ConcurrencyMode mode =
       isolate->concurrent_osr_enabled() &&
-      (caller_code->CodeSize() > 32 * FullCodeGenerator::kCodeSizeMultiplier)
-          ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
+      (function->shared()->ast_node_count() > 512) ? Compiler::CONCURRENT
+                                                   : Compiler::NOT_CONCURRENT;
   Handle<Code> result = Handle<Code>::null();
 
   OptimizedCompileJob* job = NULL;
@@ -10815,7 +10833,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // could have the assumption that its own native context is the current
   // context and not some internal debugger context.
   SaveContext save(isolate);
-  if (isolate->debug()->is_entered()) {
+  if (isolate->debug()->in_debug_scope()) {
     isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
 
@@ -13597,7 +13615,7 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
                                    0,
                                    NULL);
   } else {
-    EnterDebugger enter_debugger(isolate);
+    DebugScope debug_scope(isolate->debug());
     maybe_result = Execution::Call(isolate,
                                    function,
                                    isolate->global_object(),

@@ -26,13 +26,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM64
 
 #define ARM64_DEFINE_REG_STATICS
 
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"
 
 namespace v8 {
 namespace internal {

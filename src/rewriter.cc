@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "rewriter.h"
+#include "src/rewriter.h"
 
-#include "ast.h"
-#include "compiler.h"
-#include "scopes.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

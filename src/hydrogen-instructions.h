@@ -5,19 +5,19 @@
 #ifndef V8_HYDROGEN_INSTRUCTIONS_H_
 #define V8_HYDROGEN_INSTRUCTIONS_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "allocation.h"
-#include "code-stubs.h"
-#include "conversions.h"
-#include "data-flow.h"
-#include "deoptimizer.h"
-#include "hydrogen-types.h"
-#include "small-pointer-list.h"
-#include "string-stream.h"
-#include "unique.h"
-#include "utils.h"
-#include "zone.h"
+#include "src/allocation.h"
+#include "src/code-stubs.h"
+#include "src/conversions.h"
+#include "src/data-flow.h"
+#include "src/deoptimizer.h"
+#include "src/hydrogen-types.h"
+#include "src/small-pointer-list.h"
+#include "src/string-stream.h"
+#include "src/unique.h"
+#include "src/utils.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -2293,7 +2293,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
       HValue* target,
       int argument_count,
       const CallInterfaceDescriptor* descriptor,
-      Vector<HValue*>& operands) {
+      const Vector<HValue*>& operands) {
     ASSERT(operands.length() == descriptor->environment_length());
     HCallWithDescriptor* res =
         new(zone) HCallWithDescriptor(target, argument_count,
@@ -2346,7 +2346,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
   HCallWithDescriptor(HValue* target,
                       int argument_count,
                       const CallInterfaceDescriptor* descriptor,
-                      Vector<HValue*>& operands,
+                      const Vector<HValue*>& operands,
                       Zone* zone)
     : descriptor_(descriptor),
       values_(descriptor->environment_length() + 1, zone) {
@@ -5715,6 +5715,20 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
 }
 
 
+inline PointersToHereCheck PointersToHereCheckForObject(HValue* object,
+                                                        HValue* dominator) {
+  while (object->IsInnerAllocatedObject()) {
+    object = HInnerAllocatedObject::cast(object)->base_object();
+  }
+  if (object == dominator &&
+      object->IsAllocate() &&
+      HAllocate::cast(object)->IsNewSpaceAllocation()) {
+    return kPointersToHereAreAlwaysInteresting;
+  }
+  return kPointersToHereMaybeInteresting;
+}
+
+
 class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
  public:
   DECLARE_INSTRUCTION_FACTORY_P3(HStoreGlobalCell, HValue*,
@@ -6681,7 +6695,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kNewSpacePromotion);
     if (!FLAG_use_write_barrier_elimination) return false;
-    new_space_dominator_ = dominator;
+    dominator_ = dominator;
     return false;
   }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
@@ -6691,7 +6705,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   HValue* transition() const { return OperandAt(2); }
 
   HObjectAccess access() const { return access_; }
-  HValue* new_space_dominator() const { return new_space_dominator_; }
+  HValue* dominator() const { return dominator_; }
   bool has_transition() const { return has_transition_; }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
 
@@ -6718,19 +6732,22 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
     if (field_representation().IsInteger32()) return false;
     if (field_representation().IsExternal()) return false;
     return StoringValueNeedsWriteBarrier(value()) &&
-        ReceiverObjectNeedsWriteBarrier(object(), value(),
-                                        new_space_dominator());
+        ReceiverObjectNeedsWriteBarrier(object(), value(), dominator());
   }
 
   bool NeedsWriteBarrierForMap() {
     return ReceiverObjectNeedsWriteBarrier(object(), transition(),
-                                           new_space_dominator());
+                                           dominator());
   }
 
   SmiCheck SmiCheckForWriteBarrier() const {
     if (field_representation().IsHeapObject()) return OMIT_SMI_CHECK;
     if (value()->type().IsHeapObject()) return OMIT_SMI_CHECK;
     return INLINE_SMI_CHECK;
+  }
+
+  PointersToHereCheck PointersToHereCheckForValue() const {
+    return PointersToHereCheckForObject(value(), dominator());
   }
 
   Representation field_representation() const {
@@ -6760,7 +6777,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
                    HValue* val,
                    StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE)
       : access_(access),
-        new_space_dominator_(NULL),
+        dominator_(NULL),
         has_transition_(false),
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
@@ -6774,7 +6791,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
 
   HObjectAccess access_;
-  HValue* new_space_dominator_;
+  HValue* dominator_;
   bool has_transition_ : 1;
   StoreFieldOrKeyedMode store_mode_ : 1;
 };
@@ -6891,9 +6908,9 @@ class HStoreKeyed V8_FINAL
     return Representation::None();
   }
 
-  HValue* elements() { return OperandAt(0); }
-  HValue* key() { return OperandAt(1); }
-  HValue* value() { return OperandAt(2); }
+  HValue* elements() const { return OperandAt(0); }
+  HValue* key() const { return OperandAt(1); }
+  HValue* value() const { return OperandAt(2); }
   bool value_is_smi() const {
     return IsFastSmiElementsKind(elements_kind_);
   }
@@ -6922,20 +6939,23 @@ class HStoreKeyed V8_FINAL
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
     ASSERT(side_effect == kNewSpacePromotion);
-    new_space_dominator_ = dominator;
+    dominator_ = dominator;
     return false;
   }
 
-  HValue* new_space_dominator() const { return new_space_dominator_; }
+  HValue* dominator() const { return dominator_; }
 
   bool NeedsWriteBarrier() {
     if (value_is_smi()) {
       return false;
     } else {
       return StoringValueNeedsWriteBarrier(value()) &&
-          ReceiverObjectNeedsWriteBarrier(elements(), value(),
-                                          new_space_dominator());
+          ReceiverObjectNeedsWriteBarrier(elements(), value(), dominator());
     }
+  }
+
+  PointersToHereCheck PointersToHereCheckForValue() const {
+    return PointersToHereCheckForObject(value(), dominator());
   }
 
   bool NeedsCanonicalization();
@@ -6956,7 +6976,7 @@ class HStoreKeyed V8_FINAL
       is_dehoisted_(false),
       is_uninitialized_(false),
       store_mode_(store_mode),
-      new_space_dominator_(NULL) {
+      dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -6996,7 +7016,7 @@ class HStoreKeyed V8_FINAL
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
   StoreFieldOrKeyedMode store_mode_: 1;
-  HValue* new_space_dominator_;
+  HValue* dominator_;
 };
 
 

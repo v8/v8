@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "lithium-allocator-inl.h"
-#include "ia32/lithium-ia32.h"
-#include "ia32/lithium-codegen-ia32.h"
-#include "hydrogen-osr.h"
+#include "src/lithium-allocator-inl.h"
+#include "src/ia32/lithium-ia32.h"
+#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {

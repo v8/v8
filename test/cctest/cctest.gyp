@@ -39,7 +39,7 @@
         'resources',
       ],
       'include_dirs': [
-        '../../src',
+        '../..',
       ],
       'sources': [  ### gcmole(all) ###
         '<(generated_file)',

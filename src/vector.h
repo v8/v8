@@ -8,9 +8,9 @@
 #include <string.h>
 #include <algorithm>
 
-#include "allocation.h"
-#include "checks.h"
-#include "globals.h"
+#include "src/allocation.h"
+#include "src/checks.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

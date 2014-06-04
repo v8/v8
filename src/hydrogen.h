@@ -5,15 +5,15 @@
 #ifndef V8_HYDROGEN_H_
 #define V8_HYDROGEN_H_
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "allocation.h"
-#include "ast.h"
-#include "compiler.h"
-#include "hydrogen-instructions.h"
-#include "zone.h"
-#include "scopes.h"
+#include "src/accessors.h"
+#include "src/allocation.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/hydrogen-instructions.h"
+#include "src/zone.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {
@@ -2250,6 +2250,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
   void BuildArrayCall(Expression* expr, int arguments_count, HValue* function,
                       Handle<AllocationSite> cell);
+
+  enum ArrayIndexOfMode { kFirstIndexOf, kLastIndexOf };
+  HValue* BuildArrayIndexOf(HValue* receiver,
+                            HValue* search_element,
+                            ElementsKind kind,
+                            ArrayIndexOfMode mode);
 
   HValue* ImplicitReceiverFor(HValue* function,
                               Handle<JSFunction> target);

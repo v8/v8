@@ -5,7 +5,7 @@
 #ifndef V8_ARM64_CODE_STUBS_ARM64_H_
 #define V8_ARM64_CODE_STUBS_ARM64_H_
 
-#include "ic-inl.h"
+#include "src/ic-inl.h"
 
 namespace v8 {
 namespace internal {

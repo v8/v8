@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "../include/v8stdint.h"
-#include "checks.h"
-#include "utils.h"
+#include "include/v8stdint.h"
+#include "src/checks.h"
+#include "src/utils.h"
 
-#include "fast-dtoa.h"
+#include "src/fast-dtoa.h"
 
-#include "cached-powers.h"
-#include "diy-fp.h"
-#include "double.h"
+#include "src/cached-powers.h"
+#include "src/diy-fp.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {

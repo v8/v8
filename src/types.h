@@ -5,7 +5,7 @@
 #ifndef V8_TYPES_H_
 #define V8_TYPES_H_
 
-#include "handles.h"
+#include "src/handles.h"
 
 namespace v8 {
 namespace internal {

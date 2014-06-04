@@ -7,14 +7,14 @@
 
 #include <cmath>
 
-#include "heap.h"
-#include "heap-profiler.h"
-#include "isolate.h"
-#include "list-inl.h"
-#include "objects.h"
-#include "platform.h"
-#include "store-buffer.h"
-#include "store-buffer-inl.h"
+#include "src/heap.h"
+#include "src/heap-profiler.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
+#include "src/objects.h"
+#include "src/platform.h"
+#include "src/store-buffer.h"
+#include "src/store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

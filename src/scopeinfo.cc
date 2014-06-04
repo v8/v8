@@ -4,10 +4,10 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "scopeinfo.h"
-#include "scopes.h"
+#include "src/scopeinfo.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

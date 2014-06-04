@@ -5,12 +5,12 @@
 #ifndef V8_CPU_PROFILER_INL_H_
 #define V8_CPU_PROFILER_INL_H_
 
-#include "cpu-profiler.h"
+#include "src/cpu-profiler.h"
 
 #include <new>
-#include "circular-queue-inl.h"
-#include "profile-generator-inl.h"
-#include "unbound-queue-inl.h"
+#include "src/circular-queue-inl.h"
+#include "src/profile-generator-inl.h"
+#include "src/unbound-queue-inl.h"
 
 namespace v8 {
 namespace internal {

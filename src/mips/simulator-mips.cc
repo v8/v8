@@ -7,16 +7,16 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "cpu.h"
-#include "disasm.h"
-#include "assembler.h"
-#include "globals.h"    // Need the BitCast.
-#include "mips/constants-mips.h"
-#include "mips/simulator-mips.h"
+#include "src/cpu.h"
+#include "src/disasm.h"
+#include "src/assembler.h"
+#include "src/globals.h"    // Need the BitCast.
+#include "src/mips/constants-mips.h"
+#include "src/mips/simulator-mips.h"
 
 
 // Only build the simulator if not compiling for real MIPS hardware.
@@ -1706,12 +1706,12 @@ void Simulator::SignalExceptions() {
 // Handle execution based on instruction types.
 
 void Simulator::ConfigureTypeRegister(Instruction* instr,
-                                      int32_t& alu_out,
-                                      int64_t& i64hilo,
-                                      uint64_t& u64hilo,
-                                      int32_t& next_pc,
-                                      int32_t& return_addr_reg,
-                                      bool& do_interrupt) {
+                                      int32_t* alu_out,
+                                      int64_t* i64hilo,
+                                      uint64_t* u64hilo,
+                                      int32_t* next_pc,
+                                      int32_t* return_addr_reg,
+                                      bool* do_interrupt) {
   // Every local variable declared here needs to be const.
   // This is to make sure that changed values are sent back to
   // DecodeTypeRegister correctly.
@@ -1740,10 +1740,10 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case CFC1:
           // At the moment only FCSR is supported.
           ASSERT(fs_reg == kFCSRRegister);
-          alu_out = FCSR_;
+          *alu_out = FCSR_;
           break;
         case MFC1:
-          alu_out = get_fpu_register(fs_reg);
+          *alu_out = get_fpu_register(fs_reg);
           break;
         case MFHC1:
           UNIMPLEMENTED_MIPS();
@@ -1770,56 +1770,56 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
       switch (instr->FunctionFieldRaw()) {
         case JR:
         case JALR:
-          next_pc = get_register(instr->RsValue());
-          return_addr_reg = instr->RdValue();
+          *next_pc = get_register(instr->RsValue());
+          *return_addr_reg = instr->RdValue();
           break;
         case SLL:
-          alu_out = rt << sa;
+          *alu_out = rt << sa;
           break;
         case SRL:
           if (rs_reg == 0) {
             // Regular logical right shift of a word by a fixed number of
             // bits instruction. RS field is always equal to 0.
-            alu_out = rt_u >> sa;
+            *alu_out = rt_u >> sa;
           } else {
             // Logical right-rotate of a word by a fixed number of bits. This
             // is special case of SRL instruction, added in MIPS32 Release 2.
             // RS field is equal to 00001.
-            alu_out = (rt_u >> sa) | (rt_u << (32 - sa));
+            *alu_out = (rt_u >> sa) | (rt_u << (32 - sa));
           }
           break;
         case SRA:
-          alu_out = rt >> sa;
+          *alu_out = rt >> sa;
           break;
         case SLLV:
-          alu_out = rt << rs;
+          *alu_out = rt << rs;
           break;
         case SRLV:
           if (sa == 0) {
             // Regular logical right-shift of a word by a variable number of
             // bits instruction. SA field is always equal to 0.
-            alu_out = rt_u >> rs;
+            *alu_out = rt_u >> rs;
           } else {
             // Logical right-rotate of a word by a variable number of bits.
             // This is special case od SRLV instruction, added in MIPS32
             // Release 2. SA field is equal to 00001.
-            alu_out = (rt_u >> rs_u) | (rt_u << (32 - rs_u));
+            *alu_out = (rt_u >> rs_u) | (rt_u << (32 - rs_u));
           }
           break;
         case SRAV:
-          alu_out = rt >> rs;
+          *alu_out = rt >> rs;
           break;
         case MFHI:
-          alu_out = get_register(HI);
+          *alu_out = get_register(HI);
           break;
         case MFLO:
-          alu_out = get_register(LO);
+          *alu_out = get_register(LO);
           break;
         case MULT:
-          i64hilo = static_cast<int64_t>(rs) * static_cast<int64_t>(rt);
+          *i64hilo = static_cast<int64_t>(rs) * static_cast<int64_t>(rt);
           break;
         case MULTU:
-          u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);
+          *u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);
           break;
         case ADD:
           if (HaveSameSign(rs, rt)) {
@@ -1829,10 +1829,10 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
               exceptions[kIntegerUnderflow] = rs < (Registers::kMinValue - rt);
             }
           }
-          alu_out = rs + rt;
+          *alu_out = rs + rt;
           break;
         case ADDU:
-          alu_out = rs + rt;
+          *alu_out = rs + rt;
           break;
         case SUB:
           if (!HaveSameSign(rs, rt)) {
@@ -1842,51 +1842,50 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
               exceptions[kIntegerUnderflow] = rs < (Registers::kMinValue + rt);
             }
           }
-          alu_out = rs - rt;
+          *alu_out = rs - rt;
           break;
         case SUBU:
-          alu_out = rs - rt;
+          *alu_out = rs - rt;
           break;
         case AND:
-          alu_out = rs & rt;
+          *alu_out = rs & rt;
           break;
         case OR:
-          alu_out = rs | rt;
+          *alu_out = rs | rt;
           break;
         case XOR:
-          alu_out = rs ^ rt;
+          *alu_out = rs ^ rt;
           break;
         case NOR:
-          alu_out = ~(rs | rt);
+          *alu_out = ~(rs | rt);
           break;
         case SLT:
-          alu_out = rs < rt ? 1 : 0;
+          *alu_out = rs < rt ? 1 : 0;
           break;
         case SLTU:
-          alu_out = rs_u < rt_u ? 1 : 0;
+          *alu_out = rs_u < rt_u ? 1 : 0;
           break;
         // Break and trap instructions.
         case BREAK:
-
-          do_interrupt = true;
+          *do_interrupt = true;
           break;
         case TGE:
-          do_interrupt = rs >= rt;
+          *do_interrupt = rs >= rt;
           break;
         case TGEU:
-          do_interrupt = rs_u >= rt_u;
+          *do_interrupt = rs_u >= rt_u;
           break;
         case TLT:
-          do_interrupt = rs < rt;
+          *do_interrupt = rs < rt;
           break;
         case TLTU:
-          do_interrupt = rs_u < rt_u;
+          *do_interrupt = rs_u < rt_u;
           break;
         case TEQ:
-          do_interrupt = rs == rt;
+          *do_interrupt = rs == rt;
           break;
         case TNE:
-          do_interrupt = rs != rt;
+          *do_interrupt = rs != rt;
           break;
         case MOVN:
         case MOVZ:
@@ -1904,13 +1903,13 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
     case SPECIAL2:
       switch (instr->FunctionFieldRaw()) {
         case MUL:
-          alu_out = rs_u * rt_u;  // Only the lower 32 bits are kept.
+          *alu_out = rs_u * rt_u;  // Only the lower 32 bits are kept.
           break;
         case CLZ:
           // MIPS32 spec: If no bits were set in GPR rs, the result written to
           // GPR rd is 32.
           // GCC __builtin_clz: If input is 0, the result is undefined.
-          alu_out =
+          *alu_out =
               rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
           break;
         default:
@@ -1926,7 +1925,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           uint16_t lsb = sa;
           uint16_t size = msb - lsb + 1;
           uint32_t mask = (1 << size) - 1;
-          alu_out = (rt_u & ~(mask << lsb)) | ((rs_u & mask) << lsb);
+          *alu_out = (rt_u & ~(mask << lsb)) | ((rs_u & mask) << lsb);
           break;
         }
         case EXT: {   // Mips32r2 instruction.
@@ -1936,7 +1935,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           uint16_t lsb = sa;
           uint16_t size = msb + 1;
           uint32_t mask = (1 << size) - 1;
-          alu_out = (rs_u & (mask << lsb)) >> lsb;
+          *alu_out = (rs_u & (mask << lsb)) >> lsb;
           break;
         }
         default:
@@ -1984,12 +1983,12 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
 
   // Set up the variables if needed before executing the instruction.
   ConfigureTypeRegister(instr,
-                        alu_out,
-                        i64hilo,
-                        u64hilo,
-                        next_pc,
-                        return_addr_reg,
-                        do_interrupt);
+                        &alu_out,
+                        &i64hilo,
+                        &u64hilo,
+                        &next_pc,
+                        &return_addr_reg,
+                        &do_interrupt);
 
   // ---------- Raise exceptions triggered.
   SignalExceptions();

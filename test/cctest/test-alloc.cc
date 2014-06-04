@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "accessors.h"
-#include "api.h"
+#include "src/v8.h"
+#include "src/accessors.h"
+#include "src/api.h"
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;

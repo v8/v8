@@ -6,16 +6,16 @@
 #include <limits.h>
 #include <cmath>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "assert-scope.h"
-#include "conversions.h"
-#include "conversions-inl.h"
-#include "dtoa.h"
-#include "factory.h"
-#include "list-inl.h"
-#include "strtod.h"
-#include "utils.h"
+#include "src/assert-scope.h"
+#include "src/conversions.h"
+#include "src/conversions-inl.h"
+#include "src/dtoa.h"
+#include "src/factory.h"
+#include "src/list-inl.h"
+#include "src/strtod.h"
+#include "src/utils.h"
 
 #ifndef _STLP_VENDOR_CSTD
 // STLPort doesn't import fpclassify into the std namespace.

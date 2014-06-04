@@ -5,13 +5,13 @@
 #ifndef V8_STUB_CACHE_H_
 #define V8_STUB_CACHE_H_
 
-#include "allocation.h"
-#include "arguments.h"
-#include "code-stubs.h"
-#include "ic-inl.h"
-#include "macro-assembler.h"
-#include "objects.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/arguments.h"
+#include "src/code-stubs.h"
+#include "src/ic-inl.h"
+#include "src/macro-assembler.h"
+#include "src/objects.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -92,7 +92,7 @@ class StubCache {
   // ---
 
   Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
-                                 CompareNilICStub& stub);
+                                 CompareNilICStub* stub);
 
   // ---
 

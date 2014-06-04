@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "factory.h"
+#include "src/factory.h"
 
-#include "conversions.h"
-#include "isolate-inl.h"
-#include "macro-assembler.h"
+#include "src/conversions.h"
+#include "src/isolate-inl.h"
+#include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -115,18 +115,23 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
 
 
 Handle<ConstantPoolArray> Factory::NewConstantPoolArray(
-    int number_of_int64_entries,
-    int number_of_code_ptr_entries,
-    int number_of_heap_ptr_entries,
-    int number_of_int32_entries) {
-  ASSERT(number_of_int64_entries > 0 || number_of_code_ptr_entries > 0 ||
-         number_of_heap_ptr_entries > 0 || number_of_int32_entries > 0);
+    const ConstantPoolArray::NumberOfEntries& small) {
+  ASSERT(small.total_count() > 0);
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateConstantPoolArray(number_of_int64_entries,
-                                                   number_of_code_ptr_entries,
-                                                   number_of_heap_ptr_entries,
-                                                   number_of_int32_entries),
+      isolate()->heap()->AllocateConstantPoolArray(small),
+      ConstantPoolArray);
+}
+
+
+Handle<ConstantPoolArray> Factory::NewExtendedConstantPoolArray(
+    const ConstantPoolArray::NumberOfEntries& small,
+    const ConstantPoolArray::NumberOfEntries& extended) {
+  ASSERT(small.total_count() > 0);
+  ASSERT(extended.total_count() > 0);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateExtendedConstantPoolArray(small, extended),
       ConstantPoolArray);
 }
 

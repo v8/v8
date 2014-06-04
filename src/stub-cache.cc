@@ -2,18 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "arguments.h"
-#include "ast.h"
-#include "code-stubs.h"
-#include "cpu-profiler.h"
-#include "gdb-jit.h"
-#include "ic-inl.h"
-#include "stub-cache.h"
-#include "type-info.h"
-#include "vm-state-inl.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/ast.h"
+#include "src/code-stubs.h"
+#include "src/cpu-profiler.h"
+#include "src/gdb-jit.h"
+#include "src/ic-inl.h"
+#include "src/stub-cache.h"
+#include "src/type-info.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -302,17 +302,17 @@ Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
 
 
 Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
-                                          CompareNilICStub& stub) {
+                                          CompareNilICStub* stub) {
   Handle<String> name(isolate_->heap()->empty_string());
   if (!receiver_map->is_shared()) {
     Handle<Code> cached_ic = FindIC(name, receiver_map, Code::COMPARE_NIL_IC,
-                                    stub.GetExtraICState());
+                                    stub->GetExtraICState());
     if (!cached_ic.is_null()) return cached_ic;
   }
 
   Code::FindAndReplacePattern pattern;
   pattern.Add(isolate_->factory()->meta_map(), receiver_map);
-  Handle<Code> ic = stub.GetCodeCopy(pattern);
+  Handle<Code> ic = stub->GetCodeCopy(pattern);
 
   if (!receiver_map->is_shared()) {
     Map::UpdateCodeCache(receiver_map, name, ic);

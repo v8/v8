@@ -5,9 +5,9 @@
 #ifndef V8_UNBOUND_QUEUE_INL_H_
 #define V8_UNBOUND_QUEUE_INL_H_
 
-#include "unbound-queue.h"
+#include "src/unbound-queue.h"
 
-#include "atomicops.h"
+#include "src/atomicops.h"
 
 namespace v8 {
 namespace internal {

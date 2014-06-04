@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_IA32
 
-#include "bootstrapper.h"
-#include "codegen.h"
-#include "cpu-profiler.h"
-#include "debug.h"
-#include "isolate-inl.h"
-#include "runtime.h"
-#include "serialize.h"
+#include "src/bootstrapper.h"
+#include "src/codegen.h"
+#include "src/cpu-profiler.h"
+#include "src/debug.h"
+#include "src/isolate-inl.h"
+#include "src/runtime.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -392,12 +392,14 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 }
 
 
-void MacroAssembler::RecordWriteArray(Register object,
-                                      Register value,
-                                      Register index,
-                                      SaveFPRegsMode save_fp,
-                                      RememberedSetAction remembered_set_action,
-                                      SmiCheck smi_check) {
+void MacroAssembler::RecordWriteArray(
+    Register object,
+    Register value,
+    Register index,
+    SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -416,8 +418,8 @@ void MacroAssembler::RecordWriteArray(Register object,
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(
-      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -437,7 +439,8 @@ void MacroAssembler::RecordWriteField(
     Register dst,
     SaveFPRegsMode save_fp,
     RememberedSetAction remembered_set_action,
-    SmiCheck smi_check) {
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -460,8 +463,8 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(
-      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -502,6 +505,9 @@ void MacroAssembler::RecordWriteForMap(
     return;
   }
 
+  // Compute the address.
+  lea(address, FieldOperand(object, HeapObject::kMapOffset));
+
   // Count number of write barriers in generated code.
   isolate()->counters()->write_barriers_static()->Increment();
   IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
@@ -517,12 +523,6 @@ void MacroAssembler::RecordWriteForMap(
                       &done,
                       Label::kNear);
 
-  // Delay the initialization of |address| and |value| for the stub until it's
-  // known that the will be needed. Up until this point their values are not
-  // needed since they are embedded in the operands of instructions that need
-  // them.
-  lea(address, FieldOperand(object, HeapObject::kMapOffset));
-  mov(value, Immediate(map));
   RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET,
                        save_fp);
   CallStub(&stub);
@@ -539,12 +539,14 @@ void MacroAssembler::RecordWriteForMap(
 }
 
 
-void MacroAssembler::RecordWrite(Register object,
-                                 Register address,
-                                 Register value,
-                                 SaveFPRegsMode fp_mode,
-                                 RememberedSetAction remembered_set_action,
-                                 SmiCheck smi_check) {
+void MacroAssembler::RecordWrite(
+    Register object,
+    Register address,
+    Register value,
+    SaveFPRegsMode fp_mode,
+    RememberedSetAction remembered_set_action,
+    SmiCheck smi_check,
+    PointersToHereCheck pointers_to_here_check_for_value) {
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
@@ -576,12 +578,14 @@ void MacroAssembler::RecordWrite(Register object,
     JumpIfSmi(value, &done, Label::kNear);
   }
 
-  CheckPageFlag(value,
-                value,  // Used as scratch.
-                MemoryChunk::kPointersToHereAreInterestingMask,
-                zero,
-                &done,
-                Label::kNear);
+  if (pointers_to_here_check_for_value != kPointersToHereAreAlwaysInteresting) {
+    CheckPageFlag(value,
+                  value,  // Used as scratch.
+                  MemoryChunk::kPointersToHereAreInterestingMask,
+                  zero,
+                  &done,
+                  Label::kNear);
+  }
   CheckPageFlag(object,
                 value,  // Used as scratch.
                 MemoryChunk::kPointersFromHereAreInterestingMask,

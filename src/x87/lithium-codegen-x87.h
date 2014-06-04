@@ -5,15 +5,15 @@
 #ifndef V8_X87_LITHIUM_CODEGEN_X87_H_
 #define V8_X87_LITHIUM_CODEGEN_X87_H_
 
-#include "x87/lithium-x87.h"
+#include "src/x87/lithium-x87.h"
 
-#include "checks.h"
-#include "deoptimizer.h"
-#include "x87/lithium-gap-resolver-x87.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
+#include "src/checks.h"
+#include "src/deoptimizer.h"
+#include "src/x87/lithium-gap-resolver-x87.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

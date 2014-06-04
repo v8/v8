@@ -6,10 +6,10 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
-#include "api.h"
-#include "handles.h"
-#include "heap.h"
-#include "isolate.h"
+#include "src/api.h"
+#include "src/handles.h"
+#include "src/heap.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

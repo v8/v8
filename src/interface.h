@@ -5,7 +5,7 @@
 #ifndef V8_INTERFACE_H_
 #define V8_INTERFACE_H_
 
-#include "zone-inl.h"  // For operator new.
+#include "src/zone-inl.h"  // For operator new.
 
 namespace v8 {
 namespace internal {

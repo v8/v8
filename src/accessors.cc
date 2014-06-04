@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
-#include "accessors.h"
+#include "src/v8.h"
+#include "src/accessors.h"
 
-#include "compiler.h"
-#include "contexts.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "factory.h"
-#include "frames-inl.h"
-#include "isolate.h"
-#include "list-inl.h"
-#include "property-details.h"
-#include "api.h"
+#include "src/compiler.h"
+#include "src/contexts.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/frames-inl.h"
+#include "src/isolate.h"
+#include "src/list-inl.h"
+#include "src/property-details.h"
+#include "src/api.h"
 
 namespace v8 {
 namespace internal {

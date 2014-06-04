@@ -13,8 +13,8 @@
 #ifndef V8_MIPS_SIMULATOR_MIPS_H_
 #define V8_MIPS_SIMULATOR_MIPS_H_
 
-#include "allocation.h"
-#include "constants-mips.h"
+#include "src/allocation.h"
+#include "src/mips/constants-mips.h"
 
 #if !defined(USE_SIMULATOR)
 // Running without a simulator on a native mips platform.
@@ -70,8 +70,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 #else  // !defined(USE_SIMULATOR)
 // Running with a simulator.
 
-#include "hashmap.h"
-#include "assembler.h"
+#include "src/hashmap.h"
+#include "src/assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -263,12 +263,12 @@ class Simulator {
 
   // Helper function for DecodeTypeRegister.
   void ConfigureTypeRegister(Instruction* instr,
-                             int32_t& alu_out,
-                             int64_t& i64hilo,
-                             uint64_t& u64hilo,
-                             int32_t& next_pc,
-                             int32_t& return_addr_reg,
-                             bool& do_interrupt);
+                             int32_t* alu_out,
+                             int64_t* i64hilo,
+                             uint64_t* u64hilo,
+                             int32_t* next_pc,
+                             int32_t* return_addr_reg,
+                             bool* do_interrupt);
 
   void DecodeTypeImmediate(Instruction* instr);
   void DecodeTypeJump(Instruction* instr);

@@ -3,18 +3,18 @@
 // found in the LICENSE file.
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
-#include "v8.h"
-#include "gdb-jit.h"
+#include "src/v8.h"
+#include "src/gdb-jit.h"
 
-#include "bootstrapper.h"
-#include "compiler.h"
-#include "frames.h"
-#include "frames-inl.h"
-#include "global-handles.h"
-#include "messages.h"
-#include "natives.h"
-#include "platform.h"
-#include "scopes.h"
+#include "src/bootstrapper.h"
+#include "src/compiler.h"
+#include "src/frames.h"
+#include "src/frames-inl.h"
+#include "src/global-handles.h"
+#include "src/messages.h"
+#include "src/natives.h"
+#include "src/platform.h"
+#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

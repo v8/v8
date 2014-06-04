@@ -37,10 +37,10 @@
 #ifndef V8_X87_ASSEMBLER_X87_INL_H_
 #define V8_X87_ASSEMBLER_X87_INL_H_
 
-#include "x87/assembler-x87.h"
+#include "src/x87/assembler-x87.h"
 
-#include "cpu.h"
-#include "debug.h"
+#include "src/cpu.h"
+#include "src/debug.h"
 
 namespace v8 {
 namespace internal {

@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "disassembler.h"
-#include "factory.h"
-#include "arm/simulator-arm.h"
-#include "arm/assembler-arm-inl.h"
-#include "cctest.h"
+#include "src/disassembler.h"
+#include "src/factory.h"
+#include "src/arm/simulator-arm.h"
+#include "src/arm/assembler-arm-inl.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

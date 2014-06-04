@@ -34,13 +34,13 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM
 
-#include "arm/assembler-arm-inl.h"
-#include "macro-assembler.h"
-#include "serialize.h"
+#include "src/arm/assembler-arm-inl.h"
+#include "src/macro-assembler.h"
+#include "src/serialize.h"
 
 namespace v8 {
 namespace internal {
@@ -3554,11 +3554,15 @@ void ConstantPoolBuilder::AddEntry(Assembler* assm,
 
   // Check if we still have room for another entry given Arm's ldr and vldr
   // immediate offset range.
-  if (!(is_uint12(ConstantPoolArray::SizeFor(count_of_64bit_,
-                                             count_of_code_ptr_,
-                                             count_of_heap_ptr_,
-                                             count_of_32bit_))) &&
-        is_uint10(ConstantPoolArray::SizeFor(count_of_64bit_, 0, 0, 0))) {
+  // TODO(rmcilroy): Avoid creating a new object here when we support
+  //                 extended constant pools.
+  ConstantPoolArray::NumberOfEntries total(count_of_64bit_,
+                                           count_of_code_ptr_,
+                                           count_of_heap_ptr_,
+                                           count_of_32bit_);
+  ConstantPoolArray::NumberOfEntries int64_counts(count_of_64bit_, 0, 0, 0);
+  if (!(is_uint12(ConstantPoolArray::SizeFor(total)) &&
+        is_uint10(ConstantPoolArray::SizeFor(int64_counts)))) {
     assm->set_constant_pool_full();
   }
 }
@@ -3577,20 +3581,25 @@ Handle<ConstantPoolArray> ConstantPoolBuilder::New(Isolate* isolate) {
   if (IsEmpty()) {
     return isolate->factory()->empty_constant_pool_array();
   } else {
-    return isolate->factory()->NewConstantPoolArray(count_of_64bit_,
-                                                    count_of_code_ptr_,
-                                                    count_of_heap_ptr_,
-                                                    count_of_32bit_);
+    ConstantPoolArray::NumberOfEntries small(count_of_64bit_,
+                                             count_of_code_ptr_,
+                                             count_of_heap_ptr_,
+                                             count_of_32bit_);
+    return isolate->factory()->NewConstantPoolArray(small);
   }
 }
 
 
 void ConstantPoolBuilder::Populate(Assembler* assm,
                                    ConstantPoolArray* constant_pool) {
-  ASSERT(constant_pool->count_of_int64_entries() == count_of_64bit_);
-  ASSERT(constant_pool->count_of_code_ptr_entries() == count_of_code_ptr_);
-  ASSERT(constant_pool->count_of_heap_ptr_entries() == count_of_heap_ptr_);
-  ASSERT(constant_pool->count_of_int32_entries() == count_of_32bit_);
+  ASSERT(count_of_64bit_ == constant_pool->number_of_entries(
+             ConstantPoolArray::INT64, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_code_ptr_ == constant_pool->number_of_entries(
+             ConstantPoolArray::CODE_PTR, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_heap_ptr_ == constant_pool->number_of_entries(
+             ConstantPoolArray::HEAP_PTR, ConstantPoolArray::SMALL_SECTION));
+  ASSERT(count_of_32bit_ == constant_pool->number_of_entries(
+             ConstantPoolArray::INT32, ConstantPoolArray::SMALL_SECTION));
   ASSERT(entries_.size() == merged_indexes_.size());
 
   int index_64bit = 0;
@@ -3616,7 +3625,7 @@ void ConstantPoolBuilder::Populate(Assembler* assm,
         offset = constant_pool->OffsetOfElementAt(index_code_ptr) -
             kHeapObjectTag;
         constant_pool->set(index_code_ptr++,
-                           reinterpret_cast<Object *>(rinfo->data()));
+                           reinterpret_cast<Address>(rinfo->data()));
       } else {
         ASSERT(IsHeapPtrEntry(rmode));
         offset = constant_pool->OffsetOfElementAt(index_heap_ptr) -

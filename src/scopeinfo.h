@@ -5,9 +5,9 @@
 #ifndef V8_SCOPEINFO_H_
 #define V8_SCOPEINFO_H_
 
-#include "allocation.h"
-#include "variables.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/variables.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "checks.h"
+#include "src/checks.h"
 
 #if V8_LIBC_GLIBC || V8_OS_BSD
 # include <cxxabi.h>
@@ -12,8 +12,8 @@
 #endif  // V8_LIBC_GLIBC || V8_OS_BSD
 #include <stdio.h>
 
-#include "platform.h"
-#include "v8.h"
+#include "src/platform.h"
+#include "src/v8.h"
 
 namespace v8 {
 namespace internal {

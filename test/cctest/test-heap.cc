@@ -28,15 +28,15 @@
 #include <stdlib.h>
 #include <utility>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "compilation-cache.h"
-#include "execution.h"
-#include "factory.h"
-#include "macro-assembler.h"
-#include "global-handles.h"
-#include "stub-cache.h"
-#include "cctest.h"
+#include "src/compilation-cache.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/global-handles.h"
+#include "src/macro-assembler.h"
+#include "src/stub-cache.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 
@@ -2200,6 +2200,11 @@ TEST(OptimizedPretenuringAllocationFolding) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2244,6 +2249,11 @@ TEST(OptimizedPretenuringObjectArrayLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2278,6 +2288,12 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2320,6 +2336,11 @@ TEST(OptimizedPretenuringDoubleArrayProperties) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2355,6 +2376,11 @@ TEST(OptimizedPretenuringdoubleArrayLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2389,6 +2415,11 @@ TEST(OptimizedPretenuringNestedMixedArrayLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2434,6 +2465,11 @@ TEST(OptimizedPretenuringNestedObjectLiterals) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
       source,
@@ -2477,6 +2513,11 @@ TEST(OptimizedPretenuringNestedDoubleLiterals) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   i::OS::SNPrintF(
@@ -2530,6 +2571,11 @@ TEST(OptimizedPretenuringConstructorCalls) {
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
+
   i::ScopedVector<char> source(1024);
   // Call new is doing slack tracking for the first
   // JSFunction::kGenerousAllocationCount allocations, and we can't find
@@ -2575,6 +2621,11 @@ TEST(OptimizedPretenuringCallNew) {
   if (!CcTest::i_isolate()->use_crankshaft() || i::FLAG_always_opt) return;
   if (i::FLAG_gc_global || i::FLAG_stress_compaction) return;
   v8::HandleScope scope(CcTest::isolate());
+
+  // Grow new space unitl maximum capacity reached.
+  while (!CcTest::heap()->new_space()->IsAtMaximumCapacity()) {
+    CcTest::heap()->new_space()->Grow();
+  }
 
   i::ScopedVector<char> source(1024);
   // Call new is doing slack tracking for the first
@@ -4274,8 +4325,6 @@ TEST(ArrayShiftSweeping) {
 
 #ifdef DEBUG
 TEST(PathTracer) {
-  // Type cast checks fail because the path tracer abuses the map for marking.
-  if (i::FLAG_enable_slow_asserts) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 

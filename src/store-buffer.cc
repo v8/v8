@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "store-buffer.h"
+#include "src/store-buffer.h"
 
 #include <algorithm>
 
-#include "v8.h"
-#include "counters.h"
-#include "store-buffer-inl.h"
+#include "src/v8.h"
+#include "src/counters.h"
+#include "src/store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

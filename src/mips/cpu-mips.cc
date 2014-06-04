@@ -11,14 +11,14 @@
 #include <asm/cachectl.h>
 #endif  // #ifdef __mips
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "cpu.h"
-#include "macro-assembler.h"
+#include "src/cpu.h"
+#include "src/macro-assembler.h"
 
-#include "simulator.h"  // For cache flushing.
+#include "src/simulator.h"  // For cache flushing.
 
 namespace v8 {
 namespace internal {

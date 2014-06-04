@@ -7,17 +7,17 @@
 
 #include <cmath>
 
-#include "allocation.h"
-#include "assert-scope.h"
-#include "counters.h"
-#include "globals.h"
-#include "incremental-marking.h"
-#include "list.h"
-#include "mark-compact.h"
-#include "objects-visiting.h"
-#include "spaces.h"
-#include "splay-tree-inl.h"
-#include "store-buffer.h"
+#include "src/allocation.h"
+#include "src/assert-scope.h"
+#include "src/counters.h"
+#include "src/globals.h"
+#include "src/incremental-marking.h"
+#include "src/list.h"
+#include "src/mark-compact.h"
+#include "src/objects-visiting.h"
+#include "src/spaces.h"
+#include "src/splay-tree-inl.h"
+#include "src/store-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -849,6 +849,13 @@ class Heap {
 
   Object* weak_object_to_code_table() { return weak_object_to_code_table_; }
 
+  void set_encountered_weak_collections(Object* weak_collection) {
+    encountered_weak_collections_ = weak_collection;
+  }
+  Object* encountered_weak_collections() const {
+    return encountered_weak_collections_;
+  }
+
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
 
@@ -1359,6 +1366,14 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
+  bool MaximumSizeScavenge() {
+    return maximum_size_scavenges_ > 0;
+  }
+
+  bool DeoptMaybeTenuredAllocationSites() {
+    return new_space_.IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
+  }
+
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
@@ -1604,6 +1619,11 @@ class Heap {
   // code list. It is initilized lazily and contains the undefined_value at
   // start.
   Object* weak_object_to_code_table_;
+
+  // List of encountered weak collections (JSWeakMap and JSWeakSet) during
+  // marking. It is initialized during marking, destroyed after marking and
+  // contains Smi(0) while marking is not active.
+  Object* encountered_weak_collections_;
 
   StoreBufferRebuilder store_buffer_rebuilder_;
 
@@ -1865,10 +1885,11 @@ class Heap {
       ConstantPoolArray* src, Map* map);
 
   MUST_USE_RESULT AllocationResult AllocateConstantPoolArray(
-      int number_of_int64_entries,
-      int number_of_code_ptr_entries,
-      int number_of_heap_ptr_entries,
-      int number_of_int32_entries);
+      const ConstantPoolArray::NumberOfEntries& small);
+
+  MUST_USE_RESULT AllocationResult AllocateExtendedConstantPoolArray(
+      const ConstantPoolArray::NumberOfEntries& small,
+      const ConstantPoolArray::NumberOfEntries& extended);
 
   // Allocates an external array of the specified length and type.
   MUST_USE_RESULT AllocationResult AllocateExternalArray(
@@ -2018,6 +2039,12 @@ class Heap {
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
   double semi_space_copied_rate_;
+
+  // This is the pretenuring trigger for allocation sites that are in maybe
+  // tenure state. When we switched to the maximum new space size we deoptimize
+  // the code that belongs to the allocation site and derive the lifetime
+  // of the allocation site.
+  unsigned int maximum_size_scavenges_;
 
   // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
   // Re-visit incremental marking heuristics.
@@ -2702,7 +2729,7 @@ class IntrusiveMarking {
 
  private:
   static const uintptr_t kNotMarkedBit = 0x1;
-  STATIC_ASSERT((kHeapObjectTag & kNotMarkedBit) != 0);
+  STATIC_ASSERT((kHeapObjectTag & kNotMarkedBit) != 0);  // NOLINT
 };
 
 
@@ -2716,6 +2743,9 @@ class PathTracer : public ObjectVisitor {
     FIND_ALL,   // Will find all matches.
     FIND_FIRST  // Will stop the search after first match.
   };
+
+  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
+  static const int kMarkTag = 2;
 
   // For the WhatToFind arg, if FIND_FIRST is specified, tracing will stop
   // after the first match.  If FIND_ALL is specified, then tracing will be
@@ -2747,9 +2777,6 @@ class PathTracer : public ObjectVisitor {
   void MarkRecursively(Object** p, MarkVisitor* mark_visitor);
   void UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor);
   virtual void ProcessResults();
-
-  // Tags 0, 1, and 3 are used. Use 2 for marking visited HeapObject.
-  static const int kMarkTag = 2;
 
   Object* search_target_;
   bool found_target_;

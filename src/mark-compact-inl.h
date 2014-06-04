@@ -5,9 +5,10 @@
 #ifndef V8_MARK_COMPACT_INL_H_
 #define V8_MARK_COMPACT_INL_H_
 
-#include "isolate.h"
-#include "memory.h"
-#include "mark-compact.h"
+#include <memory.h>
+
+#include "src/isolate.h"
+#include "src/mark-compact.h"
 
 
 namespace v8 {

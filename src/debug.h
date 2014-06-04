@@ -5,27 +5,27 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
-#include "allocation.h"
-#include "arguments.h"
-#include "assembler.h"
-#include "execution.h"
-#include "factory.h"
-#include "flags.h"
-#include "frames-inl.h"
-#include "hashmap.h"
-#include "liveedit.h"
-#include "platform.h"
-#include "string-stream.h"
-#include "v8threads.h"
+#include "src/allocation.h"
+#include "src/arguments.h"
+#include "src/assembler.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/flags.h"
+#include "src/frames-inl.h"
+#include "src/hashmap.h"
+#include "src/liveedit.h"
+#include "src/platform.h"
+#include "src/string-stream.h"
+#include "src/v8threads.h"
 
-#include "../include/v8-debug.h"
+#include "include/v8-debug.h"
 
 namespace v8 {
 namespace internal {
 
 
 // Forward declarations.
-class EnterDebugger;
+class DebugScope;
 
 
 // Step actions. NOTE: These values are in macros.py as well.
@@ -486,7 +486,7 @@ class Debug {
   void AfterGarbageCollection();
 
   // Flags and states.
-  EnterDebugger* debugger_entry() { return thread_local_.debugger_entry_; }
+  DebugScope* debugger_entry() { return thread_local_.current_debug_scope_; }
   inline Handle<Context> debug_context() { return debug_context_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
   bool live_edit_enabled() const {
@@ -496,8 +496,8 @@ class Debug {
   inline bool is_active() const { return is_active_; }
   inline bool is_loaded() const { return !debug_context_.is_null(); }
   inline bool has_break_points() const { return has_break_points_; }
-  inline bool is_entered() const {
-    return thread_local_.debugger_entry_ != NULL;
+  inline bool in_debug_scope() const {
+    return thread_local_.current_debug_scope_ != NULL;
   }
   void set_disable_break(bool v) { break_disabled_ = v; }
 
@@ -577,6 +577,11 @@ class Debug {
   Handle<Object> CheckBreakPoints(Handle<Object> break_point);
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
+  inline void AssertDebugContext() {
+    ASSERT(isolate_->context() == *debug_context());
+    ASSERT(in_debug_scope());
+  }
+
   void ThreadInit();
 
   // Global handles.
@@ -611,7 +616,7 @@ class Debug {
   class ThreadLocal {
    public:
     // Top debugger entry.
-    EnterDebugger* debugger_entry_;
+    DebugScope* current_debug_scope_;
 
     // Counter for generating next break id.
     int break_count_;
@@ -667,8 +672,7 @@ class Debug {
   Isolate* isolate_;
 
   friend class Isolate;
-  friend class EnterDebugger;
-  friend class FrameDropper;
+  friend class DebugScope;
   friend class DisableBreak;
   friend class SuppressDebug;
 
@@ -682,28 +686,29 @@ class Debug {
 DECLARE_RUNTIME_FUNCTION(Debug_Break);
 
 
-// This class is used for entering the debugger. Create an instance in the stack
-// to enter the debugger. This will set the current break state, make sure the
-// debugger is loaded and switch to the debugger context. If the debugger for
-// some reason could not be entered FailedToEnter will return true.
-class EnterDebugger BASE_EMBEDDED {
+// This scope is used to load and enter the debug context and create a new
+// break state.  Leaving the scope will restore the previous state.
+// On failure to load, FailedToEnter returns true.
+class DebugScope BASE_EMBEDDED {
  public:
-  explicit EnterDebugger(Isolate* isolate);
-  ~EnterDebugger();
+  explicit DebugScope(Debug* debug);
+  ~DebugScope();
 
-  // Check whether the debugger could be entered.
-  inline bool FailedToEnter() { return load_failed_; }
+  // Check whether loading was successful.
+  inline bool failed() { return failed_; }
 
   // Get the active context from before entering the debugger.
   inline Handle<Context> GetContext() { return save_.context(); }
 
  private:
-  Isolate* isolate_;
-  EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
+  Isolate* isolate() { return debug_->isolate_; }
+
+  Debug* debug_;
+  DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
-  int break_id_;  // Previous break id.
-  bool load_failed_;  // Did the debugger fail to load?
-  SaveContext save_;  // Saves previous context.
+  int break_id_;                   // Previous break id.
+  bool failed_;                    // Did the debug context fail to load?
+  SaveContext save_;               // Saves previous context.
 };
 
 

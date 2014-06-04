@@ -31,16 +31,16 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "compiler.h"
-#include "scanner-character-streams.h"
-#include "shell-utils.h"
-#include "parser.h"
-#include "preparse-data-format.h"
-#include "preparse-data.h"
-#include "preparser.h"
+#include "src/api.h"
+#include "src/compiler.h"
+#include "src/scanner-character-streams.h"
+#include "tools/shell-utils.h"
+#include "src/parser.h"
+#include "src/preparse-data-format.h"
+#include "src/preparse-data.h"
+#include "src/preparser.h"
 
 using namespace v8::internal;
 

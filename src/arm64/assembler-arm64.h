@@ -8,12 +8,12 @@
 #include <list>
 #include <map>
 
-#include "cpu.h"
-#include "globals.h"
-#include "utils.h"
-#include "assembler.h"
-#include "serialize.h"
-#include "arm64/instructions-arm64.h"
+#include "src/cpu.h"
+#include "src/globals.h"
+#include "src/utils.h"
+#include "src/assembler.h"
+#include "src/serialize.h"
+#include "src/arm64/instructions-arm64.h"
 
 
 namespace v8 {

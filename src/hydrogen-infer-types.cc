@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "hydrogen-infer-types.h"
+#include "src/hydrogen-infer-types.h"
 
 namespace v8 {
 namespace internal {

@@ -5,11 +5,11 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-#include "../include/v8.h"
-#include "allocation.h"
-#include "globals.h"
-#include "objects.h"
-#include "platform/elapsed-timer.h"
+#include "include/v8.h"
+#include "src/allocation.h"
+#include "src/globals.h"
+#include "src/objects.h"
+#include "src/platform/elapsed-timer.h"
 
 namespace v8 {
 namespace internal {

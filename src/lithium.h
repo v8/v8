@@ -7,10 +7,10 @@
 
 #include <set>
 
-#include "allocation.h"
-#include "hydrogen.h"
-#include "safepoint-table.h"
-#include "zone-allocator.h"
+#include "src/allocation.h"
+#include "src/hydrogen.h"
+#include "src/safepoint-table.h"
+#include "src/zone-allocator.h"
 
 namespace v8 {
 namespace internal {

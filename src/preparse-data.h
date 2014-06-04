@@ -5,9 +5,9 @@
 #ifndef V8_PREPARSE_DATA_H_
 #define V8_PREPARSE_DATA_H_
 
-#include "allocation.h"
-#include "hashmap.h"
-#include "utils-inl.h"
+#include "src/allocation.h"
+#include "src/hashmap.h"
+#include "src/utils-inl.h"
 
 namespace v8 {
 namespace internal {

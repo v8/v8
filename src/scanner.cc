@@ -6,14 +6,14 @@
 
 #include <cmath>
 
-#include "scanner.h"
+#include "src/scanner.h"
 
-#include "../include/v8stdint.h"
-#include "char-predicates-inl.h"
-#include "conversions-inl.h"
-#include "list-inl.h"
-#include "v8.h"
-#include "parser.h"
+#include "include/v8stdint.h"
+#include "src/char-predicates-inl.h"
+#include "src/conversions-inl.h"
+#include "src/list-inl.h"
+#include "src/v8.h"
+#include "src/parser.h"
 
 namespace v8 {
 namespace internal {

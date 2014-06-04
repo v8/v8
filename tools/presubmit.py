@@ -48,8 +48,6 @@ from subprocess import PIPE
 # Disabled LINT rules and reason.
 # build/include_what_you_use: Started giving false positives for variables
 #  named "string" and "map" assuming that you needed to include STL headers.
-# runtime/references: Started giving a lot of positives after depot-tools
-#  update. To be fixed soon: v8:3326.
 
 ENABLED_LINT_RULES = """
 build/class
@@ -82,6 +80,7 @@ runtime/mutex
 runtime/nonconf
 runtime/printf
 runtime/printf_format
+runtime/references
 runtime/rtti
 runtime/sizeof
 runtime/string
@@ -201,7 +200,7 @@ class SourceFileProcessor(object):
 
   def IgnoreDir(self, name):
     return (name.startswith('.') or
-            name in ('data', 'kraken', 'octane', 'sunspider'))
+            name in ('buildtools', 'data', 'kraken', 'octane', 'sunspider'))
 
   def IgnoreFile(self, name):
     return name.startswith('.')

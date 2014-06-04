@@ -6,15 +6,15 @@
 #include <stdlib.h>
 #include <cmath>
 
-#include "v8.h"
+#include "src/v8.h"
 
 #if V8_TARGET_ARCH_ARM
 
-#include "disasm.h"
-#include "assembler.h"
-#include "codegen.h"
-#include "arm/constants-arm.h"
-#include "arm/simulator-arm.h"
+#include "src/disasm.h"
+#include "src/assembler.h"
+#include "src/codegen.h"
+#include "src/arm/constants-arm.h"
+#include "src/arm/simulator-arm.h"
 
 #if defined(USE_SIMULATOR)
 

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "../include/v8stdint.h"
-#include "utils.h"
-#include "bignum.h"
+#include "include/v8stdint.h"
+#include "src/utils.h"
+#include "src/bignum.h"
 
 namespace v8 {
 namespace internal {

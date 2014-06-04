@@ -5,7 +5,7 @@
 #ifndef V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 #define V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
 
-#include "heap-snapshot-generator.h"
+#include "src/heap-snapshot-generator.h"
 
 namespace v8 {
 namespace internal {

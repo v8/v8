@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "profile-generator-inl.h"
+#include "src/profile-generator-inl.h"
 
-#include "compiler.h"
-#include "debug.h"
-#include "sampler.h"
-#include "global-handles.h"
-#include "scopeinfo.h"
-#include "unicode.h"
-#include "zone-inl.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/sampler.h"
+#include "src/global-handles.h"
+#include "src/scopeinfo.h"
+#include "src/unicode.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

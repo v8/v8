@@ -5,11 +5,11 @@
 #ifndef V8_GLOBALS_H_
 #define V8_GLOBALS_H_
 
-#include "../include/v8stdint.h"
+#include "include/v8stdint.h"
 
-#include "base/build_config.h"
-#include "base/macros.h"
-#include "checks.h"
+#include "src/base/build_config.h"
+#include "src/base/macros.h"
+#include "src/checks.h"
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:

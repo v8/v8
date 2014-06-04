@@ -47,7 +47,7 @@
         }],
       ],
       'include_dirs+': [
-        '../src',
+        '..',
       ],
       'sources': [
         'lexer-shell.cc',
@@ -69,7 +69,7 @@
         }],
       ],
       'include_dirs+': [
-        '../src',
+        '..',
       ],
       'sources': [
         'parser-shell.cc',

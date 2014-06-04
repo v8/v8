@@ -2,30 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "api.h"
-#include "arguments.h"
-#include "bootstrapper.h"
-#include "code-stubs.h"
-#include "codegen.h"
-#include "compilation-cache.h"
-#include "compiler.h"
-#include "debug.h"
-#include "deoptimizer.h"
-#include "execution.h"
-#include "full-codegen.h"
-#include "global-handles.h"
-#include "ic.h"
-#include "ic-inl.h"
-#include "isolate-inl.h"
-#include "list.h"
-#include "messages.h"
-#include "natives.h"
-#include "stub-cache.h"
-#include "log.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/bootstrapper.h"
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/compilation-cache.h"
+#include "src/compiler.h"
+#include "src/debug.h"
+#include "src/deoptimizer.h"
+#include "src/execution.h"
+#include "src/full-codegen.h"
+#include "src/global-handles.h"
+#include "src/ic.h"
+#include "src/ic-inl.h"
+#include "src/isolate-inl.h"
+#include "src/list.h"
+#include "src/messages.h"
+#include "src/natives.h"
+#include "src/stub-cache.h"
+#include "src/log.h"
 
-#include "../include/v8-debug.h"
+#include "include/v8-debug.h"
 
 namespace v8 {
 namespace internal {
@@ -565,7 +565,7 @@ void Debug::ThreadInit() {
   thread_local_.step_into_fp_ = 0;
   thread_local_.step_out_fp_ = 0;
   // TODO(isolates): frames_are_dropped_?
-  thread_local_.debugger_entry_ = NULL;
+  thread_local_.current_debug_scope_ = NULL;
   thread_local_.restarter_frame_function_pointer_ = NULL;
   thread_local_.promise_on_stack_ = NULL;
 }
@@ -894,8 +894,8 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   if (break_disabled_) return;
 
   // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone(isolate_);
@@ -1348,7 +1348,7 @@ void Debug::PrepareStep(StepAction step_action,
 
   PrepareForBreakPoints();
 
-  ASSERT(is_entered());
+  ASSERT(in_debug_scope());
 
   // Remember this step action and count.
   thread_local_.last_step_action_ = step_action;
@@ -2458,18 +2458,18 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 void Debug::ClearMirrorCache() {
   PostponeInterruptsScope postpone(isolate_);
   HandleScope scope(isolate_);
-  ASSERT(isolate_->context() == *Debug::debug_context());
-
-  // Clear the mirror cache.
-  Handle<Object> fun = Object::GetProperty(
-      isolate_,
-      isolate_->global_object(),
-      "ClearMirrorCache").ToHandleChecked();
-  ASSERT(fun->IsJSFunction());
-  Execution::TryCall(Handle<JSFunction>::cast(fun),
-                     Handle<JSObject>(Debug::debug_context()->global_object()),
-                     0,
-                     NULL);
+  AssertDebugContext();
+  Factory* factory = isolate_->factory();
+  JSObject::SetProperty(isolate_->global_object(),
+      factory->NewStringFromAsciiChecked("next_handle_"),
+      handle(Smi::FromInt(0), isolate_),
+      NONE,
+      SLOPPY).Check();
+  JSObject::SetProperty(isolate_->global_object(),
+      factory->NewStringFromAsciiChecked("mirror_cache_"),
+      factory->NewJSArray(0, FAST_ELEMENTS),
+      NONE,
+      SLOPPY).Check();
 }
 
 
@@ -2514,7 +2514,7 @@ void Debug::AfterGarbageCollection() {
 MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
                                         int argc,
                                         Handle<Object> argv[]) {
-  ASSERT(isolate_->context() == *debug_context());
+  AssertDebugContext();
   // Create the execution state object.
   Handle<Object> constructor = Object::GetProperty(
       isolate_, isolate_->global_object(), constructor_name).ToHandleChecked();
@@ -2583,7 +2583,7 @@ MaybeHandle<Object> Debug::MakeScriptCollectedEvent(int id) {
 
 
 void Debug::OnException(Handle<Object> exception, bool uncaught) {
-  if (is_entered() || ignore_events()) return;
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
   Handle<Object> promise = GetPromiseForUncaughtException();
@@ -2598,9 +2598,8 @@ void Debug::OnException(Handle<Object> exception, bool uncaught) {
     if (!break_on_exception_) return;
   }
 
-  // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // Clear all current stepping setup.
   ClearStepping();
@@ -2621,8 +2620,8 @@ void Debug::OnException(Handle<Object> exception, bool uncaught) {
 
 void Debug::OnDebugBreak(Handle<Object> break_points_hit,
                             bool auto_continue) {
-  // Debugger has already been entered by caller.
-  ASSERT(isolate_->context() == *debug_context());
+  // The caller provided for DebugScope.
+  AssertDebugContext();
   // Bail out if there is no listener for this event
   if (ignore_events()) return;
 
@@ -2640,12 +2639,11 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit,
 
 
 void Debug::OnBeforeCompile(Handle<Script> script) {
-  if (is_entered() || ignore_events()) return;
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
-  // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // Create the event data object.
   Handle<Object> event_data;
@@ -2666,15 +2664,14 @@ void Debug::OnAfterCompile(Handle<Script> script,
   if (script_cache_ != NULL) script_cache_->Add(script);
 
   // No more to do if not debugging.
-  if (is_entered() || ignore_events()) return;
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
   // Store whether in debugger before entering debugger.
-  bool in_debugger = is_entered();
+  bool was_in_scope = in_debug_scope();
 
-  // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
@@ -2705,7 +2702,7 @@ void Debug::OnAfterCompile(Handle<Script> script,
     return;
   }
   // Bail out based on state or if there is no listener for this event
-  if (in_debugger && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
+  if (was_in_scope && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
 
   // Create the compile state object.
   Handle<Object> event_data;
@@ -2718,12 +2715,11 @@ void Debug::OnAfterCompile(Handle<Script> script,
 
 
 void Debug::OnScriptCollected(int id) {
-  if (is_entered() || ignore_events()) return;
+  if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
-  // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // Create the script collected state object.
   Handle<Object> event_data;
@@ -2808,7 +2804,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
 
 
 Handle<Context> Debug::GetDebugContext() {
-  EnterDebugger debugger(isolate_);
+  DebugScope debug_scope(this);
   // The global handle may be destroyed soon after.  Return it reboxed.
   return handle(*debug_context(), isolate_);
 }
@@ -2850,7 +2846,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
   // The debug command interrupt flag might have been set when the command was
   // added. It should be enough to clear the flag only once while we are in the
   // debugger.
-  ASSERT(is_entered());
+  ASSERT(in_debug_scope());
   isolate_->stack_guard()->ClearDebugCommand();
 
   // Notify the debugger that a debug event has occurred unless auto continue is
@@ -2972,7 +2968,7 @@ void Debug::SetEventListener(Handle<Object> callback,
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   message_handler_ = handler;
   UpdateState();
-  if (handler == NULL && is_entered()) {
+  if (handler == NULL && in_debug_scope()) {
     // Send an empty command to the debugger if in a break to make JavaScript
     // run again if the debugger is closed.
     EnqueueCommandMessage(Vector<const uint16_t>::empty());
@@ -2982,21 +2978,16 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 
 
 void Debug::UpdateState() {
-  bool activate = message_handler_ != NULL ||
-                  !event_listener_.is_null() ||
-                  is_entered();
-  if (!is_active_ && activate) {
+  is_active_ = message_handler_ != NULL || !event_listener_.is_null();
+  if (is_active_ || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
     isolate_->compilation_cache()->Disable();
-    activate = Load();
-  } else if (is_loaded() && !activate) {
+    is_active_ = Load();
+  } else if (is_loaded()) {
     isolate_->compilation_cache()->Enable();
     Unload();
   }
-  is_active_ = activate;
-  // At this point the debug context is loaded iff the debugger is active.
-  ASSERT(is_loaded() == is_active());
 }
 
 
@@ -3023,7 +3014,7 @@ void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
   command_received_.Signal();
 
   // Set the debug command break flag to have the command processed.
-  if (!is_entered()) isolate_->stack_guard()->RequestDebugCommand();
+  if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();
 }
 
 
@@ -3032,16 +3023,13 @@ void Debug::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
   event_command_queue_.Put(message);
 
   // Set the debug command break flag to have the command processed.
-  if (!is_entered()) isolate_->stack_guard()->RequestDebugCommand();
+  if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();
 }
 
 
 MaybeHandle<Object> Debug::Call(Handle<JSFunction> fun, Handle<Object> data) {
-  // Enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) {
-    return isolate_->factory()->undefined_value();
-  }
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return isolate_->factory()->undefined_value();
 
   // Create the execution state.
   Handle<Object> exec_state;
@@ -3099,9 +3087,8 @@ void Debug::ProcessDebugMessages(bool debug_command_only) {
   if (check.HasOverflowed()) return;
 
   HandleScope scope(isolate_);
-  // Enter the debugger. Just continue if we fail to enter the debugger.
-  EnterDebugger debugger(isolate_);
-  if (debugger.FailedToEnter()) return;
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
 
   // Notify the debug event listeners. Indicate auto continue if the break was
   // a debug command break.
@@ -3109,59 +3096,54 @@ void Debug::ProcessDebugMessages(bool debug_command_only) {
 }
 
 
-EnterDebugger::EnterDebugger(Isolate* isolate)
-    : isolate_(isolate),
-      prev_(isolate_->debug()->debugger_entry()),
-      save_(isolate_) {
-  Debug* debug = isolate_->debug();
-
+DebugScope::DebugScope(Debug* debug) : debug_(debug),
+                                       prev_(debug->debugger_entry()),
+                                       save_(debug_->isolate_) {
   // Link recursive debugger entry.
-  debug->thread_local_.debugger_entry_ = this;
+  debug_->thread_local_.current_debug_scope_ = this;
 
   // Store the previous break id and frame id.
-  break_id_ = debug->break_id();
-  break_frame_id_ = debug->break_frame_id();
+  break_id_ = debug_->break_id();
+  break_frame_id_ = debug_->break_frame_id();
 
   // Create the new break info. If there is no JavaScript frames there is no
   // break frame id.
-  JavaScriptFrameIterator it(isolate_);
+  JavaScriptFrameIterator it(isolate());
   bool has_js_frames = !it.done();
-  debug->thread_local_.break_frame_id_ = has_js_frames ? it.frame()->id()
-                                                       : StackFrame::NO_ID;
-  debug->SetNextBreakId();
+  debug_->thread_local_.break_frame_id_ = has_js_frames ? it.frame()->id()
+                                                        : StackFrame::NO_ID;
+  debug_->SetNextBreakId();
 
-  debug->UpdateState();
+  debug_->UpdateState();
   // Make sure that debugger is loaded and enter the debugger context.
   // The previous context is kept in save_.
-  load_failed_ = !debug->is_loaded();
-  if (!load_failed_) isolate_->set_context(*debug->debug_context());
+  failed_ = !debug_->is_loaded();
+  if (!failed_) isolate()->set_context(*debug->debug_context());
 }
 
 
-EnterDebugger::~EnterDebugger() {
-  Debug* debug = isolate_->debug();
 
-  // Restore to the previous break state.
-  debug->thread_local_.break_frame_id_ = break_frame_id_;
-  debug->thread_local_.break_id_ = break_id_;
-
-  // Check for leaving the debugger.
-  if (!load_failed_ && prev_ == NULL) {
+DebugScope::~DebugScope() {
+  if (!failed_ && prev_ == NULL) {
     // Clear mirror cache when leaving the debugger. Skip this if there is a
     // pending exception as clearing the mirror cache calls back into
     // JavaScript. This can happen if the v8::Debug::Call is used in which
     // case the exception should end up in the calling code.
-    if (!isolate_->has_pending_exception()) debug->ClearMirrorCache();
+    if (!isolate()->has_pending_exception()) debug_->ClearMirrorCache();
 
     // If there are commands in the queue when leaving the debugger request
     // that these commands are processed.
-    if (debug->has_commands()) isolate_->stack_guard()->RequestDebugCommand();
+    if (debug_->has_commands()) isolate()->stack_guard()->RequestDebugCommand();
   }
 
   // Leaving this debugger entry.
-  debug->thread_local_.debugger_entry_ = prev_;
+  debug_->thread_local_.current_debug_scope_ = prev_;
 
-  debug->UpdateState();
+  // Restore to the previous break state.
+  debug_->thread_local_.break_frame_id_ = break_frame_id_;
+  debug_->thread_local_.break_id_ = break_id_;
+
+  debug_->UpdateState();
 }
 
 

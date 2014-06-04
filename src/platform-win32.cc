@@ -15,12 +15,12 @@
 #endif  // MINGW_HAS_SECURE_API
 #endif  // __MINGW32__
 
-#include "win32-headers.h"
+#include "src/win32-headers.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "isolate-inl.h"
-#include "platform.h"
+#include "src/isolate-inl.h"
+#include "src/platform.h"
 
 #ifdef _MSC_VER
 

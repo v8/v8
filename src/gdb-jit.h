@@ -5,7 +5,7 @@
 #ifndef V8_GDB_JIT_H_
 #define V8_GDB_JIT_H_
 
-#include "allocation.h"
+#include "src/allocation.h"
 
 //
 // Basic implementation of GDB JIT Interface client.
@@ -14,8 +14,8 @@
 //
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
-#include "v8.h"
-#include "factory.h"
+#include "src/v8.h"
+#include "src/factory.h"
 
 namespace v8 {
 namespace internal {

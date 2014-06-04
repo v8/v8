@@ -27,12 +27,12 @@
 
 #include <stdlib.h>
 
-#include "v8.h"
-#include "api.h"
-#include "heap.h"
-#include "objects.h"
+#include "src/v8.h"
+#include "src/api.h"
+#include "src/heap.h"
+#include "src/objects.h"
 
-#include "cctest.h"
+#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

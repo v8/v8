@@ -5,10 +5,10 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
-#include "allocation.h"
-#include "objects.h"
-#include "platform.h"
-#include "platform/elapsed-timer.h"
+#include "src/allocation.h"
+#include "src/objects.h"
+#include "src/platform.h"
+#include "src/platform/elapsed-timer.h"
 
 namespace v8 {
 namespace internal {

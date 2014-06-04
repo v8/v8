@@ -5,8 +5,8 @@
 #ifndef V8_MARK_COMPACT_H_
 #define V8_MARK_COMPACT_H_
 
-#include "compiler-intrinsics.h"
-#include "spaces.h"
+#include "src/compiler-intrinsics.h"
+#include "src/spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -649,13 +649,6 @@ class MarkCompactCollector {
 
   bool TryPromoteObject(HeapObject* object, int object_size);
 
-  inline Object* encountered_weak_collections() {
-    return encountered_weak_collections_;
-  }
-  inline void set_encountered_weak_collections(Object* weak_collection) {
-    encountered_weak_collections_ = weak_collection;
-  }
-
   void InvalidateCode(Code* code);
 
   void ClearMarkbits();
@@ -913,7 +906,6 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
-  Object* encountered_weak_collections_;
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;

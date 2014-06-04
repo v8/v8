@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "once.h"
+#include "src/once.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -10,7 +10,7 @@
 #include <sched.h>
 #endif
 
-#include "atomicops.h"
+#include "src/atomicops.h"
 
 namespace v8 {
 namespace internal {

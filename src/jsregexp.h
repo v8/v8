@@ -5,9 +5,9 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
-#include "allocation.h"
-#include "assembler.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/assembler.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -296,7 +296,7 @@ class OutSet: public ZoneObject {
  public:
   OutSet() : first_(0), remaining_(NULL), successors_(NULL) { }
   OutSet* Extend(unsigned value, Zone* zone);
-  bool Get(unsigned value);
+  bool Get(unsigned value) const;
   static const unsigned kFirstLimit = 32;
 
  private:
@@ -1465,14 +1465,14 @@ class Trace {
   int FindAffectedRegisters(OutSet* affected_registers, Zone* zone);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
                               int max_register,
-                              OutSet& affected_registers,
+                              const OutSet& affected_registers,
                               OutSet* registers_to_pop,
                               OutSet* registers_to_clear,
                               Zone* zone);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
                                 int max_register,
-                                OutSet& registers_to_pop,
-                                OutSet& registers_to_clear);
+                                const OutSet& registers_to_pop,
+                                const OutSet& registers_to_clear);
   int cp_offset_;
   DeferredAction* actions_;
   Label* backtrack_;

@@ -1,3 +1,12 @@
+2014-06-04: Version 3.27.19
+
+        Split Put into Put and Remove.
+
+        ES6: Add support for values/keys/entries for Map and Set (issue 1793).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-03: Version 3.27.18
 
         Remove PROHIBITS_OVERWRITING as it is subsumed by non-configurable

@@ -5,10 +5,10 @@
 #ifndef V8_TYPE_INFO_H_
 #define V8_TYPE_INFO_H_
 
-#include "allocation.h"
-#include "globals.h"
-#include "types.h"
-#include "zone-inl.h"
+#include "src/allocation.h"
+#include "src/globals.h"
+#include "src/types.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

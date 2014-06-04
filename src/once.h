@@ -52,7 +52,7 @@
 #ifndef V8_ONCE_H_
 #define V8_ONCE_H_
 
-#include "atomicops.h"
+#include "src/atomicops.h"
 
 namespace v8 {
 namespace internal {

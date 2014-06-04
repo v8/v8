@@ -4,21 +4,21 @@
 
 #include <stdarg.h>
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "bootstrapper.h"
-#include "code-stubs.h"
-#include "cpu-profiler.h"
-#include "deoptimizer.h"
-#include "global-handles.h"
-#include "log.h"
-#include "log-utils.h"
-#include "macro-assembler.h"
-#include "platform.h"
-#include "runtime-profiler.h"
-#include "serialize.h"
-#include "string-stream.h"
-#include "vm-state-inl.h"
+#include "src/bootstrapper.h"
+#include "src/code-stubs.h"
+#include "src/cpu-profiler.h"
+#include "src/deoptimizer.h"
+#include "src/global-handles.h"
+#include "src/log.h"
+#include "src/log-utils.h"
+#include "src/macro-assembler.h"
+#include "src/platform.h"
+#include "src/runtime-profiler.h"
+#include "src/serialize.h"
+#include "src/string-stream.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {

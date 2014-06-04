@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "default-platform.h"
+#include "src/libplatform/default-platform.h"
 
 #include <algorithm>
 #include <queue>
 
 // TODO(jochen): We should have our own version of checks.h.
-#include "../checks.h"
-#include "../platform.h"
-#include "worker-thread.h"
+#include "src/checks.h"
+#include "src/platform.h"
+#include "src/libplatform/worker-thread.h"
 
 namespace v8 {
 namespace internal {

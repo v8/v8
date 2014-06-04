@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "accessors.h"
-#include "api.h"
-#include "arguments.h"
-#include "codegen.h"
-#include "conversions.h"
-#include "execution.h"
-#include "ic-inl.h"
-#include "runtime.h"
-#include "stub-cache.h"
+#include "src/accessors.h"
+#include "src/api.h"
+#include "src/arguments.h"
+#include "src/codegen.h"
+#include "src/conversions.h"
+#include "src/execution.h"
+#include "src/ic-inl.h"
+#include "src/runtime.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -2960,7 +2960,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
     Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
                                 ? FirstTargetMap()
                                 : HeapObject::cast(*object)->map());
-    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, stub);
+    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, &stub);
   } else {
     code = stub.GetCode();
   }

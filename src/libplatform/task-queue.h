@@ -7,9 +7,9 @@
 
 #include <queue>
 
-#include "../base/macros.h"
-#include "../platform/mutex.h"
-#include "../platform/semaphore.h"
+#include "src/base/macros.h"
+#include "src/platform/mutex.h"
+#include "src/platform/semaphore.h"
 
 namespace v8 {
 

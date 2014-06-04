@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "date.h"
+#include "src/date.h"
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "objects.h"
-#include "objects-inl.h"
+#include "src/objects.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

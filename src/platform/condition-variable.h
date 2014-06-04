@@ -5,7 +5,7 @@
 #ifndef V8_PLATFORM_CONDITION_VARIABLE_H_
 #define V8_PLATFORM_CONDITION_VARIABLE_H_
 
-#include "platform/mutex.h"
+#include "src/platform/mutex.h"
 
 namespace v8 {
 namespace internal {

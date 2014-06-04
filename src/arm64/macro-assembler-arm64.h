@@ -7,9 +7,9 @@
 
 #include <vector>
 
-#include "globals.h"
+#include "src/globals.h"
 
-#include "arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -89,6 +89,10 @@ inline BranchType InvertBranchType(BranchType type) {
 
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
+enum PointersToHereCheck {
+  kPointersToHereMaybeInteresting,
+  kPointersToHereAreAlwaysInteresting
+};
 enum LinkRegisterStatus { kLRHasNotBeenSaved, kLRHasBeenSaved };
 enum TargetAddressStorageMode {
   CAN_INLINE_TARGET_ADDRESS,
@@ -1787,7 +1791,9 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // As above, but the offset has the tag presubtracted. For use with
   // MemOperand(reg, off).
@@ -1799,7 +1805,9 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK) {
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting) {
     RecordWriteField(context,
                      offset + kHeapObjectTag,
                      value,
@@ -1807,8 +1815,16 @@ class MacroAssembler : public Assembler {
                      lr_status,
                      save_fp,
                      remembered_set_action,
-                     smi_check);
+                     smi_check,
+                     pointers_to_here_check_for_value);
   }
+
+  void RecordWriteForMap(
+      Register object,
+      Register map,
+      Register dst,
+      LinkRegisterStatus lr_status,
+      SaveFPRegsMode save_fp);
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
@@ -1820,7 +1836,9 @@ class MacroAssembler : public Assembler {
       LinkRegisterStatus lr_status,
       SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
-      SmiCheck smi_check = INLINE_SMI_CHECK);
+      SmiCheck smi_check = INLINE_SMI_CHECK,
+      PointersToHereCheck pointers_to_here_check_for_value =
+          kPointersToHereMaybeInteresting);
 
   // Checks the color of an object. If the object is already grey or black
   // then we just fall through, since it is already live. If it is white and

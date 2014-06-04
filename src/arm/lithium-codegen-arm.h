@@ -5,14 +5,14 @@
 #ifndef V8_ARM_LITHIUM_CODEGEN_ARM_H_
 #define V8_ARM_LITHIUM_CODEGEN_ARM_H_
 
-#include "arm/lithium-arm.h"
+#include "src/arm/lithium-arm.h"
 
-#include "arm/lithium-gap-resolver-arm.h"
-#include "deoptimizer.h"
-#include "lithium-codegen.h"
-#include "safepoint-table.h"
-#include "scopes.h"
-#include "utils.h"
+#include "src/arm/lithium-gap-resolver-arm.h"
+#include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
+#include "src/safepoint-table.h"
+#include "src/scopes.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -15,9 +15,9 @@
 #include <signal.h>
 
 
-#include "d8.h"
-#include "d8-debug.h"
-#include "debug.h"
+#include "src/d8.h"
+#include "src/d8-debug.h"
+#include "src/debug.h"
 
 
 namespace v8 {
@@ -83,7 +83,7 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
 static bool WaitOnFD(int fd,
                      int read_timeout,
                      int total_timeout,
-                     struct timeval& start_time) {
+                     const struct timeval& start_time) {
   fd_set readfds, writefds, exceptfds;
   struct timeval timeout;
   int gone = 0;
@@ -206,8 +206,8 @@ class ExecArgs {
     }
   }
   static const unsigned kMaxArgs = 1000;
-  char** arg_array() { return exec_args_; }
-  char* arg0() { return exec_args_[0]; }
+  char* const* arg_array() const { return exec_args_; }
+  const char* arg0() const { return exec_args_[0]; }
 
  private:
   char* exec_args_[kMaxArgs + 1];
@@ -249,7 +249,7 @@ static const int kWriteFD = 1;
 // It only returns if an error occurred.
 static void ExecSubprocess(int* exec_error_fds,
                            int* stdout_fds,
-                           ExecArgs& exec_args) {
+                           const ExecArgs& exec_args) {
   close(exec_error_fds[kReadFD]);  // Don't need this in the child.
   close(stdout_fds[kReadFD]);      // Don't need this in the child.
   close(1);                        // Close stdout.
@@ -288,7 +288,7 @@ static bool ChildLaunchedOK(Isolate* isolate, int* exec_error_fds) {
 // succeeded or false if an exception was thrown.
 static Handle<Value> GetStdout(Isolate* isolate,
                                int child_fd,
-                               struct timeval& start_time,
+                               const struct timeval& start_time,
                                int read_timeout,
                                int total_timeout) {
   Handle<String> accumulator = String::Empty(isolate);
@@ -360,8 +360,8 @@ static Handle<Value> GetStdout(Isolate* isolate,
 // Get exit status of child.
 static bool WaitForChild(Isolate* isolate,
                          int pid,
-                         ZombieProtector& child_waiter,
-                         struct timeval& start_time,
+                         ZombieProtector& child_waiter,  // NOLINT
+                         const struct timeval& start_time,
                          int read_timeout,
                          int total_timeout) {
 #ifdef HAS_WAITID

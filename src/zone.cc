@@ -4,8 +4,8 @@
 
 #include <string.h>
 
-#include "v8.h"
-#include "zone-inl.h"
+#include "src/v8.h"
+#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -2,44 +2,44 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "ast.h"
-#include "compiler.h"
-#include "execution.h"
-#include "factory.h"
-#include "jsregexp.h"
-#include "jsregexp-inl.h"
-#include "platform.h"
-#include "string-search.h"
-#include "runtime.h"
-#include "compilation-cache.h"
-#include "string-stream.h"
-#include "parser.h"
-#include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-tracer.h"
-#include "regexp-macro-assembler-irregexp.h"
-#include "regexp-stack.h"
+#include "src/ast.h"
+#include "src/compiler.h"
+#include "src/execution.h"
+#include "src/factory.h"
+#include "src/jsregexp.h"
+#include "src/jsregexp-inl.h"
+#include "src/platform.h"
+#include "src/string-search.h"
+#include "src/runtime.h"
+#include "src/compilation-cache.h"
+#include "src/string-stream.h"
+#include "src/parser.h"
+#include "src/regexp-macro-assembler.h"
+#include "src/regexp-macro-assembler-tracer.h"
+#include "src/regexp-macro-assembler-irregexp.h"
+#include "src/regexp-stack.h"
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "x64/regexp-macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"
 #elif V8_TARGET_ARCH_ARM64
-#include "arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"
 #elif V8_TARGET_ARCH_ARM
-#include "arm/regexp-macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
-#include "mips/regexp-macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"
 #elif V8_TARGET_ARCH_X87
-#include "x87/regexp-macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"
 #else
 #error Unsupported target architecture.
 #endif
 #endif
 
-#include "interpreter-irregexp.h"
+#include "src/interpreter-irregexp.h"
 
 
 namespace v8 {
@@ -1205,8 +1205,8 @@ int Trace::FindAffectedRegisters(OutSet* affected_registers,
 
 void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
                                      int max_register,
-                                     OutSet& registers_to_pop,
-                                     OutSet& registers_to_clear) {
+                                     const OutSet& registers_to_pop,
+                                     const OutSet& registers_to_clear) {
   for (int reg = max_register; reg >= 0; reg--) {
     if (registers_to_pop.Get(reg)) assembler->PopRegister(reg);
     else if (registers_to_clear.Get(reg)) {
@@ -1222,7 +1222,7 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
 
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    int max_register,
-                                   OutSet& affected_registers,
+                                   const OutSet& affected_registers,
                                    OutSet* registers_to_pop,
                                    OutSet* registers_to_clear,
                                    Zone* zone) {
@@ -5547,7 +5547,7 @@ void OutSet::Set(unsigned value, Zone *zone) {
 }
 
 
-bool OutSet::Get(unsigned value) {
+bool OutSet::Get(unsigned value) const {
   if (value < kFirstLimit) {
     return (first_ & (1 << value)) != 0;
   } else if (remaining_ == NULL) {
