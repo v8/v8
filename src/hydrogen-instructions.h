@@ -5589,12 +5589,12 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
                                 : flags_ & ~CLEAR_NEXT_MAP_WORD);
   }
 
-  void UpdateSize(HValue* size, HConstant* size_upper_bound = NULL) {
+  void UpdateSize(HValue* size) {
     SetOperandAt(1, size);
     if (size->IsInteger32Constant()) {
       size_upper_bound_ = HConstant::cast(size);
     } else {
-      size_upper_bound_ = size_upper_bound;
+      size_upper_bound_ = NULL;
     }
   }
 
@@ -5611,7 +5611,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
             allocate->IsOldPointerSpaceAllocation());
   }
 
-  void ClearNextMapWord(HValue* offset);
+  void ClearNextMapWord(int offset);
 
   Flags flags_;
   Handle<Map> known_initial_map_;

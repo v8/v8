@@ -3757,13 +3757,25 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   }
 
   HAllocate* dominator_allocate = HAllocate::cast(dominator);
+  HValue* dominator_size = dominator_allocate->size();
+  HValue* current_size = size();
+
+  // TODO(hpayer): Add support for non-constant allocation in dominator.
+  if (!dominator_size->IsInteger32Constant()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), "
+             "dynamic allocation size in dominator\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
+    return false;
+  }
 
   dominator_allocate = GetFoldableDominator(dominator_allocate);
   if (dominator_allocate == NULL) {
     return false;
   }
 
-  if (!has_size_upper_bound() || !dominator_allocate->has_size_upper_bound()) {
+  if (!has_size_upper_bound()) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s), "
              "can't estimate total allocation size\n",
@@ -3772,19 +3784,6 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
-  HValue* dominator_size = dominator_allocate->size();
-  // TODO(ishell): support folding of dynamic size allocation with
-  // double aligned allocation.
-  if (!dominator_size->IsInteger32Constant() && MustAllocateDoubleAligned()) {
-    if (FLAG_trace_allocation_folding) {
-      PrintF("#%d (%s) cannot fold into #%d (%s), dynamic size "
-             "in dominator and double aligned requirement\n",
-          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
-    }
-    return false;
-  }
-
-  HValue* current_size = size();
   if (!current_size->IsInteger32Constant()) {
     // If it's not constant then it is a size_in_bytes calculation graph
     // like this: (const_header_size + const_element_size * size).
@@ -3809,82 +3808,61 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
          (IsOldPointerSpaceAllocation() &&
          dominator_allocate->IsOldPointerSpaceAllocation()));
 
-  // First update the size and size upper bound of the dominator allocate
-  // instruction.
-  int32_t dominator_size_upper_bound_value =
-      dominator_allocate->size_upper_bound()->GetInteger32Constant();
+  // First update the size of the dominator allocate instruction.
+  dominator_size = dominator_allocate->size();
+  int32_t original_object_size =
+      HConstant::cast(dominator_size)->GetInteger32Constant();
+  int32_t dominator_size_constant = original_object_size;
 
   if (MustAllocateDoubleAligned()) {
-    if ((dominator_size_upper_bound_value & kDoubleAlignmentMask) != 0) {
-      dominator_size_upper_bound_value += kDoubleSize / 2;
+    if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
+      dominator_size_constant += kDoubleSize / 2;
     }
   }
 
-  int32_t new_dominator_size_upper_bound_value =
-      dominator_size_upper_bound_value +
-      size_upper_bound()->GetInteger32Constant();
+  int32_t current_size_max_value = size_upper_bound()->GetInteger32Constant();
+  int32_t new_dominator_size = dominator_size_constant + current_size_max_value;
 
   // Since we clear the first word after folded memory, we cannot use the
   // whole Page::kMaxRegularHeapObjectSize memory.
-  if (new_dominator_size_upper_bound_value >
-      Page::kMaxRegularHeapObjectSize - kPointerSize) {
+  if (new_dominator_size > Page::kMaxRegularHeapObjectSize - kPointerSize) {
     if (FLAG_trace_allocation_folding) {
       PrintF("#%d (%s) cannot fold into #%d (%s) due to size: %d\n",
           id(), Mnemonic(), dominator_allocate->id(),
-          dominator_allocate->Mnemonic(), new_dominator_size_upper_bound_value);
+          dominator_allocate->Mnemonic(), new_dominator_size);
     }
     return false;
   }
 
-  HValue* aligned_dominator_size;
-  if (dominator_size->IsInteger32Constant()) {
-    aligned_dominator_size =
+  HInstruction* new_dominator_size_value;
+
+  if (current_size->IsInteger32Constant()) {
+    new_dominator_size_value =
         HConstant::CreateAndInsertBefore(zone,
                                          context(),
-                                         dominator_size_upper_bound_value,
+                                         new_dominator_size,
+                                         Representation::None(),
+                                         dominator_allocate);
+  } else {
+    HValue* new_dominator_size_constant =
+        HConstant::CreateAndInsertBefore(zone,
+                                         context(),
+                                         dominator_size_constant,
                                          Representation::Integer32(),
                                          dominator_allocate);
 
-  } else {
-    aligned_dominator_size = dominator_size;
-  }
-
-  HConstant* new_dominator_size_upper_bound =
-      HConstant::CreateAndInsertBefore(zone,
-                                       context(),
-                                       new_dominator_size_upper_bound_value,
-                                       Representation::None(),
-                                       dominator_allocate);
-
-  HInstruction* new_dominator_size;
-  if (current_size->IsInteger32Constant() &&
-      dominator_size->IsInteger32Constant()) {
-    new_dominator_size = new_dominator_size_upper_bound;
-
-  } else {
     // Add old and new size together and insert.
-    if (current_size->IsInteger32Constant()) {
-      // Create a copy of constant and put it into the right place
-      current_size =
-          HConstant::CreateAndInsertBefore(zone,
-                                           context(),
-                                           current_size->GetInteger32Constant(),
-                                           Representation::Integer32(),
-                                           dominator_allocate);
-    } else {
-      current_size->ChangeRepresentation(Representation::Integer32());
-    }
+    current_size->ChangeRepresentation(Representation::Integer32());
 
-    new_dominator_size = HAdd::New(zone, context(),
-                                   aligned_dominator_size, current_size);
-    new_dominator_size->ClearFlag(HValue::kCanOverflow);
-    new_dominator_size->ChangeRepresentation(Representation::Integer32());
+    new_dominator_size_value = HAdd::New(zone, context(),
+        new_dominator_size_constant, current_size);
+    new_dominator_size_value->ClearFlag(HValue::kCanOverflow);
+    new_dominator_size_value->ChangeRepresentation(Representation::Integer32());
 
-    new_dominator_size->InsertBefore(dominator_allocate);
+    new_dominator_size_value->InsertBefore(dominator_allocate);
   }
 
-  dominator_allocate->UpdateSize(new_dominator_size,
-                                 new_dominator_size_upper_bound);
+  dominator_allocate->UpdateSize(new_dominator_size_value);
 
   if (MustAllocateDoubleAligned()) {
     if (!dominator_allocate->MustAllocateDoubleAligned()) {
@@ -3902,17 +3880,24 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   } else {
     // TODO(hpayer): This is a short-term hack to make allocation mementos
     // work again in new space.
-    dominator_allocate->ClearNextMapWord(dominator_size);
+    dominator_allocate->ClearNextMapWord(original_object_size);
   }
 
   dominator_allocate->UpdateClearNextMapWord(MustClearNextMapWord());
 
   // After that replace the dominated allocate instruction.
+  HInstruction* inner_offset = HConstant::CreateAndInsertBefore(
+      zone,
+      context(),
+      dominator_size_constant,
+      Representation::None(),
+      this);
+
   HInstruction* dominated_allocate_instr =
       HInnerAllocatedObject::New(zone,
                                  context(),
                                  dominator_allocate,
-                                 aligned_dominator_size,
+                                 inner_offset,
                                  type());
   dominated_allocate_instr->InsertBefore(this);
   DeleteAndReplaceWith(dominated_allocate_instr);
@@ -4039,25 +4024,14 @@ void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
 }
 
 
-void HAllocate::ClearNextMapWord(HValue* offset) {
+void HAllocate::ClearNextMapWord(int offset) {
   if (MustClearNextMapWord()) {
     Zone* zone = block()->zone();
-
-    HInstruction* clear_next_map;
-    if (offset->IsInteger32Constant()) {
-      int offset_value = HConstant::cast(offset)->GetInteger32Constant();
-      HObjectAccess access =
-          HObjectAccess::ForObservableJSObjectOffset(offset_value);
-      clear_next_map =
-          HStoreNamedField::New(zone, context(), this, access,
-                                block()->graph()->GetConstant0());
-    } else {
-      clear_next_map =
-          HStoreKeyed::New(zone, context(),
-                           this, offset,
-                           block()->graph()->GetConstant0(),
-                           FAST_HOLEY_SMI_ELEMENTS);
-    }
+    HObjectAccess access =
+        HObjectAccess::ForObservableJSObjectOffset(offset);
+    HStoreNamedField* clear_next_map =
+        HStoreNamedField::New(zone, context(), this, access,
+            block()->graph()->GetConstant0());
     clear_next_map->ClearAllSideEffects();
     clear_next_map->InsertAfter(this);
   }
