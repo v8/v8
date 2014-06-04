@@ -2276,8 +2276,8 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         } else {
           __ cmpl(ToOperand(right), Immediate(value));
         }
-        // We transposed the operands. Reverse the condition.
-        cc = ReverseCondition(cc);
+        // We commuted the operands, so commute the condition.
+        cc = CommuteCondition(cc);
       } else if (instr->hydrogen_value()->representation().IsSmi()) {
         if (right->IsRegister()) {
           __ cmpp(ToRegister(left), ToRegister(right));
@@ -4118,7 +4118,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     } else {
       __ cmpl(index, Immediate(length));
     }
-    cc = ReverseCondition(cc);
+    cc = CommuteCondition(cc);
   } else if (instr->index()->IsConstantOperand()) {
     int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
     if (instr->length()->IsRegister()) {

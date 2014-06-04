@@ -265,8 +265,8 @@ inline Condition NegateCondition(Condition cond) {
   return static_cast<Condition>(cond ^ 1);
 }
 
-// Corresponds to transposing the operands of a comparison.
-inline Condition ReverseCondition(Condition cond) {
+// Commute a condition such that a cond b == b cond' b.
+inline Condition CommuteCondition(Condition cond) {
   switch (cond) {
     case lo:
       return hi;

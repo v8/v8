@@ -2270,8 +2270,8 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
       } else if (left->IsConstantOperand()) {
         __ cmp(ToOperand(right),
                ToImmediate(left, instr->hydrogen()->representation()));
-        // We transposed the operands. Reverse the condition.
-        cc = ReverseCondition(cc);
+        // We commuted the operands, so commute the condition.
+        cc = CommuteCondition(cc);
       } else {
         __ cmp(ToRegister(left), ToOperand(right));
       }
@@ -4064,7 +4064,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     __ cmp(ToOperand(instr->length()),
            ToImmediate(LConstantOperand::cast(instr->index()),
                        instr->hydrogen()->length()->representation()));
-    cc = ReverseCondition(cc);
+    cc = CommuteCondition(cc);
   } else if (instr->length()->IsConstantOperand()) {
     __ cmp(ToOperand(instr->index()),
            ToImmediate(LConstantOperand::cast(instr->length()),

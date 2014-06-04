@@ -1848,7 +1848,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck *instr) {
     Operand index = ToOperand32I(instr->index());
     Register length = ToRegister32(instr->length());
     __ Cmp(length, index);
-    cond = ReverseCondition(cond);
+    cond = CommuteCondition(cond);
   } else {
     Register index = ToRegister32(instr->index());
     Operand length = ToOperand32I(instr->length());
@@ -2486,10 +2486,10 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
         __ Fcmp(ToDoubleRegister(left),
                 ToDouble(LConstantOperand::cast(right)));
       } else if (left->IsConstantOperand()) {
-        // Transpose the operands and reverse the condition.
+        // Commute the operands and the condition.
         __ Fcmp(ToDoubleRegister(right),
                 ToDouble(LConstantOperand::cast(left)));
-        cond = ReverseCondition(cond);
+        cond = CommuteCondition(cond);
       } else {
         __ Fcmp(ToDoubleRegister(left), ToDoubleRegister(right));
       }
@@ -2506,9 +2506,9 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
                                ToRegister32(left),
                                ToOperand32I(right));
         } else {
-          // Transpose the operands and reverse the condition.
+          // Commute the operands and the condition.
           EmitCompareAndBranch(instr,
-                               ReverseCondition(cond),
+                               CommuteCondition(cond),
                                ToRegister32(right),
                                ToOperand32I(left));
         }
@@ -2521,10 +2521,10 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
                                ToRegister(left),
                                Operand(Smi::FromInt(value)));
         } else if (left->IsConstantOperand()) {
-          // Transpose the operands and reverse the condition.
+          // Commute the operands and the condition.
           int32_t value = ToInteger32(LConstantOperand::cast(left));
           EmitCompareAndBranch(instr,
-                               ReverseCondition(cond),
+                               CommuteCondition(cond),
                                ToRegister(right),
                                Operand(Smi::FromInt(value)));
         } else {
