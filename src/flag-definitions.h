@@ -637,8 +637,8 @@ DEFINE_string(raw_file, NULL, "A file to write the raw snapshot bytes to. "
                               "(mksnapshot only)")
 DEFINE_string(raw_context_file, NULL, "A file to write the raw context "
                                       "snapshot bytes to. (mksnapshot only)")
-DEFINE_string(startup_blob, NULL, "Write V8 startup blob file. "
-                                  "(mksnapshot only)")
+DEFINE_bool(omit, false, "Omit raw snapshot bytes in generated code. "
+                         "(mksnapshot only)")
 
 // code-stubs-hydrogen.cc
 DEFINE_bool(profile_hydrogen_code_stub_compilation, false,

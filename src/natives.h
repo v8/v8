@@ -5,10 +5,6 @@
 #ifndef V8_NATIVES_H_
 #define V8_NATIVES_H_
 
-#include "src/vector.h"
-
-namespace v8 { class StartupData; }  // Forward declaration.
-
 namespace v8 {
 namespace internal {
 
@@ -42,11 +38,6 @@ class NativesCollection {
 
 typedef NativesCollection<CORE> Natives;
 typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
-
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-// Used for reading the natives at runtime. Implementation in natives-empty.cc
-void SetNativesFromFile(StartupData* natives_blob);
-#endif
 
 } }  // namespace v8::internal
 
