@@ -764,10 +764,6 @@ class Heap {
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
 
-  // Ensure that we have swept all spaces in such a way that we can iterate
-  // over all objects.  May cause a GC.
-  void MakeHeapIterable();
-
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed();
 
@@ -1707,6 +1703,10 @@ class Heap {
   // with the allocation memento of the object at the top
   void EnsureFillerObjectAtTop();
 
+  // Ensure that we have swept all spaces in such a way that we can iterate
+  // over all objects.  May cause a GC.
+  void MakeHeapIterable();
+
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
@@ -2171,10 +2171,11 @@ class Heap {
 
   int gc_callbacks_depth_;
 
-  friend class Factory;
-  friend class GCTracer;
   friend class AlwaysAllocateScope;
-  friend class Page;
+  friend class Factory;
+  friend class GCCallbacksScope;
+  friend class GCTracer;
+  friend class HeapIterator;
   friend class Isolate;
   friend class MarkCompactCollector;
   friend class MarkCompactMarkingVisitor;
@@ -2182,7 +2183,7 @@ class Heap {
 #ifdef VERIFY_HEAP
   friend class NoWeakObjectVerificationScope;
 #endif
-  friend class GCCallbacksScope;
+  friend class Page;
 
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };

@@ -1188,8 +1188,6 @@ void LiveEdit::ReplaceFunctionCode(
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
-  isolate->heap()->MakeHeapIterable();
-
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
     ReplaceCodeObject(Handle<Code>(shared_info->code()), code);
@@ -1424,8 +1422,6 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_start_position(new_function_start);
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
-
-  info->GetIsolate()->heap()->MakeHeapIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.
