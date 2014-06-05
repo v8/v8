@@ -183,6 +183,7 @@ DEFINE_implication(harmony_collections, harmony_symbols)
 DEFINE_implication(harmony, es_staging)
 DEFINE_implication(es_staging, harmony_maths)
 DEFINE_implication(es_staging, harmony_symbols)
+DEFINE_implication(es_staging, harmony_collections)
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
