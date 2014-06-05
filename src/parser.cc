@@ -2287,11 +2287,13 @@ Block* Parser::ParseVariableDeclarations(
 
 static bool ContainsLabel(ZoneStringList* labels, Handle<String> label) {
   ASSERT(!label.is_null());
-  if (labels != NULL)
-    for (int i = labels->length(); i-- > 0; )
-      if (labels->at(i).is_identical_to(label))
+  if (labels != NULL) {
+    for (int i = labels->length(); i-- > 0; ) {
+      if (labels->at(i).is_identical_to(label)) {
         return true;
-
+      }
+    }
+  }
   return false;
 }
 
