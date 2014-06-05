@@ -1623,16 +1623,16 @@ TEST(FunctionDetails) {
       ProfileGenerator::kAnonymousFunctionName);
   CheckFunctionDetails(env->GetIsolate(), script,
                        ProfileGenerator::kAnonymousFunctionName, "script_b",
-                       script_b->GetId(), 1, 1);
+                       script_b->GetUnboundScript()->GetId(), 1, 1);
   const v8::CpuProfileNode* baz = GetChild(env->GetIsolate(), script, "baz");
   CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b",
-                       script_b->GetId(), 3, 16);
+                       script_b->GetUnboundScript()->GetId(), 3, 16);
   const v8::CpuProfileNode* foo = GetChild(env->GetIsolate(), baz, "foo");
   CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a",
-                       script_a->GetId(), 2, 1);
+                       script_a->GetUnboundScript()->GetId(), 2, 1);
   const v8::CpuProfileNode* bar = GetChild(env->GetIsolate(), foo, "bar");
   CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a",
-                       script_a->GetId(), 3, 14);
+                       script_a->GetUnboundScript()->GetId(), 3, 14);
 }
 
 

@@ -17545,7 +17545,7 @@ TEST(ScriptIdInStackTrace) {
   script->Run();
   for (int i = 0; i < 2; i++) {
     CHECK(scriptIdInStack[i] != v8::Message::kNoScriptIdInfo);
-    CHECK_EQ(scriptIdInStack[i], script->GetId());
+    CHECK_EQ(scriptIdInStack[i], script->GetUnboundScript()->GetId());
   }
 }
 
@@ -18476,8 +18476,8 @@ THREADED_TEST(FunctionGetScriptId) {
       env->Global()->Get(v8::String::NewFromUtf8(isolate, "foo")));
   v8::Local<v8::Function> bar = v8::Local<v8::Function>::Cast(
       env->Global()->Get(v8::String::NewFromUtf8(isolate, "bar")));
-  CHECK_EQ(script->GetId(), foo->ScriptId());
-  CHECK_EQ(script->GetId(), bar->ScriptId());
+  CHECK_EQ(script->GetUnboundScript()->GetId(), foo->ScriptId());
+  CHECK_EQ(script->GetUnboundScript()->GetId(), bar->ScriptId());
 }
 
 

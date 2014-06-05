@@ -984,24 +984,9 @@ class V8_EXPORT Script {
    */
   Local<UnboundScript> GetUnboundScript();
 
-  // To be deprecated; use GetUnboundScript()->GetId();
-  int GetId() {
-    return GetUnboundScript()->GetId();
-  }
-
-  // Use GetUnboundScript()->GetId();
   V8_DEPRECATED("Use GetUnboundScript()->GetId()",
-                Handle<Value> GetScriptName()) {
-    return GetUnboundScript()->GetScriptName();
-  }
-
-  /**
-   * Returns zero based line number of the code_pos location in the script.
-   * -1 will be returned if no information available.
-   */
-  V8_DEPRECATED("Use GetUnboundScript()->GetLineNumber()",
-                int GetLineNumber(int code_pos)) {
-    return GetUnboundScript()->GetLineNumber(code_pos);
+                int GetId()) {
+    return GetUnboundScript()->GetId();
   }
 };
 
@@ -1046,8 +1031,7 @@ class V8_EXPORT ScriptCompiler {
   };
 
   /**
-   * Source code which can be then compiled to a UnboundScript or
-   * BoundScript.
+   * Source code which can be then compiled to a UnboundScript or Script.
    */
   class Source {
    public:

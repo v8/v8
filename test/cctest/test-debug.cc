@@ -1638,7 +1638,7 @@ TEST(ScriptBreakPointByIdThroughJavaScript) {
       env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "g")));
 
   // Get the script id knowing that internally it is a 32 integer.
-  int script_id = script->GetId();
+  int script_id = script->GetUnboundScript()->GetId();
 
   // Call f and g without break points.
   break_point_hit_count = 0;
