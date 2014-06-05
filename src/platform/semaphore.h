@@ -5,9 +5,9 @@
 #ifndef V8_PLATFORM_SEMAPHORE_H_
 #define V8_PLATFORM_SEMAPHORE_H_
 
-#include "src/lazy-instance.h"
+#include "src/base/lazy-instance.h"
 #if V8_OS_WIN
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 #endif
 
 #if V8_OS_MACOSX
@@ -90,10 +90,10 @@ struct CreateSemaphoreTrait {
 
 template <int N>
 struct LazySemaphore {
-  typedef typename LazyDynamicInstance<
+  typedef typename v8::base::LazyDynamicInstance<
       Semaphore,
       CreateSemaphoreTrait<N>,
-      ThreadSafeInitOnceTrait>::type type;
+      v8::base::ThreadSafeInitOnceTrait>::type type;
 };
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER

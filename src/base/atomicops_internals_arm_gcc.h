@@ -6,15 +6,15 @@
 //
 // LinuxKernelCmpxchg and Barrier_AtomicIncrement are from Google Gears.
 
-#ifndef V8_ATOMICOPS_INTERNALS_ARM_GCC_H_
-#define V8_ATOMICOPS_INTERNALS_ARM_GCC_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_ARM_GCC_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_ARM_GCC_H_
 
 #if defined(__QNXNTO__)
 #include <sys/cpuinline.h>
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // Memory barriers on ARM are funky, but the kernel is here to help:
 //
@@ -296,6 +296,6 @@ inline void NoBarrier_Store(volatile Atomic8* ptr, Atomic8 value) {
 
 inline Atomic8 NoBarrier_Load(volatile const Atomic8* ptr) { return *ptr; }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_ATOMICOPS_INTERNALS_ARM_GCC_H_
+#endif  // V8_BASE_ATOMICOPS_INTERNALS_ARM_GCC_H_

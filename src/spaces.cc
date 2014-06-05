@@ -2046,11 +2046,13 @@ void FreeListNode::set_next(FreeListNode* next) {
   // stage.
   if (map() == GetHeap()->raw_unchecked_free_space_map()) {
     ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
-    NoBarrier_Store(reinterpret_cast<AtomicWord*>(address() + kNextOffset),
-                    reinterpret_cast<AtomicWord>(next));
+    base::NoBarrier_Store(
+        reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
+        reinterpret_cast<base::AtomicWord>(next));
   } else {
-    NoBarrier_Store(reinterpret_cast<AtomicWord*>(address() + kPointerSize),
-                    reinterpret_cast<AtomicWord>(next));
+    base::NoBarrier_Store(
+        reinterpret_cast<base::AtomicWord*>(address() + kPointerSize),
+        reinterpret_cast<base::AtomicWord>(next));
   }
 }
 
@@ -2071,7 +2073,7 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
       category->end()->set_next(top());
     }
     set_top(category->top());
-    NoBarrier_Store(&top_, category->top_);
+    base::NoBarrier_Store(&top_, category->top_);
     available_ += category->available();
     category->Reset();
   }

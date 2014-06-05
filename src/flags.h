@@ -5,7 +5,6 @@
 #ifndef V8_FLAGS_H_
 #define V8_FLAGS_H_
 
-#include "src/atomicops.h"
 #include "src/globals.h"
 
 namespace v8 {

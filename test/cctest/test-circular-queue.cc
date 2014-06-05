@@ -35,7 +35,7 @@ using i::SamplingCircularQueue;
 
 
 TEST(SamplingCircularQueue) {
-  typedef i::AtomicWord Record;
+  typedef v8::base::AtomicWord Record;
   const int kMaxRecordsInQueue = 4;
   SamplingCircularQueue<Record, kMaxRecordsInQueue> scq;
 
@@ -99,7 +99,7 @@ TEST(SamplingCircularQueue) {
 
 namespace {
 
-typedef i::AtomicWord Record;
+typedef v8::base::AtomicWord Record;
 typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
 
 class ProducerThread: public i::Thread {

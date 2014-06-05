@@ -138,7 +138,7 @@ class VisitorDispatchTable {
     // every element of callbacks_ array will remain correct
     // pointer (memcpy might be implemented as a byte copying loop).
     for (int i = 0; i < StaticVisitorBase::kVisitorIdCount; i++) {
-      NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
+      base::NoBarrier_Store(&callbacks_[i], other->callbacks_[i]);
     }
   }
 
@@ -152,7 +152,7 @@ class VisitorDispatchTable {
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {
     ASSERT(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
-    callbacks_[id] = reinterpret_cast<AtomicWord>(callback);
+    callbacks_[id] = reinterpret_cast<base::AtomicWord>(callback);
   }
 
   template<typename Visitor,
@@ -184,7 +184,7 @@ class VisitorDispatchTable {
   }
 
  private:
-  AtomicWord callbacks_[StaticVisitorBase::kVisitorIdCount];
+  base::AtomicWord callbacks_[StaticVisitorBase::kVisitorIdCount];
 };
 
 

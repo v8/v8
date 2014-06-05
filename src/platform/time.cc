@@ -13,12 +13,13 @@
 
 #include <string.h>
 
+#if V8_OS_WIN
+#include "src/base/lazy-instance.h"
+#include "src/base/win32-headers.h"
+#endif
 #include "src/checks.h"
 #include "src/cpu.h"
 #include "src/platform.h"
-#if V8_OS_WIN
-#include "src/win32-headers.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -193,9 +194,9 @@ class Clock V8_FINAL {
 };
 
 
-static LazyStaticInstance<Clock,
-    DefaultConstructTrait<Clock>,
-    ThreadSafeInitOnceTrait>::type clock = LAZY_STATIC_INSTANCE_INITIALIZER;
+static base::LazyStaticInstance<Clock, base::DefaultConstructTrait<Clock>,
+                                base::ThreadSafeInitOnceTrait>::type clock =
+    LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
 Time Time::Now() {
@@ -462,10 +463,11 @@ class RolloverProtectedTickClock V8_FINAL : public TickClock {
 };
 
 
-static LazyStaticInstance<RolloverProtectedTickClock,
-    DefaultConstructTrait<RolloverProtectedTickClock>,
-    ThreadSafeInitOnceTrait>::type tick_clock =
-        LAZY_STATIC_INSTANCE_INITIALIZER;
+static base::LazyStaticInstance<
+    RolloverProtectedTickClock,
+    base::DefaultConstructTrait<RolloverProtectedTickClock>,
+    base::ThreadSafeInitOnceTrait>::type tick_clock =
+    LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
 struct CreateHighResTickClockTrait {
@@ -489,9 +491,9 @@ struct CreateHighResTickClockTrait {
 };
 
 
-static LazyDynamicInstance<TickClock,
+static base::LazyDynamicInstance<TickClock,
     CreateHighResTickClockTrait,
-    ThreadSafeInitOnceTrait>::type high_res_tick_clock =
+    base::ThreadSafeInitOnceTrait>::type high_res_tick_clock =
         LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
 

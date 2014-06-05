@@ -10,8 +10,8 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/base/lazy-instance.h"
 #include "src/disasm.h"
-#include "src/lazy-instance.h"
 
 namespace disasm {
 
@@ -248,7 +248,7 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
-static v8::internal::LazyInstance<InstructionTable>::type instruction_table =
+static v8::base::LazyInstance<InstructionTable>::type instruction_table =
     LAZY_INSTANCE_INITIALIZER;
 
 

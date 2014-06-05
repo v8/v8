@@ -37,10 +37,10 @@
 namespace v8 {
 namespace internal {
 
-Atomic32 ThreadId::highest_thread_id_ = 0;
+base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
 int ThreadId::AllocateThreadId() {
-  int new_id = NoBarrier_AtomicIncrement(&highest_thread_id_, 1);
+  int new_id = base::NoBarrier_AtomicIncrement(&highest_thread_id_, 1);
   return new_id;
 }
 
@@ -114,7 +114,7 @@ enum DefaultIsolateStatus {
 static DefaultIsolateStatus default_isolate_status_
     = kDefaultIsolateUninitialized;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
-Atomic32 Isolate::isolate_counter_ = 0;
+base::Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
@@ -1487,7 +1487,7 @@ Isolate::Isolate()
       num_sweeper_threads_(0),
       stress_deopt_count_(0),
       next_optimization_id_(0) {
-  id_ = NoBarrier_AtomicIncrement(&isolate_counter_, 1);
+  id_ = base::NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,

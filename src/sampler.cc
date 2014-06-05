@@ -38,7 +38,7 @@
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 
 #endif
 
@@ -654,7 +654,7 @@ void Sampler::Stop() {
 
 
 void Sampler::IncreaseProfilingDepth() {
-  NoBarrier_AtomicIncrement(&profiling_, 1);
+  base::NoBarrier_AtomicIncrement(&profiling_, 1);
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
 #endif
@@ -665,7 +665,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
   SignalHandler::DecreaseSamplerCount();
 #endif
-  NoBarrier_AtomicIncrement(&profiling_, -1);
+  base::NoBarrier_AtomicIncrement(&profiling_, -1);
 }
 
 

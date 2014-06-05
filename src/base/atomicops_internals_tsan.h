@@ -6,11 +6,11 @@
 // This file is an internal atomic implementation for compiler-based
 // ThreadSanitizer. Use base/atomicops.h instead.
 
-#ifndef V8_ATOMICOPS_INTERNALS_TSAN_H_
-#define V8_ATOMICOPS_INTERNALS_TSAN_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_TSAN_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_TSAN_H_
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #ifndef TSAN_INTERFACE_ATOMIC_H
 #define TSAN_INTERFACE_ATOMIC_H
@@ -371,9 +371,9 @@ inline void MemoryBarrier() {
   __tsan_atomic_thread_fence(__tsan_memory_order_seq_cst);
 }
 
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
 
 #undef ATOMICOPS_COMPILER_BARRIER
 
-#endif  // V8_ATOMICOPS_INTERNALS_TSAN_H_
+#endif  // V8_BASE_ATOMICOPS_INTERNALS_TSAN_H_

@@ -5,6 +5,7 @@
 #include "src/elements-kind.h"
 
 #include "src/api.h"
+#include "src/base/lazy-instance.h"
 #include "src/elements.h"
 #include "src/objects.h"
 
@@ -102,8 +103,8 @@ struct InitializeFastElementsKindSequence {
 };
 
 
-static LazyInstance<ElementsKind*,
-                    InitializeFastElementsKindSequence>::type
+static base::LazyInstance<ElementsKind*,
+                          InitializeFastElementsKindSequence>::type
     fast_elements_kind_sequence = LAZY_INSTANCE_INITIALIZER;
 
 

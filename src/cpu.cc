@@ -23,7 +23,7 @@
 
 #include "src/checks.h"
 #if V8_OS_WIN
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 #endif
 
 namespace v8 {

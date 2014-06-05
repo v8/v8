@@ -6,7 +6,7 @@
 #define V8_CPU_PROFILER_H_
 
 #include "src/allocation.h"
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 #include "src/circular-queue.h"
 #include "src/platform/time.h"
 #include "src/sampler.h"

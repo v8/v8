@@ -27,9 +27,10 @@
 
 #include "src/v8.h"
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 #include "test/cctest/cctest.h"
 
+using namespace v8::base;
 using namespace v8::internal;
 
 

@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/atomicops.h"
 #include "src/full-codegen.h"
 #include "src/hydrogen.h"
 #include "src/isolate.h"
@@ -51,7 +52,7 @@ void OptimizingCompilerThread::Run() {
       OS::Sleep(FLAG_concurrent_recompilation_delay);
     }
 
-    switch (static_cast<StopFlag>(Acquire_Load(&stop_thread_))) {
+    switch (static_cast<StopFlag>(base::Acquire_Load(&stop_thread_))) {
       case CONTINUE:
         break;
       case STOP:
@@ -65,7 +66,8 @@ void OptimizingCompilerThread::Run() {
         { AllowHandleDereference allow_handle_dereference;
           FlushInputQueue(true);
         }
-        Release_Store(&stop_thread_, static_cast<AtomicWord>(CONTINUE));
+        base::Release_Store(&stop_thread_,
+                            static_cast<base::AtomicWord>(CONTINUE));
         stop_semaphore_.Signal();
         // Return to start of consumer loop.
         continue;
@@ -169,7 +171,7 @@ void OptimizingCompilerThread::FlushOsrBuffer(bool restore_function_code) {
 
 void OptimizingCompilerThread::Flush() {
   ASSERT(!IsOptimizerThread());
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(FLUSH));
+  base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();
@@ -183,7 +185,7 @@ void OptimizingCompilerThread::Flush() {
 
 void OptimizingCompilerThread::Stop() {
   ASSERT(!IsOptimizerThread());
-  Release_Store(&stop_thread_, static_cast<AtomicWord>(STOP));
+  base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(STOP));
   if (FLAG_block_concurrent_recompilation) Unblock();
   input_queue_semaphore_.Signal();
   stop_semaphore_.Wait();

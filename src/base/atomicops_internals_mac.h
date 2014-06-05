@@ -4,13 +4,13 @@
 
 // This file is an internal atomic implementation, use atomicops.h instead.
 
-#ifndef V8_ATOMICOPS_INTERNALS_MAC_H_
-#define V8_ATOMICOPS_INTERNALS_MAC_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_MAC_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_MAC_H_
 
 #include <libkern/OSAtomic.h>
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 old_value,
@@ -199,6 +199,6 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
 
 #endif  // defined(__LP64__)
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_ATOMICOPS_INTERNALS_MAC_H_
+#endif  // V8_BASE_ATOMICOPS_INTERNALS_MAC_H_

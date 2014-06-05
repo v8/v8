@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WIN32_HEADERS_H_
-#define V8_WIN32_HEADERS_H_
+#ifndef V8_BASE_WIN32_HEADERS_H_
+#define V8_BASE_WIN32_HEADERS_H_
 
 #ifndef WIN32_LEAN_AND_MEAN
 // WIN32_LEAN_AND_MEAN implies NOCRYPT and NOGDI.
@@ -76,4 +76,4 @@
 #undef CreateSemaphore
 #undef Yield
 
-#endif  // V8_WIN32_HEADERS_H_
+#endif  // V8_BASE_WIN32_HEADERS_H_

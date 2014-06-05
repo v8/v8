@@ -31,8 +31,8 @@
 
 #include "src/v8.h"
 
+#include "src/base/win32-headers.h"
 #include "src/platform.h"
-#include "src/win32-headers.h"
 #include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;

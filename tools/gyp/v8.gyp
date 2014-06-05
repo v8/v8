@@ -265,8 +265,6 @@
         '../../src/assert-scope.cc',
         '../../src/ast.cc',
         '../../src/ast.h',
-        '../../src/atomicops.h',
-        '../../src/atomicops_internals_x86_gcc.cc',
         '../../src/bignum-dtoa.cc',
         '../../src/bignum-dtoa.h',
         '../../src/bignum.cc',
@@ -448,7 +446,6 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
-        '../../src/lazy-instance.h',
         # TODO(jochen): move libplatform/ files to their own target.
         '../../src/libplatform/default-platform.cc',
         '../../src/libplatform/default-platform.h',
@@ -486,8 +483,6 @@
         '../../src/objects-visiting.h',
         '../../src/objects.cc',
         '../../src/objects.h',
-        '../../src/once.cc',
-        '../../src/once.h',
         '../../src/optimizing-compiler-thread.h',
         '../../src/optimizing-compiler-thread.cc',
         '../../src/parser.cc',
@@ -1057,8 +1052,7 @@
     },
     {
       'target_name': 'v8_libbase.<(v8_target_arch)',
-      # TODO(jochen): Should be a static library once it has sources in it.
-      'type': 'none',
+      'type': 'static_library',
       'variables': {
         'optimize': 'max',
       },
@@ -1066,8 +1060,22 @@
         '../..',
       ],
       'sources': [
+        '../../src/base/atomicops.h',
+        '../../src/base/atomicops_internals_arm64_gcc.h',
+        '../../src/base/atomicops_internals_arm_gcc.h',
+        '../../src/base/atomicops_internals_atomicword_compat.h',
+        '../../src/base/atomicops_internals_mac.h',
+        '../../src/base/atomicops_internals_mips_gcc.h',
+        '../../src/base/atomicops_internals_tsan.h',
+        '../../src/base/atomicops_internals_x86_gcc.cc',
+        '../../src/base/atomicops_internals_x86_gcc.h',
+        '../../src/base/atomicops_internals_x86_msvc.h',
         '../../src/base/build_config.h',
+        '../../src/base/lazy-instance.h',
         '../../src/base/macros.h',
+        '../../src/base/once.cc',
+        '../../src/base/once.h',
+        '../../src/base/win32-headers.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {

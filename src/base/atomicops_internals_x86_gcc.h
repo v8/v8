@@ -4,11 +4,11 @@
 
 // This file is an internal atomic implementation, use atomicops.h instead.
 
-#ifndef V8_ATOMICOPS_INTERNALS_X86_GCC_H_
-#define V8_ATOMICOPS_INTERNALS_X86_GCC_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // This struct is not part of the public API of this module; clients may not
 // use it.
@@ -265,8 +265,8 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
 
 #endif  // defined(__x86_64__)
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
 #undef ATOMICOPS_COMPILER_BARRIER
 
-#endif  // V8_ATOMICOPS_INTERNALS_X86_GCC_H_
+#endif  // V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_

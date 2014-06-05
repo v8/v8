@@ -5,7 +5,7 @@
 #ifndef V8_CIRCULAR_QUEUE_H_
 #define V8_CIRCULAR_QUEUE_H_
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -50,7 +50,7 @@ class SamplingCircularQueue {
   struct V8_ALIGNED(PROCESSOR_CACHE_LINE_SIZE) Entry {
     Entry() : marker(kEmpty) {}
     T record;
-    Atomic32 marker;
+    base::Atomic32 marker;
   };
 
   Entry* Next(Entry* entry);
