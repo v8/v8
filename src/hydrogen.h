@@ -1042,9 +1042,13 @@ class HGraphBuilder {
       : info_(info),
         graph_(NULL),
         current_block_(NULL),
+        scope_(info->scope()),
         position_(HSourcePosition::Unknown()),
         start_position_(0) {}
   virtual ~HGraphBuilder() {}
+
+  Scope* scope() const { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
 
   HBasicBlock* current_block() const { return current_block_; }
   void set_current_block(HBasicBlock* block) { current_block_ = block; }
@@ -1870,6 +1874,7 @@ class HGraphBuilder {
   CompilationInfo* info_;
   HGraph* graph_;
   HBasicBlock* current_block_;
+  Scope* scope_;
   HSourcePosition position_;
   int start_position_;
 };
@@ -1997,10 +2002,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   class BreakAndContinueInfo V8_FINAL BASE_EMBEDDED {
    public:
     explicit BreakAndContinueInfo(BreakableStatement* target,
+                                  Scope* scope,
                                   int drop_extra = 0)
         : target_(target),
           break_block_(NULL),
           continue_block_(NULL),
+          scope_(scope),
           drop_extra_(drop_extra) {
     }
 
@@ -2009,12 +2016,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     void set_break_block(HBasicBlock* block) { break_block_ = block; }
     HBasicBlock* continue_block() { return continue_block_; }
     void set_continue_block(HBasicBlock* block) { continue_block_ = block; }
+    Scope* scope() { return scope_; }
     int drop_extra() { return drop_extra_; }
 
    private:
     BreakableStatement* target_;
     HBasicBlock* break_block_;
     HBasicBlock* continue_block_;
+    Scope* scope_;
     int drop_extra_;
   };
 
@@ -2036,7 +2045,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     // Search the break stack for a break or continue target.
     enum BreakType { BREAK, CONTINUE };
-    HBasicBlock* Get(BreakableStatement* stmt, BreakType type, int* drop_extra);
+    HBasicBlock* Get(BreakableStatement* stmt, BreakType type,
+                     Scope** scope, int* drop_extra);
 
    private:
     BreakAndContinueInfo* info_;
@@ -2146,8 +2156,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   bool PreProcessOsrEntry(IterationStatement* statement);
   void VisitLoopBody(IterationStatement* stmt,
-                     HBasicBlock* loop_entry,
-                     BreakAndContinueInfo* break_info);
+                     HBasicBlock* loop_entry);
 
   // Create a back edge in the flow graph.  body_exit is the predecessor
   // block and loop_entry is the successor block.  loop_successor is the

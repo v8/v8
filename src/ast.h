@@ -441,6 +441,8 @@ class Block V8_FINAL : public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
+  BailoutId DeclsId() const { return decls_id_; }
+
   virtual bool IsJump() const V8_OVERRIDE {
     return !statements_.is_empty() && statements_.last()->IsJump()
         && labels() == NULL;  // Good enough as an approximation...
@@ -458,12 +460,14 @@ class Block V8_FINAL : public BreakableStatement {
       : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos),
         statements_(capacity, zone),
         is_initializer_block_(is_initializer_block),
+        decls_id_(GetNextId(zone)),
         scope_(NULL) {
   }
 
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
+  const BailoutId decls_id_;
   Scope* scope_;
 };
 

@@ -46,6 +46,7 @@ class LChunkBuilder;
   V(AbnormalExit)                              \
   V(AccessArgumentsAt)                         \
   V(Add)                                       \
+  V(AllocateBlockContext)                      \
   V(Allocate)                                  \
   V(ApplyArguments)                            \
   V(ArgumentsElements)                         \
@@ -140,6 +141,7 @@ class LChunkBuilder;
   V(StackCheck)                                \
   V(StoreCodeEntry)                            \
   V(StoreContextSlot)                          \
+  V(StoreFrameContext)                         \
   V(StoreGlobalCell)                           \
   V(StoreKeyed)                                \
   V(StoreKeyedGeneric)                         \
@@ -5798,20 +5800,8 @@ class HLoadContextSlot V8_FINAL : public HUnaryOperation {
     kCheckReturnUndefined
   };
 
-  HLoadContextSlot(HValue* context, Variable* var)
-      : HUnaryOperation(context), slot_index_(var->index()) {
-    ASSERT(var->IsContextSlot());
-    switch (var->mode()) {
-      case LET:
-      case CONST:
-        mode_ = kCheckDeoptimize;
-        break;
-      case CONST_LEGACY:
-        mode_ = kCheckReturnUndefined;
-        break;
-      default:
-        mode_ = kNoCheck;
-    }
+  HLoadContextSlot(HValue* context, int slot_index, Mode mode)
+      : HUnaryOperation(context), slot_index_(slot_index), mode_(mode) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetDependsOnFlag(kContextSlots);
@@ -7715,6 +7705,57 @@ class HLoadFieldByIndex V8_FINAL : public HTemplateInstruction<2> {
  private:
   virtual bool IsDeletable() const V8_OVERRIDE { return true; }
 };
+
+
+class HStoreFrameContext: public HUnaryOperation {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P1(HStoreFrameContext, HValue*);
+
+  HValue* context() { return OperandAt(0); }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreFrameContext)
+ private:
+  explicit HStoreFrameContext(HValue* context)
+      : HUnaryOperation(context) {
+    set_representation(Representation::Tagged());
+    SetChangesFlag(kContextSlots);
+  }
+};
+
+
+class HAllocateBlockContext: public HTemplateInstruction<2> {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P3(HAllocateBlockContext, HValue*,
+                                 HValue*, Handle<ScopeInfo>);
+  HValue* context() { return OperandAt(0); }
+  HValue* function() { return OperandAt(1); }
+  Handle<ScopeInfo> scope_info() { return scope_info_; }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateBlockContext)
+
+ private:
+  HAllocateBlockContext(HValue* context,
+                        HValue* function,
+                        Handle<ScopeInfo> scope_info)
+      : scope_info_(scope_info) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, function);
+    set_representation(Representation::Tagged());
+  }
+
+  Handle<ScopeInfo> scope_info_;
+};
+
 
 
 #undef DECLARE_INSTRUCTION

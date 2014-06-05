@@ -2948,7 +2948,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
       Expression* const1 = factory()->NewLiteral(smi1, RelocInfo::kNoPosition);
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
       compare = factory()->NewCompareOperation(
-          Token::EQ, flag_proxy, const1, RelocInfo::kNoPosition);
+          Token::EQ, flag_proxy, const1, pos);
     }
     Statement* clear_flag = NULL;
     // Make statement: flag = 0.
@@ -2971,7 +2971,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
     BreakableStatement* t = LookupBreakTarget(Handle<String>(), CHECK_OK);
     Statement* stop = factory()->NewBreakStatement(t, RelocInfo::kNoPosition);
     Statement* if_not_cond_break = factory()->NewIfStatement(
-        cond, empty, stop, RelocInfo::kNoPosition);
+        cond, empty, stop, cond->position());
     inner_block->AddStatement(if_not_cond_break, zone());
   }
 
