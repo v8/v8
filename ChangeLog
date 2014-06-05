@@ -1,3 +1,13 @@
+2014-06-05: Version 3.27.20
+
+        Fix invalid loop condition for Array.lastIndexOf() (Chromium issue
+        380512).
+
+        Add API support for passing a C++ function as a microtask callback.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-04: Version 3.27.19
 
         Split Put into Put and Remove.

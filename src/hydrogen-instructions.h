@@ -1158,6 +1158,7 @@ class HInstruction : public HValue {
     position_.set_operand_position(index, pos);
   }
 
+  bool Dominates(HInstruction* other);
   bool CanTruncateToSmi() const { return CheckFlag(kTruncatingToSmi); }
   bool CanTruncateToInt32() const { return CheckFlag(kTruncatingToInt32); }
 
@@ -5458,6 +5459,13 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
   HValue* context() { return OperandAt(0); }
   HValue* size() { return OperandAt(1); }
 
+  bool has_size_upper_bound() { return size_upper_bound_ != NULL; }
+  HConstant* size_upper_bound() { return size_upper_bound_; }
+  void set_size_upper_bound(HConstant* value) {
+    ASSERT(size_upper_bound_ == NULL);
+    size_upper_bound_ = value;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     if (index == 0) {
       return Representation::Tagged();
@@ -5533,9 +5541,10 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
       : HTemplateInstruction<2>(type),
         flags_(ComputeFlags(pretenure_flag, instance_type)),
         dominating_allocate_(NULL),
-        filler_free_space_size_(NULL) {
+        filler_free_space_size_(NULL),
+        size_upper_bound_(NULL) {
     SetOperandAt(0, context);
-    SetOperandAt(1, size);
+    UpdateSize(size);
     set_representation(Representation::Tagged());
     SetFlag(kTrackSideEffectDominators);
     SetChangesFlag(kNewSpacePromotion);
@@ -5582,6 +5591,11 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
 
   void UpdateSize(HValue* size) {
     SetOperandAt(1, size);
+    if (size->IsInteger32Constant()) {
+      size_upper_bound_ = HConstant::cast(size);
+    } else {
+      size_upper_bound_ = NULL;
+    }
   }
 
   HAllocate* GetFoldableDominator(HAllocate* dominator);
@@ -5603,6 +5617,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
   Handle<Map> known_initial_map_;
   HAllocate* dominating_allocate_;
   HStoreNamedField* filler_free_space_size_;
+  HConstant* size_upper_bound_;
 };
 
 

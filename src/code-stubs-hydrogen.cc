@@ -724,6 +724,7 @@ HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
       ? JSArrayBuilder::FILL_WITH_HOLE
       : JSArrayBuilder::DONT_FILL_WITH_HOLE;
   HValue* new_object = array_builder->AllocateArray(checked_length,
+                                                    max_alloc_length,
                                                     checked_length,
                                                     fill_mode);
   HValue* elements = array_builder->GetElementsLocation();

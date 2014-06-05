@@ -1535,25 +1535,18 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
                                                   HValue* index,
                                                   HValue* input) {
   NoObservableSideEffectsScope scope(this);
+  HConstant* max_length = Add<HConstant>(JSObject::kInitialMaxFastElementArray);
+  Add<HBoundsCheck>(length, max_length);
 
-  // Compute the size of the RegExpResult followed by FixedArray with length.
-  HValue* size = length;
-  // Make sure size does not exceed max regular heap object size.
-  const int kHeaderSize = JSRegExpResult::kSize + FixedArray::kHeaderSize;
-  const int kMaxLength =
-      (Page::kMaxRegularHeapObjectSize - kHeaderSize) >> kPointerSizeLog2;
-  Add<HBoundsCheck>(size, Add<HConstant>(kMaxLength));
-
-  size = AddUncasted<HShl>(size, Add<HConstant>(kPointerSizeLog2));
-  size = AddUncasted<HAdd>(size, Add<HConstant>(kHeaderSize));
+  // Generate size calculation code here in order to make it dominate
+  // the JSRegExpResult allocation.
+  ElementsKind elements_kind = FAST_ELEMENTS;
+  HValue* size = BuildCalculateElementsSize(elements_kind, length);
 
   // Allocate the JSRegExpResult and the FixedArray in one step.
   HValue* result = Add<HAllocate>(
-      size, HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
-
-  // Determine the elements FixedArray.
-  HValue* elements = Add<HInnerAllocatedObject>(
-      result, Add<HConstant>(JSRegExpResult::kSize), HType::HeapObject());
+      Add<HConstant>(JSRegExpResult::kSize), HType::JSArray(),
+      NOT_TENURED, JS_ARRAY_TYPE);
 
   // Initialize the JSRegExpResult header.
   HValue* global_object = Add<HLoadNamedField>(
@@ -1567,12 +1560,14 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
       Add<HLoadNamedField>(
           native_context, static_cast<HValue*>(NULL),
           HObjectAccess::ForContextSlot(Context::REGEXP_RESULT_MAP_INDEX)));
+  HConstant* empty_fixed_array =
+      Add<HConstant>(isolate()->factory()->empty_fixed_array());
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kPropertiesOffset),
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()));
+      empty_fixed_array);
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
-      elements);
+      empty_fixed_array);
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kLengthOffset), length);
 
@@ -1584,18 +1579,22 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
       result, HObjectAccess::ForJSArrayOffset(JSRegExpResult::kInputOffset),
       input);
 
-  // Initialize the elements header.
-  AddStoreMapConstant(elements, isolate()->factory()->fixed_array_map());
-  Add<HStoreNamedField>(elements, HObjectAccess::ForFixedArrayLength(), length);
+  // Allocate and initialize the elements header.
+  HAllocate* elements = BuildAllocateElements(elements_kind, size);
+  BuildInitializeElementsHeader(elements, elements_kind, length);
+
+  HConstant* size_in_bytes_upper_bound = EstablishElementsAllocationSize(
+      elements_kind, max_length->Integer32Value());
+  elements->set_size_upper_bound(size_in_bytes_upper_bound);
+
+  Add<HStoreNamedField>(
+      result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
+      elements);
 
   // Initialize the elements contents with undefined.
-  LoopBuilder loop(this, context(), LoopBuilder::kPostIncrement);
-  index = loop.BeginBody(graph()->GetConstant0(), length, Token::LT);
-  {
-    Add<HStoreKeyed>(elements, index, graph()->GetConstantUndefined(),
-                     FAST_ELEMENTS);
-  }
-  loop.EndBody();
+  BuildFillElementsWithValue(
+      elements, elements_kind, graph()->GetConstant0(), length,
+      graph()->GetConstantUndefined());
 
   return result;
 }
@@ -2234,17 +2233,19 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 }
 
 
-
 HValue* HGraphBuilder::BuildAllocateArrayFromLength(
     JSArrayBuilder* array_builder,
     HValue* length_argument) {
   if (length_argument->IsConstant() &&
       HConstant::cast(length_argument)->HasSmiValue()) {
     int array_length = HConstant::cast(length_argument)->Integer32Value();
-    HValue* new_object = array_length == 0
-        ? array_builder->AllocateEmptyArray()
-        : array_builder->AllocateArray(length_argument, length_argument);
-    return new_object;
+    if (array_length == 0) {
+      return array_builder->AllocateEmptyArray();
+    } else {
+      return array_builder->AllocateArray(length_argument,
+                                          array_length,
+                                          length_argument);
+    }
   }
 
   HValue* constant_zero = graph()->GetConstant0();
@@ -2274,32 +2275,61 @@ HValue* HGraphBuilder::BuildAllocateArrayFromLength(
   // Figure out total size
   HValue* length = Pop();
   HValue* capacity = Pop();
-  return array_builder->AllocateArray(capacity, length);
+  return array_builder->AllocateArray(capacity, max_alloc_length, length);
 }
 
 
-HValue* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
-                                             HValue* capacity) {
-  int elements_size;
-  InstanceType instance_type;
-
-  if (IsFastDoubleElementsKind(kind)) {
-    elements_size = kDoubleSize;
-    instance_type = FIXED_DOUBLE_ARRAY_TYPE;
-  } else {
-    elements_size = kPointerSize;
-    instance_type = FIXED_ARRAY_TYPE;
-  }
+HValue* HGraphBuilder::BuildCalculateElementsSize(ElementsKind kind,
+                                                  HValue* capacity) {
+  int elements_size = IsFastDoubleElementsKind(kind)
+      ? kDoubleSize
+      : kPointerSize;
 
   HConstant* elements_size_value = Add<HConstant>(elements_size);
-  HValue* mul = AddUncasted<HMul>(capacity, elements_size_value);
+  HInstruction* mul = HMul::NewImul(zone(), context(),
+                                    capacity->ActualValue(),
+                                    elements_size_value);
+  AddInstruction(mul);
   mul->ClearFlag(HValue::kCanOverflow);
+
+  STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   HConstant* header_size = Add<HConstant>(FixedArray::kHeaderSize);
   HValue* total_size = AddUncasted<HAdd>(mul, header_size);
   total_size->ClearFlag(HValue::kCanOverflow);
+  return total_size;
+}
 
-  return Add<HAllocate>(total_size, HType::HeapObject(), NOT_TENURED,
+
+HAllocate* HGraphBuilder::AllocateJSArrayObject(AllocationSiteMode mode) {
+  int base_size = JSArray::kSize;
+  if (mode == TRACK_ALLOCATION_SITE) {
+    base_size += AllocationMemento::kSize;
+  }
+  HConstant* size_in_bytes = Add<HConstant>(base_size);
+  return Add<HAllocate>(
+      size_in_bytes, HType::JSArray(), NOT_TENURED, JS_OBJECT_TYPE);
+}
+
+
+HConstant* HGraphBuilder::EstablishElementsAllocationSize(
+    ElementsKind kind,
+    int capacity) {
+  int base_size = IsFastDoubleElementsKind(kind)
+      ? FixedDoubleArray::SizeFor(capacity)
+      : FixedArray::SizeFor(capacity);
+
+  return Add<HConstant>(base_size);
+}
+
+
+HAllocate* HGraphBuilder::BuildAllocateElements(ElementsKind kind,
+                                                HValue* size_in_bytes) {
+  InstanceType instance_type = IsFastDoubleElementsKind(kind)
+      ? FIXED_DOUBLE_ARRAY_TYPE
+      : FIXED_ARRAY_TYPE;
+
+  return Add<HAllocate>(size_in_bytes, HType::HeapObject(), NOT_TENURED,
                         instance_type);
 }
 
@@ -2324,43 +2354,39 @@ HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
   capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
-  HValue* new_elements = BuildAllocateElements(kind, capacity);
+  HValue* size_in_bytes = BuildCalculateElementsSize(kind, capacity);
+  HValue* new_elements = BuildAllocateElements(kind, size_in_bytes);
   BuildInitializeElementsHeader(new_elements, kind, capacity);
   return new_elements;
 }
 
 
-HInnerAllocatedObject* HGraphBuilder::BuildJSArrayHeader(HValue* array,
-    HValue* array_map,
-    AllocationSiteMode mode,
-    ElementsKind elements_kind,
-    HValue* allocation_site_payload,
-    HValue* length_field) {
-
+void HGraphBuilder::BuildJSArrayHeader(HValue* array,
+                                       HValue* array_map,
+                                       HValue* elements,
+                                       AllocationSiteMode mode,
+                                       ElementsKind elements_kind,
+                                       HValue* allocation_site_payload,
+                                       HValue* length_field) {
   Add<HStoreNamedField>(array, HObjectAccess::ForMap(), array_map);
 
   HConstant* empty_fixed_array =
     Add<HConstant>(isolate()->factory()->empty_fixed_array());
 
-  HObjectAccess access = HObjectAccess::ForPropertiesPointer();
-  Add<HStoreNamedField>(array, access, empty_fixed_array);
-  Add<HStoreNamedField>(array, HObjectAccess::ForArrayLength(elements_kind),
-                        length_field);
+  Add<HStoreNamedField>(
+      array, HObjectAccess::ForPropertiesPointer(), empty_fixed_array);
+
+  Add<HStoreNamedField>(
+      array, HObjectAccess::ForElementsPointer(),
+      elements != NULL ? elements : empty_fixed_array);
+
+  Add<HStoreNamedField>(
+      array, HObjectAccess::ForArrayLength(elements_kind), length_field);
 
   if (mode == TRACK_ALLOCATION_SITE) {
     BuildCreateAllocationMemento(
         array, Add<HConstant>(JSArray::kSize), allocation_site_payload);
   }
-
-  int elements_location = JSArray::kSize;
-  if (mode == TRACK_ALLOCATION_SITE) {
-    elements_location += AllocationMemento::kSize;
-  }
-
-  HInnerAllocatedObject* elements = Add<HInnerAllocatedObject>(
-      array, Add<HConstant>(elements_location), HType::HeapObject());
-  Add<HStoreNamedField>(array, HObjectAccess::ForElementsPointer(), elements);
-  return elements;
 }
 
 
@@ -2394,6 +2420,12 @@ HInstruction* HGraphBuilder::AddElementAccess(
     graph()->RecordUint32Instruction(load);
   }
   return load;
+}
+
+
+HLoadNamedField* HGraphBuilder::AddLoadMap(HValue* object,
+                                           HValue* dependency) {
+  return Add<HLoadNamedField>(object, dependency, HObjectAccess::ForMap());
 }
 
 
@@ -2449,7 +2481,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);
 
-  BuildCopyElements(object, elements, kind, new_elements,
+  BuildCopyElements(elements, kind, new_elements,
                     new_kind, length, new_capacity);
 
   Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
@@ -2459,19 +2491,11 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
 }
 
 
-void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
-                                              ElementsKind elements_kind,
-                                              HValue* from,
-                                              HValue* to) {
-  // Fast elements kinds need to be initialized in case statements below cause a
-  // garbage collection.
-  Factory* factory = isolate()->factory();
-
-  double nan_double = FixedDoubleArray::hole_nan_as_double();
-  HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
-      ? Add<HConstant>(factory->the_hole_value())
-      : Add<HConstant>(nan_double);
-
+void HGraphBuilder::BuildFillElementsWithValue(HValue* elements,
+                                               ElementsKind elements_kind,
+                                               HValue* from,
+                                               HValue* to,
+                                               HValue* value) {
   if (to == NULL) {
     to = AddLoadFixedArrayLength(elements);
   }
@@ -2498,7 +2522,7 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
   if (initial_capacity >= 0) {
     for (int i = 0; i < initial_capacity; i++) {
       HInstruction* key = Add<HConstant>(i);
-      Add<HStoreKeyed>(elements, key, hole, elements_kind);
+      Add<HStoreKeyed>(elements, key, value, elements_kind);
     }
   } else {
     // Carefully loop backwards so that the "from" remains live through the loop
@@ -2512,15 +2536,31 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
     HValue* adjusted_key = AddUncasted<HSub>(key, graph()->GetConstant1());
     adjusted_key->ClearFlag(HValue::kCanOverflow);
 
-    Add<HStoreKeyed>(elements, adjusted_key, hole, elements_kind);
+    Add<HStoreKeyed>(elements, adjusted_key, value, elements_kind);
 
     builder.EndBody();
   }
 }
 
 
-void HGraphBuilder::BuildCopyElements(HValue* array,
-                                      HValue* from_elements,
+void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
+                                              ElementsKind elements_kind,
+                                              HValue* from,
+                                              HValue* to) {
+  // Fast elements kinds need to be initialized in case statements below cause a
+  // garbage collection.
+  Factory* factory = isolate()->factory();
+
+  double nan_double = FixedDoubleArray::hole_nan_as_double();
+  HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
+      ? Add<HConstant>(factory->the_hole_value())
+      : Add<HConstant>(nan_double);
+
+  BuildFillElementsWithValue(elements, elements_kind, from, to, hole);
+}
+
+
+void HGraphBuilder::BuildCopyElements(HValue* from_elements,
                                       ElementsKind from_elements_kind,
                                       HValue* to_elements,
                                       ElementsKind to_elements_kind,
@@ -2607,88 +2647,43 @@ void HGraphBuilder::BuildCopyElements(HValue* array,
   AddIncrementCounter(counters->inlined_copied_elements());
 }
 
-HValue* HGraphBuilder::BuildCloneShallowArrayCommon(
-    HValue* boilerplate,
-    HValue* allocation_site,
-    HValue* extra_size,
-    HValue** return_elements,
-    AllocationSiteMode mode) {
-  // All sizes here are multiples of kPointerSize.
-  int array_size = JSArray::kSize;
-  if (mode == TRACK_ALLOCATION_SITE) {
-    array_size += AllocationMemento::kSize;
-  }
-
-  HValue* size_in_bytes = Add<HConstant>(array_size);
-  if (extra_size != NULL) {
-    size_in_bytes = AddUncasted<HAdd>(extra_size, size_in_bytes);
-    size_in_bytes->ClearFlag(HValue::kCanOverflow);
-  }
-
-  HInstruction* object = Add<HAllocate>(size_in_bytes,
-                                        HType::JSObject(),
-                                        NOT_TENURED,
-                                        JS_OBJECT_TYPE);
-
-  // Copy the JS array part.
-  HValue* map = Add<HLoadNamedField>(boilerplate,
-      static_cast<HValue*>(NULL), HObjectAccess::ForMap());
-  Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
-                     INITIALIZING_STORE);
-  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map,
-                        INITIALIZING_STORE);
-
-  // Create an allocation site info if requested.
-  if (mode == TRACK_ALLOCATION_SITE) {
-    BuildCreateAllocationMemento(
-        object, Add<HConstant>(JSArray::kSize), allocation_site);
-  }
-
-  if (extra_size != NULL) {
-    HValue* elements = Add<HInnerAllocatedObject>(object,
-        Add<HConstant>(array_size), HType::HeapObject());
-    if (return_elements != NULL) *return_elements = elements;
-  }
-
-  return object;
-}
-
 
 HValue* HGraphBuilder::BuildCloneShallowArrayCow(HValue* boilerplate,
                                                  HValue* allocation_site,
                                                  AllocationSiteMode mode,
                                                  ElementsKind kind) {
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-      allocation_site, NULL, NULL, mode);
+  HAllocate* array = AllocateJSArrayObject(mode);
 
+  HValue* map = AddLoadMap(boilerplate);
   HValue* elements = AddLoadElements(boilerplate);
-  HObjectAccess access = HObjectAccess::ForElementsPointer();
-  Add<HStoreNamedField>(result, access, elements, INITIALIZING_STORE);
-
   HValue* length = AddLoadArrayLength(boilerplate, kind);
-  access = HObjectAccess::ForArrayLength(kind);
-  Add<HStoreNamedField>(result, access, length, INITIALIZING_STORE);
 
-  return result;
+  BuildJSArrayHeader(array,
+                     map,
+                     elements,
+                     mode,
+                     FAST_ELEMENTS,
+                     allocation_site,
+                     length);
+  return array;
 }
 
 
 HValue* HGraphBuilder::BuildCloneShallowArrayEmpty(HValue* boilerplate,
                                                    HValue* allocation_site,
                                                    AllocationSiteMode mode) {
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-     allocation_site, NULL, NULL, mode);
+  HAllocate* array = AllocateJSArrayObject(mode);
 
-  HObjectAccess access = HObjectAccess::ForArrayLength(FAST_ELEMENTS);
-  Add<HStoreNamedField>(result, access, graph()->GetConstant0(),
-                        INITIALIZING_STORE);
-  access = HObjectAccess::ForElementsPointer();
-  Add<HStoreNamedField>(result, access,
-      Add<HConstant>(isolate()->factory()->empty_fixed_array()),
-                     INITIALIZING_STORE);
+  HValue* map = AddLoadMap(boilerplate);
 
-  return result;
+  BuildJSArrayHeader(array,
+                     map,
+                     NULL,  // set elements to empty fixed array
+                     mode,
+                     FAST_ELEMENTS,
+                     allocation_site,
+                     graph()->GetConstant0());
+  return array;
 }
 
 
@@ -2696,27 +2691,31 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
                                                       HValue* allocation_site,
                                                       AllocationSiteMode mode,
                                                       ElementsKind kind) {
-  int elements_kind_size = IsFastDoubleElementsKind(kind)
-    ? kDoubleSize : kPointerSize;
-
   HValue* boilerplate_elements = AddLoadElements(boilerplate);
   HValue* capacity = AddLoadFixedArrayLength(boilerplate_elements);
-  HValue* extra = AddUncasted<HMul>(capacity,
-                                    Add<HConstant>(elements_kind_size));
-  extra->ClearFlag(HValue::kCanOverflow);
-  extra = AddUncasted<HAdd>(extra, Add<HConstant>(FixedArray::kHeaderSize));
-  extra->ClearFlag(HValue::kCanOverflow);
+
+  // Generate size calculation code here in order to make it dominate
+  // the JSArray allocation.
+  HValue* elements_size = BuildCalculateElementsSize(kind, capacity);
+
+  // Create empty JSArray object for now, store elimination should remove
+  // redundant initialization of elements and length fields and at the same
+  // time the object will be fully prepared for GC if it happens during
+  // elements allocation.
+  HValue* result = BuildCloneShallowArrayEmpty(
+      boilerplate, allocation_site, mode);
+
+  HAllocate* elements = BuildAllocateElements(kind, elements_size);
+
   // This function implicitly relies on the fact that the
   // FastCloneShallowArrayStub is called only for literals shorter than
-  // JSObject::kInitialMaxFastElementArray and therefore the size of the
-  // resulting folded allocation will always be in allowed range.
+  // JSObject::kInitialMaxFastElementArray.
   // Can't add HBoundsCheck here because otherwise the stub will eager a frame.
+  HConstant* size_upper_bound = EstablishElementsAllocationSize(
+      kind, JSObject::kInitialMaxFastElementArray);
+  elements->set_size_upper_bound(size_upper_bound);
 
-  HValue* elements = NULL;
-  HValue* result = BuildCloneShallowArrayCommon(boilerplate,
-      allocation_site, extra, &elements, mode);
-  Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(),
-                        elements, INITIALIZING_STORE);
+  Add<HStoreNamedField>(result, HObjectAccess::ForElementsPointer(), elements);
 
   // The allocation for the cloned array above causes register pressure on
   // machines with low register counts. Force a reload of the boilerplate
@@ -2730,19 +2729,15 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
     HObjectAccess access = HObjectAccess::ForFixedArrayHeader(i);
     Add<HStoreNamedField>(elements, access,
         Add<HLoadNamedField>(boilerplate_elements,
-                             static_cast<HValue*>(NULL), access),
-        INITIALIZING_STORE);
+                             static_cast<HValue*>(NULL), access));
   }
 
   // And the result of the length
-  HValue* length = Add<HLoadNamedField>(boilerplate, static_cast<HValue*>(NULL),
-                                        HObjectAccess::ForArrayLength(kind));
-  Add<HStoreNamedField>(result, HObjectAccess::ForArrayLength(kind),
-                        length, INITIALIZING_STORE);
+  HValue* length = AddLoadArrayLength(boilerplate, kind);
+  Add<HStoreNamedField>(result, HObjectAccess::ForArrayLength(kind), length);
 
-  BuildCopyElements(result, boilerplate_elements, kind, elements,
+  BuildCopyElements(boilerplate_elements, kind, elements,
                     kind, length, NULL);
-
   return result;
 }
 
@@ -2937,67 +2932,47 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitInternalMapCode() {
 }
 
 
-HValue* HGraphBuilder::JSArrayBuilder::EstablishAllocationSize(
-    HValue* length_node) {
-  ASSERT(length_node != NULL);
-
-  int base_size = JSArray::kSize;
-  if (mode_ == TRACK_ALLOCATION_SITE) {
-    base_size += AllocationMemento::kSize;
-  }
-
-  STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
-  base_size += FixedArray::kHeaderSize;
-
-  HInstruction* elements_size_value =
-      builder()->Add<HConstant>(elements_size());
-  HInstruction* mul = HMul::NewImul(builder()->zone(), builder()->context(),
-                                    length_node, elements_size_value);
-  builder()->AddInstruction(mul);
-  HInstruction* base = builder()->Add<HConstant>(base_size);
-  HInstruction* total_size = HAdd::New(builder()->zone(), builder()->context(),
-                                       base, mul);
-  total_size->ClearFlag(HValue::kCanOverflow);
-  builder()->AddInstruction(total_size);
-  return total_size;
-}
-
-
-HValue* HGraphBuilder::JSArrayBuilder::EstablishEmptyArrayAllocationSize() {
-  int base_size = JSArray::kSize;
-  if (mode_ == TRACK_ALLOCATION_SITE) {
-    base_size += AllocationMemento::kSize;
-  }
-
-  base_size += IsFastDoubleElementsKind(kind_)
-      ? FixedDoubleArray::SizeFor(initial_capacity())
-      : FixedArray::SizeFor(initial_capacity());
-
-  return builder()->Add<HConstant>(base_size);
-}
-
-
-HValue* HGraphBuilder::JSArrayBuilder::AllocateEmptyArray() {
-  HValue* size_in_bytes = EstablishEmptyArrayAllocationSize();
+HAllocate* HGraphBuilder::JSArrayBuilder::AllocateEmptyArray() {
   HConstant* capacity = builder()->Add<HConstant>(initial_capacity());
-  return AllocateArray(size_in_bytes,
+  return AllocateArray(capacity,
                        capacity,
                        builder()->graph()->GetConstant0());
 }
 
 
-HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* capacity,
-                                                     HValue* length_field,
-                                                     FillMode fill_mode) {
-  HValue* size_in_bytes = EstablishAllocationSize(capacity);
-  return AllocateArray(size_in_bytes, capacity, length_field, fill_mode);
+HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
+    HValue* capacity,
+    HConstant* capacity_upper_bound,
+    HValue* length_field,
+    FillMode fill_mode) {
+  return AllocateArray(capacity,
+                       capacity_upper_bound->GetInteger32Constant(),
+                       length_field,
+                       fill_mode);
 }
 
 
-HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
-                                                     HValue* capacity,
-                                                     HValue* length_field,
-                                                     FillMode fill_mode) {
+HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
+    HValue* capacity,
+    int capacity_upper_bound,
+    HValue* length_field,
+    FillMode fill_mode) {
+  HConstant* elememts_size_upper_bound = capacity->IsInteger32Constant()
+      ? HConstant::cast(capacity)
+      : builder()->EstablishElementsAllocationSize(kind_, capacity_upper_bound);
+
+  HAllocate* array = AllocateArray(capacity, length_field, fill_mode);
+  if (!elements_location_->has_size_upper_bound()) {
+    elements_location_->set_size_upper_bound(elememts_size_upper_bound);
+  }
+  return array;
+}
+
+
+HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
+    HValue* capacity,
+    HValue* length_field,
+    FillMode fill_mode) {
   // These HForceRepresentations are because we store these as fields in the
   // objects we construct, and an int32-to-smi HChange could deopt. Accept
   // the deopt possibility now, before allocation occurs.
@@ -3007,14 +2982,14 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   length_field =
       builder()->AddUncasted<HForceRepresentation>(length_field,
                                                    Representation::Smi());
-  // Allocate (dealing with failure appropriately)
-  HAllocate* new_object = builder()->Add<HAllocate>(size_in_bytes,
-      HType::JSArray(), NOT_TENURED, JS_ARRAY_TYPE);
 
-  // Folded array allocation should be aligned if it has fast double elements.
-  if (IsFastDoubleElementsKind(kind_)) {
-     new_object->MakeDoubleAligned();
-  }
+  // Generate size calculation code here in order to make it dominate
+  // the JSArray allocation.
+  HValue* elements_size =
+      builder()->BuildCalculateElementsSize(kind_, capacity);
+
+  // Allocate (dealing with failure appropriately)
+  HAllocate* array_object = builder()->AllocateJSArrayObject(mode_);
 
   // Fill in the fields: map, properties, length
   HValue* map;
@@ -3023,22 +2998,30 @@ HValue* HGraphBuilder::JSArrayBuilder::AllocateArray(HValue* size_in_bytes,
   } else {
     map = EmitMapCode();
   }
-  elements_location_ = builder()->BuildJSArrayHeader(new_object,
-                                                     map,
-                                                     mode_,
-                                                     kind_,
-                                                     allocation_site_payload_,
-                                                     length_field);
 
-  // Initialize the elements
+  builder()->BuildJSArrayHeader(array_object,
+                                map,
+                                NULL,  // set elements to empty fixed array
+                                mode_,
+                                kind_,
+                                allocation_site_payload_,
+                                length_field);
+
+  // Allocate and initialize the elements
+  elements_location_ = builder()->BuildAllocateElements(kind_, elements_size);
+
   builder()->BuildInitializeElementsHeader(elements_location_, kind_, capacity);
+
+  // Set the elements
+  builder()->Add<HStoreNamedField>(
+      array_object, HObjectAccess::ForElementsPointer(), elements_location_);
 
   if (fill_mode == FILL_WITH_HOLE) {
     builder()->BuildFillElementsWithHole(elements_location_, kind_,
                                          graph()->GetConstant0(), capacity);
   }
 
-  return new_object;
+  return array_object;
 }
 
 
@@ -8385,7 +8368,7 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
     ASSERT_EQ(kLastIndexOf, mode);
     initial = length;
     terminating = graph()->GetConstant0();
-    token = Token::GTE;
+    token = Token::GT;
     direction = LoopBuilder::kPreDecrement;
   }
 
@@ -10514,7 +10497,7 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   HConstant* empty_fixed_array = Add<HConstant>(
       isolate()->factory()->empty_fixed_array());
   Add<HStoreNamedField>(object, HObjectAccess::ForElementsPointer(),
-      empty_fixed_array, INITIALIZING_STORE);
+      empty_fixed_array);
 
   BuildEmitObjectHeader(boilerplate_object, object);
 

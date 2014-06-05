@@ -504,7 +504,8 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-inline Condition ReverseCondition(Condition cc) {
+// Commute a condition such that a cond b == b cond' b.
+inline Condition CommuteCondition(Condition cc) {
   switch (cc) {
     case Uless:
       return Ugreater;

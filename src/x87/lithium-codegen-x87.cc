@@ -2404,8 +2404,8 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
       } else if (left->IsConstantOperand()) {
         __ cmp(ToOperand(right),
                ToImmediate(left, instr->hydrogen()->representation()));
-        // We transposed the operands. Reverse the condition.
-        cc = ReverseCondition(cc);
+        // We commuted the operands, so commute the condition.
+        cc = CommuteCondition(cc);
       } else {
         __ cmp(ToRegister(left), ToOperand(right));
       }
@@ -3904,20 +3904,14 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
   if (instr->hydrogen()->has_transition()) {
     Handle<Map> transition = instr->hydrogen()->transition_map();
     AddDeprecationDependency(transition);
-    if (!instr->hydrogen()->NeedsWriteBarrierForMap()) {
-      __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
-    } else {
+    __ mov(FieldOperand(object, HeapObject::kMapOffset), transition);
+    if (instr->hydrogen()->NeedsWriteBarrierForMap()) {
       Register temp = ToRegister(instr->temp());
       Register temp_map = ToRegister(instr->temp_map());
       __ mov(temp_map, transition);
       __ mov(FieldOperand(object, HeapObject::kMapOffset), temp_map);
       // Update the write barrier for the map field.
-      __ RecordWriteField(object,
-                          HeapObject::kMapOffset,
-                          temp_map,
-                          temp,
-                          OMIT_REMEMBERED_SET,
-                          OMIT_SMI_CHECK);
+      __ RecordWriteForMap(object, transition, temp_map, temp);
     }
   }
 
@@ -3957,7 +3951,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         value,
                         temp,
                         EMIT_REMEMBERED_SET,
-                        instr->hydrogen()->SmiCheckForWriteBarrier());
+                        instr->hydrogen()->SmiCheckForWriteBarrier(),
+                        instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 
@@ -3979,7 +3974,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     __ cmp(ToOperand(instr->length()),
            ToImmediate(LConstantOperand::cast(instr->index()),
                        instr->hydrogen()->length()->representation()));
-    cc = ReverseCondition(cc);
+    cc = CommuteCondition(cc);
   } else if (instr->length()->IsConstantOperand()) {
     __ cmp(ToOperand(instr->index()),
            ToImmediate(LConstantOperand::cast(instr->length()),
@@ -4155,7 +4150,8 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
                    key,
                    value,
                    EMIT_REMEMBERED_SET,
-                   check_needed);
+                   check_needed,
+                   instr->hydrogen()->PointersToHereCheckForValue());
   }
 }
 

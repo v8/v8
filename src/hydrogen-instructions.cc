@@ -724,6 +724,21 @@ void HInstruction::InsertAfter(HInstruction* previous) {
 }
 
 
+bool HInstruction::Dominates(HInstruction* other) {
+  if (block() != other->block()) {
+    return block()->Dominates(other->block());
+  }
+  // Both instructions are in the same basic block. This instruction
+  // should precede the other one in order to dominate it.
+  for (HInstruction* instr = next(); instr != NULL; instr = instr->next()) {
+    if (instr == other) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 #ifdef DEBUG
 void HInstruction::Verify() {
   // Verify that input operands are defined before use.
@@ -3746,10 +3761,10 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   HValue* current_size = size();
 
   // TODO(hpayer): Add support for non-constant allocation in dominator.
-  if (!current_size->IsInteger32Constant() ||
-      !dominator_size->IsInteger32Constant()) {
+  if (!dominator_size->IsInteger32Constant()) {
     if (FLAG_trace_allocation_folding) {
-      PrintF("#%d (%s) cannot fold into #%d (%s), dynamic allocation size\n",
+      PrintF("#%d (%s) cannot fold into #%d (%s), "
+             "dynamic allocation size in dominator\n",
           id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
     }
     return false;
@@ -3758,6 +3773,32 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   dominator_allocate = GetFoldableDominator(dominator_allocate);
   if (dominator_allocate == NULL) {
     return false;
+  }
+
+  if (!has_size_upper_bound()) {
+    if (FLAG_trace_allocation_folding) {
+      PrintF("#%d (%s) cannot fold into #%d (%s), "
+             "can't estimate total allocation size\n",
+          id(), Mnemonic(), dominator->id(), dominator->Mnemonic());
+    }
+    return false;
+  }
+
+  if (!current_size->IsInteger32Constant()) {
+    // If it's not constant then it is a size_in_bytes calculation graph
+    // like this: (const_header_size + const_element_size * size).
+    ASSERT(current_size->IsInstruction());
+
+    HInstruction* current_instr = HInstruction::cast(current_size);
+    if (!current_instr->Dominates(dominator_allocate)) {
+      if (FLAG_trace_allocation_folding) {
+        PrintF("#%d (%s) cannot fold into #%d (%s), dynamic size "
+               "value does not dominate target allocation\n",
+            id(), Mnemonic(), dominator_allocate->id(),
+            dominator_allocate->Mnemonic());
+      }
+      return false;
+    }
   }
 
   ASSERT((IsNewSpaceAllocation() &&
@@ -3772,19 +3813,15 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   int32_t original_object_size =
       HConstant::cast(dominator_size)->GetInteger32Constant();
   int32_t dominator_size_constant = original_object_size;
-  int32_t current_size_constant =
-      HConstant::cast(current_size)->GetInteger32Constant();
-  int32_t new_dominator_size = dominator_size_constant + current_size_constant;
 
   if (MustAllocateDoubleAligned()) {
-    if (!dominator_allocate->MustAllocateDoubleAligned()) {
-      dominator_allocate->MakeDoubleAligned();
-    }
     if ((dominator_size_constant & kDoubleAlignmentMask) != 0) {
       dominator_size_constant += kDoubleSize / 2;
-      new_dominator_size += kDoubleSize / 2;
     }
   }
+
+  int32_t current_size_max_value = size_upper_bound()->GetInteger32Constant();
+  int32_t new_dominator_size = dominator_size_constant + current_size_max_value;
 
   // Since we clear the first word after folded memory, we cannot use the
   // whole Page::kMaxRegularHeapObjectSize memory.
@@ -3797,13 +3834,41 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     return false;
   }
 
-  HInstruction* new_dominator_size_constant = HConstant::CreateAndInsertBefore(
-      zone,
-      context(),
-      new_dominator_size,
-      Representation::None(),
-      dominator_allocate);
-  dominator_allocate->UpdateSize(new_dominator_size_constant);
+  HInstruction* new_dominator_size_value;
+
+  if (current_size->IsInteger32Constant()) {
+    new_dominator_size_value =
+        HConstant::CreateAndInsertBefore(zone,
+                                         context(),
+                                         new_dominator_size,
+                                         Representation::None(),
+                                         dominator_allocate);
+  } else {
+    HValue* new_dominator_size_constant =
+        HConstant::CreateAndInsertBefore(zone,
+                                         context(),
+                                         dominator_size_constant,
+                                         Representation::Integer32(),
+                                         dominator_allocate);
+
+    // Add old and new size together and insert.
+    current_size->ChangeRepresentation(Representation::Integer32());
+
+    new_dominator_size_value = HAdd::New(zone, context(),
+        new_dominator_size_constant, current_size);
+    new_dominator_size_value->ClearFlag(HValue::kCanOverflow);
+    new_dominator_size_value->ChangeRepresentation(Representation::Integer32());
+
+    new_dominator_size_value->InsertBefore(dominator_allocate);
+  }
+
+  dominator_allocate->UpdateSize(new_dominator_size_value);
+
+  if (MustAllocateDoubleAligned()) {
+    if (!dominator_allocate->MustAllocateDoubleAligned()) {
+      dominator_allocate->MakeDoubleAligned();
+    }
+  }
 
   bool keep_new_space_iterable = FLAG_log_gc || FLAG_heap_stats;
 #ifdef VERIFY_HEAP

@@ -711,7 +711,7 @@ void FullCodeGenerator::Split(Condition cond,
     __ B(cond, if_true);
   } else if (if_true == fall_through) {
     ASSERT(if_false != fall_through);
-    __ B(InvertCondition(cond), if_false);
+    __ B(NegateCondition(cond), if_false);
   } else {
     __ B(cond, if_true);
     __ B(if_false);
