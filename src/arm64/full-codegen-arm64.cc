@@ -1175,11 +1175,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
          FieldMemOperand(x2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
-  __ Push(x0);  // Map.
-  __ Mov(x0, Smi::FromInt(0));
-  // Push enumeration cache, enumeration cache length (as smi) and zero.
-  __ SmiTag(x1);
-  __ Push(x2, x1, x0);
+  __ Push(x0, x2);              // Map, enumeration cache.
+  __ SmiTagAndPush(x1, xzr);    // Enum cache length, zero (both as smis).
   __ B(&loop);
 
   __ Bind(&no_descriptors);

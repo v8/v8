@@ -1350,6 +1350,18 @@ void MacroAssembler::SmiUntagToFloat(FPRegister dst,
 }
 
 
+void MacroAssembler::SmiTagAndPush(Register src) {
+  STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
+  Push(src.W(), wzr);
+}
+
+
+void MacroAssembler::SmiTagAndPush(Register src1, Register src2) {
+  STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
+  Push(src1.W(), wzr, src2.W(), wzr);
+}
+
+
 void MacroAssembler::JumpIfSmi(Register value,
                                Label* smi_label,
                                Label* not_smi_label) {
