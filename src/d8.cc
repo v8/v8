@@ -1310,25 +1310,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;
       argv[i] = NULL;
-    }
 #ifdef V8_SHARED
-    else if (strcmp(argv[i], "--dump-counters") == 0) {
+    } else if (strcmp(argv[i], "--dump-counters") == 0) {
       printf("D8 with shared library does not include counters\n");
       return false;
     } else if (strcmp(argv[i], "--debugger") == 0) {
       printf("Javascript debugger not included\n");
       return false;
-    }
 #endif  // V8_SHARED
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
-    else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
+    } else if (strncmp(argv[i], "--natives_blob=", 15) == 0) {
       options.natives_blob = argv[i] + 15;
       argv[i] = NULL;
     } else if (strncmp(argv[i], "--snapshot_blob=", 16) == 0) {
       options.snapshot_blob = argv[i] + 16;
       argv[i] = NULL;
-    }
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
+    }
   }
 
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
