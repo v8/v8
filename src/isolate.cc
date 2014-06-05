@@ -1166,20 +1166,15 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
 }
 
 
-bool Isolate::IsExternallyCaught() {
+bool Isolate::HasExternalTryCatch() {
   ASSERT(has_pending_exception());
 
-  if ((thread_local_top()->catcher_ == NULL) ||
-      (try_catch_handler() != thread_local_top()->catcher_)) {
-    // When throwing the exception, we found no v8::TryCatch
-    // which should care about this exception.
-    return false;
-  }
+  return (thread_local_top()->catcher_ != NULL) &&
+      (try_catch_handler() == thread_local_top()->catcher_);
+}
 
-  if (!is_catchable_by_javascript(pending_exception())) {
-    return true;
-  }
 
+bool Isolate::IsFinallyOnTop() {
   // Get the address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
   Address external_handler_address =
@@ -1199,18 +1194,18 @@ bool Isolate::IsExternallyCaught() {
       StackHandler::FromAddress(Isolate::handler(thread_local_top()));
   while (handler != NULL && handler->address() < external_handler_address) {
     ASSERT(!handler->is_catch());
-    if (handler->is_finally()) return false;
+    if (handler->is_finally()) return true;
 
     handler = handler->next();
   }
 
-  return true;
+  return false;
 }
 
 
 void Isolate::ReportPendingMessages() {
   ASSERT(has_pending_exception());
-  PropagatePendingExceptionToExternalTryCatch();
+  bool can_clear_message = PropagatePendingExceptionToExternalTryCatch();
 
   HandleScope scope(this);
   if (thread_local_top_.pending_exception_ ==
@@ -1237,7 +1232,7 @@ void Isolate::ReportPendingMessages() {
       }
     }
   }
-  clear_pending_message();
+  if (can_clear_message) clear_pending_message();
 }
 
 
@@ -1742,13 +1737,18 @@ void Isolate::InitializeThreadLocal() {
 }
 
 
-void Isolate::PropagatePendingExceptionToExternalTryCatch() {
+bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   ASSERT(has_pending_exception());
 
-  bool external_caught = IsExternallyCaught();
-  thread_local_top_.external_caught_exception_ = external_caught;
+  bool has_external_try_catch = HasExternalTryCatch();
+  bool is_catchable_by_js = is_catchable_by_javascript(pending_exception());
+  bool is_finally_on_top  = IsFinallyOnTop();
 
-  if (!external_caught) return;
+  bool should_propagate_now = has_external_try_catch &&
+    (!is_catchable_by_js || !is_finally_on_top);
+  thread_local_top_.external_caught_exception_ = should_propagate_now;
+
+  if (!should_propagate_now) return !has_external_try_catch;
 
   if (thread_local_top_.pending_exception_ ==
              heap()->termination_exception()) {
@@ -1765,13 +1765,14 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
     handler->has_terminated_ = false;
     handler->exception_ = pending_exception();
     // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top_.pending_message_obj_->IsTheHole()) return;
+    if (thread_local_top_.pending_message_obj_->IsTheHole()) return true;
 
     handler->message_obj_ = thread_local_top_.pending_message_obj_;
     handler->message_script_ = thread_local_top_.pending_message_script_;
     handler->message_start_pos_ = thread_local_top_.pending_message_start_pos_;
     handler->message_end_pos_ = thread_local_top_.pending_message_end_pos_;
   }
+  return true;
 }
 
 

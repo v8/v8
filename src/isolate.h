@@ -604,7 +604,8 @@ class Isolate {
     thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
   }
 
-  bool IsExternallyCaught();
+  bool HasExternalTryCatch();
+  bool IsFinallyOnTop();
 
   bool is_catchable_by_javascript(Object* exception) {
     return exception != heap()->termination_exception();
@@ -1179,7 +1180,10 @@ class Isolate {
 
   void FillCache();
 
-  void PropagatePendingExceptionToExternalTryCatch();
+  // Propagate pending exception message to the v8::TryCatch.
+  // If there is no external try-catch or message was successfully propagated,
+  // then return true.
+  bool PropagatePendingExceptionToExternalTryCatch();
 
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.
