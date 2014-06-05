@@ -1036,11 +1036,6 @@ class Heap {
 
   void CreateApiObjects();
 
-  // Adjusts the amount of registered external memory.
-  // Returns the adjusted value.
-  inline int64_t AdjustAmountOfExternalAllocatedMemory(
-      int64_t change_in_bytes);
-
   inline intptr_t PromotedTotalSize() {
     int64_t total = PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
     if (total > kMaxInt) return static_cast<intptr_t>(kMaxInt);
@@ -1500,6 +1495,13 @@ class Heap {
  private:
   Heap();
 
+  // The amount of external memory registered through the API kept alive
+  // by global handles
+  int64_t amount_of_external_allocated_memory_;
+
+  // Caches the amount of external memory registered at the last global gc.
+  int64_t amount_of_external_allocated_memory_at_last_global_gc_;
+
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
@@ -1589,17 +1591,6 @@ class Heap {
 
   // Used to adjust the limits that control the timing of the next GC.
   intptr_t size_of_old_gen_at_last_old_space_gc_;
-
-  // Limit on the amount of externally allocated memory allowed
-  // between global GCs. If reached a global GC is forced.
-  intptr_t external_allocation_limit_;
-
-  // The amount of external memory registered through the API kept alive
-  // by global handles
-  int64_t amount_of_external_allocated_memory_;
-
-  // Caches the amount of external memory registered at the last global gc.
-  int64_t amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.

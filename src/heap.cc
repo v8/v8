@@ -44,7 +44,9 @@ namespace internal {
 
 
 Heap::Heap()
-    : isolate_(NULL),
+    : amount_of_external_allocated_memory_(0),
+      amount_of_external_allocated_memory_at_last_global_gc_(0),
+      isolate_(NULL),
       code_range_size_(0),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
@@ -54,7 +56,7 @@ Heap::Heap()
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
 // Variables set based on semispace_size_ and old_generation_size_ in
-// ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
+// ConfigureHeap.
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
       maximum_committed_(0),
@@ -86,9 +88,6 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(kMinimumOldGenerationAllocationLimit),
       size_of_old_gen_at_last_old_space_gc_(0),
-      external_allocation_limit_(0),
-      amount_of_external_allocated_memory_(0),
-      amount_of_external_allocated_memory_at_last_global_gc_(0),
       old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
@@ -5009,11 +5008,6 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
   }
 
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
-
-  // The external allocation limit should be below 256 MB on all architectures
-  // to avoid that resource-constrained embedders run low on memory.
-  external_allocation_limit_ = 192 * MB;
-  ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
