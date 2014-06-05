@@ -397,7 +397,7 @@ def PrepareSources(source_files):
   return result
 
 
-def BuildMetadata(sources, source_bytes, native_type, omit):
+def BuildMetadata(sources, source_bytes, native_type):
   """Build the meta data required to generate a libaries file.
 
   Args:
@@ -405,7 +405,6 @@ def BuildMetadata(sources, source_bytes, native_type, omit):
     source_bytes: A list of source bytes.
         (The concatenation of all sources; might be compressed.)
     native_type: The parameter for the NativesCollection template.
-    omit: bool, whether we should omit the sources in the output.
 
   Returns:
     A dictionary for use with HEADER_TEMPLATE.
@@ -438,7 +437,7 @@ def BuildMetadata(sources, source_bytes, native_type, omit):
   assert offset == len(raw_sources)
 
   # If we have the raw sources we can declare them accordingly.
-  have_raw_sources = source_bytes == raw_sources and not omit
+  have_raw_sources = source_bytes == raw_sources
   raw_sources_declaration = (RAW_SOURCES_DECLARATION
       if have_raw_sources else RAW_SOURCES_COMPRESSION_DECLARATION)
 
@@ -446,7 +445,6 @@ def BuildMetadata(sources, source_bytes, native_type, omit):
     "builtin_count": len(sources.modules),
     "debugger_count": sum(sources.is_debugger_id),
     "sources_declaration": SOURCES_DECLARATION % ToCArray(source_bytes),
-    "sources_data": ToCArray(source_bytes) if not omit else "",
     "raw_sources_declaration": raw_sources_declaration,
     "raw_total_length": sum(map(len, sources.modules)),
     "total_length": total_length,
@@ -477,16 +475,60 @@ def CompressMaybe(sources, compression_type):
     raise Error("Unknown compression type %s." % compression_type)
 
 
-def JS2C(source, target, native_type, compression_type, raw_file, omit):
+def PutInt(blob_file, value):
+  assert(value >= 0 and value < (1 << 20))
+  size = 1 if (value < 1 << 6) else (2 if (value < 1 << 14) else 3)
+  value_with_length = (value << 2) | size
+
+  byte_sequence = bytearray()
+  for i in xrange(size):
+    byte_sequence.append(value_with_length & 255)
+    value_with_length >>= 8;
+  blob_file.write(byte_sequence)
+
+
+def PutStr(blob_file, value):
+  PutInt(blob_file, len(value));
+  blob_file.write(value);
+
+
+def WriteStartupBlob(sources, startup_blob):
+  """Write a startup blob, as expected by V8 Initialize ...
+    TODO(vogelheim): Add proper method name.
+
+  Args:
+    sources: A Sources instance with the prepared sources.
+    startup_blob_file: Name of file to write the blob to.
+  """
+  output = open(startup_blob, "wb")
+
+  debug_sources = sum(sources.is_debugger_id);
+  PutInt(output, debug_sources)
+  for i in xrange(debug_sources):
+    PutStr(output, sources.names[i]);
+    PutStr(output, sources.modules[i]);
+
+  PutInt(output, len(sources.names) - debug_sources)
+  for i in xrange(debug_sources, len(sources.names)):
+    PutStr(output, sources.names[i]);
+    PutStr(output, sources.modules[i]);
+
+  output.close()
+
+
+def JS2C(source, target, native_type, compression_type, raw_file, startup_blob):
   sources = PrepareSources(source)
   sources_bytes = CompressMaybe(sources, compression_type)
-  metadata = BuildMetadata(sources, sources_bytes, native_type, omit)
+  metadata = BuildMetadata(sources, sources_bytes, native_type)
 
   # Optionally emit raw file.
   if raw_file:
     output = open(raw_file, "w")
     output.write(sources_bytes)
     output.close()
+
+  if startup_blob:
+    WriteStartupBlob(sources, startup_blob);
 
   # Emit resulting source file.
   output = open(target, "w")
@@ -497,9 +539,9 @@ def JS2C(source, target, native_type, compression_type, raw_file, omit):
 def main():
   parser = optparse.OptionParser()
   parser.add_option("--raw", action="store",
-                      help="file to write the processed sources array to.")
-  parser.add_option("--omit", dest="omit", action="store_true",
-                    help="Omit the raw sources from the generated code.")
+                    help="file to write the processed sources array to.")
+  parser.add_option("--startup_blob", action="store",
+                    help="file to write the startup blob to.")
   parser.set_usage("""js2c out.cc type compression sources.js ...
       out.cc: C code to be generated.
       type: type parameter for NativesCollection template.
@@ -507,7 +549,7 @@ def main():
       sources.js: JS internal sources or macros.py.""")
   (options, args) = parser.parse_args()
 
-  JS2C(args[3:], args[0], args[1], args[2], options.raw, options.omit)
+  JS2C(args[3:], args[0], args[1], args[2], options.raw, options.startup_blob)
 
 
 if __name__ == "__main__":
