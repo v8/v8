@@ -6558,11 +6558,10 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     // changes could allow callbacks on elements in the chain that
     // aren't compatible with monomorphic keyed stores.
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
-    Object* holder = map->prototype();
-    while (holder->GetPrototype(isolate())->IsJSObject()) {
-      holder = holder->GetPrototype(isolate());
+    JSObject* holder = JSObject::cast(map->prototype());
+    while (!holder->GetPrototype()->IsNull()) {
+      holder = JSObject::cast(holder->GetPrototype());
     }
-    ASSERT(holder->GetPrototype(isolate())->IsNull());
 
     BuildCheckPrototypeMaps(prototype,
                             Handle<JSObject>(JSObject::cast(holder)));
