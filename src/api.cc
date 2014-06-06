@@ -6649,6 +6649,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 
 
 void Isolate::SetEventLogger(LogEventCallback that) {
+  // Do not overwrite the event logger if we want to log explicitly.
+  if (i::FLAG_log_timer_events) return;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->set_event_logger(that);
 }
