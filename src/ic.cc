@@ -838,14 +838,12 @@ Handle<Code> LoadIC::megamorphic_stub() {
 }
 
 
-Handle<Code> LoadIC::SimpleFieldLoad(int offset,
-                                     bool inobject,
-                                     Representation representation) {
+Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
   if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), inobject, offset, representation);
+    LoadFieldStub stub(isolate(), index);
     return stub.GetCode();
   } else {
-    KeyedLoadFieldStub stub(isolate(), inobject, offset, representation);
+    KeyedLoadFieldStub stub(isolate(), index);
     return stub.GetCode();
   }
 }
@@ -924,8 +922,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
                                     InlineCacheHolderFlag cache_holder) {
   if (object->IsString() &&
       String::Equals(isolate()->factory()->length_string(), name)) {
-    int length_index = String::kLengthOffset / kPointerSize;
-    return SimpleFieldLoad(length_index);
+    FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
+    return SimpleFieldLoad(index);
   }
 
   if (object->IsStringWrapper() &&
@@ -945,11 +943,9 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
 
   switch (lookup->type()) {
     case FIELD: {
-      PropertyIndex field = lookup->GetFieldIndex();
+      FieldIndex field = lookup->GetFieldIndex();
       if (object.is_identical_to(holder)) {
-        return SimpleFieldLoad(field.translate(holder),
-                               field.is_inobject(holder),
-                               lookup->representation());
+        return SimpleFieldLoad(field);
       }
       return compiler.CompileLoadField(
           type, holder, name, field, lookup->representation());
@@ -985,12 +981,15 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
       // Use simple field loads for some well-known callback properties.
       if (object->IsJSObject()) {
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+        Handle<Map> map(receiver->map());
         Handle<HeapType> type = IC::MapToType<HeapType>(
             handle(receiver->map()), isolate());
         int object_offset;
         if (Accessors::IsJSObjectFieldAccessor<HeapType>(
                 type, name, &object_offset)) {
-          return SimpleFieldLoad(object_offset / kPointerSize);
+          FieldIndex index = FieldIndex::ForInObjectOffset(
+              object_offset, receiver->map());
+          return SimpleFieldLoad(index);
         }
       }
 

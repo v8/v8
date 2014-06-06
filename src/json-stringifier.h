@@ -657,10 +657,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
       if (details.IsDontEnum()) continue;
       Handle<Object> property;
       if (details.type() == FIELD && *map == object->map()) {
-        property = Handle<Object>(
-                       object->RawFastPropertyAt(
-                           map->instance_descriptors()->GetFieldIndex(i)),
-                       isolate_);
+        property = Handle<Object>(object->RawFastPropertyAt(
+            FieldIndex::ForDescriptor(*map, i)), isolate_);
       } else {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, property,

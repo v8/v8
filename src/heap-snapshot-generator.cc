@@ -1660,7 +1660,9 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
                   js_obj->GetInObjectPropertyOffset(index));
             }
           } else {
-            Object* value = js_obj->RawFastPropertyAt(index);
+            FieldIndex field_index =
+                FieldIndex::ForDescriptor(js_obj->map(), i);
+            Object* value = js_obj->RawFastPropertyAt(field_index);
             if (k != heap_->hidden_string()) {
               SetPropertyReference(js_obj, entry, k, value);
             } else {
