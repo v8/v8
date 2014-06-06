@@ -1071,7 +1071,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_json_object(*json_object);
   }
 
-  { // -- A r r a y B u f f e r
+  {  // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun =
         InstallFunction(
             global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
@@ -1081,7 +1081,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_array_buffer_fun(*array_buffer_fun);
   }
 
-  { // -- T y p e d A r r a y s
+  {  // -- T y p e d A r r a y s
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)                    \
     {                                                                         \
       Handle<JSFunction> fun;                                                 \
