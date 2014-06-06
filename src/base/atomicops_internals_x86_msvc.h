@@ -4,11 +4,11 @@
 
 // This file is an internal atomic implementation, use atomicops.h instead.
 
-#ifndef V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
-#define V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
+#ifndef V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
+#define V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_
 
 #include "src/base/macros.h"
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 
 #if defined(V8_HOST_ARCH_64_BIT)
 // windows.h #defines this (only on x64). This causes problems because the
@@ -20,7 +20,7 @@
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
                                          Atomic32 old_value,
@@ -197,6 +197,6 @@ inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
 
 #endif  // defined(_WIN64)
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_ATOMICOPS_INTERNALS_X86_MSVC_H_
+#endif  // V8_BASE_ATOMICOPS_INTERNALS_X86_MSVC_H_

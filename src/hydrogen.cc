@@ -4247,12 +4247,51 @@ void HOptimizedGraphBuilder::VisitBlock(Block* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
-  if (stmt->scope() != NULL) {
-    return Bailout(kScopedBlock);
-  }
-  BreakAndContinueInfo break_info(stmt);
+
+  Scope* outer_scope = scope();
+  Scope* scope = stmt->scope();
+  BreakAndContinueInfo break_info(stmt, outer_scope);
+
   { BreakAndContinueScope push(&break_info, this);
+    if (scope != NULL) {
+      // Load the function object.
+      Scope* declaration_scope = scope->DeclarationScope();
+      HInstruction* function;
+      HValue* outer_context = environment()->context();
+      if (declaration_scope->is_global_scope() ||
+          declaration_scope->is_eval_scope()) {
+        function = new(zone()) HLoadContextSlot(
+            outer_context, Context::CLOSURE_INDEX, HLoadContextSlot::kNoCheck);
+      } else {
+        function = New<HThisFunction>();
+      }
+      AddInstruction(function);
+      // Allocate a block context and store it to the stack frame.
+      HInstruction* inner_context = Add<HAllocateBlockContext>(
+          outer_context, function, scope->GetScopeInfo());
+      HInstruction* instr = Add<HStoreFrameContext>(inner_context);
+      if (instr->HasObservableSideEffects()) {
+        AddSimulate(stmt->EntryId(), REMOVABLE_SIMULATE);
+      }
+      set_scope(scope);
+      environment()->BindContext(inner_context);
+      VisitDeclarations(scope->declarations());
+      AddSimulate(stmt->DeclsId(), REMOVABLE_SIMULATE);
+    }
     CHECK_BAILOUT(VisitStatements(stmt->statements()));
+  }
+  set_scope(outer_scope);
+  if (scope != NULL && current_block() != NULL) {
+    HValue* inner_context = environment()->context();
+    HValue* outer_context = Add<HLoadNamedField>(
+        inner_context, static_cast<HValue*>(NULL),
+        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+
+    HInstruction* instr = Add<HStoreFrameContext>(outer_context);
+    if (instr->HasObservableSideEffects()) {
+      AddSimulate(stmt->ExitId(), REMOVABLE_SIMULATE);
+    }
+    environment()->BindContext(outer_context);
   }
   HBasicBlock* break_block = break_info.break_block();
   if (break_block != NULL) {
@@ -4321,6 +4360,7 @@ void HOptimizedGraphBuilder::VisitIfStatement(IfStatement* stmt) {
 HBasicBlock* HOptimizedGraphBuilder::BreakAndContinueScope::Get(
     BreakableStatement* stmt,
     BreakType type,
+    Scope** scope,
     int* drop_extra) {
   *drop_extra = 0;
   BreakAndContinueScope* current = this;
@@ -4329,6 +4369,7 @@ HBasicBlock* HOptimizedGraphBuilder::BreakAndContinueScope::Get(
     current = current->next();
   }
   ASSERT(current != NULL);  // Always found (unless stack is malformed).
+  *scope = current->info()->scope();
 
   if (type == BREAK) {
     *drop_extra += current->info()->drop_extra();
@@ -4362,10 +4403,29 @@ void HOptimizedGraphBuilder::VisitContinueStatement(
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  Scope* outer_scope = NULL;
+  Scope* inner_scope = scope();
   int drop_extra = 0;
   HBasicBlock* continue_block = break_scope()->Get(
-      stmt->target(), BreakAndContinueScope::CONTINUE, &drop_extra);
+      stmt->target(), BreakAndContinueScope::CONTINUE,
+      &outer_scope, &drop_extra);
+  HValue* context = environment()->context();
   Drop(drop_extra);
+  int context_pop_count = inner_scope->ContextChainLength(outer_scope);
+  if (context_pop_count > 0) {
+    while (context_pop_count-- > 0) {
+      HInstruction* context_instruction = Add<HLoadNamedField>(
+          context, static_cast<HValue*>(NULL),
+          HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+      context = context_instruction;
+    }
+    HInstruction* instr = Add<HStoreFrameContext>(context);
+    if (instr->HasObservableSideEffects()) {
+      AddSimulate(stmt->target()->EntryId(), REMOVABLE_SIMULATE);
+    }
+    environment()->BindContext(context);
+  }
+
   Goto(continue_block);
   set_current_block(NULL);
 }
@@ -4375,10 +4435,28 @@ void HOptimizedGraphBuilder::VisitBreakStatement(BreakStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  Scope* outer_scope = NULL;
+  Scope* inner_scope = scope();
   int drop_extra = 0;
   HBasicBlock* break_block = break_scope()->Get(
-      stmt->target(), BreakAndContinueScope::BREAK, &drop_extra);
+      stmt->target(), BreakAndContinueScope::BREAK,
+      &outer_scope, &drop_extra);
+  HValue* context = environment()->context();
   Drop(drop_extra);
+  int context_pop_count = inner_scope->ContextChainLength(outer_scope);
+  if (context_pop_count > 0) {
+    while (context_pop_count-- > 0) {
+      HInstruction* context_instruction = Add<HLoadNamedField>(
+          context, static_cast<HValue*>(NULL),
+          HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX));
+      context = context_instruction;
+    }
+    HInstruction* instr = Add<HStoreFrameContext>(context);
+    if (instr->HasObservableSideEffects()) {
+      AddSimulate(stmt->target()->ExitId(), REMOVABLE_SIMULATE);
+    }
+    environment()->BindContext(context);
+  }
   Goto(break_block);
   set_current_block(NULL);
 }
@@ -4533,7 +4611,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   // translating the clause bodies.
   HBasicBlock* fall_through_block = NULL;
 
-  BreakAndContinueInfo break_info(stmt);
+  BreakAndContinueInfo break_info(stmt, scope());
   { BreakAndContinueScope push(&break_info, this);
     for (int i = 0; i < clause_count; ++i) {
       CaseClause* clause = clauses->at(i);
@@ -4580,9 +4658,7 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
 
 
 void HOptimizedGraphBuilder::VisitLoopBody(IterationStatement* stmt,
-                                           HBasicBlock* loop_entry,
-                                           BreakAndContinueInfo* break_info) {
-  BreakAndContinueScope push(break_info, this);
+                                           HBasicBlock* loop_entry) {
   Add<HSimulate>(stmt->StackCheckId());
   HStackCheck* stack_check =
       HStackCheck::cast(Add<HStackCheck>(HStackCheck::kBackwardsBranch));
@@ -4599,8 +4675,11 @@ void HOptimizedGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
   HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
-  BreakAndContinueInfo break_info(stmt);
-  CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
+  BreakAndContinueInfo break_info(stmt, scope());
+  {
+    BreakAndContinueScope push(&break_info, this);
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+  }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
   HBasicBlock* loop_successor = NULL;
@@ -4661,9 +4740,10 @@ void HOptimizedGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
     }
   }
 
-  BreakAndContinueInfo break_info(stmt);
+  BreakAndContinueInfo break_info(stmt, scope());
   if (current_block() != NULL) {
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
+    BreakAndContinueScope push(&break_info, this);
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -4702,9 +4782,10 @@ void HOptimizedGraphBuilder::VisitForStatement(ForStatement* stmt) {
     }
   }
 
-  BreakAndContinueInfo break_info(stmt);
+  BreakAndContinueInfo break_info(stmt, scope());
   if (current_block() != NULL) {
-    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
+    BreakAndContinueScope push(&break_info, this);
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
   }
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -4803,8 +4884,11 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
   Bind(each_var, key);
 
-  BreakAndContinueInfo break_info(stmt, 5);
-  CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry, &break_info));
+  BreakAndContinueInfo break_info(stmt, scope(), 5);
+  {
+    BreakAndContinueScope push(&break_info, this);
+    CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
+  }
 
   HBasicBlock* body_exit =
       JoinContinue(stmt, current_block(), break_info.continue_block());
@@ -4949,7 +5033,7 @@ HOptimizedGraphBuilder::GlobalPropertyAccess
 HValue* HOptimizedGraphBuilder::BuildContextChainWalk(Variable* var) {
   ASSERT(var->IsContextSlot());
   HValue* context = environment()->context();
-  int length = current_info()->scope()->ContextChainLength(var->scope());
+  int length = scope()->ContextChainLength(var->scope());
   while (length-- > 0) {
     context = Add<HLoadNamedField>(
         context, static_cast<HValue*>(NULL),
@@ -5033,7 +5117,21 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
 
     case Variable::CONTEXT: {
       HValue* context = BuildContextChainWalk(variable);
-      HLoadContextSlot* instr = new(zone()) HLoadContextSlot(context, variable);
+      HLoadContextSlot::Mode mode;
+      switch (variable->mode()) {
+        case LET:
+        case CONST:
+          mode = HLoadContextSlot::kCheckDeoptimize;
+          break;
+        case CONST_LEGACY:
+          mode = HLoadContextSlot::kCheckReturnUndefined;
+          break;
+        default:
+          mode = HLoadContextSlot::kNoCheck;
+          break;
+      }
+      HLoadContextSlot* instr =
+          new(zone()) HLoadContextSlot(context, variable->index(), mode);
       return ast_context()->ReturnInstruction(instr, expr->id());
     }
 
@@ -7462,7 +7560,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   Add<HSimulate>(BailoutId::None());
 
   current_block()->UpdateEnvironment(inner_env);
-
+  Scope* saved_scope = scope();
+  set_scope(target_info.scope());
   HEnterInlined* enter_inlined =
       Add<HEnterInlined>(return_id, target, arguments_count, function,
                          function_state()->inlining_kind(),
@@ -7472,6 +7571,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   VisitDeclarations(target_info.scope()->declarations());
   VisitStatements(function->body());
+  set_scope(saved_scope);
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
     // instead.
@@ -11432,7 +11532,9 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       push_count_(0),
       ast_id_(BailoutId::None()),
       zone_(zone) {
-  Initialize(scope->num_parameters() + 1, scope->num_stack_slots(), 0);
+  Scope* declaration_scope = scope->DeclarationScope();
+  Initialize(declaration_scope->num_parameters() + 1,
+             declaration_scope->num_stack_slots(), 0);
 }
 
 

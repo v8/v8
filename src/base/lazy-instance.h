@@ -65,14 +65,14 @@
 //   The macro LAZY_DYNAMIC_INSTANCE_INITIALIZER must be used to initialize
 //   dynamic lazy instances.
 
-#ifndef V8_LAZY_INSTANCE_H_
-#define V8_LAZY_INSTANCE_H_
+#ifndef V8_BASE_LAZY_INSTANCE_H_
+#define V8_BASE_LAZY_INSTANCE_H_
 
 #include "src/base/macros.h"
-#include "src/once.h"
+#include "src/base/once.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #define LAZY_STATIC_INSTANCE_INITIALIZER { V8_ONCE_INIT, { {} } }
 #define LAZY_DYNAMIC_INSTANCE_INITIALIZER { V8_ONCE_INIT, 0 }
@@ -232,6 +232,6 @@ struct LazyDynamicInstance {
       CreateTrait, InitOnceTrait, DestroyTrait> type;
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_LAZY_INSTANCE_H_
+#endif  // V8_BASE_LAZY_INSTANCE_H_

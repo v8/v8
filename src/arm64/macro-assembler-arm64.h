@@ -873,6 +873,10 @@ class MacroAssembler : public Assembler {
                               Register src,
                               UntagMode mode = kNotSpeculativeUntag);
 
+  // Tag and push in one step.
+  inline void SmiTagAndPush(Register src);
+  inline void SmiTagAndPush(Register src1, Register src2);
+
   // Compute the absolute value of 'smi' and leave the result in 'smi'
   // register. If 'smi' is the most negative SMI, the absolute value cannot
   // be represented as a SMI and a jump to 'slow' is done.

@@ -527,48 +527,6 @@ bool Heap::CollectGarbage(AllocationSpace space,
 }
 
 
-int64_t Heap::AdjustAmountOfExternalAllocatedMemory(
-    int64_t change_in_bytes) {
-  ASSERT(HasBeenSetUp());
-  int64_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
-  if (change_in_bytes > 0) {
-    // Avoid overflow.
-    if (amount > amount_of_external_allocated_memory_) {
-      amount_of_external_allocated_memory_ = amount;
-    } else {
-      // Give up and reset the counters in case of an overflow.
-      amount_of_external_allocated_memory_ = 0;
-      amount_of_external_allocated_memory_at_last_global_gc_ = 0;
-    }
-    int64_t amount_since_last_global_gc = PromotedExternalMemorySize();
-    if (amount_since_last_global_gc > external_allocation_limit_) {
-      CollectAllGarbage(kNoGCFlags, "external memory allocation limit reached");
-    }
-  } else {
-    // Avoid underflow.
-    if (amount >= 0) {
-      amount_of_external_allocated_memory_ = amount;
-    } else {
-      // Give up and reset the counters in case of an underflow.
-      amount_of_external_allocated_memory_ = 0;
-      amount_of_external_allocated_memory_at_last_global_gc_ = 0;
-    }
-  }
-  if (FLAG_trace_external_memory) {
-    PrintPID("%8.0f ms: ", isolate()->time_millis_since_init());
-    PrintF("Adjust amount of external memory: delta=%6" V8_PTR_PREFIX "d KB, "
-           "amount=%6" V8_PTR_PREFIX "d KB, since_gc=%6" V8_PTR_PREFIX "d KB, "
-           "isolate=0x%08" V8PRIxPTR ".\n",
-           static_cast<intptr_t>(change_in_bytes / KB),
-           static_cast<intptr_t>(amount_of_external_allocated_memory_ / KB),
-           static_cast<intptr_t>(PromotedExternalMemorySize() / KB),
-           reinterpret_cast<intptr_t>(isolate()));
-  }
-  ASSERT(amount_of_external_allocated_memory_ >= 0);
-  return amount_of_external_allocated_memory_;
-}
-
-
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(reinterpret_cast<intptr_t>(this) -
       reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);

@@ -5492,8 +5492,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
   // Push the index as a smi. This is safe because of the checks in
   // DoStringCharCodeAt above.
   Register index = ToRegister(instr->index());
-  __ SmiTag(index);
-  __ Push(index);
+  __ SmiTagAndPush(index);
 
   CallRuntimeFromDeferred(Runtime::kHiddenStringCharCodeAt, 2, instr,
                           instr->context());
@@ -5542,8 +5541,7 @@ void LCodeGen::DoDeferredStringCharFromCode(LStringCharFromCode* instr) {
   __ Mov(result, 0);
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ SmiTag(char_code);
-  __ Push(char_code);
+  __ SmiTagAndPush(char_code);
   CallRuntimeFromDeferred(Runtime::kCharFromCode, 1, instr, instr->context());
   __ StoreToSafepointRegisterSlot(x0, result);
 }
@@ -6038,5 +6036,22 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
   __ Bind(deferred->exit());
   __ Bind(&done);
 }
+
+
+void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
+  Register context = ToRegister(instr->context());
+  __ Str(context, MemOperand(fp, StandardFrameConstants::kContextOffset));
+}
+
+
+void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
+  Handle<ScopeInfo> scope_info = instr->scope_info();
+  __ Push(scope_info);
+  __ Push(ToRegister(instr->function()));
+  CallRuntime(Runtime::kHiddenPushBlockContext, 2, instr);
+  RecordSafepoint(Safepoint::kNoLazyDeopt);
+}
+
+
 
 } }  // namespace v8::internal

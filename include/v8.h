@@ -984,24 +984,9 @@ class V8_EXPORT Script {
    */
   Local<UnboundScript> GetUnboundScript();
 
-  // To be deprecated; use GetUnboundScript()->GetId();
-  int GetId() {
-    return GetUnboundScript()->GetId();
-  }
-
-  // Use GetUnboundScript()->GetId();
   V8_DEPRECATED("Use GetUnboundScript()->GetId()",
-                Handle<Value> GetScriptName()) {
-    return GetUnboundScript()->GetScriptName();
-  }
-
-  /**
-   * Returns zero based line number of the code_pos location in the script.
-   * -1 will be returned if no information available.
-   */
-  V8_DEPRECATED("Use GetUnboundScript()->GetLineNumber()",
-                int GetLineNumber(int code_pos)) {
-    return GetUnboundScript()->GetLineNumber(code_pos);
+                int GetId()) {
+    return GetUnboundScript()->GetId();
   }
 };
 
@@ -1046,8 +1031,7 @@ class V8_EXPORT ScriptCompiler {
   };
 
   /**
-   * Source code which can be then compiled to a UnboundScript or
-   * BoundScript.
+   * Source code which can be then compiled to a UnboundScript or Script.
    */
   class Source {
    public:
@@ -4215,7 +4199,8 @@ class V8_EXPORT Isolate {
    *   kept alive by JavaScript objects.
    * \returns the adjusted value.
    */
-  int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
+  V8_INLINE int64_t
+      AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
@@ -4418,6 +4403,7 @@ class V8_EXPORT Isolate {
   void SetObjectGroupId(internal::Object** object, UniqueId id);
   void SetReferenceFromGroup(UniqueId id, internal::Object** object);
   void SetReference(internal::Object** parent, internal::Object** child);
+  void CollectAllGarbage(const char* gc_reason);
 };
 
 class V8_EXPORT StartupData {
@@ -4655,6 +4641,24 @@ class V8_EXPORT V8 {
   static int GetCompressedStartupDataCount();
   static void GetCompressedStartupData(StartupData* compressed_data);
   static void SetDecompressedStartupData(StartupData* decompressed_data);
+
+  /**
+   * Hand startup data to V8, in case the embedder has chosen to build
+   * V8 with external startup data.
+   *
+   * Note:
+   * - By default the startup data is linked into the V8 library, in which
+   *   case this function is not meaningful.
+   * - If this needs to be called, it needs to be called before V8
+   *   tries to make use of its built-ins.
+   * - To avoid unnecessary copies of data, V8 will point directly into the
+   *   given data blob, so pretty please keep it around until V8 exit.
+   * - Compression of the startup blob might be useful, but needs to
+   *   handled entirely on the embedders' side.
+   * - The call will abort if the data is invalid.
+   */
+  static void SetNativesDataBlob(StartupData* startup_blob);
+  static void SetSnapshotDataBlob(StartupData* startup_blob);
 
   /**
    * Adds a message listener.
@@ -5446,6 +5450,7 @@ namespace internal {
 
 const int kApiPointerSize = sizeof(void*);  // NOLINT
 const int kApiIntSize = sizeof(int);  // NOLINT
+const int kApiInt64Size = sizeof(int64_t);  // NOLINT
 
 // Tag information for HeapObject.
 const int kHeapObjectTag = 1;
@@ -5544,12 +5549,22 @@ class Internals {
   static const int kExternalAsciiRepresentationTag = 0x06;
 
   static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
-  static const int kIsolateRootsOffset = 5 * kApiPointerSize;
+  static const int kAmountOfExternalAllocatedMemoryOffset =
+      4 * kApiPointerSize;
+  static const int kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset =
+      kAmountOfExternalAllocatedMemoryOffset + kApiInt64Size;
+  static const int kIsolateRootsOffset =
+      kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset + kApiInt64Size +
+      kApiPointerSize;
   static const int kUndefinedValueRootIndex = 5;
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
   static const int kEmptyStringRootIndex = 162;
+
+  // The external allocation limit should be below 256 MB on all architectures
+  // to avoid that resource-constrained embedders run low on memory.
+  static const int kExternalAllocationLimit = 192 * 1024 * 1024;
 
   static const int kNodeClassIdOffset = 1 * kApiPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiPointerSize + 3;
@@ -6567,6 +6582,28 @@ void* Isolate::GetData(uint32_t slot) {
 uint32_t Isolate::GetNumberOfDataSlots() {
   typedef internal::Internals I;
   return I::kNumIsolateDataSlots;
+}
+
+
+int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
+    int64_t change_in_bytes) {
+  typedef internal::Internals I;
+  int64_t* amount_of_external_allocated_memory =
+      reinterpret_cast<int64_t*>(reinterpret_cast<uint8_t*>(this) +
+                                 I::kAmountOfExternalAllocatedMemoryOffset);
+  int64_t* amount_of_external_allocated_memory_at_last_global_gc =
+      reinterpret_cast<int64_t*>(
+          reinterpret_cast<uint8_t*>(this) +
+          I::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
+  int64_t amount = *amount_of_external_allocated_memory + change_in_bytes;
+  if (change_in_bytes > 0 &&
+      amount - *amount_of_external_allocated_memory_at_last_global_gc >
+          I::kExternalAllocationLimit) {
+    CollectAllGarbage("external memory allocation limit reached.");
+  } else {
+    *amount_of_external_allocated_memory = amount;
+  }
+  return *amount_of_external_allocated_memory;
 }
 
 

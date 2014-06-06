@@ -5,7 +5,7 @@
 #ifndef V8_SWEEPER_THREAD_H_
 #define V8_SWEEPER_THREAD_H_
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 #include "src/flags.h"
 #include "src/platform.h"
 #include "src/utils.h"
@@ -37,7 +37,7 @@ class SweeperThread : public Thread {
   Semaphore start_sweeping_semaphore_;
   Semaphore end_sweeping_semaphore_;
   Semaphore stop_semaphore_;
-  volatile AtomicWord stop_thread_;
+  volatile base::AtomicWord stop_thread_;
 };
 
 } }  // namespace v8::internal

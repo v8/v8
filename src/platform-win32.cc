@@ -15,7 +15,7 @@
 #endif  // MINGW_HAS_SECURE_API
 #endif  // __MINGW32__
 
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 
 #include "src/v8.h"
 

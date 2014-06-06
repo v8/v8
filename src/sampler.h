@@ -5,7 +5,7 @@
 #ifndef V8_SAMPLER_H_
 #define V8_SAMPLER_H_
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 #include "src/frames.h"
 #include "src/globals.h"
 
@@ -74,20 +74,20 @@ class Sampler {
 
   // Whether the sampling thread should use this Sampler for CPU profiling?
   bool IsProfiling() const {
-    return NoBarrier_Load(&profiling_) > 0 &&
-        !NoBarrier_Load(&has_processing_thread_);
+    return base::NoBarrier_Load(&profiling_) > 0 &&
+        !base::NoBarrier_Load(&has_processing_thread_);
   }
   void IncreaseProfilingDepth();
   void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return NoBarrier_Load(&active_); }
+  bool IsActive() const { return base::NoBarrier_Load(&active_); }
 
   void DoSample();
   // If true next sample must be initiated on the profiler event processor
   // thread right after latest sample is processed.
   void SetHasProcessingThread(bool value) {
-    NoBarrier_Store(&has_processing_thread_, value);
+    base::NoBarrier_Store(&has_processing_thread_, value);
   }
 
   // Used in tests to make sure that stack sampling is performed.
@@ -108,13 +108,13 @@ class Sampler {
   virtual void Tick(TickSample* sample) = 0;
 
  private:
-  void SetActive(bool value) { NoBarrier_Store(&active_, value); }
+  void SetActive(bool value) { base::NoBarrier_Store(&active_, value); }
 
   Isolate* isolate_;
   const int interval_;
-  Atomic32 profiling_;
-  Atomic32 has_processing_thread_;
-  Atomic32 active_;
+  base::Atomic32 profiling_;
+  base::Atomic32 has_processing_thread_;
+  base::Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
   bool is_counting_samples_;
   // Counts stack samples taken in JS VM state.

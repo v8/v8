@@ -18,9 +18,9 @@
 
 #include "src/v8.h"
 
+#include "src/base/win32-headers.h"
 #include "src/platform.h"
 #include "src/v8threads.h"
-#include "src/win32-headers.h"
 
 namespace v8 {
 namespace internal {

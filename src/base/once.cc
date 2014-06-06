@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/once.h"
+#include "src/base/once.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -10,10 +10,10 @@
 #include <sched.h>
 #endif
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
   AtomicWord state = Acquire_Load(once);
@@ -50,4 +50,4 @@ void CallOnceImpl(OnceType* once, PointerArgFunction init_func, void* arg) {
   }
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

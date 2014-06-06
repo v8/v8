@@ -5,6 +5,7 @@
 #ifndef V8_PLATFORM_CONDITION_VARIABLE_H_
 #define V8_PLATFORM_CONDITION_VARIABLE_H_
 
+#include "src/base/lazy-instance.h"
 #include "src/platform/mutex.h"
 
 namespace v8 {
@@ -106,9 +107,9 @@ class ConditionVariable V8_FINAL {
 //     LockGuard<Mutex> lock_guard(&my_mutex);
 //     my_condvar.Pointer()->Wait(&my_mutex);
 //   }
-typedef LazyStaticInstance<ConditionVariable,
-                           DefaultConstructTrait<ConditionVariable>,
-                           ThreadSafeInitOnceTrait>::type LazyConditionVariable;
+typedef base::LazyStaticInstance<
+    ConditionVariable, base::DefaultConstructTrait<ConditionVariable>,
+    base::ThreadSafeInitOnceTrait>::type LazyConditionVariable;
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 

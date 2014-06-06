@@ -43,7 +43,7 @@ int signbit(double x);
 // Microsoft Visual C++ specific stuff.
 #if V8_LIBC_MSVCRT
 
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 #include "src/win32-math.h"
 
 int strncasecmp(const char* s1, const char* s2, int n);

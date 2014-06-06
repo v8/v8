@@ -12,6 +12,7 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
+#include "src/base/atomicops.h"
 #include "src/elements.h"
 #include "src/objects.h"
 #include "src/contexts.h"
@@ -1122,24 +1123,26 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 #define READ_FIELD(p, offset) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)))
 
-#define ACQUIRE_READ_FIELD(p, offset)                                    \
-  reinterpret_cast<Object*>(                                             \
-      Acquire_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
+#define ACQUIRE_READ_FIELD(p, offset)           \
+  reinterpret_cast<Object*>(base::Acquire_Load( \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
-#define NOBARRIER_READ_FIELD(p, offset)                                     \
-  reinterpret_cast<Object*>(                                                \
-      NoBarrier_Load(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset))))
+#define NOBARRIER_READ_FIELD(p, offset)           \
+  reinterpret_cast<Object*>(base::NoBarrier_Load( \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset))))
 
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
-#define RELEASE_WRITE_FIELD(p, offset, value)                           \
-  Release_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),   \
-                reinterpret_cast<AtomicWord>(value));
+#define RELEASE_WRITE_FIELD(p, offset, value)                     \
+  base::Release_Store(                                            \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      reinterpret_cast<base::AtomicWord>(value));
 
-#define NOBARRIER_WRITE_FIELD(p, offset, value)                            \
-  NoBarrier_Store(reinterpret_cast<AtomicWord*>(FIELD_ADDR(p, offset)),    \
-                  reinterpret_cast<AtomicWord>(value));
+#define NOBARRIER_WRITE_FIELD(p, offset, value)                   \
+  base::NoBarrier_Store(                                          \
+      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
+      reinterpret_cast<base::AtomicWord>(value));
 
 #define WRITE_BARRIER(heap, object, offset, value)                      \
   heap->incremental_marking()->RecordWrite(                             \
@@ -1235,16 +1238,17 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)))
 
-#define NOBARRIER_READ_BYTE_FIELD(p, offset)               \
-  static_cast<byte>(NoBarrier_Load(                        \
-      reinterpret_cast<Atomic8*>(FIELD_ADDR(p, offset))) )
+#define NOBARRIER_READ_BYTE_FIELD(p, offset) \
+  static_cast<byte>(base::NoBarrier_Load(    \
+      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset))))
 
 #define WRITE_BYTE_FIELD(p, offset, value) \
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
-#define NOBARRIER_WRITE_BYTE_FIELD(p, offset, value)                 \
-  NoBarrier_Store(reinterpret_cast<Atomic8*>(FIELD_ADDR(p, offset)), \
-                  static_cast<Atomic8>(value));
+#define NOBARRIER_WRITE_BYTE_FIELD(p, offset, value)           \
+  base::NoBarrier_Store(                                       \
+      reinterpret_cast<base::Atomic8*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic8>(value));
 
 Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
   return &READ_FIELD(obj, byte_offset);

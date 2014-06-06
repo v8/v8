@@ -5,11 +5,11 @@
 #ifndef V8_PLATFORM_MUTEX_H_
 #define V8_PLATFORM_MUTEX_H_
 
-#include "src/checks.h"
-#include "src/lazy-instance.h"
+#include "src/base/lazy-instance.h"
 #if V8_OS_WIN
-#include "src/win32-headers.h"
+#include "src/base/win32-headers.h"
 #endif
+#include "src/checks.h"
 
 #if V8_OS_POSIX
 #include <pthread.h>  // NOLINT
@@ -101,9 +101,9 @@ class Mutex V8_FINAL {
 //     // Do something.
 //   }
 //
-typedef LazyStaticInstance<Mutex,
-                           DefaultConstructTrait<Mutex>,
-                           ThreadSafeInitOnceTrait>::type LazyMutex;
+typedef v8::base::LazyStaticInstance<
+    Mutex, v8::base::DefaultConstructTrait<Mutex>,
+    v8::base::ThreadSafeInitOnceTrait>::type LazyMutex;
 
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
@@ -182,9 +182,9 @@ class RecursiveMutex V8_FINAL {
 //     // Do something.
 //   }
 //
-typedef LazyStaticInstance<RecursiveMutex,
-                           DefaultConstructTrait<RecursiveMutex>,
-                           ThreadSafeInitOnceTrait>::type LazyRecursiveMutex;
+typedef v8::base::LazyStaticInstance<
+    RecursiveMutex, v8::base::DefaultConstructTrait<RecursiveMutex>,
+    v8::base::ThreadSafeInitOnceTrait>::type LazyRecursiveMutex;
 
 #define LAZY_RECURSIVE_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 

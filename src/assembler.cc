@@ -36,6 +36,7 @@
 
 #include <cmath>
 #include "src/api.h"
+#include "src/base/lazy-instance.h"
 #include "src/builtins.h"
 #include "src/counters.h"
 #include "src/cpu.h"
@@ -46,7 +47,6 @@
 #include "src/ic.h"
 #include "src/isolate-inl.h"
 #include "src/jsregexp.h"
-#include "src/lazy-instance.h"
 #include "src/platform.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"

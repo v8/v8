@@ -49,19 +49,19 @@
 // whatsoever to statically-initialize its synchronization primitives, so our
 // only choice is to assume that dynamic initialization is single-threaded.
 
-#ifndef V8_ONCE_H_
-#define V8_ONCE_H_
+#ifndef V8_BASE_ONCE_H_
+#define V8_BASE_ONCE_H_
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 typedef AtomicWord OnceType;
 
 #define V8_ONCE_INIT 0
 
-#define V8_DECLARE_ONCE(NAME) ::v8::internal::OnceType NAME
+#define V8_DECLARE_ONCE(NAME) ::v8::base::OnceType NAME
 
 enum {
   ONCE_STATE_UNINITIALIZED = 0,
@@ -95,6 +95,6 @@ inline void CallOnce(OnceType* once,
   }
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_ONCE_H_
+#endif  // V8_BASE_ONCE_H_

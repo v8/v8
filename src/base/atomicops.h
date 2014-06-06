@@ -22,8 +22,8 @@
 // to use these.
 //
 
-#ifndef V8_ATOMICOPS_H_
-#define V8_ATOMICOPS_H_
+#ifndef V8_BASE_ATOMICOPS_H_
+#define V8_BASE_ATOMICOPS_H_
 
 #include "include/v8.h"
 #include "src/base/build_config.h"
@@ -38,7 +38,7 @@
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 typedef char Atomic8;
 typedef int32_t Atomic32;
@@ -131,23 +131,23 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
 // Include our platform specific implementation.
 #if defined(THREAD_SANITIZER)
-#include "src/atomicops_internals_tsan.h"
+#include "src/base/atomicops_internals_tsan.h"
 #elif defined(_MSC_VER) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
-#include "src/atomicops_internals_x86_msvc.h"
+#include "src/base/atomicops_internals_x86_msvc.h"
 #elif defined(__APPLE__)
-#include "src/atomicops_internals_mac.h"
+#include "src/base/atomicops_internals_mac.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM64
-#include "src/atomicops_internals_arm64_gcc.h"
+#include "src/base/atomicops_internals_arm64_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM
-#include "src/atomicops_internals_arm_gcc.h"
+#include "src/base/atomicops_internals_arm_gcc.h"
 #elif defined(__GNUC__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
-#include "src/atomicops_internals_x86_gcc.h"
+#include "src/base/atomicops_internals_x86_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_MIPS
-#include "src/atomicops_internals_mips_gcc.h"
+#include "src/base/atomicops_internals_mips_gcc.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif
@@ -155,7 +155,7 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
 #if defined(__APPLE__) || defined(__OpenBSD__)
-#include "src/atomicops_internals_atomicword_compat.h"
+#include "src/base/atomicops_internals_atomicword_compat.h"
 #endif
 
-#endif  // V8_ATOMICOPS_H_
+#endif  // V8_BASE_ATOMICOPS_H_

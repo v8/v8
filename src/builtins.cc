@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/base/once.h"
 #include "src/bootstrapper.h"
 #include "src/builtins.h"
 #include "src/cpu-profiler.h"
@@ -1534,11 +1535,11 @@ struct BuiltinDesc {
 class BuiltinFunctionTable {
  public:
   BuiltinDesc* functions() {
-    CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
+    base::CallOnce(&once_, &Builtins::InitBuiltinFunctionTable);
     return functions_;
   }
 
-  OnceType once_;
+  base::OnceType once_;
   BuiltinDesc functions_[Builtins::builtin_count + 1];
 
   friend class Builtins;

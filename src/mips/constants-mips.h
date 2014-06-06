@@ -504,7 +504,7 @@ inline Condition NegateCondition(Condition cc) {
 }
 
 
-// Commute a condition such that a cond b == b cond' b.
+// Commute a condition such that {a cond b == b cond' a}.
 inline Condition CommuteCondition(Condition cc) {
   switch (cc) {
     case Uless:

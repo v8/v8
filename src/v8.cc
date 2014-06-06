@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/assembler.h"
+#include "src/base/once.h"
 #include "src/isolate.h"
 #include "src/elements.h"
 #include "src/bootstrapper.h"
@@ -18,7 +19,6 @@
 #endif
 #include "src/lithium-allocator.h"
 #include "src/objects.h"
-#include "src/once.h"
 #include "src/platform.h"
 #include "src/sampler.h"
 #include "src/runtime-profiler.h"
@@ -111,7 +111,7 @@ void V8::InitializeOncePerProcessImpl() {
 
 
 void V8::InitializeOncePerProcess() {
-  CallOnce(&init_once, &InitializeOncePerProcessImpl);
+  base::CallOnce(&init_once, &InitializeOncePerProcessImpl);
 }
 
 

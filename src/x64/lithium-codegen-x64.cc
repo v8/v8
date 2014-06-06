@@ -5685,6 +5685,21 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
 }
 
 
+void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
+  Register context = ToRegister(instr->context());
+  __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), context);
+}
+
+
+void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
+  Handle<ScopeInfo> scope_info = instr->scope_info();
+  __ Push(scope_info);
+  __ Push(ToRegister(instr->function()));
+  CallRuntime(Runtime::kHiddenPushBlockContext, 2, instr);
+  RecordSafepoint(Safepoint::kNoLazyDeopt);
+}
+
+
 #undef __
 
 } }  // namespace v8::internal

@@ -28,9 +28,7 @@
 #include "src/icu_util.h"
 #include "src/json-parser.h"
 #include "src/messages.h"
-#ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "src/natives.h"
-#endif
 #include "src/parser.h"
 #include "src/platform.h"
 #include "src/platform/time.h"
@@ -349,6 +347,24 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].data,
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
+#endif
+}
+
+
+void V8::SetNativesDataBlob(StartupData* natives_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::SetNativesFromFile(natives_blob);
+#else
+  CHECK(false);
+#endif
+}
+
+
+void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::SetSnapshotFromFile(snapshot_blob);
+#else
+  CHECK(false);
 #endif
 }
 
@@ -6305,10 +6321,9 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
-    int64_t change_in_bytes) {
-  i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();
-  return heap->AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+void Isolate::CollectAllGarbage(const char* gc_reason) {
+  reinterpret_cast<i::Isolate*>(this)->heap()->CollectAllGarbage(
+      i::Heap::kNoGCFlags, gc_reason);
 }
 
 

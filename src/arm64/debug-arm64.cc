@@ -157,9 +157,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     while (!non_object_list.IsEmpty()) {
       // Store each non-object register as two SMIs.
       Register reg = Register(non_object_list.PopLowestIndex());
-      __ Push(reg);
-      __ Poke(wzr, 0);
-      __ Push(reg.W(), wzr);
+      __ Lsr(scratch, reg, 32);
+      __ SmiTagAndPush(scratch, reg);
+
       // Stack:
       //  jssp[12]: reg[63:32]
       //  jssp[8]: 0x00000000 (SMI tag & padding)

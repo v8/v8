@@ -764,8 +764,9 @@ void Runtime::FreeArrayBuffer(Isolate* isolate,
   size_t allocated_length = NumberToSize(
       isolate, phantom_array_buffer->byte_length());
 
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
-      -static_cast<int64_t>(allocated_length));
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(
+          -static_cast<int64_t>(allocated_length));
   CHECK(V8::ArrayBufferAllocator() != NULL);
   V8::ArrayBufferAllocator()->Free(
       phantom_array_buffer->backing_store(),
@@ -819,7 +820,8 @@ bool Runtime::SetupArrayBufferAllocatingData(
 
   SetupArrayBuffer(isolate, array_buffer, false, data, allocated_length);
 
-  isolate->heap()->AdjustAmountOfExternalAllocatedMemory(allocated_length);
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(allocated_length);
 
   return true;
 }

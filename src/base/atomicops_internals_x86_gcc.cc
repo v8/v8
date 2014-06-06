@@ -7,13 +7,13 @@
 
 #include <string.h>
 
-#include "src/atomicops.h"
+#include "src/base/atomicops.h"
 
 // This file only makes sense with atomicops_internals_x86_gcc.h -- it
 // depends on structs that are defined in that file.  If atomicops.h
 // doesn't sub-include that file, then we aren't needed, and shouldn't
 // try to do anything.
-#ifdef V8_ATOMICOPS_INTERNALS_X86_GCC_H_
+#ifdef V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_
 
 // Inline cpuid instruction.  In PIC compilations, %ebx contains the address
 // of the global offset table.  To avoid breaking such executables, this code
@@ -35,7 +35,7 @@
 #if defined(cpuid)        // initialize the struct only on x86
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // Set the flags so that code will run correctly and conservatively, so even
 // if we haven't been initialized yet, we're probably single threaded, and our
@@ -45,13 +45,13 @@ struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures = {
   false,          // no SSE2
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
 namespace {
 
 // Initialize the AtomicOps_Internalx86CPUFeatures struct.
 void AtomicOps_Internalx86CPUFeaturesInit() {
-  using v8::internal::AtomicOps_Internalx86CPUFeatures;
+  using v8::base::AtomicOps_Internalx86CPUFeatures;
 
   uint32_t eax = 0;
   uint32_t ebx = 0;
@@ -108,4 +108,4 @@ AtomicOpsx86Initializer g_initer;
 
 #endif  // if x86
 
-#endif  // ifdef V8_ATOMICOPS_INTERNALS_X86_GCC_H_
+#endif  // ifdef V8_BASE_ATOMICOPS_INTERNALS_X86_GCC_H_

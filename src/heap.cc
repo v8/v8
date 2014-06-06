@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/base/once.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -21,7 +22,6 @@
 #include "src/natives.h"
 #include "src/objects-visiting.h"
 #include "src/objects-visiting-inl.h"
-#include "src/once.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/snapshot.h"
@@ -44,7 +44,9 @@ namespace internal {
 
 
 Heap::Heap()
-    : isolate_(NULL),
+    : amount_of_external_allocated_memory_(0),
+      amount_of_external_allocated_memory_at_last_global_gc_(0),
+      isolate_(NULL),
       code_range_size_(0),
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
@@ -54,7 +56,7 @@ Heap::Heap()
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
 // Variables set based on semispace_size_ and old_generation_size_ in
-// ConfigureHeap (survived_since_last_expansion_, external_allocation_limit_)
+// ConfigureHeap.
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
       maximum_committed_(0),
@@ -86,9 +88,6 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(kMinimumOldGenerationAllocationLimit),
       size_of_old_gen_at_last_old_space_gc_(0),
-      external_allocation_limit_(0),
-      amount_of_external_allocated_memory_(0),
-      amount_of_external_allocated_memory_at_last_global_gc_(0),
       old_gen_exhausted_(false),
       inline_allocation_disabled_(false),
       store_buffer_rebuilder_(store_buffer()),
@@ -2382,7 +2381,7 @@ bool Heap::CreateInitialMaps() {
   set_meta_map(new_meta_map);
   new_meta_map->set_map(new_meta_map);
 
-  { // Partial map allocation
+  {  // Partial map allocation
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                  \
     { Map* map;                                                                \
       if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
@@ -2476,7 +2475,7 @@ bool Heap::CreateInitialMaps() {
   constant_pool_array_map()->set_prototype(null_value());
   constant_pool_array_map()->set_constructor(null_value());
 
-  { // Map allocation
+  {  // Map allocation
 #define ALLOCATE_MAP(instance_type, size, field_name)                          \
     { Map* map;                                                                \
       if (!AllocateMap((instance_type), size).To(&map)) return false;          \
@@ -4965,7 +4964,7 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
     max_semi_space_size_ = Page::kPageSize;
   }
 
-  if (Snapshot::IsEnabled()) {
+  if (Snapshot::HaveASnapshotToStartFrom()) {
     // If we are using a snapshot we always reserve the default amount
     // of memory for each semispace because code in the snapshot has
     // write-barrier code that relies on the size and alignment of new
@@ -5009,11 +5008,6 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
   }
 
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
-
-  // The external allocation limit should be below 256 MB on all architectures
-  // to avoid that resource-constrained embedders run low on memory.
-  external_allocation_limit_ = 192 * MB;
-  ASSERT(external_allocation_limit_ <= 256 * MB);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
@@ -5155,7 +5149,7 @@ bool Heap::SetUp() {
     if (!ConfigureHeapDefault()) return false;
   }
 
-  CallOnce(&initialize_gc_once, &InitializeGCOnce);
+  base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 
   MarkMapPointersAsEncoded(false);
 

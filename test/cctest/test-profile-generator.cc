@@ -662,11 +662,11 @@ TEST(ProfileNodeScriptId) {
 
   current = PickChild(current, "b");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_b->GetId(), current->GetScriptId());
+  CHECK_EQ(script_b->GetUnboundScript()->GetId(), current->GetScriptId());
 
   current = PickChild(current, "a");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
-  CHECK_EQ(script_a->GetId(), current->GetScriptId());
+  CHECK_EQ(script_a->GetUnboundScript()->GetId(), current->GetScriptId());
 }
 
 

@@ -6,6 +6,7 @@
 #define V8_SPACES_H_
 
 #include "src/allocation.h"
+#include "src/base/atomicops.h"
 #include "src/hashmap.h"
 #include "src/list.h"
 #include "src/log.h"
@@ -291,19 +292,19 @@ class MemoryChunk {
   bool is_valid() { return address() != NULL; }
 
   MemoryChunk* next_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&next_chunk_));
+    return reinterpret_cast<MemoryChunk*>(base::Acquire_Load(&next_chunk_));
   }
 
   MemoryChunk* prev_chunk() const {
-    return reinterpret_cast<MemoryChunk*>(Acquire_Load(&prev_chunk_));
+    return reinterpret_cast<MemoryChunk*>(base::Acquire_Load(&prev_chunk_));
   }
 
   void set_next_chunk(MemoryChunk* next) {
-    Release_Store(&next_chunk_, reinterpret_cast<AtomicWord>(next));
+    base::Release_Store(&next_chunk_, reinterpret_cast<base::AtomicWord>(next));
   }
 
   void set_prev_chunk(MemoryChunk* prev) {
-    Release_Store(&prev_chunk_, reinterpret_cast<AtomicWord>(prev));
+    base::Release_Store(&prev_chunk_, reinterpret_cast<base::AtomicWord>(prev));
   }
 
   Space* owner() const {
@@ -461,18 +462,17 @@ class MemoryChunk {
 
   ParallelSweepingState parallel_sweeping() {
     return static_cast<ParallelSweepingState>(
-        Acquire_Load(&parallel_sweeping_));
+        base::Acquire_Load(&parallel_sweeping_));
   }
 
   void set_parallel_sweeping(ParallelSweepingState state) {
-    Release_Store(&parallel_sweeping_, state);
+    base::Release_Store(&parallel_sweeping_, state);
   }
 
   bool TryParallelSweeping() {
-    return Acquire_CompareAndSwap(&parallel_sweeping_,
-                                  PARALLEL_SWEEPING_PENDING,
-                                  PARALLEL_SWEEPING_IN_PROGRESS) ==
-                                      PARALLEL_SWEEPING_PENDING;
+    return base::Acquire_CompareAndSwap(
+               &parallel_sweeping_, PARALLEL_SWEEPING_PENDING,
+               PARALLEL_SWEEPING_IN_PROGRESS) == PARALLEL_SWEEPING_PENDING;
   }
 
   // Manage live byte count (count of bytes known to be live,
@@ -707,7 +707,7 @@ class MemoryChunk {
   // count highest number of bytes ever allocated on the page.
   int high_water_mark_;
 
-  AtomicWord parallel_sweeping_;
+  base::AtomicWord parallel_sweeping_;
 
   // PagedSpace free-list statistics.
   intptr_t available_in_small_free_list_;
@@ -726,9 +726,9 @@ class MemoryChunk {
 
  private:
   // next_chunk_ holds a pointer of type MemoryChunk
-  AtomicWord next_chunk_;
+  base::AtomicWord next_chunk_;
   // prev_chunk_ holds a pointer of type MemoryChunk
-  AtomicWord prev_chunk_;
+  base::AtomicWord prev_chunk_;
 
   friend class MemoryAllocator;
 };
@@ -1532,11 +1532,11 @@ class FreeListCategory {
   void RepairFreeList(Heap* heap);
 
   FreeListNode* top() const {
-    return reinterpret_cast<FreeListNode*>(NoBarrier_Load(&top_));
+    return reinterpret_cast<FreeListNode*>(base::NoBarrier_Load(&top_));
   }
 
   void set_top(FreeListNode* top) {
-    NoBarrier_Store(&top_, reinterpret_cast<AtomicWord>(top));
+    base::NoBarrier_Store(&top_, reinterpret_cast<base::AtomicWord>(top));
   }
 
   FreeListNode** GetEndAddress() { return &end_; }
@@ -1560,7 +1560,7 @@ class FreeListCategory {
 
  private:
   // top_ points to the top FreeListNode* in the free list category.
-  AtomicWord top_;
+  base::AtomicWord top_;
   FreeListNode* end_;
   Mutex mutex_;
 
