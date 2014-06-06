@@ -6404,9 +6404,8 @@ class ArrayInstructionInterface {
   virtual HValue* GetKey() = 0;
   virtual void SetKey(HValue* key) = 0;
   virtual ElementsKind elements_kind() const = 0;
-  // increase_by_value should be non-negative
-  virtual bool CanIncreaseBaseOffset(int32_t increase_by_value) = 0;
-  virtual void IncreaseBaseOffset(int32_t increase_by_value) = 0;
+  virtual void IncreaseBaseOffset(uint32_t base_offset) = 0;
+  virtual int MaxBaseOffsetBits() = 0;
   virtual bool IsDehoisted() = 0;
   virtual void SetDehoisted(bool is_dehoisted) = 0;
   virtual ~ArrayInstructionInterface() { }
@@ -6452,20 +6451,13 @@ class HLoadKeyed V8_FINAL
     return OperandAt(2);
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
-  uint32_t base_offset() {
-    int32_t base_offset_value = BaseOffsetField::decode(bit_field_);
-    ASSERT(base_offset_value >= 0);
-    return static_cast<uint32_t>(base_offset_value);
+  uint32_t base_offset() { return BaseOffsetField::decode(bit_field_); }
+  void IncreaseBaseOffset(uint32_t base_offset) {
+    base_offset += BaseOffsetField::decode(bit_field_);
+    bit_field_ = BaseOffsetField::update(bit_field_, base_offset);
   }
-  bool CanIncreaseBaseOffset(int32_t increase_by_value) {
-    ASSERT(increase_by_value >= 0);
-    int32_t new_value = BaseOffsetField::decode(bit_field_) + increase_by_value;
-    return (new_value >= 0 && BaseOffsetField::is_valid(new_value));
-  }
-  void IncreaseBaseOffset(int32_t increase_by_value) {
-    ASSERT(increase_by_value >= 0);
-    increase_by_value += BaseOffsetField::decode(bit_field_);
-    bit_field_ = BaseOffsetField::update(bit_field_, increase_by_value);
+  virtual int MaxBaseOffsetBits() {
+    return kBitsForBaseOffset;
   }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
@@ -6615,7 +6607,7 @@ class HLoadKeyed V8_FINAL
     public BitField<LoadKeyedHoleMode, kStartHoleMode, kBitsForHoleMode>
     {};  // NOLINT
   class BaseOffsetField:
-    public BitField<int32_t, kStartBaseOffset, kBitsForBaseOffset>
+    public BitField<uint32_t, kStartBaseOffset, kBitsForBaseOffset>
     {};  // NOLINT
   class IsDehoistedField:
     public BitField<bool, kStartIsDehoisted, kBitsForIsDehoisted>
@@ -6929,18 +6921,12 @@ class HStoreKeyed V8_FINAL
   }
   StoreFieldOrKeyedMode store_mode() const { return store_mode_; }
   ElementsKind elements_kind() const { return elements_kind_; }
-  uint32_t base_offset() {
-    ASSERT(base_offset_ >= 0);
-    return static_cast<uint32_t>(base_offset_);
+  uint32_t base_offset() { return base_offset_; }
+  void IncreaseBaseOffset(uint32_t base_offset) {
+    base_offset_ += base_offset;
   }
-  bool CanIncreaseBaseOffset(int32_t increase_by_value) {
-    ASSERT(increase_by_value >= 0);
-    // Guard against overflow
-    return (increase_by_value + base_offset_) >= 0;
-  }
-  void IncreaseBaseOffset(int32_t increase_by_value) {
-    ASSERT(increase_by_value >= 0);
-    base_offset_ += increase_by_value;
+  virtual int MaxBaseOffsetBits() {
+    return 31 - ElementsKindToShiftSize(elements_kind_);
   }
   HValue* GetKey() { return key(); }
   void SetKey(HValue* key) { SetOperandAt(1, key); }
@@ -7031,7 +7017,7 @@ class HStoreKeyed V8_FINAL
   }
 
   ElementsKind elements_kind_;
-  int32_t base_offset_;
+  uint32_t base_offset_;
   bool is_dehoisted_ : 1;
   bool is_uninitialized_ : 1;
   StoreFieldOrKeyedMode store_mode_: 1;
