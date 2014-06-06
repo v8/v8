@@ -28,15 +28,25 @@ static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
   if (!constant->HasInteger32Value()) return;
   int32_t sign = binary_operation->IsSub() ? -1 : 1;
   int32_t value = constant->Integer32Value() * sign;
-  // We limit offset values to 30 bits because we want to avoid the risk of
-  // overflows when the offset is added to the object header size.
-  if (value >= 1 << array_operation->MaxBaseOffsetBits() || value < 0) return;
+  if (value < 0) return;
+
+  // Check for overflow.
+  // TODO(mvstanton): replace with safe_math.h operations when that code is
+  // integrated.
+  int32_t shift_amount =
+      1 << ElementsKindToShiftSize(array_operation->elements_kind());
+  int32_t multiplication_result = value * shift_amount;
+  if ((multiplication_result >> shift_amount) != value) return;
+  value = multiplication_result;
+
+  // Ensure that the array operation can add value to existing base offset
+  // without overflowing.
+  if (!array_operation->CanIncreaseBaseOffset(value)) return;
   array_operation->SetKey(subexpression);
   if (binary_operation->HasNoUses()) {
     binary_operation->DeleteAndReplaceWith(NULL);
   }
-  value <<= ElementsKindToShiftSize(array_operation->elements_kind());
-  array_operation->IncreaseBaseOffset(static_cast<uint32_t>(value));
+  array_operation->IncreaseBaseOffset(value);
   array_operation->SetDehoisted(true);
 }
 

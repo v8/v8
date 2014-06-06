@@ -15,7 +15,7 @@ if test ! "$D8_PATH"; then
   if test -x "$d8_public"; then D8_PATH=$(dirname "$d8_public"); fi
 fi
 
-if test -n "$D8_PATH"; then
+if test ! -n "$D8_PATH"; then
   D8_PATH=$tools_path/..
 fi
 

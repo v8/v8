@@ -1,3 +1,8 @@
+2014-06-06: Version 3.27.22
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-06: Version 3.27.21
 
         Turn on harmony_collections for es_staging (issue 1622).

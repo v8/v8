@@ -21,6 +21,9 @@ namespace internal {
 //   Object* Runtime_function(Arguments args) {
 //     ... use args[i] here ...
 //   }
+//
+// Note that length_ (whose value is in the integer range) is defined
+// as intptr_t to provide endian-neutrality on 64-bit archs.
 
 class Arguments BASE_EMBEDDED {
  public:
@@ -50,12 +53,12 @@ class Arguments BASE_EMBEDDED {
   }
 
   // Get the total number of arguments including the receiver.
-  int length() const { return length_; }
+  int length() const { return static_cast<int>(length_); }
 
   Object** arguments() { return arguments_; }
 
  private:
-  int length_;
+  intptr_t length_;
   Object** arguments_;
 };
 
