@@ -48,7 +48,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
 
     PatchingAssembler patcher(call_address, patch_size() / kInstructionSize);
-    patcher.LoadLiteral(ip0, 2 * kInstructionSize);
+    patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
 

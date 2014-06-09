@@ -599,6 +599,31 @@ class CPURegList {
 #define kCallerSaved CPURegList::GetCallerSaved()
 #define kCallerSavedFP CPURegList::GetCallerSavedFP()
 
+// -----------------------------------------------------------------------------
+// Immediates.
+class Immediate {
+ public:
+  template<typename T>
+  inline explicit Immediate(Handle<T> handle);
+
+  // This is allowed to be an implicit constructor because Immediate is
+  // a wrapper class that doesn't normally perform any type conversion.
+  template<typename T>
+  inline Immediate(T value);  // NOLINT(runtime/explicit)
+
+  template<typename T>
+  inline Immediate(T value, RelocInfo::Mode rmode);
+
+  int64_t value() const { return value_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
+
+ private:
+  void InitializeHandle(Handle<Object> value);
+
+  int64_t value_;
+  RelocInfo::Mode rmode_;
+};
+
 
 // -----------------------------------------------------------------------------
 // Operands.
@@ -634,8 +659,8 @@ class Operand {
   inline Operand(T t);  // NOLINT(runtime/explicit)
 
   // Implicit constructor for int types.
-  template<typename int_t>
-  inline Operand(int_t t, RelocInfo::Mode rmode);
+  template<typename T>
+  inline Operand(T t, RelocInfo::Mode rmode);
 
   inline bool IsImmediate() const;
   inline bool IsShiftedRegister() const;
@@ -646,15 +671,14 @@ class Operand {
   // which helps in the encoding of instructions that use the stack pointer.
   inline Operand ToExtendedRegister() const;
 
-  inline int64_t immediate() const;
+  inline Immediate immediate() const;
+  inline int64_t ImmediateValue() const;
   inline Register reg() const;
   inline Shift shift() const;
   inline Extend extend() const;
   inline unsigned shift_amount() const;
 
   // Relocation information.
-  RelocInfo::Mode rmode() const { return rmode_; }
-  void set_rmode(RelocInfo::Mode rmode) { rmode_ = rmode; }
   bool NeedsRelocation(const Assembler* assembler) const;
 
   // Helpers
@@ -662,13 +686,11 @@ class Operand {
   inline static Operand UntagSmiAndScale(Register smi, int scale);
 
  private:
-  void initialize_handle(Handle<Object> value);
-  int64_t immediate_;
+  Immediate immediate_;
   Register reg_;
   Shift shift_;
   Extend extend_;
   unsigned shift_amount_;
-  RelocInfo::Mode rmode_;
 };
 
 
@@ -1369,9 +1391,6 @@ class Assembler : public AssemblerBase {
 
   // Memory instructions.
 
-  // Load literal from pc + offset_from_pc.
-  void LoadLiteral(const CPURegister& rt, int offset_from_pc);
-
   // Load integer or FP register.
   void ldr(const CPURegister& rt, const MemOperand& src);
 
@@ -1418,12 +1437,11 @@ class Assembler : public AssemblerBase {
   void stnp(const CPURegister& rt, const CPURegister& rt2,
             const MemOperand& dst);
 
-  // Load literal to register.
-  void ldr(const Register& rt, uint64_t imm);
+  // Load literal to register from a pc relative address.
+  void ldr_pcrel(const CPURegister& rt, int imm19);
 
-  // Load literal to FP register.
-  void ldr(const FPRegister& ft, double imm);
-  void ldr(const FPRegister& ft, float imm);
+  // Load literal to register.
+  void ldr(const CPURegister& rt, const Immediate& imm);
 
   // Move instructions. The default shift of -1 indicates that the move
   // instruction will calculate an appropriate 16-bit immediate and left shift
@@ -1841,7 +1859,6 @@ class Assembler : public AssemblerBase {
   void CheckVeneerPool(bool force_emit, bool require_jump,
                        int margin = kVeneerDistanceMargin);
 
-
   class BlockPoolsScope {
    public:
     explicit BlockPoolsScope(Assembler* assem) : assem_(assem) {
@@ -1856,10 +1873,6 @@ class Assembler : public AssemblerBase {
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockPoolsScope);
   };
-
-  // Available for constrained code generation scopes. Prefer
-  // MacroAssembler::Mov() when possible.
-  inline void LoadRelocated(const CPURegister& rt, const Operand& operand);
 
  protected:
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
@@ -1927,6 +1940,7 @@ class Assembler : public AssemblerBase {
     const CPURegister& rt, const CPURegister& rt2);
   static inline LoadStorePairNonTemporalOp StorePairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2);
+  static inline LoadLiteralOp LoadLiteralOpFor(const CPURegister& rt);
 
   // Remove the specified branch from the unbound label link chain.
   // If available, a veneer for this label can be used for other branches in the
@@ -1959,11 +1973,6 @@ class Assembler : public AssemblerBase {
                                 const CPURegister& rt2,
                                 const MemOperand& addr,
                                 LoadStorePairNonTemporalOp op);
-  // Register the relocation information for the operand and load its value
-  // into rt.
-  void LoadRelocatedValue(const CPURegister& rt,
-                          const Operand& operand,
-                          LoadLiteralOp op);
   void ConditionalSelect(const Register& rd,
                          const Register& rn,
                          const Register& rm,

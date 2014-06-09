@@ -25,8 +25,7 @@ namespace internal {
 
 const unsigned kInstructionSize = 4;
 const unsigned kInstructionSizeLog2 = 2;
-const unsigned kLiteralEntrySize = 4;
-const unsigned kLiteralEntrySizeLog2 = 2;
+const unsigned kLoadLiteralScaleLog2 = 2;
 const unsigned kMaxLoadLiteralRange = 1 * MB;
 
 const unsigned kNumberOfRegisters = 32;

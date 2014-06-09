@@ -353,7 +353,7 @@ class Instruction {
   void SetImmLLiteral(Instruction* source);
 
   uint8_t* LiteralAddress() {
-    int offset = ImmLLiteral() << kLiteralEntrySizeLog2;
+    int offset = ImmLLiteral() << kLoadLiteralScaleLog2;
     return reinterpret_cast<uint8_t*>(this) + offset;
   }
 

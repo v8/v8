@@ -261,29 +261,23 @@ inline FPRegister CPURegister::D() const {
 }
 
 
-// Operand.
-template<typename T>
-Operand::Operand(Handle<T> value) : reg_(NoReg) {
-  initialize_handle(value);
-}
-
-
+// Immediate.
 // Default initializer is for int types
-template<typename int_t>
-struct OperandInitializer {
+template<typename T>
+struct ImmediateInitializer {
   static const bool kIsIntType = true;
-  static inline RelocInfo::Mode rmode_for(int_t) {
-    return sizeof(int_t) == 8 ? RelocInfo::NONE64 : RelocInfo::NONE32;
+  static inline RelocInfo::Mode rmode_for(T) {
+    return sizeof(T) == 8 ? RelocInfo::NONE64 : RelocInfo::NONE32;
   }
-  static inline int64_t immediate_for(int_t t) {
-    STATIC_ASSERT(sizeof(int_t) <= 8);
+  static inline int64_t immediate_for(T t) {
+    STATIC_ASSERT(sizeof(T) <= 8);
     return t;
   }
 };
 
 
 template<>
-struct OperandInitializer<Smi*> {
+struct ImmediateInitializer<Smi*> {
   static const bool kIsIntType = false;
   static inline RelocInfo::Mode rmode_for(Smi* t) {
     return RelocInfo::NONE64;
@@ -295,7 +289,7 @@ struct OperandInitializer<Smi*> {
 
 
 template<>
-struct OperandInitializer<ExternalReference> {
+struct ImmediateInitializer<ExternalReference> {
   static const bool kIsIntType = false;
   static inline RelocInfo::Mode rmode_for(ExternalReference t) {
     return RelocInfo::EXTERNAL_REFERENCE;
@@ -307,27 +301,46 @@ struct OperandInitializer<ExternalReference> {
 
 
 template<typename T>
-Operand::Operand(T t)
-    : immediate_(OperandInitializer<T>::immediate_for(t)),
-      reg_(NoReg),
-      rmode_(OperandInitializer<T>::rmode_for(t)) {}
+Immediate::Immediate(Handle<T> value) {
+  InitializeHandle(value);
+}
+
+
+template<typename T>
+Immediate::Immediate(T t)
+    : value_(ImmediateInitializer<T>::immediate_for(t)),
+      rmode_(ImmediateInitializer<T>::rmode_for(t)) {}
+
+
+template<typename T>
+Immediate::Immediate(T t, RelocInfo::Mode rmode)
+    : value_(ImmediateInitializer<T>::immediate_for(t)),
+      rmode_(rmode) {
+  STATIC_ASSERT(ImmediateInitializer<T>::kIsIntType);
+}
+
+
+// Operand.
+template<typename T>
+Operand::Operand(Handle<T> value) : immediate_(value), reg_(NoReg) {}
+
+
+template<typename T>
+Operand::Operand(T t) : immediate_(t), reg_(NoReg) {}
 
 
 template<typename T>
 Operand::Operand(T t, RelocInfo::Mode rmode)
-    : immediate_(OperandInitializer<T>::immediate_for(t)),
-      reg_(NoReg),
-      rmode_(rmode) {
-  STATIC_ASSERT(OperandInitializer<T>::kIsIntType);
-}
+    : immediate_(t, rmode),
+      reg_(NoReg) {}
 
 
 Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
-    : reg_(reg),
+    : immediate_(0),
+      reg_(reg),
       shift_(shift),
       extend_(NO_EXTEND),
-      shift_amount_(shift_amount),
-      rmode_(reg.Is64Bits() ? RelocInfo::NONE64 : RelocInfo::NONE32) {
+      shift_amount_(shift_amount) {
   ASSERT(reg.Is64Bits() || (shift_amount < kWRegSizeInBits));
   ASSERT(reg.Is32Bits() || (shift_amount < kXRegSizeInBits));
   ASSERT(!reg.IsSP());
@@ -335,11 +348,11 @@ Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
 
 
 Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
-    : reg_(reg),
+    : immediate_(0),
+      reg_(reg),
       shift_(NO_SHIFT),
       extend_(extend),
-      shift_amount_(shift_amount),
-      rmode_(reg.Is64Bits() ? RelocInfo::NONE64 : RelocInfo::NONE32) {
+      shift_amount_(shift_amount) {
   ASSERT(reg.IsValid());
   ASSERT(shift_amount <= 4);
   ASSERT(!reg.IsSP());
@@ -366,7 +379,7 @@ bool Operand::IsExtendedRegister() const {
 
 bool Operand::IsZero() const {
   if (IsImmediate()) {
-    return immediate() == 0;
+    return ImmediateValue() == 0;
   } else {
     return reg().IsZero();
   }
@@ -380,9 +393,15 @@ Operand Operand::ToExtendedRegister() const {
 }
 
 
-int64_t Operand::immediate() const {
+Immediate Operand::immediate() const {
   ASSERT(IsImmediate());
   return immediate_;
+}
+
+
+int64_t Operand::ImmediateValue() const {
+  ASSERT(IsImmediate());
+  return immediate_.value();
 }
 
 
@@ -473,7 +492,7 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
   ASSERT(base.Is64Bits() && !base.IsZero());
 
   if (offset.IsImmediate()) {
-    offset_ = offset.immediate();
+    offset_ = offset.ImmediateValue();
 
     regoffset_ = NoReg;
   } else if (offset.IsShiftedRegister()) {
@@ -944,6 +963,16 @@ LoadStorePairNonTemporalOp Assembler::StorePairNonTemporalOpFor(
 }
 
 
+LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
+  if (rt.IsRegister()) {
+    return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
+  } else {
+    ASSERT(rt.IsFPRegister());
+    return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
+  }
+}
+
+
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
   ASSERT(kStartOfLabelLinkChain == 0);
   int offset = LinkAndGetByteOffsetTo(label);
@@ -1197,11 +1226,6 @@ Instr Assembler::FPScale(unsigned scale) {
 
 const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
   return reg.Is64Bits() ? xzr : wzr;
-}
-
-
-void Assembler::LoadRelocated(const CPURegister& rt, const Operand& operand) {
-  LoadRelocatedValue(rt, operand, LDR_x_lit);
 }
 
 
