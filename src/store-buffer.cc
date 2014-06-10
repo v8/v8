@@ -450,7 +450,7 @@ void StoreBuffer::FindPointersToNewSpaceInMapsRegion(
   Address map_aligned_end   = MapEndAlign(end);
 
   ASSERT(map_aligned_start == start);
-  ASSERT(map_aligned_end == end);
+  ASSERT(map_aligned_start <= map_aligned_end && map_aligned_end <= end);
 
   FindPointersToNewSpaceInMaps(map_aligned_start,
                                map_aligned_end,
