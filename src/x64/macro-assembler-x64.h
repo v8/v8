@@ -1053,8 +1053,22 @@ class MacroAssembler: public Assembler {
 
   template<typename Field>
   void DecodeFieldToSmi(Register reg) {
-    andp(reg, Immediate(Field::kMask));
-    shlp(reg, Immediate(kSmiShift - Field::kShift));
+    if (SmiValuesAre32Bits()) {
+      andp(reg, Immediate(Field::kMask));
+      shlp(reg, Immediate(kSmiShift - Field::kShift));
+    } else {
+      static const int shift = Field::kShift;
+      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+      ASSERT(SmiValuesAre31Bits());
+      ASSERT(kSmiShift == kSmiTagSize);
+      ASSERT((mask & 0x80000000u) == 0);
+      if (shift < kSmiShift) {
+        shlp(reg, Immediate(kSmiShift - shift));
+      } else if (shift > kSmiShift) {
+        sarp(reg, Immediate(shift - kSmiShift));
+      }
+      andp(reg, Immediate(mask));
+    }
   }
 
   // Abort execution if argument is not a number, enabled via --debug-code.
