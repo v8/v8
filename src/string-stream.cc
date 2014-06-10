@@ -348,7 +348,8 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
           key->ShortPrint();
         }
         Add(": ");
-        Object* value = js_object->RawFastPropertyAt(descs->GetFieldIndex(i));
+        FieldIndex index = FieldIndex::ForDescriptor(map, i);
+        Object* value = js_object->RawFastPropertyAt(index);
         Add("%o\n", value);
       }
     }

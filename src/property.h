@@ -7,6 +7,8 @@
 
 #include "src/isolate.h"
 #include "src/factory.h"
+#include "src/field-index.h"
+#include "src/field-index-inl.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -105,56 +107,6 @@ class CallbacksDescriptor V8_FINAL : public Descriptor {
                       PropertyAttributes attributes)
       : Descriptor(key, foreign, attributes, CALLBACKS,
                    Representation::Tagged()) {}
-};
-
-
-// Holds a property index value distinguishing if it is a field index or an
-// index inside the object header.
-class PropertyIndex V8_FINAL {
- public:
-  static PropertyIndex NewFieldIndex(int index) {
-    return PropertyIndex(index, false);
-  }
-  static PropertyIndex NewHeaderIndex(int index) {
-    return PropertyIndex(index, true);
-  }
-
-  bool is_field_index() { return (index_ & kHeaderIndexBit) == 0; }
-  bool is_header_index() { return (index_ & kHeaderIndexBit) != 0; }
-
-  int field_index() {
-    ASSERT(is_field_index());
-    return value();
-  }
-  int header_index() {
-    ASSERT(is_header_index());
-    return value();
-  }
-
-  bool is_inobject(Handle<JSObject> holder) {
-    if (is_header_index()) return true;
-    return field_index() < holder->map()->inobject_properties();
-  }
-
-  int translate(Handle<JSObject> holder) {
-    if (is_header_index()) return header_index();
-    int index = field_index() - holder->map()->inobject_properties();
-    if (index >= 0) return index;
-    return index + holder->map()->instance_size() / kPointerSize;
-  }
-
- private:
-  static const int kHeaderIndexBit = 1 << 31;
-  static const int kIndexMask = ~kHeaderIndexBit;
-
-  int value() { return index_ & kIndexMask; }
-
-  PropertyIndex(int index, bool is_header_based)
-      : index_(index | (is_header_based ? kHeaderIndexBit : 0)) {
-    ASSERT(index <= kIndexMask);
-  }
-
-  int index_;
 };
 
 
@@ -374,7 +326,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
       case DICTIONARY_TYPE:
         switch (type()) {
           case FIELD:
-            return holder()->RawFastPropertyAt(GetFieldIndex().field_index());
+            return holder()->RawFastPropertyAt(GetFieldIndex());
           case NORMAL: {
             Object* value = holder()->property_dictionary()->ValueAt(
                 GetDictionaryEntry());
@@ -416,10 +368,10 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
     return number_;
   }
 
-  PropertyIndex GetFieldIndex() const {
+  FieldIndex GetFieldIndex() const {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    return PropertyIndex::NewFieldIndex(GetFieldIndexFromMap(holder()->map()));
+    return FieldIndex::ForLookupResult(this);
   }
 
   int GetLocalFieldIndexFromMap(Map* map) const {

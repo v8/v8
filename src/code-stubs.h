@@ -897,11 +897,9 @@ class HandlerStub: public HICStub {
 
 class LoadFieldStub: public HandlerStub {
  public:
-  LoadFieldStub(Isolate* isolate,
-                bool inobject,
-                int index, Representation representation)
-      : HandlerStub(isolate) {
-    Initialize(Code::LOAD_IC, inobject, index, representation);
+  LoadFieldStub(Isolate* isolate, FieldIndex index)
+    : HandlerStub(isolate), index_(index) {
+    Initialize(Code::LOAD_IC);
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
@@ -918,42 +916,30 @@ class LoadFieldStub: public HandlerStub {
     return KindBits::decode(bit_field_);
   }
 
-  bool is_inobject() {
-    return InobjectBits::decode(bit_field_);
-  }
-
-  int offset() {
-    int index = IndexBits::decode(bit_field_);
-    int offset = index * kPointerSize;
-    if (is_inobject()) return offset;
-    return FixedArray::kHeaderSize + offset;
-  }
+  FieldIndex index() const { return index_; }
 
   bool unboxed_double() {
-    return UnboxedDoubleBits::decode(bit_field_);
+    return index_.is_double();
   }
 
   virtual Code::StubType GetStubType() { return Code::FAST; }
 
  protected:
-  explicit LoadFieldStub(Isolate* isolate) : HandlerStub(isolate) { }
+  explicit LoadFieldStub(Isolate* isolate);
 
-  void Initialize(Code::Kind kind,
-                  bool inobject,
-                  int index,
-                  Representation representation) {
-    bit_field_ = KindBits::encode(kind)
-        | InobjectBits::encode(inobject)
-        | IndexBits::encode(index)
-        | UnboxedDoubleBits::encode(representation.IsDouble());
+  void Initialize(Code::Kind kind) {
+    int property_index_key = index_.GetLoadFieldStubKey();
+    // Save a copy of the essence of the property index into the bit field to
+    // make sure that hashing of unique stubs works correctly..
+    bit_field_ = KindBits::encode(kind) |
+        EncodedLoadFieldByIndexBits::encode(property_index_key);
   }
 
  private:
   STATIC_ASSERT(KindBits::kSize == 4);
-  class InobjectBits: public BitField<bool, 4, 1> {};
-  class IndexBits: public BitField<int, 5, 11> {};
-  class UnboxedDoubleBits: public BitField<bool, 16, 1> {};
+  class EncodedLoadFieldByIndexBits: public BitField<int, 4, 13> {};
   virtual CodeStub::Major MajorKey() { return LoadField; }
+  FieldIndex index_;
 };
 
 
@@ -1098,11 +1084,9 @@ class CallApiGetterStub : public PlatformCodeStub {
 
 class KeyedLoadFieldStub: public LoadFieldStub {
  public:
-  KeyedLoadFieldStub(Isolate* isolate,
-                     bool inobject,
-                     int index, Representation representation)
-      : LoadFieldStub(isolate) {
-    Initialize(Code::KEYED_LOAD_IC, inobject, index, representation);
+  KeyedLoadFieldStub(Isolate* isolate, FieldIndex index)
+      : LoadFieldStub(isolate, index) {
+    Initialize(Code::KEYED_LOAD_IC);
   }
 
   virtual void InitializeInterfaceDescriptor(

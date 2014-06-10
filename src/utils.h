@@ -248,6 +248,7 @@ class BitFieldBase {
   static const U kMask = ((kOne << shift) << size) - (kOne << shift);
   static const U kShift = shift;
   static const U kSize = size;
+  static const U kNext = kShift + kSize;
 
   // Value for the field with all bits set.
   static const T kMax = static_cast<T>((1U << size) - 1);

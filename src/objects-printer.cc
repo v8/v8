@@ -232,9 +232,9 @@ void JSObject::PrintProperties(FILE* out) {
       PrintF(out, ": ");
       switch (descs->GetType(i)) {
         case FIELD: {
-          int index = descs->GetFieldIndex(i);
+          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
           RawFastPropertyAt(index)->ShortPrint(out);
-          PrintF(out, " (field at offset %d)\n", index);
+          PrintF(out, " (field at offset %d)\n", index.property_index());
           break;
         }
         case CONSTANT:
