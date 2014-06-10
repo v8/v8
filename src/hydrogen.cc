@@ -2576,6 +2576,17 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
     }
   }
 
+  bool pre_fill_with_holes =
+    IsFastDoubleElementsKind(from_elements_kind) &&
+    IsFastObjectElementsKind(to_elements_kind);
+  if (pre_fill_with_holes) {
+    // If the copy might trigger a GC, make sure that the FixedArray is
+    // pre-initialized with holes to make sure that it's always in a
+    // consistent state.
+    BuildFillElementsWithHole(to_elements, to_elements_kind,
+                              graph()->GetConstant0(), NULL);
+  }
+
   if (constant_capacity != -1) {
     // Unroll the loop for small elements kinds.
     for (int i = 0; i < constant_capacity; i++) {
@@ -2586,17 +2597,8 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
       Add<HStoreKeyed>(to_elements, key_constant, value, to_elements_kind);
     }
   } else {
-    bool pre_fill_with_holes =
-      IsFastDoubleElementsKind(from_elements_kind) &&
-      IsFastObjectElementsKind(to_elements_kind);
-
-    if (pre_fill_with_holes) {
-      // If the copy might trigger a GC, make sure that the FixedArray is
-      // pre-initialized with holes to make sure that it's always in a
-      // consistent state.
-      BuildFillElementsWithHole(to_elements, to_elements_kind,
-                                graph()->GetConstant0(), NULL);
-    } else if (capacity == NULL || !length->Equals(capacity)) {
+    if (!pre_fill_with_holes &&
+        (capacity == NULL || !length->Equals(capacity))) {
       BuildFillElementsWithHole(to_elements, to_elements_kind,
                                 length, NULL);
     }
