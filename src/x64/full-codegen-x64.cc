@@ -2294,7 +2294,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ SmiShiftArithmeticRight(rax, rdx, rcx);
       break;
     case Token::SHL:
-      __ SmiShiftLeft(rax, rdx, rcx);
+      __ SmiShiftLeft(rax, rdx, rcx, &stub_call);
       break;
     case Token::SHR:
       __ SmiShiftLogicalRight(rax, rdx, rcx, &stub_call);

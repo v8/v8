@@ -268,7 +268,9 @@ void MacroAssembler::InNewSpace(Register object,
     cmpp(scratch, kScratchRegister);
     j(cc, branch, distance);
   } else {
-    ASSERT(is_int32(static_cast<int64_t>(isolate()->heap()->NewSpaceMask())));
+    ASSERT(kPointerSize == kInt64Size
+        ? is_int32(static_cast<int64_t>(isolate()->heap()->NewSpaceMask()))
+        : kPointerSize == kInt32Size);
     intptr_t new_space_start =
         reinterpret_cast<intptr_t>(isolate()->heap()->NewSpaceStart());
     Move(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
@@ -1494,11 +1496,27 @@ void MacroAssembler::CheckSmiToIndicator(Register dst, const Operand& src) {
 }
 
 
+void MacroAssembler::JumpIfValidSmiValue(Register src,
+                                         Label* on_valid,
+                                         Label::Distance near_jump) {
+  Condition is_valid = CheckInteger32ValidSmiValue(src);
+  j(is_valid, on_valid, near_jump);
+}
+
+
 void MacroAssembler::JumpIfNotValidSmiValue(Register src,
                                             Label* on_invalid,
                                             Label::Distance near_jump) {
   Condition is_valid = CheckInteger32ValidSmiValue(src);
   j(NegateCondition(is_valid), on_invalid, near_jump);
+}
+
+
+void MacroAssembler::JumpIfUIntValidSmiValue(Register src,
+                                             Label* on_valid,
+                                             Label::Distance near_jump) {
+  Condition is_valid = CheckUInteger32ValidSmiValue(src);
+  j(is_valid, on_valid, near_jump);
 }
 
 
@@ -1982,7 +2000,7 @@ void MacroAssembler::SmiDiv(Register dst,
   // We overshoot a little and go to slow case if we divide min-value
   // by any negative value, not just -1.
   Label safe_div;
-  testl(rax, Immediate(0x7fffffff));
+  testl(rax, Immediate(~Smi::kMinValue));
   j(not_zero, &safe_div, Label::kNear);
   testp(src2, src2);
   if (src1.is(rax)) {
@@ -2175,12 +2193,27 @@ void MacroAssembler::SmiShiftArithmeticRightConstant(Register dst,
 
 void MacroAssembler::SmiShiftLeftConstant(Register dst,
                                           Register src,
-                                          int shift_value) {
-  if (!dst.is(src)) {
-    movp(dst, src);
-  }
-  if (shift_value > 0) {
-    shlp(dst, Immediate(shift_value));
+                                          int shift_value,
+                                          Label* on_not_smi_result,
+                                          Label::Distance near_jump) {
+  if (SmiValuesAre32Bits()) {
+    if (!dst.is(src)) {
+      movp(dst, src);
+    }
+    if (shift_value > 0) {
+      // Shift amount specified by lower 5 bits, not six as the shl opcode.
+      shlq(dst, Immediate(shift_value & 0x1f));
+    }
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    if (dst.is(src)) {
+      UNIMPLEMENTED();  // Not used.
+    } else {
+      SmiToInteger32(dst, src);
+      shll(dst, Immediate(shift_value));
+      JumpIfNotValidSmiValue(dst, on_not_smi_result, near_jump);
+      Integer32ToSmi(dst, dst);
+    }
   }
 }
 
@@ -2192,29 +2225,73 @@ void MacroAssembler::SmiShiftLogicalRightConstant(
   if (dst.is(src)) {
     UNIMPLEMENTED();  // Not used.
   } else {
-    movp(dst, src);
     if (shift_value == 0) {
-      testp(dst, dst);
+      testp(src, src);
       j(negative, on_not_smi_result, near_jump);
     }
-    shrq(dst, Immediate(shift_value + kSmiShift));
-    shlq(dst, Immediate(kSmiShift));
+    if (SmiValuesAre32Bits()) {
+      movp(dst, src);
+      shrp(dst, Immediate(shift_value + kSmiShift));
+      shlp(dst, Immediate(kSmiShift));
+    } else {
+      ASSERT(SmiValuesAre31Bits());
+      SmiToInteger32(dst, src);
+      shrp(dst, Immediate(shift_value));
+      JumpIfUIntNotValidSmiValue(dst, on_not_smi_result, near_jump);
+      Integer32ToSmi(dst, dst);
+    }
   }
 }
 
 
 void MacroAssembler::SmiShiftLeft(Register dst,
                                   Register src1,
-                                  Register src2) {
-  ASSERT(!dst.is(rcx));
-  // Untag shift amount.
-  if (!dst.is(src1)) {
-    movq(dst, src1);
+                                  Register src2,
+                                  Label* on_not_smi_result,
+                                  Label::Distance near_jump) {
+  if (SmiValuesAre32Bits()) {
+    ASSERT(!dst.is(rcx));
+    if (!dst.is(src1)) {
+      movp(dst, src1);
+    }
+    // Untag shift amount.
+    SmiToInteger32(rcx, src2);
+    // Shift amount specified by lower 5 bits, not six as the shl opcode.
+    andp(rcx, Immediate(0x1f));
+    shlq_cl(dst);
+  } else {
+    ASSERT(SmiValuesAre31Bits());
+    ASSERT(!dst.is(kScratchRegister));
+    ASSERT(!src1.is(kScratchRegister));
+    ASSERT(!src2.is(kScratchRegister));
+    ASSERT(!dst.is(src2));
+    ASSERT(!dst.is(rcx));
+
+    if (src1.is(rcx) || src2.is(rcx)) {
+      movq(kScratchRegister, rcx);
+    }
+    if (dst.is(src1)) {
+      UNIMPLEMENTED();  // Not used.
+    } else {
+      Label valid_result;
+      SmiToInteger32(dst, src1);
+      SmiToInteger32(rcx, src2);
+      shll_cl(dst);
+      JumpIfValidSmiValue(dst, &valid_result, Label::kNear);
+      // As src1 or src2 could not be dst, we do not need to restore them for
+      // clobbering dst.
+      if (src1.is(rcx) || src2.is(rcx)) {
+        if (src1.is(rcx)) {
+          movq(src1, kScratchRegister);
+        } else {
+          movq(src2, kScratchRegister);
+        }
+      }
+      jmp(on_not_smi_result, near_jump);
+      bind(&valid_result);
+      Integer32ToSmi(dst, dst);
+    }
   }
-  SmiToInteger32(rcx, src2);
-  // Shift amount specified by lower 5 bits, not six as the shl opcode.
-  andq(rcx, Immediate(0x1f));
-  shlq_cl(dst);
 }
 
 
@@ -2226,33 +2303,31 @@ void MacroAssembler::SmiShiftLogicalRight(Register dst,
   ASSERT(!dst.is(kScratchRegister));
   ASSERT(!src1.is(kScratchRegister));
   ASSERT(!src2.is(kScratchRegister));
+  ASSERT(!dst.is(src2));
   ASSERT(!dst.is(rcx));
-  // dst and src1 can be the same, because the one case that bails out
-  // is a shift by 0, which leaves dst, and therefore src1, unchanged.
   if (src1.is(rcx) || src2.is(rcx)) {
     movq(kScratchRegister, rcx);
   }
-  if (!dst.is(src1)) {
-    movq(dst, src1);
-  }
-  SmiToInteger32(rcx, src2);
-  orl(rcx, Immediate(kSmiShift));
-  shrq_cl(dst);  // Shift is rcx modulo 0x1f + 32.
-  shlq(dst, Immediate(kSmiShift));
-  testq(dst, dst);
-  if (src1.is(rcx) || src2.is(rcx)) {
-    Label positive_result;
-    j(positive, &positive_result, Label::kNear);
-    if (src1.is(rcx)) {
-      movq(src1, kScratchRegister);
-    } else {
-      movq(src2, kScratchRegister);
-    }
-    jmp(on_not_smi_result, near_jump);
-    bind(&positive_result);
+  if (dst.is(src1)) {
+    UNIMPLEMENTED();  // Not used.
   } else {
-    // src2 was zero and src1 negative.
-    j(negative, on_not_smi_result, near_jump);
+    Label valid_result;
+    SmiToInteger32(dst, src1);
+    SmiToInteger32(rcx, src2);
+    shrl_cl(dst);
+    JumpIfUIntValidSmiValue(dst, &valid_result, Label::kNear);
+    // As src1 or src2 could not be dst, we do not need to restore them for
+    // clobbering dst.
+    if (src1.is(rcx) || src2.is(rcx)) {
+      if (src1.is(rcx)) {
+        movq(src1, kScratchRegister);
+      } else {
+        movq(src2, kScratchRegister);
+      }
+     }
+    jmp(on_not_smi_result, near_jump);
+    bind(&valid_result);
+    Integer32ToSmi(dst, dst);
   }
 }
 
@@ -2264,23 +2339,14 @@ void MacroAssembler::SmiShiftArithmeticRight(Register dst,
   ASSERT(!src1.is(kScratchRegister));
   ASSERT(!src2.is(kScratchRegister));
   ASSERT(!dst.is(rcx));
-  if (src1.is(rcx)) {
-    movp(kScratchRegister, src1);
-  } else if (src2.is(rcx)) {
-    movp(kScratchRegister, src2);
-  }
+
+  SmiToInteger32(rcx, src2);
   if (!dst.is(src1)) {
     movp(dst, src1);
   }
-  SmiToInteger32(rcx, src2);
-  orl(rcx, Immediate(kSmiShift));
-  sarp_cl(dst);  // Shift 32 + original rcx & 0x1f.
-  shlp(dst, Immediate(kSmiShift));
-  if (src1.is(rcx)) {
-    movp(src1, kScratchRegister);
-  } else if (src2.is(rcx)) {
-    movp(src2, kScratchRegister);
-  }
+  SmiToInteger32(dst, dst);
+  sarl_cl(dst);
+  Integer32ToSmi(dst, dst);
 }
 
 
