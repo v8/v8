@@ -318,6 +318,7 @@ class Logger {
     static const char* v8_compile_full_code;
     static const char* v8_execute;
     static const char* v8_external;
+    static const char* v8_ic_miss;
 
    private:
     Isolate* isolate_;

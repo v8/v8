@@ -1917,6 +1917,8 @@ void CallIC::HandleMiss(Handle<Object> receiver,
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(CallIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CallIC ic(isolate);
@@ -1930,6 +1932,8 @@ RUNTIME_FUNCTION(CallIC_Miss) {
 
 
 RUNTIME_FUNCTION(CallIC_Customization_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   // A miss on a custom call ic always results in going megamorphic.
@@ -1944,6 +1948,8 @@ RUNTIME_FUNCTION(CallIC_Customization_Miss) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(LoadIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -1958,6 +1964,8 @@ RUNTIME_FUNCTION(LoadIC_Miss) {
 
 // Used from ic-<arch>.cc
 RUNTIME_FUNCTION(KeyedLoadIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -1971,6 +1979,8 @@ RUNTIME_FUNCTION(KeyedLoadIC_Miss) {
 
 
 RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
   KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate);
@@ -1985,6 +1995,8 @@ RUNTIME_FUNCTION(KeyedLoadIC_MissFromStubFailure) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(StoreIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -2001,6 +2013,8 @@ RUNTIME_FUNCTION(StoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
@@ -2017,6 +2031,8 @@ RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
 
 
 RUNTIME_FUNCTION(StoreIC_ArrayLength) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
 
   ASSERT(args.length() == 2);
@@ -2043,6 +2059,8 @@ RUNTIME_FUNCTION(StoreIC_ArrayLength) {
 // it is necessary to extend the properties array of a
 // JSObject.
 RUNTIME_FUNCTION(SharedStoreIC_ExtendStorage) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope shs(isolate);
   ASSERT(args.length() == 3);
 
@@ -2083,6 +2101,8 @@ RUNTIME_FUNCTION(SharedStoreIC_ExtendStorage) {
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(KeyedStoreIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -2099,6 +2119,8 @@ RUNTIME_FUNCTION(KeyedStoreIC_Miss) {
 
 
 RUNTIME_FUNCTION(KeyedStoreIC_MissFromStubFailure) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
@@ -2149,6 +2171,8 @@ RUNTIME_FUNCTION(KeyedStoreIC_Slow) {
 
 
 RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   KeyedStoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
@@ -2658,6 +2682,8 @@ MaybeHandle<Object> BinaryOpIC::Transition(
 
 
 RUNTIME_FUNCTION(BinaryOpIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT_EQ(2, args.length());
   Handle<Object> left = args.at<Object>(BinaryOpICStub::kLeft);
@@ -2673,6 +2699,8 @@ RUNTIME_FUNCTION(BinaryOpIC_Miss) {
 
 
 RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT_EQ(3, args.length());
   Handle<AllocationSite> allocation_site = args.at<AllocationSite>(
@@ -2906,6 +2934,8 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
 // Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(CompareIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
@@ -2970,6 +3000,8 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
 
 
 RUNTIME_FUNCTION(CompareNilIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   HandleScope scope(isolate);
   Handle<Object> object = args.at<Object>(0);
   CompareNilIC ic(isolate);
@@ -3035,6 +3067,8 @@ Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
 
 
 RUNTIME_FUNCTION(ToBooleanIC_Miss) {
+  Logger::TimerEventScope timer(
+      isolate, Logger::TimerEventScope::v8_ic_miss);
   ASSERT(args.length() == 1);
   HandleScope scope(isolate);
   Handle<Object> object = args.at<Object>(0);
