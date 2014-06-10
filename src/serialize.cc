@@ -16,7 +16,6 @@
 #include "src/runtime.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
-#include "src/snapshot-source-sink.h"
 #include "src/stub-cache.h"
 #include "src/v8threads.h"
 
@@ -1204,6 +1203,19 @@ void Deserializer::ReadChunk(Object** current,
 }
 
 
+void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
+  ASSERT(integer < 1 << 22);
+  integer <<= 2;
+  int bytes = 1;
+  if (integer > 0xff) bytes = 2;
+  if (integer > 0xffff) bytes = 3;
+  integer |= bytes;
+  Put(static_cast<int>(integer & 0xff), "IntPart1");
+  if (bytes > 1) Put(static_cast<int>((integer >> 8) & 0xff), "IntPart2");
+  if (bytes > 2) Put(static_cast<int>((integer >> 16) & 0xff), "IntPart3");
+}
+
+
 Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
     : isolate_(isolate),
       sink_(sink),
@@ -1818,5 +1830,13 @@ void Serializer::InitializeCodeAddressMap() {
   code_address_map_ = new CodeAddressMap(isolate_);
 }
 
+
+bool SnapshotByteSource::AtEOF() {
+  if (0u + length_ - position_ > 2 * sizeof(uint32_t)) return false;
+  for (int x = position_; x < length_; x++) {
+    if (data_[x] != SerializerDeserializer::nop()) return false;
+  }
+  return true;
+}
 
 } }  // namespace v8::internal
