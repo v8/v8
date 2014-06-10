@@ -522,7 +522,12 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   // checks.
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
-  FieldIndex index = lookup->GetFieldIndex();
+  int index = lookup->GetFieldIndex().field_index();
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
 
   Representation representation = lookup->representation();
   ASSERT(!representation.IsNone());
@@ -553,12 +558,14 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
 
     // Load the double storage.
-    if (index.is_inobject()) {
-      __ Ldr(scratch1, FieldMemOperand(receiver_reg, index.offset()));
+    if (index < 0) {
+      int offset = (index * kPointerSize) + object->map()->instance_size();
+      __ Ldr(scratch1, FieldMemOperand(receiver_reg, offset));
     } else {
+      int offset = (index * kPointerSize) + FixedArray::kHeaderSize;
       __ Ldr(scratch1,
              FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-      __ Ldr(scratch1, FieldMemOperand(scratch1, index.offset()));
+      __ Ldr(scratch1, FieldMemOperand(scratch1, offset));
     }
 
     // Store the value into the storage.
@@ -582,9 +589,10 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   // TODO(verwaest): Share this code as a code stub.
   SmiCheck smi_check = representation.IsTagged()
       ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
-  if (index.is_inobject()) {
+  if (index < 0) {
     // Set the property straight into the object.
-    __ Str(value_reg, FieldMemOperand(receiver_reg, index.offset()));
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ Str(value_reg, FieldMemOperand(receiver_reg, offset));
 
     if (!representation.IsSmi()) {
       // Skip updating write barrier if storing a smi.
@@ -594,7 +602,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
       // Pass the now unused name_reg as a scratch register.
       __ Mov(name_reg, value_reg);
       __ RecordWriteField(receiver_reg,
-                          index.offset(),
+                          offset,
                           name_reg,
                           scratch1,
                           kLRHasNotBeenSaved,
@@ -604,10 +612,11 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     }
   } else {
     // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array
     __ Ldr(scratch1,
            FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ Str(value_reg, FieldMemOperand(scratch1, index.offset()));
+    __ Str(value_reg, FieldMemOperand(scratch1, offset));
 
     if (!representation.IsSmi()) {
       // Skip updating write barrier if storing a smi.
@@ -617,7 +626,7 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
       // Ok to clobber receiver_reg and name_reg, since we return.
       __ Mov(name_reg, value_reg);
       __ RecordWriteField(scratch1,
-                          index.offset(),
+                          offset,
                           name_reg,
                           receiver_reg,
                           kLRHasNotBeenSaved,
@@ -958,14 +967,20 @@ Register LoadStubCompiler::CallbackHandlerFrontend(Handle<HeapType> type,
 
 void LoadStubCompiler::GenerateLoadField(Register reg,
                                          Handle<JSObject> holder,
-                                         FieldIndex field,
+                                         PropertyIndex field,
                                          Representation representation) {
   __ Mov(receiver(), reg);
   if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), field);
+    LoadFieldStub stub(isolate(),
+                       field.is_inobject(holder),
+                       field.translate(holder),
+                       representation);
     GenerateTailCall(masm(), stub.GetCode());
   } else {
-    KeyedLoadFieldStub stub(isolate(), field);
+    KeyedLoadFieldStub stub(isolate(),
+                            field.is_inobject(holder),
+                            field.translate(holder),
+                            representation);
     GenerateTailCall(masm(), stub.GetCode());
   }
 }

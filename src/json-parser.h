@@ -414,8 +414,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
         int length = properties.length();
         for (int i = 0; i < length; i++) {
           Handle<Object> value = properties[i];
-          FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-          json_object->FastPropertyAtPut(index, *value);
+          json_object->FastPropertyAtPut(i, *value);
         }
       } else {
         key = ParseJsonInternalizedString();
@@ -439,8 +438,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       int length = properties.length();
       for (int i = 0; i < length; i++) {
         Handle<Object> value = properties[i];
-        FieldIndex index = FieldIndex::ForPropertyIndex(*map, i);
-        json_object->FastPropertyAtPut(index, *value);
+        json_object->FastPropertyAtPut(i, *value);
       }
     }
   }

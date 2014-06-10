@@ -481,7 +481,10 @@ class LoadIC: public IC {
     return pre_monomorphic_stub(isolate(), extra_ic_state());
   }
 
-  Handle<Code> SimpleFieldLoad(FieldIndex index);
+  Handle<Code> SimpleFieldLoad(int offset,
+                               bool inobject = true,
+                               Representation representation =
+                                    Representation::Tagged());
 
   static void Clear(Isolate* isolate,
                     Address address,

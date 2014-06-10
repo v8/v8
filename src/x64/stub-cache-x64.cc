@@ -618,7 +618,12 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   // checks.
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
-  FieldIndex index = lookup->GetFieldIndex();
+  int index = lookup->GetFieldIndex().field_index();
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
 
   Representation representation = lookup->representation();
   ASSERT(!representation.IsNone());
@@ -643,12 +648,14 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
     }
   } else if (representation.IsDouble()) {
     // Load the double storage.
-    if (index.is_inobject()) {
-      __ movp(scratch1, FieldOperand(receiver_reg, index.offset()));
+    if (index < 0) {
+      int offset = object->map()->instance_size() + (index * kPointerSize);
+      __ movp(scratch1, FieldOperand(receiver_reg, offset));
     } else {
       __ movp(scratch1,
               FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-      __ movp(scratch1, FieldOperand(scratch1, index.offset()));
+      int offset = index * kPointerSize + FixedArray::kHeaderSize;
+      __ movp(scratch1, FieldOperand(scratch1, offset));
     }
 
     // Store the value into the storage.
@@ -673,30 +680,32 @@ void StoreStubCompiler::GenerateStoreField(MacroAssembler* masm,
   // TODO(verwaest): Share this code as a code stub.
   SmiCheck smi_check = representation.IsTagged()
       ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
-  if (index.is_inobject()) {
+  if (index < 0) {
     // Set the property straight into the object.
-    __ movp(FieldOperand(receiver_reg, index.offset()), value_reg);
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ movp(FieldOperand(receiver_reg, offset), value_reg);
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
       __ movp(name_reg, value_reg);
       __ RecordWriteField(
-          receiver_reg, index.offset(), name_reg, scratch1, kDontSaveFPRegs,
+          receiver_reg, offset, name_reg, scratch1, kDontSaveFPRegs,
           EMIT_REMEMBERED_SET, smi_check);
     }
   } else {
     // Write to the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
     // Get the properties array (optimistically).
     __ movp(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ movp(FieldOperand(scratch1, index.offset()), value_reg);
+    __ movp(FieldOperand(scratch1, offset), value_reg);
 
     if (!representation.IsSmi()) {
       // Update the write barrier for the array address.
       // Pass the value being stored in the now unused name_reg.
       __ movp(name_reg, value_reg);
       __ RecordWriteField(
-          scratch1, index.offset(), name_reg, receiver_reg, kDontSaveFPRegs,
+          scratch1, offset, name_reg, receiver_reg, kDontSaveFPRegs,
           EMIT_REMEMBERED_SET, smi_check);
     }
   }
@@ -904,14 +913,20 @@ Register LoadStubCompiler::CallbackHandlerFrontend(
 
 void LoadStubCompiler::GenerateLoadField(Register reg,
                                          Handle<JSObject> holder,
-                                         FieldIndex field,
+                                         PropertyIndex field,
                                          Representation representation) {
   if (!reg.is(receiver())) __ movp(receiver(), reg);
   if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), field);
+    LoadFieldStub stub(isolate(),
+                       field.is_inobject(holder),
+                       field.translate(holder),
+                       representation);
     GenerateTailCall(masm(), stub.GetCode());
   } else {
-    KeyedLoadFieldStub stub(isolate(), field);
+    KeyedLoadFieldStub stub(isolate(),
+                            field.is_inobject(holder),
+                            field.translate(holder),
+                            representation);
     GenerateTailCall(masm(), stub.GetCode());
   }
 }

@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/code-stubs.h"
-#include "src/field-index.h"
 #include "src/hydrogen.h"
 #include "src/lithium.h"
 
@@ -60,7 +59,9 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   Isolate* isolate() { return info_.isolate(); }
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
-                                       FieldIndex index);
+                                       Representation representation,
+                                       int offset,
+                                       bool is_inobject);
 
   enum ArgumentClass {
     NONE,
@@ -552,15 +553,14 @@ Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
 
 
 HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
-    HValue* object, FieldIndex index) {
-  Representation representation = index.is_double()
-      ? Representation::Double()
-      : Representation::Tagged();
-  int offset = index.offset();
-  HObjectAccess access = index.is_inobject()
+    HValue* object,
+    Representation representation,
+    int offset,
+    bool is_inobject) {
+  HObjectAccess access = is_inobject
       ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
       : HObjectAccess::ForBackingStoreOffset(offset, representation);
-  if (index.is_double()) {
+  if (representation.IsDouble()) {
     // Load the heap number.
     object = Add<HLoadNamedField>(
         object, static_cast<HValue*>(NULL),
@@ -574,7 +574,10 @@ HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  return BuildLoadNamedField(GetParameter(0), casted_stub()->index());
+  return BuildLoadNamedField(GetParameter(0),
+                             casted_stub()->representation(),
+                             casted_stub()->offset(),
+                             casted_stub()->is_inobject());
 }
 
 
@@ -585,10 +588,10 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<StringLengthStub>::BuildCodeStub() {
-  HValue* string = BuildLoadNamedField(GetParameter(0),
-      FieldIndex::ForInObjectOffset(JSValue::kValueOffset));
-  return BuildLoadNamedField(string,
-      FieldIndex::ForInObjectOffset(String::kLengthOffset));
+  HValue* string = BuildLoadNamedField(
+      GetParameter(0), Representation::Tagged(), JSValue::kValueOffset, true);
+  return BuildLoadNamedField(
+      string, Representation::Tagged(), String::kLengthOffset, true);
 }
 
 

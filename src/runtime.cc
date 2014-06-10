@@ -2555,7 +2555,7 @@ RUNTIME_FUNCTION(RuntimeHidden_InitializeConstGlobal) {
   // Strict mode handling not needed (const is disallowed in strict mode).
   if (lookup.IsField()) {
     FixedArray* properties = global->properties();
-    int index = lookup.GetFieldIndex().outobject_array_index();
+    int index = lookup.GetFieldIndex().field_index();
     if (properties->get(index)->IsTheHole() || !lookup.IsReadOnly()) {
       properties->set(index, *value);
     }
@@ -2644,10 +2644,9 @@ RUNTIME_FUNCTION(RuntimeHidden_InitializeConstContextSlot) {
 
     if (lookup.IsField()) {
       FixedArray* properties = object->properties();
-      FieldIndex index = lookup.GetFieldIndex();
-      ASSERT(!index.is_inobject());
-      if (properties->get(index.outobject_array_index())->IsTheHole()) {
-        properties->set(index.outobject_array_index(), *value);
+      int index = lookup.GetFieldIndex().field_index();
+      if (properties->get(index)->IsTheHole()) {
+        properties->set(index, *value);
       }
     } else if (lookup.IsNormal()) {
       if (object->GetNormalizedProperty(&lookup)->IsTheHole()) {
@@ -5054,11 +5053,10 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         // Attempt to use lookup cache.
         Handle<Map> receiver_map(receiver->map(), isolate);
         KeyedLookupCache* keyed_lookup_cache = isolate->keyed_lookup_cache();
-        int index = keyed_lookup_cache->Lookup(receiver_map, key);
-        if (index != -1) {
+        int offset = keyed_lookup_cache->Lookup(receiver_map, key);
+        if (offset != -1) {
           // Doubles are not cached, so raw read the value.
-          Object* value = receiver->RawFastPropertyAt(
-              FieldIndex::ForKeyedLookupCacheIndex(*receiver_map, index));
+          Object* value = receiver->RawFastPropertyAt(offset);
           return value->IsTheHole()
               ? isolate->heap()->undefined_value()
               : value;
@@ -5068,16 +5066,15 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         LookupResult result(isolate);
         receiver->LookupOwn(key, &result);
         if (result.IsField()) {
-          FieldIndex field_index = result.GetFieldIndex();
+          int offset = result.GetFieldIndex().field_index();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
           if (!result.representation().IsDouble()) {
-            keyed_lookup_cache->Update(receiver_map, key,
-                field_index.GetKeyedLookupCacheIndex());
+            keyed_lookup_cache->Update(receiver_map, key, offset);
           }
           AllowHeapAllocation allow_allocation;
-          return *JSObject::FastPropertyAt(receiver, result.representation(),
-                                           field_index);
+          return *JSObject::FastPropertyAt(
+              receiver, result.representation(), offset);
         }
       } else {
         // Attempt dictionary lookup.
@@ -10779,7 +10776,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
     case FIELD:
       value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
                                        result->representation(),
-                                       result->GetFieldIndex());
+                                       result->GetFieldIndex().field_index());
       break;
     case CONSTANT:
       return handle(result->GetConstant(), isolate);
@@ -14548,17 +14545,14 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
-  RUNTIME_ASSERT((index->value() & 1) == 1);
-  FieldIndex field_index =
-      FieldIndex::ForLoadByFieldIndex(object->map(), index->value() >> 1);
-  if (field_index.is_inobject()) {
-    RUNTIME_ASSERT(field_index.property_index() <
-                   object->map()->inobject_properties());
-  } else {
-    RUNTIME_ASSERT(field_index.outobject_array_index() <
-                   object->properties()->length());
+  int idx = index->value() >> 1;
+  int inobject_properties = object->map()->inobject_properties();
+  if (idx < 0) {
+    idx = -idx + inobject_properties - 1;
   }
-  Handle<Object> raw_value(object->RawFastPropertyAt(field_index), isolate);
+  int max_idx = object->properties()->length() + inobject_properties;
+  RUNTIME_ASSERT(idx < max_idx);
+  Handle<Object> raw_value(object->RawFastPropertyAt(idx), isolate);
   RUNTIME_ASSERT(raw_value->IsNumber() || raw_value->IsUninitialized());
   return *Object::NewStorageFor(isolate, raw_value, Representation::Double());
 }

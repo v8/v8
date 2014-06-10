@@ -9,7 +9,6 @@
 #include "src/assert-scope.h"
 #include "src/builtins.h"
 #include "src/elements-kind.h"
-#include "src/field-index.h"
 #include "src/flags.h"
 #include "src/list.h"
 #include "src/property-details.h"
@@ -2500,9 +2499,9 @@ class JSObject: public JSReceiver {
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
-                                       FieldIndex index);
-  inline Object* RawFastPropertyAt(FieldIndex index);
-  inline void FastPropertyAtPut(FieldIndex index, Object* value);
+                                       int index);
+  inline Object* RawFastPropertyAt(int index);
+  inline void FastPropertyAtPut(int index, Object* value);
   void WriteToField(int descriptor, Object* value);
 
   // Access to in object properties.

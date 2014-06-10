@@ -17,7 +17,6 @@
 #include "src/objects.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
-#include "src/field-index-inl.h"
 #include "src/heap.h"
 #include "src/isolate.h"
 #include "src/heap-inl.h"
@@ -1946,22 +1945,29 @@ void JSObject::SetInternalField(int index, Smi* value) {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object* JSObject::RawFastPropertyAt(FieldIndex index) {
-  if (index.is_inobject()) {
-    return READ_FIELD(this, index.offset());
+Object* JSObject::RawFastPropertyAt(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
+    return READ_FIELD(this, offset);
   } else {
-    return properties()->get(index.outobject_array_index());
+    ASSERT(index < properties()->length());
+    return properties()->get(index);
   }
 }
 
 
-void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
-  if (index.is_inobject()) {
-    int offset = index.offset();
+void JSObject::FastPropertyAtPut(int index, Object* value) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
     WRITE_FIELD(this, offset, value);
     WRITE_BARRIER(GetHeap(), this, offset, value);
   } else {
-    properties()->set(index.outobject_array_index(), value);
+    ASSERT(index < properties()->length());
+    properties()->set(index, value);
   }
 }
 
@@ -4070,7 +4076,7 @@ int Map::pre_allocated_property_fields() {
 int Map::GetInObjectPropertyOffset(int index) {
   // Adjust for the number of properties stored in the object.
   index -= inobject_properties();
-  ASSERT(index <= 0);
+  ASSERT(index < 0);
   return instance_size() + (index * kPointerSize);
 }
 
