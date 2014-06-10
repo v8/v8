@@ -59,10 +59,6 @@
 
     # Use the v8 provided v8::Platform implementation.
     'v8_use_default_platform%': 1,
-
-    # Use external files for startup data blobs:
-    # the JS builtins sources and the start snapshot.
-    'v8_use_external_startup_data%': 0,
   },
   'target_defaults': {
     'conditions': [
@@ -91,10 +87,9 @@
         'defines': ['V8_USE_DEFAULT_PLATFORM',],
       }],
       ['v8_compress_startup_data=="bz2"', {
-        'defines': ['COMPRESS_STARTUP_DATA_BZ2',],
-      }],
-      ['v8_use_external_startup_data==1', {
-        'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
+        'defines': [
+          'COMPRESS_STARTUP_DATA_BZ2',
+        ],
       }],
     ],  # conditions
     'configurations': {

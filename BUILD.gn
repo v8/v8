@@ -16,7 +16,6 @@ v8_object_print = false
 v8_postmortem_support = false
 v8_use_default_platform = false
 v8_use_snapshot = true
-v8_use_external_startup_data = false
 v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
@@ -108,11 +107,6 @@ config("features") {
   if (v8_enable_handle_zapping == true) {
     defines += [
       "ENABLE_HANDLE_ZAPPING",
-    ]
-  }
-  if (v8_use_external_startup_data == true) {
-    defines += [
-      "V8_USE_EXTERNAL_STARTUP_DATA",
     ]
   }
 }
@@ -321,7 +315,6 @@ source_set("v8_nosnapshot") {
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/trig-table.cc",
     "src/snapshot-empty.cc",
-    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -651,8 +644,7 @@ source_set("v8_base") {
     "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
-    "src/snapshot-source-sink.cc",
-    "src/snapshot-source-sink.h",
+    "src/snapshot-common.cc",
     "src/snapshot.h",
     "src/spaces-inl.h",
     "src/spaces.cc",

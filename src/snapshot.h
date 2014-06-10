@@ -12,16 +12,23 @@ namespace internal {
 
 class Snapshot {
  public:
-  // Initialize the VM from the internal snapshot. Returns false if no snapshot
+  // Initialize the VM from the given snapshot file. If snapshot_file is
+  // NULL, use the internal snapshot instead. Returns false if no snapshot
   // could be found.
-  static bool Initialize();
+  static bool Initialize(const char* snapshot_file = NULL);
 
   static bool HaveASnapshotToStartFrom();
 
   // Create a new context using the internal partial snapshot.
   static Handle<Context> NewContextFromSnapshot(Isolate* isolate);
 
-  // These methods support COMPRESS_STARTUP_DATA_BZ2.
+  // Returns whether or not the snapshot is enabled.
+  static bool IsEnabled() { return size_ != 0; }
+
+  // Write snapshot to the given file. Returns true if snapshot was written
+  // successfully.
+  static bool WriteToFile(const char* snapshot_file);
+
   static const byte* data() { return data_; }
   static int size() { return size_; }
   static int raw_size() { return raw_size_; }
@@ -64,10 +71,6 @@ class Snapshot {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };
-
-#ifdef V8_USE_EXTERNAL_STARTUP_DATA
-void SetSnapshotFromFile(StartupData* snapshot_blob);
-#endif
 
 } }  // namespace v8::internal
 
