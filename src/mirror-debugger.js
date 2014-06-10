@@ -18,15 +18,6 @@ function ToggleMirrorCache(value) {
 }
 
 
-/**
- * Clear the mirror handle cache.
- */
-function ClearMirrorCache() {
-  next_handle_ = 0;
-  mirror_cache_ = [];
-}
-
-
 // Wrapper to check whether an object is a Promise.  The call may not work
 // if promises are not enabled.
 // TODO(yangguo): remove try-catch once promises are enabled by default.
