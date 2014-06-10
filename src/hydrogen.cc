@@ -8524,41 +8524,47 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
     }
     if_isstring.Else();
     {
-      IfBuilder if_isheapnumber(this);
-      if_isheapnumber.IfNot<HIsSmiAndBranch>(search_element);
-      HCompareMap* isheapnumber = if_isheapnumber.AndIf<HCompareMap>(
+      IfBuilder if_isnumber(this);
+      if_isnumber.If<HIsSmiAndBranch>(search_element);
+      if_isnumber.OrIf<HCompareMap>(
           search_element, isolate()->factory()->heap_number_map());
-      if_isheapnumber.Then();
+      if_isnumber.Then();
       {
-        HValue* search_number = Add<HLoadNamedField>(
-            search_element, isheapnumber,
-            HObjectAccess::ForHeapNumberValue());
+        HValue* search_number =
+            AddUncasted<HForceRepresentation>(search_element,
+                                              Representation::Double());
         LoopBuilder loop(this, context(), direction);
         {
           HValue* index = loop.BeginBody(initial, terminating, token);
           HValue* element = AddUncasted<HLoadKeyed>(
               elements, index, static_cast<HValue*>(NULL),
               kind, ALLOW_RETURN_HOLE);
-          IfBuilder if_issame(this);
-          if_issame.IfNot<HIsSmiAndBranch>(element);
-          HCompareMap* issame = if_issame.AndIf<HCompareMap>(
+
+          IfBuilder if_element_isnumber(this);
+          if_element_isnumber.If<HIsSmiAndBranch>(element);
+          if_element_isnumber.OrIf<HCompareMap>(
               element, isolate()->factory()->heap_number_map());
-          if_issame.And();
-          HValue* number = Add<HLoadNamedField>(
-              element, issame, HObjectAccess::ForHeapNumberValue());
-          if_issame.If<HCompareNumericAndBranch>(
-              number, search_number, Token::EQ_STRICT);
-          if_issame.Then();
+          if_element_isnumber.Then();
           {
-            Drop(1);
-            Push(index);
-            loop.Break();
+            HValue* number =
+                AddUncasted<HForceRepresentation>(element,
+                                                  Representation::Double());
+            IfBuilder if_issame(this);
+            if_issame.If<HCompareNumericAndBranch>(
+                number, search_number, Token::EQ_STRICT);
+            if_issame.Then();
+            {
+              Drop(1);
+              Push(index);
+              loop.Break();
+            }
+            if_issame.End();
           }
-          if_issame.End();
+          if_element_isnumber.End();
         }
         loop.EndBody();
       }
-      if_isheapnumber.Else();
+      if_isnumber.Else();
       {
         LoopBuilder loop(this, context(), direction);
         {
@@ -8579,7 +8585,7 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
         }
         loop.EndBody();
       }
-      if_isheapnumber.End();
+      if_isnumber.End();
     }
     if_isstring.End();
   }
