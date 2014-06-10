@@ -1185,7 +1185,7 @@ void Assembler::jal_or_jalr(int32_t target, Register rs) {
 }
 
 
-//-------Data-processing-instructions---------
+// -------Data-processing-instructions---------
 
 // Arithmetic.
 
@@ -1328,7 +1328,7 @@ void Assembler::rotrv(Register rd, Register rt, Register rs) {
 }
 
 
-//------------Memory-instructions-------------
+// ------------Memory-instructions-------------
 
 // Helper for base-reg + offset, when offset is larger than int16.
 void Assembler::LoadRegPlusOffsetToAt(const MemOperand& src) {
@@ -1445,7 +1445,7 @@ void Assembler::lui(Register rd, int32_t j) {
 }
 
 
-//-------------Misc-instructions--------------
+// -------------Misc-instructions--------------
 
 // Break / Trap instructions.
 void Assembler::break_(uint32_t code, bool break_as_stop) {
@@ -1618,7 +1618,7 @@ void Assembler::pref(int32_t hint, const MemOperand& rs) {
 }
 
 
-//--------Coprocessor-instructions----------------
+// --------Coprocessor-instructions----------------
 
 // Load, store, move.
 void Assembler::lwc1(FPURegister fd, const MemOperand& src) {

@@ -154,7 +154,7 @@ class PersistentValueMap {
    */
   bool SetReturnValue(const K& key,
       ReturnValue<Value> returnValue) {
-    return SetReturnValueFromVal(returnValue, Traits::Get(&impl_, key));
+    return SetReturnValueFromVal(&returnValue, Traits::Get(&impl_, key));
   }
 
   /**
@@ -227,7 +227,7 @@ class PersistentValueMap {
     }
     template<typename T>
     bool SetReturnValue(ReturnValue<T> returnValue) {
-      return SetReturnValueFromVal(returnValue, value_);
+      return SetReturnValueFromVal(&returnValue, value_);
     }
     void Reset() {
       value_ = kPersistentContainerNotFound;
@@ -309,10 +309,10 @@ class PersistentValueMap {
   }
 
   static bool SetReturnValueFromVal(
-      ReturnValue<Value>& returnValue, PersistentContainerValue value) {
+      ReturnValue<Value>* returnValue, PersistentContainerValue value) {
     bool hasValue = value != kPersistentContainerNotFound;
     if (hasValue) {
-      returnValue.SetInternal(
+      returnValue->SetInternal(
           *reinterpret_cast<internal::Object**>(FromVal(value)));
     }
     return hasValue;

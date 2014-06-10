@@ -867,7 +867,7 @@ void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
 }
 
 
-//------------Pseudo-instructions-------------
+// ------------Pseudo-instructions-------------
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {
   lwr(rd, rs);
