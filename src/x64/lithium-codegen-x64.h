@@ -83,7 +83,14 @@ class LCodeGen: public LCodeGenBase {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagU(LNumberTagU* instr);
+
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
+  void DoDeferredNumberTagIU(LInstruction* instr,
+                             LOperand* value,
+                             LOperand* temp1,
+                             LOperand* temp2,
+                             IntegerSignedness signedness);
+
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
