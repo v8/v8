@@ -413,7 +413,6 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     for (var name in TimerEvents) {
       var event = TimerEvents[name];
       var ranges = RestrictRangesTo(event.ranges, range_start, range_end);
-      ranges = MergeRanges(ranges);
       var sum =
         ranges.map(function(range) { return range.duration(); })
             .reduce(function(a, b) { return a + b; }, 0);

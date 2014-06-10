@@ -17,7 +17,7 @@
   "set object 6 rect from 57.242999999999974, 7 to 57.329716562499975, 6.766323024054983 fc rgb \"#9944CC\"",
   "set object 7 rect from 58.751499999999965, 7 to 58.838216562499966, 6.766323024054983 fc rgb \"#9944CC\"",
   "set object 8 rect from 60.72499999999996, 7 to 60.81171656249996, 6.766323024054983 fc rgb \"#9944CC\"",
-  "set ytics out nomirror (\"execution (59.6%%)\" 12.5, \"external (0.2%%)\" 13.5, \"compile unopt (3.1%%)\" 14.5, \"recompile sync (6.7%%)\" 15.5, \"recompile async (11.6%%)\" 16.5, \"compile eval (0.0%%)\" 17.5, \"ic miss (0.0%%)\" 18.5, \"parse (10.0%%)\" 19.5, \"preparse (0.8%%)\" 20.5, \"lazy parse (2.9%%)\" 21.5, \"gc scavenge (1.7%%)\" 22.5, \"gc compaction (3.3%%)\" 23.5, \"gc context (0.0%%)\" 24.5, \"code kind color coding\" 11, \"code kind in execution\" 10, \"top 8 js stack frames\" 9, \"pause times\" 0, \"max deopt size: 9.1 kB\" 7)",
+  "set ytics out nomirror (\"execution (59.6%%)\" 12.5, \"external (0.2%%)\" 13.5, \"compile unopt (3.1%%)\" 14.5, \"recompile sync (6.6%%)\" 15.5, \"recompile async (11.6%%)\" 16.5, \"compile eval (0.0%%)\" 17.5, \"ic miss (0.0%%)\" 18.5, \"parse (9.9%%)\" 19.5, \"preparse (0.6%%)\" 20.5, \"lazy parse (2.9%%)\" 21.5, \"gc scavenge (1.6%%)\" 22.5, \"gc compaction (3.3%%)\" 23.5, \"gc context (0.0%%)\" 24.5, \"code kind color coding\" 11, \"code kind in execution\" 10, \"top 8 js stack frames\" 9, \"pause times\" 0, \"max deopt size: 9.1 kB\" 7)",
   "set object 9 rect from 42.11000000000001, 12.83 to 42.28050000000001, 12.17 fc rgb \"#000000\"",
   "set object 10 rect from 42.298000000000016, 12.83 to 42.30000000000002, 12.17 fc rgb \"#000000\"",
   "set object 11 rect from 42.31450000000002, 12.83 to 42.62700000000002, 12.17 fc rgb \"#000000\"",
