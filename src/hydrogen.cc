@@ -8538,7 +8538,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
               elements, index, static_cast<HValue*>(NULL),
               kind, ALLOW_RETURN_HOLE);
           IfBuilder if_issame(this);
-          HCompareMap* issame = if_issame.If<HCompareMap>(
+          if_issame.IfNot<HIsSmiAndBranch>(element);
+          HCompareMap* issame = if_issame.AndIf<HCompareMap>(
               element, isolate()->factory()->heap_number_map());
           if_issame.And();
           HValue* number = Add<HLoadNamedField>(
