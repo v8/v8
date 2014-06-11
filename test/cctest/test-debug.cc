@@ -6926,7 +6926,7 @@ TEST(DebugEventBreakData) {
   expected_break_data = NULL;
   was_debug_event_called = false;
   was_debug_break_called = false;
-  v8::Debug::DebugBreakForCommand(NULL, isolate);
+  v8::Debug::DebugBreakForCommand(isolate, NULL);
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
                                               "(function(x){return x;})(1);"))
       ->Run();
@@ -6937,7 +6937,7 @@ TEST(DebugEventBreakData) {
   expected_break_data = data1;
   was_debug_event_called = false;
   was_debug_break_called = false;
-  v8::Debug::DebugBreakForCommand(data1, isolate);
+  v8::Debug::DebugBreakForCommand(isolate, data1);
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
                                               "(function(x){return x+1;})(1);"))
       ->Run();
@@ -6959,7 +6959,7 @@ TEST(DebugEventBreakData) {
   was_debug_event_called = false;
   was_debug_break_called = false;
   v8::Debug::DebugBreak(isolate);
-  v8::Debug::DebugBreakForCommand(data2, isolate);
+  v8::Debug::DebugBreakForCommand(isolate, data2);
   v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(),
                                               "(function(x){return x+3;})(1);"))
       ->Run();
@@ -7347,7 +7347,7 @@ TEST(LiveEditEnabled) {
   v8::internal::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Debug::SetLiveEditEnabled(true, env->GetIsolate());
+  v8::Debug::SetLiveEditEnabled(env->GetIsolate(), true);
   CompileRun("%LiveEditCompareStrings('', '')");
 }
 
@@ -7356,7 +7356,7 @@ TEST(LiveEditDisabled) {
   v8::internal::FLAG_allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
-  v8::Debug::SetLiveEditEnabled(false, env->GetIsolate());
+  v8::Debug::SetLiveEditEnabled(env->GetIsolate(), false);
   CompileRun("%LiveEditCompareStrings('', '')");
 }
 
