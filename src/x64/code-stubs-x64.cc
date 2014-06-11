@@ -119,6 +119,16 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rax };
+  descriptor->register_param_count_ = 2;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry;
+}
+
+
 void LoadFieldStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   static Register registers[] = { rax };

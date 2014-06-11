@@ -26,9 +26,7 @@ class FieldIndex V8_FINAL {
   static FieldIndex ForLookupResult(const LookupResult* result);
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
-  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index) {
-    return ForPropertyIndex(map, index);
-  }
+  static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
 
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);
@@ -75,9 +73,7 @@ class FieldIndex V8_FINAL {
     return is_double() ? (result | 1) : result;
   }
 
-  int GetKeyedLookupCacheIndex() const {
-    return property_index();
-  }
+  int GetKeyedLookupCacheIndex() const;
 
   int GetLoadFieldStubKey() const {
     return bit_field_ &

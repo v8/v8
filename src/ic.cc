@@ -554,6 +554,23 @@ void CompareIC::Clear(Isolate* isolate,
 }
 
 
+Handle<Code> KeyedLoadIC::megamorphic_stub() {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return KeyedLoadGenericElementStub(isolate()).GetCode();
+  } else {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
+}
+
+Handle<Code> KeyedLoadIC::generic_stub() const {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return KeyedLoadGenericElementStub(isolate()).GetCode();
+  } else {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
+}
+
+
 static bool MigrateDeprecated(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
