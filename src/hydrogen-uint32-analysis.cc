@@ -62,7 +62,6 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
       }
     }
   } else if (use->IsCompareNumericAndBranch()) {
-    return false;  // TODO(svenpanne/3380): Fix and re-enable!
     HCompareNumericAndBranch* c = HCompareNumericAndBranch::cast(use);
     return IsUint32Operation(c->left()) && IsUint32Operation(c->right());
   }

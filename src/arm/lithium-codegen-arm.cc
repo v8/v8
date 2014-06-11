@@ -2371,7 +2371,9 @@ Condition LCodeGen::TokenToCondition(Token::Value op, bool is_unsigned) {
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
-  bool is_unsigned = instr->hydrogen()->CheckFlag(HInstruction::kUint32);
+  bool is_unsigned =
+      instr->hydrogen()->left()->CheckFlag(HInstruction::kUint32) ||
+      instr->hydrogen()->right()->CheckFlag(HInstruction::kUint32);
   Condition cond = TokenToCondition(instr->op(), is_unsigned);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
