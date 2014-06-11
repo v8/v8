@@ -38,15 +38,12 @@ class StringHelper : public AllStatic {
   // is allowed to spend extra time setting up conditions to make copying
   // faster. Copying of overlapping regions is not supported.
   // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharactersLong(MacroAssembler* masm,
-                                         Register dest,
-                                         Register src,
-                                         Register count,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Register scratch4,
-                                         int flags);
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     String::Encoding encoding);
 
 
   // Generate string hash.

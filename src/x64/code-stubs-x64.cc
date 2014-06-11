@@ -3134,49 +3134,21 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
-                                             Register dest,
-                                             Register src,
-                                             Register count,
-                                             bool ascii) {
-  // Copy characters using rep movs of doublewords. Align destination on 4 byte
-  // boundary before starting rep movs. Copy remaining characters after running
-  // rep movs.
-  // Count is positive int32, dest and src are character pointers.
-  ASSERT(dest.is(rdi));  // rep movs destination
-  ASSERT(src.is(rsi));  // rep movs source
-  ASSERT(count.is(rcx));  // rep movs count
-
+void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
+                                          Register dest,
+                                          Register src,
+                                          Register count,
+                                          String::Encoding encoding) {
   // Nothing to do for zero characters.
   Label done;
   __ testl(count, count);
   __ j(zero, &done, Label::kNear);
 
   // Make count the number of bytes to copy.
-  if (!ascii) {
+  if (encoding == String::TWO_BYTE_ENCODING) {
     STATIC_ASSERT(2 == sizeof(uc16));
     __ addl(count, count);
   }
-
-  // Don't enter the rep movs if there are less than 4 bytes to copy.
-  Label last_bytes;
-  __ testl(count, Immediate(~(kPointerSize - 1)));
-  __ j(zero, &last_bytes, Label::kNear);
-
-  // Copy from edi to esi using rep movs instruction.
-  __ movl(kScratchRegister, count);
-  // Number of doublewords to copy.
-  __ shrl(count, Immediate(kPointerSizeLog2));
-  __ repmovsp();
-
-  // Find number of bytes left.
-  __ movl(count, kScratchRegister);
-  __ andp(count, Immediate(kPointerSize - 1));
-
-  // Check if there are more bytes to copy.
-  __ bind(&last_bytes);
-  __ testl(count, count);
-  __ j(zero, &done, Label::kNear);
 
   // Copy remaining characters.
   Label loop;
@@ -3415,10 +3387,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // rax: result string
   // rcx: result string length
-  __ movp(r14, rsi);  // esi used by following code.
   {  // Locate character of sub string start.
     SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_1);
-    __ leap(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
+    __ leap(r14, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
                         SeqOneByteString::kHeaderSize - kHeapObjectTag));
   }
   // Locate first character of result.
@@ -3426,11 +3397,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // rax: result string
   // rcx: result length
-  // rdi: first character of result
+  // r14: first character of result
   // rsi: character of sub string start
-  // r14: original value of rsi
-  StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, true);
-  __ movp(rsi, r14);  // Restore rsi.
+  StringHelper::GenerateCopyCharacters(
+      masm, rdi, r14, rcx, String::ONE_BYTE_ENCODING);
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
 
@@ -3440,10 +3410,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // rax: result string
   // rcx: result string length
-  __ movp(r14, rsi);  // esi used by following code.
   {  // Locate character of sub string start.
     SmiIndex smi_as_index = masm->SmiToIndex(rdx, rdx, times_2);
-    __ leap(rsi, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
+    __ leap(r14, Operand(rdi, smi_as_index.reg, smi_as_index.scale,
                         SeqOneByteString::kHeaderSize - kHeapObjectTag));
   }
   // Locate first character of result.
@@ -3452,10 +3421,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rax: result string
   // rcx: result length
   // rdi: first character of result
-  // rsi: character of sub string start
-  // r14: original value of rsi
-  StringHelper::GenerateCopyCharactersREP(masm, rdi, rsi, rcx, false);
-  __ movp(rsi, r14);  // Restore esi.
+  // r14: character of sub string start
+  StringHelper::GenerateCopyCharacters(
+      masm, rdi, r14, rcx, String::TWO_BYTE_ENCODING);
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
 
