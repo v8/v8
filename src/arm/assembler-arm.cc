@@ -72,7 +72,6 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
   supported_ |= CpuFeaturesImpliedByCompiler();
   cache_line_size_ = 64;
 

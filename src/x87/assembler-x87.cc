@@ -50,7 +50,6 @@ namespace internal {
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
   CPU cpu;
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
