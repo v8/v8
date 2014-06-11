@@ -674,6 +674,7 @@ class Debug {
   friend class Isolate;
   friend class DebugScope;
   friend class DisableBreak;
+  friend class LiveEdit;
   friend class SuppressDebug;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc

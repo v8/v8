@@ -74,7 +74,9 @@ class LiveEdit : AllStatic {
     CURRENTLY_SET_MODE
   };
 
-  static Address AfterBreakTarget(FrameDropMode mode, Isolate* isolate);
+  static void InitializeThreadLocal(Debug* debug);
+
+  static bool SetAfterBreakTarget(Debug* debug);
 
   MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
       Handle<Script> script,
