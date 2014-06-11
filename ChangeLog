@@ -1,3 +1,8 @@
+2014-06-11: Version 3.27.25
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-11: Version 3.27.24
 
         Fix invalid attributes when generalizing because of incompatible map

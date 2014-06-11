@@ -40,12 +40,12 @@ class StringHelper : public AllStatic {
   // Generate code for copying characters using the rep movs instruction.
   // Copies ecx characters from esi to edi. Copying of overlapping regions is
   // not supported.
-  static void GenerateCopyCharactersREP(MacroAssembler* masm,
-                                        Register dest,     // Must be edi.
-                                        Register src,      // Must be esi.
-                                        Register count,    // Must be ecx.
-                                        Register scratch,  // Neither of above.
-                                        bool ascii);
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     String::Encoding encoding);
 
   // Generate string hash.
   static void GenerateHashInit(MacroAssembler* masm,

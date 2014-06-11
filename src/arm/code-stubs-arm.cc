@@ -3322,142 +3322,37 @@ enum CopyCharactersFlags {
 };
 
 
-void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
-                                              Register dest,
-                                              Register src,
-                                              Register count,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Register scratch3,
-                                              Register scratch4,
-                                              int flags) {
-  bool ascii = (flags & COPY_ASCII) != 0;
-  bool dest_always_aligned = (flags & DEST_ALWAYS_ALIGNED) != 0;
-
-  if (dest_always_aligned && FLAG_debug_code) {
-    // Check that destination is actually word aligned if the flag says
-    // that it is.
+void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
+                                          Register dest,
+                                          Register src,
+                                          Register count,
+                                          Register scratch,
+                                          String::Encoding encoding) {
+  if (FLAG_debug_code) {
+    // Check that destination is word aligned.
     __ tst(dest, Operand(kPointerAlignmentMask));
     __ Check(eq, kDestinationOfCopyNotAligned);
   }
 
-  const int kReadAlignment = 4;
-  const int kReadAlignmentMask = kReadAlignment - 1;
-  // Ensure that reading an entire aligned word containing the last character
-  // of a string will not read outside the allocated area (because we pad up
-  // to kObjectAlignment).
-  STATIC_ASSERT(kObjectAlignment >= kReadAlignment);
   // Assumes word reads and writes are little endian.
   // Nothing to do for zero characters.
   Label done;
-  if (!ascii) {
+  if (encoding == String::TWO_BYTE_ENCODING) {
     __ add(count, count, Operand(count), SetCC);
-  } else {
-    __ cmp(count, Operand::Zero());
-  }
-  __ b(eq, &done);
-
-  // Assume that you cannot read (or write) unaligned.
-  Label byte_loop;
-  // Must copy at least eight bytes, otherwise just do it one byte at a time.
-  __ cmp(count, Operand(8));
-  __ add(count, dest, Operand(count));
-  Register limit = count;  // Read until src equals this.
-  __ b(lt, &byte_loop);
-
-  if (!dest_always_aligned) {
-    // Align dest by byte copying. Copies between zero and three bytes.
-    __ and_(scratch4, dest, Operand(kReadAlignmentMask), SetCC);
-    Label dest_aligned;
-    __ b(eq, &dest_aligned);
-    __ cmp(scratch4, Operand(2));
-    __ ldrb(scratch1, MemOperand(src, 1, PostIndex));
-    __ ldrb(scratch2, MemOperand(src, 1, PostIndex), le);
-    __ ldrb(scratch3, MemOperand(src, 1, PostIndex), lt);
-    __ strb(scratch1, MemOperand(dest, 1, PostIndex));
-    __ strb(scratch2, MemOperand(dest, 1, PostIndex), le);
-    __ strb(scratch3, MemOperand(dest, 1, PostIndex), lt);
-    __ bind(&dest_aligned);
   }
 
-  Label simple_loop;
+  Register limit = count;  // Read until dest equals this.
+  __ add(limit, dest, Operand(count));
 
-  __ sub(scratch4, dest, Operand(src));
-  __ and_(scratch4, scratch4, Operand(0x03), SetCC);
-  __ b(eq, &simple_loop);
-  // Shift register is number of bits in a source word that
-  // must be combined with bits in the next source word in order
-  // to create a destination word.
-
-  // Complex loop for src/dst that are not aligned the same way.
-  {
-    Label loop;
-    __ mov(scratch4, Operand(scratch4, LSL, 3));
-    Register left_shift = scratch4;
-    __ and_(src, src, Operand(~3));  // Round down to load previous word.
-    __ ldr(scratch1, MemOperand(src, 4, PostIndex));
-    // Store the "shift" most significant bits of scratch in the least
-    // signficant bits (i.e., shift down by (32-shift)).
-    __ rsb(scratch2, left_shift, Operand(32));
-    Register right_shift = scratch2;
-    __ mov(scratch1, Operand(scratch1, LSR, right_shift));
-
-    __ bind(&loop);
-    __ ldr(scratch3, MemOperand(src, 4, PostIndex));
-    __ orr(scratch1, scratch1, Operand(scratch3, LSL, left_shift));
-    __ str(scratch1, MemOperand(dest, 4, PostIndex));
-    __ mov(scratch1, Operand(scratch3, LSR, right_shift));
-    // Loop if four or more bytes left to copy.
-    __ sub(scratch3, limit, Operand(dest));
-    __ sub(scratch3, scratch3, Operand(4), SetCC);
-    __ b(ge, &loop);
-  }
-  // There is now between zero and three bytes left to copy (negative that
-  // number is in scratch3), and between one and three bytes already read into
-  // scratch1 (eight times that number in scratch4). We may have read past
-  // the end of the string, but because objects are aligned, we have not read
-  // past the end of the object.
-  // Find the minimum of remaining characters to move and preloaded characters
-  // and write those as bytes.
-  __ add(scratch3, scratch3, Operand(4), SetCC);
-  __ b(eq, &done);
-  __ cmp(scratch4, Operand(scratch3, LSL, 3), ne);
-  // Move minimum of bytes read and bytes left to copy to scratch4.
-  __ mov(scratch3, Operand(scratch4, LSR, 3), LeaveCC, lt);
-  // Between one and three (value in scratch3) characters already read into
-  // scratch ready to write.
-  __ cmp(scratch3, Operand(2));
-  __ strb(scratch1, MemOperand(dest, 1, PostIndex));
-  __ mov(scratch1, Operand(scratch1, LSR, 8), LeaveCC, ge);
-  __ strb(scratch1, MemOperand(dest, 1, PostIndex), ge);
-  __ mov(scratch1, Operand(scratch1, LSR, 8), LeaveCC, gt);
-  __ strb(scratch1, MemOperand(dest, 1, PostIndex), gt);
-  // Copy any remaining bytes.
-  __ b(&byte_loop);
-
-  // Simple loop.
-  // Copy words from src to dst, until less than four bytes left.
-  // Both src and dest are word aligned.
-  __ bind(&simple_loop);
-  {
-    Label loop;
-    __ bind(&loop);
-    __ ldr(scratch1, MemOperand(src, 4, PostIndex));
-    __ sub(scratch3, limit, Operand(dest));
-    __ str(scratch1, MemOperand(dest, 4, PostIndex));
-    // Compare to 8, not 4, because we do the substraction before increasing
-    // dest.
-    __ cmp(scratch3, Operand(8));
-    __ b(ge, &loop);
-  }
-
-  // Copy bytes from src to dst until dst hits limit.
-  __ bind(&byte_loop);
+  Label loop_entry, loop;
+  // Copy bytes from src to dest until dest hits limit.
+  __ b(&loop_entry);
+  __ bind(&loop);
+  __ ldrb(scratch, MemOperand(src, 1, PostIndex), lt);
+  __ strb(scratch, MemOperand(dest, 1, PostIndex));
+  __ bind(&loop_entry);
   __ cmp(dest, Operand(limit));
-  __ ldrb(scratch1, MemOperand(src, 1, PostIndex), lt);
-  __ b(ge, &done);
-  __ strb(scratch1, MemOperand(dest, 1, PostIndex));
-  __ b(&byte_loop);
+  __ b(lt, &loop);
 
   __ bind(&done);
 }
@@ -3683,8 +3578,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: result string length
   // r5: first character of substring to copy
   STATIC_ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharactersLong(masm, r1, r5, r2, r3, r4, r6, r9,
-                                           COPY_ASCII | DEST_ALWAYS_ALIGNED);
+  StringHelper::GenerateCopyCharacters(
+      masm, r1, r5, r2, r3, String::ONE_BYTE_ENCODING);
   __ jmp(&return_r0);
 
   // Allocate and copy the resulting two-byte string.
@@ -3702,8 +3597,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: result length.
   // r5: first character of substring to copy.
   STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharactersLong(
-      masm, r1, r5, r2, r3, r4, r6, r9, DEST_ALWAYS_ALIGNED);
+  StringHelper::GenerateCopyCharacters(
+      masm, r1, r5, r2, r3, String::TWO_BYTE_ENCODING);
 
   __ bind(&return_r0);
   Counters* counters = isolate()->counters();

@@ -8362,6 +8362,41 @@ TEST(TryCatchFinallyUsingTryCatchHandler) {
 }
 
 
+void CEvaluate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::HandleScope scope(args.GetIsolate());
+  CompileRun(args[0]->ToString());
+}
+
+
+TEST(TryCatchFinallyStoresMessageUsingTryCatchHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(v8_str("CEvaluate"),
+             v8::FunctionTemplate::New(isolate, CEvaluate));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  CompileRun("try {"
+             "  CEvaluate('throw 1;');"
+             "} finally {"
+             "}");
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Message().IsEmpty());
+  String::Utf8Value exception_value(try_catch.Exception());
+  CHECK_EQ(*exception_value, "1");
+  try_catch.Reset();
+  CompileRun("try {"
+             "  CEvaluate('throw 1;');"
+             "} finally {"
+             "  throw 2;"
+             "}");
+  CHECK(try_catch.HasCaught());
+  CHECK(!try_catch.Message().IsEmpty());
+  String::Utf8Value finally_exception_value(try_catch.Exception());
+  CHECK_EQ(*finally_exception_value, "2");
+}
+
+
 // For use within the TestSecurityHandler() test.
 static bool g_security_callback_result = false;
 static bool NamedSecurityTestCallback(Local<v8::Object> global,
