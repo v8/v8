@@ -14,7 +14,7 @@ v8_enable_verify_heap = false
 v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
-v8_use_default_platform = false
+v8_use_default_platform = true
 v8_use_snapshot = true
 v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
@@ -338,7 +338,6 @@ source_set("v8_snapshot") {
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/trig-table.cc",
     "$target_gen_dir/snapshot.cc",
-    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]

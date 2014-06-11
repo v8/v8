@@ -1384,7 +1384,7 @@ int Disassembler::SubstituteImmediateField(Instruction* instr,
       switch (format[2]) {
         case 'L': {  // ILLiteral - Immediate Load Literal.
           AppendToOutput("pc%+" PRId64,
-                         instr->ImmLLiteral() << kLiteralEntrySizeLog2);
+                         instr->ImmLLiteral() << kLoadLiteralScaleLog2);
           return 9;
         }
         case 'S': {  // ILS - Immediate Load/Store.

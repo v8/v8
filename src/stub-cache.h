@@ -518,7 +518,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
   Handle<Code> CompileLoadField(Handle<HeapType> type,
                                 Handle<JSObject> holder,
                                 Handle<Name> name,
-                                PropertyIndex index,
+                                FieldIndex index,
                                 Representation representation);
 
   Handle<Code> CompileLoadCallback(Handle<HeapType> type,
@@ -589,7 +589,7 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
 
   void GenerateLoadField(Register reg,
                          Handle<JSObject> holder,
-                         PropertyIndex field,
+                         FieldIndex field,
                          Representation representation);
   void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,

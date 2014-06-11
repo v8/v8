@@ -58,11 +58,11 @@ void MacroAssembler::LogicalMacro(const Register& rd,
 
   if (operand.NeedsRelocation(this)) {
     Register temp = temps.AcquireX();
-    LoadRelocated(temp, operand);
+    Ldr(temp, operand.immediate());
     Logical(rd, rn, temp, op);
 
   } else if (operand.IsImmediate()) {
-    int64_t immediate = operand.immediate();
+    int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
     ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
@@ -250,11 +250,11 @@ void MacroAssembler::Mov(const Register& rd,
   Register dst = (rd.IsSP()) ? temps.AcquireSameSizeAs(rd) : rd;
 
   if (operand.NeedsRelocation(this)) {
-    LoadRelocated(dst, operand);
+    Ldr(dst, operand.immediate());
 
   } else if (operand.IsImmediate()) {
     // Call the macro assembler for generic immediates.
-    Mov(dst, operand.immediate());
+    Mov(dst, operand.ImmediateValue());
 
   } else if (operand.IsShiftedRegister() && (operand.shift_amount() != 0)) {
     // Emit a shift instruction if moving a shifted register. This operation
@@ -298,12 +298,12 @@ void MacroAssembler::Mvn(const Register& rd, const Operand& operand) {
   ASSERT(allow_macro_instructions_);
 
   if (operand.NeedsRelocation(this)) {
-    LoadRelocated(rd, operand);
+    Ldr(rd, operand.immediate());
     mvn(rd, rd);
 
   } else if (operand.IsImmediate()) {
     // Call the macro assembler for generic immediates.
-    Mov(rd, ~operand.immediate());
+    Mov(rd, ~operand.ImmediateValue());
 
   } else if (operand.IsExtendedRegister()) {
     // Emit two instructions for the extend case. This differs from Mov, as
@@ -355,11 +355,12 @@ void MacroAssembler::ConditionalCompareMacro(const Register& rn,
   if (operand.NeedsRelocation(this)) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    LoadRelocated(temp, operand);
+    Ldr(temp, operand.immediate());
     ConditionalCompareMacro(rn, temp, nzcv, cond, op);
 
   } else if ((operand.IsShiftedRegister() && (operand.shift_amount() == 0)) ||
-      (operand.IsImmediate() && IsImmConditionalCompare(operand.immediate()))) {
+             (operand.IsImmediate() &&
+              IsImmConditionalCompare(operand.ImmediateValue()))) {
     // The immediate can be encoded in the instruction, or the operand is an
     // unshifted register: call the assembler.
     ConditionalCompare(rn, operand, nzcv, cond, op);
@@ -385,7 +386,7 @@ void MacroAssembler::Csel(const Register& rd,
   if (operand.IsImmediate()) {
     // Immediate argument. Handle special cases of 0, 1 and -1 using zero
     // register.
-    int64_t imm = operand.immediate();
+    int64_t imm = operand.ImmediateValue();
     Register zr = AppropriateZeroRegFor(rn);
     if (imm == 0) {
       csel(rd, rn, zr, cond);
@@ -396,7 +397,7 @@ void MacroAssembler::Csel(const Register& rd,
     } else {
       UseScratchRegisterScope temps(this);
       Register temp = temps.AcquireSameSizeAs(rn);
-      Mov(temp, operand.immediate());
+      Mov(temp, imm);
       csel(rd, rn, temp, cond);
     }
   } else if (operand.IsShiftedRegister() && (operand.shift_amount() == 0)) {
@@ -426,10 +427,11 @@ void MacroAssembler::AddSubMacro(const Register& rd,
   if (operand.NeedsRelocation(this)) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
-    LoadRelocated(temp, operand);
+    Ldr(temp, operand.immediate());
     AddSubMacro(rd, rn, temp, S, op);
-  } else if ((operand.IsImmediate() && !IsImmAddSub(operand.immediate())) ||
-             (rn.IsZero() && !operand.IsShiftedRegister())                ||
+  } else if ((operand.IsImmediate() &&
+              !IsImmAddSub(operand.ImmediateValue()))      ||
+             (rn.IsZero() && !operand.IsShiftedRegister()) ||
              (operand.IsShiftedRegister() && (operand.shift() == ROR))) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(rn);
@@ -451,7 +453,7 @@ void MacroAssembler::AddSubWithCarryMacro(const Register& rd,
 
   if (operand.NeedsRelocation(this)) {
     Register temp = temps.AcquireX();
-    LoadRelocated(temp, operand);
+    Ldr(temp, operand.immediate());
     AddSubWithCarryMacro(rd, rn, temp, S, op);
 
   } else if (operand.IsImmediate() ||
@@ -1071,7 +1073,7 @@ void MacroAssembler::PushPreamble(Operand total_size) {
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
     if (total_size.IsImmediate()) {
-      ASSERT((total_size.immediate() % 16) == 0);
+      ASSERT((total_size.ImmediateValue() % 16) == 0);
     }
 
     // Don't check access size for non-immediate sizes. It's difficult to do
@@ -1091,7 +1093,7 @@ void MacroAssembler::PopPostamble(Operand total_size) {
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
     if (total_size.IsImmediate()) {
-      ASSERT((total_size.immediate() % 16) == 0);
+      ASSERT((total_size.ImmediateValue() % 16) == 0);
     }
 
     // Don't check access size for non-immediate sizes. It's difficult to do
@@ -1107,7 +1109,7 @@ void MacroAssembler::PopPostamble(Operand total_size) {
 
 void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
   if (offset.IsImmediate()) {
-    ASSERT(offset.immediate() >= 0);
+    ASSERT(offset.ImmediateValue() >= 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
     Check(le, kStackAccessBelowStackPointer);
@@ -1119,7 +1121,7 @@ void MacroAssembler::Poke(const CPURegister& src, const Operand& offset) {
 
 void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
-    ASSERT(offset.immediate() >= 0);
+    ASSERT(offset.ImmediateValue() >= 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
     Check(le, kStackAccessBelowStackPointer);
@@ -2069,7 +2071,7 @@ void MacroAssembler::Call(Address target, RelocInfo::Mode rmode) {
     movk(temp, (imm >> 16) & 0xffff, 16);
     movk(temp, (imm >> 32) & 0xffff, 32);
   } else {
-    LoadRelocated(temp, Operand(reinterpret_cast<intptr_t>(target), rmode));
+    Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
   }
   Blr(temp);
 #ifdef DEBUG
@@ -5173,7 +5175,7 @@ void MacroAssembler::EmitCodeAgeSequence(Assembler * assm,
   //
   // A branch (br) is used rather than a call (blr) because this code replaces
   // the frame setup code that would normally preserve lr.
-  __ LoadLiteral(ip0, kCodeAgeStubEntryOffset);
+  __ ldr_pcrel(ip0, kCodeAgeStubEntryOffset >> kLoadLiteralScaleLog2);
   __ adr(x0, &start);
   __ br(ip0);
   // IsCodeAgeSequence in codegen-arm64.cc assumes that the code generated up

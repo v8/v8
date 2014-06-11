@@ -486,12 +486,6 @@ function GetScriptBreakPoints(script) {
 }
 
 
-function GetLoadedScripts() {
-  ClearMirrorCache();  // The mirror cache may be holding onto scripts.
-  return %DebugGetLoadedScripts();
-}
-
-
 Debug.setListener = function(listener, opt_data) {
   if (!IS_FUNCTION(listener) && !IS_UNDEFINED(listener) && !IS_NULL(listener)) {
     throw new Error('Parameters have wrong types.');
@@ -921,7 +915,7 @@ Debug.showBreakPoints = function(f, full, opt_position_alignment) {
 // scanning the heap.
 Debug.scripts = function() {
   // Collect all scripts in the heap.
-  return GetLoadedScripts();
+  return %DebugGetLoadedScripts();
 };
 
 
@@ -2250,7 +2244,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   }
 
   // Collect all scripts in the heap.
-  var scripts = GetLoadedScripts();
+  var scripts = %DebugGetLoadedScripts();
 
   response.body = [];
 
@@ -2322,7 +2316,7 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(
   var script_id = request.arguments.script_id;
   var preview_only = !!request.arguments.preview_only;
 
-  var scripts = GetLoadedScripts();
+  var scripts = %DebugGetLoadedScripts();
 
   var the_script = null;
   for (var i = 0; i < scripts.length; i++) {

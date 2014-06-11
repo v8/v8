@@ -17,6 +17,8 @@
 #include "src/date.h"
 #include "src/elements.h"
 #include "src/execution.h"
+#include "src/field-index.h"
+#include "src/field-index-inl.h"
 #include "src/full-codegen.h"
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
@@ -847,8 +849,7 @@ MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
     }
     case FIELD:
       value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
-                                       result->representation(),
-                                       result->GetFieldIndex().field_index());
+          result->representation(), FieldIndex::ForLookupResult(result));
       break;
     case CONSTANT:
       return handle(result->GetConstant(), isolate);
@@ -975,12 +976,6 @@ Object* Object::GetPrototype(Isolate* isolate) {
 Handle<Object> Object::GetPrototype(Isolate* isolate,
                                     Handle<Object> object) {
   return handle(object->GetPrototype(isolate), isolate);
-}
-
-
-Map* Object::GetMarkerMap(Isolate* isolate) {
-  if (IsSmi()) return isolate->heap()->heap_number_map();
-  return HeapObject::cast(this)->map();
 }
 
 
@@ -2286,7 +2281,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
            old_details.type() == FIELD);
     Object* raw_value = old_details.type() == CONSTANT
         ? old_descriptors->GetValue(i)
-        : object->RawFastPropertyAt(old_descriptors->GetFieldIndex(i));
+        : object->RawFastPropertyAt(FieldIndex::ForDescriptor(*old_map, i));
     Handle<Object> value(raw_value, isolate);
     if (!old_details.representation().IsDouble() &&
         details.representation().IsDouble()) {
@@ -2322,7 +2317,8 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
   for (int i = 0; i < limit; i++) {
-    object->FastPropertyAtPut(i, array->get(external + i));
+    FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
+    object->FastPropertyAtPut(index, array->get(external + i));
   }
 
   // Create filler object past the new instance size.
@@ -2419,6 +2415,18 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
                         field_type, HeapType::Any());
   }
   return new_map;
+}
+
+
+// static
+Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
+                                                  int modify_index,
+                                                  StoreMode store_mode,
+                                                  const char* reason) {
+  PropertyDetails details =
+      map->instance_descriptors()->GetDetails(modify_index);
+  return CopyGeneralizeAllRepresentations(map, modify_index, store_mode,
+                                          details.attributes(), reason);
 }
 
 
@@ -2667,8 +2675,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
   // Check the state of the root map.
   Handle<Map> root_map(old_map->FindRootMap(), isolate);
   if (!old_map->EquivalentToForTransition(*root_map)) {
-    return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-        old_details.attributes(), "not equivalent");
+    return CopyGeneralizeAllRepresentations(
+        old_map, modify_index, store_mode, "not equivalent");
   }
   int root_nof = root_map->NumberOfOwnDescriptors();
   if (modify_index < root_nof) {
@@ -2677,8 +2685,8 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
         (old_details.type() == FIELD &&
          (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
           !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
-          old_details.attributes(), "root modification");
+      return CopyGeneralizeAllRepresentations(
+          old_map, modify_index, store_mode, "root modification");
     }
   }
 
@@ -2700,8 +2708,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
          (tmp_type != old_type ||
           tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
       return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
+          old_map, modify_index, store_mode, "incompatible");
     }
     Representation old_representation = old_details.representation();
     Representation tmp_representation = tmp_details.representation();
@@ -2765,8 +2772,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
          (tmp_details.type() != old_details.type() ||
           tmp_descriptors->GetValue(i) != old_descriptors->GetValue(i)))) {
       return CopyGeneralizeAllRepresentations(
-          old_map, modify_index, store_mode,
-          old_details.attributes(), "incompatible");
+          old_map, modify_index, store_mode, "incompatible");
     }
     target_map = tmp_map;
   }
@@ -2809,6 +2815,7 @@ Handle<Map> Map::GeneralizeRepresentation(Handle<Map> old_map,
       target_details = target_details.CopyWithRepresentation(
           new_representation.generalize(target_details.representation()));
     }
+    ASSERT_EQ(old_details.attributes(), target_details.attributes());
     if (old_details.type() == FIELD ||
         target_details.type() == FIELD ||
         (modify_index == i && store_mode == FORCE_FIELD) ||
@@ -3521,7 +3528,7 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
     // occur as fields.
     if (result->IsField() &&
         result->IsReadOnly() &&
-        RawFastPropertyAt(result->GetFieldIndex().field_index())->IsTheHole()) {
+        RawFastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
       result->DisallowCaching();
     }
     return;
@@ -4037,14 +4044,14 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 
   ASSERT(details.type() == FIELD);
 
-  int field_index = desc->GetFieldIndex(descriptor);
+  FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
     // Nothing more to be done.
     if (value->IsUninitialized()) return;
-    HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(field_index));
+    HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
     box->set_value(value->Number());
   } else {
-    FastPropertyAtPut(field_index, value);
+    FastPropertyAtPut(index, value);
   }
 }
 
@@ -4733,8 +4740,9 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
       }
       case FIELD: {
         Handle<Name> key(descs->GetKey(i));
+        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
         Handle<Object> value(
-            object->RawFastPropertyAt(descs->GetFieldIndex(i)), isolate);
+            object->RawFastPropertyAt(index), isolate);
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
@@ -5241,8 +5249,9 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
         ASSERT(descriptors->GetType(sorted_index) == FIELD);
         ASSERT(descriptors->GetDetails(sorted_index).representation().
                IsCompatibleForLoad(Representation::Tagged()));
-        return this->RawFastPropertyAt(
-            descriptors->GetFieldIndex(sorted_index));
+        FieldIndex index = FieldIndex::ForDescriptor(this->map(),
+                                                     sorted_index);
+        return this->RawFastPropertyAt(index);
       } else {
         return GetHeap()->undefined_value();
       }
@@ -5922,7 +5931,7 @@ void JSObject::SetObserved(Handle<JSObject> object) {
 
 Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         Representation representation,
-                                        int index) {
+                                        FieldIndex index) {
   Isolate* isolate = object->GetIsolate();
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
   return Object::NewStorageFor(isolate, raw_value, representation);
@@ -6013,7 +6022,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       for (int i = 0; i < limit; i++) {
         PropertyDetails details = descriptors->GetDetails(i);
         if (details.type() != FIELD) continue;
-        int index = descriptors->GetFieldIndex(i);
+        FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         Handle<Object> value(object->RawFastPropertyAt(index), isolate);
         if (value->IsJSObject()) {
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -6180,7 +6189,7 @@ Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
       case FIELD:
         result = FastPropertyAt(Handle<JSObject>(lookup.holder(), isolate),
                                 lookup.representation(),
-                                lookup.GetFieldIndex().field_index());
+                                lookup.GetFieldIndex());
         break;
       case CONSTANT:
         result = Handle<Object>(lookup.GetConstant(), isolate);
@@ -6414,15 +6423,9 @@ static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
           if (details.type() != FIELD) {
             indices = Handle<FixedArray>();
           } else {
-            int field_index = descs->GetFieldIndex(i);
-            if (field_index >= map->inobject_properties()) {
-              field_index = -(field_index - map->inobject_properties() + 1);
-            }
-            field_index = field_index << 1;
-            if (details.representation().IsDouble()) {
-              field_index |= 1;
-            }
-            indices->set(index, Smi::FromInt(field_index));
+            FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+            int load_by_field_index = field_index.GetLoadByFieldIndex();
+            indices->set(index, Smi::FromInt(load_by_field_index));
           }
         }
         index++;
@@ -7126,7 +7129,8 @@ Object* JSObject::SlowReverseLookup(Object* value) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < number_of_own_descriptors; i++) {
       if (descs->GetType(i) == FIELD) {
-        Object* property = RawFastPropertyAt(descs->GetFieldIndex(i));
+        Object* property =
+            RawFastPropertyAt(FieldIndex::ForDescriptor(map(), i));
         if (descs->GetDetails(i).representation().IsDouble()) {
           ASSERT(property->IsHeapNumber());
           if (value->IsNumber() && property->Number() == value->Number()) {

@@ -459,7 +459,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // TODO(all): This implementation is overkill as it supports 2**31+1
       // arguments, consider how to improve it without creating a security
       // hole.
-      __ LoadLiteral(ip0, 3 * kInstructionSize);
+      __ ldr_pcrel(ip0, (3 * kInstructionSize) >> kLoadLiteralScaleLog2);
       __ add(current_sp, current_sp, ip0);
       __ ret();
       __ dc64(kXRegSize * (info_->scope()->num_parameters() + 1));

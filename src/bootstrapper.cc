@@ -1145,11 +1145,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     LookupResult lookup(isolate);
     result->LookupOwn(factory->callee_string(), &lookup);
     ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsCalleeIndex);
+    ASSERT(lookup.GetFieldIndex().property_index() ==
+           Heap::kArgumentsCalleeIndex);
 
     result->LookupOwn(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
+    ASSERT(lookup.GetFieldIndex().property_index() ==
+           Heap::kArgumentsLengthIndex);
 
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsCalleeIndex);
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
@@ -1245,7 +1247,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     LookupResult lookup(isolate);
     result->LookupOwn(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().field_index() == Heap::kArgumentsLengthIndex);
+    ASSERT(lookup.GetFieldIndex().property_index() ==
+           Heap::kArgumentsLengthIndex);
 
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
 
@@ -2417,7 +2420,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         case FIELD: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
-          int index = descs->GetFieldIndex(i);
+          FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
           ASSERT(!descs->GetDetails(i).representation().IsDouble());
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());

@@ -888,7 +888,7 @@ Handle<Code> LoadStubCompiler::CompileLoadField(
     Handle<HeapType> type,
     Handle<JSObject> holder,
     Handle<Name> name,
-    PropertyIndex field,
+    FieldIndex field,
     Representation representation) {
   Register reg = HandlerFrontend(type, receiver(), holder, name);
   GenerateLoadField(reg, holder, field, representation);
@@ -966,7 +966,7 @@ void LoadStubCompiler::GenerateLoadPostInterceptor(
     LookupResult* lookup) {
   Handle<JSObject> holder(lookup->holder());
   if (lookup->IsField()) {
-    PropertyIndex field = lookup->GetFieldIndex();
+    FieldIndex field = lookup->GetFieldIndex();
     if (interceptor_holder.is_identical_to(holder)) {
       GenerateLoadField(
           interceptor_reg, holder, field, lookup->representation());

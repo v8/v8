@@ -646,7 +646,7 @@ class Assembler : public AssemblerBase {
   void jal_or_jalr(int32_t target, Register rs);
 
 
-  //-------Data-processing-instructions---------
+  // -------Data-processing-instructions---------
 
   // Arithmetic.
   void addu(Register rd, Register rs, Register rt);
@@ -684,7 +684,7 @@ class Assembler : public AssemblerBase {
   void rotrv(Register rd, Register rt, Register rs);
 
 
-  //------------Memory-instructions-------------
+  // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
   void lbu(Register rd, const MemOperand& rs);
@@ -700,12 +700,12 @@ class Assembler : public AssemblerBase {
   void swr(Register rd, const MemOperand& rs);
 
 
-  //----------------Prefetch--------------------
+  // ----------------Prefetch--------------------
 
   void pref(int32_t hint, const MemOperand& rs);
 
 
-  //-------------Misc-instructions--------------
+  // -------------Misc-instructions--------------
 
   // Break / Trap instructions.
   void break_(uint32_t code, bool break_as_stop = false);
@@ -738,7 +738,7 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
 
-  //--------Coprocessor-instructions----------------
+  // --------Coprocessor-instructions----------------
 
   // Load, store, and move.
   void lwc1(FPURegister fd, const MemOperand& src);

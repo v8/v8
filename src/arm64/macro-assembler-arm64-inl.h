@@ -126,8 +126,8 @@ void MacroAssembler::Ccmp(const Register& rn,
                           StatusFlags nzcv,
                           Condition cond) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    ConditionalCompareMacro(rn, -operand.immediate(), nzcv, cond, CCMN);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    ConditionalCompareMacro(rn, -operand.ImmediateValue(), nzcv, cond, CCMN);
   } else {
     ConditionalCompareMacro(rn, operand, nzcv, cond, CCMP);
   }
@@ -139,8 +139,8 @@ void MacroAssembler::Ccmn(const Register& rn,
                           StatusFlags nzcv,
                           Condition cond) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    ConditionalCompareMacro(rn, -operand.immediate(), nzcv, cond, CCMP);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    ConditionalCompareMacro(rn, -operand.ImmediateValue(), nzcv, cond, CCMP);
   } else {
     ConditionalCompareMacro(rn, operand, nzcv, cond, CCMN);
   }
@@ -151,8 +151,8 @@ void MacroAssembler::Add(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, SUB);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
   }
@@ -162,8 +162,8 @@ void MacroAssembler::Adds(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), SetFlags, SUB);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, ADD);
   }
@@ -174,8 +174,8 @@ void MacroAssembler::Sub(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), LeaveFlags, ADD);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
   }
@@ -186,8 +186,8 @@ void MacroAssembler::Subs(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.immediate() < 0)) {
-    AddSubMacro(rd, rn, -operand.immediate(), SetFlags, ADD);
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+    AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, SUB);
   }
@@ -211,7 +211,7 @@ void MacroAssembler::Neg(const Register& rd,
   ASSERT(allow_macro_instructions_);
   ASSERT(!rd.IsZero());
   if (operand.IsImmediate()) {
-    Mov(rd, -operand.immediate());
+    Mov(rd, -operand.ImmediateValue());
   } else {
     Sub(rd, AppropriateZeroRegFor(rd), operand);
   }
@@ -717,11 +717,7 @@ void MacroAssembler::Fmov(FPRegister fd, double imm) {
   } else if ((imm == 0.0) && (copysign(1.0, imm) == 1.0)) {
     fmov(fd, xzr);
   } else {
-    UseScratchRegisterScope temps(this);
-    Register tmp = temps.AcquireX();
-    // TODO(all): Use Assembler::ldr(const FPRegister& ft, double imm).
-    Mov(tmp, double_to_rawbits(imm));
-    Fmov(fd, tmp);
+    Ldr(fd, imm);
   }
 }
 
@@ -880,16 +876,16 @@ void MacroAssembler::Ldpsw(const Register& rt,
 }
 
 
-void MacroAssembler::Ldr(const FPRegister& ft, double imm) {
+void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
   ASSERT(allow_macro_instructions_);
-  ldr(ft, imm);
+  ldr(rt, imm);
 }
 
 
-void MacroAssembler::Ldr(const Register& rt, uint64_t imm) {
+void MacroAssembler::Ldr(const CPURegister& rt, double imm) {
   ASSERT(allow_macro_instructions_);
-  ASSERT(!rt.IsZero());
-  ldr(rt, imm);
+  ASSERT(rt.Is64Bits());
+  ldr(rt, Immediate(double_to_rawbits(imm)));
 }
 
 
@@ -1264,7 +1260,7 @@ void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
     InstructionAccurateScope scope(this);
     ASSERT(space.IsImmediate());
     // Align to 16 bytes.
-    uint64_t imm = RoundUp(space.immediate(), 0x10);
+    uint64_t imm = RoundUp(space.ImmediateValue(), 0x10);
     ASSERT(is_uint24(imm));
 
     Register source = StackPointer();
@@ -1633,7 +1629,7 @@ void MacroAssembler::CompareAndBranch(const Register& lhs,
                                       const Operand& rhs,
                                       Condition cond,
                                       Label* label) {
-  if (rhs.IsImmediate() && (rhs.immediate() == 0) &&
+  if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
       ((cond == eq) || (cond == ne))) {
     if (cond == eq) {
       Cbz(lhs, label);

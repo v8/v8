@@ -46,7 +46,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
 
   // The first instruction of a patched return sequence must be a load literal
   // loading the address of the debug break return code.
-  patcher.LoadLiteral(ip0, 3 * kInstructionSize);
+  patcher.ldr_pcrel(ip0, (3 * kInstructionSize) >> kLoadLiteralScaleLog2);
   // TODO(all): check the following is correct.
   // The debug break return code will push a frame and call statically compiled
   // code. By using blr, even though control will not return after the branch,
@@ -105,7 +105,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 
   // The first instruction of a patched debug break slot must be a load literal
   // loading the address of the debug break slot code.
-  patcher.LoadLiteral(ip0, 2 * kInstructionSize);
+  patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
   // TODO(all): check the following is correct.
   // The debug break slot code will push a frame and call statically compiled
   // code. By using blr, event hough control will not return after the branch,

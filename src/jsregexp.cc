@@ -1208,8 +1208,9 @@ void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
                                      const OutSet& registers_to_pop,
                                      const OutSet& registers_to_clear) {
   for (int reg = max_register; reg >= 0; reg--) {
-    if (registers_to_pop.Get(reg)) assembler->PopRegister(reg);
-    else if (registers_to_clear.Get(reg)) {
+    if (registers_to_pop.Get(reg)) {
+      assembler->PopRegister(reg);
+    } else if (registers_to_clear.Get(reg)) {
       int clear_to = reg;
       while (reg > 0 && registers_to_clear.Get(reg - 1)) {
         reg--;

@@ -1540,7 +1540,10 @@ HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
     HConstant* c = HConstant::cast(value);
     if (c->HasNumberValue()) {
       double double_res = c->DoubleValue();
-      if (representation.CanContainDouble(double_res)) {
+      if (representation.IsDouble()) {
+        return HConstant::New(zone, context, double_res);
+
+      } else if (representation.CanContainDouble(double_res)) {
         return HConstant::New(zone, context,
                               static_cast<int32_t>(double_res),
                               representation);

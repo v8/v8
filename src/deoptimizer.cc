@@ -1841,7 +1841,8 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
         object->set_elements(FixedArrayBase::cast(*elements));
         for (int i = 0; i < length - 3; ++i) {
           Handle<Object> value = MaterializeNextValue();
-          object->FastPropertyAtPut(i, *value);
+          FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
+          object->FastPropertyAtPut(index, *value);
         }
         break;
       }
@@ -3406,7 +3407,8 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
           object->set_elements(FixedArrayBase::cast(*elements));
           for (int i = 0; i < length - 3; ++i) {
             Handle<Object> value = GetNext(isolate, lvl + 1);
-            object->FastPropertyAtPut(i, *value);
+            FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
+            object->FastPropertyAtPut(index, *value);
           }
           return object;
         }

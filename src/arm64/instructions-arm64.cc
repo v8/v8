@@ -280,7 +280,7 @@ void Instruction::SetBranchImmTarget(Instruction* target) {
 
 void Instruction::SetImmLLiteral(Instruction* source) {
   ASSERT(IsAligned(DistanceTo(source), kInstructionSize));
-  ptrdiff_t offset = DistanceTo(source) >> kLiteralEntrySizeLog2;
+  ptrdiff_t offset = DistanceTo(source) >> kLoadLiteralScaleLog2;
   Instr imm = Assembler::ImmLLiteral(offset);
   Instr mask = ImmLLiteral_mask;
 

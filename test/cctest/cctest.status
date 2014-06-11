@@ -89,6 +89,10 @@
 
   'test-api/Bug618': [PASS],
 
+  # BUG(v8:3385).
+  'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],
+
   # BUG(v8:2999).
   'test-cpu-profiler/CollectCpuProfile': [PASS, FAIL],
 

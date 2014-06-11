@@ -489,9 +489,17 @@ class MacroAssembler: public Assembler {
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
+  // Jump if the value can be represented by a smi.
+  void JumpIfValidSmiValue(Register src, Label* on_valid,
+                           Label::Distance near_jump = Label::kFar);
+
   // Jump if the value cannot be represented by a smi.
   void JumpIfNotValidSmiValue(Register src, Label* on_invalid,
                               Label::Distance near_jump = Label::kFar);
+
+  // Jump if the unsigned integer value can be represented by a smi.
+  void JumpIfUIntValidSmiValue(Register src, Label* on_valid,
+                               Label::Distance near_jump = Label::kFar);
 
   // Jump if the unsigned integer value cannot be represented by a smi.
   void JumpIfUIntNotValidSmiValue(Register src, Label* on_invalid,
@@ -650,7 +658,9 @@ class MacroAssembler: public Assembler {
 
   void SmiShiftLeftConstant(Register dst,
                             Register src,
-                            int shift_value);
+                            int shift_value,
+                            Label* on_not_smi_result = NULL,
+                            Label::Distance near_jump = Label::kFar);
   void SmiShiftLogicalRightConstant(Register dst,
                                     Register src,
                                     int shift_value,
@@ -664,7 +674,9 @@ class MacroAssembler: public Assembler {
   // Uses and clobbers rcx, so dst may not be rcx.
   void SmiShiftLeft(Register dst,
                     Register src1,
-                    Register src2);
+                    Register src2,
+                    Label* on_not_smi_result = NULL,
+                    Label::Distance near_jump = Label::kFar);
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
@@ -1041,8 +1053,22 @@ class MacroAssembler: public Assembler {
 
   template<typename Field>
   void DecodeFieldToSmi(Register reg) {
-    andp(reg, Immediate(Field::kMask));
-    shlp(reg, Immediate(kSmiShift - Field::kShift));
+    if (SmiValuesAre32Bits()) {
+      andp(reg, Immediate(Field::kMask));
+      shlp(reg, Immediate(kSmiShift - Field::kShift));
+    } else {
+      static const int shift = Field::kShift;
+      static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+      ASSERT(SmiValuesAre31Bits());
+      ASSERT(kSmiShift == kSmiTagSize);
+      ASSERT((mask & 0x80000000u) == 0);
+      if (shift < kSmiShift) {
+        shlp(reg, Immediate(kSmiShift - shift));
+      } else if (shift > kSmiShift) {
+        sarp(reg, Immediate(shift - kSmiShift));
+      }
+      andp(reg, Immediate(mask));
+    }
   }
 
   // Abort execution if argument is not a number, enabled via --debug-code.

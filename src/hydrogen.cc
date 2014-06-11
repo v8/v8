@@ -2576,6 +2576,17 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
     }
   }
 
+  bool pre_fill_with_holes =
+    IsFastDoubleElementsKind(from_elements_kind) &&
+    IsFastObjectElementsKind(to_elements_kind);
+  if (pre_fill_with_holes) {
+    // If the copy might trigger a GC, make sure that the FixedArray is
+    // pre-initialized with holes to make sure that it's always in a
+    // consistent state.
+    BuildFillElementsWithHole(to_elements, to_elements_kind,
+                              graph()->GetConstant0(), NULL);
+  }
+
   if (constant_capacity != -1) {
     // Unroll the loop for small elements kinds.
     for (int i = 0; i < constant_capacity; i++) {
@@ -2586,17 +2597,8 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
       Add<HStoreKeyed>(to_elements, key_constant, value, to_elements_kind);
     }
   } else {
-    bool pre_fill_with_holes =
-      IsFastDoubleElementsKind(from_elements_kind) &&
-      IsFastObjectElementsKind(to_elements_kind);
-
-    if (pre_fill_with_holes) {
-      // If the copy might trigger a GC, make sure that the FixedArray is
-      // pre-initialized with holes to make sure that it's always in a
-      // consistent state.
-      BuildFillElementsWithHole(to_elements, to_elements_kind,
-                                graph()->GetConstant0(), NULL);
-    } else if (capacity == NULL || !length->Equals(capacity)) {
+    if (!pre_fill_with_holes &&
+        (capacity == NULL || !length->Equals(capacity))) {
       BuildFillElementsWithHole(to_elements, to_elements_kind,
                                 length, NULL);
     }
@@ -6558,11 +6560,10 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     // changes could allow callbacks on elements in the chain that
     // aren't compatible with monomorphic keyed stores.
     Handle<JSObject> prototype(JSObject::cast(map->prototype()));
-    Object* holder = map->prototype();
-    while (holder->GetPrototype(isolate())->IsJSObject()) {
-      holder = holder->GetPrototype(isolate());
+    JSObject* holder = JSObject::cast(map->prototype());
+    while (!holder->GetPrototype()->IsNull()) {
+      holder = JSObject::cast(holder->GetPrototype());
     }
-    ASSERT(holder->GetPrototype(isolate())->IsNull());
 
     BuildCheckPrototypeMaps(prototype,
                             Handle<JSObject>(JSObject::cast(holder)));
@@ -8523,40 +8524,47 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
     }
     if_isstring.Else();
     {
-      IfBuilder if_isheapnumber(this);
-      if_isheapnumber.IfNot<HIsSmiAndBranch>(search_element);
-      HCompareMap* isheapnumber = if_isheapnumber.AndIf<HCompareMap>(
+      IfBuilder if_isnumber(this);
+      if_isnumber.If<HIsSmiAndBranch>(search_element);
+      if_isnumber.OrIf<HCompareMap>(
           search_element, isolate()->factory()->heap_number_map());
-      if_isheapnumber.Then();
+      if_isnumber.Then();
       {
-        HValue* search_number = Add<HLoadNamedField>(
-            search_element, isheapnumber,
-            HObjectAccess::ForHeapNumberValue());
+        HValue* search_number =
+            AddUncasted<HForceRepresentation>(search_element,
+                                              Representation::Double());
         LoopBuilder loop(this, context(), direction);
         {
           HValue* index = loop.BeginBody(initial, terminating, token);
           HValue* element = AddUncasted<HLoadKeyed>(
               elements, index, static_cast<HValue*>(NULL),
               kind, ALLOW_RETURN_HOLE);
-          IfBuilder if_issame(this);
-          HCompareMap* issame = if_issame.If<HCompareMap>(
+
+          IfBuilder if_element_isnumber(this);
+          if_element_isnumber.If<HIsSmiAndBranch>(element);
+          if_element_isnumber.OrIf<HCompareMap>(
               element, isolate()->factory()->heap_number_map());
-          if_issame.And();
-          HValue* number = Add<HLoadNamedField>(
-              element, issame, HObjectAccess::ForHeapNumberValue());
-          if_issame.If<HCompareNumericAndBranch>(
-              number, search_number, Token::EQ_STRICT);
-          if_issame.Then();
+          if_element_isnumber.Then();
           {
-            Drop(1);
-            Push(index);
-            loop.Break();
+            HValue* number =
+                AddUncasted<HForceRepresentation>(element,
+                                                  Representation::Double());
+            IfBuilder if_issame(this);
+            if_issame.If<HCompareNumericAndBranch>(
+                number, search_number, Token::EQ_STRICT);
+            if_issame.Then();
+            {
+              Drop(1);
+              Push(index);
+              loop.Break();
+            }
+            if_issame.End();
           }
-          if_issame.End();
+          if_element_isnumber.End();
         }
         loop.EndBody();
       }
-      if_isheapnumber.Else();
+      if_isnumber.Else();
       {
         LoopBuilder loop(this, context(), direction);
         {
@@ -8577,7 +8585,7 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
         }
         loop.EndBody();
       }
-      if_isheapnumber.End();
+      if_isnumber.End();
     }
     if_isstring.End();
   }

@@ -1129,6 +1129,7 @@ const char* Logger::TimerEventScope::v8_compile_full_code =
     "V8.CompileFullCode";
 const char* Logger::TimerEventScope::v8_execute = "V8.Execute";
 const char* Logger::TimerEventScope::v8_external = "V8.External";
+const char* Logger::TimerEventScope::v8_ic_miss = "V8.IcMiss";
 
 
 void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {

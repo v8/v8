@@ -48,7 +48,7 @@ bool Debug::IsDebugBreakAtReturn(v8::internal::RelocInfo* rinfo) {
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   // Check whether the debug break slot instructions have been patched.
-  return !Assembler::IsNop(rinfo()->pc());
+  return rinfo()->IsPatchedDebugBreakSlotSequence();
 }
 
 

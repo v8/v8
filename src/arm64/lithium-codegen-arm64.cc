@@ -3103,7 +3103,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     __ bind(&map_check);
     // Will be patched with the cached map.
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
-    __ LoadRelocated(scratch, Operand(Handle<Object>(cell)));
+    __ ldr(scratch, Immediate(Handle<Object>(cell)));
     __ ldr(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
     __ cmp(map, scratch);
     __ b(&cache_miss, ne);
@@ -3111,7 +3111,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     // above, so check the size of the code generated.
     ASSERT(masm()->InstructionsGeneratedSince(&map_check) == 4);
     // Will be patched with the cached result.
-    __ LoadRelocated(result, Operand(factory()->the_hole_value()));
+    __ ldr(result, Immediate(factory()->the_hole_value()));
   }
   __ B(&done);
 

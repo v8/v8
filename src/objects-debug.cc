@@ -261,8 +261,8 @@ void JSObject::JSObjectVerify() {
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       if (descriptors->GetDetails(i).type() == FIELD) {
         Representation r = descriptors->GetDetails(i).representation();
-        int field = descriptors->GetFieldIndex(i);
-        Object* value = RawFastPropertyAt(field);
+        FieldIndex index = FieldIndex::ForDescriptor(map(), i);
+        Object* value = RawFastPropertyAt(index);
         if (r.IsDouble()) ASSERT(value->IsHeapNumber());
         if (value->IsUninitialized()) continue;
         if (r.IsSmi()) ASSERT(value->IsSmi());

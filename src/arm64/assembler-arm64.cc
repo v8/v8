@@ -268,29 +268,31 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
 }
 
 
-void Operand::initialize_handle(Handle<Object> handle) {
+void Immediate::InitializeHandle(Handle<Object> handle) {
   AllowDeferredHandleDereference using_raw_address;
 
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
     ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
-    immediate_ = reinterpret_cast<intptr_t>(handle.location());
+    value_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     STATIC_ASSERT(sizeof(intptr_t) == sizeof(int64_t));
-    immediate_ = reinterpret_cast<intptr_t>(obj);
+    value_ = reinterpret_cast<intptr_t>(obj);
     rmode_ = RelocInfo::NONE64;
   }
 }
 
 
 bool Operand::NeedsRelocation(const Assembler* assembler) const {
-  if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
+  RelocInfo::Mode rmode = immediate_.rmode();
+
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
     return assembler->serializer_enabled();
   }
 
-  return !RelocInfo::IsNone(rmode_);
+  return !RelocInfo::IsNone(rmode);
 }
 
 
@@ -1473,27 +1475,23 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 }
 
 
-void Assembler::ldr(const Register& rt, uint64_t imm) {
-  // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // arbitrary values in them. Manually move it for now. Fix
-  // MacroAssembler::Fmov when this is implemented.
-  UNIMPLEMENTED();
+void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
+  // The pattern 'ldr xzr, #offset' is used to indicate the beginning of a
+  // constant pool. It should not be emitted.
+  ASSERT(!rt.IsZero());
+  Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
 
-void Assembler::ldr(const FPRegister& ft, double imm) {
-  // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // arbitrary values in them. Manually move it for now. Fix
-  // MacroAssembler::Fmov when this is implemented.
-  UNIMPLEMENTED();
-}
+void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
+  // Currently we only support 64-bit literals.
+  ASSERT(rt.Is64Bits());
 
-
-void Assembler::ldr(const FPRegister& ft, float imm) {
-  // TODO(all): Constant pool may be garbage collected. Hence we cannot store
-  // arbitrary values in them. Manually move it for now. Fix
-  // MacroAssembler::Fmov when this is implemented.
-  UNIMPLEMENTED();
+  RecordRelocInfo(imm.rmode(), imm.value());
+  BlockConstPoolFor(1);
+  // The load will be patched when the constpool is emitted, patching code
+  // expect a load literal with offset 0.
+  ldr_pcrel(rt, 0);
 }
 
 
@@ -1919,7 +1917,7 @@ void Assembler::AddSub(const Register& rd,
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
   ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
-    int64_t immediate = operand.immediate();
+    int64_t immediate = operand.ImmediateValue();
     ASSERT(IsImmAddSub(immediate));
     Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
     Emit(SF(rd) | AddSubImmediateFixed | op | Flags(S) |
@@ -2015,7 +2013,7 @@ void Assembler::Logical(const Register& rd,
   ASSERT(rd.SizeInBits() == rn.SizeInBits());
   ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
-    int64_t immediate = operand.immediate();
+    int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
 
     ASSERT(immediate != 0);
@@ -2067,7 +2065,7 @@ void Assembler::ConditionalCompare(const Register& rn,
   Instr ccmpop;
   ASSERT(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
-    int64_t immediate = operand.immediate();
+    int64_t immediate = operand.ImmediateValue();
     ASSERT(IsImmConditionalCompare(immediate));
     ccmpop = ConditionalCompareImmediateFixed | op | ImmCondCmp(immediate);
   } else {
@@ -2266,28 +2264,6 @@ bool Assembler::IsImmLSUnscaled(ptrdiff_t offset) {
 bool Assembler::IsImmLSScaled(ptrdiff_t offset, LSDataSize size) {
   bool offset_is_size_multiple = (((offset >> size) << size) == offset);
   return offset_is_size_multiple && is_uint12(offset >> size);
-}
-
-
-void Assembler::LoadLiteral(const CPURegister& rt, int offset_from_pc) {
-  ASSERT((offset_from_pc & ((1 << kLiteralEntrySizeLog2) - 1)) == 0);
-  // The pattern 'ldr xzr, #offset' is used to indicate the beginning of a
-  // constant pool. It should not be emitted.
-  ASSERT(!rt.Is(xzr));
-  Emit(LDR_x_lit |
-       ImmLLiteral(offset_from_pc >> kLiteralEntrySizeLog2) |
-       Rt(rt));
-}
-
-
-void Assembler::LoadRelocatedValue(const CPURegister& rt,
-                                   const Operand& operand,
-                                   LoadLiteralOp op) {
-  int64_t imm = operand.immediate();
-  ASSERT(is_int32(imm) || is_uint32(imm) || (rt.Is64Bits()));
-  RecordRelocInfo(operand.rmode(), imm);
-  BlockConstPoolFor(1);
-  Emit(op | ImmLLiteral(0) | Rt(rt));
 }
 
 

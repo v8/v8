@@ -1,3 +1,14 @@
+2014-06-11: Version 3.27.24
+
+        Fix invalid attributes when generalizing because of incompatible map
+        change (Chromium issue 382143).
+
+        Fix missing smi check in inlined indexOf/lastIndexOf (Chromium issue
+        382513).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-06: Version 3.27.23
 
         Performance and stability improvements on all platforms.
