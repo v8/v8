@@ -75,6 +75,24 @@ inline FieldIndex FieldIndex::ForDescriptor(Map* map, int descriptor_index) {
 }
 
 
+inline FieldIndex FieldIndex::ForKeyedLookupCacheIndex(Map* map, int index) {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return ForLoadByFieldIndex(map, index);
+  } else {
+    return ForPropertyIndex(map, index);
+  }
+}
+
+
+inline int FieldIndex::GetKeyedLookupCacheIndex() const {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return GetLoadByFieldIndex();
+  } else {
+    return property_index();
+  }
+}
+
+
 } }  // namespace v8::internal
 
 #endif
