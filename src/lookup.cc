@@ -14,12 +14,12 @@ namespace internal {
 void LookupIterator::Next() {
   has_property_ = false;
   do {
-    LookupInHolder();
+    state_ = LookupInHolder();
   } while (!IsFound() && NextHolder());
 }
 
 
-Handle<JSReceiver> LookupIterator::GetOrigin() const {
+Handle<JSReceiver> LookupIterator::GetRoot() const {
   Handle<Object> receiver = GetReceiver();
   if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
   Context* native_context = isolate_->context()->native_context();
@@ -67,39 +67,38 @@ bool LookupIterator::NextHolder() {
 }
 
 
-void LookupIterator::LookupInHolder() {
-  State old_state = state_;
-  state_ = NOT_FOUND;
-  switch (old_state) {
+LookupIterator::State LookupIterator::LookupInHolder() {
+  switch (state_) {
     case NOT_FOUND:
       if (holder_map_->IsJSProxyMap()) {
-        state_ = JSPROXY;
-        return;
+        return JSPROXY;
       }
       if (check_access_check() && holder_map_->is_access_check_needed()) {
-        state_ = ACCESS_CHECK;
-        return;
+        return ACCESS_CHECK;
       }
+      // Fall through.
     case ACCESS_CHECK:
       if (check_interceptor() && holder_map_->has_named_interceptor()) {
-        state_ = INTERCEPTOR;
-        return;
+        return INTERCEPTOR;
       }
+      // Fall through.
     case INTERCEPTOR:
       if (holder_map_->is_dictionary_map()) {
         property_encoding_ = DICTIONARY;
       } else {
         DescriptorArray* descriptors = holder_map_->instance_descriptors();
         number_ = descriptors->SearchWithCache(*name_, *holder_map_);
-        if (number_ == DescriptorArray::kNotFound) return;
+        if (number_ == DescriptorArray::kNotFound) return NOT_FOUND;
         property_encoding_ = DESCRIPTOR;
       }
-      state_ = PROPERTY;
+      return PROPERTY;
     case PROPERTY:
-      return;
+      return NOT_FOUND;
     case JSPROXY:
       UNREACHABLE();
   }
+  UNREACHABLE();
+  return state_;
 }
 
 
@@ -140,10 +139,10 @@ bool LookupIterator::HasProperty() {
     case v8::internal::FIELD:
     case v8::internal::NORMAL:
     case v8::internal::CONSTANT:
-      property_type_ = DATA;
+      property_kind_ = DATA;
       break;
     case v8::internal::CALLBACKS:
-      property_type_ = ACCESSORS;
+      property_kind_ = ACCESSOR;
       break;
     case v8::internal::HANDLER:
     case v8::internal::NONEXISTENT:
@@ -180,14 +179,14 @@ Handle<Object> LookupIterator::FetchValue() const {
 
 Handle<Object> LookupIterator::GetAccessors() const {
   ASSERT(has_property_);
-  ASSERT_EQ(ACCESSORS, property_type_);
+  ASSERT_EQ(ACCESSOR, property_kind_);
   return FetchValue();
 }
 
 
 Handle<Object> LookupIterator::GetDataValue() const {
   ASSERT(has_property_);
-  ASSERT_EQ(DATA, property_type_);
+  ASSERT_EQ(DATA, property_kind_);
   Handle<Object> value = FetchValue();
   if (value->IsTheHole()) {
     ASSERT_EQ(DICTIONARY, property_encoding_);

@@ -14,7 +14,7 @@ namespace internal {
 
 class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
-  enum Type {
+  enum Configuration {
     CHECK_DERIVED      = 1 << 0,
     CHECK_INTERCEPTOR  = 1 << 1,
     CHECK_ACCESS_CHECK = 1 << 2,
@@ -31,9 +31,9 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     JSPROXY
   };
 
-  enum PropertyType {
+  enum PropertyKind {
     DATA,
-    ACCESSORS
+    ACCESSOR
   };
 
   enum PropertyEncoding {
@@ -43,17 +43,17 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
 
   LookupIterator(Handle<Object> receiver,
                  Handle<Name> name,
-                 Type type = CHECK_ALL)
-      : type_(type),
+                 Configuration configuration = CHECK_ALL)
+      : configuration_(configuration),
         state_(NOT_FOUND),
-        property_type_(DATA),
+        property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
         property_details_(NONE, NONEXISTENT, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
         maybe_receiver_(receiver),
         number_(DescriptorArray::kNotFound) {
-    Handle<JSReceiver> origin = GetOrigin();
+    Handle<JSReceiver> origin = GetRoot();
     holder_map_ = handle(origin->map());
     maybe_holder_ = origin;
     Next();
@@ -62,10 +62,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   LookupIterator(Handle<Object> receiver,
                  Handle<Name> name,
                  Handle<JSReceiver> holder,
-                 Type type = CHECK_ALL)
-      : type_(type),
+                 Configuration configuration = CHECK_ALL)
+      : configuration_(configuration),
         state_(NOT_FOUND),
-        property_type_(DATA),
+        property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
         property_details_(NONE, NONEXISTENT, Representation::None()),
         isolate_(name->GetIsolate()),
@@ -93,7 +93,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     ASSERT(IsFound() && state_ != JSPROXY);
     return Handle<JSObject>::cast(maybe_holder_.ToHandleChecked());
   }
-  Handle<JSReceiver> GetOrigin() const;
+  Handle<JSReceiver> GetRoot() const;
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;
@@ -103,9 +103,9 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   // below can be used. It ensures that we are able to provide a definite
   // answer, and loads extra information about the property.
   bool HasProperty();
-  PropertyType property_type() const {
+  PropertyKind property_kind() const {
     ASSERT(has_property_);
-    return property_type_;
+    return property_kind_;
   }
   PropertyDetails property_details() const {
     ASSERT(has_property_);
@@ -124,7 +124,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Handle<Map> GetReceiverMap() const;
 
   MUST_USE_RESULT bool NextHolder();
-  void LookupInHolder();
+  State LookupInHolder();
   Handle<Object> FetchValue() const;
 
   bool IsBootstrapping() const;
@@ -137,19 +137,19 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return !maybe_receiver_.is_null();
   }
   bool check_interceptor() const {
-    return !IsBootstrapping() && (type_ & CHECK_INTERCEPTOR) != 0;
+    return !IsBootstrapping() && (configuration_ & CHECK_INTERCEPTOR) != 0;
   }
   bool check_derived() const {
-    return (type_ & CHECK_DERIVED) != 0;
+    return (configuration_ & CHECK_DERIVED) != 0;
   }
   bool check_access_check() const {
-    return (type_ & CHECK_ACCESS_CHECK) != 0;
+    return (configuration_ & CHECK_ACCESS_CHECK) != 0;
   }
 
-  Type type_;
+  Configuration configuration_;
   State state_;
   bool has_property_;
-  PropertyType property_type_;
+  PropertyKind property_kind_;
   PropertyEncoding property_encoding_;
   PropertyDetails property_details_;
   Isolate* isolate_;

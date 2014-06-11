@@ -149,8 +149,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
       }
       case LookupIterator::PROPERTY:
         if (it->HasProperty()) {
-          switch (it->property_type()) {
-            case LookupIterator::ACCESSORS:
+          switch (it->property_kind()) {
+            case LookupIterator::ACCESSOR:
               return GetPropertyWithAccessor(
                   it->GetReceiver(), it->name(),
                   it->GetHolder(), it->GetAccessors());
@@ -570,7 +570,7 @@ static bool FindAllCanReadHolder(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::PROPERTY &&
         it->HasProperty() &&
-        it->property_type() == LookupIterator::ACCESSORS) {
+        it->property_kind() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
         if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
@@ -601,10 +601,10 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     LookupResult* result,
     Handle<Name> name,
     bool check_prototype) {
-  LookupIterator::Type type = check_prototype
+  LookupIterator::Configuration configuration = check_prototype
       ? LookupIterator::CHECK_DERIVED
       : LookupIterator::CHECK_OWN_REAL;
-  LookupIterator it(object, name, object, type);
+  LookupIterator it(object, name, object, configuration);
   if (FindAllCanReadHolder(&it)) return it.property_details().attributes();
   it.isolate()->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
   // TODO(yangguo): Issue 3269, check for scheduled exception missing?
