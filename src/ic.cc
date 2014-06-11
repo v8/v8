@@ -625,17 +625,14 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
   // Update inline cache and stub cache.
   if (use_ic) UpdateCaches(&lookup, object, name);
 
-  PropertyAttributes attr;
   // Get the property.
+  LookupIterator it(object, name);
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(),
-      result,
-      Object::GetProperty(object, object, &lookup, name, &attr),
-      Object);
+      isolate(), result, Object::GetProperty(&it), Object);
   // If the property is not present, check if we need to throw an exception.
   if ((lookup.IsInterceptor() || lookup.IsHandler()) &&
-      attr == ABSENT && IsUndeclaredGlobal(object)) {
+      !it.IsFound() && IsUndeclaredGlobal(object)) {
     return ReferenceError("not_defined", name);
   }
 

@@ -862,6 +862,7 @@ class ElementsAccessor;
 class FixedArrayBase;
 class GlobalObject;
 class ObjectVisitor;
+class LookupIterator;
 class StringStream;
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
@@ -1456,11 +1457,7 @@ class Object {
 
   void Lookup(Handle<Name> name, LookupResult* result);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithReceiver(
-      Handle<Object> object,
-      Handle<Object> receiver,
-      Handle<Name> name,
-      PropertyAttributes* attributes);
+  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
@@ -1471,14 +1468,8 @@ class Object {
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
       Handle<Object> object,
       Handle<Name> key);
-  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
-      Handle<Object> object,
-      Handle<Object> receiver,
-      LookupResult* result,
-      Handle<Name> key,
-      PropertyAttributes* attributes);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithCallback(
+  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
       Handle<Object> receiver,
       Handle<Name> name,
       Handle<JSObject> holder,
@@ -2264,13 +2255,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       Handle<JSObject> object,
       Handle<Object> receiver,
-      Handle<Name> name,
-      PropertyAttributes* attributes);
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyPostInterceptor(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      Handle<Name> name,
-      PropertyAttributes* attributes);
+      Handle<Name> name);
 
   // Returns true if this is an instance of an api function and has
   // been modified since it was created.  May give false positives.
@@ -2681,11 +2666,7 @@ class JSObject: public JSReceiver {
 
   // Used from Object::GetProperty().
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
-      Handle<JSObject> object,
-      Handle<Object> receiver,
-      LookupResult* result,
-      Handle<Name> name,
-      PropertyAttributes* attributes);
+      LookupIterator* it);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetElementWithCallback(
       Handle<JSObject> object,
@@ -6648,6 +6629,10 @@ class Map: public HeapObject {
 
   bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
+  }
+  bool IsJSProxyMap() {
+    InstanceType type = instance_type();
+    return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;
   }
   bool IsJSGlobalProxyMap() {
     return instance_type() == JS_GLOBAL_PROXY_TYPE;

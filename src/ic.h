@@ -30,8 +30,7 @@ const int kMaxKeyedPolymorphism = 4;
   /* Utilities for IC stubs. */                       \
   ICU(StoreCallbackProperty)                          \
   ICU(LoadPropertyWithInterceptorOnly)                \
-  ICU(LoadPropertyWithInterceptorForLoad)             \
-  ICU(LoadPropertyWithInterceptorForCall)             \
+  ICU(LoadPropertyWithInterceptor)                    \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
   ICU(CompareIC_Miss)                                 \

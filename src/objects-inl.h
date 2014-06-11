@@ -29,6 +29,7 @@
 #include "src/incremental-marking.h"
 #include "src/transitions-inl.h"
 #include "src/objects-visiting.h"
+#include "src/lookup.h"
 
 namespace v8 {
 namespace internal {
@@ -664,8 +665,7 @@ bool Object::IsJSObject() {
 
 bool Object::IsJSProxy() {
   if (!Object::IsHeapObject()) return false;
-  InstanceType type = HeapObject::cast(this)->map()->instance_type();
-  return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;
+  return  HeapObject::cast(this)->map()->IsJSProxyMap();
 }
 
 
@@ -1053,8 +1053,8 @@ bool Object::HasSpecificClassOf(String* name) {
 
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
                                         Handle<Name> name) {
-  PropertyAttributes attributes;
-  return GetPropertyWithReceiver(object, object, name, &attributes);
+  LookupIterator it(object, name);
+  return GetProperty(&it);
 }
 
 

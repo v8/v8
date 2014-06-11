@@ -270,8 +270,7 @@ DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
 
 // Support functions for IC stubs for interceptors.
 DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad);
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptor);
 DECLARE_RUNTIME_FUNCTION(StoreInterceptorProperty);
 DECLARE_RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor);
 

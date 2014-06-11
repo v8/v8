@@ -10787,7 +10787,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       Handle<Object> structure(result->GetCallbackObject(), isolate);
       ASSERT(!structure->IsForeign());
       if (structure->IsAccessorInfo()) {
-        MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
+        MaybeHandle<Object> obj = JSObject::GetPropertyWithAccessor(
             receiver, name, handle(result->holder(), isolate), structure);
         if (!obj.ToHandle(&value)) {
           value = handle(isolate->pending_exception(), isolate);
@@ -10968,11 +10968,10 @@ RUNTIME_FUNCTION(Runtime_DebugNamedInterceptorPropertyValue) {
   RUNTIME_ASSERT(obj->HasNamedInterceptor());
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
-  PropertyAttributes attributes;
   Handle<Object> result;
+  LookupIterator it(obj, name, obj);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes));
+      isolate, result, JSObject::GetProperty(&it));
   return *result;
 }
 

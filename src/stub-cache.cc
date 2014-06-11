@@ -546,83 +546,28 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
 }
 
 
-MUST_USE_RESULT static MaybeHandle<Object> LoadWithInterceptor(
-    Arguments* args,
-    PropertyAttributes* attrs) {
-  ASSERT(args->length() == StubCache::kInterceptorArgsLength);
-  Handle<Name> name_handle =
-      args->at<Name>(StubCache::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info =
-      args->at<InterceptorInfo>(StubCache::kInterceptorArgsInfoIndex);
-  Handle<JSObject> receiver_handle =
-      args->at<JSObject>(StubCache::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder_handle =
-      args->at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
-
-  Isolate* isolate = receiver_handle->GetIsolate();
-
-  // TODO(rossberg): Support symbols in the API.
-  if (name_handle->IsSymbol()) {
-    return JSObject::GetPropertyPostInterceptor(
-        holder_handle, receiver_handle, name_handle, attrs);
-  }
-  Handle<String> name = Handle<String>::cast(name_handle);
-
-  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::NamedPropertyGetterCallback getter =
-      FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
-  ASSERT(getter != NULL);
-
-  PropertyCallbackArguments callback_args(isolate,
-                                          interceptor_info->data(),
-                                          *receiver_handle,
-                                          *holder_handle);
-  {
-    HandleScope scope(isolate);
-    // Use the interceptor getter.
-    v8::Handle<v8::Value> r =
-        callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!r.IsEmpty()) {
-      *attrs = NONE;
-      Handle<Object> result = v8::Utils::OpenHandle(*r);
-      result->VerifyApiCallResultType();
-      return scope.CloseAndEscape(result);
-    }
-  }
-
-  return JSObject::GetPropertyPostInterceptor(
-      holder_handle, receiver_handle, name_handle, attrs);
-}
-
-
 /**
  * Loads a property with an interceptor performing post interceptor
  * lookup if interceptor failed.
  */
-RUNTIME_FUNCTION(LoadPropertyWithInterceptorForLoad) {
-  PropertyAttributes attr = NONE;
+RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadWithInterceptor(&args, &attr));
+  ASSERT(args.length() == StubCache::kInterceptorArgsLength);
+  Handle<Name> name =
+      args.at<Name>(StubCache::kInterceptorArgsNameIndex);
+  Handle<JSObject> receiver =
+      args.at<JSObject>(StubCache::kInterceptorArgsThisIndex);
+  Handle<JSObject> holder =
+      args.at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
 
-  // If the property is present, return it.
-  if (attr != ABSENT) return *result;
+  Handle<Object> result;
+  LookupIterator it(receiver, name, holder);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::GetProperty(&it));
+
+  if (it.IsFound()) return *result;
+
   return ThrowReferenceError(isolate, Name::cast(args[0]));
-}
-
-
-RUNTIME_FUNCTION(LoadPropertyWithInterceptorForCall) {
-  PropertyAttributes attr;
-  HandleScope scope(isolate);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadWithInterceptor(&args, &attr));
-  // This is call IC. In this case, we simply return the undefined result which
-  // will lead to an exception when trying to invoke the result as a
-  // function.
-  return *result;
 }
 
 

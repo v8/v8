@@ -472,6 +472,8 @@
         '../../src/log-utils.h',
         '../../src/log.cc',
         '../../src/log.h',
+        '../../src/lookup.cc',
+        '../../src/lookup.h',
         '../../src/macro-assembler.h',
         '../../src/mark-compact.cc',
         '../../src/mark-compact.h',

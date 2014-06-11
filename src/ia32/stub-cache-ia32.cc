@@ -1121,7 +1121,7 @@ void LoadStubCompiler::GenerateLoadInterceptor(
     __ push(scratch2());  // restore old return address
 
     ExternalReference ref =
-        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForLoad),
+        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptor),
                           isolate());
     __ TailCallExternalReference(ref, StubCache::kInterceptorArgsLength, 1);
   }
