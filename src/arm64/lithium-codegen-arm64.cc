@@ -3933,19 +3933,21 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
     DeoptimizeIf(eq, instr->environment());
   }
 
+  // Dividing by -1 is basically negation, unless we overflow.
+  if (divisor == -1) {
+    if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
+      DeoptimizeIf(vs, instr->environment());
+    }
+    return;
+  }
+
   // If the negation could not overflow, simply shifting is OK.
   if (!instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     __ Mov(result, Operand(dividend, ASR, shift));
     return;
   }
 
-  // Dividing by -1 is basically negation, unless we overflow.
-  if (divisor == -1) {
-    DeoptimizeIf(vs, instr->environment());
-    return;
-  }
-
-  __ Asr(result, dividend, shift);
+  __ Asr(result, result, shift);
   __ Csel(result, result, kMinInt / divisor, vc);
 }
 
