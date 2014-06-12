@@ -53,8 +53,9 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
 
 
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind) {
+  STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   return IsExternalArrayElementsKind(elements_kind)
-      ? 0 : (FixedArray::kHeaderSize - kSmiTagSize);
+      ? 0 : (FixedArray::kHeaderSize - kHeapObjectTag);
 }
 
 

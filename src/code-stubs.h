@@ -53,6 +53,7 @@ namespace internal {
   V(CEntry)                              \
   V(JSEntry)                             \
   V(KeyedLoadElement)                    \
+  V(KeyedLoadGeneric)                    \
   V(ArrayNoArgumentConstructor)          \
   V(ArraySingleArgumentConstructor)      \
   V(ArrayNArgumentsConstructor)          \
@@ -1842,6 +1843,29 @@ class KeyedLoadDictionaryElementPlatformStub : public PlatformCodeStub {
   int MinorKey() { return DICTIONARY_ELEMENTS; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementPlatformStub);
+};
+
+
+class KeyedLoadGenericElementStub : public HydrogenCodeStub {
+ public:
+  explicit KeyedLoadGenericElementStub(Isolate *isolate)
+      : HydrogenCodeStub(isolate) {}
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
+  virtual InlineCacheState GetICState() { return GENERIC; }
+
+ private:
+  Major MajorKey() { return KeyedLoadGeneric; }
+  int NotMissMinorKey() { return 0; }
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadGenericElementStub);
 };
 
 
