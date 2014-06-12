@@ -10129,6 +10129,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   Handle<Object> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
+    for (Handle<Object> p = prototype; !p->IsNull() && !p->IsJSProxy();
+         p = Object::GetPrototype(isolate, p)) {
+      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(p));
+    }
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }
