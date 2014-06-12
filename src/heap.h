@@ -277,6 +277,7 @@ namespace internal {
   V(constructor_string, "constructor")                                   \
   V(dot_result_string, ".result")                                        \
   V(dot_for_string, ".for.")                                             \
+  V(dot_iterable_string, ".iterable")                                    \
   V(dot_iterator_string, ".iterator")                                    \
   V(dot_generator_object_string, ".generator_object")                    \
   V(eval_string, "eval")                                                 \

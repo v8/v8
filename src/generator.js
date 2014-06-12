@@ -62,6 +62,7 @@ function SetUpGenerators() {
                    DONT_ENUM | DONT_DELETE | READ_ONLY,
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
+  %FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
   %SetProperty(GeneratorObjectPrototype, symbolIterator, GeneratorObjectIterator,
       DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty(GeneratorObjectPrototype, "constructor",

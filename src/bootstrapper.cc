@@ -1622,6 +1622,10 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
+
+  if (FLAG_harmony_symbols) {
+    INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
+  }
 }
 
 #undef INSTALL_NATIVE

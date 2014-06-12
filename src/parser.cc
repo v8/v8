@@ -2778,21 +2778,46 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
 
   if (for_of != NULL) {
     Factory* heap_factory = isolate()->factory();
+    Variable* iterable = scope_->DeclarationScope()->NewTemporary(
+        heap_factory->dot_iterable_string());
     Variable* iterator = scope_->DeclarationScope()->NewTemporary(
         heap_factory->dot_iterator_string());
     Variable* result = scope_->DeclarationScope()->NewTemporary(
         heap_factory->dot_result_string());
 
+    Expression* assign_iterable;
     Expression* assign_iterator;
     Expression* next_result;
     Expression* result_done;
     Expression* assign_each;
 
-    // var iterator = iterable;
+    // var iterable = subject;
     {
+      Expression* iterable_proxy = factory()->NewVariableProxy(iterable);
+      assign_iterable = factory()->NewAssignment(
+          Token::ASSIGN, iterable_proxy, subject, subject->position());
+    }
+
+    // var iterator = iterable[Symbol.iterator]();
+    {
+      Expression* iterable_proxy = factory()->NewVariableProxy(iterable);
+      Handle<Symbol> iterator_symbol(
+          isolate()->native_context()->iterator_symbol(), isolate());
+      Expression* iterator_symbol_literal = factory()->NewLiteral(
+          iterator_symbol, RelocInfo::kNoPosition);
+      // FIXME(wingo): Unhappily, it will be a common error that the RHS of a
+      // for-of doesn't have a Symbol.iterator property.  We should do better
+      // than informing the user that "undefined is not a function".
+      int pos = subject->position();
+      Expression* iterator_property = factory()->NewProperty(
+          iterable_proxy, iterator_symbol_literal, pos);
+      ZoneList<Expression*>* iterator_arguments =
+          new(zone()) ZoneList<Expression*>(0, zone());
+      Expression* iterator_call = factory()->NewCall(
+          iterator_property, iterator_arguments, pos);
       Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
       assign_iterator = factory()->NewAssignment(
-          Token::ASSIGN, iterator_proxy, subject, RelocInfo::kNoPosition);
+          Token::ASSIGN, iterator_proxy, iterator_call, RelocInfo::kNoPosition);
     }
 
     // var result = iterator.next();
@@ -2832,7 +2857,11 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     }
 
     for_of->Initialize(each, subject, body,
-                       assign_iterator, next_result, result_done, assign_each);
+                       assign_iterable,
+                       assign_iterator,
+                       next_result,
+                       result_done,
+                       assign_each);
   } else {
     stmt->Initialize(each, subject, body);
   }

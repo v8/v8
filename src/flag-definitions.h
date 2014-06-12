@@ -180,6 +180,7 @@ DEFINE_implication(harmony, harmony_arrays)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_collections, harmony_symbols)
 DEFINE_implication(harmony_generators, harmony_symbols)
+DEFINE_implication(harmony_iteration, harmony_symbols)
 
 DEFINE_implication(harmony, es_staging)
 DEFINE_implication(es_staging, harmony_maths)
