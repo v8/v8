@@ -32,6 +32,10 @@ function GeneratorObjectThrow(exn) {
   return %_GeneratorThrow(this, exn);
 }
 
+function GeneratorObjectIterator() {
+  return this;
+}
+
 function GeneratorFunctionPrototypeConstructor(x) {
   if (%_IsConstructCall()) {
     throw MakeTypeError('not_constructor', ['GeneratorFunctionPrototype']);
@@ -58,6 +62,8 @@ function SetUpGenerators() {
                    DONT_ENUM | DONT_DELETE | READ_ONLY,
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
+  %SetProperty(GeneratorObjectPrototype, symbolIterator, GeneratorObjectIterator,
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty(GeneratorObjectPrototype, "constructor",
                GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
