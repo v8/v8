@@ -1616,12 +1616,11 @@ Handle<Value> UnboundScript::GetScriptName() {
 
 
 Local<Value> Script::Run() {
-  i::Handle<i::HeapObject> obj =
-      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this, true));
+  i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
   // If execution is terminating, Compile(..)->Run() requires this
   // check.
   if (obj.is_null()) return Local<Value>();
-  i::Isolate* isolate = obj->GetIsolate();
+  i::Isolate* isolate = i::Handle<i::HeapObject>::cast(obj)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
   LOG_API(isolate, "Script::Run");
   ENTER_V8(isolate);
