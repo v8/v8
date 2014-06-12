@@ -5896,7 +5896,7 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     __ CompareInstanceType(map, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ B(gt, false_label);
     // Check for undetectable objects => false.
-    __ Ldrb(scratch, FieldMemOperand(value, Map::kBitFieldOffset));
+    __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     EmitTestAndBranch(instr, eq, scratch, 1 << Map::kIsUndetectable);
 
   } else {
