@@ -61,10 +61,7 @@ void* OS::Allocate(const size_t requested,
                      MAP_PRIVATE | MAP_ANON,
                      kMmapFd,
                      kMmapFdOffset);
-  if (mbase == MAP_FAILED) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
+  if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
 }

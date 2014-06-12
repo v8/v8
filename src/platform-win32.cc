@@ -766,10 +766,7 @@ void* OS::Allocate(const size_t requested,
                                         MEM_COMMIT | MEM_RESERVE,
                                         prot);
 
-  if (mbase == NULL) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "VirtualAlloc failed"));
-    return NULL;
-  }
+  if (mbase == NULL) return NULL;
 
   ASSERT(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
 

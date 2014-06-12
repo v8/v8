@@ -77,10 +77,7 @@ void* OS::Allocate(const size_t requested,
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
 
-  if (mbase == MAP_FAILED) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
+  if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
 }
