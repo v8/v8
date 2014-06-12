@@ -465,11 +465,12 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 
   set_max_available_threads(i::Max(i::Min(number_of_processors, 4u), 1u));
 
-  if (virtual_memory_limit > 0 && i::kIs64BitArch) {
+  if (virtual_memory_limit > 0 && i::kRequiresCodeRange) {
     // Reserve no more than 1/8 of the memory for the code range, but at most
-    // 512 MB.
+    // kMaximalCodeRangeSize.
     set_code_range_size(
-        i::Min(512, static_cast<int>((virtual_memory_limit >> 3) / i::MB)));
+        i::Min(i::kMaximalCodeRangeSize / i::MB,
+               static_cast<int>((virtual_memory_limit >> 3) / i::MB)));
   }
 }
 
