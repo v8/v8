@@ -53,11 +53,12 @@ bool LookupIterator::NextHolder() {
   Handle<JSReceiver> next(JSReceiver::cast(holder_map_->prototype()));
 
   if (!check_derived() &&
-      // TODO(verwaest): Check if this is actually necessary currently. If it
-      // is, this should be handled by setting is_hidden_prototype on the
-      // global object behind the proxy.
-      !holder_map_->IsJSGlobalProxyMap() &&
-      !next->map()->is_hidden_prototype()) {
+      !(check_hidden() &&
+         // TODO(verwaest): Check if this is actually necessary currently. If it
+         // is, this should be handled by setting is_hidden_prototype on the
+         // global object behind the proxy.
+        (holder_map_->IsJSGlobalProxyMap() ||
+         next->map()->is_hidden_prototype()))) {
     return false;
   }
 
@@ -189,8 +190,6 @@ Handle<Object> LookupIterator::GetDataValue() const {
   ASSERT_EQ(DATA, property_kind_);
   Handle<Object> value = FetchValue();
   if (value->IsTheHole()) {
-    ASSERT_EQ(DICTIONARY, property_encoding_);
-    ASSERT(GetHolder()->IsGlobalObject());
     ASSERT(property_details_.IsReadOnly());
     return factory()->undefined_value();
   }

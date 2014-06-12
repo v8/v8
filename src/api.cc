@@ -3128,7 +3128,7 @@ Local<Value> v8::Object::GetPrivate(v8::Handle<Private> key) {
 
 PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ON_BAILOUT(isolate, "v8::Object::GetPropertyAttribute()",
+  ON_BAILOUT(isolate, "v8::Object::GetPropertyAttributes()",
              return static_cast<PropertyAttribute>(NONE));
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
@@ -3142,7 +3142,7 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
   }
   i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
   PropertyAttributes result =
-      i::JSReceiver::GetPropertyAttribute(self, key_name);
+      i::JSReceiver::GetPropertyAttributes(self, key_name);
   if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
   return static_cast<PropertyAttribute>(result);
 }

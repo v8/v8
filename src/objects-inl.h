@@ -6418,7 +6418,7 @@ bool JSReceiver::HasProperty(Handle<JSReceiver> object,
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return GetPropertyAttribute(object, name) != ABSENT;
+  return GetPropertyAttributes(object, name) != ABSENT;
 }
 
 
@@ -6427,17 +6427,18 @@ bool JSReceiver::HasOwnProperty(Handle<JSReceiver> object, Handle<Name> name) {
     Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
     return JSProxy::HasPropertyWithHandler(proxy, name);
   }
-  return GetOwnPropertyAttribute(object, name) != ABSENT;
+  return GetOwnPropertyAttributes(object, name) != ABSENT;
 }
 
 
-PropertyAttributes JSReceiver::GetPropertyAttribute(Handle<JSReceiver> object,
-                                                    Handle<Name> key) {
+PropertyAttributes JSReceiver::GetPropertyAttributes(Handle<JSReceiver> object,
+                                                     Handle<Name> key) {
   uint32_t index;
   if (object->IsJSObject() && key->AsArrayIndex(&index)) {
     return GetElementAttribute(object, index);
   }
-  return GetPropertyAttributeWithReceiver(object, object, key);
+  LookupIterator it(object, key);
+  return GetPropertyAttributes(&it);
 }
 
 

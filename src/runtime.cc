@@ -2022,7 +2022,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     case ACCESS_ABSENT: return factory->undefined_value();
   }
 
-  PropertyAttributes attrs = JSReceiver::GetOwnPropertyAttribute(obj, name);
+  PropertyAttributes attrs = JSReceiver::GetOwnPropertyAttributes(obj, name);
   if (attrs == ABSENT) {
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return factory->undefined_value();
@@ -2279,7 +2279,7 @@ RUNTIME_FUNCTION(RuntimeHidden_DeclareGlobals) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
         if (!lookup.IsInterceptor()) continue;
-        if (JSReceiver::GetPropertyAttribute(global, name) != ABSENT) continue;
+        if (JSReceiver::GetPropertyAttributes(global, name) != ABSENT) continue;
         // Fall-through and introduce the absent property by using
         // SetProperty.
       }
@@ -2470,7 +2470,7 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   if (lookup.IsInterceptor()) {
     Handle<JSObject> holder(lookup.holder());
     PropertyAttributes intercepted =
-        JSReceiver::GetPropertyAttribute(holder, name);
+        JSReceiver::GetPropertyAttributes(holder, name);
     if (intercepted != ABSENT && (intercepted & READ_ONLY) == 0) {
       // Found an interceptor that's not read only.
       if (assign) {
@@ -5767,7 +5767,7 @@ RUNTIME_FUNCTION(Runtime_IsPropertyEnumerable) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
-  PropertyAttributes att = JSReceiver::GetOwnPropertyAttribute(object, key);
+  PropertyAttributes att = JSReceiver::GetOwnPropertyAttributes(object, key);
   if (att == ABSENT || (att & DONT_ENUM) != 0) {
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     return isolate->heap()->false_value();
@@ -9454,7 +9454,7 @@ RUNTIME_FUNCTION(RuntimeHidden_StoreContextSlot) {
 
   // Set the property if it's not read only or doesn't yet exist.
   if ((attributes & READ_ONLY) == 0 ||
-      (JSReceiver::GetOwnPropertyAttribute(object, name) == ABSENT)) {
+      (JSReceiver::GetOwnPropertyAttributes(object, name) == ABSENT)) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate,
         JSReceiver::SetProperty(object, name, value, NONE, strict_mode));

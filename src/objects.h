@@ -1954,14 +1954,11 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  static inline PropertyAttributes GetPropertyAttribute(
+  static inline PropertyAttributes GetPropertyAttributes(
       Handle<JSReceiver> object,
       Handle<Name> name);
-  static PropertyAttributes GetPropertyAttributeWithReceiver(
-      Handle<JSReceiver> object,
-      Handle<JSReceiver> receiver,
-      Handle<Name> name);
-  static PropertyAttributes GetOwnPropertyAttribute(
+  static PropertyAttributes GetPropertyAttributes(LookupIterator* it);
+  static PropertyAttributes GetOwnPropertyAttributes(
       Handle<JSReceiver> object,
       Handle<Name> name);
 
@@ -2002,13 +1999,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
-  static PropertyAttributes GetPropertyAttributeForResult(
-      Handle<JSReceiver> object,
-      Handle<JSReceiver> receiver,
-      LookupResult* result,
-      Handle<Name> name,
-      bool continue_search);
-
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       Handle<JSReceiver> receiver,
       LookupResult* result,
@@ -2209,21 +2199,12 @@ class JSObject: public JSReceiver {
   InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
-  static PropertyAttributes GetPropertyAttributePostInterceptor(
-      Handle<JSObject> object,
-      Handle<JSObject> receiver,
-      Handle<Name> name,
-      bool check_prototype);
-  static PropertyAttributes GetPropertyAttributeWithInterceptor(
-      Handle<JSObject> object,
-      Handle<JSObject> receiver,
-      Handle<Name> name,
-      bool check_prototype);
-  static PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
-      Handle<JSObject> object,
-      LookupResult* result,
-      Handle<Name> name,
-      bool check_prototype);
+  static Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptor(
+      Handle<JSObject> holder,
+      Handle<Object> receiver,
+      Handle<Name> name);
+  static PropertyAttributes GetPropertyAttributesWithFailedAccessCheck(
+      LookupIterator* it);
   static PropertyAttributes GetElementAttributeWithReceiver(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
@@ -9998,9 +9979,9 @@ class JSProxy: public JSReceiver {
       StrictMode strict_mode,
       bool* done);
 
-  static PropertyAttributes GetPropertyAttributeWithHandler(
+  static PropertyAttributes GetPropertyAttributesWithHandler(
       Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
+      Handle<Object> receiver,
       Handle<Name> name);
   static PropertyAttributes GetElementAttributeWithHandler(
       Handle<JSProxy> proxy,

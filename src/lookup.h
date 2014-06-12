@@ -15,12 +15,15 @@ namespace internal {
 class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
-    CHECK_DERIVED      = 1 << 0,
-    CHECK_INTERCEPTOR  = 1 << 1,
-    CHECK_ACCESS_CHECK = 1 << 2,
     CHECK_OWN_REAL     = 0,
-    CHECK_ALL          = CHECK_DERIVED | CHECK_INTERCEPTOR | CHECK_ACCESS_CHECK,
-    SKIP_INTERCEPTOR   = CHECK_ALL ^ CHECK_INTERCEPTOR
+    CHECK_HIDDEN       = 1 << 0,
+    CHECK_DERIVED      = 1 << 1,
+    CHECK_INTERCEPTOR  = 1 << 2,
+    CHECK_ACCESS_CHECK = 1 << 3,
+    CHECK_ALL          = CHECK_HIDDEN | CHECK_DERIVED |
+                         CHECK_INTERCEPTOR | CHECK_ACCESS_CHECK,
+    SKIP_INTERCEPTOR   = CHECK_ALL ^ CHECK_INTERCEPTOR,
+    CHECK_OWN          = CHECK_ALL ^ CHECK_DERIVED
   };
 
   enum State {
@@ -53,9 +56,9 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         name_(name),
         maybe_receiver_(receiver),
         number_(DescriptorArray::kNotFound) {
-    Handle<JSReceiver> origin = GetRoot();
-    holder_map_ = handle(origin->map());
-    maybe_holder_ = origin;
+    Handle<JSReceiver> root = GetRoot();
+    holder_map_ = handle(root->map());
+    maybe_holder_ = root;
     Next();
   }
 
@@ -94,6 +97,16 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return Handle<JSObject>::cast(maybe_holder_.ToHandleChecked());
   }
   Handle<JSReceiver> GetRoot() const;
+
+  /* Dynamically reduce the trapped types. */
+  void skip_interceptor() {
+    configuration_ = static_cast<Configuration>(
+        configuration_ & ~CHECK_INTERCEPTOR);
+  }
+  void skip_access_check() {
+    configuration_ = static_cast<Configuration>(
+        configuration_ & ~CHECK_ACCESS_CHECK);
+  }
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;
@@ -141,6 +154,9 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   }
   bool check_derived() const {
     return (configuration_ & CHECK_DERIVED) != 0;
+  }
+  bool check_hidden() const {
+    return (configuration_ & CHECK_HIDDEN) != 0;
   }
   bool check_access_check() const {
     return (configuration_ & CHECK_ACCESS_CHECK) != 0;
