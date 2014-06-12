@@ -275,6 +275,11 @@ void LCodeGen::GenerateBodyInstructionPost(LInstruction* instr) {
   }
 
   if (instr->HasResult() && instr->MustSignExtendResult(chunk())) {
+    // We sign extend the dehoisted key at the definition point when the pointer
+    // size is 64-bit. For x32 port, we sign extend the dehoisted key at the use
+    // points and MustSignExtendResult is always false. We can't use
+    // STATIC_ASSERT here as the pointer size is 32-bit for x32.
+    ASSERT(kPointerSize == kInt64Size);
     if (instr->result()->IsRegister()) {
       Register result_reg = ToRegister(instr->result());
       __ movsxlq(result_reg, result_reg);
