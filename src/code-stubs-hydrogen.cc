@@ -920,20 +920,6 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   // If we encounter a generic argument, the number conversion is
   // observable, thus we cannot afford to bail out after the fact.
   if (!state.HasSideEffects()) {
-    if (result_type->Is(Type::SignedSmall())) {
-      if (state.op() == Token::SHR) {
-        // TODO(olivf) Replace this by a SmiTagU Instruction.
-        // 0x40000000: this number would convert to negative when interpreting
-        // the register as signed value;
-        IfBuilder if_of(this);
-        if_of.IfNot<HCompareNumericAndBranch>(result,
-            Add<HConstant>(static_cast<int>(SmiValuesAre32Bits()
-                ? 0x80000000 : 0x40000000)), Token::EQ_STRICT);
-        if_of.Then();
-        if_of.ElseDeopt("UInt->Smi oveflow");
-        if_of.End();
-      }
-    }
     result = EnforceNumberType(result, result_type);
   }
 
