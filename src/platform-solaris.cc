@@ -131,7 +131,8 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-void OS::LogSharedLibraryAddresses(Isolate* isolate) {
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  return std::vector<SharedLibraryAddress>();
 }
 
 

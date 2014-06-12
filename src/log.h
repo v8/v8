@@ -5,6 +5,8 @@
 #ifndef V8_LOG_H_
 #define V8_LOG_H_
 
+#include <string>
+
 #include "src/allocation.h"
 #include "src/objects.h"
 #include "src/platform.h"
@@ -280,10 +282,7 @@ class Logger {
   void HeapSampleStats(const char* space, const char* kind,
                        intptr_t capacity, intptr_t used);
 
-  void SharedLibraryEvent(const char* library_path,
-                          uintptr_t start,
-                          uintptr_t end);
-  void SharedLibraryEvent(const wchar_t* library_path,
+  void SharedLibraryEvent(const std::string& library_path,
                           uintptr_t start,
                           uintptr_t end);
 
