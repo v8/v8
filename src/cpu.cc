@@ -395,11 +395,11 @@ CPU::CPU() : stepping_(0),
     has_neon_ = HasListItem(features, "neon");
     has_thumbee_ = HasListItem(features, "thumbee");
     has_vfp_ = HasListItem(features, "vfp");
-    if (HasListItem(features, "vfpv3")) {
+    if (HasListItem(features, "vfpv3d16")) {
+      has_vfp3_ = true;
+    } else if (HasListItem(features, "vfpv3")) {
       has_vfp3_ = true;
       has_vfp3_d32_ = true;
-    } else if (HasListItem(features, "vfpv3d16")) {
-      has_vfp3_ = true;
     }
     delete[] features;
   }
