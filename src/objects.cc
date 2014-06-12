@@ -2009,22 +2009,8 @@ MaybeHandle<Object> JSObject::SetPropertyPostInterceptor(
   if (!result.IsFound()) {
     object->map()->LookupTransition(*object, *name, &result);
   }
-  if (result.IsFound()) {
-    // An existing property or a map transition was found. Use set property to
-    // handle all these cases.
-    return SetPropertyForResult(object, &result, name, value, attributes,
-                                strict_mode, MAY_BE_STORE_FROM_KEYED);
-  }
-  bool done = false;
-  Handle<Object> result_object;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result_object,
-      SetPropertyViaPrototypes(
-          object, name, value, attributes, strict_mode, &done),
-      Object);
-  if (done) return result_object;
-  // Add a new real property.
-  return AddProperty(object, name, value, attributes, strict_mode);
+  return SetPropertyForResult(object, &result, name, value, attributes,
+                              strict_mode, MAY_BE_STORE_FROM_KEYED);
 }
 
 
