@@ -947,14 +947,18 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss;
+  Label miss, slow;
 
   GenerateNameDictionaryReceiverCheck(masm, edx, eax, ebx, &miss);
 
   // eax: elements
   // Search the dictionary placing the result in eax.
-  GenerateDictionaryLoad(masm, &miss, eax, ecx, edi, ebx, eax);
+  GenerateDictionaryLoad(masm, &slow, eax, ecx, edi, ebx, eax);
   __ ret(0);
+
+  // Dictionary load failed, go slow (but don't miss).
+  __ bind(&slow);
+  GenerateRuntimeGetProperty(masm);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
