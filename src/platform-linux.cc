@@ -44,7 +44,6 @@
 #include "src/v8.h"
 
 #include "src/platform.h"
-#include "src/v8threads.h"
 
 
 namespace v8 {
