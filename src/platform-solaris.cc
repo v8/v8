@@ -29,7 +29,6 @@
 #include "src/v8.h"
 
 #include "src/platform.h"
-#include "src/v8threads.h"
 
 
 // It seems there is a bug in some Solaris distributions (experienced in

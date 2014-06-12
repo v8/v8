@@ -554,23 +554,6 @@ void CompareIC::Clear(Isolate* isolate,
 }
 
 
-Handle<Code> KeyedLoadIC::megamorphic_stub() {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate()).GetCode();
-  } else {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
-}
-
-Handle<Code> KeyedLoadIC::generic_stub() const {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate()).GetCode();
-  } else {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
-}
-
-
 static bool MigrateDeprecated(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -1171,8 +1154,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   if (!is_target_set()) {
-    Code* generic = *generic_stub();
-    if (*stub == generic) {
+    if (*stub == *generic_stub()) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
     set_target(*stub);
@@ -1817,8 +1799,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (!is_target_set()) {
-    Code* generic = *generic_stub();
-    if (*stub == generic) {
+    if (*stub == *generic_stub()) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
     }
     ASSERT(!stub.is_null());

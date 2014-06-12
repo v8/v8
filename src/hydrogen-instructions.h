@@ -6049,14 +6049,9 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kMaps, JSObject::kMapOffset);
   }
 
-  static HObjectAccess ForMapAsInteger32() {
-    return HObjectAccess(kMaps, JSObject::kMapOffset,
-                         Representation::Integer32());
-  }
-
-  static HObjectAccess ForMapInObjectProperties() {
+  static HObjectAccess ForMapInstanceSize() {
     return HObjectAccess(kInobject,
-                         Map::kInObjectPropertiesOffset,
+                         Map::kInstanceSizeOffset,
                          Representation::UInteger8());
   }
 
@@ -6064,38 +6059,6 @@ class HObjectAccess V8_FINAL {
     return HObjectAccess(kInobject,
                          Map::kInstanceTypeOffset,
                          Representation::UInteger8());
-  }
-
-  static HObjectAccess ForMapInstanceSize() {
-    return HObjectAccess(kInobject,
-                         Map::kInstanceSizeOffset,
-                         Representation::UInteger8());
-  }
-
-  static HObjectAccess ForMapBitField() {
-    return HObjectAccess(kInobject,
-                         Map::kBitFieldOffset,
-                         Representation::UInteger8());
-  }
-
-  static HObjectAccess ForMapBitField2() {
-    return HObjectAccess(kInobject,
-                         Map::kBitField2Offset,
-                         Representation::UInteger8());
-  }
-
-  static HObjectAccess ForNameHashField() {
-    return HObjectAccess(kInobject,
-                         Name::kHashFieldOffset,
-                         Representation::Integer32());
-  }
-
-  static HObjectAccess ForMapInstanceTypeAndBitField() {
-    STATIC_ASSERT((Map::kInstanceTypeOffset & 1) == 0);
-    STATIC_ASSERT(Map::kBitFieldOffset == Map::kInstanceTypeOffset + 1);
-    return HObjectAccess(kInobject,
-                         Map::kInstanceTypeOffset,
-                         Representation::UInteger16());
   }
 
   static HObjectAccess ForPropertyCellValue() {
@@ -6490,10 +6453,6 @@ class HLoadKeyed V8_FINAL
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
   uint32_t base_offset() { return BaseOffsetField::decode(bit_field_); }
   void IncreaseBaseOffset(uint32_t base_offset) {
-    // The base offset is usually simply the size of the array header, except
-    // with dehoisting adds an addition offset due to a array index key
-    // manipulation, in which case it becomes (array header size +
-    // constant-offset-from-key * kPointerSize)
     base_offset += BaseOffsetField::decode(bit_field_);
     bit_field_ = BaseOffsetField::update(bit_field_, base_offset);
   }
@@ -6506,7 +6465,7 @@ class HLoadKeyed V8_FINAL
   void SetDehoisted(bool is_dehoisted) {
     bit_field_ = IsDehoistedField::update(bit_field_, is_dehoisted);
   }
-  virtual ElementsKind elements_kind() const V8_OVERRIDE {
+  ElementsKind elements_kind() const {
     return ElementsKindField::decode(bit_field_);
   }
   LoadKeyedHoleMode hole_mode() const {
@@ -6964,10 +6923,6 @@ class HStoreKeyed V8_FINAL
   ElementsKind elements_kind() const { return elements_kind_; }
   uint32_t base_offset() { return base_offset_; }
   void IncreaseBaseOffset(uint32_t base_offset) {
-    // The base offset is usually simply the size of the array header, except
-    // with dehoisting adds an addition offset due to a array index key
-    // manipulation, in which case it becomes (array header size +
-    // constant-offset-from-key * kPointerSize)
     base_offset_ += base_offset;
   }
   virtual int MaxBaseOffsetBits() {

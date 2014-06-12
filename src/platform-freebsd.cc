@@ -28,7 +28,6 @@
 #undef MAP_TYPE
 
 #include "src/v8.h"
-#include "src/v8threads.h"
 
 #include "src/platform.h"
 

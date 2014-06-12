@@ -34,7 +34,7 @@ const int kReferenceIdBits = 16;
 const int kReferenceIdMask = (1 << kReferenceIdBits) - 1;
 const int kReferenceTypeShift = kReferenceIdBits;
 
-const int kDeoptTableSerializeEntryCount = 64;
+const int kDeoptTableSerializeEntryCount = 12;
 
 // ExternalReferenceTable is a helper class that defines the relationship
 // between external references and their encodings. It is used to build

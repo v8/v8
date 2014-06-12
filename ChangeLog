@@ -1,3 +1,10 @@
+2014-06-12: Version 3.27.27
+
+        Fix detection of VFP3D16 on Galaxy Tab 10.1 (issue 3387).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-12: Version 3.27.26
 
         MIPS: Fixed flooring division by a power of 2, once again.. (issue
