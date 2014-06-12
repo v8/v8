@@ -77,7 +77,6 @@ void Assembler::emit_code_target(Handle<Code> target,
 
 void Assembler::emit_runtime_entry(Address entry, RelocInfo::Mode rmode) {
   ASSERT(RelocInfo::IsRuntimeEntry(rmode));
-  ASSERT(isolate()->code_range()->exists());
   RecordRelocInfo(rmode);
   emitl(static_cast<uint32_t>(entry - isolate()->code_range()->start()));
 }
@@ -213,7 +212,6 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
 
 
 Address Assembler::runtime_entry_at(Address pc) {
-  ASSERT(isolate()->code_range()->exists());
   return Memory::int32_at(pc) + isolate()->code_range()->start();
 }
 
