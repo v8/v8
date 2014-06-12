@@ -115,17 +115,15 @@ bool CodeRange::SetUp(size_t requested) {
   ASSERT(code_range_ == NULL);
 
   if (requested == 0) {
-    // When a target requires the code range feature, we put all code objects
-    // in a kMaximalCodeRangeSize range of virtual address space, so that
-    // they can call each other with near calls.
-    if (kRequiresCodeRange) {
-      requested = kMaximalCodeRangeSize;
+    // On 64-bit platform(s), we put all code objects in a 512 MB range of
+    // virtual address space, so that they can call each other with near calls.
+    if (kIs64BitArch) {
+      requested = 512 * MB;
     } else {
       return true;
     }
   }
 
-  ASSERT(requested <= kMaximalCodeRangeSize);
   code_range_ = new VirtualMemory(requested);
   CHECK(code_range_ != NULL);
   if (!code_range_->IsReserved()) {
