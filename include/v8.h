@@ -2614,6 +2614,7 @@ class V8_EXPORT Promise : public Object {
    */
   Local<Promise> Chain(Handle<Function> handler);
   Local<Promise> Catch(Handle<Function> handler);
+  Local<Promise> Then(Handle<Function> handler);
 
   V8_INLINE static Promise* Cast(Value* obj);
 

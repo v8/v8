@@ -17,6 +17,7 @@ var PromiseResolve;
 var PromiseReject;
 var PromiseChain;
 var PromiseCatch;
+var PromiseThen;
 
 // mirror-debugger.js currently uses builtins.promiseStatus. It would be nice
 // if we could move these property names into the closure below.
@@ -220,7 +221,7 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
 
   // Multi-unwrapped chaining with thenable coercion.
 
-  function PromiseThen(onResolve, onReject) {
+  PromiseThen = function PromiseThen(onResolve, onReject) {
     onResolve = IS_SPEC_FUNCTION(onResolve) ? onResolve
                                             : PromiseIdResolveHandler;
     onReject = IS_SPEC_FUNCTION(onReject) ? onReject

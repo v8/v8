@@ -162,6 +162,7 @@ enum BindingFlags {
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject) \
   V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain) \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch) \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -340,6 +341,7 @@ class Context: public FixedArray {
     PROMISE_REJECT_INDEX,
     PROMISE_CHAIN_INDEX,
     PROMISE_CATCH_INDEX,
+    PROMISE_THEN_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,

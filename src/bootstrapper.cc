@@ -1598,6 +1598,7 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(JSFunction, "PromiseReject", promise_reject);
   INSTALL_NATIVE(JSFunction, "PromiseChain", promise_chain);
   INSTALL_NATIVE(JSFunction, "PromiseCatch", promise_catch);
+  INSTALL_NATIVE(JSFunction, "PromiseThen", promise_then);
 
   INSTALL_NATIVE(JSFunction, "NotifyChange", observers_notify_change);
   INSTALL_NATIVE(JSFunction, "EnqueueSpliceRecord", observers_enqueue_splice);

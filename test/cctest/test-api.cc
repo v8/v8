@@ -22603,6 +22603,72 @@ TEST(Promises) {
 }
 
 
+TEST(PromiseThen) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Handle<Object> global = context->Global();
+
+  // Creation.
+  Handle<v8::Promise::Resolver> pr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise::Resolver> qr = v8::Promise::Resolver::New(isolate);
+  Handle<v8::Promise> p = pr->GetPromise();
+  Handle<v8::Promise> q = qr->GetPromise();
+
+  CHECK(p->IsPromise());
+  CHECK(q->IsPromise());
+
+  pr->Resolve(v8::Integer::New(isolate, 1));
+  qr->Resolve(p);
+
+  // Chaining non-pending promises.
+  CompileRun(
+      "var x1 = 0;\n"
+      "var x2 = 0;\n"
+      "function f1(x) { x1 = x; return x+1 };\n"
+      "function f2(x) { x2 = x; return x+1 };\n");
+  Handle<Function> f1 = Handle<Function>::Cast(global->Get(v8_str("f1")));
+  Handle<Function> f2 = Handle<Function>::Cast(global->Get(v8_str("f2")));
+
+  // Chain
+  q->Chain(f1);
+  CHECK(global->Get(v8_str("x1"))->IsNumber());
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  isolate->RunMicrotasks();
+  CHECK(!global->Get(v8_str("x1"))->IsNumber());
+  CHECK_EQ(p, global->Get(v8_str("x1")));
+
+  // Then
+  CompileRun("x1 = x2 = 0;");
+  q->Then(f1);
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  isolate->RunMicrotasks();
+  CHECK_EQ(1, global->Get(v8_str("x1"))->Int32Value());
+
+  // Then
+  CompileRun("x1 = x2 = 0;");
+  pr = v8::Promise::Resolver::New(isolate);
+  qr = v8::Promise::Resolver::New(isolate);
+
+  qr->Resolve(pr);
+  qr->GetPromise()->Then(f1)->Then(f2);
+
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+  isolate->RunMicrotasks();
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+
+  pr->Resolve(v8::Integer::New(isolate, 3));
+
+  CHECK_EQ(0, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(0, global->Get(v8_str("x2"))->Int32Value());
+  isolate->RunMicrotasks();
+  CHECK_EQ(3, global->Get(v8_str("x1"))->Int32Value());
+  CHECK_EQ(4, global->Get(v8_str("x2"))->Int32Value());
+}
+
+
 TEST(DisallowJavascriptExecutionScope) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
