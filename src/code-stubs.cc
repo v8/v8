@@ -764,13 +764,6 @@ void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
-// static
-void KeyedLoadGenericElementStub::InstallDescriptors(Isolate* isolate) {
-  KeyedLoadGenericElementStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate), argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);

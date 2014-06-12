@@ -2404,9 +2404,6 @@ class KeyedLookupCache {
   static const int kMapHashShift = 5;
   static const int kHashMask = -4;  // Zero the last two bits.
   static const int kEntriesPerBucket = 4;
-  static const int kEntryLength = 2;
-  static const int kMapIndex = 0;
-  static const int kKeyIndex = 1;
   static const int kNotFound = -1;
 
   // kEntriesPerBucket should be a power of 2.
