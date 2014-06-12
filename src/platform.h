@@ -23,9 +23,9 @@
 
 #include <stdarg.h>
 
+#include "src/base/build_config.h"
 #include "src/platform/mutex.h"
 #include "src/platform/semaphore.h"
-#include "src/globals.h"
 #include "src/vector.h"
 
 #ifdef __sun
@@ -262,13 +262,6 @@ class OS {
   // nothing, in which case the code objects must not move (e.g., by
   // using --never-compact) if accurate profiling is desired.
   static void SignalCodeMovingGC();
-
-  // The return value indicates the CPU features we are sure of because of the
-  // OS.
-  // This is a little messy because the interpretation is subject to the cross
-  // of the CPU and the OS.  The bits in the answer correspond to the bit
-  // positions indicated by the members of the CpuFeature enum from globals.h
-  static unsigned CpuFeaturesImpliedByPlatform();
 
   // Returns the number of processors online.
   static int NumberOfProcessorsOnline();

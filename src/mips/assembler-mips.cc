@@ -87,7 +87,6 @@ const char* DoubleRegister::AllocationIndexToString(int index) {
 
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
   supported_ |= CpuFeaturesImpliedByCompiler();
 
   // Only use statically determined features for cross compile (snapshot).

@@ -886,9 +886,8 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
   ASSERT(args.length() == 0);
 
-  if (live_edit_enabled()) {
-    thread_local_.frame_drop_mode_ = LiveEdit::FRAMES_UNTOUCHED;
-  }
+  // Initialize LiveEdit.
+  LiveEdit::InitializeThreadLocal(this);
 
   // Just continue if breaks are disabled or debugger cannot be loaded.
   if (break_disabled_) return;
@@ -2307,11 +2306,9 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
-  if (live_edit_enabled()) {
-    after_break_target_ =
-        LiveEdit::AfterBreakTarget(thread_local_.frame_drop_mode_, isolate_);
-    if (after_break_target_ != NULL) return;  // LiveEdit did the job.
-  }
+  after_break_target_ = NULL;
+
+  if (LiveEdit::SetAfterBreakTarget(this)) return;  // LiveEdit did the job.
 
   HandleScope scope(isolate_);
   PrepareForBreakPoints();

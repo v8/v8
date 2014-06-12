@@ -574,6 +574,8 @@ source_set("v8_base") {
     "src/log-utils.h",
     "src/log.cc",
     "src/log.h",
+    "src/lookup.cc",
+    "src/lookup.h",
     "src/macro-assembler.h",
     "src/mark-compact.cc",
     "src/mark-compact.h",
@@ -901,7 +903,7 @@ source_set("v8_base") {
     }
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
-    sources += [ "src/platform-posix,cc" ]
+    sources += [ "src/platform-posix.cc" ]
 
     if (build_os == "mac") {
       if (current_toolchain == host_toolchain) {
@@ -916,7 +918,7 @@ source_set("v8_base") {
       }
     }
   } else if (is_mac) {
-    sources += [ "src/platform-macos,cc" ]
+    sources += [ "src/platform-macos.cc" ]
   } else if (is_win) {
     # TODO(jochen): Add support for cygwin.
     sources += [

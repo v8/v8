@@ -3518,10 +3518,11 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // If the property being looked up is a callback, it can throw
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
-  PropertyAttributes ignored;
+  i::LookupIterator it(
+      receiver, name, i::Handle<i::JSReceiver>(lookup->holder(), isolate),
+      i::LookupIterator::SKIP_INTERCEPTOR);
   i::Handle<i::Object> result;
-  has_pending_exception = !i::Object::GetProperty(
-      receiver, receiver, lookup, name, &ignored).ToHandle(&result);
+  has_pending_exception = !i::Object::GetProperty(&it).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 
   return Utils::ToLocal(result);

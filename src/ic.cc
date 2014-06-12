@@ -554,6 +554,23 @@ void CompareIC::Clear(Isolate* isolate,
 }
 
 
+Handle<Code> KeyedLoadIC::megamorphic_stub() {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return KeyedLoadGenericElementStub(isolate()).GetCode();
+  } else {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
+}
+
+Handle<Code> KeyedLoadIC::generic_stub() const {
+  if (FLAG_compiled_keyed_generic_loads) {
+    return KeyedLoadGenericElementStub(isolate()).GetCode();
+  } else {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
+  }
+}
+
+
 static bool MigrateDeprecated(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -625,17 +642,14 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
   // Update inline cache and stub cache.
   if (use_ic) UpdateCaches(&lookup, object, name);
 
-  PropertyAttributes attr;
   // Get the property.
+  LookupIterator it(object, name);
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(),
-      result,
-      Object::GetProperty(object, object, &lookup, name, &attr),
-      Object);
+      isolate(), result, Object::GetProperty(&it), Object);
   // If the property is not present, check if we need to throw an exception.
   if ((lookup.IsInterceptor() || lookup.IsHandler()) &&
-      attr == ABSENT && IsUndeclaredGlobal(object)) {
+      !it.IsFound() && IsUndeclaredGlobal(object)) {
     return ReferenceError("not_defined", name);
   }
 
@@ -1157,7 +1171,8 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   }
 
   if (!is_target_set()) {
-    if (*stub == *generic_stub()) {
+    Code* generic = *generic_stub();
+    if (*stub == generic) {
       TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "set generic");
     }
     set_target(*stub);
@@ -1802,7 +1817,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   if (!is_target_set()) {
-    if (*stub == *generic_stub()) {
+    Code* generic = *generic_stub();
+    if (*stub == generic) {
       TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
     }
     ASSERT(!stub.is_null());

@@ -56,11 +56,6 @@ namespace internal {
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
-unsigned OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Nothing special.
-}
-
-
 int OS::NumberOfProcessorsOnline() {
   return static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
 }

@@ -5560,16 +5560,17 @@ RUNTIME_FUNCTION(Runtime_StoreArrayLiteralElement) {
     HeapNumber* number = HeapNumber::cast(*value);
     double_array->set(store_index, number->Number());
   } else {
-    ASSERT(IsFastSmiElementsKind(elements_kind) ||
-           IsFastDoubleElementsKind(elements_kind));
-    ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
-        ? FAST_HOLEY_ELEMENTS
-        : FAST_ELEMENTS;
-    JSObject::TransitionElementsKind(object, transitioned_kind);
-    if (IsMoreGeneralElementsKindTransition(
-            boilerplate_object->GetElementsKind(),
-            transitioned_kind)) {
-      JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
+    if (!IsFastObjectElementsKind(elements_kind)) {
+      ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
+          ? FAST_HOLEY_ELEMENTS
+          : FAST_ELEMENTS;
+      JSObject::TransitionElementsKind(object, transitioned_kind);
+      ElementsKind boilerplate_elements_kind =
+          boilerplate_object->GetElementsKind();
+      if (IsMoreGeneralElementsKindTransition(boilerplate_elements_kind,
+                                              transitioned_kind)) {
+        JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
+      }
     }
     FixedArray* object_array = FixedArray::cast(object->elements());
     object_array->set(store_index, *value);
@@ -10787,7 +10788,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       Handle<Object> structure(result->GetCallbackObject(), isolate);
       ASSERT(!structure->IsForeign());
       if (structure->IsAccessorInfo()) {
-        MaybeHandle<Object> obj = JSObject::GetPropertyWithCallback(
+        MaybeHandle<Object> obj = JSObject::GetPropertyWithAccessor(
             receiver, name, handle(result->holder(), isolate), structure);
         if (!obj.ToHandle(&value)) {
           value = handle(isolate->pending_exception(), isolate);
@@ -10968,11 +10969,10 @@ RUNTIME_FUNCTION(Runtime_DebugNamedInterceptorPropertyValue) {
   RUNTIME_ASSERT(obj->HasNamedInterceptor());
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
-  PropertyAttributes attributes;
   Handle<Object> result;
+  LookupIterator it(obj, name, obj);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::GetPropertyWithInterceptor(obj, obj, name, &attributes));
+      isolate, result, JSObject::GetProperty(&it));
   return *result;
 }
 

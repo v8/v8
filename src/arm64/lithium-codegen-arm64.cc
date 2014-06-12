@@ -2470,7 +2470,9 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();
-  bool is_unsigned = instr->hydrogen()->CheckFlag(HInstruction::kUint32);
+  bool is_unsigned =
+      instr->hydrogen()->left()->CheckFlag(HInstruction::kUint32) ||
+      instr->hydrogen()->right()->CheckFlag(HInstruction::kUint32);
   Condition cond = TokenToCondition(instr->op(), is_unsigned);
 
   if (left->IsConstantOperand() && right->IsConstantOperand()) {
@@ -3931,19 +3933,21 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
     DeoptimizeIf(eq, instr->environment());
   }
 
+  // Dividing by -1 is basically negation, unless we overflow.
+  if (divisor == -1) {
+    if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
+      DeoptimizeIf(vs, instr->environment());
+    }
+    return;
+  }
+
   // If the negation could not overflow, simply shifting is OK.
   if (!instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
     __ Mov(result, Operand(dividend, ASR, shift));
     return;
   }
 
-  // Dividing by -1 is basically negation, unless we overflow.
-  if (divisor == -1) {
-    DeoptimizeIf(vs, instr->environment());
-    return;
-  }
-
-  __ Asr(result, dividend, shift);
+  __ Asr(result, result, shift);
   __ Csel(result, result, kMinInt / divisor, vc);
 }
 

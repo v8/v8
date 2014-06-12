@@ -308,10 +308,6 @@
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 
-  # Issue 3259.
-  'math-floor-of-div-nosudiv': [PASS, FAIL],
-  'math-floor-of-div': [PASS, FAIL],
-
   ############################################################################
   # Slow tests.
   'regress/regress-2185-2': [PASS, SLOW],

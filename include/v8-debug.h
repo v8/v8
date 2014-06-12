@@ -172,11 +172,6 @@ class V8_EXPORT Debug {
   // stops.
   static void DebugBreakForCommand(Isolate* isolate, ClientData* data);
 
-  // TODO(svenpanne) Remove this when Chrome is updated.
-  static void DebugBreakForCommand(ClientData* data, Isolate* isolate) {
-    DebugBreakForCommand(isolate, data);
-  }
-
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(MessageHandler handler);
 
@@ -258,11 +253,6 @@ class V8_EXPORT Debug {
    * unexpectedly used. LiveEdit is enabled by default.
    */
   static void SetLiveEditEnabled(Isolate* isolate, bool enable);
-
-  // TODO(svenpanne) Remove this when Chrome is updated.
-  static void SetLiveEditEnabled(bool enable, Isolate* isolate) {
-    SetLiveEditEnabled(isolate, enable);
-  }
 };
 
 

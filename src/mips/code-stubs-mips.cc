@@ -3498,119 +3498,42 @@ enum CopyCharactersFlags {
 };
 
 
-void StringHelper::GenerateCopyCharactersLong(MacroAssembler* masm,
-                                              Register dest,
-                                              Register src,
-                                              Register count,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Register scratch3,
-                                              Register scratch4,
-                                              Register scratch5,
-                                              int flags) {
-  bool ascii = (flags & COPY_ASCII) != 0;
-  bool dest_always_aligned = (flags & DEST_ALWAYS_ALIGNED) != 0;
-
-  if (dest_always_aligned && FLAG_debug_code) {
-    // Check that destination is actually word aligned if the flag says
-    // that it is.
-    __ And(scratch4, dest, Operand(kPointerAlignmentMask));
+void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
+                                          Register dest,
+                                          Register src,
+                                          Register count,
+                                          Register scratch,
+                                          String::Encoding encoding) {
+  if (FLAG_debug_code) {
+    // Check that destination is word aligned.
+    __ And(scratch, dest, Operand(kPointerAlignmentMask));
     __ Check(eq,
              kDestinationOfCopyNotAligned,
-             scratch4,
+             scratch,
              Operand(zero_reg));
   }
 
-  const int kReadAlignment = 4;
-  const int kReadAlignmentMask = kReadAlignment - 1;
-  // Ensure that reading an entire aligned word containing the last character
-  // of a string will not read outside the allocated area (because we pad up
-  // to kObjectAlignment).
-  STATIC_ASSERT(kObjectAlignment >= kReadAlignment);
   // Assumes word reads and writes are little endian.
   // Nothing to do for zero characters.
   Label done;
 
-  if (!ascii) {
-    __ addu(count, count, count);
-  }
-  __ Branch(&done, eq, count, Operand(zero_reg));
-
-  Label byte_loop;
-  // Must copy at least eight bytes, otherwise just do it one byte at a time.
-  __ Subu(scratch1, count, Operand(8));
-  __ Addu(count, dest, Operand(count));
-  Register limit = count;  // Read until src equals this.
-  __ Branch(&byte_loop, lt, scratch1, Operand(zero_reg));
-
-  if (!dest_always_aligned) {
-    // Align dest by byte copying. Copies between zero and three bytes.
-    __ And(scratch4, dest, Operand(kReadAlignmentMask));
-    Label dest_aligned;
-    __ Branch(&dest_aligned, eq, scratch4, Operand(zero_reg));
-    Label aligned_loop;
-    __ bind(&aligned_loop);
-    __ lbu(scratch1, MemOperand(src));
-    __ addiu(src, src, 1);
-    __ sb(scratch1, MemOperand(dest));
-    __ addiu(dest, dest, 1);
-    __ addiu(scratch4, scratch4, 1);
-    __ Branch(&aligned_loop, le, scratch4, Operand(kReadAlignmentMask));
-    __ bind(&dest_aligned);
+  if (encoding == String::TWO_BYTE_ENCODING) {
+    __ Addu(count, count, count);
   }
 
-  Label simple_loop;
+  Register limit = count;  // Read until dest equals this.
+  __ Addu(limit, dest, Operand(count));
 
-  __ And(scratch4, src, Operand(kReadAlignmentMask));
-  __ Branch(&simple_loop, eq, scratch4, Operand(zero_reg));
-
-  // Loop for src/dst that are not aligned the same way.
-  // This loop uses lwl and lwr instructions. These instructions
-  // depend on the endianness, and the implementation assumes little-endian.
-  {
-    Label loop;
-    __ bind(&loop);
-    if (kArchEndian == kBig) {
-      __ lwl(scratch1, MemOperand(src));
-      __ Addu(src, src, Operand(kReadAlignment));
-      __ lwr(scratch1, MemOperand(src, -1));
-    } else {
-      __ lwr(scratch1, MemOperand(src));
-      __ Addu(src, src, Operand(kReadAlignment));
-      __ lwl(scratch1, MemOperand(src, -1));
-    }
-    __ sw(scratch1, MemOperand(dest));
-    __ Addu(dest, dest, Operand(kReadAlignment));
-    __ Subu(scratch2, limit, dest);
-    __ Branch(&loop, ge, scratch2, Operand(kReadAlignment));
-  }
-
-  __ Branch(&byte_loop);
-
-  // Simple loop.
-  // Copy words from src to dest, until less than four bytes left.
-  // Both src and dest are word aligned.
-  __ bind(&simple_loop);
-  {
-    Label loop;
-    __ bind(&loop);
-    __ lw(scratch1, MemOperand(src));
-    __ Addu(src, src, Operand(kReadAlignment));
-    __ sw(scratch1, MemOperand(dest));
-    __ Addu(dest, dest, Operand(kReadAlignment));
-    __ Subu(scratch2, limit, dest);
-    __ Branch(&loop, ge, scratch2, Operand(kReadAlignment));
-  }
-
+  Label loop_entry, loop;
   // Copy bytes from src to dest until dest hits limit.
-  __ bind(&byte_loop);
-  // Test if dest has already reached the limit.
-  __ Branch(&done, ge, dest, Operand(limit));
-  __ lbu(scratch1, MemOperand(src));
-  __ addiu(src, src, 1);
-  __ sb(scratch1, MemOperand(dest));
-  __ addiu(dest, dest, 1);
-  __ Branch(&byte_loop);
+  __ Branch(&loop_entry);
+  __ bind(&loop);
+  __ lbu(scratch, MemOperand(src));
+  __ Addu(src, src, Operand(1));
+  __ sb(scratch, MemOperand(dest));
+  __ Addu(dest, dest, Operand(1));
+  __ bind(&loop_entry);
+  __ Branch(&loop, lt, dest, Operand(limit));
 
   __ bind(&done);
 }
@@ -3844,8 +3767,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // a2: result string length
   // t1: first character of substring to copy
   STATIC_ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharactersLong(
-      masm, a1, t1, a2, a3, t0, t2, t3, t4, COPY_ASCII | DEST_ALWAYS_ALIGNED);
+  StringHelper::GenerateCopyCharacters(
+      masm, a1, t1, a2, a3, String::ONE_BYTE_ENCODING);
   __ jmp(&return_v0);
 
   // Allocate and copy the resulting two-byte string.
@@ -3864,8 +3787,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // a2: result length.
   // t1: first character of substring to copy.
   STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharactersLong(
-      masm, a1, t1, a2, a3, t0, t2, t3, t4, DEST_ALWAYS_ALIGNED);
+  StringHelper::GenerateCopyCharacters(
+      masm, a1, t1, a2, a3, String::TWO_BYTE_ENCODING);
 
   __ bind(&return_v0);
   Counters* counters = isolate()->counters();

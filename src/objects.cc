@@ -23,6 +23,7 @@
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
+#include "src/lookup.h"
 #include "src/objects-inl.h"
 #include "src/objects-visiting-inl.h"
 #include "src/macro-assembler.h"
@@ -127,17 +128,40 @@ void Object::Lookup(Handle<Name> name, LookupResult* result) {
 }
 
 
-MaybeHandle<Object> Object::GetPropertyWithReceiver(
-    Handle<Object> object,
-    Handle<Object> receiver,
-    Handle<Name> name,
-    PropertyAttributes* attributes) {
-  LookupResult lookup(name->GetIsolate());
-  object->Lookup(name, &lookup);
-  MaybeHandle<Object> result =
-      GetProperty(object, receiver, &lookup, name, attributes);
-  ASSERT(*attributes <= ABSENT);
-  return result;
+MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::NOT_FOUND:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY:
+        return JSProxy::GetPropertyWithHandler(
+            it->GetJSProxy(), it->GetReceiver(), it->name());
+      case LookupIterator::INTERCEPTOR: {
+        MaybeHandle<Object> maybe_result = JSObject::GetPropertyWithInterceptor(
+            it->GetHolder(), it->GetReceiver(), it->name());
+        if (!maybe_result.is_null()) return maybe_result;
+        if (it->isolate()->has_pending_exception()) return maybe_result;
+        break;
+      }
+      case LookupIterator::ACCESS_CHECK: {
+        if (it->HasAccess(v8::ACCESS_GET)) break;
+        return JSObject::GetPropertyWithFailedAccessCheck(it);
+      }
+      case LookupIterator::PROPERTY:
+        if (it->HasProperty()) {
+          switch (it->property_kind()) {
+            case LookupIterator::ACCESSOR:
+              return GetPropertyWithAccessor(
+                  it->GetReceiver(), it->name(),
+                  it->GetHolder(), it->GetAccessors());
+            case LookupIterator::DATA:
+              return it->GetDataValue();
+          }
+        }
+        break;
+    }
+  }
+  return it->factory()->undefined_value();
 }
 
 
@@ -377,7 +401,7 @@ MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
 }
 
 
-MaybeHandle<Object> Object::GetPropertyWithCallback(Handle<Object> receiver,
+MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
                                                     Handle<Name> name,
                                                     Handle<JSObject> holder,
                                                     Handle<Object> structure) {
@@ -542,46 +566,33 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 }
 
 
-static bool FindAllCanReadHolder(LookupResult* result,
-                                 Handle<Name> name,
-                                 bool check_prototype) {
-  if (result->IsInterceptor()) {
-    result->holder()->LookupOwnRealNamedProperty(name, result);
-  }
-
-  while (result->IsProperty()) {
-    if (result->type() == CALLBACKS) {
-      Object* callback_obj = result->GetCallbackObject();
-      if (callback_obj->IsAccessorInfo()) {
-        if (AccessorInfo::cast(callback_obj)->all_can_read()) return true;
-      } else if (callback_obj->IsAccessorPair()) {
-        if (AccessorPair::cast(callback_obj)->all_can_read()) return true;
+static bool FindAllCanReadHolder(LookupIterator* it) {
+  for (; it->IsFound(); it->Next()) {
+    if (it->state() == LookupIterator::PROPERTY &&
+        it->HasProperty() &&
+        it->property_kind() == LookupIterator::ACCESSOR) {
+      Handle<Object> accessors = it->GetAccessors();
+      if (accessors->IsAccessorInfo()) {
+        if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
+      } else if (accessors->IsAccessorPair()) {
+        if (AccessorPair::cast(*accessors)->all_can_read()) return true;
       }
     }
-    if (!check_prototype) break;
-    result->holder()->LookupRealNamedPropertyInPrototypes(name, result);
   }
   return false;
 }
 
 
 MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
-    Handle<JSObject> object,
-    Handle<Object> receiver,
-    LookupResult* result,
-    Handle<Name> name,
-    PropertyAttributes* attributes) {
-  if (FindAllCanReadHolder(result, name, true)) {
-    *attributes = result->GetAttributes();
-    Handle<JSObject> holder(result->holder());
-    Handle<Object> callbacks(result->GetCallbackObject(), result->isolate());
-    return GetPropertyWithCallback(receiver, name, holder, callbacks);
+    LookupIterator* it) {
+  Handle<JSObject> checked = Handle<JSObject>::cast(it->GetHolder());
+  if (FindAllCanReadHolder(it)) {
+    return GetPropertyWithAccessor(
+        it->GetReceiver(), it->name(), it->GetHolder(), it->GetAccessors());
   }
-  *attributes = ABSENT;
-  Isolate* isolate = result->isolate();
-  isolate->ReportFailedAccessCheck(object, v8::ACCESS_GET);
-  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  return isolate->factory()->undefined_value();
+  it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_GET);
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
+  return it->factory()->undefined_value();
 }
 
 
@@ -590,10 +601,12 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
     LookupResult* result,
     Handle<Name> name,
     bool check_prototype) {
-  if (FindAllCanReadHolder(result, name, check_prototype)) {
-    return result->GetAttributes();
-  }
-  result->isolate()->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+  LookupIterator::Configuration configuration = check_prototype
+      ? LookupIterator::CHECK_DERIVED
+      : LookupIterator::CHECK_OWN_REAL;
+  LookupIterator it(object, name, object, configuration);
+  if (FindAllCanReadHolder(&it)) return it.property_details().attributes();
+  it.isolate()->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
   // TODO(yangguo): Issue 3269, check for scheduled exception missing?
   return ABSENT;
 }
@@ -790,86 +803,6 @@ bool JSObject::IsDirty() {
   return map() != fun->initial_map()
       || !HasFastObjectElements()
       || !HasFastProperties();
-}
-
-
-MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
-                                        Handle<Object> receiver,
-                                        LookupResult* result,
-                                        Handle<Name> name,
-                                        PropertyAttributes* attributes) {
-  Isolate* isolate = name->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  // Make sure that the top context does not change when doing
-  // callbacks or interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  // Traverse the prototype chain from the current object (this) to
-  // the holder and check for access rights. This avoids traversing the
-  // objects more than once in case of interceptors, because the
-  // holder will always be the interceptor holder and the search may
-  // only continue with a current object just after the interceptor
-  // holder in the prototype chain.
-  // Proxy handlers do not use the proxy's prototype, so we can skip this.
-  if (!result->IsHandler()) {
-    ASSERT(*object != object->GetPrototype(isolate));
-    Handle<Object> last = result->IsProperty()
-        ? handle(result->holder()->GetPrototype(), isolate)
-        : Handle<Object>::cast(factory->null_value());
-    for (Handle<Object> current = object;
-         !current.is_identical_to(last);
-         current = Object::GetPrototype(isolate, current)) {
-      if (current->IsAccessCheckNeeded()) {
-        // Check if we're allowed to read from the current object. Note
-        // that even though we may not actually end up loading the named
-        // property from the current object, we still check that we have
-        // access to it.
-        Handle<JSObject> checked = Handle<JSObject>::cast(current);
-        if (!isolate->MayNamedAccess(checked, name, v8::ACCESS_GET)) {
-          return JSObject::GetPropertyWithFailedAccessCheck(
-              checked, receiver, result, name, attributes);
-        }
-      }
-    }
-  }
-
-  if (!result->IsProperty()) {
-    *attributes = ABSENT;
-    return factory->undefined_value();
-  }
-  *attributes = result->GetAttributes();
-
-  Handle<Object> value;
-  switch (result->type()) {
-    case NORMAL: {
-      value = JSObject::GetNormalizedProperty(
-          handle(result->holder(), isolate), result);
-      break;
-    }
-    case FIELD:
-      value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
-          result->representation(), FieldIndex::ForLookupResult(result));
-      break;
-    case CONSTANT:
-      return handle(result->GetConstant(), isolate);
-    case CALLBACKS:
-      return GetPropertyWithCallback(
-          receiver, name, handle(result->holder(), isolate),
-          handle(result->GetCallbackObject(), isolate));
-    case HANDLER:
-      return JSProxy::GetPropertyWithHandler(
-          handle(result->proxy(), isolate), receiver, name);
-    case INTERCEPTOR:
-      return JSObject::GetPropertyWithInterceptor(
-          handle(result->holder(), isolate), receiver, name, attributes);
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
-  }
-  ASSERT(!value->IsTheHole() || result->IsReadOnly());
-  return value->IsTheHole() ? Handle<Object>::cast(factory->undefined_value())
-                            : value;
 }
 
 
@@ -13780,60 +13713,35 @@ InterceptorInfo* JSObject::GetIndexedInterceptor() {
 }
 
 
-MaybeHandle<Object> JSObject::GetPropertyPostInterceptor(
-    Handle<JSObject> object,
-    Handle<Object> receiver,
-    Handle<Name> name,
-    PropertyAttributes* attributes) {
-  // Check own property in holder, ignore interceptor.
-  Isolate* isolate = object->GetIsolate();
-  LookupResult lookup(isolate);
-  object->LookupOwnRealNamedProperty(name, &lookup);
-  if (lookup.IsFound()) {
-    return GetProperty(object, receiver, &lookup, name, attributes);
-  } else {
-    // Continue searching via the prototype chain.
-    Handle<Object> prototype(object->GetPrototype(), isolate);
-    *attributes = ABSENT;
-    if (prototype->IsNull()) return isolate->factory()->undefined_value();
-    return GetPropertyWithReceiver(prototype, receiver, name, attributes);
-  }
-}
-
-
 MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(
-    Handle<JSObject> object,
+    Handle<JSObject> holder,
     Handle<Object> receiver,
-    Handle<Name> name,
-    PropertyAttributes* attributes) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<Name> name) {
+  Isolate* isolate = holder->GetIsolate();
 
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return isolate->factory()->undefined_value();
 
-  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor(), isolate);
+  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
   Handle<String> name_string = Handle<String>::cast(name);
 
-  if (!interceptor->getter()->IsUndefined()) {
-    v8::NamedPropertyGetterCallback getter =
-        v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get", *object, *name));
-    PropertyCallbackArguments
-        args(isolate, interceptor->data(), *receiver, *object);
-    v8::Handle<v8::Value> result =
-        args.Call(getter, v8::Utils::ToLocal(name_string));
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!result.IsEmpty()) {
-      *attributes = NONE;
-      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-      result_internal->VerifyApiCallResultType();
-      // Rebox handle before return.
-      return handle(*result_internal, isolate);
-    }
-  }
+  if (interceptor->getter()->IsUndefined()) return MaybeHandle<Object>();
 
-  return GetPropertyPostInterceptor(object, receiver, name, attributes);
+  v8::NamedPropertyGetterCallback getter =
+      v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
+  LOG(isolate,
+      ApiNamedPropertyAccess("interceptor-named-get", *holder, *name));
+  PropertyCallbackArguments
+      args(isolate, interceptor->data(), *receiver, *holder);
+  v8::Handle<v8::Value> result =
+      args.Call(getter, v8::Utils::ToLocal(name_string));
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  if (result.IsEmpty()) return MaybeHandle<Object>();
+
+  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+  result_internal->VerifyApiCallResultType();
+  // Rebox handle before return
+  return handle(*result_internal, isolate);
 }
 
 

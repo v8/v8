@@ -30,8 +30,7 @@ const int kMaxKeyedPolymorphism = 4;
   /* Utilities for IC stubs. */                       \
   ICU(StoreCallbackProperty)                          \
   ICU(LoadPropertyWithInterceptorOnly)                \
-  ICU(LoadPropertyWithInterceptorForLoad)             \
-  ICU(LoadPropertyWithInterceptorForCall)             \
+  ICU(LoadPropertyWithInterceptor)                    \
   ICU(KeyedLoadPropertyWithInterceptor)               \
   ICU(StoreInterceptorProperty)                       \
   ICU(CompareIC_Miss)                                 \
@@ -526,12 +525,9 @@ class KeyedLoadIC: public LoadIC {
 
   Handle<Code> LoadElementStub(Handle<JSObject> receiver);
 
-  virtual Handle<Code> megamorphic_stub() {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
-  virtual Handle<Code> generic_stub() const {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
+  virtual Handle<Code> megamorphic_stub();
+  virtual Handle<Code> generic_stub() const;
+
   virtual Handle<Code> slow_stub() const {
     return isolate()->builtins()->KeyedLoadIC_Slow();
   }

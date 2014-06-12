@@ -1158,11 +1158,6 @@ void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
 
 
-unsigned OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // Windows runs on anything.
-}
-
-
 int OS::NumberOfProcessorsOnline() {
   SYSTEM_INFO info;
   GetSystemInfo(&info);
