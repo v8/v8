@@ -51,6 +51,15 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
 }
 
 
+static bool IsNonDeoptingIntToSmiChange(HChange* change) {
+  Representation from_rep = change->from();
+  Representation to_rep = change->to();
+  // Flags indicating Uint32 operations are set in a later Hydrogen phase.
+  ASSERT(!change->CheckFlag(HValue::kUint32));
+  return from_rep.IsInteger32() && to_rep.IsSmi() && SmiValuesAre32Bits();
+}
+
+
 void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
     HValue* value) {
   Representation r = value->representation();
@@ -65,17 +74,33 @@ void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
     int use_index = it.index();
     Representation req = use_value->RequiredInputRepresentation(use_index);
     if (req.IsNone() || req.Equals(r)) continue;
+
+    // If this is an HForceRepresentation instruction, and an HChange has been
+    // inserted above it, examine the input representation of the HChange. If
+    // that's int32, and this HForceRepresentation use is int32, and int32 to
+    // smi changes can't cause deoptimisation, set the input of the use to the
+    // input of the HChange.
+    if (value->IsForceRepresentation()) {
+      HValue* input = HForceRepresentation::cast(value)->value();
+      if (input->IsChange()) {
+        HChange* change = HChange::cast(input);
+        if (change->from().Equals(req) && IsNonDeoptingIntToSmiChange(change)) {
+          use_value->SetOperandAt(use_index, change->value());
+          continue;
+        }
+      }
+    }
     InsertRepresentationChangeForUse(value, use_value, use_index, req);
   }
   if (value->HasNoUses()) {
-    ASSERT(value->IsConstant());
+    ASSERT(value->IsConstant() || value->IsForceRepresentation());
     value->DeleteAndReplaceWith(NULL);
-  }
-
-  // The only purpose of a HForceRepresentation is to represent the value
-  // after the (possible) HChange instruction.  We make it disappear.
-  if (value->IsForceRepresentation()) {
-    value->DeleteAndReplaceWith(HForceRepresentation::cast(value)->value());
+  } else {
+    // The only purpose of a HForceRepresentation is to represent the value
+    // after the (possible) HChange instruction.  We make it disappear.
+    if (value->IsForceRepresentation()) {
+      value->DeleteAndReplaceWith(HForceRepresentation::cast(value)->value());
+    }
   }
 }
 
