@@ -436,8 +436,17 @@ bool LCodeGen::IsSmiConstant(LConstantOperand* op) const {
 
 
 int32_t LCodeGen::ToInteger32(LConstantOperand* op) const {
+  return ToRepresentation(op, Representation::Integer32());
+}
+
+
+int32_t LCodeGen::ToRepresentation(LConstantOperand* op,
+                                   const Representation& r) const {
   HConstant* constant = chunk_->LookupConstant(op);
-  return constant->Integer32Value();
+  int32_t value = constant->Integer32Value();
+  if (r.IsInteger32()) return value;
+  ASSERT(SmiValuesAre31Bits() && r.IsSmiOrTagged());
+  return static_cast<int32_t>(reinterpret_cast<intptr_t>(Smi::FromInt(value)));
 }
 
 
@@ -1463,8 +1472,11 @@ void LCodeGen::DoMulI(LMulI* instr) {
     }
     __ j(not_zero, &done, Label::kNear);
     if (right->IsConstantOperand()) {
-      // Constant can't be represented as Smi due to immediate size limit.
-      ASSERT(!instr->hydrogen_value()->representation().IsSmi());
+      // Constant can't be represented as 32-bit Smi due to immediate size
+      // limit.
+      ASSERT(SmiValuesAre32Bits()
+          ? !instr->hydrogen_value()->representation().IsSmi()
+          : SmiValuesAre31Bits());
       if (ToInteger32(LConstantOperand::cast(right)) < 0) {
         DeoptimizeIf(no_condition, instr->environment());
       } else if (ToInteger32(LConstantOperand::cast(right)) == 0) {
@@ -1499,7 +1511,9 @@ void LCodeGen::DoBitI(LBitI* instr) {
   ASSERT(left->IsRegister());
 
   if (right->IsConstantOperand()) {
-    int32_t right_operand = ToInteger32(LConstantOperand::cast(right));
+    int32_t right_operand =
+        ToRepresentation(LConstantOperand::cast(right),
+                         instr->hydrogen()->right()->representation());
     switch (instr->op()) {
       case Token::BIT_AND:
         __ andl(ToRegister(left), Immediate(right_operand));
@@ -1631,7 +1645,20 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SHL:
         if (shift_count != 0) {
           if (instr->hydrogen_value()->representation().IsSmi()) {
-            __ shlp(ToRegister(left), Immediate(shift_count));
+            if (SmiValuesAre32Bits()) {
+              __ shlp(ToRegister(left), Immediate(shift_count));
+            } else {
+              ASSERT(SmiValuesAre31Bits());
+              if (instr->can_deopt()) {
+                if (shift_count != 1) {
+                  __ shll(ToRegister(left), Immediate(shift_count - 1));
+                }
+                __ Integer32ToSmi(ToRegister(left), ToRegister(left));
+                DeoptimizeIf(overflow, instr->environment());
+              } else {
+                __ shll(ToRegister(left), Immediate(shift_count));
+              }
+            }
           } else {
             __ shll(ToRegister(left), Immediate(shift_count));
           }
@@ -1651,8 +1678,10 @@ void LCodeGen::DoSubI(LSubI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ subl(ToRegister(left),
-            Immediate(ToInteger32(LConstantOperand::cast(right))));
+    int32_t right_operand =
+        ToRepresentation(LConstantOperand::cast(right),
+                         instr->hydrogen()->right()->representation());
+    __ subl(ToRegister(left), Immediate(right_operand));
   } else if (right->IsRegister()) {
     if (instr->hydrogen_value()->representation().IsSmi()) {
       __ subp(ToRegister(left), ToRegister(right));
@@ -1853,8 +1882,11 @@ void LCodeGen::DoAddI(LAddI* instr) {
 
   if (LAddI::UseLea(instr->hydrogen()) && !left->Equals(instr->result())) {
     if (right->IsConstantOperand()) {
-      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
-      int32_t offset = ToInteger32(LConstantOperand::cast(right));
+      // No support for smi-immediates for 32-bit SMI.
+      ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
+      int32_t offset =
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation());
       if (is_p) {
         __ leap(ToRegister(instr->result()),
                 MemOperand(ToRegister(left), offset));
@@ -1872,13 +1904,15 @@ void LCodeGen::DoAddI(LAddI* instr) {
     }
   } else {
     if (right->IsConstantOperand()) {
-      ASSERT(!target_rep.IsSmi());  // No support for smi-immediates.
+      // No support for smi-immediates for 32-bit SMI.
+      ASSERT(SmiValuesAre32Bits() ? !target_rep.IsSmi() : SmiValuesAre31Bits());
+      int32_t right_operand =
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation());
       if (is_p) {
-        __ addp(ToRegister(left),
-                Immediate(ToInteger32(LConstantOperand::cast(right))));
+        __ addp(ToRegister(left), Immediate(right_operand));
       } else {
-        __ addl(ToRegister(left),
-                Immediate(ToInteger32(LConstantOperand::cast(right))));
+        __ addl(ToRegister(left), Immediate(right_operand));
       }
     } else if (right->IsRegister()) {
       if (is_p) {
@@ -1912,9 +1946,12 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
         : greater_equal;
     Register left_reg = ToRegister(left);
     if (right->IsConstantOperand()) {
-      Immediate right_imm =
-          Immediate(ToInteger32(LConstantOperand::cast(right)));
-      ASSERT(!instr->hydrogen_value()->representation().IsSmi());
+      Immediate right_imm = Immediate(
+          ToRepresentation(LConstantOperand::cast(right),
+                           instr->hydrogen()->right()->representation()));
+      ASSERT(SmiValuesAre32Bits()
+          ? !instr->hydrogen()->representation().IsSmi()
+          : SmiValuesAre31Bits());
       __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movp(left_reg, right_imm);
@@ -4769,8 +4806,8 @@ void LCodeGen::DoSmiTag(LSmiTag* instr) {
   Register output = ToRegister(instr->result());
   if (hchange->CheckFlag(HValue::kCanOverflow) &&
       hchange->value()->CheckFlag(HValue::kUint32)) {
-    __ testl(input, input);
-    DeoptimizeIf(sign, instr->environment());
+    Condition is_smi = __ CheckUInteger32ValidSmiValue(input);
+    DeoptimizeIf(NegateCondition(is_smi), instr->environment());
   }
   __ Integer32ToSmi(output, input);
   if (hchange->CheckFlag(HValue::kCanOverflow) &&

@@ -699,17 +699,23 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     HValue* right_value = instr->right();
     LOperand* right = NULL;
     int constant_value = 0;
+    bool does_deopt = false;
     if (right_value->IsConstant()) {
       HConstant* constant = HConstant::cast(right_value);
       right = chunk_->DefineConstantOperand(constant);
       constant_value = constant->Integer32Value() & 0x1f;
+      if (SmiValuesAre31Bits() && instr->representation().IsSmi() &&
+          constant_value > 0) {
+        // Left shift can deoptimize if we shift by > 0 and the result
+        // cannot be truncated to smi.
+        does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToSmi);
+      }
     } else {
       right = UseFixed(right_value, rcx);
     }
 
     // Shift operations can only deoptimize if we do a logical shift by 0 and
     // the result cannot be truncated to int32.
-    bool does_deopt = false;
     if (op == Token::SHR && constant_value == 0) {
       if (FLAG_opt_safe_uint32_operations) {
         does_deopt = !instr->CheckFlag(HInstruction::kUint32);
@@ -1521,7 +1527,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
     LOperand* right;
-    if (instr->representation().IsSmi()) {
+    if (SmiValuesAre32Bits() && instr->representation().IsSmi()) {
       // We cannot add a tagged immediate to a tagged value,
       // so we request it in a register.
       right = UseRegisterAtStart(right_candidate);
