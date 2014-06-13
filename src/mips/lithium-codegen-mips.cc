@@ -1341,7 +1341,7 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   __ Xor(scratch, scratch, result);
   if (divisor == -1) {
     if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
-      DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
+      DeoptimizeIf(ge, instr->environment(), scratch, Operand(zero_reg));
     }
     return;
   }
