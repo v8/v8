@@ -48,9 +48,9 @@ EXPAND_MACROS = [
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
 EXPECTED_FUNCTION_COUNT = 358
-EXPECTED_FUZZABLE_COUNT = 325
+EXPECTED_FUZZABLE_COUNT = 326
 EXPECTED_CCTEST_COUNT = 6
-EXPECTED_UNKNOWN_COUNT = 5
+EXPECTED_UNKNOWN_COUNT = 4
 EXPECTED_BUILTINS_COUNT = 798
 
 
@@ -143,6 +143,7 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "DateParseString": [None, "new Array(8)", None],
   "DefineOrRedefineAccessorProperty": [None, None, "function() {}",
                                        "function() {}", 2, None],
+  "FunctionBindArguments": [None, None, "undefined", None, None],
   "GetBreakLocations": [None, 0, None],
   "GetDefaultReceiver": ["function() {}", None],
   "GetImplFromInitializedIntlObject": ["new Intl.NumberFormat('en-US')", None],

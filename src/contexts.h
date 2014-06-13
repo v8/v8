@@ -130,6 +130,7 @@ enum BindingFlags {
     sloppy_function_without_prototype_map) \
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
     strict_function_without_prototype_map) \
+  V(BOUND_FUNCTION_MAP_INDEX, Map, bound_function_map) \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
   V(SLOPPY_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
     sloppy_arguments_boilerplate) \
@@ -271,6 +272,7 @@ class Context: public FixedArray {
     STRICT_FUNCTION_MAP_INDEX,
     SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    BOUND_FUNCTION_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     INITIAL_ARRAY_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,
