@@ -231,6 +231,7 @@ class LCodeGen: public LCodeGenBase {
   Operand BuildFastArrayOperand(
       LOperand* elements_pointer,
       LOperand* key,
+      Representation key_representation,
       ElementsKind elements_kind,
       uint32_t base_offset);
 

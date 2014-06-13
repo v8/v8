@@ -2126,10 +2126,23 @@ void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
 
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
-  ASSERT(instr->key()->representation().IsInteger32());
+  ASSERT((kPointerSize == kInt64Size &&
+          instr->key()->representation().IsInteger32()) ||
+         (kPointerSize == kInt32Size &&
+          instr->key()->representation().IsSmiOrInteger32()));
   ElementsKind elements_kind = instr->elements_kind();
-  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+  LOperand* key = NULL;
   LInstruction* result = NULL;
+
+  if (kPointerSize == kInt64Size) {
+    key = UseRegisterOrConstantAtStart(instr->key());
+  } else {
+    bool clobbers_key = ExternalArrayOpRequiresTemp(
+        instr->key()->representation(), elements_kind);
+    key = clobbers_key
+        ? UseTempRegister(instr->key())
+        : UseRegisterOrConstantAtStart(instr->key());
+  }
 
   if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
@@ -2224,7 +2237,16 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       elements_kind == FLOAT32_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
-  LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+  LOperand* key = NULL;
+  if (kPointerSize == kInt64Size) {
+    key = UseRegisterOrConstantAtStart(instr->key());
+  } else {
+    bool clobbers_key = ExternalArrayOpRequiresTemp(
+        instr->key()->representation(), elements_kind);
+    key = clobbers_key
+        ? UseTempRegister(instr->key())
+        : UseRegisterOrConstantAtStart(instr->key());
+  }
   LOperand* backing_store = UseRegister(instr->elements());
   return new(zone()) LStoreKeyed(backing_store, key, val);
 }
