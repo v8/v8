@@ -9,6 +9,7 @@
 #include "src/scanner.h"
 
 #include "include/v8stdint.h"
+#include "src/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/list-inl.h"
@@ -1093,26 +1094,19 @@ bool Scanner::ScanRegExpFlags() {
 }
 
 
-Handle<String> Scanner::AllocateNextLiteralString(Isolate* isolate,
-                                                  PretenureFlag tenured) {
-  if (is_next_literal_one_byte()) {
-    return isolate->factory()->NewStringFromOneByte(
-        next_literal_one_byte_string(), tenured).ToHandleChecked();
-  } else {
-    return isolate->factory()->NewStringFromTwoByte(
-        next_literal_two_byte_string(), tenured).ToHandleChecked();
+const AstString* Scanner::CurrentSymbol(AstValueFactory* ast_value_factory) {
+  if (is_literal_one_byte()) {
+    return ast_value_factory->GetOneByteString(literal_one_byte_string());
   }
+  return ast_value_factory->GetTwoByteString(literal_two_byte_string());
 }
 
 
-Handle<String> Scanner::AllocateInternalizedString(Isolate* isolate) {
-  if (is_literal_one_byte()) {
-    return isolate->factory()->InternalizeOneByteString(
-        literal_one_byte_string());
-  } else {
-    return isolate->factory()->InternalizeTwoByteString(
-        literal_two_byte_string());
+const AstString* Scanner::NextSymbol(AstValueFactory* ast_value_factory) {
+  if (is_next_literal_one_byte()) {
+    return ast_value_factory->GetOneByteString(next_literal_one_byte_string());
   }
+  return ast_value_factory->GetTwoByteString(next_literal_two_byte_string());
 }
 
 

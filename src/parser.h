@@ -389,7 +389,7 @@ class ParserTraits {
     typedef v8::internal::Zone Zone;
 
     // Return types for traversing functions.
-    typedef Handle<String> Identifier;
+    typedef const AstString* Identifier;
     typedef v8::internal::Expression* Expression;
     typedef Yield* YieldExpression;
     typedef v8::internal::FunctionLiteral* FunctionLiteral;
@@ -421,29 +421,29 @@ class ParserTraits {
   }
 
   // Helper functions for recursive descent.
-  bool IsEvalOrArguments(Handle<String> identifier) const;
+  bool IsEvalOrArguments(const AstString* identifier) const;
 
   // Returns true if the expression is of type "this.foo".
   static bool IsThisProperty(Expression* expression);
 
   static bool IsIdentifier(Expression* expression);
 
-  static Handle<String> AsIdentifier(Expression* expression) {
+  static const AstString* AsIdentifier(Expression* expression) {
     ASSERT(IsIdentifier(expression));
-    return expression->AsVariableProxy()->name();
+    return expression->AsVariableProxy()->raw_name();
   }
 
   static bool IsBoilerplateProperty(ObjectLiteral::Property* property) {
     return ObjectLiteral::IsBoilerplateProperty(property);
   }
 
-  static bool IsArrayIndex(Handle<String> string, uint32_t* index) {
-    return !string.is_null() && string->AsArrayIndex(index);
+  static bool IsArrayIndex(const AstString* string, uint32_t* index) {
+    return string->AsArrayIndex(index);
   }
 
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
-  static void PushLiteralName(FuncNameInferrer* fni, Handle<String> id) {
+  static void PushLiteralName(FuncNameInferrer* fni, const AstString* id) {
     fni->PushLiteralName(id);
   }
   void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
@@ -501,16 +501,17 @@ class ParserTraits {
   // type. The first argument may be null (in the handle sense) in
   // which case no arguments are passed to the constructor.
   Expression* NewThrowSyntaxError(
-      const char* type, Handle<Object> arg, int pos);
+      const char* type, const AstString* arg, int pos);
 
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
-  Expression* NewThrowTypeError(const char* type, Handle<Object> arg, int pos);
+  Expression* NewThrowTypeError(const char* type, const AstString* arg,
+                                int pos);
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(
-      Handle<String> constructor, const char* type,
-      Vector<Handle<Object> > arguments, int pos);
+      const AstString* constructor, const char* type,
+      const AstString* arg, int pos);
 
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
@@ -518,16 +519,19 @@ class ParserTraits {
                        const char* arg,
                        bool is_reference_error = false);
   void ReportMessage(const char* message,
-                     MaybeHandle<String> arg,
+                     const char* arg = NULL,
+                     bool is_reference_error = false);
+  void ReportMessage(const char* message,
+                     const AstString* arg,
                      bool is_reference_error = false);
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       MaybeHandle<String> arg,
+                       const AstString* arg,
                        bool is_reference_error = false);
 
   // "null" return type creators.
-  static Handle<String> EmptyIdentifier() {
-    return Handle<String>();
+  static const AstString* EmptyIdentifier() {
+    return NULL;
   }
   static Expression* EmptyExpression() {
     return NULL;
@@ -545,16 +549,16 @@ class ParserTraits {
                              AstNodeFactory<AstConstructionVisitor>* factory);
 
   // Producing data during the recursive descent.
-  Handle<String> GetSymbol(Scanner* scanner = NULL);
-  Handle<String> NextLiteralString(Scanner* scanner,
-                                   PretenureFlag tenured);
+  const AstString* GetSymbol(Scanner* scanner);
+  const AstString* GetNextSymbol(Scanner* scanner);
+
   Expression* ThisExpression(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory);
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
   Expression* ExpressionFromIdentifier(
-      Handle<String> name, int pos, Scope* scope,
+      const AstString* name, int pos, Scope* scope,
       AstNodeFactory<AstConstructionVisitor>* factory);
   Expression* ExpressionFromString(
       int pos, Scanner* scanner,
@@ -572,7 +576,7 @@ class ParserTraits {
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
-      Handle<String> name,
+      const AstString* name,
       Scanner::Location function_name_location,
       bool name_is_strict_reserved,
       bool is_generator,
@@ -643,7 +647,7 @@ class Parser : public ParserBase<ParserTraits> {
                                   Handle<String> source);
 
   // Report syntax error
-  void ReportInvalidCachedData(Handle<String> name, bool* ok);
+  void ReportInvalidCachedData(const AstString* name, bool* ok);
 
   void SetCachedData(ScriptData** data,
                      CachedDataMode cached_data_mode) {
@@ -670,8 +674,9 @@ class Parser : public ParserBase<ParserTraits> {
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor, int end_token,
                             bool is_eval, bool is_global, bool* ok);
-  Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
-  Statement* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
+  Statement* ParseModuleElement(ZoneList<const AstString*>* labels, bool* ok);
+  Statement* ParseModuleDeclaration(ZoneList<const AstString*>* names,
+                                    bool* ok);
   Module* ParseModule(bool* ok);
   Module* ParseModuleLiteral(bool* ok);
   Module* ParseModulePath(bool* ok);
@@ -680,38 +685,42 @@ class Parser : public ParserBase<ParserTraits> {
   Module* ParseModuleSpecifier(bool* ok);
   Block* ParseImportDeclaration(bool* ok);
   Statement* ParseExportDeclaration(bool* ok);
-  Statement* ParseBlockElement(ZoneStringList* labels, bool* ok);
-  Statement* ParseStatement(ZoneStringList* labels, bool* ok);
-  Statement* ParseFunctionDeclaration(ZoneStringList* names, bool* ok);
+  Statement* ParseBlockElement(ZoneList<const AstString*>* labels, bool* ok);
+  Statement* ParseStatement(ZoneList<const AstString*>* labels, bool* ok);
+  Statement* ParseFunctionDeclaration(ZoneList<const AstString*>* names,
+                                      bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
-  Block* ParseBlock(ZoneStringList* labels, bool* ok);
+  Block* ParseBlock(ZoneList<const AstString*>* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
-                                ZoneStringList* names,
+                                ZoneList<const AstString*>* names,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    VariableDeclarationProperties* decl_props,
-                                   ZoneStringList* names,
-                                   Handle<String>* out,
+                                   ZoneList<const AstString*>* names,
+                                   const AstString** out,
                                    bool* ok);
-  Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
-                                                bool* ok);
-  IfStatement* ParseIfStatement(ZoneStringList* labels, bool* ok);
+  Statement* ParseExpressionOrLabelledStatement(
+      ZoneList<const AstString*>* labels, bool* ok);
+  IfStatement* ParseIfStatement(ZoneList<const AstString*>* labels, bool* ok);
   Statement* ParseContinueStatement(bool* ok);
-  Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
+  Statement* ParseBreakStatement(ZoneList<const AstString*>* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
+  Statement* ParseWithStatement(ZoneList<const AstString*>* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
-  SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
-  DoWhileStatement* ParseDoWhileStatement(ZoneStringList* labels, bool* ok);
-  WhileStatement* ParseWhileStatement(ZoneStringList* labels, bool* ok);
-  Statement* ParseForStatement(ZoneStringList* labels, bool* ok);
+  SwitchStatement* ParseSwitchStatement(ZoneList<const AstString*>* labels,
+                                        bool* ok);
+  DoWhileStatement* ParseDoWhileStatement(ZoneList<const AstString*>* labels,
+                                          bool* ok);
+  WhileStatement* ParseWhileStatement(ZoneList<const AstString*>* labels,
+                                      bool* ok);
+  Statement* ParseForStatement(ZoneList<const AstString*>* labels, bool* ok);
   Statement* ParseThrowStatement(bool* ok);
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
 
   // Support for hamony block scoped bindings.
-  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
+  Block* ParseScopedBlock(ZoneList<const AstString*>* labels, bool* ok);
 
   // Initialize the components of a for-in / for-of statement.
   void InitializeForEachStatement(ForEachStatement* stmt,
@@ -719,12 +728,12 @@ class Parser : public ParserBase<ParserTraits> {
                                   Expression* subject,
                                   Statement* body);
   Statement* DesugarLetBindingsInForStatement(
-      Scope* inner_scope, ZoneStringList* names, ForStatement* loop,
-      Statement* init, Expression* cond, Statement* next, Statement* body,
-      bool* ok);
+      Scope* inner_scope, ZoneList<const AstString*>* names,
+      ForStatement* loop, Statement* init, Expression* cond, Statement* next,
+      Statement* body, bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
-      Handle<String> name,
+      const AstString* name,
       Scanner::Location function_name_location,
       bool name_is_strict_reserved,
       bool is_generator,
@@ -752,14 +761,14 @@ class Parser : public ParserBase<ParserTraits> {
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
   // Parser support
-  VariableProxy* NewUnresolved(Handle<String> name,
+  VariableProxy* NewUnresolved(const AstString* name,
                                VariableMode mode,
                                Interface* interface);
   void Declare(Declaration* declaration, bool resolve, bool* ok);
 
-  bool TargetStackContainsLabel(Handle<String> label);
-  BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
-  IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
+  bool TargetStackContainsLabel(const AstString* label);
+  BreakableStatement* LookupBreakTarget(const AstString* label, bool* ok);
+  IterationStatement* LookupContinueTarget(const AstString* label, bool* ok);
 
   void RegisterTargetUse(Label* target, Target* stop);
 
@@ -769,7 +778,7 @@ class Parser : public ParserBase<ParserTraits> {
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
-  void SkipLazyFunctionBody(Handle<String> function_name,
+  void SkipLazyFunctionBody(const AstString* function_name,
                             int* materialized_literal_count,
                             int* expected_property_count,
                             bool* ok);
@@ -778,7 +787,7 @@ class Parser : public ParserBase<ParserTraits> {
       SingletonLogger* logger);
 
   // Consumes the ending }.
-  ZoneList<Statement*>* ParseEagerFunctionBody(Handle<String> function_name,
+  ZoneList<Statement*>* ParseEagerFunctionBody(const AstString* function_name,
                                                int pos,
                                                Variable* fvar,
                                                Token::Value fvar_init_op,
@@ -796,6 +805,7 @@ class Parser : public ParserBase<ParserTraits> {
   Target* target_stack_;  // for break, continue statements
   ScriptData** cached_data_;
   CachedDataMode cached_data_mode_;
+  AstValueFactory* ast_value_factory_;
 
   CompilationInfo* info_;
 
@@ -803,7 +813,7 @@ class Parser : public ParserBase<ParserTraits> {
   bool has_pending_error_;
   Scanner::Location pending_error_location_;
   const char* pending_error_message_;
-  MaybeHandle<String> pending_error_arg_;
+  const AstString* pending_error_arg_;
   const char* pending_error_char_arg_;
   bool pending_error_is_reference_error_;
 };

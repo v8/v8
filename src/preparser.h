@@ -149,7 +149,8 @@ class ParserBase : public Traits {
         FunctionState** function_state_stack,
         typename Traits::Type::Scope** scope_stack,
         typename Traits::Type::Scope* scope,
-        typename Traits::Type::Zone* zone = NULL);
+        typename Traits::Type::Zone* zone = NULL,
+        AstValueFactory* ast_value_factory = NULL);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {
@@ -356,7 +357,9 @@ class ParserBase : public Traits {
 
   void ReportMessageAt(Scanner::Location location, const char* message,
                        bool is_reference_error = false) {
-    Traits::ReportMessageAt(location, message, NULL, is_reference_error);
+    Traits::ReportMessageAt(location, message,
+                            reinterpret_cast<const char*>(NULL),
+                            is_reference_error);
   }
 
   void ReportUnexpectedToken(Token::Value token);
@@ -743,9 +746,9 @@ class PreParserScope {
 
 class PreParserFactory {
  public:
-  explicit PreParserFactory(void* extra_param) {}
-  PreParserExpression NewLiteral(PreParserIdentifier identifier,
-                                 int pos) {
+  explicit PreParserFactory(void* extra_param1, void* extra_param2) {}
+  PreParserExpression NewStringLiteral(PreParserIdentifier identifier,
+                                       int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewNumberLiteral(double number,
@@ -997,8 +1000,8 @@ class PreParserTraits {
 
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner);
-  static PreParserIdentifier NextLiteralString(Scanner* scanner,
-                                               PretenureFlag tenured) {
+
+  static PreParserIdentifier GetNextSymbol(Scanner* scanner) {
     return PreParserIdentifier::Default();
   }
 
@@ -1184,7 +1187,8 @@ ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
     typename Traits::Type::Scope* scope,
-    typename Traits::Type::Zone* extra_param)
+    typename Traits::Type::Zone* extra_param,
+    AstValueFactory* ast_value_factory)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -1196,7 +1200,7 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_scope_(*scope_stack),
       saved_ast_node_id_(0),
       extra_param_(extra_param),
-      factory_(extra_param) {
+      factory_(extra_param, ast_value_factory) {
   *scope_stack_ = scope;
   *function_state_stack = this;
   Traits::SetUpFunctionState(this, extra_param);
@@ -1322,14 +1326,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
 
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  IdentifierT js_pattern = this->NextLiteralString(scanner(), TENURED);
+  IdentifierT js_pattern = this->GetNextSymbol(scanner());
   if (!scanner()->ScanRegExpFlags()) {
     Next();
     ReportMessage("invalid_regexp_flags");
     *ok = false;
     return Traits::EmptyExpression();
   }
-  IdentifierT js_flags = this->NextLiteralString(scanner(), TENURED);
+  IdentifierT js_flags = this->GetNextSymbol(scanner());
   Next();
   return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
@@ -1574,7 +1578,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
         }
         // Failed to parse as get/set property, so it's just a normal property
         // (which might be called "get" or "set" or something else).
-        key = factory()->NewLiteral(id, next_pos);
+        key = factory()->NewStringLiteral(id, next_pos);
         break;
       }
       case Token::STRING: {
@@ -1586,7 +1590,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
           key = factory()->NewNumberLiteral(index, next_pos);
           break;
         }
-        key = factory()->NewLiteral(string, next_pos);
+        key = factory()->NewStringLiteral(string, next_pos);
         break;
       }
       case Token::NUMBER: {
@@ -1599,7 +1603,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
         if (Token::IsKeyword(next)) {
           Consume(next);
           IdentifierT string = this->GetSymbol(scanner_);
-          key = factory()->NewLiteral(string, next_pos);
+          key = factory()->NewStringLiteral(string, next_pos);
         } else {
           Token::Value next = Next();
           ReportUnexpectedToken(next);
@@ -1968,7 +1972,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(bool* ok) {
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         result = factory()->NewProperty(
-            result, factory()->NewLiteral(name, pos), pos);
+            result, factory()->NewStringLiteral(name, pos), pos);
         if (fni_ != NULL) this->PushLiteralName(fni_, name);
         break;
       }
@@ -2090,7 +2094,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
         int pos = position();
         IdentifierT name = ParseIdentifierName(CHECK_OK);
         expression = factory()->NewProperty(
-            expression, factory()->NewLiteral(name, pos), pos);
+            expression, factory()->NewStringLiteral(name, pos), pos);
         if (fni_ != NULL) {
           this->PushLiteralName(fni_, name);
         }

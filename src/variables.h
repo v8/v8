@@ -5,6 +5,7 @@
 #ifndef V8_VARIABLES_H_
 #define V8_VARIABLES_H_
 
+#include "src/ast-value-factory.h"
 #include "src/zone.h"
 #include "src/interface.h"
 
@@ -52,7 +53,7 @@ class Variable: public ZoneObject {
   };
 
   Variable(Scope* scope,
-           Handle<String> name,
+           const AstString* name,
            VariableMode mode,
            bool is_valid_ref,
            Kind kind,
@@ -70,7 +71,8 @@ class Variable: public ZoneObject {
   // scope is only used to follow the context chain length.
   Scope* scope() const { return scope_; }
 
-  Handle<String> name() const { return name_; }
+  Handle<String> name() const { return name_->string(); }
+  const AstString* raw_name() const { return name_; }
   VariableMode mode() const { return mode_; }
   bool has_forced_context_allocation() const {
     return force_context_allocation_;
@@ -136,7 +138,7 @@ class Variable: public ZoneObject {
 
  private:
   Scope* scope_;
-  Handle<String> name_;
+  const AstString* name_;
   VariableMode mode_;
   Kind kind_;
   Location location_;
