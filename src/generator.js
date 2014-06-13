@@ -32,6 +32,10 @@ function GeneratorObjectThrow(exn) {
   return %_GeneratorThrow(this, exn);
 }
 
+function GeneratorObjectIterator() {
+  return this;
+}
+
 function GeneratorFunctionPrototypeConstructor(x) {
   if (%_IsConstructCall()) {
     throw MakeTypeError('not_constructor', ['GeneratorFunctionPrototype']);
@@ -43,7 +47,9 @@ function GeneratorFunctionConstructor(arg1) {  // length == 1
   var global_receiver = %GlobalReceiver(global);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
-  var f = %_CallFunction(global_receiver, %CompileString(source, true));
+  var f = %CompileString(source, true);
+  if (!IS_FUNCTION(f)) return f;
+  f = %_CallFunction(global_receiver, f);
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }
@@ -56,6 +62,9 @@ function SetUpGenerators() {
                    DONT_ENUM | DONT_DELETE | READ_ONLY,
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
+  %FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
+  %SetProperty(GeneratorObjectPrototype, symbolIterator, GeneratorObjectIterator,
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetProperty(GeneratorObjectPrototype, "constructor",
                GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);

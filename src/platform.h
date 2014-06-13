@@ -22,6 +22,8 @@
 #define V8_PLATFORM_H_
 
 #include <stdarg.h>
+#include <string>
+#include <vector>
 
 #include "src/base/build_config.h"
 #include "src/platform/mutex.h"
@@ -255,7 +257,17 @@ class OS {
 
   // Support for the profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted for.
-  static void LogSharedLibraryAddresses(Isolate* isolate);
+  struct SharedLibraryAddress {
+    SharedLibraryAddress(
+        const std::string& library_path, uintptr_t start, uintptr_t end)
+        : library_path(library_path), start(start), end(end) {}
+
+    std::string library_path;
+    uintptr_t start;
+    uintptr_t end;
+  };
+
+  static std::vector<SharedLibraryAddress> GetSharedLibraryAddresses();
 
   // Support for the profiler.  Notifies the external profiling
   // process that a code moving garbage collection starts.  Can do

@@ -110,11 +110,7 @@ void* OS::Allocate(const size_t requested,
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* addr = OS::GetRandomMmapAddr();
   void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) {
-    LOG(i::Isolate::Current(),
-        StringEvent("OS::Allocate", "mmap failed"));
-    return NULL;
-  }
+  if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
 }
@@ -178,7 +174,8 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 }
 
 
-void OS::LogSharedLibraryAddresses(Isolate* isolate) {
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  std::vector<SharedLibraryAddress> result;
   procfs_mapinfo *mapinfos = NULL, *mapinfo;
   int proc_fd, num, i;
 
@@ -192,20 +189,20 @@ void OS::LogSharedLibraryAddresses(Isolate* isolate) {
 
   if ((proc_fd = open(buf, O_RDONLY)) == -1) {
     close(proc_fd);
-    return;
+    return result;
   }
 
   /* Get the number of map entries.  */
   if (devctl(proc_fd, DCMD_PROC_MAPINFO, NULL, 0, &num) != EOK) {
     close(proc_fd);
-    return;
+    return result;
   }
 
   mapinfos = reinterpret_cast<procfs_mapinfo *>(
       malloc(num * sizeof(procfs_mapinfo)));
   if (mapinfos == NULL) {
     close(proc_fd);
-    return;
+    return result;
   }
 
   /* Fill the map entries.  */
@@ -213,7 +210,7 @@ void OS::LogSharedLibraryAddresses(Isolate* isolate) {
       mapinfos, num * sizeof(procfs_mapinfo), &num) != EOK) {
     free(mapinfos);
     close(proc_fd);
-    return;
+    return result;
   }
 
   for (i = 0; i < num; i++) {
@@ -223,13 +220,13 @@ void OS::LogSharedLibraryAddresses(Isolate* isolate) {
       if (devctl(proc_fd, DCMD_PROC_MAPDEBUG, &map, sizeof(map), 0) != EOK) {
         continue;
       }
-      LOG(isolate, SharedLibraryEvent(map.info.path,
-                                      mapinfo->vaddr,
-                                      mapinfo->vaddr + mapinfo->size));
+      result.push_back(SharedLibraryAddress(
+          map.info.path, mapinfo->vaddr, mapinfo->vaddr + mapinfo->size));
     }
   }
   free(mapinfos);
   close(proc_fd);
+  return result;
 }
 
 

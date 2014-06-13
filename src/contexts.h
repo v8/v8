@@ -162,6 +162,7 @@ enum BindingFlags {
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject) \
   V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain) \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch) \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then) \
   V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction, \
     to_complete_property_descriptor) \
   V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
@@ -186,7 +187,8 @@ enum BindingFlags {
     generator_object_prototype_map) \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map) \
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map) \
-  V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)
+  V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map) \
+  V(ITERATOR_SYMBOL_INDEX, Symbol, iterator_symbol)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -340,6 +342,7 @@ class Context: public FixedArray {
     PROMISE_REJECT_INDEX,
     PROMISE_CHAIN_INDEX,
     PROMISE_CATCH_INDEX,
+    PROMISE_THEN_INDEX,
     TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX,
     DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,
@@ -358,6 +361,7 @@ class Context: public FixedArray {
     ITERATOR_RESULT_MAP_INDEX,
     MAP_ITERATOR_MAP_INDEX,
     SET_ITERATOR_MAP_INDEX,
+    ITERATOR_SYMBOL_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

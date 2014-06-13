@@ -169,7 +169,7 @@ static void VerifyMemoryChunk(Isolate* isolate,
                                                               commit_area_size,
                                                               executable,
                                                               NULL);
-  size_t alignment = code_range->exists() ?
+  size_t alignment = code_range != NULL && code_range->valid() ?
                      MemoryChunk::kAlignment : OS::CommitPageSize();
   size_t reserved_size = ((executable == EXECUTABLE))
       ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,

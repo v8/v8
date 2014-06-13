@@ -59,7 +59,7 @@ function SetUpSetIterator() {
   ));
 
   %FunctionSetName(SetIteratorSymbolIterator, '[Symbol.iterator]');
-  %SetProperty(SetIterator.prototype, InternalSymbol('Symbol.iterator'),
+  %SetProperty(SetIterator.prototype, symbolIterator,
       SetIteratorSymbolIterator, DONT_ENUM);
 }
 
@@ -74,7 +74,7 @@ function ExtendSetPrototype() {
     'values', SetValues
   ));
 
-  %SetProperty($Set.prototype, InternalSymbol('Symbol.iterator'), SetValues,
+  %SetProperty($Set.prototype, symbolIterator, SetValues,
       DONT_ENUM);
 }
 
@@ -139,7 +139,7 @@ function SetUpMapIterator() {
   ));
 
   %FunctionSetName(MapIteratorSymbolIterator, '[Symbol.iterator]');
-  %SetProperty(MapIterator.prototype, InternalSymbol('Symbol.iterator'),
+  %SetProperty(MapIterator.prototype, symbolIterator,
       MapIteratorSymbolIterator, DONT_ENUM);
 }
 
@@ -155,7 +155,7 @@ function ExtendMapPrototype() {
     'values', MapValues
   ));
 
-  %SetProperty($Map.prototype, InternalSymbol('Symbol.iterator'), MapEntries,
+  %SetProperty($Map.prototype, symbolIterator, MapEntries,
       DONT_ENUM);
 }
 

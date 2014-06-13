@@ -1411,7 +1411,8 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   int obj_size = Code::SizeFor(body_size);
 
   Handle<Code> code = NewCodeRaw(obj_size, immovable);
-  ASSERT(!isolate()->code_range()->exists() ||
+  ASSERT(isolate()->code_range() == NULL ||
+         !isolate()->code_range()->valid() ||
          isolate()->code_range()->contains(code->address()));
 
   // The code object has not been fully initialized yet.  We rely on the

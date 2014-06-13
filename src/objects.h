@@ -1954,14 +1954,11 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  static inline PropertyAttributes GetPropertyAttribute(
+  static inline PropertyAttributes GetPropertyAttributes(
       Handle<JSReceiver> object,
       Handle<Name> name);
-  static PropertyAttributes GetPropertyAttributeWithReceiver(
-      Handle<JSReceiver> object,
-      Handle<JSReceiver> receiver,
-      Handle<Name> name);
-  static PropertyAttributes GetOwnPropertyAttribute(
+  static PropertyAttributes GetPropertyAttributes(LookupIterator* it);
+  static PropertyAttributes GetOwnPropertyAttributes(
       Handle<JSReceiver> object,
       Handle<Name> name);
 
@@ -2002,13 +1999,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
-  static PropertyAttributes GetPropertyAttributeForResult(
-      Handle<JSReceiver> object,
-      Handle<JSReceiver> receiver,
-      LookupResult* result,
-      Handle<Name> name,
-      bool continue_search);
-
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       Handle<JSReceiver> receiver,
       LookupResult* result,
@@ -2209,21 +2199,12 @@ class JSObject: public JSReceiver {
   InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
-  static PropertyAttributes GetPropertyAttributePostInterceptor(
-      Handle<JSObject> object,
-      Handle<JSObject> receiver,
-      Handle<Name> name,
-      bool check_prototype);
-  static PropertyAttributes GetPropertyAttributeWithInterceptor(
-      Handle<JSObject> object,
-      Handle<JSObject> receiver,
-      Handle<Name> name,
-      bool check_prototype);
-  static PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
-      Handle<JSObject> object,
-      LookupResult* result,
-      Handle<Name> name,
-      bool check_prototype);
+  static Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptor(
+      Handle<JSObject> holder,
+      Handle<Object> receiver,
+      Handle<Name> name);
+  static PropertyAttributes GetPropertyAttributesWithFailedAccessCheck(
+      LookupIterator* it);
   static PropertyAttributes GetElementAttributeWithReceiver(
       Handle<JSObject> object,
       Handle<JSReceiver> receiver,
@@ -6723,10 +6704,18 @@ class Map: public HeapObject {
   static const int kVisitorIdOffset = kInstanceSizesOffset + kVisitorIdByte;
 
   // Byte offsets within kInstanceAttributesOffset attributes.
+#if V8_TARGET_LITTLE_ENDIAN
+  // Order instance type and bit field together such that they can be loaded
+  // together as a 16-bit word with instance type in the lower 8 bits regardless
+  // of endianess.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
-  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 1;
-  static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
-  static const int kBitField2Offset = kInstanceAttributesOffset + 3;
+  static const int kBitFieldOffset = kInstanceAttributesOffset + 1;
+#else
+  static const int kBitFieldOffset = kInstanceAttributesOffset + 0;
+  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
+#endif
+  static const int kBitField2Offset = kInstanceAttributesOffset + 2;
+  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
 
   STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
@@ -9048,6 +9037,33 @@ class String: public Name {
  public:
   enum Encoding { ONE_BYTE_ENCODING, TWO_BYTE_ENCODING };
 
+  // Array index strings this short can keep their index in the hash field.
+  static const int kMaxCachedArrayIndexLength = 7;
+
+  // For strings which are array indexes the hash value has the string length
+  // mixed into the hash, mainly to avoid a hash value of zero which would be
+  // the case for the string '0'. 24 bits are used for the array index value.
+  static const int kArrayIndexValueBits = 24;
+  static const int kArrayIndexLengthBits =
+      kBitsPerInt - kArrayIndexValueBits - kNofHashBitFields;
+
+  STATIC_ASSERT((kArrayIndexLengthBits > 0));
+
+  class ArrayIndexValueBits : public BitField<unsigned int, kNofHashBitFields,
+      kArrayIndexValueBits> {};  // NOLINT
+  class ArrayIndexLengthBits : public BitField<unsigned int,
+      kNofHashBitFields + kArrayIndexValueBits,
+      kArrayIndexLengthBits> {};  // NOLINT
+
+  // Check that kMaxCachedArrayIndexLength + 1 is a power of two so we
+  // could use a mask to test if the length of string is less than or equal to
+  // kMaxCachedArrayIndexLength.
+  STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
+
+  static const unsigned int kContainsCachedArrayIndexMask =
+      (~kMaxCachedArrayIndexLength << ArrayIndexLengthBits::kShift) |
+      kIsNotArrayIndexMask;
+
   // Representation of the flat content of a String.
   // A non-flat string doesn't have flat content.
   // A flat string has content that's encoded as a sequence of either
@@ -9963,9 +9979,9 @@ class JSProxy: public JSReceiver {
       StrictMode strict_mode,
       bool* done);
 
-  static PropertyAttributes GetPropertyAttributeWithHandler(
+  static PropertyAttributes GetPropertyAttributesWithHandler(
       Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
+      Handle<Object> receiver,
       Handle<Name> name);
   static PropertyAttributes GetElementAttributeWithHandler(
       Handle<JSProxy> proxy,

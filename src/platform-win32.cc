@@ -766,10 +766,7 @@ void* OS::Allocate(const size_t requested,
                                         MEM_COMMIT | MEM_RESERVE,
                                         prot);
 
-  if (mbase == NULL) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "VirtualAlloc failed"));
-    return NULL;
-  }
+  if (mbase == NULL) return NULL;
 
   ASSERT(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
 
@@ -1061,10 +1058,13 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
 
 
 // Load the symbols for generating stack traces.
-static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
+static std::vector<OS::SharedLibraryAddress> LoadSymbols(
+    HANDLE process_handle) {
+  static std::vector<OS::SharedLibraryAddress> result;
+
   static bool symbols_loaded = false;
 
-  if (symbols_loaded) return true;
+  if (symbols_loaded) return result;
 
   BOOL ok;
 
@@ -1072,7 +1072,7 @@ static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
   ok = _SymInitialize(process_handle,  // hProcess
                       NULL,            // UserSearchPath
                       false);          // fInvadeProcess
-  if (!ok) return false;
+  if (!ok) return result;
 
   DWORD options = _SymGetOptions();
   options |= SYMOPT_LOAD_LINES;
@@ -1084,13 +1084,13 @@ static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
   if (!ok) {
     int err = GetLastError();
     PrintF("%d\n", err);
-    return false;
+    return result;
   }
 
   HANDLE snapshot = _CreateToolhelp32Snapshot(
       TH32CS_SNAPMODULE,       // dwFlags
       GetCurrentProcessId());  // th32ProcessId
-  if (snapshot == INVALID_HANDLE_VALUE) return false;
+  if (snapshot == INVALID_HANDLE_VALUE) return result;
   MODULEENTRY32W module_entry;
   module_entry.dwSize = sizeof(module_entry);  // Set the size of the structure.
   BOOL cont = _Module32FirstW(snapshot, &module_entry);
@@ -1108,31 +1108,37 @@ static bool LoadSymbols(Isolate* isolate, HANDLE process_handle) {
     if (base == 0) {
       int err = GetLastError();
       if (err != ERROR_MOD_NOT_FOUND &&
-          err != ERROR_INVALID_HANDLE) return false;
+          err != ERROR_INVALID_HANDLE) {
+        result.clear();
+        return result;
+      }
     }
-    LOG(isolate,
-        SharedLibraryEvent(
-            module_entry.szExePath,
-            reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
-            reinterpret_cast<unsigned int>(module_entry.modBaseAddr +
-                                           module_entry.modBaseSize)));
+    int lib_name_length = WideCharToMultiByte(
+        CP_UTF8, 0, module_entry.szExePath, -1, NULL, 0, NULL, NULL);
+    std::string lib_name(lib_name_length, 0);
+    WideCharToMultiByte(CP_UTF8, 0, module_entry.szExePath, -1, &lib_name[0],
+                        lib_name_length, NULL, NULL);
+    result.push_back(OS::SharedLibraryAddress(
+        lib_name, reinterpret_cast<unsigned int>(module_entry.modBaseAddr),
+        reinterpret_cast<unsigned int>(module_entry.modBaseAddr +
+                                       module_entry.modBaseSize)));
     cont = _Module32NextW(snapshot, &module_entry);
   }
   CloseHandle(snapshot);
 
   symbols_loaded = true;
-  return true;
+  return result;
 }
 
 
-void OS::LogSharedLibraryAddresses(Isolate* isolate) {
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   // SharedLibraryEvents are logged when loading symbol information.
   // Only the shared libraries loaded at the time of the call to
-  // LogSharedLibraryAddresses are logged.  DLLs loaded after
+  // GetSharedLibraryAddresses are logged.  DLLs loaded after
   // initialization are not accounted for.
-  if (!LoadDbgHelpAndTlHelp32()) return;
+  if (!LoadDbgHelpAndTlHelp32()) return std::vector<OS::SharedLibraryAddress>();
   HANDLE process_handle = GetCurrentProcess();
-  LoadSymbols(isolate, process_handle);
+  return LoadSymbols(process_handle);
 }
 
 
@@ -1153,7 +1159,11 @@ uint64_t OS::TotalPhysicalMemory() {
 
 
 #else  // __MINGW32__
-void OS::LogSharedLibraryAddresses(Isolate* isolate) { }
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  return std::vector<OS::SharedLibraryAddress>();
+}
+
+
 void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
 

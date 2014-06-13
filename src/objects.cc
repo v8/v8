@@ -143,10 +143,9 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
         if (it->isolate()->has_pending_exception()) return maybe_result;
         break;
       }
-      case LookupIterator::ACCESS_CHECK: {
+      case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess(v8::ACCESS_GET)) break;
         return JSObject::GetPropertyWithFailedAccessCheck(it);
-      }
       case LookupIterator::PROPERTY:
         if (it->HasProperty()) {
           switch (it->property_kind()) {
@@ -567,6 +566,8 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 
 
 static bool FindAllCanReadHolder(LookupIterator* it) {
+  it->skip_interceptor();
+  it->skip_access_check();
   for (; it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::PROPERTY &&
         it->HasProperty() &&
@@ -596,17 +597,11 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
-    Handle<JSObject> object,
-    LookupResult* result,
-    Handle<Name> name,
-    bool check_prototype) {
-  LookupIterator::Configuration configuration = check_prototype
-      ? LookupIterator::CHECK_DERIVED
-      : LookupIterator::CHECK_OWN_REAL;
-  LookupIterator it(object, name, object, configuration);
-  if (FindAllCanReadHolder(&it)) return it.property_details().attributes();
-  it.isolate()->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
+PropertyAttributes JSObject::GetPropertyAttributesWithFailedAccessCheck(
+    LookupIterator* it) {
+  Handle<JSObject> checked = Handle<JSObject>::cast(it->GetHolder());
+  if (FindAllCanReadHolder(it)) return it->property_details().attributes();
+  it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_HAS);
   // TODO(yangguo): Issue 3269, check for scheduled exception missing?
   return ABSENT;
 }
@@ -2009,22 +2004,8 @@ MaybeHandle<Object> JSObject::SetPropertyPostInterceptor(
   if (!result.IsFound()) {
     object->map()->LookupTransition(*object, *name, &result);
   }
-  if (result.IsFound()) {
-    // An existing property or a map transition was found. Use set property to
-    // handle all these cases.
-    return SetPropertyForResult(object, &result, name, value, attributes,
-                                strict_mode, MAY_BE_STORE_FROM_KEYED);
-  }
-  bool done = false;
-  Handle<Object> result_object;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result_object,
-      SetPropertyViaPrototypes(
-          object, name, value, attributes, strict_mode, &done),
-      Object);
-  if (done) return result_object;
-  // Add a new real property.
-  return AddProperty(object, name, value, attributes, strict_mode);
+  return SetPropertyForResult(object, &result, name, value, attributes,
+                              strict_mode, MAY_BE_STORE_FROM_KEYED);
 }
 
 
@@ -3069,8 +3050,8 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
         *done = result.IsReadOnly();
         break;
       case INTERCEPTOR: {
-        PropertyAttributes attr = GetPropertyAttributeWithInterceptor(
-            handle(result.holder()), object, name, true);
+        LookupIterator it(object, name, handle(result.holder()));
+        PropertyAttributes attr = GetPropertyAttributes(&it);
         *done = !!(attr & READ_ONLY);
         break;
       }
@@ -3727,9 +3708,9 @@ MaybeHandle<Object> JSProxy::DeleteElementWithHandler(
 }
 
 
-PropertyAttributes JSProxy::GetPropertyAttributeWithHandler(
+PropertyAttributes JSProxy::GetPropertyAttributesWithHandler(
     Handle<JSProxy> proxy,
-    Handle<JSReceiver> receiver,
+    Handle<Object> receiver,
     Handle<Name> name) {
   Isolate* isolate = proxy->GetIsolate();
   HandleScope scope(isolate);
@@ -3811,7 +3792,7 @@ PropertyAttributes JSProxy::GetElementAttributeWithHandler(
     uint32_t index) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> name = isolate->factory()->Uint32ToString(index);
-  return GetPropertyAttributeWithHandler(proxy, receiver, name);
+  return GetPropertyAttributesWithHandler(proxy, receiver, name);
 }
 
 
@@ -4353,139 +4334,84 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 }
 
 
-PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
-    Handle<JSObject> object,
-    Handle<JSObject> receiver,
-    Handle<Name> name,
-    bool check_prototype) {
-  // Check own property, ignore interceptor.
-  Isolate* isolate = object->GetIsolate();
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(name, &result);
-  if (result.IsFound()) return result.GetAttributes();
-
-  if (check_prototype) {
-    // Continue searching via the prototype chain.
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (!proto->IsNull()) {
-      return JSReceiver::GetPropertyAttributeWithReceiver(
-          Handle<JSObject>::cast(proto), receiver, name);
-    }
-  }
-  return ABSENT;
-}
-
-
-PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
-    Handle<JSObject> object,
-    Handle<JSObject> receiver,
-    Handle<Name> name,
-    bool check_prototype) {
+Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
+    Handle<JSObject> holder,
+    Handle<Object> receiver,
+    Handle<Name> name) {
   // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return ABSENT;
+  if (name->IsSymbol()) return Maybe<PropertyAttributes>(ABSENT);
 
-  Isolate* isolate = object->GetIsolate();
+  Isolate* isolate = holder->GetIsolate();
   HandleScope scope(isolate);
 
   // Make sure that the top context does not change when doing
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
+  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
   PropertyCallbackArguments args(
-      isolate, interceptor->data(), *receiver, *object);
+      isolate, interceptor->data(), *receiver, *holder);
   if (!interceptor->query()->IsUndefined()) {
     v8::NamedPropertyQueryCallback query =
         v8::ToCData<v8::NamedPropertyQueryCallback>(interceptor->query());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-has", *object, *name));
+        ApiNamedPropertyAccess("interceptor-named-has", *holder, *name));
     v8::Handle<v8::Integer> result =
         args.Call(query, v8::Utils::ToLocal(Handle<String>::cast(name)));
     if (!result.IsEmpty()) {
       ASSERT(result->IsInt32());
-      return static_cast<PropertyAttributes>(result->Int32Value());
+      return Maybe<PropertyAttributes>(
+          static_cast<PropertyAttributes>(result->Int32Value()));
     }
   } else if (!interceptor->getter()->IsUndefined()) {
     v8::NamedPropertyGetterCallback getter =
         v8::ToCData<v8::NamedPropertyGetterCallback>(interceptor->getter());
     LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-get-has", *object, *name));
+        ApiNamedPropertyAccess("interceptor-named-get-has", *holder, *name));
     v8::Handle<v8::Value> result =
         args.Call(getter, v8::Utils::ToLocal(Handle<String>::cast(name)));
-    if (!result.IsEmpty()) return DONT_ENUM;
+    if (!result.IsEmpty()) return Maybe<PropertyAttributes>(DONT_ENUM);
   }
-  return GetPropertyAttributePostInterceptor(
-      object, receiver, name, check_prototype);
+  return Maybe<PropertyAttributes>();
 }
 
 
-PropertyAttributes JSReceiver::GetPropertyAttributeWithReceiver(
-    Handle<JSReceiver> object,
-    Handle<JSReceiver> receiver,
-    Handle<Name> key) {
-  uint32_t index = 0;
-  if (object->IsJSObject() && key->AsArrayIndex(&index)) {
-    return JSObject::GetElementAttributeWithReceiver(
-        Handle<JSObject>::cast(object), receiver, index, true);
-  }
-  // Named property.
-  LookupResult lookup(object->GetIsolate());
-  object->Lookup(key, &lookup);
-  return GetPropertyAttributeForResult(object, receiver, &lookup, key, true);
-}
-
-
-PropertyAttributes JSReceiver::GetPropertyAttributeForResult(
-    Handle<JSReceiver> object,
-    Handle<JSReceiver> receiver,
-    LookupResult* lookup,
-    Handle<Name> name,
-    bool check_prototype) {
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    Heap* heap = object->GetHeap();
-    Handle<JSObject> obj = Handle<JSObject>::cast(object);
-    if (!heap->isolate()->MayNamedAccess(obj, name, v8::ACCESS_HAS)) {
-      return JSObject::GetPropertyAttributeWithFailedAccessCheck(
-          obj, lookup, name, check_prototype);
-    }
-  }
-  if (lookup->IsFound()) {
-    switch (lookup->type()) {
-      case NORMAL:  // fall through
-      case FIELD:
-      case CONSTANT:
-      case CALLBACKS:
-        return lookup->GetAttributes();
-      case HANDLER: {
-        return JSProxy::GetPropertyAttributeWithHandler(
-            handle(lookup->proxy()), receiver, name);
-      }
-      case INTERCEPTOR:
-        return JSObject::GetPropertyAttributeWithInterceptor(
-            handle(lookup->holder()),
-            Handle<JSObject>::cast(receiver),
-            name,
-            check_prototype);
-      case NONEXISTENT:
-        UNREACHABLE();
-    }
-  }
-  return ABSENT;
-}
-
-
-PropertyAttributes JSReceiver::GetOwnPropertyAttribute(
+PropertyAttributes JSReceiver::GetOwnPropertyAttributes(
     Handle<JSReceiver> object, Handle<Name> name) {
   // Check whether the name is an array index.
   uint32_t index = 0;
   if (object->IsJSObject() && name->AsArrayIndex(&index)) {
     return GetOwnElementAttribute(object, index);
   }
-  // Named property.
-  LookupResult lookup(object->GetIsolate());
-  object->LookupOwn(name, &lookup, true);
-  return GetPropertyAttributeForResult(object, object, &lookup, name, false);
+  LookupIterator it(object, name, LookupIterator::CHECK_OWN);
+  return GetPropertyAttributes(&it);
+}
+
+
+PropertyAttributes JSReceiver::GetPropertyAttributes(LookupIterator* it) {
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::NOT_FOUND:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY:
+        return JSProxy::GetPropertyAttributesWithHandler(
+            it->GetJSProxy(), it->GetReceiver(), it->name());
+      case LookupIterator::INTERCEPTOR: {
+        Maybe<PropertyAttributes> result =
+            JSObject::GetPropertyAttributesWithInterceptor(
+                it->GetHolder(), it->GetReceiver(), it->name());
+        if (result.has_value) return result.value;
+        break;
+      }
+      case LookupIterator::ACCESS_CHECK:
+        if (it->HasAccess(v8::ACCESS_HAS)) break;
+        return JSObject::GetPropertyAttributesWithFailedAccessCheck(it);
+      case LookupIterator::PROPERTY:
+        if (it->HasProperty()) return it->property_details().attributes();
+        break;
+    }
+  }
+  return ABSENT;
 }
 
 
@@ -5162,8 +5088,8 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  return GetPropertyAttributePostInterceptor(
-      object, object, hidden, false) != ABSENT;
+  LookupIterator it(object, hidden, LookupIterator::CHECK_OWN_REAL);
+  return GetPropertyAttributes(&it) != ABSENT;
 }
 
 
@@ -5978,7 +5904,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         ASSERT(names->get(i)->IsString());
         Handle<String> key_string(String::cast(names->get(i)));
         PropertyAttributes attributes =
-            JSReceiver::GetOwnPropertyAttribute(copy, key_string);
+            JSReceiver::GetOwnPropertyAttributes(copy, key_string);
         // Only deep copy fields from the object literal expression.
         // In particular, don't try to copy the length attribute of
         // an array.
@@ -10203,6 +10129,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   Handle<Object> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
+    for (Handle<Object> p = prototype; !p->IsNull() && !p->IsJSProxy();
+         p = Object::GetPrototype(isolate, p)) {
+      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(p));
+    }
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }

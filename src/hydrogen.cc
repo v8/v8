@@ -1230,6 +1230,16 @@ HBasicBlock* HGraphBuilder::CreateLoopHeaderBlock() {
 }
 
 
+HValue* HGraphBuilder::BuildGetElementsKind(HValue* object) {
+  HValue* map = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                     HObjectAccess::ForMap());
+
+  HValue* bit_field2 = Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
+                                            HObjectAccess::ForMapBitField2());
+  return BuildDecodeField<Map::ElementsKindBits>(bit_field2);
+}
+
+
 HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
   if (obj->type().IsHeapObject()) return obj;
   return Add<HCheckHeapObject>(obj);
@@ -1399,6 +1409,194 @@ void HGraphBuilder::BuildTransitionElementsKind(HValue* object,
 }
 
 
+void HGraphBuilder::BuildJSObjectCheck(HValue* receiver,
+                                       int bit_field_mask) {
+  // Check that the object isn't a smi.
+  Add<HCheckHeapObject>(receiver);
+
+  // Get the map of the receiver.
+  HValue* map = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
+                                     HObjectAccess::ForMap());
+
+  // Check the instance type and if an access check is needed, this can be
+  // done with a single load, since both bytes are adjacent in the map.
+  HObjectAccess access(HObjectAccess::ForMapInstanceTypeAndBitField());
+  HValue* instance_type_and_bit_field =
+      Add<HLoadNamedField>(map, static_cast<HValue*>(NULL), access);
+
+  HValue* mask = Add<HConstant>(0x00FF | (bit_field_mask << 8));
+  HValue* and_result = AddUncasted<HBitwise>(Token::BIT_AND,
+                                             instance_type_and_bit_field,
+                                             mask);
+  HValue* sub_result = AddUncasted<HSub>(and_result,
+                                         Add<HConstant>(JS_OBJECT_TYPE));
+  Add<HBoundsCheck>(sub_result, Add<HConstant>(0x100 - JS_OBJECT_TYPE));
+}
+
+
+void HGraphBuilder::BuildKeyedIndexCheck(HValue* key,
+                                         HIfContinuation* join_continuation) {
+  // The sometimes unintuitively backward ordering of the ifs below is
+  // convoluted, but necessary.  All of the paths must guarantee that the
+  // if-true of the continuation returns a smi element index and the if-false of
+  // the continuation returns either a symbol or a unique string key. All other
+  // object types cause a deopt to fall back to the runtime.
+
+  IfBuilder key_smi_if(this);
+  key_smi_if.If<HIsSmiAndBranch>(key);
+  key_smi_if.Then();
+  {
+    Push(key);  // Nothing to do, just continue to true of continuation.
+  }
+  key_smi_if.Else();
+  {
+    HValue* map = Add<HLoadNamedField>(key, static_cast<HValue*>(NULL),
+                                       HObjectAccess::ForMap());
+    HValue* instance_type =
+        Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
+                             HObjectAccess::ForMapInstanceType());
+
+    // Non-unique string, check for a string with a hash code that is actually
+    // an index.
+    STATIC_ASSERT(LAST_UNIQUE_NAME_TYPE == FIRST_NONSTRING_TYPE);
+    IfBuilder not_string_or_name_if(this);
+    not_string_or_name_if.If<HCompareNumericAndBranch>(
+        instance_type,
+        Add<HConstant>(LAST_UNIQUE_NAME_TYPE),
+        Token::GT);
+
+    not_string_or_name_if.Then();
+    {
+      // Non-smi, non-Name, non-String: Try to convert to smi in case of
+      // HeapNumber.
+      // TODO(danno): This could call some variant of ToString
+      Push(AddUncasted<HForceRepresentation>(key, Representation::Smi()));
+    }
+    not_string_or_name_if.Else();
+    {
+      // String or Name: check explicitly for Name, they can short-circuit
+      // directly to unique non-index key path.
+      IfBuilder not_symbol_if(this);
+      not_symbol_if.If<HCompareNumericAndBranch>(
+          instance_type,
+          Add<HConstant>(SYMBOL_TYPE),
+          Token::NE);
+
+      not_symbol_if.Then();
+      {
+        // String: check whether the String is a String of an index. If it is,
+        // extract the index value from the hash.
+        HValue* hash =
+            Add<HLoadNamedField>(key, static_cast<HValue*>(NULL),
+                                 HObjectAccess::ForNameHashField());
+        HValue* not_index_mask = Add<HConstant>(static_cast<int>(
+            String::kContainsCachedArrayIndexMask));
+
+        HValue* not_index_test = AddUncasted<HBitwise>(
+            Token::BIT_AND, hash, not_index_mask);
+
+        IfBuilder string_index_if(this);
+        string_index_if.If<HCompareNumericAndBranch>(not_index_test,
+                                                     graph()->GetConstant0(),
+                                                     Token::EQ);
+        string_index_if.Then();
+        {
+          // String with index in hash: extract string and merge to index path.
+          Push(BuildDecodeField<String::ArrayIndexValueBits>(hash));
+        }
+        string_index_if.Else();
+        {
+          // Key is a non-index String, check for uniqueness/internalization. If
+          // it's not, deopt.
+          HValue* not_internalized_bit = AddUncasted<HBitwise>(
+              Token::BIT_AND,
+              instance_type,
+              Add<HConstant>(static_cast<int>(kIsNotInternalizedMask)));
+          DeoptimizeIf<HCompareNumericAndBranch>(
+              not_internalized_bit,
+              graph()->GetConstant0(),
+              Token::NE,
+              "BuildKeyedIndexCheck: string isn't internalized");
+          // Key guaranteed to be a unqiue string
+          Push(key);
+        }
+        string_index_if.JoinContinuation(join_continuation);
+      }
+      not_symbol_if.Else();
+      {
+        Push(key);  // Key is symbol
+      }
+      not_symbol_if.JoinContinuation(join_continuation);
+    }
+    not_string_or_name_if.JoinContinuation(join_continuation);
+  }
+  key_smi_if.JoinContinuation(join_continuation);
+}
+
+
+void HGraphBuilder::BuildNonGlobalObjectCheck(HValue* receiver) {
+  // Get the the instance type of the receiver, and make sure that it is
+  // not one of the global object types.
+  HValue* map = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
+                                     HObjectAccess::ForMap());
+  HValue* instance_type =
+    Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
+                         HObjectAccess::ForMapInstanceType());
+  STATIC_ASSERT(JS_BUILTINS_OBJECT_TYPE == JS_GLOBAL_OBJECT_TYPE + 1);
+  HValue* min_global_type = Add<HConstant>(JS_GLOBAL_OBJECT_TYPE);
+  HValue* max_global_type = Add<HConstant>(JS_BUILTINS_OBJECT_TYPE);
+
+  IfBuilder if_global_object(this);
+  if_global_object.If<HCompareNumericAndBranch>(instance_type,
+                                                max_global_type,
+                                                Token::LTE);
+  if_global_object.And();
+  if_global_object.If<HCompareNumericAndBranch>(instance_type,
+                                                min_global_type,
+                                                Token::GTE);
+  if_global_object.ThenDeopt("receiver was a global object");
+  if_global_object.End();
+}
+
+
+void HGraphBuilder::BuildTestForDictionaryProperties(
+    HValue* object,
+    HIfContinuation* continuation) {
+  HValue* properties = Add<HLoadNamedField>(
+      object, static_cast<HValue*>(NULL),
+      HObjectAccess::ForPropertiesPointer());
+  HValue* properties_map =
+      Add<HLoadNamedField>(properties, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForMap());
+  HValue* hash_map = Add<HLoadRoot>(Heap::kHashTableMapRootIndex);
+  IfBuilder builder(this);
+  builder.If<HCompareObjectEqAndBranch>(properties_map, hash_map);
+  builder.CaptureContinuation(continuation);
+}
+
+
+HValue* HGraphBuilder::BuildKeyedLookupCacheHash(HValue* object,
+                                                 HValue* key) {
+  // Load the map of the receiver, compute the keyed lookup cache hash
+  // based on 32 bits of the map pointer and the string hash.
+  HValue* object_map =
+      Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForMapAsInteger32());
+  HValue* shifted_map = AddUncasted<HShr>(
+      object_map, Add<HConstant>(KeyedLookupCache::kMapHashShift));
+  HValue* string_hash =
+      Add<HLoadNamedField>(key, static_cast<HValue*>(NULL),
+                           HObjectAccess::ForStringHashField());
+  HValue* shifted_hash = AddUncasted<HShr>(
+      string_hash, Add<HConstant>(String::kHashShift));
+  HValue* xor_result = AddUncasted<HBitwise>(Token::BIT_XOR, shifted_map,
+                                             shifted_hash);
+  int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
+  return AddUncasted<HBitwise>(Token::BIT_AND, xor_result,
+                               Add<HConstant>(mask));
+}
+
+
 HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
     HValue* elements,
     HValue* key,
@@ -1511,11 +1709,9 @@ HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
 
 
 HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
-                                                           HValue* key) {
-  HValue* elements = AddLoadElements(receiver);
-
-  HValue* hash = BuildElementIndexHash(key);
-
+                                                           HValue* elements,
+                                                           HValue* key,
+                                                           HValue* hash) {
   HValue* capacity = Add<HLoadKeyed>(
       elements,
       Add<HConstant>(NameDictionary::kCapacityIndex),

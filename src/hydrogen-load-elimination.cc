@@ -25,11 +25,10 @@ class HFieldApproximation : public ZoneObject {
 
   // Recursively copy the entire linked list of field approximations.
   HFieldApproximation* Copy(Zone* zone) {
-    if (this == NULL) return NULL;
     HFieldApproximation* copy = new(zone) HFieldApproximation();
     copy->object_ = this->object_;
     copy->last_value_ = this->last_value_;
-    copy->next_ = this->next_->Copy(zone);
+    copy->next_ = this->next_ == NULL ? NULL : this->next_->Copy(zone);
     return copy;
   }
 };
@@ -148,7 +147,7 @@ class HLoadEliminationTable : public ZoneObject {
         new(zone) HLoadEliminationTable(zone, aliasing_);
     copy->EnsureFields(fields_.length());
     for (int i = 0; i < fields_.length(); i++) {
-      copy->fields_[i] = fields_[i]->Copy(zone);
+      copy->fields_[i] = fields_[i] == NULL ? NULL : fields_[i]->Copy(zone);
     }
     if (FLAG_trace_load_elimination) {
       TRACE((" copy-to B%d\n", succ->block_id()));

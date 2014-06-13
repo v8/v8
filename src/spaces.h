@@ -929,13 +929,13 @@ class CodeRange {
   // manage it.
   void TearDown();
 
-  bool exists() { return this != NULL && code_range_ != NULL; }
+  bool valid() { return code_range_ != NULL; }
   Address start() {
-    if (this == NULL || code_range_ == NULL) return NULL;
+    ASSERT(valid());
     return static_cast<Address>(code_range_->address());
   }
   bool contains(Address address) {
-    if (this == NULL || code_range_ == NULL) return false;
+    if (!valid()) return false;
     Address start = static_cast<Address>(code_range_->address());
     return start <= address && address < start + code_range_->size();
   }

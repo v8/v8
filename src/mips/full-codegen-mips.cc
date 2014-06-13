@@ -1282,8 +1282,8 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
 
-  // var iterator = iterable[@@iterator]()
-  VisitForAccumulatorValue(stmt->assign_iterator());
+  // var iterable = subject
+  VisitForAccumulatorValue(stmt->assign_iterable());
   __ mov(a0, v0);
 
   // As with for-in, skip the loop if the iterator is null or undefined.
@@ -1292,17 +1292,8 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   __ LoadRoot(at, Heap::kNullValueRootIndex);
   __ Branch(loop_statement.break_label(), eq, a0, Operand(at));
 
-  // Convert the iterator to a JS object.
-  Label convert, done_convert;
-  __ JumpIfSmi(a0, &convert);
-  __ GetObjectType(a0, a1, a1);
-  __ Branch(&done_convert, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
-  __ bind(&convert);
-  __ push(a0);
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-  __ mov(a0, v0);
-  __ bind(&done_convert);
-  __ push(a0);
+  // var iterator = iterable[Symbol.iterator]();
+  VisitForEffect(stmt->assign_iterator());
 
   // Loop entry.
   __ bind(loop_statement.continue_label());

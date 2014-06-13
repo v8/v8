@@ -27,6 +27,7 @@
 
 // Flags: --harmony-iteration
 // Flags: --harmony-generators --harmony-scoping --harmony-proxies
+// Flags: --harmony-symbols
 
 // Test for-of semantics.
 
@@ -41,13 +42,19 @@ function* values() {
   }
 }
 
+function wrap_iterator(iterator) {
+    var iterable = {};
+    iterable[Symbol.iterator] = function() { return iterator; };
+    return iterable;
+}
+
 function integers_until(max) {
   function next() {
     var ret = { value: this.n, done: this.n == max };
     this.n++;
     return ret;
   }
-  return { next: next, n: 0 }
+  return wrap_iterator({ next: next, n: 0 });
 }
 
 function results(results) {
@@ -55,7 +62,7 @@ function results(results) {
   function next() {
     return results[i++];
   }
-  return { next: next }
+  return wrap_iterator({ next: next });
 }
 
 function* integers_from(n) {
@@ -72,44 +79,44 @@ function sum(x, tail) {
   return x + tail;
 }
 
-function fold(cons, seed, iter) {
-  for (var x of iter) {
+function fold(cons, seed, iterable) {
+  for (var x of iterable) {
     seed = cons(x, seed);
   }
   return seed;
 }
 
-function* take(iter, n) {
+function* take(iterable, n) {
   if (n == 0) return;
-  for (let x of iter) {
+  for (let x of iterable) {
     yield x;
     if (--n == 0) break;
   }
 }
 
-function nth(iter, n) {
-  for (let x of iter) {
+function nth(iterable, n) {
+  for (let x of iterable) {
     if (n-- == 0) return x;
   }
   throw "unreachable";
 }
 
-function* skip_every(iter, n) {
+function* skip_every(iterable, n) {
   var i = 0;
-  for (let x of iter) {
+  for (let x of iterable) {
     if (++i % n == 0) continue;
     yield x;
   }
 }
 
-function* iter_map(iter, f) {
-  for (var x of iter) {
+function* iter_map(iterable, f) {
+  for (var x of iterable) {
     yield f(x);
   }
 }
-function nested_fold(cons, seed, iter) {
+function nested_fold(cons, seed, iterable) {
   var visited = []
-  for (let x of iter) {
+  for (let x of iterable) {
     for (let y of x) {
       seed = cons(y, seed);
     }
@@ -117,8 +124,8 @@ function nested_fold(cons, seed, iter) {
   return seed;
 }
 
-function* unreachable(iter) {
-  for (let x of iter) {
+function* unreachable(iterable) {
+  for (let x of iterable) {
     throw "not reached";
   }
 }
@@ -141,17 +148,19 @@ function never_getter(o, prop) {
   return o;
 }
 
-function remove_next_after(iter, n) {
+function remove_next_after(iterable, n) {
+  var iterator = iterable[Symbol.iterator]();
   function next() {
     if (n-- == 0) delete this.next;
-    return iter.next();
+    return iterator.next();
   }
-  return { next: next }
+  return wrap_iterator({ next: next });
 }
 
-function poison_next_after(iter, n) {
+function poison_next_after(iterable, n) {
+  var iterator = iterable[Symbol.iterator]();
   function next() {
-    return iter.next();
+    return iterator.next();
   }
   function next_getter() {
     if (n-- < 0)
@@ -160,7 +169,7 @@ function poison_next_after(iter, n) {
   }
   var o = {};
   Object.defineProperty(o, 'next', { get: next_getter });
-  return o;
+  return wrap_iterator(o);
 }
 
 // Now, the tests.
@@ -223,33 +232,33 @@ assertEquals(45,
 assertEquals(45,
              fold(sum, 0, poison_next_after(integers_until(10), 10)));
 
-function labelled_continue(iter) {
+function labelled_continue(iterable) {
   var n = 0;
 outer:
   while (true) {
     n++;
-    for (var x of iter) continue outer;
+    for (var x of iterable) continue outer;
     break;
   }
   return n;
 }
 assertEquals(11, labelled_continue(integers_until(10)));
 
-function labelled_break(iter) {
+function labelled_break(iterable) {
   var n = 0;
 outer:
   while (true) {
     n++;
-    for (var x of iter) break outer;
+    for (var x of iterable) break outer;
   }
   return n;
 }
 assertEquals(1, labelled_break(integers_until(10)));
 
 // Test continue/break in catch.
-function catch_control(iter, k) {
+function catch_control(iterable, k) {
   var n = 0;
-  for (var x of iter) {
+  for (var x of iterable) {
     try {
       return k(x);
     } catch (e) {
@@ -274,9 +283,9 @@ assertEquals(5,
                            }));
 
 // Test continue/break in try.
-function try_control(iter, k) {
+function try_control(iterable, k) {
   var n = 0;
-  for (var x of iter) {
+  for (var x of iterable) {
     try {
       var e = k(x);
       if (e == "continue") continue;
@@ -313,16 +322,17 @@ assertEquals([1, 2],
                           .map(transparent_proxy))));
 
 // Proxy iterators.
-function poison_proxy_after(x, n) {
-  return Proxy.create({
+function poison_proxy_after(iterable, n) {
+  var iterator = iterable[Symbol.iterator]();
+  return wrap_iterator(Proxy.create({
     get: function(receiver, name) {
       if (name == 'next' && n-- < 0) throw "unreachable";
-      return x[name];
+      return iterator[name];
     },
     // Needed for integers_until(10)'s this.n++.
     set: function(receiver, name, val) {
-      return x[name] = val;
+      return iterator[name] = val;
     }
-  });
+  }));
 }
 assertEquals(45, fold(sum, 0, poison_proxy_after(integers_until(10), 10)));

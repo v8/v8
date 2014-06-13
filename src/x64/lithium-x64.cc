@@ -2110,6 +2110,11 @@ LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
 
 
 void LChunkBuilder::FindDehoistedKeyDefinitions(HValue* candidate) {
+  // We sign extend the dehoisted key at the definition point when the pointer
+  // size is 64-bit. For x32 port, we sign extend the dehoisted key at the use
+  // points and should not invoke this function. We can't use STATIC_ASSERT
+  // here as the pointer size is 32-bit for x32.
+  ASSERT(kPointerSize == kInt64Size);
   BitVector* dehoisted_key_ids = chunk_->GetDehoistedKeyIds();
   if (dehoisted_key_ids->Contains(candidate->id())) return;
   dehoisted_key_ids->Add(candidate->id());
@@ -2126,7 +2131,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LInstruction* result = NULL;
 
-  if (instr->IsDehoisted()) {
+  if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 
@@ -2171,7 +2176,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
 
-  if (instr->IsDehoisted()) {
+  if ((kPointerSize == kInt64Size) && instr->IsDehoisted()) {
     FindDehoistedKeyDefinitions(instr->key());
   }
 

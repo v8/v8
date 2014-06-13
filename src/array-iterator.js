@@ -18,6 +18,11 @@ var arrayIterationKindSymbol = GLOBAL_PRIVATE("ArrayIterator#kind");
 function ArrayIterator() {}
 
 
+// TODO(wingo): Update section numbers when ES6 has stabilized.  The
+// section numbers below are already out of date as of the May 2014
+// draft.
+
+
 // 15.4.5.1 CreateArrayIterator Abstract Operation
 function CreateArrayIterator(array, kind) {
   var object = ToObject(array);
@@ -32,6 +37,12 @@ function CreateArrayIterator(array, kind) {
 // 15.19.4.3.4 CreateItrResultObject
 function CreateIteratorResultObject(value, done) {
   return {value: value, done: done};
+}
+
+
+// 22.1.5.2.2 %ArrayIteratorPrototype%[@@iterator]
+function ArrayIteratorIterator() {
+    return this;
 }
 
 
@@ -98,6 +109,9 @@ function SetUpArrayIterator() {
   InstallFunctions(ArrayIterator.prototype, DONT_ENUM, $Array(
     'next', ArrayIteratorNext
   ));
+  %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
+  %SetProperty(ArrayIterator.prototype, symbolIterator, ArrayIteratorIterator,
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
 }
 SetUpArrayIterator();
 
