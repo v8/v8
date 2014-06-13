@@ -4793,28 +4793,9 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
 
 
 void JSObject::ResetElements(Handle<JSObject> object) {
-  if (object->map()->is_observed()) {
-    // Maintain invariant that observed elements are always in dictionary mode.
-    Isolate* isolate = object->GetIsolate();
-    Factory* factory = isolate->factory();
-    Handle<SeededNumberDictionary> dictionary =
-        SeededNumberDictionary::New(isolate, 0);
-    if (object->map() == *factory->sloppy_arguments_elements_map()) {
-      FixedArray::cast(object->elements())->set(1, *dictionary);
-    } else {
-      object->set_elements(*dictionary);
-    }
-    return;
-  }
-
-  ElementsKind elements_kind = GetInitialFastElementsKind();
-  if (!FLAG_smi_only_arrays) {
-    elements_kind = FastSmiToObjectElementsKind(elements_kind);
-  }
-  Handle<Map> map = JSObject::GetElementsTransitionMap(object, elements_kind);
-  DisallowHeapAllocation no_gc;
-  Handle<FixedArrayBase> elements(map->GetInitialElements());
-  JSObject::SetMapAndElements(object, map, elements);
+  Heap* heap = object->GetIsolate()->heap();
+  CHECK(object->map() != heap->sloppy_arguments_elements_map());
+  object->set_elements(object->map()->GetInitialElements());
 }
 
 
