@@ -2104,7 +2104,7 @@ TEST(ManyLocalsInSharedContext) {
   // ... well check just every 15th because otherwise it's too slow in debug.
   for (int i = 0; i < num_objects - 1; i += 15) {
     i::EmbeddedVector<char, 100> var_name;
-    i::OS::SNPrintF(var_name, "f_%d", i);
+    i::SNPrintF(var_name, "f_%d", i);
     const v8::HeapGraphNode* f_object = GetProperty(
         context_object, v8::HeapGraphEdge::kContextVariable, var_name.start());
     CHECK_NE(NULL, f_object);
@@ -2199,7 +2199,7 @@ static const v8::HeapGraphNode* GetNodeByPath(const v8::HeapSnapshot* snapshot,
       v8::String::Utf8Value edge_name(edge->GetName());
       v8::String::Utf8Value node_name(to_node->GetName());
       i::EmbeddedVector<char, 100> name;
-      i::OS::SNPrintF(name, "%s::%s", *edge_name, *node_name);
+      i::SNPrintF(name, "%s::%s", *edge_name, *node_name);
       if (strstr(name.start(), path[current_depth])) {
         node = to_node;
         break;

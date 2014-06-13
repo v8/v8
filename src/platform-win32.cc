@@ -151,12 +151,12 @@ class TimezoneCache {
     // To properly resolve the resource identifier requires a library load,
     // which is not possible in a sandbox.
     if (std_tz_name_[0] == '\0' || std_tz_name_[0] == '@') {
-      OS::SNPrintF(Vector<char>(std_tz_name_, kTzNameSize - 1),
+      OS::SNPrintF(std_tz_name_, kTzNameSize - 1,
                    "%s Standard Time",
                    GuessTimezoneNameFromBias(tzinfo_.Bias));
     }
     if (dst_tz_name_[0] == '\0' || dst_tz_name_[0] == '@') {
-      OS::SNPrintF(Vector<char>(dst_tz_name_, kTzNameSize - 1),
+      OS::SNPrintF(dst_tz_name_, kTzNameSize - 1,
                    "%s Daylight Time",
                    GuessTimezoneNameFromBias(tzinfo_.Bias));
     }
@@ -551,9 +551,9 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
     // It is important to use safe print here in order to avoid
     // overflowing the buffer. We might truncate the output, but this
     // does not crash.
-    EmbeddedVector<char, 4096> buffer;
-    OS::VSNPrintF(buffer, format, args);
-    OutputDebugStringA(buffer.start());
+    char buffer[4096];
+    OS::VSNPrintF(buffer, sizeof(buffer), format, args);
+    OutputDebugStringA(buffer);
   } else {
     vfprintf(stream, format, args);
   }
@@ -638,22 +638,22 @@ void OS::VPrintError(const char* format, va_list args) {
 }
 
 
-int OS::SNPrintF(Vector<char> str, const char* format, ...) {
+int OS::SNPrintF(char* str, int length, const char* format, ...) {
   va_list args;
   va_start(args, format);
-  int result = VSNPrintF(str, format, args);
+  int result = VSNPrintF(str, length, format, args);
   va_end(args);
   return result;
 }
 
 
-int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
-  int n = _vsnprintf_s(str.start(), str.length(), _TRUNCATE, format, args);
+int OS::VSNPrintF(char* str, int length, const char* format, va_list args) {
+  int n = _vsnprintf_s(str, length, _TRUNCATE, format, args);
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
-  if (n < 0 || n >= str.length()) {
-    if (str.length() > 0)
-      str[str.length() - 1] = '\0';
+  if (n < 0 || n >= length) {
+    if (length > 0)
+      str[length - 1] = '\0';
     return -1;
   } else {
     return n;
@@ -666,12 +666,12 @@ char* OS::StrChr(char* str, int c) {
 }
 
 
-void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
+void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
   // Use _TRUNCATE or strncpy_s crashes (by design) if buffer is too small.
-  size_t buffer_size = static_cast<size_t>(dest.length());
+  size_t buffer_size = static_cast<size_t>(length);
   if (n + 1 > buffer_size)  // count for trailing '\0'
     n = _TRUNCATE;
-  int result = strncpy_s(dest.start(), dest.length(), src, n);
+  int result = strncpy_s(dest, length, src, n);
   USE(result);
   ASSERT(result == 0 || (n == _TRUNCATE && result == STRUNCATE));
 }
@@ -1342,7 +1342,7 @@ Thread::Thread(const Options& options)
 
 
 void Thread::set_name(const char* name) {
-  OS::StrNCpy(Vector<char>(name_, sizeof(name_)), name, strlen(name));
+  OS::StrNCpy(name_, sizeof(name_), name, strlen(name));
   name_[sizeof(name_) - 1] = '\0';
 }
 

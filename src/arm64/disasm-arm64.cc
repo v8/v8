@@ -1734,7 +1734,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 
@@ -1752,7 +1752,7 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
   if (ureg == v8::internal::kZeroRegCode) {
     return "xzr";
   }
-  v8::internal::OS::SNPrintF(tmp_buffer_, "x%u", ureg);
+  v8::internal::SNPrintF(tmp_buffer_, "x%u", ureg);
   return tmp_buffer_.start();
 }
 
@@ -1786,7 +1786,7 @@ class BufferDisassembler : public v8::internal::Disassembler {
   ~BufferDisassembler() { }
 
   virtual void ProcessOutput(v8::internal::Instruction* instr) {
-    v8::internal::OS::SNPrintF(out_buffer_, "%s", GetOutput());
+    v8::internal::SNPrintF(out_buffer_, "%s", GetOutput());
   }
 
  private:

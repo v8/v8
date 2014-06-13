@@ -207,15 +207,15 @@ void Decoder::PrintShiftRm(Instruction* instr) {
     } else if (((shift == LSR) || (shift == ASR)) && (shift_amount == 0)) {
       shift_amount = 32;
     }
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    ", %s #%d",
-                                    shift_names[shift_index],
-                                    shift_amount);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                ", %s #%d",
+                                shift_names[shift_index],
+                                shift_amount);
   } else {
     // by register
     int rs = instr->RsValue();
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    ", %s ", shift_names[shift_index]);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                ", %s ", shift_names[shift_index]);
     PrintRegister(rs);
   }
 }
@@ -227,8 +227,7 @@ void Decoder::PrintShiftImm(Instruction* instr) {
   int rotate = instr->RotateValue() * 2;
   int immed8 = instr->Immed8Value();
   int imm = (immed8 >> rotate) | (immed8 << (32 - rotate));
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "#%d", imm);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%d", imm);
 }
 
 
@@ -236,10 +235,10 @@ void Decoder::PrintShiftImm(Instruction* instr) {
 void Decoder::PrintShiftSat(Instruction* instr) {
   int shift = instr->Bits(11, 7);
   if (shift > 0) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    ", %s #%d",
-                                    shift_names[instr->Bit(6) * 2],
-                                    instr->Bits(11, 7));
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                ", %s #%d",
+                                shift_names[instr->Bit(6) * 2],
+                                instr->Bits(11, 7));
   }
 }
 
@@ -283,14 +282,14 @@ void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes svc) {
       return;
     default:
       if (svc >= kStopCode) {
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%d - 0x%x",
-                                        svc & kStopCodeMask,
-                                        svc & kStopCodeMask);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%d - 0x%x",
+                                    svc & kStopCodeMask,
+                                    svc & kStopCodeMask);
       } else {
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%d",
-                                        svc);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%d",
+                                    svc);
       }
       return;
   }
@@ -399,35 +398,35 @@ int Decoder::FormatVFPinstruction(Instruction* instr, const char* format) {
 
 void Decoder::FormatNeonList(int Vd, int type) {
   if (type == nlt_1) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "{d%d}", Vd);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "{d%d}", Vd);
   } else if (type == nlt_2) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "{d%d, d%d}", Vd, Vd + 1);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "{d%d, d%d}", Vd, Vd + 1);
   } else if (type == nlt_3) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "{d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "{d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2);
   } else if (type == nlt_4) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                            "{d%d, d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2, Vd + 3);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                        "{d%d, d%d, d%d, d%d}", Vd, Vd + 1, Vd + 2, Vd + 3);
   }
 }
 
 
 void Decoder::FormatNeonMemory(int Rn, int align, int Rm) {
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "[r%d", Rn);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                              "[r%d", Rn);
   if (align != 0) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    ":%d", (1 << align) << 6);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                ":%d", (1 << align) << 6);
   }
   if (Rm == 15) {
     Print("]");
   } else if (Rm == 13) {
     Print("]!");
   } else {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "], r%d", Rm);
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "], r%d", Rm);
   }
 }
 
@@ -437,8 +436,7 @@ void Decoder::PrintMovwMovt(Instruction* instr) {
   int imm = instr->ImmedMovwMovtValue();
   int rd = instr->RdValue();
   PrintRegister(rd);
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  ", #%d", imm);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, ", #%d", imm);
 }
 
 
@@ -470,8 +468,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     }
     case 'd': {  // 'd: vmov double immediate.
       double d = instr->DoubleImmedVmov();
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "#%g", d);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%g", d);
       return 1;
     }
     case 'f': {  // 'f: bitfield instructions - v7 and above.
@@ -484,8 +481,8 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         ASSERT(width > 0);
       }
       ASSERT((width + lsbit) <= 32);
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "#%d, #%d", lsbit, width);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "#%d, #%d", lsbit, width);
       return 1;
     }
     case 'h': {  // 'h: halfword operation for extra loads and stores
@@ -505,9 +502,9 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       ASSERT((lsb >= 0) && (lsb <= 31));
       ASSERT((width + lsb) <= 32);
 
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "%d",
-                                      instr->Bits(width + lsb - 1, lsb));
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "%d",
+                                  instr->Bits(width + lsb - 1, lsb));
       return 8;
     }
     case 'l': {  // 'l: branch and link
@@ -544,31 +541,30 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       ASSERT(STRING_STARTS_WITH(format, "msg"));
       byte* str =
           reinterpret_cast<byte*>(instr->InstructionBits() & 0x0fffffff);
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "%s", converter_.NameInCode(str));
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "%s", converter_.NameInCode(str));
       return 3;
     }
     case 'o': {
       if ((format[3] == '1') && (format[4] == '2')) {
         // 'off12: 12-bit offset for load and store instructions
         ASSERT(STRING_STARTS_WITH(format, "off12"));
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%d", instr->Offset12Value());
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%d", instr->Offset12Value());
         return 5;
       } else if (format[3] == '0') {
         // 'off0to3and8to19 16-bit immediate encoded in bits 19-8 and 3-0.
         ASSERT(STRING_STARTS_WITH(format, "off0to3and8to19"));
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "%d",
-                                        (instr->Bits(19, 8) << 4) +
-                                        instr->Bits(3, 0));
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%d",
+                                    (instr->Bits(19, 8) << 4) +
+                                    instr->Bits(3, 0));
         return 15;
       }
       // 'off8: 8-bit offset for extra load and store instructions
       ASSERT(STRING_STARTS_WITH(format, "off8"));
       int offs8 = (instr->ImmedHValue() << 4) | instr->ImmedLValue();
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "%d", offs8);
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", offs8);
       return 4;
     }
     case 'p': {  // 'pu: P and U bits for load and store instructions
@@ -619,11 +615,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 't': {  // 'target: target of branch instructions
       ASSERT(STRING_STARTS_WITH(format, "target"));
       int off = (instr->SImmed24Value() << 2) + 8;
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "%+d -> %s",
-                                      off,
-                                      converter_.NameOfAddress(
-                                        reinterpret_cast<byte*>(instr) + off));
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "%+d -> %s",
+                                  off,
+                                  converter_.NameOfAddress(
+                                    reinterpret_cast<byte*>(instr) + off));
       return 6;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
@@ -1184,14 +1180,14 @@ int Decoder::DecodeType7(Instruction* instr) {
       Format(instr, "stop'cond 'svc");
       // Also print the stop message. Its address is encoded
       // in the following 4 bytes.
-      out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                      "\n  %p  %08x       stop message: %s",
-                                      reinterpret_cast<int32_t*>(instr
-                                                     + Instruction::kInstrSize),
-                                      *reinterpret_cast<char**>(instr
-                                                    + Instruction::kInstrSize),
-                                      *reinterpret_cast<char**>(instr
-                                                    + Instruction::kInstrSize));
+      out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                  "\n  %p  %08x       stop message: %s",
+                                  reinterpret_cast<void*>(instr
+                                                 + Instruction::kInstrSize),
+                                  *reinterpret_cast<uint32_t*>(instr
+                                                + Instruction::kInstrSize),
+                                  *reinterpret_cast<char**>(instr
+                                                + Instruction::kInstrSize));
       // We have decoded 2 * Instruction::kInstrSize bytes.
       return 2 * Instruction::kInstrSize;
     } else {
@@ -1251,8 +1247,8 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
         // vcvt.f64.s32 Dd, Dd, #<fbits>
         int fraction_bits = 32 - ((instr->Bits(3, 0) << 1) | instr->Bit(5));
         Format(instr, "vcvt'cond.f64.s32 'Dd, 'Dd");
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        ", #%d", fraction_bits);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    ", #%d", fraction_bits);
       } else if (((instr->Opc2Value() >> 1) == 0x6) &&
                  (instr->Opc3Value() & 0x1)) {
         DecodeVCVTBetweenFloatingPointAndInteger(instr);
@@ -1547,8 +1543,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmovl.s%d q%d, d%d", imm3*8, Vd, Vm);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vmovl.s%d q%d, d%d", imm3*8, Vd, Vm);
       } else {
         Unknown(instr);
       }
@@ -1561,8 +1557,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Vd = (instr->Bit(22) << 3) | (instr->VdValue() >> 1);
         int Vm = (instr->Bit(5) << 4) | instr->VmValue();
         int imm3 = instr->Bits(21, 19);
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
       } else {
         Unknown(instr);
       }
@@ -1576,8 +1572,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int size = instr->Bits(7, 6);
         int align = instr->Bits(5, 4);
         int Rm = instr->VmValue();
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vst1.%d ", (1 << size) << 3);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vst1.%d ", (1 << size) << 3);
         FormatNeonList(Vd, type);
         Print(", ");
         FormatNeonMemory(Rn, align, Rm);
@@ -1589,8 +1585,8 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int size = instr->Bits(7, 6);
         int align = instr->Bits(5, 4);
         int Rm = instr->VmValue();
-        out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                        "vld1.%d ", (1 << size) << 3);
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vld1.%d ", (1 << size) << 3);
         FormatNeonList(Vd, type);
         Print(", ");
         FormatNeonMemory(Rn, align, Rm);
@@ -1604,14 +1600,14 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Rn = instr->Bits(19, 16);
         int offset = instr->Bits(11, 0);
         if (offset == 0) {
-          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "pld [r%d]", Rn);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "pld [r%d]", Rn);
         } else if (instr->Bit(23) == 0) {
-          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "pld [r%d, #-%d]", Rn, offset);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "pld [r%d, #-%d]", Rn, offset);
         } else {
-          out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                          "pld [r%d, #+%d]", Rn, offset);
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "pld [r%d, #+%d]", Rn, offset);
         }
       } else {
         Unknown(instr);
@@ -1645,26 +1641,26 @@ int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
-  out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                  "%08x       ",
-                                  instr->InstructionBits());
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                              "%08x       ",
+                              instr->InstructionBits());
   if (instr->ConditionField() == kSpecialCondition) {
     DecodeSpecialCondition(instr);
     return Instruction::kInstrSize;
   }
   int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
   if ((instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker) {
-    out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                    "constant pool begin (length %d)",
-                                    DecodeConstantPoolLength(instruction_bits));
+    out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                "constant pool begin (length %d)",
+                                DecodeConstantPoolLength(instruction_bits));
     return Instruction::kInstrSize;
   } else if (instruction_bits == kCodeAgeJumpInstruction) {
     // The code age prologue has a constant immediatly following the jump
     // instruction.
     Instruction* target = Instruction::At(instr_ptr + Instruction::kInstrSize);
     DecodeType2(instr);
-    OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                 " (0x%08x)", target->InstructionBits());
+    SNPrintF(out_buffer_ + out_buffer_pos_,
+             " (0x%08x)", target->InstructionBits());
     return 2 * Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {
@@ -1716,7 +1712,7 @@ namespace disasm {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 

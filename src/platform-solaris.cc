@@ -140,44 +140,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-struct StackWalker {
-  Vector<OS::StackFrame>& frames;
-  int index;
-};
-
-
-static int StackWalkCallback(uintptr_t pc, int signo, void* data) {
-  struct StackWalker* walker = static_cast<struct StackWalker*>(data);
-  Dl_info info;
-
-  int i = walker->index;
-
-  walker->frames[i].address = reinterpret_cast<void*>(pc);
-
-  // Make sure line termination is in place.
-  walker->frames[i].text[OS::kStackWalkMaxTextLen - 1] = '\0';
-
-  Vector<char> text = MutableCStrVector(walker->frames[i].text,
-                                        OS::kStackWalkMaxTextLen);
-
-  if (dladdr(reinterpret_cast<void*>(pc), &info) == 0) {
-    OS::SNPrintF(text, "[0x%p]", pc);
-  } else if ((info.dli_fname != NULL && info.dli_sname != NULL)) {
-    // We have symbol info.
-    OS::SNPrintF(text, "%s'%s+0x%x", info.dli_fname, info.dli_sname, pc);
-  } else {
-    // No local symbol info.
-    OS::SNPrintF(text,
-                 "%s'0x%p [0x%p]",
-                 info.dli_fname,
-                 pc - reinterpret_cast<uintptr_t>(info.dli_fbase),
-                 pc);
-  }
-  walker->index++;
-  return 0;
-}
-
-
 // Constants used for mmap.
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;

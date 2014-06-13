@@ -61,13 +61,13 @@ void Version::GetString(Vector<char> str) {
   const char* is_simulator = "";
 #endif  // USE_SIMULATOR
   if (GetPatch() > 0) {
-    OS::SNPrintF(str, "%d.%d.%d.%d%s%s",
-                 GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate,
-                 is_simulator);
+    SNPrintF(str, "%d.%d.%d.%d%s%s",
+             GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate,
+             is_simulator);
   } else {
-    OS::SNPrintF(str, "%d.%d.%d%s%s",
-                 GetMajor(), GetMinor(), GetBuild(), candidate,
-                 is_simulator);
+    SNPrintF(str, "%d.%d.%d%s%s",
+             GetMajor(), GetMinor(), GetBuild(), candidate,
+             is_simulator);
   }
 }
 
@@ -78,15 +78,15 @@ void Version::GetSONAME(Vector<char> str) {
     // Generate generic SONAME if no specific SONAME is defined.
     const char* candidate = IsCandidate() ? "-candidate" : "";
     if (GetPatch() > 0) {
-      OS::SNPrintF(str, "libv8-%d.%d.%d.%d%s.so",
-                   GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate);
+      SNPrintF(str, "libv8-%d.%d.%d.%d%s.so",
+               GetMajor(), GetMinor(), GetBuild(), GetPatch(), candidate);
     } else {
-      OS::SNPrintF(str, "libv8-%d.%d.%d%s.so",
-                   GetMajor(), GetMinor(), GetBuild(), candidate);
+      SNPrintF(str, "libv8-%d.%d.%d%s.so",
+               GetMajor(), GetMinor(), GetBuild(), candidate);
     }
   } else {
     // Use specific SONAME.
-    OS::SNPrintF(str, "%s", soname_);
+    SNPrintF(str, "%s", soname_);
   }
 }
 

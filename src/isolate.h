@@ -1440,12 +1440,12 @@ class CodeTracer V8_FINAL : public Malloced {
     }
 
     if (FLAG_redirect_code_traces_to == NULL) {
-      OS::SNPrintF(filename_,
-                   "code-%d-%d.asm",
-                   OS::GetCurrentProcessId(),
-                   isolate_id);
+      SNPrintF(filename_,
+               "code-%d-%d.asm",
+               OS::GetCurrentProcessId(),
+               isolate_id);
     } else {
-      OS::StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
+      StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
     }
 
     WriteChars(filename_.start(), "", 0, false);

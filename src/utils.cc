@@ -102,6 +102,25 @@ void PrintPID(const char* format, ...) {
 }
 
 
+int SNPrintF(Vector<char> str, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  int result = VSNPrintF(str, format, args);
+  va_end(args);
+  return result;
+}
+
+
+int VSNPrintF(Vector<char> str, const char* format, va_list args) {
+  return OS::VSNPrintF(str.start(), str.length(), format, args);
+}
+
+
+void StrNCpy(Vector<char> dest, const char* src, size_t n) {
+  OS::StrNCpy(dest.start(), dest.length(), src, n);
+}
+
+
 void Flush(FILE* out) {
   fflush(out);
 }
@@ -305,7 +324,7 @@ void StringBuilder::AddFormatted(const char* format, ...) {
 
 void StringBuilder::AddFormattedList(const char* format, va_list list) {
   ASSERT(!is_finalized() && position_ <= buffer_.length());
-  int n = OS::VSNPrintF(buffer_ + position_, format, list);
+  int n = VSNPrintF(buffer_ + position_, format, list);
   if (n < 0 || n >= (buffer_.length() - position_)) {
     position_ = buffer_.length();
   } else {

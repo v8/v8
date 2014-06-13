@@ -1164,6 +1164,13 @@ void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 // Prepends the current process ID to the output.
 void PRINTF_CHECKING PrintPID(const char* format, ...);
 
+// Safe formatting print. Ensures that str is always null-terminated.
+// Returns the number of chars written, or -1 if output was truncated.
+int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
+int VSNPrintF(Vector<char> str, const char* format, va_list args);
+
+void StrNCpy(Vector<char> dest, const char* src, size_t n);
+
 // Our version of fflush.
 void Flush(FILE* out);
 

@@ -1733,7 +1733,7 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
   // print that using vsnprintf (which may truncate but never allocate if
   // there is no more space in the buffer).
   EmbeddedVector<char, 100> buffer;
-  OS::SNPrintF(buffer, "%.16g", Number());
+  SNPrintF(buffer, "%.16g", Number());
   accumulator->Add("%s", buffer.start());
 }
 

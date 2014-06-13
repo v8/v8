@@ -1097,7 +1097,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
   char* p = &buffer[0];
 
   Vector<char> v(buffer, kBufferSize);
-  OS::StrNCpy(v, message, space);
+  StrNCpy(v, message, space);
   space -= Min(space, strlen(message));
   p = &buffer[kBufferSize] - space;
 
@@ -1110,7 +1110,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
             Object::GetElement(isolate(), args, i).ToHandleChecked());
         SmartArrayPointer<char> arg = arg_str->ToCString();
         Vector<char> v2(p, static_cast<int>(space));
-        OS::StrNCpy(v2, arg.get(), space);
+        StrNCpy(v2, arg.get(), space);
         space -= Min(space, strlen(arg.get()));
         p = &buffer[kBufferSize] - space;
       }

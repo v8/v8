@@ -105,9 +105,9 @@ i::Code* CreateCode(LocalContext* env) {
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
 
-  i::OS::SNPrintF(name, "function_%d", ++counter);
+  i::SNPrintF(name, "function_%d", ++counter);
   const char* name_start = name.start();
-  i::OS::SNPrintF(script,
+  i::SNPrintF(script,
       "function %s() {\n"
            "var counter = 0;\n"
            "for (var i = 0; i < %d; ++i) counter += i;\n"
@@ -470,8 +470,8 @@ static const v8::CpuProfileNode* GetChild(v8::Isolate* isolate,
   const v8::CpuProfileNode* result = FindChild(isolate, node, name);
   if (!result) {
     char buffer[100];
-    i::OS::SNPrintF(Vector<char>(buffer, ARRAY_SIZE(buffer)),
-                    "Failed to GetChild: %s", name);
+    i::SNPrintF(Vector<char>(buffer, ARRAY_SIZE(buffer)),
+                "Failed to GetChild: %s", name);
     FATAL(buffer);
   }
   return result;

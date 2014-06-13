@@ -1140,7 +1140,7 @@ Handle<String> Literal::ToString() {
   const char* str;
   if (value()->IsSmi()) {
     // Optimization only, the heap number case would subsume this.
-    OS::SNPrintF(buffer, "%d", Smi::cast(*value())->value());
+    SNPrintF(buffer, "%d", Smi::cast(*value())->value());
     str = arr;
   } else {
     str = DoubleToCString(value()->Number(), buffer);

@@ -113,7 +113,7 @@ class ScopedLoggerInitializer {
 static const char* StrNStr(const char* s1, const char* s2, int n) {
   if (s1[n] == '\0') return strstr(s1, s2);
   i::ScopedVector<char> str(n + 1);
-  i::OS::StrNCpy(str, s1, static_cast<size_t>(n));
+  i::StrNCpy(str, s1, static_cast<size_t>(n));
   str[n] = '\0';
   char* found = strstr(str.start(), s2);
   return found != NULL ? s1 + (found - str.start()) : NULL;
@@ -359,9 +359,9 @@ TEST(LogCallbacks) {
   CHECK(exists);
 
   i::EmbeddedVector<char, 100> ref_data;
-  i::OS::SNPrintF(ref_data,
-                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"\0",
-                  ObjMethod1);
+  i::SNPrintF(ref_data,
+              "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"",
+              reinterpret_cast<intptr_t>(ObjMethod1));
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
   log.Dispose();
@@ -403,23 +403,23 @@ TEST(LogAccessorCallbacks) {
   CHECK(exists);
 
   EmbeddedVector<char, 100> prop1_getter_record;
-  i::OS::SNPrintF(prop1_getter_record,
-                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
-                  Prop1Getter);
+  i::SNPrintF(prop1_getter_record,
+              "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
+              reinterpret_cast<intptr_t>(Prop1Getter));
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop1_setter_record;
-  i::OS::SNPrintF(prop1_setter_record,
-                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
-                  Prop1Setter);
+  i::SNPrintF(prop1_setter_record,
+              "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
+              reinterpret_cast<intptr_t>(Prop1Setter));
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop2_getter_record;
-  i::OS::SNPrintF(prop2_getter_record,
-                  "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
-                  Prop2Getter);
+  i::SNPrintF(prop2_getter_record,
+              "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
+              reinterpret_cast<intptr_t>(Prop2Getter));
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));
   log.Dispose();

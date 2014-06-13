@@ -1108,10 +1108,10 @@ TEST(ScopePositions) {
     int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
     int kProgramByteSize = kPrefixByteLen + kInnerByteLen + kSuffixByteLen;
     i::ScopedVector<char> program(kProgramByteSize + 1);
-    i::OS::SNPrintF(program, "%s%s%s",
-                             source_data[i].outer_prefix,
-                             source_data[i].inner_source,
-                             source_data[i].outer_suffix);
+    i::SNPrintF(program, "%s%s%s",
+                         source_data[i].outer_prefix,
+                         source_data[i].inner_source,
+                         source_data[i].outer_suffix);
 
     // Parse program source.
     i::Handle<i::String> source = factory->NewStringFromUtf8(
@@ -1410,7 +1410,7 @@ TEST(ParserSync) {
 
         // Plug the source code pieces together.
         i::ScopedVector<char> program(kProgramSize + 1);
-        int length = i::OS::SNPrintF(program,
+        int length = i::SNPrintF(program,
             "label: for (;;) { %s%s%s%s }",
             context_data[i][0],
             statement_data[j],
@@ -1487,11 +1487,11 @@ void RunParserSyncTest(const char* context_data[][2],
 
       // Plug the source code pieces together.
       i::ScopedVector<char> program(kProgramSize + 1);
-      int length = i::OS::SNPrintF(program,
-                                   "%s%s%s",
-                                   context_data[i][0],
-                                   statement_data[j],
-                                   context_data[i][1]);
+      int length = i::SNPrintF(program,
+                               "%s%s%s",
+                               context_data[i][0],
+                               statement_data[j],
+                               context_data[i][1]);
       CHECK(length == kProgramSize);
       TestParserSync(program.start(),
                      flags,

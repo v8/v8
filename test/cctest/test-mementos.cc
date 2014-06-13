@@ -102,7 +102,7 @@ TEST(PretenuringCallNew) {
       "  a = new f();"
       "}"
       "a;";
-  i::OS::SNPrintF(test_buf, program, call_count);
+  i::SNPrintF(test_buf, program, call_count);
   v8::Local<v8::Value> res = CompileRun(test_buf.start());
   Handle<JSObject> o =
       v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));

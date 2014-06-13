@@ -397,9 +397,9 @@ static void CompileConstructorWithDeoptimizingValueOf() {
 static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
                                          const char* binary_op) {
   EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> f_source_buffer;
-  OS::SNPrintF(f_source_buffer,
-               "function f(x, y) { return x %s y; };",
-               binary_op);
+  SNPrintF(f_source_buffer,
+           "function f(x, y) { return x %s y; };",
+           binary_op);
   char* f_source = f_source_buffer.start();
 
   AllowNativesSyntaxNoInlining options;

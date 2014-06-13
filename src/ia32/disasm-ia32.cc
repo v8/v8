@@ -357,7 +357,7 @@ void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
   v8::internal::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
-  int result = v8::internal::OS::VSNPrintF(buf, format, args);
+  int result = v8::internal::VSNPrintF(buf, format, args);
   va_end(args);
   tmp_buffer_pos_ += result;
 }
@@ -1645,18 +1645,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   int outp = 0;
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
-    outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                       "%02x",
-                                       *bp);
+    outp += v8::internal::SNPrintF(out_buffer + outp,
+                                   "%02x",
+                                   *bp);
   }
   for (int i = 6 - instr_len; i >= 0; i--) {
-    outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                       "  ");
+    outp += v8::internal::SNPrintF(out_buffer + outp, "  ");
   }
 
-  outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                     " %s",
-                                     tmp_buffer_.start());
+  outp += v8::internal::SNPrintF(out_buffer + outp,
+                                 " %s",
+                                 tmp_buffer_.start());
   return instr_len;
 }  // NOLINT (function is too long)
 
@@ -1680,7 +1679,7 @@ static const char* xmm_regs[8] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
   return tmp_buffer_.start();
 }
 

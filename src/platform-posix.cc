@@ -422,23 +422,24 @@ void OS::VPrintError(const char* format, va_list args) {
 }
 
 
-int OS::SNPrintF(Vector<char> str, const char* format, ...) {
+int OS::SNPrintF(char* str, int length, const char* format, ...) {
   va_list args;
   va_start(args, format);
-  int result = VSNPrintF(str, format, args);
+  int result = VSNPrintF(str, length, format, args);
   va_end(args);
   return result;
 }
 
 
-int OS::VSNPrintF(Vector<char> str,
+int OS::VSNPrintF(char* str,
+                  int length,
                   const char* format,
                   va_list args) {
-  int n = vsnprintf(str.start(), str.length(), format, args);
-  if (n < 0 || n >= str.length()) {
+  int n = vsnprintf(str, length, format, args);
+  if (n < 0 || n >= length) {
     // If the length is zero, the assignment fails.
-    if (str.length() > 0)
-      str[str.length() - 1] = '\0';
+    if (length > 0)
+      str[length - 1] = '\0';
     return -1;
   } else {
     return n;
@@ -455,8 +456,8 @@ char* OS::StrChr(char* str, int c) {
 }
 
 
-void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
-  strncpy(dest.start(), src, n);
+void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
+  strncpy(dest, src, n);
 }
 
 

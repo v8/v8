@@ -75,7 +75,7 @@ static Handle<JSFunction> Compile(const char* source) {
 static double Inc(Isolate* isolate, int x) {
   const char* source = "result = %d + 1;";
   EmbeddedVector<char, 512> buffer;
-  OS::SNPrintF(buffer, source, x);
+  SNPrintF(buffer, source, x);
 
   Handle<JSFunction> fun = Compile(buffer.start());
   if (fun.is_null()) return -1;
@@ -422,7 +422,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
     v8::internal::EmbeddedVector<char, 128> smi_hex_buffer;
     Smi* smi = Smi::FromInt(12345678);
-    OS::SNPrintF(smi_hex_buffer, "0x%lx", reinterpret_cast<intptr_t>(smi));
+    SNPrintF(smi_hex_buffer, "0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(smi));
     while (pc < end) {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
