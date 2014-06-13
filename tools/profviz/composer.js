@@ -43,6 +43,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
 
   var kY1Offset = 11;               // Offset for stack frame vs. event lines.
   var kDeoptRow = 7;                // Row displaying deopts.
+  var kGetTimeHeight = 0.5;         // Height of marker displaying timed part.
   var kMaxDeoptLength = 4;          // Draw size of the largest deopt.
   var kPauseLabelPadding = 5;       // Padding for pause time labels.
   var kNumPauseLabels = 7;          // Number of biggest pauses to label.
@@ -136,6 +137,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
   var code_map = new CodeMap();
   var execution_pauses = [];
   var deopts = [];
+  var gettime = [];
   var event_stack = [];
   var last_time_stamp = [];
   for (var i = 0; i < kNumThreads; i++) {
@@ -274,6 +276,10 @@ function PlotScriptComposer(kResX, kResY, error_output) {
       deopts.push(new Deopt(time, size));
     }
 
+    var processCurrentTimeEvent = function(time) {
+      gettime.push(time);
+    }
+
     var processSharedLibrary = function(name, start, end) {
       var code_entry = new CodeMap.CodeEntry(end - start, name);
       code_entry.kind = -3;  // External code kind.
@@ -316,6 +322,8 @@ function PlotScriptComposer(kResX, kResY, error_output) {
                             processor: processCodeDeleteEvent },
         'code-deopt':     { parsers: [parseTimeStamp, parseInt],
                             processor: processCodeDeoptEvent },
+        'current-time':   { parsers: [parseTimeStamp],
+                            processor: processCurrentTimeEvent },
         'tick':           { parsers: [parseInt, parseTimeStamp,
                                       null, null, parseInt, 'var-args'],
                             processor: processTickEvent }
@@ -391,12 +399,15 @@ function PlotScriptComposer(kResX, kResY, error_output) {
     output("set xtics out nomirror");
     output("unset key");
 
-    function DrawBarBase(color, start, end, top, bottom) {
+    function DrawBarBase(color, start, end, top, bottom, transparency) {
       obj_index++;
       command = "set object " + obj_index + " rect";
       command += " from " + start + ", " + top;
       command += " to " + end + ", " + bottom;
       command += " fc rgb \"" + color + "\"";
+      if (transparency) {
+        command += " fs transparent solid " + transparency;
+      }
       output(command);
     }
 
@@ -428,6 +439,13 @@ function PlotScriptComposer(kResX, kResY, error_output) {
       DrawHalfBar(kDeoptRow, "#9944CC", deopt.time,
                   deopt.time + 10 * pause_tolerance,
                   deopt.size / max_deopt_size * kMaxDeoptLength);
+    }
+
+    // Plot current time polls.
+    if (gettime.length > 1) {
+      var start = gettime[0];
+      var end = gettime.pop();
+      DrawBarBase("#0000BB", start, end, kGetTimeHeight, 0, 0.2);
     }
 
     // Name Y-axis.
