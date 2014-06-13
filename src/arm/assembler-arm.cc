@@ -84,10 +84,11 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     supported_ |= 1u << ARMv7;
     if (FLAG_enable_vfp3) supported_ |= 1u << VFP3;
     if (FLAG_enable_neon) supported_ |= 1u << NEON | 1u << VFP32DREGS;
-    if (FLAG_enable_sudiv)  supported_ |= 1u << SUDIV;
+    if (FLAG_enable_sudiv) supported_ |= 1u << SUDIV;
     if (FLAG_enable_movw_movt) supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
     if (FLAG_enable_32dregs) supported_ |= 1u << VFP32DREGS;
   }
+  if (FLAG_enable_mls) supported_ |= 1u << MLS;
   if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
 
 #else  // __arm__
@@ -102,6 +103,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
   if (FLAG_enable_neon && cpu.has_neon()) supported_ |= 1u << NEON;
   if (FLAG_enable_sudiv && cpu.has_idiva()) supported_ |= 1u << SUDIV;
+  if (FLAG_enable_mls && cpu.has_thumb2()) supported_ |= 1u << MLS;
 
   if (cpu.architecture() >= 7) {
     if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
@@ -744,7 +746,7 @@ int Assembler::GetCmpImmediateRawImmediate(Instr instr) {
 // same position.
 
 
-int Assembler::target_at(int pos)  {
+int Assembler::target_at(int pos) {
   Instr instr = instr_at(pos);
   if (is_uint24(instr)) {
     // Emitted link to a label, not part of a branch.
@@ -1481,6 +1483,7 @@ void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
 void Assembler::mls(Register dst, Register src1, Register src2, Register srcA,
                     Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
+  ASSERT(IsEnabled(MLS));
   emit(cond | B22 | B21 | dst.code()*B16 | srcA.code()*B12 |
        src2.code()*B8 | B7 | B4 | src1.code());
 }

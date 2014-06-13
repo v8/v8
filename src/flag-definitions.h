@@ -373,6 +373,8 @@ DEFINE_bool(enable_neon, ENABLE_NEON_DEFAULT,
             "enable use of NEON instructions if available (ARM only)")
 DEFINE_bool(enable_sudiv, true,
             "enable use of SDIV and UDIV instructions if available (ARM only)")
+DEFINE_bool(enable_mls, true,
+            "enable use of MLS instructions if available (ARM only)")
 DEFINE_bool(enable_movw_movt, false,
             "enable loading 32-bit constant by means of movw/movt "
             "instruction pairs (ARM only)")

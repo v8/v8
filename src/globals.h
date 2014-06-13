@@ -616,6 +616,7 @@ enum CpuFeature {
     VFP3,
     ARMv7,
     SUDIV,
+    MLS,
     UNALIGNED_ACCESSES,
     MOVW_MOVT_IMMEDIATE_LOADS,
     VFP32DREGS,

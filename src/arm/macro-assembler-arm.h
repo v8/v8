@@ -117,7 +117,8 @@ class MacroAssembler: public Assembler {
             Register scratch = no_reg,
             Condition cond = al);
 
-
+  void Mls(Register dst, Register src1, Register src2, Register srcA,
+           Condition cond = al);
   void And(Register dst, Register src1, const Operand& src2,
            Condition cond = al);
   void Ubfx(Register dst, Register src, int lsb, int width,
