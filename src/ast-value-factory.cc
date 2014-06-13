@@ -77,7 +77,7 @@ bool AstString::AsArrayIndex(uint32_t* index) const {
 
 
 bool AstString::IsOneByteEqualTo(const char* data) const {
-  int length = strlen(data);
+  int length = static_cast<int>(strlen(data));
   if (is_one_byte_ && literal_bytes_.length() == length) {
     const char* token = reinterpret_cast<const char*>(literal_bytes_.start());
     return !strncmp(token, data, length);
