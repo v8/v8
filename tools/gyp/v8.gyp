@@ -238,7 +238,7 @@
       'target_name': 'v8_base',
       'type': 'static_library',
       'dependencies': [
-        'v8_libbase.<(v8_target_arch)',
+        'v8_libbase',
       ],
       'variables': {
         'optimize': 'max',
@@ -1056,7 +1056,7 @@
       ],
     },
     {
-      'target_name': 'v8_libbase.<(v8_target_arch)',
+      'target_name': 'v8_libbase',
       'type': 'static_library',
       'variables': {
         'optimize': 'max',
