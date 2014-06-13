@@ -233,11 +233,11 @@ class AstValueFactory {
         string_table_(AstString::Compare),
         zone_(zone),
         isolate_(NULL) {
-#define F(name, str) {      \
-      const char* data = str;          \
-      name##_string_ = GetOneByteString(                              \
+#define F(name, str) { \
+      const char* data = str; \
+      name##_string_ = GetOneByteString( \
           Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), \
-                                strlen(data)));                         \
+                                static_cast<int>(strlen(data)))); \
     }
     STRING_CONSTANTS(F)
 #undef F
