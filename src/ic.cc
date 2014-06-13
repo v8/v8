@@ -1326,8 +1326,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
       TRACE_IC("StoreIC", name);
     } else if (can_store) {
       UpdateCaches(&lookup, receiver, name, value);
-    } else if (!name->IsCacheable(isolate()) ||
-               lookup.IsNormal() ||
+    } else if (lookup.IsNormal() ||
                (lookup.IsField() && lookup.CanHoldValue(value))) {
       Handle<Code> stub = generic_stub();
       set_target(*stub);

@@ -8928,8 +8928,6 @@ class Name: public HeapObject {
   // Casting.
   static inline Name* cast(Object* obj);
 
-  bool IsCacheable(Isolate* isolate);
-
   DECLARE_PRINTER(Name)
 
   // Layout description.
