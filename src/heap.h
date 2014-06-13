@@ -551,7 +551,7 @@ class Heap {
   bool ConfigureHeap(int max_semi_space_size,
                      int max_old_space_size,
                      int max_executable_size,
-                     int code_range_size);
+                     size_t code_range_size);
   bool ConfigureHeapDefault();
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
@@ -1519,7 +1519,7 @@ class Heap {
 
   Object* roots_[kRootListLength];
 
-  intptr_t code_range_size_;
+  size_t code_range_size_;
   int reserved_semispace_size_;
   int max_semi_space_size_;
   int initial_semispace_size_;

@@ -3865,8 +3865,8 @@ class V8_EXPORT ResourceConstraints {
   void set_max_available_threads(int value) {
     max_available_threads_ = value;
   }
-  int code_range_size() const { return code_range_size_; }
-  void set_code_range_size(int value) {
+  size_t code_range_size() const { return code_range_size_; }
+  void set_code_range_size(size_t value) {
     code_range_size_ = value;
   }
 
@@ -3876,7 +3876,7 @@ class V8_EXPORT ResourceConstraints {
   int max_executable_size_;
   uint32_t* stack_limit_;
   int max_available_threads_;
-  int code_range_size_;
+  size_t code_range_size_;
 };
 
 

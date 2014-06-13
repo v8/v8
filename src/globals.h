@@ -153,12 +153,14 @@ const int kDoubleSizeLog2 = 3;
 const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);
-const bool kIs64BitArch = true;
+const bool kRequiresCodeRange = true;
+const size_t kMaximalCodeRangeSize = 512 * MB;
 #else
 const int kPointerSizeLog2 = 2;
 const intptr_t kIntptrSignBit = 0x80000000;
 const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
-const bool kIs64BitArch = false;
+const bool kRequiresCodeRange = false;
+const size_t kMaximalCodeRangeSize = 0 * MB;
 #endif
 
 const int kBitsPerByte = 8;

@@ -196,12 +196,12 @@ class Block {
 
 
 TEST(CodeRange) {
-  const int code_range_size = 32*MB;
+  const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
   CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
   code_range.SetUp(code_range_size);
-  int current_allocated = 0;
-  int total_allocated = 0;
+  size_t current_allocated = 0;
+  size_t total_allocated = 0;
   List<Block> blocks(1000);
 
   while (total_allocated < 5 * code_range_size) {
