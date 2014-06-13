@@ -1645,7 +1645,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
   int outp = 0;
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
-    outp += v8::internal:::SNPrintF(out_buffer + outp, "%02x", *bp);
+    outp += v8::internal::SNPrintF(out_buffer + outp, "%02x", *bp);
   }
   for (int i = 6 - instr_len; i >= 0; i--) {
     outp += v8::internal::SNPrintF(out_buffer + outp, "  ");
