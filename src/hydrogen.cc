@@ -11010,7 +11010,7 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         // 1) it's a child object of another object with a valid allocation site
         // 2) we can just use the mode of the parent object for pretenuring
         HInstruction* double_box =
-            Add<HAllocate>(heap_number_constant, HType::HeapNumber(),
+            Add<HAllocate>(heap_number_constant, HType::HeapObject(),
                 pretenure_flag, HEAP_NUMBER_TYPE);
         AddStoreMapConstant(double_box,
             isolate()->factory()->heap_number_map());
