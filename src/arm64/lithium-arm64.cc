@@ -2246,13 +2246,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     temp0 = TempRegister();
   }
 
-  LStoreNamedField* result =
-      new(zone()) LStoreNamedField(object, value, temp0, temp1);
-  if (instr->field_representation().IsHeapObject() &&
-      !instr->value()->type().IsHeapObject()) {
-    return AssignEnvironment(result);
-  }
-  return result;
+  return new(zone()) LStoreNamedField(object, value, temp0, temp1);
 }
 
 
