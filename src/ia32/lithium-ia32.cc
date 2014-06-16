@@ -2419,7 +2419,16 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // We need a temporary register for write barrier of the map field.
   LOperand* temp_map = needs_write_barrier_for_map ? TempRegister() : NULL;
 
-  return new(zone()) LStoreNamedField(obj, val, temp, temp_map);
+  LInstruction* result =
+      new(zone()) LStoreNamedField(obj, val, temp, temp_map);
+  if (!instr->access().IsExternalMemory() &&
+      instr->field_representation().IsHeapObject() &&
+      (val->IsConstantOperand()
+       ? HConstant::cast(instr->value())->HasSmiValue()
+       : !instr->value()->type().IsHeapObject())) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 

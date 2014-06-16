@@ -55,11 +55,6 @@ void MacroAssembler::Store(Register src, const Operand& dst, Representation r) {
   } else if (r.IsInteger16() || r.IsUInteger16()) {
     mov_w(dst, src);
   } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
     mov(dst, src);
   }
 }
