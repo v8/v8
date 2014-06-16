@@ -1,3 +1,8 @@
+2014-06-16: Version 3.27.31
+
+        Version fix.
+
+
 2014-06-16: Version 3.27.30
 
         Fix representation of Phis for mutable-heapnumber-in-object-literal
