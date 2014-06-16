@@ -1802,11 +1802,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  // Normalize the object if the name is an actual name (not the
-  // hidden strings) and is not a real identifier.
-  // Normalize the object if it will have too many fast properties.
   Isolate* isolate = map->GetIsolate();
-  if (!name->IsCacheable(isolate)) return MaybeHandle<Map>();
 
   // Compute the new index for new field.
   int index = map->NextFreePropertyIndex();
@@ -8401,30 +8397,6 @@ bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   return true;
 }
 #endif
-
-
-static bool IsIdentifier(UnicodeCache* cache, Name* name) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!name->IsString()) return false;
-  String* string = String::cast(name);
-  if (string->length() == 0) return true;
-  ConsStringIteratorOp op;
-  StringCharacterStream stream(string, &op);
-  if (!cache->IsIdentifierStart(stream.GetNext())) {
-    return false;
-  }
-  while (stream.HasMore()) {
-    if (!cache->IsIdentifierPart(stream.GetNext())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-bool Name::IsCacheable(Isolate* isolate) {
-  return IsSymbol() || IsIdentifier(isolate->unicode_cache(), this);
-}
 
 
 bool String::LooksValid() {

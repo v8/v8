@@ -117,7 +117,13 @@ void RandomNumberGenerator::NextBytes(void* buffer, size_t buflen) {
 int RandomNumberGenerator::Next(int bits) {
   ASSERT_LT(0, bits);
   ASSERT_GE(32, bits);
-  int64_t seed = (seed_ * kMultiplier + kAddend) & kMask;
+  // Do unsigned multiplication, which has the intended modulo semantics, while
+  // signed multiplication would expose undefined behavior.
+  uint64_t product = static_cast<uint64_t>(seed_) * kMultiplier;
+  // Assigning a uint64_t to an int64_t is implementation defined, but this
+  // should be OK. Use a static_cast to explicitly state that we know what we're
+  // doing. (Famous last words...)
+  int64_t seed = static_cast<int64_t>((product + kAddend) & kMask);
   seed_ = seed;
   return static_cast<int>(seed >> (48 - bits));
 }

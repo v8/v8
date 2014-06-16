@@ -65,6 +65,7 @@ class LCodeGen: public LCodeGenBase {
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsDehoistedKeyConstant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   int32_t ToInteger32(LConstantOperand* op) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
@@ -231,6 +232,7 @@ class LCodeGen: public LCodeGenBase {
   Operand BuildFastArrayOperand(
       LOperand* elements_pointer,
       LOperand* key,
+      Representation key_representation,
       ElementsKind elements_kind,
       uint32_t base_offset);
 

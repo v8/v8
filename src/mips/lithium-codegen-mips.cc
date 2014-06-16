@@ -1327,21 +1327,21 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   }
 
   // If the divisor is negative, we have to negate and handle edge cases.
-  if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
-    // divident can be the same register as result so save the value of it
-    // for checking overflow.
-    __ Move(scratch, dividend);
-  }
+
+  // dividend can be the same register as result so save the value of it
+  // for checking overflow.
+  __ Move(scratch, dividend);
+
   __ Subu(result, zero_reg, dividend);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment(), result, Operand(zero_reg));
   }
 
   // Dividing by -1 is basically negation, unless we overflow.
-  __ Xor(at, scratch, result);
+  __ Xor(scratch, scratch, result);
   if (divisor == -1) {
     if (instr->hydrogen()->CheckFlag(HValue::kLeftCanBeMinInt)) {
-      DeoptimizeIf(ge, instr->environment(), at, Operand(zero_reg));
+      DeoptimizeIf(ge, instr->environment(), scratch, Operand(zero_reg));
     }
     return;
   }
@@ -1353,7 +1353,7 @@ void LCodeGen::DoFlooringDivByPowerOf2I(LFlooringDivByPowerOf2I* instr) {
   }
 
   Label no_overflow, done;
-  __ Branch(&no_overflow, lt, at, Operand(zero_reg));
+  __ Branch(&no_overflow, lt, scratch, Operand(zero_reg));
   __ li(result, Operand(kMinInt / divisor));
   __ Branch(&done);
   __ bind(&no_overflow);

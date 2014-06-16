@@ -1,3 +1,14 @@
+2014-06-16: Version 3.27.29
+
+        Emulate MLS on pre-ARMv6T2. Cleaned up thumbee vs. thumb2 confusion.
+
+        X87: Fixed flooring division by a power of 2, once again.. (issue 3259).
+
+        Fixed undefined behavior in RNG (Chromium issue 377790).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-13: Version 3.27.28
 
         Add v8::Promise::Then (Chromium issue 371288).

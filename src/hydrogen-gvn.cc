@@ -466,7 +466,7 @@ bool SideEffectsTracker::ComputeGlobalVar(Unique<Cell> cell, int* index) {
 bool SideEffectsTracker::ComputeInobjectField(HObjectAccess access,
                                               int* index) {
   for (int i = 0; i < num_inobject_fields_; ++i) {
-    if (access.Equals(inobject_fields_[i])) {
+    if (access.SameField(inobject_fields_[i])) {
       *index = i;
       return true;
     }

@@ -6202,7 +6202,14 @@ class HObjectAccess V8_FINAL {
   void PrintTo(StringStream* stream) const;
 
   inline bool Equals(HObjectAccess that) const {
-    return value_ == that.value_;  // portion and offset must match
+    return value_ == that.value_;
+  }
+
+  // Returns true if |this| access refers to the same field as |that|, which
+  // means that both have same |offset| and |portion| values.
+  inline bool SameField(HObjectAccess that) const {
+    uint32_t mask = PortionField::kMask | OffsetField::kMask;
+    return (value_ & mask) == (that.value_ & mask);
   }
 
  protected:

@@ -290,6 +290,7 @@ class Logger {
   enum StartEnd { START, END };
 
   void CodeDeoptEvent(Code* code);
+  void CurrentTimeEvent();
 
   void TimerEvent(StartEnd se, const char* name);
 

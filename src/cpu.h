@@ -72,7 +72,7 @@ class CPU V8_FINAL BASE_EMBEDDED {
   // arm features
   bool has_idiva() const { return has_idiva_; }
   bool has_neon() const { return has_neon_; }
-  bool has_thumbee() const { return has_thumbee_; }
+  bool has_thumb2() const { return has_thumb2_; }
   bool has_vfp() const { return has_vfp_; }
   bool has_vfp3() const { return has_vfp3_; }
   bool has_vfp3_d32() const { return has_vfp3_d32_; }
@@ -103,7 +103,7 @@ class CPU V8_FINAL BASE_EMBEDDED {
   bool has_sse42_;
   bool has_idiva_;
   bool has_neon_;
-  bool has_thumbee_;
+  bool has_thumb2_;
   bool has_vfp_;
   bool has_vfp3_;
   bool has_vfp3_d32_;

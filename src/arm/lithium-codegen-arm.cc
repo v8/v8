@@ -1215,7 +1215,7 @@ void LCodeGen::DoModI(LModI* instr) {
     //   mls r3, r3, r2, r1
 
     __ sdiv(result_reg, left_reg, right_reg);
-    __ mls(result_reg, result_reg, right_reg, left_reg);
+    __ Mls(result_reg, result_reg, right_reg, left_reg);
 
     // If we care about -0, test if the dividend is <0 and the result is 0.
     if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -1413,7 +1413,7 @@ void LCodeGen::DoDivI(LDivI* instr) {
   if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
     // Compute remainder and deopt if it's not zero.
     Register remainder = scratch0();
-    __ mls(remainder, result, divisor, dividend);
+    __ Mls(remainder, result, divisor, dividend);
     __ cmp(remainder, Operand::Zero());
     DeoptimizeIf(ne, instr->environment());
   }
@@ -1588,7 +1588,7 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
 
   Label done;
   Register remainder = scratch0();
-  __ mls(remainder, result, right, left);
+  __ Mls(remainder, result, right, left);
   __ cmp(remainder, Operand::Zero());
   __ b(eq, &done);
   __ eor(remainder, remainder, Operand(right));
