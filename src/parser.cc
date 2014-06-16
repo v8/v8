@@ -4793,9 +4793,11 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 
 bool Parser::Parse() {
   ASSERT(info()->function() == NULL);
-  ASSERT(info()->ast_value_factory() == NULL);
   FunctionLiteral* result = NULL;
-  ast_value_factory_ = new AstValueFactory(zone());
+  ast_value_factory_ = info()->ast_value_factory();
+  if (ast_value_factory_ == NULL) {
+    ast_value_factory_ = new AstValueFactory(zone());
+  }
   if (allow_natives_syntax() || extension_ != NULL) {
     // If intrinsics are allowed, the Parser cannot operate independent of the
     // V8 heap because of Rumtime. Tell the string table to internalize strings
@@ -4830,7 +4832,9 @@ bool Parser::Parse() {
   info()->SetFunction(result);
   ast_value_factory_->Internalize(isolate());
   // info takes ownership of ast_value_factory_.
-  info()->SetAstValueFactory(ast_value_factory_);
+  if (info()->ast_value_factory() == NULL) {
+    info()->SetAstValueFactory(ast_value_factory_);
+  }
   ast_value_factory_ = NULL;
   return (result != NULL);
 }

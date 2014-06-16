@@ -39,7 +39,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
       parameter_count_(0),
       this_has_uses_(true),
       optimization_id_(-1),
-      ast_value_factory_(NULL) {
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -53,7 +54,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       parameter_count_(0),
       this_has_uses_(true),
       optimization_id_(-1),
-      ast_value_factory_(NULL) {
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -69,7 +71,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
       parameter_count_(0),
       this_has_uses_(true),
       optimization_id_(-1),
-      ast_value_factory_(NULL) {
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -82,7 +85,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
       parameter_count_(0),
       this_has_uses_(true),
       optimization_id_(-1),
-      ast_value_factory_(NULL) {
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -135,7 +139,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
 CompilationInfo::~CompilationInfo() {
   delete deferred_handles_;
   delete no_frame_ranges_;
-  delete ast_value_factory_;
+  if (ast_value_factory_owned_) delete ast_value_factory_;
 #ifdef DEBUG
   // Check that no dependent maps have been added or added dependent maps have
   // been rolled back or committed.
