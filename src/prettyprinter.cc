@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/ast-value-factory.h"
 #include "src/prettyprinter.h"
 #include "src/scopes.h"
 #include "src/platform.h"
@@ -133,7 +134,7 @@ void PrettyPrinter::VisitIfStatement(IfStatement* node) {
 
 void PrettyPrinter::VisitContinueStatement(ContinueStatement* node) {
   Print("continue");
-  ZoneStringList* labels = node->target()->labels();
+  ZoneList<const AstString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
     ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
@@ -145,7 +146,7 @@ void PrettyPrinter::VisitContinueStatement(ContinueStatement* node) {
 
 void PrettyPrinter::VisitBreakStatement(BreakStatement* node) {
   Print("break");
-  ZoneStringList* labels = node->target()->labels();
+  ZoneList<const AstString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
     ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
@@ -492,9 +493,9 @@ void PrettyPrinter::Print(const char* format, ...) {
   for (;;) {
     va_list arguments;
     va_start(arguments, format);
-    int n = OS::VSNPrintF(Vector<char>(output_, size_) + pos_,
-                          format,
-                          arguments);
+    int n = VSNPrintF(Vector<char>(output_, size_) + pos_,
+                      format,
+                      arguments);
     va_end(arguments);
 
     if (n >= 0) {
@@ -524,7 +525,7 @@ void PrettyPrinter::PrintStatements(ZoneList<Statement*>* statements) {
 }
 
 
-void PrettyPrinter::PrintLabels(ZoneStringList* labels) {
+void PrettyPrinter::PrintLabels(ZoneList<const AstString*>* labels) {
   if (labels != NULL) {
     for (int i = 0; i < labels->length(); i++) {
       PrintLiteral(labels->at(i), false);
@@ -579,6 +580,11 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
   } else {
     Print("<unknown literal %p>", object);
   }
+}
+
+
+void PrettyPrinter::PrintLiteral(const AstString* value, bool quote) {
+  PrintLiteral(value->string(), quote);
 }
 
 
@@ -668,15 +674,15 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
-    int pos = OS::SNPrintF(buf, "%s (mode = %s", info,
-                           Variable::Mode2String(var->mode()));
-    OS::SNPrintF(buf + pos, ")");
+    int pos = SNPrintF(buf, "%s (mode = %s", info,
+                       Variable::Mode2String(var->mode()));
+    SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
 }
 
 
-void AstPrinter::PrintLabelsIndented(ZoneStringList* labels) {
+void AstPrinter::PrintLabelsIndented(ZoneList<const AstString*>* labels) {
   if (labels == NULL || labels->length() == 0) return;
   PrintIndented("LABELS ");
   PrintLabels(labels);
@@ -1033,21 +1039,21 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   Variable* var = node->var();
   EmbeddedVector<char, 128> buf;
-  int pos = OS::SNPrintF(buf, "VAR PROXY");
+  int pos = SNPrintF(buf, "VAR PROXY");
   switch (var->location()) {
     case Variable::UNALLOCATED:
       break;
     case Variable::PARAMETER:
-      OS::SNPrintF(buf + pos, " parameter[%d]", var->index());
+      SNPrintF(buf + pos, " parameter[%d]", var->index());
       break;
     case Variable::LOCAL:
-      OS::SNPrintF(buf + pos, " local[%d]", var->index());
+      SNPrintF(buf + pos, " local[%d]", var->index());
       break;
     case Variable::CONTEXT:
-      OS::SNPrintF(buf + pos, " context[%d]", var->index());
+      SNPrintF(buf + pos, " context[%d]", var->index());
       break;
     case Variable::LOOKUP:
-      OS::SNPrintF(buf + pos, " lookup");
+      SNPrintF(buf + pos, " lookup");
       break;
   }
   PrintLiteralWithModeIndented(buf.start(), var, node->name());
@@ -1114,8 +1120,8 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 
 void AstPrinter::VisitCountOperation(CountOperation* node) {
   EmbeddedVector<char, 128> buf;
-  OS::SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
-               Token::Name(node->op()));
+  SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
+           Token::Name(node->op()));
   IndentedScope indent(this, buf.start());
   Visit(node->expression());
 }

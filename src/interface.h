@@ -5,6 +5,7 @@
 #ifndef V8_INTERFACE_H_
 #define V8_INTERFACE_H_
 
+#include "src/ast-value-factory.h"
 #include "src/zone-inl.h"  // For operator new.
 
 namespace v8 {
@@ -59,8 +60,9 @@ class Interface : public ZoneObject {
 
   // Add a name to the list of exports. If it already exists, unify with
   // interface, otherwise insert unless this is closed.
-  void Add(Handle<String> name, Interface* interface, Zone* zone, bool* ok) {
-    DoAdd(name.location(), name->Hash(), interface, zone, ok);
+  void Add(const AstString* name, Interface* interface, Zone* zone,
+           bool* ok) {
+    DoAdd(name, name->hash(), interface, zone, ok);
   }
 
   // Unify with another interface. If successful, both interface objects will
@@ -146,9 +148,9 @@ class Interface : public ZoneObject {
   class Iterator {
    public:
     bool done() const { return entry_ == NULL; }
-    Handle<String> name() const {
+    const AstString* name() const {
       ASSERT(!done());
-      return Handle<String>(*static_cast<String**>(entry_->key));
+      return static_cast<const AstString*>(entry_->key);
     }
     Interface* interface() const {
       ASSERT(!done());
@@ -207,7 +209,7 @@ class Interface : public ZoneObject {
     return result;
   }
 
-  void DoAdd(void* name, uint32_t hash, Interface* interface, Zone* zone,
+  void DoAdd(const void* name, uint32_t hash, Interface* interface, Zone* zone,
              bool* ok);
   void DoUnify(Interface* that, bool* ok, Zone* zone);
 };

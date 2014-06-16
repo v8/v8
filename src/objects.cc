@@ -1716,22 +1716,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 
 
 bool HeapNumber::HeapNumberBooleanValue() {
-  // NaN, +0, and -0 should return the false object
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-  union IeeeDoubleLittleEndianArchType u;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-  union IeeeDoubleBigEndianArchType u;
-#endif
-  u.d = value();
-  if (u.bits.exp == 2047) {
-    // Detect NaN for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) != 0) return false;
-  }
-  if (u.bits.exp == 0) {
-    // Detect +0, and -0 for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) == 0) return false;
-  }
-  return true;
+  return DoubleToBoolean(value());
 }
 
 
@@ -1748,7 +1733,7 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
   // print that using vsnprintf (which may truncate but never allocate if
   // there is no more space in the buffer).
   EmbeddedVector<char, 100> buffer;
-  OS::SNPrintF(buffer, "%.16g", Number());
+  SNPrintF(buffer, "%.16g", Number());
   accumulator->Add("%s", buffer.start());
 }
 
@@ -4793,28 +4778,9 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
 
 
 void JSObject::ResetElements(Handle<JSObject> object) {
-  if (object->map()->is_observed()) {
-    // Maintain invariant that observed elements are always in dictionary mode.
-    Isolate* isolate = object->GetIsolate();
-    Factory* factory = isolate->factory();
-    Handle<SeededNumberDictionary> dictionary =
-        SeededNumberDictionary::New(isolate, 0);
-    if (object->map() == *factory->sloppy_arguments_elements_map()) {
-      FixedArray::cast(object->elements())->set(1, *dictionary);
-    } else {
-      object->set_elements(*dictionary);
-    }
-    return;
-  }
-
-  ElementsKind elements_kind = GetInitialFastElementsKind();
-  if (!FLAG_smi_only_arrays) {
-    elements_kind = FastSmiToObjectElementsKind(elements_kind);
-  }
-  Handle<Map> map = JSObject::GetElementsTransitionMap(object, elements_kind);
-  DisallowHeapAllocation no_gc;
-  Handle<FixedArrayBase> elements(map->GetInitialElements());
-  JSObject::SetMapAndElements(object, map, elements);
+  Heap* heap = object->GetIsolate()->heap();
+  CHECK(object->map() != heap->sloppy_arguments_elements_map());
+  object->set_elements(object->map()->GetInitialElements());
 }
 
 
@@ -9371,29 +9337,7 @@ bool String::ComputeArrayIndex(uint32_t* index) {
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   ConsStringIteratorOp op;
   StringCharacterStream stream(this, &op);
-  uint16_t ch = stream.GetNext();
-
-  // If the string begins with a '0' character, it must only consist
-  // of it to be a legal array index.
-  if (ch == '0') {
-    *index = 0;
-    return length == 1;
-  }
-
-  // Convert string to uint32 array index; character by character.
-  int d = ch - '0';
-  if (d < 0 || d > 9) return false;
-  uint32_t result = d;
-  while (stream.HasMore()) {
-    d = stream.GetNext() - '0';
-    if (d < 0 || d > 9) return false;
-    // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
-    result = (result * 10) + d;
-  }
-
-  *index = result;
-  return true;
+  return StringToArrayIndex(&stream, index);
 }
 
 

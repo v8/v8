@@ -129,21 +129,21 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     case 'i': case 'd': case 'u': case 'x': case 'c': case 'X': {
       int value = current.data_.u_int_;
       EmbeddedVector<char, 24> formatted;
-      int length = OS::SNPrintF(formatted, temp.start(), value);
+      int length = SNPrintF(formatted, temp.start(), value);
       Add(Vector<const char>(formatted.start(), length));
       break;
     }
     case 'f': case 'g': case 'G': case 'e': case 'E': {
       double value = current.data_.u_double_;
       EmbeddedVector<char, 28> formatted;
-      OS::SNPrintF(formatted, temp.start(), value);
+      SNPrintF(formatted, temp.start(), value);
       Add(formatted.start());
       break;
     }
     case 'p': {
       void* value = current.data_.u_pointer_;
       EmbeddedVector<char, 20> formatted;
-      OS::SNPrintF(formatted, temp.start(), value);
+      SNPrintF(formatted, temp.start(), value);
       Add(formatted.start());
       break;
     }

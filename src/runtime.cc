@@ -8192,8 +8192,9 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, bound_function, 0);
-  RUNTIME_ASSERT(args[3]->IsNumber());
-  Handle<Object> bindee = args.at<Object>(1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, bindee, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, this_object, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
 
   // TODO(lrn): Create bound function in C++ code from premade shared info.
   bound_function->shared()->set_bound(true);
@@ -8203,10 +8204,10 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
       GetCallerArguments(isolate, 0, &argc);
   // Don't count the this-arg.
   if (argc > 0) {
-    RUNTIME_ASSERT(*arguments[0] == args[2]);
+    RUNTIME_ASSERT(arguments[0].is_identical_to(this_object));
     argc--;
   } else {
-    RUNTIME_ASSERT(args[2]->IsUndefined());
+    RUNTIME_ASSERT(this_object->IsUndefined());
   }
   // Initialize array of bindings (function, this, and any existing arguments
   // if the function was already bound).
@@ -8228,7 +8229,7 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
     int array_size = JSFunction::kBoundArgumentsStartIndex + argc;
     new_bindings = isolate->factory()->NewFixedArray(array_size);
     new_bindings->set(JSFunction::kBoundFunctionIndex, *bindee);
-    new_bindings->set(JSFunction::kBoundThisIndex, args[2]);
+    new_bindings->set(JSFunction::kBoundThisIndex, *this_object);
     i = 2;
   }
   // Copy arguments, skipping the first which is "this_arg".
@@ -8239,13 +8240,19 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
       isolate->heap()->fixed_cow_array_map());
   bound_function->set_function_bindings(*new_bindings);
 
-  // Update length.
+  // Update length. Have to remove the prototype first so that map migration
+  // is happy about the number of fields.
+  RUNTIME_ASSERT(bound_function->RemovePrototype());
+  Handle<Map> bound_function_map(
+      isolate->native_context()->bound_function_map());
+  JSObject::MigrateToMap(bound_function, bound_function_map);
   Handle<String> length_string = isolate->factory()->length_string();
-  Handle<Object> new_length(args.at<Object>(3));
   PropertyAttributes attr =
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
-  Runtime::ForceSetObjectProperty(
-      bound_function, length_string, new_length, attr).Assert();
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      JSObject::SetOwnPropertyIgnoreAttributes(bound_function, length_string,
+                                               new_length, attr));
   return *bound_function;
 }
 

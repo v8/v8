@@ -1436,9 +1436,7 @@ class DictionaryElementsAccessor
     }
 
     if (new_length == 0) {
-      // If the length of a slow array is reset to zero, we clear
-      // the array and flush backing storage. This has the added
-      // benefit that the array returns to fast mode.
+      // Flush the backing store.
       JSObject::ResetElements(array);
     } else {
       DisallowHeapAllocation no_gc;

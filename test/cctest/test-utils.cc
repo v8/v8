@@ -83,7 +83,7 @@ TEST(SNPrintF) {
     static const char kMarker = static_cast<char>(42);
     Vector<char> buffer = Vector<char>::New(i + 1);
     buffer[i] = kMarker;
-    int n = OS::SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
+    int n = SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
     CHECK(n <= i);
     CHECK(n == length || n == -1);
     CHECK_EQ(0, strncmp(buffer.start(), s, i - 1));

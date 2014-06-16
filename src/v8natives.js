@@ -1781,19 +1781,15 @@ function FunctionBind(this_arg) { // Length is 1.
     return %Apply(bindings[0], bindings[1], argv, 0, bound_argc + argc);
   };
 
-  %FunctionRemovePrototype(boundFunction);
   var new_length = 0;
-  if (%_ClassOf(this) == "Function") {
-    // Function or FunctionProxy.
-    var old_length = this.length;
-    // FunctionProxies might provide a non-UInt32 value. If so, ignore it.
-    if ((typeof old_length === "number") &&
-        ((old_length >>> 0) === old_length)) {
-      var argc = %_ArgumentsLength();
-      if (argc > 0) argc--;  // Don't count the thisArg as parameter.
-      new_length = old_length - argc;
-      if (new_length < 0) new_length = 0;
-    }
+  var old_length = this.length;
+  // FunctionProxies might provide a non-UInt32 value. If so, ignore it.
+  if ((typeof old_length === "number") &&
+      ((old_length >>> 0) === old_length)) {
+    var argc = %_ArgumentsLength();
+    if (argc > 0) argc--;  // Don't count the thisArg as parameter.
+    new_length = old_length - argc;
+    if (new_length < 0) new_length = 0;
   }
   // This runtime function finds any remaining arguments on the stack,
   // so we don't pass the arguments object.

@@ -3865,8 +3865,8 @@ class V8_EXPORT ResourceConstraints {
   void set_max_available_threads(int value) {
     max_available_threads_ = value;
   }
-  int code_range_size() const { return code_range_size_; }
-  void set_code_range_size(int value) {
+  size_t code_range_size() const { return code_range_size_; }
+  void set_code_range_size(size_t value) {
     code_range_size_ = value;
   }
 
@@ -3876,7 +3876,7 @@ class V8_EXPORT ResourceConstraints {
   int max_executable_size_;
   uint32_t* stack_limit_;
   int max_available_threads_;
-  int code_range_size_;
+  size_t code_range_size_;
 };
 
 
@@ -5525,7 +5525,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 75;
+  static const int kContextEmbedderDataIndex = 76;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
@@ -5543,7 +5543,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 163;
+  static const int kEmptyStringRootIndex = 160;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

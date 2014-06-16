@@ -4936,7 +4936,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 bool Heap::ConfigureHeap(int max_semi_space_size,
                          int max_old_space_size,
                          int max_executable_size,
-                         int code_range_size) {
+                         size_t code_range_size) {
   if (HasBeenSetUp()) return false;
 
   // Overwrite default configuration.

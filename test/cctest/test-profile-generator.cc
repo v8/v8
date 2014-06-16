@@ -602,7 +602,7 @@ TEST(Issue51919) {
       CpuProfilesCollection::kMaxSimultaneousProfiles> titles;
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
-    i::OS::SNPrintF(title, "%d", i);
+    i::SNPrintF(title, "%d", i);
     CHECK(collection.StartProfiling(title.start(), false));
     titles[i] = title.start();
   }

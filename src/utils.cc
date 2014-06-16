@@ -102,6 +102,25 @@ void PrintPID(const char* format, ...) {
 }
 
 
+int SNPrintF(Vector<char> str, const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  int result = VSNPrintF(str, format, args);
+  va_end(args);
+  return result;
+}
+
+
+int VSNPrintF(Vector<char> str, const char* format, va_list args) {
+  return OS::VSNPrintF(str.start(), str.length(), format, args);
+}
+
+
+void StrNCpy(Vector<char> dest, const char* src, size_t n) {
+  OS::StrNCpy(dest.start(), dest.length(), src, n);
+}
+
+
 void Flush(FILE* out) {
   fflush(out);
 }
@@ -305,7 +324,7 @@ void StringBuilder::AddFormatted(const char* format, ...) {
 
 void StringBuilder::AddFormattedList(const char* format, va_list list) {
   ASSERT(!is_finalized() && position_ <= buffer_.length());
-  int n = OS::VSNPrintF(buffer_ + position_, format, list);
+  int n = VSNPrintF(buffer_ + position_, format, list);
   if (n < 0 || n >= (buffer_.length() - position_)) {
     position_ = buffer_.length();
   } else {
@@ -372,6 +391,26 @@ void init_memcopy_functions() {
 #elif V8_OS_POSIX && V8_HOST_ARCH_MIPS
   memcopy_uint8_function = CreateMemCopyUint8Function(&MemCopyUint8Wrapper);
 #endif
+}
+
+
+bool DoubleToBoolean(double d) {
+  // NaN, +0, and -0 should return the false object
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+  union IeeeDoubleLittleEndianArchType u;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+  union IeeeDoubleBigEndianArchType u;
+#endif
+  u.d = d;
+  if (u.bits.exp == 2047) {
+    // Detect NaN for IEEE double precision floating point.
+    if ((u.bits.man_low | u.bits.man_high) != 0) return false;
+  }
+  if (u.bits.exp == 0) {
+    // Detect +0, and -0 for IEEE double precision floating point.
+    if ((u.bits.man_low | u.bits.man_high) == 0) return false;
+  }
+  return true;
 }
 
 

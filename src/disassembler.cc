@@ -50,7 +50,7 @@ class V8NameConverter: public disasm::NameConverter {
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
   const char* name = code_->GetIsolate()->builtins()->Lookup(pc);
   if (name != NULL) {
-    OS::SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
+    SNPrintF(v8_buffer_, "%s  (%p)", name, pc);
     return v8_buffer_.start();
   }
 
@@ -58,7 +58,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      OS::SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
+      SNPrintF(v8_buffer_, "%d  (%p)", offs, pc);
       return v8_buffer_.start();
     }
   }
@@ -114,27 +114,27 @@ static int DecodeIt(Isolate* isolate,
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
     if (constants > 0) {
-      OS::SNPrintF(decode_buffer,
-                   "%08x       constant",
-                   *reinterpret_cast<int32_t*>(pc));
+      SNPrintF(decode_buffer,
+               "%08x       constant",
+               *reinterpret_cast<int32_t*>(pc));
       constants--;
       pc += 4;
     } else {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
-        OS::SNPrintF(decode_buffer,
-                     "%08x       constant pool begin",
-                     *reinterpret_cast<int32_t*>(pc));
+        SNPrintF(decode_buffer,
+                 "%08x       constant pool begin",
+                 *reinterpret_cast<int32_t*>(pc));
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
           it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
-        OS::SNPrintF(decode_buffer,
-                     "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
-                     ptr,
-                     ptr - begin);
+        SNPrintF(decode_buffer,
+                 "%08" V8PRIxPTR "      jump table entry %4" V8PRIdPTR,
+                 reinterpret_cast<intptr_t>(ptr),
+                 ptr - begin);
         pc += 4;
       } else {
         decode_buffer[0] = '\0';

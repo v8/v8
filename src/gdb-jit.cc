@@ -1857,12 +1857,12 @@ static void RegisterCodeEntry(JITCodeEntry* entry,
     static const char* kObjFileExt = ".o";
     char file_name[64];
 
-    OS::SNPrintF(Vector<char>(file_name, kMaxFileNameSize),
-                 "%s%s%d%s",
-                 kElfFilePrefix,
-                 (name_hint != NULL) ? name_hint : "",
-                 file_num++,
-                 kObjFileExt);
+    SNPrintF(Vector<char>(file_name, kMaxFileNameSize),
+             "%s%s%d%s",
+             kElfFilePrefix,
+             (name_hint != NULL) ? name_hint : "",
+             file_num++,
+             kObjFileExt);
     WriteBytes(file_name, entry->symfile_addr_, entry->symfile_size_);
   }
 #endif

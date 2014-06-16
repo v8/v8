@@ -1164,6 +1164,13 @@ void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 // Prepends the current process ID to the output.
 void PRINTF_CHECKING PrintPID(const char* format, ...);
 
+// Safe formatting print. Ensures that str is always null-terminated.
+// Returns the number of chars written, or -1 if output was truncated.
+int FPRINTF_CHECKING SNPrintF(Vector<char> str, const char* format, ...);
+int VSNPrintF(Vector<char> str, const char* format, va_list args);
+
+void StrNCpy(Vector<char> dest, const char* src, size_t n);
+
 // Our version of fflush.
 void Flush(FILE* out);
 
@@ -1570,6 +1577,36 @@ class StringBuilder : public SimpleStringBuilder {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
+
+
+bool DoubleToBoolean(double d);
+
+template <typename Stream>
+bool StringToArrayIndex(Stream* stream, uint32_t* index) {
+  uint16_t ch = stream->GetNext();
+
+  // If the string begins with a '0' character, it must only consist
+  // of it to be a legal array index.
+  if (ch == '0') {
+    *index = 0;
+    return !stream->HasMore();
+  }
+
+  // Convert string to uint32 array index; character by character.
+  int d = ch - '0';
+  if (d < 0 || d > 9) return false;
+  uint32_t result = d;
+  while (stream->HasMore()) {
+    d = stream->GetNext() - '0';
+    if (d < 0 || d > 9) return false;
+    // Check that the new result is below the 32 bit limit.
+    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
+    result = (result * 10) + d;
+  }
+
+  *index = result;
+  return true;
+}
 
 
 } }  // namespace v8::internal

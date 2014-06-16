@@ -221,7 +221,7 @@ TEST(MemoryChunk) {
 
     // With CodeRange.
     CodeRange* code_range = new CodeRange(isolate);
-    const int code_range_size = 32 * MB;
+    const size_t code_range_size = 32 * MB;
     if (!code_range->SetUp(code_range_size)) return;
 
     VerifyMemoryChunk(isolate,

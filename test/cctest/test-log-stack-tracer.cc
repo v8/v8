@@ -119,12 +119,12 @@ static void CreateTraceCallerFunction(v8::Local<v8::Context> context,
                                       const char* func_name,
                                       const char* trace_func_name) {
   i::EmbeddedVector<char, 256> trace_call_buf;
-  i::OS::SNPrintF(trace_call_buf,
-                  "function %s() {"
-                  "  fp = new FPGrabber();"
-                  "  %s(fp.low_bits, fp.high_bits);"
-                  "}",
-                  func_name, trace_func_name);
+  i::SNPrintF(trace_call_buf,
+              "function %s() {"
+              "  fp = new FPGrabber();"
+              "  %s(fp.low_bits, fp.high_bits);"
+              "}",
+              func_name, trace_func_name);
 
   // Create the FPGrabber function, which grabs the caller's frame pointer
   // when called as a constructor.
