@@ -12061,8 +12061,17 @@ void DependentCode::AddToDependentICList(Handle<Code> stub) {
   DisallowHeapAllocation no_heap_allocation;
   GroupStartIndexes starts(this);
   int i = starts.at(kWeakICGroup);
-  stub->set_next_code_link(object_at(i));
-  set_object_at(i, *stub);
+  Object* head = object_at(i);
+  // Try to insert the stub after the head of the list to minimize number of
+  // writes to the DependentCode array, since a write to the array can make it
+  // strong if it was alread marked by incremental marker.
+  if (head->IsCode()) {
+    stub->set_next_code_link(Code::cast(head)->next_code_link());
+    Code::cast(head)->set_next_code_link(*stub);
+  } else {
+    stub->set_next_code_link(head);
+    set_object_at(i, *stub);
+  }
 }
 
 
