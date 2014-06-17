@@ -2304,6 +2304,12 @@ class FunctionLiteral V8_FINAL : public Expression {
     kNotGenerator
   };
 
+  enum ArityRestriction {
+    NORMAL_ARITY,
+    GETTER_ARITY,
+    SETTER_ARITY
+  };
+
   DECLARE_NODE_TYPE(FunctionLiteral)
 
   Handle<String> name() const { return raw_name_->string(); }

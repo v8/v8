@@ -1047,6 +1047,7 @@ class PreParserTraits {
       bool is_generator,
       int function_token_position,
       FunctionLiteral::FunctionType type,
+      FunctionLiteral::ArityRestriction arity_restriction,
       bool* ok);
 
  private:
@@ -1176,6 +1177,7 @@ class PreParser : public ParserBase<PreParserTraits> {
       bool is_generator,
       int function_token_pos,
       FunctionLiteral::FunctionType function_type,
+      FunctionLiteral::ArityRestriction arity_restriction,
       bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
@@ -1556,9 +1558,9 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
                   false,  // reserved words are allowed here
                   false,  // not a generator
                   RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+                  is_getter ? FunctionLiteral::GETTER_ARITY
+                            : FunctionLiteral::SETTER_ARITY,
                   CHECK_OK);
-          // Allow any number of parameters for compatibilty with JSC.
-          // Specification only allows zero parameters for get and one for set.
           typename Traits::Type::ObjectLiteralProperty property =
               factory()->NewObjectLiteralProperty(is_getter, value, next_pos);
           if (this->IsBoilerplateProperty(property)) {
@@ -2060,6 +2062,7 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
                                         is_generator,
                                         function_token_position,
                                         function_type,
+                                        FunctionLiteral::NORMAL_ARITY,
                                         CHECK_OK);
   } else {
     result = ParsePrimaryExpression(CHECK_OK);

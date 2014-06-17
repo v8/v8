@@ -95,10 +95,11 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     bool is_generator,
     int function_token_position,
     FunctionLiteral::FunctionType type,
+    FunctionLiteral::ArityRestriction arity_restriction,
     bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, name_is_strict_reserved, is_generator,
-      function_token_position, type, ok);
+      function_token_position, type, arity_restriction, ok);
 }
 
 
@@ -320,6 +321,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        is_generator,
                        pos,
                        FunctionLiteral::DECLARATION,
+                       FunctionLiteral::NORMAL_ARITY,
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
@@ -799,6 +801,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     bool is_generator,
     int function_token_pos,
     FunctionLiteral::FunctionType function_type,
+    FunctionLiteral::ArityRestriction arity_restriction,
     bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -812,7 +815,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   //    '(' (Identifier)*[','] ')'
   Expect(Token::LPAREN, CHECK_OK);
   int start_position = position();
-  bool done = (peek() == Token::RPAREN);
   DuplicateFinder duplicate_finder(scanner()->unicode_cache());
   // We don't yet know if the function will be strict, so we cannot yet produce
   // errors for parameter names or duplicates. However, we remember the
@@ -820,6 +822,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
   Scanner::Location dupe_error_loc = Scanner::Location::invalid();
   Scanner::Location reserved_error_loc = Scanner::Location::invalid();
+
+  bool done = arity_restriction == FunctionLiteral::GETTER_ARITY ||
+      (peek() == Token::RPAREN &&
+       arity_restriction != FunctionLiteral::SETTER_ARITY);
   while (!done) {
     bool is_strict_reserved = false;
     Identifier param_name =
@@ -837,10 +843,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       dupe_error_loc = scanner()->location();
     }
 
+    if (arity_restriction == FunctionLiteral::SETTER_ARITY) break;
     done = (peek() == Token::RPAREN);
-    if (!done) {
-      Expect(Token::COMMA, CHECK_OK);
-    }
+    if (!done) Expect(Token::COMMA, CHECK_OK);
   }
   Expect(Token::RPAREN, CHECK_OK);
 
