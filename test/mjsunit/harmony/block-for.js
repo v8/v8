@@ -27,7 +27,6 @@
 
 // Flags: --harmony-scoping
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 function props(x) {
@@ -93,7 +92,6 @@ assertEquals('ab', result);
 
 // Check that there is exactly one variable without initializer
 // in a for-in statement with let variables.
-// TODO(ES6): properly activate extended mode
 assertThrows("function foo() { 'use strict'; for (let in {}) { } }", SyntaxError);
 assertThrows("function foo() { 'use strict'; for (let x = 3 in {}) { } }", SyntaxError);
 assertThrows("function foo() { 'use strict'; for (let x, y in {}) { } }", SyntaxError);

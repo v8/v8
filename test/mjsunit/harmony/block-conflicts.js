@@ -29,7 +29,6 @@
 
 // Test for conflicting variable bindings.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 function CheckException(e) {

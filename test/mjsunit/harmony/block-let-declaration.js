@@ -28,7 +28,7 @@
 // Flags: --harmony-scoping
 
 // Test let declarations in various settings.
-// TODO(ES6): properly activate extended mode
+
 "use strict";
 
 // Global
