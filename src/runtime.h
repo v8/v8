@@ -553,8 +553,8 @@ namespace internal {
   F(NumberToSmi, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
   \
-  F(NewArgumentsFast, 3, 1) \
-  F(NewStrictArgumentsFast, 3, 1) \
+  F(NewSloppyArguments, 3, 1) \
+  F(NewStrictArguments, 3, 1) \
   \
   /* Harmony generators */ \
   F(CreateJSGeneratorObject, 0, 1) \

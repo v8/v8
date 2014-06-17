@@ -7994,7 +7994,7 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeHidden_NewArgumentsFast) {
+RUNTIME_FUNCTION(RuntimeHidden_NewSloppyArguments) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
 
@@ -8088,7 +8088,7 @@ RUNTIME_FUNCTION(RuntimeHidden_NewArgumentsFast) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeHidden_NewStrictArgumentsFast) {
+RUNTIME_FUNCTION(RuntimeHidden_NewStrictArguments) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
