@@ -911,6 +911,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       }
     }
 
+    ast_value_factory_->Internalize(isolate());
     if (ok) {
       result = factory()->NewFunctionLiteral(
           ast_value_factory_->empty_string(),
@@ -1031,6 +1032,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   // Make sure the target stack is empty.
   ASSERT(target_stack_ == NULL);
 
+  ast_value_factory_->Internalize(isolate());
   if (result == NULL) {
     if (stack_overflow()) {
       isolate()->StackOverflow();
@@ -3884,6 +3886,7 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
 
 
 void Parser::ThrowPendingError() {
+  ASSERT(ast_value_factory_->IsInternalized());
   if (has_pending_error_) {
     MessageLocation location(script_,
                              pending_error_location_.beg_pos,
@@ -4844,7 +4847,7 @@ bool Parser::Parse() {
     }
   }
   info()->SetFunction(result);
-  ast_value_factory_->Internalize(isolate());
+  ASSERT(ast_value_factory_->IsInternalized());
   // info takes ownership of ast_value_factory_.
   if (info()->ast_value_factory() == NULL) {
     info()->SetAstValueFactory(ast_value_factory_);

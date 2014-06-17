@@ -2552,3 +2552,20 @@ TEST(FuncNameInferrerEscaped) {
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
 }
+
+
+TEST(RegressionLazyFunctionWithErrorWithArg) {
+  // The bug occurred when a lazy function had an error which requires a
+  // parameter (such as "unknown label" here). The error message was processed
+  // before the AstValueFactory containing the error message string was
+  // internalized.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  i::FLAG_lazy = true;
+  i::FLAG_min_preparse_length = 0;
+  CompileRun("function this_is_lazy() {\n"
+             "  break p;\n"
+             "}\n"
+             "this_is_lazy();\n");
+}

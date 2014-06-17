@@ -248,6 +248,9 @@ class AstValueFactory {
   const AstString* GetString(Handle<String> literal);
 
   void Internalize(Isolate* isolate);
+  bool IsInternalized() {
+    return isolate_ != NULL;
+  }
 
 #define F(name, str) \
   const AstString* name##_string() const { return name##_string_; }
