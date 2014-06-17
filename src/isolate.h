@@ -1390,15 +1390,20 @@ class ExecutionAccess BASE_EMBEDDED {
 };
 
 
-// Support for checking for stack-overflows in C++ code.
+// Support for checking for stack-overflows.
 class StackLimitCheck BASE_EMBEDDED {
  public:
   explicit StackLimitCheck(Isolate* isolate) : isolate_(isolate) { }
 
-  bool HasOverflowed() const {
+  // Use this to check for stack-overflows in C++ code.
+  inline bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return (reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit());
+    return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();
   }
+
+  // Use this to check for stack-overflow when entering runtime from JS code.
+  bool JsHasOverflowed() const;
+
  private:
   Isolate* isolate_;
 };

@@ -307,13 +307,6 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 }
 
 
-bool StackGuard::IsStackOverflow() {
-  ExecutionAccess access(isolate_);
-  return (thread_local_.jslimit_ != kInterruptLimit &&
-          thread_local_.climit_ != kInterruptLimit);
-}
-
-
 void StackGuard::EnableInterrupts() {
   ExecutionAccess access(isolate_);
   if (has_pending_interrupts(access)) {
