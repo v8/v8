@@ -109,4 +109,12 @@ template <int> class StaticAssertionHelper { };
 template <typename T>
 inline void USE(T) { }
 
+
+#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
+
+// The following macro works on both 32 and 64-bit platforms.
+// Usage: instead of writing 0x1234567890123456
+//      write V8_2PART_UINT64_C(0x12345678,90123456);
+#define V8_2PART_UINT64_C(a, b) (((static_cast<uint64_t>(a) << 32) + 0x##b##u))
+
 #endif   // V8_BASE_MACROS_H_

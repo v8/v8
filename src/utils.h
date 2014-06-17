@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "src/allocation.h"
+#include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
 #include "src/list.h"
@@ -21,8 +22,6 @@ namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
-
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
 // Returns true iff x is a power of 2. Cannot be used with the maximally
 // negative value of the type T (the -1 overflows).

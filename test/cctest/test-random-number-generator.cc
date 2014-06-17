@@ -28,6 +28,7 @@
 #include "src/v8.h"
 
 #include "src/utils/random-number-generator.h"
+#include "src/isolate-inl.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -77,7 +78,9 @@ TEST(NextDoubleRange) {
 TEST(RandomSeedFlagIsUsed) {
   for (unsigned n = 0; n < ARRAY_SIZE(kRandomSeeds); ++n) {
     FLAG_random_seed = kRandomSeeds[n];
-    RandomNumberGenerator rng1;
+    v8::Isolate* i = v8::Isolate::New();
+    RandomNumberGenerator& rng1 =
+        *reinterpret_cast<Isolate*>(i)->random_number_generator();
     RandomNumberGenerator rng2(kRandomSeeds[n]);
     for (int k = 1; k <= kMaxRuns; ++k) {
       int64_t i1, i2;
@@ -88,5 +91,6 @@ TEST(RandomSeedFlagIsUsed) {
       CHECK_EQ(rng2.NextInt(k), rng1.NextInt(k));
       CHECK_EQ(rng2.NextDouble(), rng1.NextDouble());
     }
+    i->Dispose();
   }
 }
