@@ -60,6 +60,7 @@ Heap::Heap()
 // Will be 4 * reserved_semispace_size_ to ensure that young
 // generation can be aligned to its size.
       maximum_committed_(0),
+      old_space_growing_factor_(4),
       survived_since_last_expansion_(0),
       sweep_generation_(0),
       always_allocate_scope_depth_(0),
@@ -5024,6 +5025,12 @@ bool Heap::ConfigureHeap(int max_semi_space_size,
           AllocationMemento::kSize));
 
   code_range_size_ = code_range_size * MB;
+
+  // We set the old generation growing factor to 2 to grow the heap slower on
+  // memory-constrained devices.
+  if (max_old_generation_size_ <= kMaxOldSpaceSizeMediumMemoryDevice) {
+    old_space_growing_factor_ = 2;
+  }
 
   configured_ = true;
   return true;
