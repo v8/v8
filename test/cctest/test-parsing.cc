@@ -2233,22 +2233,27 @@ TEST(ErrorsObjectLiteralChecking) {
 
   const char* statement_data[] = {
     "foo: 1, get foo() {}",
-    "foo: 1, set foo() {}",
+    "foo: 1, set foo(v) {}",
     "\"foo\": 1, get \"foo\"() {}",
-    "\"foo\": 1, set \"foo\"() {}",
+    "\"foo\": 1, set \"foo\"(v) {}",
     "1: 1, get 1() {}",
     "1: 1, set 1() {}",
     // It's counter-intuitive, but these collide too (even in classic
     // mode). Note that we can have "foo" and foo as properties in classic mode,
     // but we cannot have "foo" and get foo, or foo and get "foo".
     "foo: 1, get \"foo\"() {}",
-    "foo: 1, set \"foo\"() {}",
+    "foo: 1, set \"foo\"(v) {}",
     "\"foo\": 1, get foo() {}",
-    "\"foo\": 1, set foo() {}",
+    "\"foo\": 1, set foo(v) {}",
     "1: 1, get \"1\"() {}",
     "1: 1, set \"1\"() {}",
     "\"1\": 1, get 1() {}"
-    "\"1\": 1, set 1() {}"
+    "\"1\": 1, set 1(v) {}"
+    // Wrong number of parameters
+    "get bar(x) {}",
+    "get bar(x, y) {}",
+    "set bar() {}",
+    "set bar(x, y) {}",
     // Parsing FunctionLiteral for getter or setter fails
     "get foo( +",
     "get foo() \"error\"",
@@ -2272,25 +2277,22 @@ TEST(NoErrorsObjectLiteralChecking) {
     "1: 1, 2: 2",
     // Syntax: IdentifierName ':' AssignmentExpression
     "foo: bar = 5 + baz",
-    // Syntax: 'get' (IdentifierName | String | Number) FunctionLiteral
+    // Syntax: 'get' PropertyName '(' ')' '{' FunctionBody '}'
     "get foo() {}",
     "get \"foo\"() {}",
     "get 1() {}",
-    // Syntax: 'set' (IdentifierName | String | Number) FunctionLiteral
-    "set foo() {}",
-    "set \"foo\"() {}",
-    "set 1() {}",
+    // Syntax: 'set' PropertyName '(' PropertySetParameterList ')'
+    //     '{' FunctionBody '}'
+    "set foo(v) {}",
+    "set \"foo\"(v) {}",
+    "set 1(v) {}",
     // Non-colliding getters and setters -> no errors
     "foo: 1, get bar() {}",
-    "foo: 1, set bar(b) {}",
+    "foo: 1, set bar(v) {}",
     "\"foo\": 1, get \"bar\"() {}",
-    "\"foo\": 1, set \"bar\"() {}",
+    "\"foo\": 1, set \"bar\"(v) {}",
     "1: 1, get 2() {}",
-    "1: 1, set 2() {}",
-    // Weird number of parameters -> no errors
-    "get bar() {}, set bar() {}",
-    "get bar(x) {}, set bar(x) {}",
-    "get bar(x, y) {}, set bar(x, y) {}",
+    "1: 1, set 2(v) {}",
     // Keywords, future reserved and strict future reserved are also allowed as
     // property names.
     "if: 4",

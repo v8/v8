@@ -1,3 +1,13 @@
+2014-06-17: Version 3.27.33
+
+        Do GC if CodeRange fails to allocate a block (Chromium issue 305878).
+
+        Throw syntax error when a getter/setter has the wrong number of params
+        (issue 3371).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-17: Version 3.27.32
 
         Performance and stability improvements on all platforms.

@@ -582,6 +582,7 @@ class ParserTraits {
       bool is_generator,
       int function_token_position,
       FunctionLiteral::FunctionType type,
+      FunctionLiteral::ArityRestriction arity_restriction,
       bool* ok);
 
  private:
@@ -739,6 +740,7 @@ class Parser : public ParserBase<ParserTraits> {
       bool is_generator,
       int function_token_position,
       FunctionLiteral::FunctionType type,
+      FunctionLiteral::ArityRestriction arity_restriction,
       bool* ok);
 
   // Magical syntax support.

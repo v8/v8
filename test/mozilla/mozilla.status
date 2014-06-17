@@ -718,6 +718,13 @@
   'js1_5/extensions/regress-361964': [FAIL_OK],
   'js1_5/extensions/regress-363988': [FAIL_OK],
   'js1_5/extensions/regress-365869': [FAIL_OK],
+
+  # Uses non ES5 compatible syntax for setter
+  'js1_5/extensions/regress-367501-01': [FAIL_OK],
+  'js1_5/extensions/regress-367501-02': [FAIL_OK],
+  'js1_5/extensions/regress-367501-03': [FAIL_OK],
+  'js1_5/extensions/regress-367501-04': [FAIL_OK],
+
   'js1_5/extensions/regress-367630': [FAIL_OK],
   'js1_5/extensions/regress-367923': [FAIL_OK],
   'js1_5/extensions/regress-368859': [FAIL_OK],
