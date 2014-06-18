@@ -1080,6 +1080,10 @@
         '../../src/base/macros.h',
         '../../src/base/once.cc',
         '../../src/base/once.h',
+        '../../src/base/safe_conversions.h',
+        '../../src/base/safe_conversions_impl.h',
+        '../../src/base/safe_math.h',
+        '../../src/base/safe_math_impl.h',
         '../../src/base/win32-headers.h',
       ],
       'conditions': [
