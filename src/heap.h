@@ -1792,29 +1792,6 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateRawTwoByteString(
       int length, PretenureFlag pretenure);
 
-  // Allocates and fully initializes a String.  There are two String
-  // encodings: ASCII and two byte. One should choose between the three string
-  // allocation functions based on the encoding of the string buffer used to
-  // initialized the string.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and the
-  //     result will be ASCII encoded.
-  //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be converted to ASCII, otherwise it will be left as
-  //     two-byte.
-  MUST_USE_RESULT AllocationResult AllocateStringFromUtf8Slow(
-      Vector<const char> str,
-      int non_ascii_start,
-      PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT AllocationResult AllocateStringFromTwoByte(
-      Vector<const uc16> str,
-      PretenureFlag pretenure = NOT_TENURED);
-
   bool CreateInitialMaps();
   void CreateInitialObjects();
 

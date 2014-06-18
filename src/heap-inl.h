@@ -98,9 +98,7 @@ AllocationResult Heap::AllocateInternalizedStringImpl(
 AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str,
     uint32_t hash_field) {
-  if (str.length() > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
-  }
+  CHECK_GE(String::kMaxLength, str.length());
   // Compute map and object size.
   Map* map = ascii_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
@@ -131,9 +129,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
 
 AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                          uint32_t hash_field) {
-  if (str.length() > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
-  }
+  CHECK_GE(String::kMaxLength, str.length());
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
@@ -540,10 +536,9 @@ Isolate* Heap::isolate() {
 // Warning: Do not use the identifiers __object__, __maybe_object__ or
 // __scope__ in a call to this macro.
 
-#define RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)    \
-  if (!__allocation__.IsRetry()) {                                             \
-    __object__ = __allocation__.ToObjectChecked();                             \
-    if (__object__ == (ISOLATE)->heap()->exception()) { RETURN_EMPTY; }        \
+#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                      \
+  if (__allocation__.To(&__object__)) {                                        \
+    ASSERT(__object__ != (ISOLATE)->heap()->exception());                      \
     RETURN_VALUE;                                                              \
   }
 
@@ -551,18 +546,18 @@ Isolate* Heap::isolate() {
   do {                                                                         \
     AllocationResult __allocation__ = FUNCTION_CALL;                           \
     Object* __object__ = NULL;                                                 \
-    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                          \
     (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),             \
                                       "allocation failure");                   \
     __allocation__ = FUNCTION_CALL;                                            \
-    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                          \
     (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();         \
     (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");           \
     {                                                                          \
       AlwaysAllocateScope __scope__(ISOLATE);                                  \
       __allocation__ = FUNCTION_CALL;                                          \
     }                                                                          \
-    RETURN_OBJECT_UNLESS_EXCEPTION(ISOLATE, RETURN_VALUE, RETURN_EMPTY)        \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                          \
       /* TODO(1181417): Fix this. */                                           \
     v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true);  \
     RETURN_EMPTY;                                                              \

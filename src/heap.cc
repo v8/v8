@@ -3750,64 +3750,6 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
 }
 
 
-AllocationResult Heap::AllocateStringFromUtf8Slow(Vector<const char> string,
-                                                  int non_ascii_start,
-                                                  PretenureFlag pretenure) {
-  // Continue counting the number of characters in the UTF-8 string, starting
-  // from the first non-ascii character or word.
-  Access<UnicodeCache::Utf8Decoder>
-      decoder(isolate_->unicode_cache()->utf8_decoder());
-  decoder->Reset(string.start() + non_ascii_start,
-                 string.length() - non_ascii_start);
-  int utf16_length = decoder->Utf16Length();
-  ASSERT(utf16_length > 0);
-  // Allocate string.
-  HeapObject* result;
-  {
-    int chars = non_ascii_start + utf16_length;
-    AllocationResult allocation = AllocateRawTwoByteString(chars, pretenure);
-    if (!allocation.To(&result) || result->IsException()) {
-      return allocation;
-    }
-  }
-  // Copy ascii portion.
-  uint16_t* data = SeqTwoByteString::cast(result)->GetChars();
-  if (non_ascii_start != 0) {
-    const char* ascii_data = string.start();
-    for (int i = 0; i < non_ascii_start; i++) {
-      *data++ = *ascii_data++;
-    }
-  }
-  // Now write the remainder.
-  decoder->WriteUtf16(data, utf16_length);
-  return result;
-}
-
-
-AllocationResult Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
-                                                 PretenureFlag pretenure) {
-  // Check if the string is an ASCII string.
-  HeapObject* result;
-  int length = string.length();
-  const uc16* start = string.start();
-
-  if (String::IsOneByte(start, length)) {
-    AllocationResult allocation = AllocateRawOneByteString(length, pretenure);
-    if (!allocation.To(&result) || result->IsException()) {
-      return allocation;
-    }
-    CopyChars(SeqOneByteString::cast(result)->GetChars(), start, length);
-  } else {  // It's not a one byte string.
-    AllocationResult allocation = AllocateRawTwoByteString(length, pretenure);
-    if (!allocation.To(&result) || result->IsException()) {
-      return allocation;
-    }
-    CopyChars(SeqTwoByteString::cast(result)->GetChars(), start, length);
-  }
-  return result;
-}
-
-
 static inline void WriteOneByteData(Vector<const char> vector,
                                     uint8_t* chars,
                                     int len) {
@@ -3864,9 +3806,8 @@ AllocationResult Heap::AllocateInternalizedStringImpl(
   int size;
   Map* map;
 
-  if (chars < 0 || chars > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
-  }
+  ASSERT_LE(0, chars);
+  ASSERT_GE(String::kMaxLength, chars);
   if (is_one_byte) {
     map = ascii_internalized_string_map();
     size = SeqOneByteString::SizeFor(chars);
@@ -3913,9 +3854,8 @@ AllocationResult Heap::AllocateInternalizedStringImpl<false>(
 
 AllocationResult Heap::AllocateRawOneByteString(int length,
                                                 PretenureFlag pretenure) {
-  if (length < 0 || length > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
-  }
+  ASSERT_LE(0, length);
+  ASSERT_GE(String::kMaxLength, length);
   int size = SeqOneByteString::SizeFor(length);
   ASSERT(size <= SeqOneByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
@@ -3937,9 +3877,8 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
 
 AllocationResult Heap::AllocateRawTwoByteString(int length,
                                                 PretenureFlag pretenure) {
-  if (length < 0 || length > String::kMaxLength) {
-    return isolate()->ThrowInvalidStringLength();
-  }
+  ASSERT_LE(0, length);
+  ASSERT_GE(String::kMaxLength, length);
   int size = SeqTwoByteString::SizeFor(length);
   ASSERT(size <= SeqTwoByteString::kMaxSize);
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, pretenure);
