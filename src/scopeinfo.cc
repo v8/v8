@@ -540,7 +540,7 @@ Handle<ModuleInfo> ModuleInfo::Create(
   for (Interface::Iterator it = interface->iterator();
        !it.done(); it.Advance(), ++i) {
     Variable* var = scope->LookupLocal(it.name());
-    info->set_name(i, *(it.name()->string()));
+    info->set_name(i, *it.name());
     info->set_mode(i, var->mode());
     ASSERT((var->mode() == MODULE) == (it.interface()->IsModule()));
     if (var->mode() == MODULE) {

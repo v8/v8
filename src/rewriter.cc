@@ -20,9 +20,7 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        // Passing a null AstValueFactory is fine, because Processor doesn't
-        // need to create strings or literals.
-        factory_(zone, NULL) {
+        factory_(zone) {
     InitializeAstVisitor(zone);
   }
 
@@ -236,10 +234,8 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
 
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
-    Variable* result =
-        scope->NewTemporary(info->ast_value_factory()->dot_result_string());
-    // The name string must be internalized at this point.
-    ASSERT(!result->name().is_null());
+    Variable* result = scope->NewTemporary(
+        info->isolate()->factory()->dot_result_string());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
@@ -254,7 +250,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int pos = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->raw_name(), false, result->interface(), pos);
+          result->name(), false, result->interface(), pos);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy, pos);

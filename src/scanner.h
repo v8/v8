@@ -21,8 +21,6 @@ namespace v8 {
 namespace internal {
 
 
-class AstString;
-class AstValueFactory;
 class ParserRecorder;
 
 
@@ -378,8 +376,9 @@ class Scanner {
     return next_.literal_chars->is_contextual_keyword(keyword);
   }
 
-  const AstString* CurrentSymbol(AstValueFactory* ast_value_factory);
-  const AstString* NextSymbol(AstValueFactory* ast_value_factory);
+  Handle<String> AllocateNextLiteralString(Isolate* isolate,
+                                           PretenureFlag tenured);
+  Handle<String> AllocateInternalizedString(Isolate* isolate);
 
   double DoubleValue();
   bool UnescapedLiteralMatches(const char* data, int length) {
