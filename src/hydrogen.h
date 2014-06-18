@@ -2321,13 +2321,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
 
-  // Shared code for .call and .apply optimizations.
-  void HandleIndirectCall(Call* expr, HValue* function, int arguments_count);
-  // Try to optimize indirect calls such as fun.apply(receiver, arguments)
-  // or fun.call(...).
-  bool TryIndirectCall(Call* expr);
-  void BuildFunctionApply(Call* expr);
-  void BuildFunctionCall(Call* expr);
+  // Try to optimize fun.apply(receiver, arguments) pattern.
+  bool TryCallApply(Call* expr);
 
   bool TryHandleArrayCall(Call* expr, HValue* function);
   bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
@@ -2363,13 +2358,12 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        BailoutId id,
                        BailoutId assignment_id,
                        HValue* implicit_return_value);
-  bool TryInlineIndirectCall(Handle<JSFunction> function,
-                             Call* expr,
-                             int arguments_count);
+  bool TryInlineApply(Handle<JSFunction> function,
+                      Call* expr,
+                      int arguments_count);
   bool TryInlineBuiltinMethodCall(Call* expr,
-                                  Handle<JSFunction> function,
-                                  Handle<Map> receiver_map,
-                                  int args_count_no_receiver);
+                                  HValue* receiver,
+                                  Handle<Map> receiver_map);
   bool TryInlineBuiltinFunctionCall(Call* expr);
   enum ApiCallType {
     kCallApiFunction,

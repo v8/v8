@@ -27,7 +27,6 @@
 
 // Flags: --harmony-scoping --allow-natives-syntax
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Check that the following functions are optimizable.

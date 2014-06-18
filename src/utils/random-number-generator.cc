@@ -7,10 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "src/flags.h"
+#include <new>
+
+#include "src/base/macros.h"
 #include "src/platform/mutex.h"
 #include "src/platform/time.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -27,12 +28,6 @@ void RandomNumberGenerator::SetEntropySource(EntropySource source) {
 
 
 RandomNumberGenerator::RandomNumberGenerator() {
-  // Check --random-seed flag first.
-  if (FLAG_random_seed != 0) {
-    SetSeed(FLAG_random_seed);
-    return;
-  }
-
   // Check if embedder supplied an entropy source.
   { LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
     if (entropy_source != NULL) {
@@ -87,7 +82,7 @@ int RandomNumberGenerator::NextInt(int max) {
   ASSERT_LE(0, max);
 
   // Fast path if max is a power of 2.
-  if (IsPowerOf2(max)) {
+  if (IS_POWER_OF_TWO(max)) {
     return static_cast<int>((max * static_cast<int64_t>(Next(31))) >> 31);
   }
 

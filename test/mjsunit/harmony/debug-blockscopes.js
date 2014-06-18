@@ -29,7 +29,6 @@
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
-// TODO(ES6): properly activate extended mode
 "use strict";
 
 // Get the Debug object exposed from the debug context global object.

@@ -212,9 +212,7 @@ template Handle<String> Factory::InternalizeStringWithKey<
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
                                                   PretenureFlag pretenure) {
   int length = string.length();
-  if (length == 1) {
-    return LookupSingleCharacterStringFromCode(string[0]);
-  }
+  if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(),
@@ -241,22 +239,55 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
     // since UTF8 is backwards compatible with ASCII.
     return NewStringFromOneByte(Vector<const uint8_t>::cast(string), pretenure);
   }
+
   // Non-ASCII and we need to decode.
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateStringFromUtf8Slow(string,
-                                                    non_ascii_start,
-                                                    pretenure),
+  Access<UnicodeCache::Utf8Decoder>
+      decoder(isolate()->unicode_cache()->utf8_decoder());
+  decoder->Reset(string.start() + non_ascii_start,
+                 length - non_ascii_start);
+  int utf16_length = decoder->Utf16Length();
+  ASSERT(utf16_length > 0);
+  // Allocate string.
+  Handle<SeqTwoByteString> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), result,
+      NewRawTwoByteString(non_ascii_start + utf16_length, pretenure),
       String);
+  // Copy ascii portion.
+  uint16_t* data = result->GetChars();
+  const char* ascii_data = string.start();
+  for (int i = 0; i < non_ascii_start; i++) {
+    *data++ = *ascii_data++;
+  }
+  // Now write the remainder.
+  decoder->WriteUtf16(data, utf16_length);
+  return result;
 }
 
 
 MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
                                                   PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateStringFromTwoByte(string, pretenure),
-      String);
+  int length = string.length();
+  const uc16* start = string.start();
+  if (String::IsOneByte(start, length)) {
+    Handle<SeqOneByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(),
+        result,
+        NewRawOneByteString(length, pretenure),
+        String);
+    CopyChars(result->GetChars(), start, length);
+    return result;
+  } else {
+    Handle<SeqTwoByteString> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate(),
+        result,
+        NewRawTwoByteString(length, pretenure),
+        String);
+    CopyChars(result->GetChars(), start, length);
+    return result;
+  }
 }
 
 
@@ -328,6 +359,9 @@ MaybeHandle<Map> Factory::InternalizedStringMapForString(
 
 MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
     int length, PretenureFlag pretenure) {
+  if (length > String::kMaxLength || length < 0) {
+    return isolate()->Throw<SeqOneByteString>(NewInvalidStringLengthError());
+  }
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawOneByteString(length, pretenure),
@@ -337,6 +371,9 @@ MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
 
 MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
     int length, PretenureFlag pretenure) {
+  if (length > String::kMaxLength || length < 0) {
+    return isolate()->Throw<SeqTwoByteString>(NewInvalidStringLengthError());
+  }
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
@@ -586,8 +623,7 @@ MaybeHandle<String> Factory::NewExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    isolate()->ThrowInvalidStringLength();
-    return MaybeHandle<String>();
+    return isolate()->Throw<String>(NewInvalidStringLengthError());
   }
 
   Handle<Map> map = external_ascii_string_map();
@@ -605,8 +641,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    isolate()->ThrowInvalidStringLength();
-    return MaybeHandle<String>();
+    return isolate()->Throw<String>(NewInvalidStringLengthError());
   }
 
   // For small strings we check whether the resource contains only

@@ -44,10 +44,9 @@ class PrettyPrinter: public AstVisitor {
   const char* Output() const { return output_; }
 
   virtual void PrintStatements(ZoneList<Statement*>* statements);
-  void PrintLabels(ZoneList<const AstString*>* labels);
+  void PrintLabels(ZoneStringList* labels);
   virtual void PrintArguments(ZoneList<Expression*>* arguments);
   void PrintLiteral(Handle<Object> value, bool quote);
-  void PrintLiteral(const AstString* value, bool quote);
   void PrintParameters(Scope* scope);
   void PrintDeclarations(ZoneList<Declaration*>* declarations);
   void PrintFunctionLiteral(FunctionLiteral* function);
@@ -84,7 +83,7 @@ class AstPrinter: public PrettyPrinter {
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
                                     Handle<Object> value);
-  void PrintLabelsIndented(ZoneList<const AstString*>* labels);
+  void PrintLabelsIndented(ZoneStringList* labels);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }

@@ -32,7 +32,11 @@ bool Isolate::DebuggerHasBreakPoints() {
 
 RandomNumberGenerator* Isolate::random_number_generator() {
   if (random_number_generator_ == NULL) {
-    random_number_generator_ = new RandomNumberGenerator;
+    if (FLAG_random_seed != 0) {
+      random_number_generator_ = new RandomNumberGenerator(FLAG_random_seed);
+    } else {
+      random_number_generator_ = new RandomNumberGenerator();
+    }
   }
   return random_number_generator_;
 }

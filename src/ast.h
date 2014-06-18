@@ -8,7 +8,6 @@
 #include "src/v8.h"
 
 #include "src/assembler.h"
-#include "src/ast-value-factory.h"
 #include "src/factory.h"
 #include "src/feedback-slots.h"
 #include "src/isolate.h"
@@ -368,13 +367,10 @@ class Expression : public AstNode {
  protected:
   Expression(Zone* zone, int pos)
       : AstNode(pos),
-        zone_(zone),
         bounds_(Bounds::Unbounded(zone)),
         id_(GetNextId(zone)),
         test_id_(GetNextId(zone)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
-
-  Zone* zone_;
 
  private:
   Bounds bounds_;
@@ -394,7 +390,7 @@ class BreakableStatement : public Statement {
 
   // The labels associated with this statement. May be NULL;
   // if it is != NULL, guaranteed to contain at least one entry.
-  ZoneList<const AstString*>* labels() const { return labels_; }
+  ZoneStringList* labels() const { return labels_; }
 
   // Type testing & conversion.
   virtual BreakableStatement* AsBreakableStatement() V8_FINAL V8_OVERRIDE {
@@ -414,7 +410,7 @@ class BreakableStatement : public Statement {
 
  protected:
   BreakableStatement(
-      Zone* zone, ZoneList<const AstString*>* labels,
+      Zone* zone, ZoneStringList* labels,
       BreakableType breakable_type, int position)
       : Statement(zone, position),
         labels_(labels),
@@ -426,7 +422,7 @@ class BreakableStatement : public Statement {
 
 
  private:
-  ZoneList<const AstString*>* labels_;
+  ZoneStringList* labels_;
   BreakableType breakable_type_;
   Label break_target_;
   const BailoutId entry_id_;
@@ -457,7 +453,7 @@ class Block V8_FINAL : public BreakableStatement {
 
  protected:
   Block(Zone* zone,
-        ZoneList<const AstString*>* labels,
+        ZoneStringList* labels,
         int capacity,
         bool is_initializer_block,
         int pos)
@@ -666,15 +662,18 @@ class ModulePath V8_FINAL : public Module {
   DECLARE_NODE_TYPE(ModulePath)
 
   Module* module() const { return module_; }
-  Handle<String> name() const { return name_->string(); }
+  Handle<String> name() const { return name_; }
 
  protected:
-  ModulePath(Zone* zone, Module* module, const AstString* name, int pos)
-      : Module(zone, pos), module_(module), name_(name) {}
+  ModulePath(Zone* zone, Module* module, Handle<String> name, int pos)
+      : Module(zone, pos),
+        module_(module),
+        name_(name) {
+  }
 
  private:
   Module* module_;
-  const AstString* name_;
+  Handle<String> name_;
 };
 
 
@@ -731,7 +730,7 @@ class IterationStatement : public BreakableStatement {
   Label* continue_target()  { return &continue_target_; }
 
  protected:
-  IterationStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  IterationStatement(Zone* zone, ZoneStringList* labels, int pos)
       : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
         body_(NULL),
         osr_entry_id_(GetNextId(zone)) {
@@ -765,7 +764,7 @@ class DoWhileStatement V8_FINAL : public IterationStatement {
   BailoutId BackEdgeId() const { return back_edge_id_; }
 
  protected:
-  DoWhileStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  DoWhileStatement(Zone* zone, ZoneStringList* labels, int pos)
       : IterationStatement(zone, labels, pos),
         cond_(NULL),
         continue_id_(GetNextId(zone)),
@@ -802,7 +801,7 @@ class WhileStatement V8_FINAL : public IterationStatement {
   BailoutId BodyId() const { return body_id_; }
 
  protected:
-  WhileStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  WhileStatement(Zone* zone, ZoneStringList* labels, int pos)
       : IterationStatement(zone, labels, pos),
         cond_(NULL),
         may_have_function_literal_(true),
@@ -853,7 +852,7 @@ class ForStatement V8_FINAL : public IterationStatement {
   void set_loop_variable(Variable* var) { loop_variable_ = var; }
 
  protected:
-  ForStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  ForStatement(Zone* zone, ZoneStringList* labels, int pos)
       : IterationStatement(zone, labels, pos),
         init_(NULL),
         cond_(NULL),
@@ -895,8 +894,11 @@ class ForEachStatement : public IterationStatement {
   Expression* subject() const { return subject_; }
 
  protected:
-  ForEachStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
-      : IterationStatement(zone, labels, pos), each_(NULL), subject_(NULL) {}
+  ForEachStatement(Zone* zone, ZoneStringList* labels, int pos)
+      : IterationStatement(zone, labels, pos),
+        each_(NULL),
+        subject_(NULL) {
+  }
 
  private:
   Expression* each_;
@@ -932,7 +934,7 @@ class ForInStatement V8_FINAL : public ForEachStatement,
   virtual BailoutId StackCheckId() const V8_OVERRIDE { return body_id_; }
 
  protected:
-  ForInStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  ForInStatement(Zone* zone, ZoneStringList* labels, int pos)
       : ForEachStatement(zone, labels, pos),
         for_in_type_(SLOW_FOR_IN),
         for_in_feedback_slot_(kInvalidFeedbackSlot),
@@ -1002,7 +1004,7 @@ class ForOfStatement V8_FINAL : public ForEachStatement {
   BailoutId BackEdgeId() const { return back_edge_id_; }
 
  protected:
-  ForOfStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  ForOfStatement(Zone* zone, ZoneStringList* labels, int pos)
       : ForEachStatement(zone, labels, pos),
         assign_iterator_(NULL),
         next_result_(NULL),
@@ -1163,7 +1165,7 @@ class SwitchStatement V8_FINAL : public BreakableStatement {
   ZoneList<CaseClause*>* cases() const { return cases_; }
 
  protected:
-  SwitchStatement(Zone* zone, ZoneList<const AstString*>* labels, int pos)
+  SwitchStatement(Zone* zone, ZoneStringList* labels, int pos)
       : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos),
         tag_(NULL),
         cases_(NULL) { }
@@ -1343,28 +1345,26 @@ class Literal V8_FINAL : public Expression {
   DECLARE_NODE_TYPE(Literal)
 
   virtual bool IsPropertyName() const V8_OVERRIDE {
-    return value_->IsPropertyName();
+    if (value_->IsInternalizedString()) {
+      uint32_t ignored;
+      return !String::cast(*value_)->AsArrayIndex(&ignored);
+    }
+    return false;
   }
 
   Handle<String> AsPropertyName() {
     ASSERT(IsPropertyName());
-    return Handle<String>::cast(value());
-  }
-
-  const AstString* AsRawPropertyName() {
-    ASSERT(IsPropertyName());
-    return value_->AsString();
+    return Handle<String>::cast(value_);
   }
 
   virtual bool ToBooleanIsTrue() const V8_OVERRIDE {
-    return value()->BooleanValue();
+    return value_->BooleanValue();
   }
   virtual bool ToBooleanIsFalse() const V8_OVERRIDE {
-    return !value()->BooleanValue();
+    return !value_->BooleanValue();
   }
 
-  Handle<Object> value() const { return value_->value(); }
-  const AstValue* raw_value() const { return value_; }
+  Handle<Object> value() const { return value_; }
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
@@ -1379,7 +1379,7 @@ class Literal V8_FINAL : public Expression {
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
-  Literal(Zone* zone, const AstValue* value, int position)
+  Literal(Zone* zone, Handle<Object> value, int position)
       : Expression(zone, position),
         value_(value),
         isolate_(zone->isolate()) { }
@@ -1387,7 +1387,7 @@ class Literal V8_FINAL : public Expression {
  private:
   Handle<String> ToString();
 
-  const AstValue* value_;
+  Handle<Object> value_;
   // TODO(dcarney): remove.  this is only needed for Match and Hash.
   Isolate* isolate_;
 };
@@ -1458,8 +1458,7 @@ class ObjectLiteralProperty V8_FINAL : public ZoneObject {
     PROTOTYPE              // Property is __proto__.
   };
 
-  ObjectLiteralProperty(Zone* zone, AstValueFactory* ast_value_factory,
-                        Literal* key, Expression* value);
+  ObjectLiteralProperty(Zone* zone, Literal* key, Expression* value);
 
   Literal* key() { return key_; }
   Expression* value() { return value_; }
@@ -1558,13 +1557,13 @@ class RegExpLiteral V8_FINAL : public MaterializedLiteral {
  public:
   DECLARE_NODE_TYPE(RegExpLiteral)
 
-  Handle<String> pattern() const { return pattern_->string(); }
-  Handle<String> flags() const { return flags_->string(); }
+  Handle<String> pattern() const { return pattern_; }
+  Handle<String> flags() const { return flags_; }
 
  protected:
   RegExpLiteral(Zone* zone,
-                const AstString* pattern,
-                const AstString* flags,
+                Handle<String> pattern,
+                Handle<String> flags,
                 int literal_index,
                 int pos)
       : MaterializedLiteral(zone, literal_index, pos),
@@ -1574,8 +1573,8 @@ class RegExpLiteral V8_FINAL : public MaterializedLiteral {
   }
 
  private:
-  const AstString* pattern_;
-  const AstString* flags_;
+  Handle<String> pattern_;
+  Handle<String> flags_;
 };
 
 
@@ -1626,12 +1625,15 @@ class VariableProxy V8_FINAL : public Expression {
     return var_ == NULL ? true : var_->IsValidReference();
   }
 
+  bool IsVariable(Handle<String> n) const {
+    return !is_this() && name().is_identical_to(n);
+  }
+
   bool IsArguments() const { return var_ != NULL && var_->is_arguments(); }
 
   bool IsLValue() const { return is_lvalue_; }
 
-  Handle<String> name() const { return name_->string(); }
-  const AstString* raw_name() const { return name_; }
+  Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   Interface* interface() const { return interface_; }
@@ -1647,12 +1649,12 @@ class VariableProxy V8_FINAL : public Expression {
   VariableProxy(Zone* zone, Variable* var, int position);
 
   VariableProxy(Zone* zone,
-                const AstString* name,
+                Handle<String> name,
                 bool is_this,
                 Interface* interface,
                 int position);
 
-  const AstString* name_;
+  Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
   bool is_trivial_;
@@ -1898,8 +1900,7 @@ class CallRuntime V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CallRuntime)
 
-  Handle<String> name() const { return raw_name_->string(); }
-  const AstString* raw_name() const { return raw_name_; }
+  Handle<String> name() const { return name_; }
   const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
@@ -1908,17 +1909,17 @@ class CallRuntime V8_FINAL : public Expression {
 
  protected:
   CallRuntime(Zone* zone,
-              const AstString* name,
+              Handle<String> name,
               const Runtime::Function* function,
               ZoneList<Expression*>* arguments,
               int pos)
       : Expression(zone, pos),
-        raw_name_(name),
+        name_(name),
         function_(function),
         arguments_(arguments) { }
 
  private:
-  const AstString* raw_name_;
+  Handle<String> name_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
 };
@@ -2312,8 +2313,7 @@ class FunctionLiteral V8_FINAL : public Expression {
 
   DECLARE_NODE_TYPE(FunctionLiteral)
 
-  Handle<String> name() const { return raw_name_->string(); }
-  const AstString* raw_name() const { return raw_name_; }
+  Handle<String> name() const { return name_; }
   Scope* scope() const { return scope_; }
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
@@ -2336,35 +2336,13 @@ class FunctionLiteral V8_FINAL : public Expression {
   void InitializeSharedInfo(Handle<Code> code);
 
   Handle<String> debug_name() const {
-    if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
-      return raw_name_->string();
-    }
+    if (name_->length() > 0) return name_;
     return inferred_name();
   }
 
-  Handle<String> inferred_name() const {
-    if (!inferred_name_.is_null()) {
-      ASSERT(raw_inferred_name_ == NULL);
-      return inferred_name_;
-    }
-    if (raw_inferred_name_ != NULL) {
-      return raw_inferred_name_->string();
-    }
-    UNREACHABLE();
-    return Handle<String>();
-  }
-
-  // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
+  Handle<String> inferred_name() const { return inferred_name_; }
   void set_inferred_name(Handle<String> inferred_name) {
     inferred_name_ = inferred_name;
-    ASSERT(raw_inferred_name_== NULL || raw_inferred_name_->IsEmpty());
-    raw_inferred_name_ = NULL;
-  }
-
-  void set_raw_inferred_name(const AstString* raw_inferred_name) {
-    raw_inferred_name_ = raw_inferred_name;
-    ASSERT(inferred_name_.is_null());
-    inferred_name_ = Handle<String>();
   }
 
   // shared_info may be null if it's not cached in full code.
@@ -2411,8 +2389,7 @@ class FunctionLiteral V8_FINAL : public Expression {
 
  protected:
   FunctionLiteral(Zone* zone,
-                  const AstString* name,
-                  AstValueFactory* ast_value_factory,
+                  Handle<String> name,
                   Scope* scope,
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
@@ -2426,10 +2403,10 @@ class FunctionLiteral V8_FINAL : public Expression {
                   IsGeneratorFlag is_generator,
                   int position)
       : Expression(zone, position),
-        raw_name_(name),
+        name_(name),
         scope_(scope),
         body_(body),
-        raw_inferred_name_(ast_value_factory->empty_string()),
+        inferred_name_(zone->isolate()->factory()->empty_string()),
         dont_optimize_reason_(kNoReason),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2447,12 +2424,10 @@ class FunctionLiteral V8_FINAL : public Expression {
   }
 
  private:
-  const AstString* raw_name_;
   Handle<String> name_;
   Handle<SharedFunctionInfo> shared_info_;
   Scope* scope_;
   ZoneList<Statement*>* body_;
-  const AstString* raw_inferred_name_;
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
   BailoutReason dont_optimize_reason_;
@@ -2478,16 +2453,16 @@ class NativeFunctionLiteral V8_FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(NativeFunctionLiteral)
 
-  Handle<String> name() const { return name_->string(); }
+  Handle<String> name() const { return name_; }
   v8::Extension* extension() const { return extension_; }
 
  protected:
-  NativeFunctionLiteral(Zone* zone, const AstString* name,
-                        v8::Extension* extension, int pos)
+  NativeFunctionLiteral(
+      Zone* zone, Handle<String> name, v8::Extension* extension, int pos)
       : Expression(zone, pos), name_(name), extension_(extension) {}
 
  private:
-  const AstString* name_;
+  Handle<String> name_;
   v8::Extension* extension_;
 };
 
@@ -2979,8 +2954,7 @@ class AstNullVisitor BASE_EMBEDDED {
 template<class Visitor>
 class AstNodeFactory V8_FINAL BASE_EMBEDDED {
  public:
-  explicit AstNodeFactory(Zone* zone, AstValueFactory* ast_value_factory)
-      : zone_(zone), ast_value_factory_(ast_value_factory) {}
+  explicit AstNodeFactory(Zone* zone) : zone_(zone) { }
 
   Visitor* visitor() { return &visitor_; }
 
@@ -3044,8 +3018,8 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(ModuleVariable, module)
   }
 
-  ModulePath* NewModulePath(Module* origin, const AstString* name, int pos) {
-    ModulePath* module = new (zone_) ModulePath(zone_, origin, name, pos);
+  ModulePath* NewModulePath(Module* origin, Handle<String> name, int pos) {
+    ModulePath* module = new(zone_) ModulePath(zone_, origin, name, pos);
     VISIT_AND_RETURN(ModulePath, module)
   }
 
@@ -3054,7 +3028,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(ModuleUrl, module)
   }
 
-  Block* NewBlock(ZoneList<const AstString*>* labels,
+  Block* NewBlock(ZoneStringList* labels,
                   int capacity,
                   bool is_initializer_block,
                   int pos) {
@@ -3064,7 +3038,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   }
 
 #define STATEMENT_WITH_LABELS(NodeType) \
-  NodeType* New##NodeType(ZoneList<const AstString*>* labels, int pos) { \
+  NodeType* New##NodeType(ZoneStringList* labels, int pos) { \
     NodeType* stmt = new(zone_) NodeType(zone_, labels, pos); \
     VISIT_AND_RETURN(NodeType, stmt); \
   }
@@ -3075,7 +3049,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
 #undef STATEMENT_WITH_LABELS
 
   ForEachStatement* NewForEachStatement(ForEachStatement::VisitMode visit_mode,
-                                        ZoneList<const AstString*>* labels,
+                                        ZoneStringList* labels,
                                         int pos) {
     switch (visit_mode) {
       case ForEachStatement::ENUMERATE: {
@@ -3172,59 +3146,14 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(CaseClause, clause)
   }
 
-  Literal* NewStringLiteral(const AstString* string, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewString(string), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  // A JavaScript symbol (ECMA-262 edition 6).
-  Literal* NewSymbolLiteral(const char* name, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewSymbol(name), pos);
+  Literal* NewLiteral(Handle<Object> handle, int pos) {
+    Literal* lit = new(zone_) Literal(zone_, handle, pos);
     VISIT_AND_RETURN(Literal, lit)
   }
 
   Literal* NewNumberLiteral(double number, int pos) {
-    Literal* lit = new (zone_)
-        Literal(zone_, ast_value_factory_->NewNumber(number), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewSmiLiteral(int number, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewSmi(number), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewBooleanLiteral(bool b, int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewBoolean(b), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewStringListLiteral(ZoneList<const AstString*>* strings, int pos) {
-    Literal* lit = new (zone_)
-        Literal(zone_, ast_value_factory_->NewStringList(strings), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewNullLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewNull(), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewUndefinedLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewUndefined(), pos);
-    VISIT_AND_RETURN(Literal, lit)
-  }
-
-  Literal* NewTheHoleLiteral(int pos) {
-    Literal* lit =
-        new (zone_) Literal(zone_, ast_value_factory_->NewTheHole(), pos);
-    VISIT_AND_RETURN(Literal, lit)
+    return NewLiteral(
+        zone_->isolate()->factory()->NewNumber(number, TENURED), pos);
   }
 
   ObjectLiteral* NewObjectLiteral(
@@ -3241,8 +3170,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
 
   ObjectLiteral::Property* NewObjectLiteralProperty(Literal* key,
                                                     Expression* value) {
-    return new (zone_)
-        ObjectLiteral::Property(zone_, ast_value_factory_, key, value);
+    return new(zone_) ObjectLiteral::Property(zone_, key, value);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(bool is_getter,
@@ -3250,12 +3178,12 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
                                                     int pos) {
     ObjectLiteral::Property* prop =
         new(zone_) ObjectLiteral::Property(zone_, is_getter, value);
-    prop->set_key(NewStringLiteral(value->raw_name(), pos));
+    prop->set_key(NewLiteral(value->name(), pos));
     return prop;  // Not an AST node, will not be visited.
   }
 
-  RegExpLiteral* NewRegExpLiteral(const AstString* pattern,
-                                  const AstString* flags,
+  RegExpLiteral* NewRegExpLiteral(Handle<String> pattern,
+                                  Handle<String> flags,
                                   int literal_index,
                                   int pos) {
     RegExpLiteral* lit =
@@ -3277,7 +3205,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(VariableProxy, proxy)
   }
 
-  VariableProxy* NewVariableProxy(const AstString* name,
+  VariableProxy* NewVariableProxy(Handle<String> name,
                                   bool is_this,
                                   Interface* interface = Interface::NewValue(),
                                   int position = RelocInfo::kNoPosition) {
@@ -3305,7 +3233,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
     VISIT_AND_RETURN(CallNew, call)
   }
 
-  CallRuntime* NewCallRuntime(const AstString* name,
+  CallRuntime* NewCallRuntime(Handle<String> name,
                               const Runtime::Function* function,
                               ZoneList<Expression*>* arguments,
                               int pos) {
@@ -3383,8 +3311,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   }
 
   FunctionLiteral* NewFunctionLiteral(
-      const AstString* name,
-      AstValueFactory* ast_value_factory,
+      Handle<String> name,
       Scope* scope,
       ZoneList<Statement*>* body,
       int materialized_literal_count,
@@ -3398,7 +3325,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
       FunctionLiteral::IsGeneratorFlag is_generator,
       int position) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
-        zone_, name, ast_value_factory, scope, body,
+        zone_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         parameter_count, function_type, has_duplicate_parameters, is_function,
         is_parenthesized, is_generator, position);
@@ -3410,8 +3337,7 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(
-      const AstString* name, v8::Extension* extension,
-      int pos) {
+      Handle<String> name, v8::Extension* extension, int pos) {
     NativeFunctionLiteral* lit =
         new(zone_) NativeFunctionLiteral(zone_, name, extension, pos);
     VISIT_AND_RETURN(NativeFunctionLiteral, lit)
@@ -3427,7 +3353,6 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
  private:
   Zone* zone_;
   Visitor visitor_;
-  AstValueFactory* ast_value_factory_;
 };
 
 

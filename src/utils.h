@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "src/allocation.h"
+#include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
 #include "src/list.h"
@@ -21,8 +22,6 @@ namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
-
-#define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
 // Returns true iff x is a power of 2. Cannot be used with the maximally
 // negative value of the type T (the -1 overflows).
@@ -1577,36 +1576,6 @@ class StringBuilder : public SimpleStringBuilder {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
-
-
-bool DoubleToBoolean(double d);
-
-template <typename Stream>
-bool StringToArrayIndex(Stream* stream, uint32_t* index) {
-  uint16_t ch = stream->GetNext();
-
-  // If the string begins with a '0' character, it must only consist
-  // of it to be a legal array index.
-  if (ch == '0') {
-    *index = 0;
-    return !stream->HasMore();
-  }
-
-  // Convert string to uint32 array index; character by character.
-  int d = ch - '0';
-  if (d < 0 || d > 9) return false;
-  uint32_t result = d;
-  while (stream->HasMore()) {
-    d = stream->GetNext() - '0';
-    if (d < 0 || d > 9) return false;
-    // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
-    result = (result * 10) + d;
-  }
-
-  *index = result;
-  return true;
-}
 
 
 } }  // namespace v8::internal

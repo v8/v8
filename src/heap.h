@@ -277,11 +277,16 @@ namespace internal {
   V(constructor_string, "constructor")                                   \
   V(dot_result_string, ".result")                                        \
   V(dot_for_string, ".for.")                                             \
+  V(dot_iterable_string, ".iterable")                                    \
+  V(dot_iterator_string, ".iterator")                                    \
+  V(dot_generator_object_string, ".generator_object")                    \
   V(eval_string, "eval")                                                 \
   V(empty_string, "")                                                    \
   V(function_string, "function")                                         \
   V(length_string, "length")                                             \
+  V(module_string, "module")                                             \
   V(name_string, "name")                                                 \
+  V(native_string, "native")                                             \
   V(null_string, "null")                                                 \
   V(number_string, "number")                                             \
   V(Number_string, "Number")                                             \
@@ -307,6 +312,7 @@ namespace internal {
   V(private_api_string, "private_api")                                   \
   V(private_intern_string, "private_intern")                             \
   V(Date_string, "Date")                                                 \
+  V(this_string, "this")                                                 \
   V(to_string_string, "toString")                                        \
   V(char_at_string, "CharAt")                                            \
   V(undefined_string, "undefined")                                       \
@@ -329,13 +335,19 @@ namespace internal {
   V(cell_value_string, "%cell_value")                                    \
   V(function_class_string, "Function")                                   \
   V(illegal_argument_string, "illegal argument")                         \
+  V(MakeReferenceError_string, "MakeReferenceError")                     \
+  V(MakeSyntaxError_string, "MakeSyntaxError")                           \
+  V(MakeTypeError_string, "MakeTypeError")                               \
+  V(unknown_label_string, "unknown_label")                               \
   V(space_string, " ")                                                   \
   V(exec_string, "exec")                                                 \
   V(zero_string, "0")                                                    \
   V(global_eval_string, "GlobalEval")                                    \
   V(identity_hash_string, "v8::IdentityHash")                            \
   V(closure_string, "(closure)")                                         \
+  V(use_strict_string, "use strict")                                     \
   V(dot_string, ".")                                                     \
+  V(anonymous_function_string, "(anonymous function)")                   \
   V(compare_ic_string, "==")                                             \
   V(strict_compare_ic_string, "===")                                     \
   V(infinity_string, "Infinity")                                         \
@@ -1779,29 +1791,6 @@ class Heap {
       int length, PretenureFlag pretenure);
   MUST_USE_RESULT AllocationResult AllocateRawTwoByteString(
       int length, PretenureFlag pretenure);
-
-  // Allocates and fully initializes a String.  There are two String
-  // encodings: ASCII and two byte. One should choose between the three string
-  // allocation functions based on the encoding of the string buffer used to
-  // initialized the string.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and the
-  //     result will be ASCII encoded.
-  //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be converted to ASCII, otherwise it will be left as
-  //     two-byte.
-  MUST_USE_RESULT AllocationResult AllocateStringFromUtf8Slow(
-      Vector<const char> str,
-      int non_ascii_start,
-      PretenureFlag pretenure = NOT_TENURED);
-  MUST_USE_RESULT AllocationResult AllocateStringFromTwoByte(
-      Vector<const uc16> str,
-      PretenureFlag pretenure = NOT_TENURED);
 
   bool CreateInitialMaps();
   void CreateInitialObjects();

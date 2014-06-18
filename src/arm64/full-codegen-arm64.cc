@@ -87,29 +87,6 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-static void EmitStackCheck(MacroAssembler* masm_,
-                           int pointers = 0,
-                           Register scratch = jssp) {
-  Isolate* isolate = masm_->isolate();
-  Label ok;
-  ASSERT(jssp.Is(__ StackPointer()));
-  ASSERT(scratch.Is(jssp) == (pointers == 0));
-  Heap::RootListIndex index;
-  if (pointers != 0) {
-    __ Sub(scratch, jssp, pointers * kPointerSize);
-    index = Heap::kRealStackLimitRootIndex;
-  } else {
-    index = Heap::kStackLimitRootIndex;
-  }
-  __ CompareRoot(scratch, index);
-  __ B(hs, &ok);
-  PredictableCodeSizeScope predictable(masm_,
-                                       Assembler::kCallSizeWithRelocation);
-  __ Call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-  __ Bind(&ok);
-}
-
-
 // Generate code for a JS function. On entry to the function the receiver
 // and arguments have been pushed on the stack left to right. The actual
 // argument count matches the formal parameter count expected by the
@@ -181,7 +158,13 @@ void FullCodeGenerator::Generate() {
 
     if (locals_count > 0) {
       if (locals_count >= 128) {
-        EmitStackCheck(masm_, locals_count, x10);
+        Label ok;
+        ASSERT(jssp.Is(__ StackPointer()));
+        __ Sub(x10, jssp, locals_count * kPointerSize);
+        __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
+        __ B(hs, &ok);
+        __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+        __ Bind(&ok);
       }
       __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
       if (FLAG_optimize_for_size) {
@@ -319,7 +302,14 @@ void FullCodeGenerator::Generate() {
 
   { Comment cmnt(masm_, "[ Stack check");
     PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-    EmitStackCheck(masm_);
+    Label ok;
+    ASSERT(jssp.Is(__ StackPointer()));
+    __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
+    __ B(hs, &ok);
+    PredictableCodeSizeScope predictable(masm_,
+                                         Assembler::kCallSizeWithRelocation);
+    __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+    __ Bind(&ok);
   }
 
   { Comment cmnt(masm_, "[ Body");

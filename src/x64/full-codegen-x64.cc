@@ -78,27 +78,6 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
-static void EmitStackCheck(MacroAssembler* masm_,
-                             int pointers = 0,
-                             Register scratch = rsp) {
-    Isolate* isolate = masm_->isolate();
-    Label ok;
-    ASSERT(scratch.is(rsp) == (pointers == 0));
-    Heap::RootListIndex index;
-    if (pointers != 0) {
-      __ movp(scratch, rsp);
-      __ subp(scratch, Immediate(pointers * kPointerSize));
-      index = Heap::kRealStackLimitRootIndex;
-    } else {
-      index = Heap::kStackLimitRootIndex;
-    }
-    __ CompareRoot(scratch, index);
-    __ j(above_equal, &ok, Label::kNear);
-    __ call(isolate->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-    __ bind(&ok);
-}
-
-
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -168,7 +147,13 @@ void FullCodeGenerator::Generate() {
       __ PushRoot(Heap::kUndefinedValueRootIndex);
     } else if (locals_count > 1) {
       if (locals_count >= 128) {
-        EmitStackCheck(masm_, locals_count, rcx);
+        Label ok;
+        __ movp(rcx, rsp);
+        __ subp(rcx, Immediate(locals_count * kPointerSize));
+        __ CompareRoot(rcx, Heap::kRealStackLimitRootIndex);
+        __ j(above_equal, &ok, Label::kNear);
+        __ InvokeBuiltin(Builtins::STACK_OVERFLOW, CALL_FUNCTION);
+        __ bind(&ok);
       }
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
       const int kMaxPushes = 32;
@@ -309,7 +294,11 @@ void FullCodeGenerator::Generate() {
 
     { Comment cmnt(masm_, "[ Stack check");
       PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-      EmitStackCheck(masm_);
+       Label ok;
+       __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
+       __ j(above_equal, &ok, Label::kNear);
+       __ call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+       __ bind(&ok);
     }
 
     { Comment cmnt(masm_, "[ Body");

@@ -145,8 +145,6 @@ class StackGuard V8_FINAL {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-  bool IsStackOverflow();
-
 #define INTERRUPT_LIST(V)                                       \
   V(DEBUGBREAK, DebugBreak)                                     \
   V(DEBUGCOMMAND, DebugCommand)                                 \
@@ -264,6 +262,11 @@ enum InterruptFlag {
     int nesting_;
     int postpone_interrupts_nesting_;
     int interrupt_flags_;
+  };
+
+  class StackPointer {
+   public:
+    inline uintptr_t address() { return reinterpret_cast<uintptr_t>(this); }
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

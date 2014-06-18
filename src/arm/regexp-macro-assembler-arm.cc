@@ -1044,7 +1044,8 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
   Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  if (isolate->stack_guard()->IsStackOverflow()) {
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
     isolate->StackOverflow();
     return EXCEPTION;
   }

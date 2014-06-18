@@ -12,7 +12,6 @@
 namespace v8 {
 namespace internal {
 
-class AstValueFactory;
 class ScriptData;
 class HydrogenCodeStub;
 
@@ -322,13 +321,6 @@ class CompilationInfo {
 
   int optimization_id() const { return optimization_id_; }
 
-  AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
-  void SetAstValueFactory(AstValueFactory* ast_value_factory,
-                          bool owned = true) {
-    ast_value_factory_ = ast_value_factory;
-    ast_value_factory_owned_ = owned;
-  }
-
  protected:
   CompilationInfo(Handle<Script> script,
                   Zone* zone);
@@ -471,9 +463,6 @@ class CompilationInfo {
   Handle<Foreign> object_wrapper_;
 
   int optimization_id_;
-
-  AstValueFactory* ast_value_factory_;
-  bool ast_value_factory_owned_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

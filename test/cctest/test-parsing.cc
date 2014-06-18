@@ -31,7 +31,6 @@
 
 #include "src/v8.h"
 
-#include "src/ast-value-factory.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/isolate.h"
@@ -797,10 +796,8 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
-  i::AstValueFactory ast_value_factory(NULL);
-  ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val =
-      scanner.CurrentSymbol(&ast_value_factory)->string();
+      scanner.AllocateInternalizedString(CcTest::i_isolate());
   i::DisallowHeapAllocation no_alloc;
   i::String::FlatContent content = val->GetFlatContent();
   CHECK(content.IsAscii());

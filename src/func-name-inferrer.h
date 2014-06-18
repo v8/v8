@@ -11,9 +11,8 @@
 namespace v8 {
 namespace internal {
 
-class AstString;
-class AstValueFactory;
 class FunctionLiteral;
+class Isolate;
 
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
@@ -27,13 +26,13 @@ class FunctionLiteral;
 // a name.
 class FuncNameInferrer : public ZoneObject {
  public:
-  FuncNameInferrer(AstValueFactory* ast_value_factory, Zone* zone);
+  FuncNameInferrer(Isolate* isolate, Zone* zone);
 
   // Returns whether we have entered name collection state.
   bool IsOpen() const { return !entries_stack_.is_empty(); }
 
   // Pushes an enclosing the name of enclosing function onto names stack.
-  void PushEnclosingName(const AstString* name);
+  void PushEnclosingName(Handle<String> name);
 
   // Enters name collection state.
   void Enter() {
@@ -41,9 +40,9 @@ class FuncNameInferrer : public ZoneObject {
   }
 
   // Pushes an encountered name onto names stack when in collection state.
-  void PushLiteralName(const AstString* name);
+  void PushLiteralName(Handle<String> name);
 
-  void PushVariableName(const AstString* name);
+  void PushVariableName(Handle<String> name);
 
   // Adds a function to infer name for.
   void AddFunction(FunctionLiteral* func_to_infer) {
@@ -81,20 +80,24 @@ class FuncNameInferrer : public ZoneObject {
     kVariableName
   };
   struct Name {
-    Name(const AstString* name, NameType type) : name(name), type(type) {}
-    const AstString* name;
+    Name(Handle<String> name, NameType type) : name(name), type(type) { }
+    Handle<String> name;
     NameType type;
   };
 
+  Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
 
   // Constructs a full name in dotted notation from gathered names.
-  const AstString* MakeNameFromStack();
+  Handle<String> MakeNameFromStack();
+
+  // A helper function for MakeNameFromStack.
+  Handle<String> MakeNameFromStackHelper(int pos, Handle<String> prev);
 
   // Performs name inferring for added functions.
   void InferFunctionsNames();
 
-  AstValueFactory* ast_value_factory_;
+  Isolate* isolate_;
   ZoneList<int> entries_stack_;
   ZoneList<Name> names_stack_;
   ZoneList<FunctionLiteral*> funcs_to_infer_;
