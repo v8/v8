@@ -107,7 +107,7 @@ function PlotScriptComposer(kResX, kResY, error_output) {
       'V8.CompileEval':
         new TimerEvent("compile eval", "#CC4400",  true, 0),
       'V8.IcMiss':
-        new TimerEvent("ic miss", "#CC9900", true, 0),
+        new TimerEvent("ic miss", "#CC9900", false, 0),
       'V8.Parse':
         new TimerEvent("parse", "#00CC00",  true, 0),
       'V8.PreParse':
