@@ -1799,15 +1799,15 @@ class LDrop V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 };
 
 
-class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 1, 1> {
+class LStoreCodeEntry V8_FINAL: public LTemplateInstruction<0, 2, 0> {
  public:
   LStoreCodeEntry(LOperand* function, LOperand* code_object) {
     inputs_[0] = function;
-    temps_[0] = code_object;
+    inputs_[1] = code_object;
   }
 
   LOperand* function() { return inputs_[0]; }
-  LOperand* code_object() { return temps_[0]; }
+  LOperand* code_object() { return inputs_[1]; }
 
   virtual void PrintDataTo(StringStream* stream);
 
