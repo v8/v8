@@ -1153,8 +1153,6 @@ template <class C> inline bool Is(Object* obj);
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size") \
   V(kLiveEditFrameDroppingIsNotSupportedOnARM64,                              \
     "LiveEdit frame dropping is not supported on arm64")                      \
-  V(kLiveEditFrameDroppingIsNotSupportedOnArm,                                \
-    "LiveEdit frame dropping is not supported on arm")                        \
   V(kLiveEditFrameDroppingIsNotSupportedOnMips,                               \
     "LiveEdit frame dropping is not supported on mips")                       \
   V(kLiveEdit, "LiveEdit")                                                    \
