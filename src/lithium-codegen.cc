@@ -7,23 +7,23 @@
 #include "src/lithium-codegen.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/lithium-ia32.h"
-#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-ia32.h"  // NOLINT
+#include "src/ia32/lithium-codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/lithium-x64.h"
-#include "src/x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-x64.h"  // NOLINT
+#include "src/x64/lithium-codegen-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/lithium-arm.h"
-#include "src/arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-arm.h"  // NOLINT
+#include "src/arm/lithium-codegen-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/lithium-arm64.h"
-#include "src/arm64/lithium-codegen-arm64.h"
+#include "src/arm64/lithium-arm64.h"  // NOLINT
+#include "src/arm64/lithium-codegen-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/lithium-mips.h"
-#include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-mips.h"  // NOLINT
+#include "src/mips/lithium-codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/lithium-x87.h"
-#include "src/x87/lithium-codegen-x87.h"
+#include "src/x87/lithium-x87.h"  // NOLINT
+#include "src/x87/lithium-codegen-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

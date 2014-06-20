@@ -5,8 +5,8 @@
 // This file was generated at 2014-02-07 15:31:16.733174
 
 #include "src/unicode-inl.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 namespace unibrow {
 

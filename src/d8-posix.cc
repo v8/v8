@@ -3,16 +3,16 @@
 // found in the LICENSE file.
 
 
-#include <stdlib.h>
 #include <errno.h>
-#include <sys/types.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <signal.h>
 
 
 #include "src/d8.h"

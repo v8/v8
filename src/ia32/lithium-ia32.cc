@@ -6,10 +6,10 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/lithium-allocator-inl.h"
-#include "src/ia32/lithium-ia32.h"
-#include "src/ia32/lithium-codegen-ia32.h"
 #include "src/hydrogen-osr.h"
+#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-ia32.h"
+#include "src/lithium-allocator-inl.h"
 
 namespace v8 {
 namespace internal {

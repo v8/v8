@@ -7,9 +7,9 @@
 #include "src/v8.h"
 
 #include "src/api.h"
+#include "src/platform.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
-#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

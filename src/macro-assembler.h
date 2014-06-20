@@ -41,7 +41,7 @@ const int kInvalidProtoDepth = -1;
 #include "src/assembler.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/assembler-ia32-inl.h"
-#include "src/code.h"  // must be after assembler_*.h
+#include "src/code.h"  // NOLINT, must be after assembler_*.h
 #include "src/ia32/macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/assembler.h"
@@ -52,7 +52,7 @@ const int kInvalidProtoDepth = -1;
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/constants-arm64.h"
 #include "src/assembler.h"
-#include "src/arm64/assembler-arm64.h"
+#include "src/arm64/assembler-arm64.h"  // NOLINT
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/code.h"  // must be after assembler_*.h
 #include "src/arm64/macro-assembler-arm64.h"
@@ -60,14 +60,14 @@ const int kInvalidProtoDepth = -1;
 #elif V8_TARGET_ARCH_ARM
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
-#include "src/arm/assembler-arm.h"
+#include "src/arm/assembler-arm.h"  // NOLINT
 #include "src/arm/assembler-arm-inl.h"
 #include "src/code.h"  // must be after assembler_*.h
 #include "src/arm/macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/constants-mips.h"
 #include "src/assembler.h"
-#include "src/mips/assembler-mips.h"
+#include "src/mips/assembler-mips.h"  // NOLINT
 #include "src/mips/assembler-mips-inl.h"
 #include "src/code.h"  // must be after assembler_*.h
 #include "src/mips/macro-assembler-mips.h"

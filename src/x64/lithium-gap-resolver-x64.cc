@@ -6,8 +6,8 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/x64/lithium-gap-resolver-x64.h"
 #include "src/x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-gap-resolver-x64.h"
 
 namespace v8 {
 namespace internal {

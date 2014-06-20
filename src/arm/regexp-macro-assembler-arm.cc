@@ -6,13 +6,14 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/cpu-profiler.h"
-#include "src/unicode.h"
-#include "src/log.h"
 #include "src/code-stubs.h"
-#include "src/regexp-stack.h"
+#include "src/cpu-profiler.h"
+#include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/unicode.h"
+
 #include "src/arm/regexp-macro-assembler-arm.h"
 
 namespace v8 {

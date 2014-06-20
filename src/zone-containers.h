@@ -5,8 +5,8 @@
 #ifndef V8_ZONE_CONTAINERS_H_
 #define V8_ZONE_CONTAINERS_H_
 
-#include <vector>
 #include <set>
+#include <vector>
 
 #include "src/zone.h"
 

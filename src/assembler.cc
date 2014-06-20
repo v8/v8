@@ -57,17 +57,17 @@
 #include "src/token.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32-inl.h"
+#include "src/ia32/assembler-ia32-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64-inl.h"
+#include "src/x64/assembler-x64-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm-inl.h"
+#include "src/arm/assembler-arm-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips-inl.h"
+#include "src/mips/assembler-mips-inl.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/assembler-x87-inl.h"
+#include "src/x87/assembler-x87-inl.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif
@@ -75,17 +75,17 @@
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/regexp-macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/regexp-macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/regexp-macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/regexp-macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.

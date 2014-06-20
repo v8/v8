@@ -5,16 +5,16 @@
 #include "src/bootstrapper.h"
 
 #include "src/accessors.h"
-#include "src/isolate-inl.h"
-#include "src/natives.h"
-#include "src/snapshot.h"
-#include "src/trig-table.h"
+#include "src/code-stubs.h"
 #include "src/extensions/externalize-string-extension.h"
 #include "src/extensions/free-buffer-extension.h"
 #include "src/extensions/gc-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
-#include "src/code-stubs.h"
+#include "src/isolate-inl.h"
+#include "src/natives.h"
+#include "src/snapshot.h"
+#include "src/trig-table.h"
 
 namespace v8 {
 namespace internal {

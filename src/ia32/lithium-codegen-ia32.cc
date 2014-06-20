@@ -6,13 +6,13 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/code-stubs.h"
+#include "src/codegen.h"
+#include "src/deoptimizer.h"
+#include "src/hydrogen-osr.h"
 #include "src/ia32/lithium-codegen-ia32.h"
 #include "src/ic.h"
-#include "src/code-stubs.h"
-#include "src/deoptimizer.h"
 #include "src/stub-cache.h"
-#include "src/codegen.h"
-#include "src/hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {

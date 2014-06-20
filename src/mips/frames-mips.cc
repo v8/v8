@@ -7,9 +7,9 @@
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/assembler.h"
-#include "src/mips/assembler-mips.h"
-#include "src/mips/assembler-mips-inl.h"
 #include "src/frames.h"
+#include "src/mips/assembler-mips-inl.h"
+#include "src/mips/assembler-mips.h"
 
 namespace v8 {
 namespace internal {

@@ -20,10 +20,10 @@
 #include "src/ic-inl.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
+#include "src/log.h"
 #include "src/messages.h"
 #include "src/natives.h"
 #include "src/stub-cache.h"
-#include "src/log.h"
 
 #include "include/v8-debug.h"
 

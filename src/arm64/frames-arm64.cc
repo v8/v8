@@ -6,9 +6,9 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/assembler.h"
-#include "src/arm64/assembler-arm64.h"
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/assembler-arm64.h"
+#include "src/assembler.h"
 #include "src/frames.h"
 
 namespace v8 {

@@ -6,22 +6,22 @@
 
 #include "src/assembler.h"
 #include "src/base/once.h"
-#include "src/isolate.h"
-#include "src/elements.h"
 #include "src/bootstrapper.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
+#include "src/elements.h"
 #include "src/frames.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
+#include "src/isolate.h"
 #ifdef V8_USE_DEFAULT_PLATFORM
 #include "src/libplatform/default-platform.h"
 #endif
 #include "src/lithium-allocator.h"
 #include "src/objects.h"
 #include "src/platform.h"
-#include "src/sampler.h"
 #include "src/runtime-profiler.h"
+#include "src/sampler.h"
 #include "src/serialize.h"
 #include "src/store-buffer.h"
 

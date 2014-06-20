@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
-#include "src/ast.h"
+
 #include "src/assembler.h"
-#include "src/regexp-stack.h"
+#include "src/ast.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
 #include "src/simulator.h"
 
 namespace v8 {

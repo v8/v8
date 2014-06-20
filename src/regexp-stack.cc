@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
+
 #include "src/regexp-stack.h"
 
 namespace v8 {

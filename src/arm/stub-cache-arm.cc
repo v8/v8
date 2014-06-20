@@ -6,8 +6,8 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/ic-inl.h"
 #include "src/codegen.h"
+#include "src/ic-inl.h"
 #include "src/stub-cache.h"
 
 namespace v8 {

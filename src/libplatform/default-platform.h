@@ -9,8 +9,8 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
-#include "src/platform/mutex.h"
 #include "src/libplatform/task-queue.h"
+#include "src/platform/mutex.h"
 
 namespace v8 {
 namespace internal {

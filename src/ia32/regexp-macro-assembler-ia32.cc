@@ -7,11 +7,12 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/cpu-profiler.h"
-#include "src/unicode.h"
 #include "src/log.h"
-#include "src/regexp-stack.h"
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/unicode.h"
+
 #include "src/ia32/regexp-macro-assembler-ia32.h"
 
 namespace v8 {

@@ -8,31 +8,31 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <sys/prctl.h>
-#include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <sys/types.h>
-#include <stdlib.h>
 
 // Ubuntu Dapper requires memory pages to be marked as
 // executable. Otherwise, OS raises an exception when executing code
 // in that page.
-#include <sys/types.h>  // mmap & munmap
+#include <errno.h>
+#include <fcntl.h>      // open
+#include <stdarg.h>
+#include <strings.h>    // index
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <fcntl.h>      // open
+#include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
-#include <strings.h>    // index
-#include <errno.h>
-#include <stdarg.h>
 
 // GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
 // Old versions of the C library <signal.h> didn't define the type.
 #if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
     (defined(__arm__) || defined(__aarch64__)) && \
     !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
-#include <asm/sigcontext.h>
+#include <asm/sigcontext.h>  // NOLINT
 #endif
 
 #if defined(LEAK_SANITIZER)

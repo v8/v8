@@ -9,10 +9,10 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/disasm.h"
-#include "src/assembler.h"
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/arm64/simulator-arm64.h"
+#include "src/assembler.h"
+#include "src/disasm.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

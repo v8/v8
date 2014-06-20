@@ -9,8 +9,8 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/regexp-macro-assembler.h"
-#include "src/stub-cache.h"
 #include "src/runtime.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

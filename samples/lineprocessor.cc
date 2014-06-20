@@ -30,9 +30,9 @@
 #include <v8-debug.h>
 
 #include <fcntl.h>
-#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * This sample program should demonstrate certain aspects of debugging

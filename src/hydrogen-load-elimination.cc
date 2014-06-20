@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/hydrogen-alias-analysis.h"
-#include "src/hydrogen-load-elimination.h"
-#include "src/hydrogen-instructions.h"
 #include "src/hydrogen-flow-engine.h"
+#include "src/hydrogen-instructions.h"
+#include "src/hydrogen-load-elimination.h"
 
 namespace v8 {
 namespace internal {

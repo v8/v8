@@ -29,8 +29,8 @@
 
 #include "src/v8.h"
 
-#include "src/macro-assembler.h"
 #include "src/factory.h"
+#include "src/macro-assembler.h"
 #include "src/platform.h"
 #include "src/serialize.h"
 #include "test/cctest/cctest.h"

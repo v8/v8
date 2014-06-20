@@ -15,15 +15,16 @@
 #include "src/property-details.h"
 #include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
-#if V8_TARGET_ARCH_ARM64
-#include "src/arm64/constants-arm64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/constants-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/constants-mips.h"
-#endif
 #include "src/v8checks.h"
 #include "src/zone.h"
+
+#if V8_TARGET_ARCH_ARM
+#include "src/arm/constants-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_ARM64
+#include "src/arm64/constants-arm64.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS
+#include "src/mips/constants-mips.h"  // NOLINT
+#endif
 
 
 //

@@ -6,9 +6,9 @@
 #define V8_MIPS_LITHIUM_CODEGEN_MIPS_H_
 
 #include "src/deoptimizer.h"
+#include "src/lithium-codegen.h"
 #include "src/mips/lithium-gap-resolver-mips.h"
 #include "src/mips/lithium-mips.h"
-#include "src/lithium-codegen.h"
 #include "src/safepoint-table.h"
 #include "src/scopes.h"
 #include "src/utils.h"

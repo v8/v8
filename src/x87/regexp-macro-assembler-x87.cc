@@ -7,11 +7,11 @@
 #if V8_TARGET_ARCH_X87
 
 #include "src/cpu-profiler.h"
-#include "src/unicode.h"
 #include "src/log.h"
-#include "src/regexp-stack.h"
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/unicode.h"
 #include "src/x87/regexp-macro-assembler-x87.h"
 
 namespace v8 {

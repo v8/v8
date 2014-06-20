@@ -61,8 +61,8 @@ class SimulatorStack : public v8::internal::AllStatic {
 // Running with a simulator.
 
 #include "src/arm/constants-arm.h"
-#include "src/hashmap.h"
 #include "src/assembler.h"
+#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {

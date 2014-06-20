@@ -7,10 +7,10 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/cpu-profiler.h"
-#include "src/stub-cache.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/macro-assembler.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

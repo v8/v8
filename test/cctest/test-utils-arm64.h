@@ -29,11 +29,11 @@
 #define V8_ARM64_TEST_UTILS_ARM64_H_
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "src/macro-assembler.h"
 #include "src/arm64/macro-assembler-arm64.h"
 #include "src/arm64/utils-arm64.h"
-#include "test/cctest/cctest.h"
+#include "src/macro-assembler.h"
 
 
 using namespace v8::internal;

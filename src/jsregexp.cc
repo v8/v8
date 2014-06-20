@@ -5,35 +5,35 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
+#include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/factory.h"
-#include "src/jsregexp.h"
 #include "src/jsregexp-inl.h"
-#include "src/platform.h"
-#include "src/string-search.h"
-#include "src/runtime.h"
-#include "src/compilation-cache.h"
-#include "src/string-stream.h"
+#include "src/jsregexp.h"
 #include "src/parser.h"
+#include "src/platform.h"
 #include "src/regexp-macro-assembler.h"
-#include "src/regexp-macro-assembler-tracer.h"
 #include "src/regexp-macro-assembler-irregexp.h"
+#include "src/regexp-macro-assembler-tracer.h"
 #include "src/regexp-stack.h"
+#include "src/runtime.h"
+#include "src/string-search.h"
+#include "src/string-stream.h"
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/regexp-macro-assembler-ia32.h"
+#include "src/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/regexp-macro-assembler-x64.h"
+#include "src/x64/regexp-macro-assembler-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/regexp-macro-assembler-arm64.h"
+#include "src/arm64/regexp-macro-assembler-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/regexp-macro-assembler-arm.h"
+#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/regexp-macro-assembler-mips.h"
+#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/regexp-macro-assembler-x87.h"
+#include "src/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

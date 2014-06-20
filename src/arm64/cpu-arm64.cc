@@ -8,8 +8,8 @@
 
 #if V8_TARGET_ARCH_ARM64
 
-#include "src/cpu.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/cpu.h"
 
 namespace v8 {
 namespace internal {

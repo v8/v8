@@ -10,11 +10,11 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/disasm.h"
-#include "src/assembler.h"
-#include "src/codegen.h"
 #include "src/arm/constants-arm.h"
 #include "src/arm/simulator-arm.h"
+#include "src/assembler.h"
+#include "src/codegen.h"
+#include "src/disasm.h"
 
 #if defined(USE_SIMULATOR)
 

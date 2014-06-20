@@ -6,13 +6,14 @@
 
 
 #include "src/v8.h"
-#include "src/unicode.h"
-#include "src/utils.h"
+
 #include "src/ast.h"
 #include "src/bytecodes-irregexp.h"
 #include "src/interpreter-irregexp.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/unicode.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

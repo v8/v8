@@ -8,8 +8,8 @@
 
 #define ARM64_DEFINE_FP_STATICS
 
-#include "src/arm64/instructions-arm64.h"
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/arm64/instructions-arm64.h"
 
 namespace v8 {
 namespace internal {

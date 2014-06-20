@@ -26,8 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
-#include "src/platform.h"
 #include "test/cctest/cctest.h"
+
+#include "src/platform.h"
 
 
 v8::internal::Semaphore* semaphore = NULL;

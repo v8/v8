@@ -6,8 +6,8 @@
 #ifndef V8_I18N_H_
 #define V8_I18N_H_
 
-#include "unicode/uversion.h"
 #include "src/v8.h"
+#include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;

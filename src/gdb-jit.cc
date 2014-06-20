@@ -4,12 +4,12 @@
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
 #include "src/v8.h"
-#include "src/gdb-jit.h"
 
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
-#include "src/frames.h"
 #include "src/frames-inl.h"
+#include "src/frames.h"
+#include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/messages.h"
 #include "src/natives.h"

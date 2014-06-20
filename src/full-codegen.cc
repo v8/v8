@@ -11,8 +11,8 @@
 #include "src/liveedit.h"
 #include "src/macro-assembler.h"
 #include "src/prettyprinter.h"
-#include "src/scopes.h"
 #include "src/scopeinfo.h"
+#include "src/scopes.h"
 #include "src/snapshot.h"
 #include "src/stub-cache.h"
 

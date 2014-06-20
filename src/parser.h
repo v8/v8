@@ -8,10 +8,10 @@
 #include "src/allocation.h"
 #include "src/ast.h"
 #include "src/compiler.h"  // For CachedDataMode
-#include "src/preparse-data-format.h"
 #include "src/preparse-data.h"
-#include "src/scopes.h"
+#include "src/preparse-data-format.h"
 #include "src/preparser.h"
+#include "src/scopes.h"
 
 namespace v8 {
 class ScriptCompiler;

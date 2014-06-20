@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/v8.h"
+
 #include "src/allocation-site-scopes.h"
 #include "src/codegen.h"
 #include "src/full-codegen.h"
@@ -19,10 +20,10 @@
 #include "src/hydrogen-dehoist.h"
 #include "src/hydrogen-environment-liveness.h"
 #include "src/hydrogen-escape-analysis.h"
+#include "src/hydrogen-gvn.h"
 #include "src/hydrogen-infer-representation.h"
 #include "src/hydrogen-infer-types.h"
 #include "src/hydrogen-load-elimination.h"
-#include "src/hydrogen-gvn.h"
 #include "src/hydrogen-mark-deoptimize.h"
 #include "src/hydrogen-mark-unreachable.h"
 #include "src/hydrogen-osr.h"
@@ -42,17 +43,17 @@
 #include "src/typing.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-codegen-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-codegen-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/lithium-codegen-arm64.h"
+#include "src/arm64/lithium-codegen-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/lithium-codegen-arm.h"
+#include "src/arm/lithium-codegen-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/lithium-codegen-x87.h"
+#include "src/x87/lithium-codegen-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

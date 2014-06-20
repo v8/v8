@@ -4,10 +4,10 @@
 
 #include "src/v8.h"
 
-#include "src/lithium-allocator-inl.h"
-#include "src/mips/lithium-mips.h"
-#include "src/mips/lithium-codegen-mips.h"
 #include "src/hydrogen-osr.h"
+#include "src/lithium-allocator-inl.h"
+#include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-mips.h"
 
 namespace v8 {
 namespace internal {

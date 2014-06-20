@@ -20,23 +20,24 @@
 #include "src/isolate-inl.h"
 #include "src/mark-compact.h"
 #include "src/natives.h"
-#include "src/objects-visiting.h"
 #include "src/objects-visiting-inl.h"
+#include "src/objects-visiting.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/snapshot.h"
 #include "src/store-buffer.h"
-#include "src/utils/random-number-generator.h"
 #include "src/utils.h"
+#include "src/utils/random-number-generator.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
+
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"
-#include "src/arm/regexp-macro-assembler-arm.h"
+#include "src/regexp-macro-assembler.h"  // NOLINT
+#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #endif
 #if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"
-#include "src/mips/regexp-macro-assembler-mips.h"
+#include "src/regexp-macro-assembler.h"  // NOLINT
+#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #endif
 
 namespace v8 {

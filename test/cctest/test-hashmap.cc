@@ -28,8 +28,9 @@
 #include <stdlib.h>
 
 #include "src/v8.h"
-#include "src/hashmap.h"
 #include "test/cctest/cctest.h"
+
+#include "src/hashmap.h"
 
 using namespace v8::internal;
 

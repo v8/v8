@@ -6,9 +6,9 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
-#include "src/arm/simulator-arm.h"
 
 namespace v8 {
 namespace internal {

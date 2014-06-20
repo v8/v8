@@ -6,8 +6,8 @@
 
 #if V8_TARGET_ARCH_X87
 
-#include "src/x87/lithium-gap-resolver-x87.h"
 #include "src/x87/lithium-codegen-x87.h"
+#include "src/x87/lithium-gap-resolver-x87.h"
 
 namespace v8 {
 namespace internal {

@@ -9,19 +9,19 @@
 # error "V8 does not support the SPARC CPU architecture."
 #endif
 
-#include <sys/stack.h>  // for stack alignment
-#include <unistd.h>  // getpagesize(), usleep()
-#include <sys/mman.h>  // mmap()
-#include <ucontext.h>  // walkstack(), getcontext()
-#include <dlfcn.h>     // dladdr
-#include <pthread.h>
-#include <semaphore.h>
-#include <time.h>
-#include <sys/time.h>  // gettimeofday(), timeradd()
+#include <dlfcn.h>  // dladdr
 #include <errno.h>
 #include <ieeefp.h>  // finite()
+#include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>  // sigemptyset(), etc
+#include <sys/mman.h>  // mmap()
 #include <sys/regset.h>
+#include <sys/stack.h>  // for stack alignment
+#include <sys/time.h>  // gettimeofday(), timeradd()
+#include <time.h>
+#include <ucontext.h>  // walkstack(), getcontext()
+#include <unistd.h>  // getpagesize(), usleep()
 
 
 #undef MAP_TYPE

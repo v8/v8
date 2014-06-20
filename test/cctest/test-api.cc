@@ -27,8 +27,8 @@
 
 #include <climits>
 #include <csignal>
-#include <string>
 #include <map>
+#include <string>
 
 #include "src/v8.h"
 

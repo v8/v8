@@ -11,9 +11,9 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include "src/assembler.h"
 #include "src/cpu.h"
 #include "src/disasm.h"
-#include "src/assembler.h"
 #include "src/globals.h"    // Need the BitCast.
 #include "src/mips/constants-mips.h"
 #include "src/mips/simulator-mips.h"

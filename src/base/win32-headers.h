@@ -35,9 +35,9 @@
 
 #include <windows.h>
 
+#include <mmsystem.h>  // For timeGetTime().
 #include <signal.h>  // For raise().
 #include <time.h>  // For LocalOffset() implementation.
-#include <mmsystem.h>  // For timeGetTime().
 #ifdef __MINGW32__
 // Require Windows XP or higher when compiling with MinGW. This is for MinGW
 // header files to expose getaddrinfo.

@@ -6,10 +6,10 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/lithium-allocator-inl.h"
-#include "src/x64/lithium-x64.h"
-#include "src/x64/lithium-codegen-x64.h"
 #include "src/hydrogen-osr.h"
+#include "src/lithium-allocator-inl.h"
+#include "src/x64/lithium-codegen-x64.h"
+#include "src/x64/lithium-x64.h"
 
 namespace v8 {
 namespace internal {

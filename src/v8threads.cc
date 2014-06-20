@@ -8,8 +8,8 @@
 #include "src/bootstrapper.h"
 #include "src/debug.h"
 #include "src/execution.h"
-#include "src/v8threads.h"
 #include "src/regexp-stack.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 

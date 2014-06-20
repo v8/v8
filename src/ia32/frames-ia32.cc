@@ -7,9 +7,9 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/assembler.h"
-#include "src/ia32/assembler-ia32.h"
-#include "src/ia32/assembler-ia32-inl.h"
 #include "src/frames.h"
+#include "src/ia32/assembler-ia32-inl.h"
+#include "src/ia32/assembler-ia32.h"
 
 namespace v8 {
 namespace internal {

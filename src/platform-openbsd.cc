@@ -8,20 +8,20 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <sys/types.h>
-#include <stdlib.h>
 
-#include <sys/types.h>  // mmap & munmap
+#include <errno.h>
+#include <fcntl.h>      // open
+#include <stdarg.h>
+#include <strings.h>    // index
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <fcntl.h>      // open
+#include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
-#include <strings.h>    // index
-#include <errno.h>
-#include <stdarg.h>
 
 #undef MAP_TYPE
 
