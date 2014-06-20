@@ -1109,6 +1109,12 @@ class V8_EXPORT Message {
   Local<String> GetSourceLine() const;
 
   /**
+   * Returns the origin for the script from where the function causing the
+   * error originates.
+   */
+  ScriptOrigin GetScriptOrigin() const;
+
+  /**
    * Returns the resource name for the script from where the function causing
    * the error originates.
    */
