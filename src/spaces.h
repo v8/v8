@@ -283,6 +283,10 @@ class MemoryChunk {
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
+  static const MemoryChunk* FromAddress(const byte* a) {
+    return reinterpret_cast<const MemoryChunk*>(
+        OffsetFrom(a) & ~kAlignmentMask);
+  }
 
   // Only works for addresses in pointer spaces, not data or code spaces.
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
@@ -627,7 +631,7 @@ class MemoryChunk {
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
-  inline Heap* heap() { return heap_; }
+  inline Heap* heap() const { return heap_; }
 
   static const int kFlagsOffset = kPointerSize;
 
