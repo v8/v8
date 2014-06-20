@@ -101,6 +101,16 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
+    // Load padding words on stack.
+    __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingValue)));
+    __ Subu(sp, sp,
+            Operand(kPointerSize * LiveEdit::kFramePaddingInitialSize));
+    for (int i = LiveEdit::kFramePaddingInitialSize - 1; i >= 0; i--) {
+      __ sw(at, MemOperand(sp, kPointerSize * i));
+    }
+    __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
+    __ push(at);
+
     // Store the registers containing live values on the expression stack to
     // make sure that these are correctly updated during GC. Non object values
     // are stored as a smi causing it to be untouched by GC.
@@ -146,6 +156,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         }
       }
     }
+
+    // Don't bother removing padding bytes pushed on the stack
+    // as the frame is going to be restored right away.
 
     // Leave the internal frame.
   }
@@ -290,16 +303,36 @@ void DebugCodegen::GenerateSlotDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnMips);
+  __ Ret();
 }
 
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  masm->Abort(kLiveEditFrameDroppingIsNotSupportedOnMips);
+  ExternalReference restarter_frame_function_slot =
+      ExternalReference::debug_restarter_frame_function_pointer_address(
+          masm->isolate());
+  __ li(at, Operand(restarter_frame_function_slot));
+  __ sw(zero_reg, MemOperand(at, 0));
+
+  // We do not know our frame height, but set sp based on fp.
+  __ Subu(sp, fp, Operand(kPointerSize));
+
+  __ Pop(ra, fp, a1);  // Return address, Frame, Function.
+
+  // Load context from the function.
+  __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+
+  // Get function code.
+  __ lw(at, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(at, FieldMemOperand(at, SharedFunctionInfo::kCodeOffset));
+  __ Addu(t9, at, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // Re-run JSFunction, r1 is function, cp is context.
+  __ Jump(t9);
 }
 
 
-const bool LiveEdit::kFrameDropperSupported = false;
+const bool LiveEdit::kFrameDropperSupported = true;
 
 #undef __
 
