@@ -663,6 +663,9 @@ class HValue : public ZoneObject {
   void DeleteAndReplaceWith(HValue* other);
   void ReplaceAllUsesWith(HValue* other);
   bool HasNoUses() const { return use_list_ == NULL; }
+  bool HasOneUse() const {
+    return use_list_ != NULL && use_list_->tail() == NULL;
+  }
   bool HasMultipleUses() const {
     return use_list_ != NULL && use_list_->tail() != NULL;
   }
@@ -3760,7 +3763,7 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     // Otherwise, if there is only one use of the right operand, it would be
     // better off on the left for platforms that only have 2-arg arithmetic
     // ops (e.g ia32, x64) that clobber the left operand.
-    return right()->UseCount() == 1;
+    return right()->HasOneUse();
   }
 
   HValue* BetterLeftOperand() {

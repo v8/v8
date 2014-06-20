@@ -1581,7 +1581,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
           val, representation(), false, false));
     }
   }
-  if (op() == kMathFloor && value()->IsDiv() && value()->UseCount() == 1) {
+  if (op() == kMathFloor && value()->IsDiv() && value()->HasOneUse()) {
     HDiv* hdiv = HDiv::cast(value());
 
     HValue* left = hdiv->left();
@@ -2149,7 +2149,7 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
   added_index()->SetOperandAt(1, index_base);
   added_index()->SetOperandAt(2, added_constant());
   first_check_in_block()->SetOperandAt(0, added_index());
-  if (previous_index->UseCount() == 0) {
+  if (previous_index->HasNoUses()) {
     previous_index->DeleteAndReplaceWith(NULL);
   }
 }
@@ -2893,7 +2893,7 @@ bool HConstant::EmitAtUses() {
     // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
-  if (UseCount() == 0) return true;
+  if (HasNoUses()) return true;
   if (IsCell()) return false;
   if (representation().IsDouble()) return false;
   if (representation().IsExternal()) return false;
