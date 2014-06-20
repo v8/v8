@@ -1175,8 +1175,10 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
       double d;
       uint32_t u[2];
     } c;
-    c.u[0] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR_CONST(p, offset)));
-    c.u[1] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR_CONST(p, offset + 4)));
+    c.u[0] = (*reinterpret_cast<const uint32_t*>(
+        FIELD_ADDR_CONST(p, offset)));
+    c.u[1] = (*reinterpret_cast<const uint32_t*>(
+        FIELD_ADDR_CONST(p, offset + 4)));
     return c.d;
   }
   #define READ_DOUBLE_FIELD(p, offset) read_double_field(p, offset)
