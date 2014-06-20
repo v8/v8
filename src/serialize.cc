@@ -849,6 +849,7 @@ void Deserializer::ReadObject(int space_number,
   int size = source_->GetInt() << kObjectAlignmentBits;
   Address address = Allocate(space_number, size);
   HeapObject* obj = HeapObject::FromAddress(address);
+  isolate_->heap()->OnAllocationEvent(obj, size);
   *write_back = obj;
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);

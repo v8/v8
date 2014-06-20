@@ -290,9 +290,18 @@ int PerIsolateData::RealmIndexOrThrow(
 
 #ifndef V8_SHARED
 // performance.now() returns a time stamp as double, measured in milliseconds.
+// When FLAG_verify_predictable mode is enabled it returns current value
+// of Heap::allocations_count().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
-  args.GetReturnValue().Set(delta.InMillisecondsF());
+  if (i::FLAG_verify_predictable) {
+    Isolate* v8_isolate = args.GetIsolate();
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(v8_isolate)->heap();
+    args.GetReturnValue().Set(heap->synthetic_time());
+
+  } else {
+    i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
+    args.GetReturnValue().Set(delta.InMillisecondsF());
+  }
 }
 #endif  // !V8_SHARED
 

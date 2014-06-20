@@ -657,9 +657,6 @@ class Heap {
   Address always_allocate_scope_depth_address() {
     return reinterpret_cast<Address>(&always_allocate_scope_depth_);
   }
-  bool linear_allocation() {
-    return linear_allocation_scope_depth_ != 0;
-  }
 
   Address* NewSpaceAllocationTopAddress() {
     return new_space_.allocation_top_address();
@@ -976,6 +973,13 @@ class Heap {
 #endif
 #endif
   }
+
+  // Number of "runtime allocations" done so far.
+  uint32_t allocations_count() { return allocations_count_; }
+
+  // Returns deterministic "time" value in ms. Works only with
+  // FLAG_verify_predictable.
+  double synthetic_time() { return allocations_count_ / 100.0; }
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
@@ -1437,6 +1441,17 @@ class Heap {
   static void FatalProcessOutOfMemory(const char* location,
                                       bool take_snapshot = false);
 
+  // This event is triggered after successful allocation of a new object made
+  // by runtime. Allocations of target space for object evacuation do not
+  // trigger the event. In order to track ALL allocations one must turn off
+  // FLAG_inline_new and FLAG_use_allocation_folding.
+  inline void OnAllocationEvent(HeapObject* object, int size_in_bytes);
+
+  // This event is triggered after object is moved to a new place.
+  inline void OnMoveEvent(HeapObject* target,
+                          HeapObject* source,
+                          int size_in_bytes);
+
  protected:
   // Methods made available to tests.
 
@@ -1526,7 +1541,6 @@ class Heap {
   int sweep_generation_;
 
   int always_allocate_scope_depth_;
-  int linear_allocation_scope_depth_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;
@@ -1552,8 +1566,20 @@ class Heap {
   // Returns the amount of external memory registered since last global gc.
   int64_t PromotedExternalMemorySize();
 
-  unsigned int ms_count_;  // how many mark-sweep collections happened
-  unsigned int gc_count_;  // how many gc happened
+  // How many "runtime allocations" happened.
+  uint32_t allocations_count_;
+
+  // Running hash over allocations performed.
+  uint32_t raw_allocations_hash_;
+
+  // Countdown counter, dumps allocation hash when 0.
+  uint32_t dump_allocations_hash_countdown_;
+
+  // How many mark-sweep collections happened.
+  unsigned int ms_count_;
+
+  // How many gc happened.
+  unsigned int gc_count_;
 
   // For post mortem debugging.
   static const int kRememberedUnmappedPages = 128;
@@ -2063,6 +2089,10 @@ class Heap {
   Object** weak_object_to_code_table_address() {
     return &weak_object_to_code_table_;
   }
+
+  inline void UpdateAllocationsHash(HeapObject* object);
+  inline void UpdateAllocationsHash(uint32_t value);
+  inline void PrintAlloctionsHash();
 
   static const int kInitialStringTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

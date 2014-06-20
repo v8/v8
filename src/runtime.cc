@@ -9652,7 +9652,13 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  double millis = std::floor(OS::TimeCurrentMillis());
+  double millis;
+  if (FLAG_verify_predictable) {
+    millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
+    millis += std::floor(isolate->heap()->synthetic_time());
+  } else {
+    millis = std::floor(OS::TimeCurrentMillis());
+  }
   return *isolate->factory()->NewNumber(millis);
 }
 
