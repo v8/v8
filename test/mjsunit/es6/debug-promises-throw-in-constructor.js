@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-promises --expose-debug-as debug
+// Flags: --expose-debug-as debug
 
 // Test debug events when we only listen to uncaught exceptions and
 // an exception is thrown in the the Promise constructor.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-promises --expose-debug-as debug
+// Flags: --expose-debug-as debug
 
 // Test debug events when an exception is thrown inside a Promise, which is
 // caught by a custom promise, which throws a new exception in its reject
