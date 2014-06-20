@@ -515,7 +515,7 @@ class ParserTraits {
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        const char* message,
-                       const char* arg,
+                       const char* arg = NULL,
                        bool is_reference_error = false);
   void ReportMessage(const char* message,
                      MaybeHandle<String> arg,

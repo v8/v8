@@ -334,6 +334,44 @@ class ParserBase : public Traits {
     }
   }
 
+  // Validates strict mode for function parameter lists. This has to be
+  // done after parsing the function, since the function can declare
+  // itself strict.
+  void CheckStrictFunctionNameAndParameters(
+      IdentifierT function_name,
+      bool function_name_is_strict_reserved,
+      const Scanner::Location& function_name_loc,
+      const Scanner::Location& eval_args_error_loc,
+      const Scanner::Location& dupe_error_loc,
+      const Scanner::Location& reserved_loc,
+      bool* ok) {
+    if (this->IsEvalOrArguments(function_name)) {
+      Traits::ReportMessageAt(function_name_loc, "strict_eval_arguments");
+      *ok = false;
+      return;
+    }
+    if (function_name_is_strict_reserved) {
+      Traits::ReportMessageAt(function_name_loc, "unexpected_strict_reserved");
+      *ok = false;
+      return;
+    }
+    if (eval_args_error_loc.IsValid()) {
+      Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
+      *ok = false;
+      return;
+    }
+    if (dupe_error_loc.IsValid()) {
+      Traits::ReportMessageAt(dupe_error_loc, "strict_param_dupe");
+      *ok = false;
+      return;
+    }
+    if (reserved_loc.IsValid()) {
+      Traits::ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
+      *ok = false;
+      return;
+    }
+  }
+
   // Determine precedence of given token.
   static int Precedence(Token::Value token, bool accept_IN) {
     if (token == Token::IN && !accept_IN)
