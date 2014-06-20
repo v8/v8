@@ -6704,17 +6704,20 @@ class Map: public HeapObject {
 #if V8_TARGET_LITTLE_ENDIAN
   // Order instance type and bit field together such that they can be loaded
   // together as a 16-bit word with instance type in the lower 8 bits regardless
-  // of endianess.
+  // of endianess. Also provide endian-independent offset to that 16-bit word.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
   static const int kBitFieldOffset = kInstanceAttributesOffset + 1;
 #else
   static const int kBitFieldOffset = kInstanceAttributesOffset + 0;
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
 #endif
+  static const int kInstanceTypeAndBitFieldOffset =
+      kInstanceAttributesOffset + 0;
   static const int kBitField2Offset = kInstanceAttributesOffset + 2;
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
 
-  STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+  STATIC_ASSERT(kInstanceTypeAndBitFieldOffset ==
+                Internals::kMapInstanceTypeAndBitFieldOffset);
 
   // Bit positions for bit field.
   static const int kHasNonInstancePrototype = 0;

@@ -6094,10 +6094,12 @@ class HObjectAccess V8_FINAL {
   }
 
   static HObjectAccess ForMapInstanceTypeAndBitField() {
-    STATIC_ASSERT((Map::kInstanceTypeOffset & 1) == 0);
-    STATIC_ASSERT(Map::kBitFieldOffset == Map::kInstanceTypeOffset + 1);
+    STATIC_ASSERT((Map::kInstanceTypeAndBitFieldOffset & 1) == 0);
+    // Ensure the two fields share one 16-bit word, endian-independent.
+    STATIC_ASSERT((Map::kBitFieldOffset & ~1) ==
+                  (Map::kInstanceTypeOffset & ~1));
     return HObjectAccess(kInobject,
-                         Map::kInstanceTypeOffset,
+                         Map::kInstanceTypeAndBitFieldOffset,
                          Representation::UInteger16());
   }
 
