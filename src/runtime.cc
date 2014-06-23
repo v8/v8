@@ -10936,9 +10936,8 @@ RUNTIME_FUNCTION(Runtime_DebugNamedInterceptorPropertyValue) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   Handle<Object> result;
-  LookupIterator it(obj, name, obj);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::GetProperty(&it));
+      isolate, result, JSObject::GetProperty(obj, name));
   return *result;
 }
 
