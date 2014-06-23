@@ -2084,13 +2084,13 @@ RUNTIME_FUNCTION(Runtime_DisableAccessChecks) {
 RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   Handle<Map> old_map(object->map());
   RUNTIME_ASSERT(!old_map->is_access_check_needed());
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(old_map);
   new_map->set_is_access_check_needed(true);
-  JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
+  JSObject::MigrateToMap(object, new_map);
   return isolate->heap()->undefined_value();
 }
 
