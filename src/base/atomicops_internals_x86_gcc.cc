@@ -42,6 +42,9 @@ namespace base {
 // default values should hopefully be pretty safe.
 struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures = {
   false,          // bug can't exist before process spawns multiple threads
+#if !defined(__SSE2__)
+  false,          // no SSE2
+#endif
 };
 
 } }  // namespace v8::base
@@ -87,6 +90,11 @@ void AtomicOps_Internalx86CPUFeaturesInit() {
   } else {
     AtomicOps_Internalx86CPUFeatures.has_amd_lock_mb_bug = false;
   }
+
+#if !defined(__SSE2__)
+  // edx bit 26 is SSE2 which we use to tell use whether we can use mfence
+  AtomicOps_Internalx86CPUFeatures.has_sse2 = ((edx >> 26) & 1);
+#endif
 }
 
 class AtomicOpsx86Initializer {

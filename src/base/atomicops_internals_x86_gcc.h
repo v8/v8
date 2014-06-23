@@ -17,6 +17,9 @@ namespace base {
 struct AtomicOps_x86CPUFeatureStruct {
   bool has_amd_lock_mb_bug;  // Processor has AMD memory-barrier bug; do lfence
                              // after acquire compare-and-swap.
+#if !defined(__SSE2__)
+  bool has_sse2;             // Processor has SSE2.
+#endif
 };
 extern struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures;
 
@@ -91,7 +94,10 @@ inline void NoBarrier_Store(volatile Atomic32* ptr, Atomic32 value) {
   *ptr = value;
 }
 
-// We require SSE2, so mfence is guaranteed to exist.
+#if defined(__x86_64__) || defined(__SSE2__)
+
+// 64-bit implementations of memory barrier can be simpler, because it
+// "mfence" is guaranteed to exist.
 inline void MemoryBarrier() {
   __asm__ __volatile__("mfence" : : : "memory");
 }
@@ -100,6 +106,28 @@ inline void Acquire_Store(volatile Atomic32* ptr, Atomic32 value) {
   *ptr = value;
   MemoryBarrier();
 }
+
+#else
+
+inline void MemoryBarrier() {
+  if (AtomicOps_Internalx86CPUFeatures.has_sse2) {
+    __asm__ __volatile__("mfence" : : : "memory");
+  } else {  // mfence is faster but not present on PIII
+    Atomic32 x = 0;
+    NoBarrier_AtomicExchange(&x, 0);  // acts as a barrier on PIII
+  }
+}
+
+inline void Acquire_Store(volatile Atomic32* ptr, Atomic32 value) {
+  if (AtomicOps_Internalx86CPUFeatures.has_sse2) {
+    *ptr = value;
+    __asm__ __volatile__("mfence" : : : "memory");
+  } else {
+    NoBarrier_AtomicExchange(ptr, value);
+                          // acts as a barrier on PIII
+  }
+}
+#endif
 
 inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
   ATOMICOPS_COMPILER_BARRIER();
