@@ -5,9 +5,9 @@
 #ifndef V8_PROFILE_GENERATOR_H_
 #define V8_PROFILE_GENERATOR_H_
 
+#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/hashmap.h"
-#include "include/v8-profiler.h"
 
 namespace v8 {
 namespace internal {

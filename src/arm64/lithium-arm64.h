@@ -6,8 +6,8 @@
 #define V8_ARM64_LITHIUM_ARM64_H_
 
 #include "src/hydrogen.h"
-#include "src/lithium-allocator.h"
 #include "src/lithium.h"
+#include "src/lithium-allocator.h"
 #include "src/safepoint-table.h"
 #include "src/utils.h"
 

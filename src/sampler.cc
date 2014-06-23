@@ -14,7 +14,7 @@
 #include <sys/time.h>
 
 #if !V8_OS_QNX
-#include <sys/syscall.h>
+#include <sys/syscall.h>  // NOLINT
 #endif
 
 #if V8_OS_MACOSX
@@ -33,7 +33,7 @@
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
     (defined(__arm__) || defined(__aarch64__)) && \
     !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
-#include <asm/sigcontext.h>
+#include <asm/sigcontext.h>  // NOLINT
 #endif
 
 #elif V8_OS_WIN || V8_OS_CYGWIN

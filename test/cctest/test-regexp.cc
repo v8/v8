@@ -34,17 +34,16 @@
 #include "src/char-predicates-inl.h"
 #include "src/jsregexp.h"
 #include "src/parser.h"
-#include "src/regexp-macro-assembler-irregexp.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-macro-assembler-irregexp.h"
 #include "src/string-stream.h"
 #include "src/zone-inl.h"
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
 #include "src/macro-assembler.h"
-#include "src/code.h"
 #if V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm.h"
+#include "src/arm/assembler-arm.h"  // NOLINT
 #include "src/arm/macro-assembler-arm.h"
 #include "src/arm/regexp-macro-assembler-arm.h"
 #endif

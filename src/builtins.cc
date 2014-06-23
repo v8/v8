@@ -11,8 +11,8 @@
 #include "src/builtins.h"
 #include "src/cpu-profiler.h"
 #include "src/gdb-jit.h"
-#include "src/ic-inl.h"
 #include "src/heap-profiler.h"
+#include "src/ic-inl.h"
 #include "src/mark-compact.h"
 #include "src/stub-cache.h"
 #include "src/vm-state-inl.h"
@@ -239,12 +239,8 @@ static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
 
   FixedArrayBase* new_elms =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
-  HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_tracking_object_moves()) {
-    profiler->ObjectMoveEvent(elms->address(),
-                              new_elms->address(),
-                              new_elms->Size());
-  }
+
+  heap->OnMoveEvent(new_elms, elms, new_elms->Size());
   return new_elms;
 }
 

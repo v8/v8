@@ -866,6 +866,24 @@ DEFINE_implication(print_all_code, trace_codegen)
 #endif
 #endif
 
+
+//
+// VERIFY_PREDICTABLE related flags
+//
+#undef FLAG
+
+#ifdef VERIFY_PREDICTABLE
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
+
+DEFINE_bool(verify_predictable, false,
+            "this mode is used for checking that V8 behaves predictably")
+DEFINE_int(dump_allocations_digest_at_alloc, 0,
+          "dump allocations digest each n-th allocation")
+
+
 //
 // Read-only flags
 //

@@ -28,12 +28,12 @@
 #include <stdlib.h>
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
 
-#include "src/macro-assembler.h"
 #include "src/factory.h"
+#include "src/macro-assembler.h"
 #include "src/platform.h"
 #include "src/serialize.h"
-#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

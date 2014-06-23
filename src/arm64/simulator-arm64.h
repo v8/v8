@@ -10,14 +10,14 @@
 
 #include "src/v8.h"
 
-#include "src/globals.h"
-#include "src/utils.h"
 #include "src/allocation.h"
-#include "src/assembler.h"
 #include "src/arm64/assembler-arm64.h"
 #include "src/arm64/decoder-arm64.h"
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/instrument-arm64.h"
+#include "src/assembler.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \

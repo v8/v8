@@ -7,8 +7,8 @@
 #include "src/arm64/lithium-codegen-arm64.h"
 #include "src/arm64/lithium-gap-resolver-arm64.h"
 #include "src/code-stubs.h"
-#include "src/stub-cache.h"
 #include "src/hydrogen-osr.h"
+#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

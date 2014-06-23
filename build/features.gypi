@@ -41,6 +41,8 @@
 
     'v8_use_snapshot%': 'true',
 
+    'v8_enable_verify_predictable%': 0,
+
     # With post mortem support enabled, metadata is embedded into libv8 that
     # describes various parameters of the VM for use by debuggers. See
     # tools/gen-postmortem-metadata.py for details.
@@ -73,6 +75,9 @@
       }],
       ['v8_enable_verify_heap==1', {
         'defines': ['VERIFY_HEAP',],
+      }],
+      ['v8_enable_verify_predictable==1', {
+        'defines': ['VERIFY_PREDICTABLE',],
       }],
       ['v8_interpreted_regexp==1', {
         'defines': ['V8_INTERPRETED_REGEXP',],

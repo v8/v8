@@ -5,9 +5,9 @@
 #ifndef V8_X87_REGEXP_MACRO_ASSEMBLER_X87_H_
 #define V8_X87_REGEXP_MACRO_ASSEMBLER_X87_H_
 
-#include "src/x87/assembler-x87.h"
-#include "src/x87/assembler-x87-inl.h"
 #include "src/macro-assembler.h"
+#include "src/x87/assembler-x87-inl.h"
+#include "src/x87/assembler-x87.h"
 
 namespace v8 {
 namespace internal {

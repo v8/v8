@@ -10,17 +10,17 @@
 #include "src/v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/frames-ia32.h"
+#include "src/ia32/frames-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/frames-x64.h"
+#include "src/x64/frames-x64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/frames-arm64.h"
+#include "src/arm64/frames-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_ARM
-#include "src/arm/frames-arm.h"
+#include "src/arm/frames-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
-#include "src/mips/frames-mips.h"
+#include "src/mips/frames-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
-#include "src/x87/frames-x87.h"
+#include "src/x87/frames-x87.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif

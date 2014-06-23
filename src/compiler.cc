@@ -14,7 +14,6 @@
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
 #include "src/gdb-jit.h"
-#include "src/typing.h"
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
 #include "src/lithium.h"
@@ -25,6 +24,7 @@
 #include "src/scanner-character-streams.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
+#include "src/typing.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

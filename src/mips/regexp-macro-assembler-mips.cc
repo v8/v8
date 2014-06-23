@@ -6,12 +6,13 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/unicode.h"
-#include "src/log.h"
 #include "src/code-stubs.h"
-#include "src/regexp-stack.h"
+#include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/regexp-macro-assembler.h"
+#include "src/regexp-stack.h"
+#include "src/unicode.h"
+
 #include "src/mips/regexp-macro-assembler-mips.h"
 
 namespace v8 {

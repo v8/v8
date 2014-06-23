@@ -106,6 +106,21 @@ try {
   assertEquals(1, e.stack.split('\n').length);
 }
 
+// A limit outside the range of integers.
+Error.stackTraceLimit = 1e12;
+try {
+  rec1(0);
+} catch (e) {
+  assertTrue(e.stack.split('\n').length > 100);
+}
+
+Error.stackTraceLimit = Infinity;
+try {
+  rec1(0);
+} catch (e) {
+  assertTrue(e.stack.split('\n').length > 100);
+}
+
 Error.stackTraceLimit = "not a number";
 try {
   rec1(0);

@@ -14,10 +14,10 @@
 #include "src/assembler.h"
 #include "src/bootstrapper.h"
 #include "src/flags.h"
+#include "src/list.h"
 #include "src/natives.h"
 #include "src/platform.h"
 #include "src/serialize.h"
-#include "src/list.h"
 
 
 using namespace v8;

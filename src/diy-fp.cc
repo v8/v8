@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 #include "include/v8stdint.h"
-#include "src/globals.h"
 #include "src/checks.h"
 #include "src/diy-fp.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

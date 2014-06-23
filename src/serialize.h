@@ -334,10 +334,6 @@ class Deserializer: public SerializerDeserializer {
   Address Allocate(int space_index, int size) {
     Address address = high_water_[space_index];
     high_water_[space_index] = address + size;
-    HeapProfiler* profiler = isolate_->heap_profiler();
-    if (profiler->is_tracking_allocations()) {
-      profiler->AllocationEvent(address, size);
-    }
     return address;
   }
 

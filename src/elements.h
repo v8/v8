@@ -6,9 +6,9 @@
 #define V8_ELEMENTS_H_
 
 #include "src/elements-kind.h"
-#include "src/objects.h"
 #include "src/heap.h"
 #include "src/isolate.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {

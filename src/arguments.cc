@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
-#include "src/arguments.h"
 
+#include "src/arguments.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

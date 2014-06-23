@@ -70,6 +70,10 @@ ifeq ($(backtrace), off)
 else
   GYPFLAGS += -Dv8_enable_backtrace=1
 endif
+# verifypredictable=on
+ifeq ($(verifypredictable), on)
+  GYPFLAGS += -Dv8_enable_verify_predictable=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'

@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "src/v8.h"
@@ -1298,15 +1298,22 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
 
 
 void TestParserSync(const char* source,
-                    const ParserFlag* flag_list,
-                    size_t flag_list_length,
-                    ParserSyncTestResult result = kSuccessOrError) {
+                    const ParserFlag* varying_flags,
+                    size_t varying_flags_length,
+                    ParserSyncTestResult result = kSuccessOrError,
+                    const ParserFlag* always_true_flags = NULL,
+                    size_t always_true_flags_length = 0) {
   i::Handle<i::String> str =
       CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
-  for (int bits = 0; bits < (1 << flag_list_length); bits++) {
+  for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
     i::EnumSet<ParserFlag> flags;
-    for (size_t flag_index = 0; flag_index < flag_list_length; flag_index++) {
-      if ((bits & (1 << flag_index)) != 0) flags.Add(flag_list[flag_index]);
+    for (size_t flag_index = 0; flag_index < varying_flags_length;
+         ++flag_index) {
+      if ((bits & (1 << flag_index)) != 0) flags.Add(varying_flags[flag_index]);
+    }
+    for (size_t flag_index = 0; flag_index < always_true_flags_length;
+         ++flag_index) {
+      flags.Add(always_true_flags[flag_index]);
     }
     TestParserSyncWithFlags(str, flags, result);
   }
@@ -1458,7 +1465,9 @@ void RunParserSyncTest(const char* context_data[][2],
                        const char* statement_data[],
                        ParserSyncTestResult result,
                        const ParserFlag* flags = NULL,
-                       int flags_len = 0) {
+                       int flags_len = 0,
+                       const ParserFlag* always_true_flags = NULL,
+                       int always_true_flags_len = 0) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1471,9 +1480,29 @@ void RunParserSyncTest(const char* context_data[][2],
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
     kAllowForOf, kAllowNativesSyntax
   };
-  if (!flags) {
+  ParserFlag* generated_flags = NULL;
+  if (flags == NULL) {
     flags = default_flags;
     flags_len = ARRAY_SIZE(default_flags);
+    if (always_true_flags != NULL) {
+      // Remove always_true_flags from default_flags.
+      CHECK(always_true_flags_len < flags_len);
+      generated_flags = new ParserFlag[flags_len - always_true_flags_len];
+      int flag_index = 0;
+      for (int i = 0; i < flags_len; ++i) {
+        bool use_flag = true;
+        for (int j = 0; j < always_true_flags_len; ++j) {
+          if (flags[i] == always_true_flags[j]) {
+            use_flag = false;
+            break;
+          }
+        }
+        if (use_flag) generated_flags[flag_index++] = flags[i];
+      }
+      CHECK(flag_index == flags_len - always_true_flags_len);
+      flags_len = flag_index;
+      flags = generated_flags;
+    }
   }
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -1493,9 +1522,12 @@ void RunParserSyncTest(const char* context_data[][2],
       TestParserSync(program.start(),
                      flags,
                      flags_len,
-                     result);
+                     result,
+                     always_true_flags,
+                     always_true_flags_len);
     }
   }
+  delete[] generated_flags;
 }
 
 
@@ -1764,7 +1796,7 @@ TEST(ErrorsYieldStrict) {
 }
 
 
-TEST(ErrorsYield) {
+TEST(NoErrorsYield) {
   const char* context_data[][2] = {
     { "function * is_gen() {", "}" },
     { NULL, NULL }
@@ -1776,10 +1808,12 @@ TEST(ErrorsYield) {
     NULL
   };
 
-  // Here we cannot assert that there is no error, since there will be without
-  // the kAllowGenerators flag. However, we test that Parser and PreParser
-  // produce the same errors.
-  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
+  // This test requires kAllowGenerators to succeed.
+  static const ParserFlag always_true_flags[] = {
+    kAllowGenerators
+  };
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_true_flags, 1);
 }
 
 
@@ -2130,9 +2164,13 @@ TEST(Intrinsics) {
     NULL
   };
 
-  // Parsing will fail or succeed depending on whether we allow natives syntax
-  // or not.
-  RunParserSyncTest(context_data, statement_data, kSuccessOrError);
+  // This test requires kAllowNativesSyntax to succeed.
+  static const ParserFlag always_true_flags[] = {
+    kAllowNativesSyntax
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_true_flags, 1);
 }
 
 

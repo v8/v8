@@ -26,11 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
-
-#include "src/platform.h"
-#include "src/isolate.h"
-
 #include "test/cctest/cctest.h"
+
+#include "src/isolate.h"
+#include "src/platform.h"
 
 
 enum Turn {

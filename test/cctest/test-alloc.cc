@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
+
 #include "src/accessors.h"
 #include "src/api.h"
-
-#include "test/cctest/cctest.h"
 
 
 using namespace v8::internal;

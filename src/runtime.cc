@@ -18,24 +18,24 @@
 #include "src/conversions.h"
 #include "src/cpu.h"
 #include "src/cpu-profiler.h"
+#include "src/date.h"
 #include "src/dateparser-inl.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
-#include "src/date.h"
 #include "src/execution.h"
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/isolate-inl.h"
-#include "src/jsregexp.h"
-#include "src/jsregexp-inl.h"
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
+#include "src/jsregexp-inl.h"
+#include "src/jsregexp.h"
 #include "src/liveedit.h"
 #include "src/misc-intrinsics.h"
 #include "src/parser.h"
 #include "src/platform.h"
-#include "src/runtime-profiler.h"
 #include "src/runtime.h"
+#include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/smart-pointers.h"
 #include "src/string-search.h"
@@ -9652,7 +9652,13 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   // the number in a Date object representing a particular instant in
   // time is milliseconds. Therefore, we floor the result of getting
   // the OS time.
-  double millis = std::floor(OS::TimeCurrentMillis());
+  double millis;
+  if (FLAG_verify_predictable) {
+    millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
+    millis += std::floor(isolate->heap()->synthetic_time());
+  } else {
+    millis = std::floor(OS::TimeCurrentMillis());
+  }
   return *isolate->factory()->NewNumber(millis);
 }
 
@@ -10034,7 +10040,7 @@ class ArrayConcatVisitor {
       // getters on the arrays increasing the length of later arrays
       // during iteration.
       // This shouldn't happen in anything but pathological cases.
-      SetDictionaryMode(index);
+      SetDictionaryMode();
       // Fall-through to dictionary mode.
     }
     ASSERT(!fast_elements_);
@@ -10054,6 +10060,14 @@ class ArrayConcatVisitor {
       index_offset_ = JSObject::kMaxElementCount;
     } else {
       index_offset_ += delta;
+    }
+    // If the initial length estimate was off (see special case in visit()),
+    // but the array blowing the limit didn't contain elements beyond the
+    // provided-for index range, go to dictionary mode now.
+    if (fast_elements_ &&
+        index_offset_ >= static_cast<uint32_t>(
+            FixedArrayBase::cast(*storage_)->length())) {
+      SetDictionaryMode();
     }
   }
 
@@ -10076,7 +10090,7 @@ class ArrayConcatVisitor {
 
  private:
   // Convert storage to dictionary mode.
-  void SetDictionaryMode(uint32_t index) {
+  void SetDictionaryMode() {
     ASSERT(fast_elements_);
     Handle<FixedArray> current_storage(*storage_);
     Handle<SeededNumberDictionary> slow_storage(

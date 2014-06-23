@@ -7,8 +7,9 @@
 
 #include "src/globals.h"
 #include "src/utils.h"
-#include "src/arm64/decoder-arm64.h"
+
 #include "src/arm64/constants-arm64.h"
+#include "src/arm64/decoder-arm64.h"
 
 namespace v8 {
 namespace internal {

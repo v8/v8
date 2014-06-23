@@ -26,12 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
 
+#include "src/arm/assembler-arm-inl.h"
+#include "src/arm/simulator-arm.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
-#include "src/arm/simulator-arm.h"
-#include "src/arm/assembler-arm-inl.h"
-#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

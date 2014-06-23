@@ -12,7 +12,7 @@ namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
-#include "src/flag-definitions.h"
+#include "src/flag-definitions.h"  // NOLINT
 
 // The global list of all flags.
 class FlagList {

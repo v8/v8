@@ -301,13 +301,6 @@
   # should be platform-independent.
   'regress/regress-1132': [SKIP],
 
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
-
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 
@@ -352,13 +345,6 @@
   # the test requires too much time to run.  However, the problem test covers
   # should be platform-independent.
   'regress/regress-1132': [SKIP],
-
-  # Stack manipulations in LiveEdit is not implemented for this arch.
-  'debug-liveedit-check-stack': [SKIP],
-  'debug-liveedit-stack-padding': [SKIP],
-  'debug-liveedit-restart-frame': [SKIP],
-  'debug-liveedit-double-call': [SKIP],
-  'harmony/generators-debug-liveedit': [SKIP],
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],

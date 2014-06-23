@@ -43,8 +43,8 @@
 #include <stdio.h>
 #include <vector>
 
-#include "src/assembler.h"
 #include "src/arm/constants-arm.h"
+#include "src/assembler.h"
 #include "src/serialize.h"
 
 namespace v8 {

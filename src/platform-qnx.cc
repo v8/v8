@@ -5,27 +5,27 @@
 // Platform-specific code for QNX goes here. For the POSIX-compatible
 // parts the implementation is in platform-posix.cc.
 
+#include <backtrace.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <sys/types.h>
 #include <stdlib.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <sys/types.h>
 #include <ucontext.h>
-#include <backtrace.h>
 
 // QNX requires memory pages to be marked as executable.
 // Otherwise, the OS raises an exception when executing code in that page.
-#include <sys/types.h>  // mmap & munmap
-#include <sys/mman.h>   // mmap & munmap
-#include <sys/stat.h>   // open
-#include <fcntl.h>      // open
-#include <unistd.h>     // sysconf
-#include <strings.h>    // index
 #include <errno.h>
+#include <fcntl.h>      // open
 #include <stdarg.h>
+#include <strings.h>    // index
+#include <sys/mman.h>   // mmap & munmap
 #include <sys/procfs.h>
+#include <sys/stat.h>   // open
+#include <sys/types.h>  // mmap & munmap
+#include <unistd.h>     // sysconf
 
 #undef MAP_TYPE
 

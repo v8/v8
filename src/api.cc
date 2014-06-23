@@ -35,8 +35,8 @@
 #include "src/platform.h"
 #include "src/platform/time.h"
 #include "src/profile-generator-inl.h"
-#include "src/property-details.h"
 #include "src/property.h"
+#include "src/property-details.h"
 #include "src/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
@@ -1944,19 +1944,28 @@ Local<String> Message::Get() const {
 }
 
 
-v8::Handle<Value> Message::GetScriptResourceName() const {
+ScriptOrigin Message::GetScriptOrigin() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
-  ENTER_V8(isolate);
-  EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
-  // Return this.script.name.
-  i::Handle<i::JSValue> script =
-      i::Handle<i::JSValue>::cast(i::Handle<i::Object>(message->script(),
-                                                       isolate));
-  i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name(),
-                                     isolate);
-  return scope.Escape(Utils::ToLocal(resource_name));
+  i::Handle<i::Object> script_wraper =
+      i::Handle<i::Object>(message->script(), isolate);
+  i::Handle<i::JSValue> script_value =
+      i::Handle<i::JSValue>::cast(script_wraper);
+  i::Handle<i::Script> script(i::Script::cast(script_value->value()));
+  i::Handle<i::Object> scriptName(i::Script::GetNameOrSourceURL(script));
+  v8::Isolate* v8_isolate =
+      reinterpret_cast<v8::Isolate*>(script->GetIsolate());
+  v8::ScriptOrigin origin(
+      Utils::ToLocal(scriptName),
+      v8::Integer::New(v8_isolate, script->line_offset()->value()),
+      v8::Integer::New(v8_isolate, script->column_offset()->value()));
+  return origin;
+}
+
+
+v8::Handle<Value> Message::GetScriptResourceName() const {
+  return GetScriptOrigin().ResourceName();
 }
 
 

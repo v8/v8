@@ -6,9 +6,9 @@
 
 #include "src/v8.h"
 
+#include "src/platform.h"
 #include "src/prettyprinter.h"
 #include "src/scopes.h"
-#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

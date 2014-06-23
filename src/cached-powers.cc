@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdarg.h>
 #include <limits.h>
+#include <stdarg.h>
 #include <cmath>
 
 #include "include/v8stdint.h"
-#include "src/globals.h"
-#include "src/checks.h"
 #include "src/cached-powers.h"
+#include "src/checks.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {

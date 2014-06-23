@@ -9,8 +9,8 @@
 #if defined(_MSC_VER) && (_MSC_VER < 1800)
 
 #include "src/base/win32-headers.h"
-#include <limits.h>        // Required for INT_MAX etc.
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
+#include <limits.h>        // Required for INT_MAX etc.
 #include <cmath>
 #include "src/win32-math.h"
 

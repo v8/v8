@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/disassembler.h"
 #include "src/disasm.h"
+#include "src/disassembler.h"
 #include "src/jsregexp.h"
 #include "src/objects-visiting.h"
 
@@ -415,7 +415,7 @@ void JSObject::PrintTransitions(FILE* out) {
 
 
 void JSObject::JSObjectPrint(FILE* out) {
-  PrintF(out, "%p: [JSObject]\n", reinterpret_cast<void*>(this));
+  HeapObject::PrintHeader(out, "JSObject");
   PrintF(out, " - map = %p [", reinterpret_cast<void*>(map()));
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.

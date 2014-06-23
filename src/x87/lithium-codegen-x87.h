@@ -9,11 +9,11 @@
 
 #include "src/checks.h"
 #include "src/deoptimizer.h"
-#include "src/x87/lithium-gap-resolver-x87.h"
 #include "src/lithium-codegen.h"
 #include "src/safepoint-table.h"
 #include "src/scopes.h"
 #include "src/utils.h"
+#include "src/x87/lithium-gap-resolver-x87.h"
 
 namespace v8 {
 namespace internal {

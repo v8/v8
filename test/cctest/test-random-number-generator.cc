@@ -26,10 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
-
-#include "src/utils/random-number-generator.h"
-#include "src/isolate-inl.h"
 #include "test/cctest/cctest.h"
+
+#include "src/isolate-inl.h"
+#include "src/utils/random-number-generator.h"
 
 using namespace v8::internal;
 

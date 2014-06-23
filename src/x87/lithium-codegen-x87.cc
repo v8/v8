@@ -6,13 +6,13 @@
 
 #if V8_TARGET_ARCH_X87
 
-#include "src/x87/lithium-codegen-x87.h"
-#include "src/ic.h"
 #include "src/code-stubs.h"
-#include "src/deoptimizer.h"
-#include "src/stub-cache.h"
 #include "src/codegen.h"
+#include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic.h"
+#include "src/stub-cache.h"
+#include "src/x87/lithium-codegen-x87.h"
 
 namespace v8 {
 namespace internal {

@@ -15,15 +15,16 @@
 #include "src/property-details.h"
 #include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
-#if V8_TARGET_ARCH_ARM64
-#include "src/arm64/constants-arm64.h"
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/constants-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/constants-mips.h"
-#endif
 #include "src/v8checks.h"
 #include "src/zone.h"
+
+#if V8_TARGET_ARCH_ARM
+#include "src/arm/constants-arm.h"  // NOLINT
+#elif V8_TARGET_ARCH_ARM64
+#include "src/arm64/constants-arm64.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS
+#include "src/mips/constants-mips.h"  // NOLINT
+#endif
 
 
 //
@@ -844,12 +845,12 @@ enum CompareResult {
 
 
 #define DECL_BOOLEAN_ACCESSORS(name)   \
-  inline bool name();                  \
+  inline bool name() const;            \
   inline void set_##name(bool value);  \
 
 
 #define DECL_ACCESSORS(name, type)                                      \
-  inline type* name();                                                  \
+  inline type* name() const;                                            \
   inline void set_##name(type* value,                                   \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
@@ -1152,10 +1153,6 @@ template <class C> inline bool Is(Object* obj);
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size") \
   V(kLiveEditFrameDroppingIsNotSupportedOnARM64,                              \
     "LiveEdit frame dropping is not supported on arm64")                      \
-  V(kLiveEditFrameDroppingIsNotSupportedOnArm,                                \
-    "LiveEdit frame dropping is not supported on arm")                        \
-  V(kLiveEditFrameDroppingIsNotSupportedOnMips,                               \
-    "LiveEdit frame dropping is not supported on mips")                       \
   V(kLiveEdit, "LiveEdit")                                                    \
   V(kLookupVariableInCountOperation,                                          \
     "Lookup variable in count operation")                                     \
@@ -1575,7 +1572,7 @@ class Object {
 class Smi: public Object {
  public:
   // Returns the integer value.
-  inline int value();
+  inline int value() const;
 
   // Convert a value to a Smi object.
   static inline Smi* FromInt(int value);
@@ -1612,7 +1609,7 @@ class MapWord BASE_EMBEDDED {
   // Normal state: the map word contains a map pointer.
 
   // Create a map word from a map pointer.
-  static inline MapWord FromMap(Map* map);
+  static inline MapWord FromMap(const Map* map);
 
   // View this map word as a map pointer.
   inline Map* ToMap();
@@ -1656,7 +1653,7 @@ class HeapObject: public Object {
  public:
   // [map]: Contains a map which contains the object's reflective
   // information.
-  inline Map* map();
+  inline Map* map() const;
   inline void set_map(Map* value);
   // The no-write-barrier version.  This is OK if the object is white and in
   // new space, or if the value is an immortal immutable object, like the maps
@@ -1665,7 +1662,7 @@ class HeapObject: public Object {
 
   // Get the map using acquire load.
   inline Map* synchronized_map();
-  inline MapWord synchronized_map_word();
+  inline MapWord synchronized_map_word() const;
 
   // Set the map using release store
   inline void synchronized_set_map(Map* value);
@@ -1674,11 +1671,11 @@ class HeapObject: public Object {
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
-  inline MapWord map_word();
+  inline MapWord map_word() const;
   inline void set_map_word(MapWord map_word);
 
   // The Heap the object was allocated in. Used also to access Isolate.
-  inline Heap* GetHeap();
+  inline Heap* GetHeap() const;
 
   // Convenience method to get current isolate.
   inline Isolate* GetIsolate();
@@ -2869,11 +2866,11 @@ class JSObject: public JSReceiver {
 class FixedArrayBase: public HeapObject {
  public:
   // [length]: length of the array.
-  inline int length();
+  inline int length() const;
   inline void set_length(int value);
 
   // Get and set the length using acquire loads and release stores.
-  inline int synchronized_length();
+  inline int synchronized_length() const;
   inline void synchronized_set_length(int value);
 
   inline static FixedArrayBase* cast(Object* object);
@@ -4892,10 +4889,10 @@ class ByteArray: public FixedArrayBase {
 class FreeSpace: public HeapObject {
  public:
   // [size]: size of the free space including the header.
-  inline int size();
+  inline int size() const;
   inline void set_size(int value);
 
-  inline int nobarrier_size();
+  inline int nobarrier_size() const;
   inline void nobarrier_set_size(int value);
 
   inline int Size() { return size(); }
@@ -5486,7 +5483,7 @@ class Code: public HeapObject {
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
-  inline int instruction_size();
+  inline int instruction_size() const;
   inline void set_instruction_size(int value);
 
   // [relocation_info]: Code relocation information
@@ -5523,11 +5520,11 @@ class Code: public HeapObject {
   // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
   // at the moment when this object was created.
   inline void set_ic_age(int count);
-  inline int ic_age();
+  inline int ic_age() const;
 
   // [prologue_offset]: Offset of the function prologue, used for aging
   // FUNCTIONs and OPTIMIZED_FUNCTIONs.
-  inline int prologue_offset();
+  inline int prologue_offset() const;
   inline void set_prologue_offset(int offset);
 
   // Unchecked accessors to be used during GC.
@@ -6288,7 +6285,7 @@ class Map: public HeapObject {
   // map with DICTIONARY_ELEMENTS was found in the prototype chain.
   bool DictionaryElementsInPrototypeChainOnly();
 
-  inline bool HasTransitionArray();
+  inline bool HasTransitionArray() const;
   inline bool HasElementsTransition();
   inline Map* elements_transition_map();
   static Handle<TransitionArray> SetElementsTransitionMap(
@@ -6707,17 +6704,20 @@ class Map: public HeapObject {
 #if V8_TARGET_LITTLE_ENDIAN
   // Order instance type and bit field together such that they can be loaded
   // together as a 16-bit word with instance type in the lower 8 bits regardless
-  // of endianess.
+  // of endianess. Also provide endian-independent offset to that 16-bit word.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
   static const int kBitFieldOffset = kInstanceAttributesOffset + 1;
 #else
   static const int kBitFieldOffset = kInstanceAttributesOffset + 0;
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
 #endif
+  static const int kInstanceTypeAndBitFieldOffset =
+      kInstanceAttributesOffset + 0;
   static const int kBitField2Offset = kInstanceAttributesOffset + 2;
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
 
-  STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
+  STATIC_ASSERT(kInstanceTypeAndBitFieldOffset ==
+                Internals::kMapInstanceTypeAndBitFieldOffset);
 
   // Bit positions for bit field.
   static const int kHasNonInstancePrototype = 0;
@@ -7107,11 +7107,11 @@ class SharedFunctionInfo: public HeapObject {
 
   // [length]: The function length - usually the number of declared parameters.
   // Use up to 2^30 parameters.
-  inline int length();
+  inline int length() const;
   inline void set_length(int value);
 
   // [formal parameter count]: The declared number of parameters.
-  inline int formal_parameter_count();
+  inline int formal_parameter_count() const;
   inline void set_formal_parameter_count(int value);
 
   // Set the formal parameter count so the function code will be
@@ -7119,7 +7119,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void DontAdaptArguments();
 
   // [expected_nof_properties]: Expected number of properties for the function.
-  inline int expected_nof_properties();
+  inline int expected_nof_properties() const;
   inline void set_expected_nof_properties(int value);
 
   // [feedback_vector] - accumulates ast node feedback from full-codegen and
@@ -7148,7 +7148,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_ACCESSORS(script, Object)
 
   // [num_literals]: Number of literals used by this function.
-  inline int num_literals();
+  inline int num_literals() const;
   inline void set_num_literals(int value);
 
   // [start_position_and_type]: Field used to store both the source code
@@ -7156,7 +7156,7 @@ class SharedFunctionInfo: public HeapObject {
   // and whether or not the function is a toplevel function. The two
   // least significants bit indicates whether the function is an
   // expression and the rest contains the source code position.
-  inline int start_position_and_type();
+  inline int start_position_and_type() const;
   inline void set_start_position_and_type(int value);
 
   // [debug info]: Debug information.
@@ -7173,7 +7173,7 @@ class SharedFunctionInfo: public HeapObject {
   String* DebugName();
 
   // Position of the 'function' token in the script source.
-  inline int function_token_position();
+  inline int function_token_position() const;
   inline void set_function_token_position(int function_token_position);
 
   // Position of this function in the script source.
@@ -7181,7 +7181,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_start_position(int start_position);
 
   // End position of this function in the script source.
-  inline int end_position();
+  inline int end_position() const;
   inline void set_end_position(int end_position);
 
   // Is this function a function expression in the source code.
@@ -7192,13 +7192,13 @@ class SharedFunctionInfo: public HeapObject {
 
   // Bit field containing various information collected by the compiler to
   // drive optimization.
-  inline int compiler_hints();
+  inline int compiler_hints() const;
   inline void set_compiler_hints(int value);
 
-  inline int ast_node_count();
+  inline int ast_node_count() const;
   inline void set_ast_node_count(int count);
 
-  inline int profiler_ticks();
+  inline int profiler_ticks() const;
   inline void set_profiler_ticks(int ticks);
 
   // Inline cache age is used to infer whether the function survived a context
@@ -7314,11 +7314,11 @@ class SharedFunctionInfo: public HeapObject {
 
   // Stores deopt_count, opt_reenable_tries and ic_age as bit-fields.
   inline void set_counters(int value);
-  inline int counters();
+  inline int counters() const;
 
   // Stores opt_count and bailout_reason as bit-fields.
   inline void set_opt_count_and_bailout_reason(int value);
-  inline int opt_count_and_bailout_reason();
+  inline int opt_count_and_bailout_reason() const;
 
   void set_bailout_reason(BailoutReason reason) {
     set_opt_count_and_bailout_reason(
@@ -7550,7 +7550,7 @@ class JSGeneratorObject: public JSObject {
   // A positive offset indicates a suspended generator.  The special
   // kGeneratorExecuting and kGeneratorClosed values indicate that a generator
   // cannot be resumed.
-  inline int continuation();
+  inline int continuation() const;
   inline void set_continuation(int continuation);
   inline bool is_closed();
   inline bool is_executing();
@@ -7561,7 +7561,7 @@ class JSGeneratorObject: public JSObject {
 
   // [stack_handler_index]: Index of first stack handler in operand_stack, or -1
   // if the captured activation had no stack handler.
-  inline int stack_handler_index();
+  inline int stack_handler_index() const;
   inline void set_stack_handler_index(int stack_handler_index);
 
   // Casting.
@@ -8122,11 +8122,11 @@ class JSMessageObject: public JSObject {
   DECL_ACCESSORS(stack_frames, Object)
 
   // [start_position]: the start position in the script for the error message.
-  inline int start_position();
+  inline int start_position() const;
   inline void set_start_position(int value);
 
   // [end_position]: the end position in the script for the error message.
-  inline int end_position();
+  inline int end_position() const;
   inline void set_end_position(int value);
 
   // Casting.
@@ -8780,7 +8780,7 @@ class AllocationMemento: public Struct {
 // - all attributes are available as part if the property details
 class AliasedArgumentsEntry: public Struct {
  public:
-  inline int aliased_context_slot();
+  inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
 
   static inline AliasedArgumentsEntry* cast(Object* obj);
@@ -9117,12 +9117,12 @@ class String: public Name {
   };
 
   // Get and set the length of the string.
-  inline int length();
+  inline int length() const;
   inline void set_length(int value);
 
   // Get and set the length of the string using acquire loads and release
   // stores.
-  inline int synchronized_length();
+  inline int synchronized_length() const;
   inline void synchronized_set_length(int value);
 
   // Returns whether this string has only ASCII chars, i.e. all of them can
@@ -9520,7 +9520,7 @@ class SlicedString: public String {
   inline String* parent();
   inline void set_parent(String* parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline int offset();
+  inline int offset() const;
   inline void set_offset(int offset);
 
   // Dispatched behavior.
@@ -10902,7 +10902,7 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
 
-  inline int length();
+  inline int length() const;
   inline void set_length(int value);
 
   // Following properties use flag bits.

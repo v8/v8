@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/arm64/lithium-gap-resolver-arm64.h"
 #include "src/arm64/lithium-codegen-arm64.h"
+#include "src/arm64/lithium-gap-resolver-arm64.h"
 
 namespace v8 {
 namespace internal {

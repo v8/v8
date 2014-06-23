@@ -12,8 +12,8 @@
 #include "src/ast.h"
 #include "src/compiler.h"
 #include "src/hydrogen-instructions.h"
-#include "src/zone.h"
 #include "src/scopes.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {

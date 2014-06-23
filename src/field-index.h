@@ -5,8 +5,8 @@
 #ifndef V8_FIELD_INDEX_H_
 #define V8_FIELD_INDEX_H_
 
-#include "src/utils.h"
 #include "src/property-details.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

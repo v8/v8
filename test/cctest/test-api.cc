@@ -27,8 +27,8 @@
 
 #include <climits>
 #include <csignal>
-#include <string>
 #include <map>
+#include <string>
 
 #include "src/v8.h"
 
@@ -4153,7 +4153,7 @@ bool message_received;
 static void check_message_0(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
-  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
   CHECK(!message->IsSharedCrossOrigin());
   message_received = true;
 }
@@ -4227,7 +4227,7 @@ TEST(MessageHandler2) {
 static void check_message_3(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK(message->IsSharedCrossOrigin());
-  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -4256,7 +4256,7 @@ TEST(MessageHandler3) {
 static void check_message_4(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK(!message->IsSharedCrossOrigin());
-  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -4285,7 +4285,7 @@ TEST(MessageHandler4) {
 static void check_message_5a(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK(message->IsSharedCrossOrigin());
-  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -4293,7 +4293,7 @@ static void check_message_5a(v8::Handle<v8::Message> message,
 static void check_message_5b(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
   CHECK(!message->IsSharedCrossOrigin());
-  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptOrigin().ResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -5339,7 +5339,7 @@ TEST(TryCatchNested) {
 void TryCatchMixedNestingCheck(v8::TryCatch* try_catch) {
   CHECK(try_catch->HasCaught());
   Handle<Message> message = try_catch->Message();
-  Handle<Value> resource = message->GetScriptResourceName();
+  Handle<Value> resource = message->GetScriptOrigin().ResourceName();
   CHECK_EQ(0, strcmp(*v8::String::Utf8Value(resource), "inner"));
   CHECK_EQ(0, strcmp(*v8::String::Utf8Value(message->Get()),
                      "Uncaught Error: a"));
@@ -7110,8 +7110,9 @@ TEST(ErrorReporting) {
 
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
-  CHECK(message->GetScriptResourceName()->IsUndefined());
-  CHECK_EQ(v8::Undefined(CcTest::isolate()), message->GetScriptResourceName());
+  CHECK(message->GetScriptOrigin().ResourceName()->IsUndefined());
+  CHECK_EQ(v8::Undefined(CcTest::isolate()),
+      message->GetScriptOrigin().ResourceName());
   message->GetLineNumber();
   message->GetSourceLine();
 }
@@ -8296,9 +8297,9 @@ TEST(ApiUncaughtException) {
 static const char* script_resource_name = "ExceptionInNativeScript.js";
 static void ExceptionInNativeScriptTestListener(v8::Handle<v8::Message> message,
                                                 v8::Handle<Value>) {
-  v8::Handle<v8::Value> name_val = message->GetScriptResourceName();
+  v8::Handle<v8::Value> name_val = message->GetScriptOrigin().ResourceName();
   CHECK(!name_val.IsEmpty() && name_val->IsString());
-  v8::String::Utf8Value name(message->GetScriptResourceName());
+  v8::String::Utf8Value name(message->GetScriptOrigin().ResourceName());
   CHECK_EQ(script_resource_name, *name);
   CHECK_EQ(3, message->GetLineNumber());
   v8::String::Utf8Value source_line(message->GetSourceLine());
@@ -13028,7 +13029,7 @@ static void WebKitLike(Handle<Message> message, Handle<Value> data) {
   Handle<String> errorMessageString = message->Get();
   CHECK(!errorMessageString.IsEmpty());
   message->GetStackTrace();
-  message->GetScriptResourceName();
+  message->GetScriptOrigin().ResourceName();
 }
 
 
@@ -14424,7 +14425,7 @@ static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
   CHECK_EQ(3, message->GetEndColumn());
   v8::String::Utf8Value line(message->GetSourceLine());
   CHECK_EQ("  throw 'nirk';", *line);
-  v8::String::Utf8Value name(message->GetScriptResourceName());
+  v8::String::Utf8Value name(message->GetScriptOrigin().ResourceName());
   CHECK_EQ(resource_name, *name);
 }
 
@@ -17697,6 +17698,54 @@ TEST(DynamicWithSourceURLInStackTraceString) {
   CHECK(try_catch.HasCaught());
   v8::String::Utf8Value stack(try_catch.StackTrace());
   CHECK(strstr(*stack, "at foo (source_url:3:5)") != NULL);
+}
+
+
+TEST(EvalWithSourceURLInMessageScriptResourceNameOrSourceURL) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char *source =
+    "function outer() {\n"
+    "  var scriptContents = \"function foo() { FAIL.FAIL; }\\\n"
+    "  //# sourceURL=source_url\";\n"
+    "  eval(scriptContents);\n"
+    "  foo(); }\n"
+    "outer();\n"
+    "//# sourceURL=outer_url";
+
+  v8::TryCatch try_catch;
+  CompileRun(source);
+  CHECK(try_catch.HasCaught());
+
+  Local<v8::Message> message = try_catch.Message();
+  Handle<Value> sourceURL =
+    message->GetScriptOrigin().ResourceName();
+  CHECK_EQ(*v8::String::Utf8Value(sourceURL), "source_url");
+}
+
+
+TEST(RecursionWithSourceURLInMessageScriptResourceNameOrSourceURL) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char *source =
+    "function outer() {\n"
+    "  var scriptContents = \"function boo(){ boo(); }\\\n"
+    "  //# sourceURL=source_url\";\n"
+    "  eval(scriptContents);\n"
+    "  boo(); }\n"
+    "outer();\n"
+    "//# sourceURL=outer_url";
+
+  v8::TryCatch try_catch;
+  CompileRun(source);
+  CHECK(try_catch.HasCaught());
+
+  Local<v8::Message> message = try_catch.Message();
+  Handle<Value> sourceURL =
+    message->GetScriptOrigin().ResourceName();
+  CHECK_EQ(*v8::String::Utf8Value(sourceURL), "source_url");
 }
 
 

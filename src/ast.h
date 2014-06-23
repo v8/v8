@@ -10,6 +10,7 @@
 #include "src/assembler.h"
 #include "src/factory.h"
 #include "src/feedback-slots.h"
+#include "src/interface.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/list-inl.h"
@@ -20,7 +21,6 @@
 #include "src/types.h"
 #include "src/utils.h"
 #include "src/variables.h"
-#include "src/interface.h"
 #include "src/zone-inl.h"
 
 namespace v8 {

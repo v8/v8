@@ -1,3 +1,15 @@
+2014-06-23: Version 3.28.0
+
+        MIPS: Support LiveEdit (Chromium issue 368580).
+
+        Array.concat: properly go to dictionary mode when required (Chromium
+        issue 387031).
+
+        Support LiveEdit on ARM (Chromium issue 368580).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-18: Version 3.27.34
 
         Reduce number of writes to DependentCode array when inserting dependent

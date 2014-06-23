@@ -7,10 +7,11 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/assembler.h"
-#include "src/arm/assembler-arm.h"
-#include "src/arm/assembler-arm-inl.h"
 #include "src/frames.h"
 #include "src/macro-assembler.h"
+
+#include "src/arm/assembler-arm-inl.h"
+#include "src/arm/assembler-arm.h"
 #include "src/arm/macro-assembler-arm.h"
 
 namespace v8 {

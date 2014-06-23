@@ -26,15 +26,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
+#include "test/cctest/cctest.h"
 
 #include "src/api.h"
 #include "src/debug.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
-#include "src/global-handles.h"
-#include "test/cctest/cctest.h"
 
 using namespace v8::internal;
 

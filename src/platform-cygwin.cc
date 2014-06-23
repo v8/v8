@@ -10,8 +10,8 @@
 #include <semaphore.h>
 #include <stdarg.h>
 #include <strings.h>    // index
-#include <sys/time.h>
 #include <sys/mman.h>   // mmap & munmap
+#include <sys/time.h>
 #include <unistd.h>     // sysconf
 
 #undef MAP_TYPE

@@ -5,8 +5,8 @@
 #ifndef V8_CONVERSIONS_INL_H_
 #define V8_CONVERSIONS_INL_H_
 
-#include <limits.h>        // Required for INT_MAX etc.
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
+#include <limits.h>        // Required for INT_MAX etc.
 #include <stdarg.h>
 #include <cmath>
 #include "src/globals.h"       // Required for V8_INFINITY

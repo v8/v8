@@ -2806,10 +2806,6 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
                                          AllocationSpace dest) {
   Address dst_addr = dst->address();
   Address src_addr = src->address();
-  HeapProfiler* heap_profiler = heap()->isolate()->heap_profiler();
-  if (heap_profiler->is_tracking_object_moves()) {
-    heap_profiler->ObjectMoveEvent(src_addr, dst_addr, size);
-  }
   ASSERT(heap()->AllowedToBeMigrated(src, dest));
   ASSERT(dest != LO_SPACE && size <= Page::kMaxRegularHeapObjectSize);
   if (dest == OLD_POINTER_SPACE) {
@@ -2876,6 +2872,7 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
     ASSERT(dest == OLD_DATA_SPACE || dest == NEW_SPACE);
     heap()->MoveBlock(dst_addr, src_addr, size);
   }
+  heap()->OnMoveEvent(dst, src, size);
   Memory::Address_at(src_addr) = dst_addr;
 }
 

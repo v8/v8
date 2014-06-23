@@ -20,23 +20,24 @@
 #include "src/isolate-inl.h"
 #include "src/mark-compact.h"
 #include "src/natives.h"
-#include "src/objects-visiting.h"
 #include "src/objects-visiting-inl.h"
+#include "src/objects-visiting.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
 #include "src/snapshot.h"
 #include "src/store-buffer.h"
-#include "src/utils/random-number-generator.h"
 #include "src/utils.h"
+#include "src/utils/random-number-generator.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
+
 #if V8_TARGET_ARCH_ARM && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"
-#include "src/arm/regexp-macro-assembler-arm.h"
+#include "src/regexp-macro-assembler.h"  // NOLINT
+#include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #endif
 #if V8_TARGET_ARCH_MIPS && !V8_INTERPRETED_REGEXP
-#include "src/regexp-macro-assembler.h"
-#include "src/mips/regexp-macro-assembler-mips.h"
+#include "src/regexp-macro-assembler.h"  // NOLINT
+#include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #endif
 
 namespace v8 {
@@ -64,7 +65,6 @@ Heap::Heap()
       survived_since_last_expansion_(0),
       sweep_generation_(0),
       always_allocate_scope_depth_(0),
-      linear_allocation_scope_depth_(0),
       contexts_disposed_(0),
       global_ic_age_(0),
       flush_monomorphic_ics_(false),
@@ -79,6 +79,9 @@ Heap::Heap()
       lo_space_(NULL),
       gc_state_(NOT_IN_GC),
       gc_post_processing_depth_(0),
+      allocations_count_(0),
+      raw_allocations_hash_(0),
+      dump_allocations_hash_countdown_(FLAG_dump_allocations_digest_at_alloc),
       ms_count_(0),
       gc_count_(0),
       remembered_unmapped_pages_index_(0),
@@ -1957,19 +1960,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (logging_and_profiling_mode == LOGGING_AND_PROFILING_ENABLED) {
       // Update NewSpace stats if necessary.
       RecordCopiedObject(heap, target);
-      Isolate* isolate = heap->isolate();
-      HeapProfiler* heap_profiler = isolate->heap_profiler();
-      if (heap_profiler->is_tracking_object_moves()) {
-        heap_profiler->ObjectMoveEvent(source->address(), target->address(),
-                                       size);
-      }
-      if (isolate->logger()->is_logging_code_events() ||
-          isolate->cpu_profiler()->is_profiling()) {
-        if (target->IsSharedFunctionInfo()) {
-          PROFILE(isolate, SharedFunctionInfoMoveEvent(
-              source->address(), target->address()));
-        }
-      }
+      heap->OnMoveEvent(target, source, size);
     }
 
     if (marks_handling == TRANSFER_MARKS) {
@@ -2224,6 +2215,7 @@ static void InitializeScavengingVisitorsTables() {
 
 void Heap::SelectScavengingVisitorsTable() {
   bool logging_and_profiling =
+      FLAG_verify_predictable ||
       isolate()->logger()->is_logging() ||
       isolate()->cpu_profiler()->is_profiling() ||
       (isolate()->heap_profiler() != NULL &&
@@ -3338,29 +3330,28 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
 }
 
 
-AllocationResult Heap::AllocateCode(int object_size,
-                                bool immovable) {
+AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   ASSERT(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
-  AllocationResult allocation;
-  // Large code objects and code objects which should stay at a fixed address
-  // are allocated in large object space.
+  AllocationResult allocation =
+      AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
+
   HeapObject* result;
-  bool force_lo_space = object_size > code_space()->AreaSize();
-  if (force_lo_space) {
-    allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
-  } else {
-    allocation = AllocateRaw(object_size, CODE_SPACE, CODE_SPACE);
-  }
   if (!allocation.To(&result)) return allocation;
 
-  if (immovable && !force_lo_space &&
-     // Objects on the first page of each space are never moved.
-     !code_space_->FirstPage()->Contains(result->address())) {
-    // Discard the first code allocation, which was on a page where it could be
-    // moved.
-    CreateFillerObjectAt(result->address(), object_size);
-    allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
-    if (!allocation.To(&result)) return allocation;
+  if (immovable) {
+    Address address = result->address();
+    // Code objects which should stay at a fixed address are allocated either
+    // in the first page of code space (objects on the first page of each space
+    // are never moved) or in large object space.
+    if (!code_space_->FirstPage()->Contains(address) &&
+        MemoryChunk::FromAddress(address)->owner()->identity() != LO_SPACE) {
+      // Discard the first code allocation, which was on a page where it could
+      // be moved.
+      CreateFillerObjectAt(result->address(), object_size);
+      allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
+      if (!allocation.To(&result)) return allocation;
+      OnAllocationEvent(result, object_size);
+    }
   }
 
   result->set_map_no_write_barrier(code_map());
@@ -3387,15 +3378,10 @@ AllocationResult Heap::CopyCode(Code* code) {
     new_constant_pool = empty_constant_pool_array();
   }
 
+  HeapObject* result;
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
-  if (obj_size > code_space()->AreaSize()) {
-    allocation = lo_space_->AllocateRaw(obj_size, EXECUTABLE);
-  } else {
-    allocation = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
-  }
-
-  HeapObject* result;
+  allocation = AllocateRaw(obj_size, CODE_SPACE, CODE_SPACE);
   if (!allocation.To(&result)) return allocation;
 
   // Copy code object.
@@ -3445,14 +3431,9 @@ AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   size_t relocation_offset =
       static_cast<size_t>(code->instruction_end() - old_addr);
 
-  AllocationResult allocation;
-  if (new_obj_size > code_space()->AreaSize()) {
-    allocation = lo_space_->AllocateRaw(new_obj_size, EXECUTABLE);
-  } else {
-    allocation = AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
-  }
-
   HeapObject* result;
+  AllocationResult allocation =
+      AllocateRaw(new_obj_size, CODE_SPACE, CODE_SPACE);
   if (!allocation.To(&result)) return allocation;
 
   // Copy code object.
@@ -5257,6 +5238,10 @@ void Heap::TearDown() {
     PrintF("maximum_committed_by_lo_space=%" V8_PTR_PREFIX "d ",
       lo_space_->MaximumCommittedMemory());
     PrintF("\n\n");
+  }
+
+  if (FLAG_verify_predictable) {
+    PrintAlloctionsHash();
   }
 
   TearDownArrayBuffers();

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/hashmap.h"
+#include "src/preparse-data-format.h"
 #include "src/utils-inl.h"
 
 namespace v8 {

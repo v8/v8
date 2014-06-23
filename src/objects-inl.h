@@ -13,23 +13,23 @@
 #define V8_OBJECTS_INL_H_
 
 #include "src/base/atomicops.h"
-#include "src/elements.h"
-#include "src/objects.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
+#include "src/elements.h"
+#include "src/factory.h"
 #include "src/field-index-inl.h"
-#include "src/heap.h"
-#include "src/isolate.h"
 #include "src/heap-inl.h"
+#include "src/heap.h"
+#include "src/incremental-marking.h"
+#include "src/isolate.h"
+#include "src/lookup.h"
+#include "src/objects.h"
+#include "src/objects-visiting.h"
 #include "src/property.h"
 #include "src/spaces.h"
 #include "src/store-buffer.h"
-#include "src/v8memory.h"
-#include "src/factory.h"
-#include "src/incremental-marking.h"
 #include "src/transitions-inl.h"
-#include "src/objects-visiting.h"
-#include "src/lookup.h"
+#include "src/v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -67,30 +67,30 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 
-#define INT_ACCESSORS(holder, name, offset)                             \
-  int holder::name() { return READ_INT_FIELD(this, offset); }           \
+#define INT_ACCESSORS(holder, name, offset)                                   \
+  int holder::name() const { return READ_INT_FIELD(this, offset); }           \
   void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
 
 
-#define ACCESSORS(holder, name, type, offset)                           \
-  type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {         \
-    WRITE_FIELD(this, offset, value);                                   \
-    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);    \
+#define ACCESSORS(holder, name, type, offset)                                 \
+  type* holder::name() const { return type::cast(READ_FIELD(this, offset)); } \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {               \
+    WRITE_FIELD(this, offset, value);                                         \
+    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);          \
   }
 
 
 // Getter that returns a tagged Smi and setter that writes a tagged Smi.
-#define ACCESSORS_TO_SMI(holder, name, offset)                          \
-  Smi* holder::name() { return Smi::cast(READ_FIELD(this, offset)); }   \
-  void holder::set_##name(Smi* value, WriteBarrierMode mode) {          \
-    WRITE_FIELD(this, offset, value);                                   \
+#define ACCESSORS_TO_SMI(holder, name, offset)                              \
+  Smi* holder::name() const { return Smi::cast(READ_FIELD(this, offset)); } \
+  void holder::set_##name(Smi* value, WriteBarrierMode mode) {              \
+    WRITE_FIELD(this, offset, value);                                       \
   }
 
 
 // Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS(holder, name, offset)             \
-  int holder::name() {                                  \
+  int holder::name() const {                            \
     Object* value = READ_FIELD(this, offset);           \
     return Smi::cast(value)->value();                   \
   }                                                     \
@@ -99,7 +99,7 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 #define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)    \
-  int holder::synchronized_##name() {                       \
+  int holder::synchronized_##name() const {                 \
     Object* value = ACQUIRE_READ_FIELD(this, offset);       \
     return Smi::cast(value)->value();                       \
   }                                                         \
@@ -108,7 +108,7 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 #define NOBARRIER_SMI_ACCESSORS(holder, name, offset)          \
-  int holder::nobarrier_##name() {                             \
+  int holder::nobarrier_##name() const {                       \
     Object* value = NOBARRIER_READ_FIELD(this, offset);        \
     return Smi::cast(value)->value();                          \
   }                                                            \
@@ -117,13 +117,13 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 #define BOOL_GETTER(holder, field, name, offset)           \
-  bool holder::name() {                                    \
+  bool holder::name() const {                              \
     return BooleanBit::get(field(), offset);               \
   }                                                        \
 
 
 #define BOOL_ACCESSORS(holder, field, name, offset)        \
-  bool holder::name() {                                    \
+  bool holder::name() const {                              \
     return BooleanBit::get(field(), offset);               \
   }                                                        \
   void holder::set_##name(bool value) {                    \
@@ -1121,16 +1121,19 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 #define FIELD_ADDR(p, offset) \
   (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
 
+#define FIELD_ADDR_CONST(p, offset) \
+  (reinterpret_cast<const byte*>(p) + offset - kHeapObjectTag)
+
 #define READ_FIELD(p, offset) \
-  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<Object* const*>(FIELD_ADDR_CONST(p, offset)))
 
 #define ACQUIRE_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::Acquire_Load( \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset))))
+      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
 #define NOBARRIER_READ_FIELD(p, offset)           \
   reinterpret_cast<Object*>(base::NoBarrier_Load( \
-      reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset))))
+      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
@@ -1163,17 +1166,19 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 
 #ifndef V8_TARGET_ARCH_MIPS
   #define READ_DOUBLE_FIELD(p, offset) \
-    (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
+    (*reinterpret_cast<const double*>(FIELD_ADDR_CONST(p, offset)))
 #else  // V8_TARGET_ARCH_MIPS
   // Prevent gcc from using load-double (mips ldc1) on (possibly)
   // non-64-bit aligned HeapNumber::value.
-  static inline double read_double_field(void* p, int offset) {
+  static inline double read_double_field(const void* p, int offset) {
     union conversion {
       double d;
       uint32_t u[2];
     } c;
-    c.u[0] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)));
-    c.u[1] = (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset + 4)));
+    c.u[0] = (*reinterpret_cast<const uint32_t*>(
+        FIELD_ADDR_CONST(p, offset)));
+    c.u[1] = (*reinterpret_cast<const uint32_t*>(
+        FIELD_ADDR_CONST(p, offset + 4)));
     return c.d;
   }
   #define READ_DOUBLE_FIELD(p, offset) read_double_field(p, offset)
@@ -1201,43 +1206,43 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
 
 
 #define READ_INT_FIELD(p, offset) \
-  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const int*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_INTPTR_FIELD(p, offset) \
-  (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const intptr_t*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_INTPTR_FIELD(p, offset, value) \
   (*reinterpret_cast<intptr_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_UINT32_FIELD(p, offset) \
-  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const uint32_t*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_UINT32_FIELD(p, offset, value) \
   (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_INT32_FIELD(p, offset) \
-  (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const int32_t*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_INT64_FIELD(p, offset) \
-  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const int64_t*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_INT64_FIELD(p, offset, value) \
   (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_SHORT_FIELD(p, offset) \
-  (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const uint16_t*>(FIELD_ADDR_CONST(p, offset)))
 
 #define WRITE_SHORT_FIELD(p, offset, value) \
   (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)) = value)
 
 #define READ_BYTE_FIELD(p, offset) \
-  (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)))
+  (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
 
 #define NOBARRIER_READ_BYTE_FIELD(p, offset) \
   static_cast<byte>(base::NoBarrier_Load(    \
@@ -1252,11 +1257,11 @@ bool JSProxy::HasElementWithHandler(Handle<JSProxy> proxy, uint32_t index) {
       static_cast<base::Atomic8>(value));
 
 Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
-  return &READ_FIELD(obj, byte_offset);
+  return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
 
 
-int Smi::value() {
+int Smi::value() const {
   return Internals::SmiValue(this);
 }
 
@@ -1281,7 +1286,7 @@ bool Smi::IsValid(intptr_t value) {
 }
 
 
-MapWord MapWord::FromMap(Map* map) {
+MapWord MapWord::FromMap(const Map* map) {
   return MapWord(reinterpret_cast<uintptr_t>(map));
 }
 
@@ -1319,9 +1324,9 @@ void HeapObject::VerifySmiField(int offset) {
 #endif
 
 
-Heap* HeapObject::GetHeap() {
+Heap* HeapObject::GetHeap() const {
   Heap* heap =
-      MemoryChunk::FromAddress(reinterpret_cast<Address>(this))->heap();
+      MemoryChunk::FromAddress(reinterpret_cast<const byte*>(this))->heap();
   SLOW_ASSERT(heap != NULL);
   return heap;
 }
@@ -1332,7 +1337,7 @@ Isolate* HeapObject::GetIsolate() {
 }
 
 
-Map* HeapObject::map() {
+Map* HeapObject::map() const {
 #ifdef DEBUG
   // Clear mark potentially added by PathTracer.
   uintptr_t raw_value =
@@ -1380,7 +1385,7 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
 }
 
 
-MapWord HeapObject::map_word() {
+MapWord HeapObject::map_word() const {
   return MapWord(
       reinterpret_cast<uintptr_t>(NOBARRIER_READ_FIELD(this, kMapOffset)));
 }
@@ -1392,7 +1397,7 @@ void HeapObject::set_map_word(MapWord map_word) {
 }
 
 
-MapWord HeapObject::synchronized_map_word() {
+MapWord HeapObject::synchronized_map_word() const {
   return MapWord(
       reinterpret_cast<uintptr_t>(ACQUIRE_READ_FIELD(this, kMapOffset)));
 }
@@ -1476,7 +1481,7 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
 }
 
 
-FixedArrayBase* JSObject::elements() {
+FixedArrayBase* JSObject::elements() const {
   Object* array = READ_FIELD(this, kElementsOffset);
   return static_cast<FixedArrayBase*>(array);
 }
@@ -1817,7 +1822,7 @@ void Oddball::set_kind(byte value) {
 }
 
 
-Object* Cell::value() {
+Object* Cell::value() const {
   return READ_FIELD(this, kValueOffset);
 }
 
@@ -1830,7 +1835,7 @@ void Cell::set_value(Object* val, WriteBarrierMode ignored) {
 
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 
-Object* PropertyCell::type_raw() {
+Object* PropertyCell::type_raw() const {
   return READ_FIELD(this, kTypeOffset);
 }
 
@@ -3645,7 +3650,7 @@ void ExternalUint8ClampedArray::set(int index, uint8_t value) {
 }
 
 
-void* ExternalArray::external_pointer() {
+void* ExternalArray::external_pointer() const {
   intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
   return reinterpret_cast<void*>(ptr);
 }
@@ -4885,7 +4890,7 @@ bool Code::IsWeakObjectInIC(Object* object) {
 }
 
 
-Object* Map::prototype() {
+Object* Map::prototype() const {
   return READ_FIELD(this, kPrototypeOffset);
 }
 
@@ -4961,7 +4966,7 @@ bool Map::HasElementsTransition() {
 }
 
 
-bool Map::HasTransitionArray() {
+bool Map::HasTransitionArray() const {
   Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
   return object->IsTransitionArray();
 }
@@ -5021,7 +5026,7 @@ bool Map::HasPrototypeTransitions() {
 }
 
 
-TransitionArray* Map::transitions() {
+TransitionArray* Map::transitions() const {
   ASSERT(HasTransitionArray());
   Object* object = READ_FIELD(this, kTransitionsOrBackPointerOffset);
   return TransitionArray::cast(object);
@@ -5286,7 +5291,7 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
   STATIC_ASSERT(holder::offset % kPointerSize == 0);              \
-  int holder::name() {                                            \
+  int holder::name() const {                                      \
     int value = READ_INT_FIELD(this, offset);                     \
     ASSERT(kHeapObjectTag == 1);                                  \
     ASSERT((value & kHeapObjectTag) == 0);                        \
@@ -5428,7 +5433,7 @@ void SharedFunctionInfo::set_start_position(int start_position) {
 }
 
 
-Code* SharedFunctionInfo::code() {
+Code* SharedFunctionInfo::code() const {
   return Code::cast(READ_FIELD(this, kCodeOffset));
 }
 
@@ -5454,7 +5459,7 @@ void SharedFunctionInfo::ReplaceCode(Code* value) {
 }
 
 
-ScopeInfo* SharedFunctionInfo::scope_info() {
+ScopeInfo* SharedFunctionInfo::scope_info() const {
   return reinterpret_cast<ScopeInfo*>(READ_FIELD(this, kScopeInfoOffset));
 }
 
@@ -5826,7 +5831,7 @@ ACCESSORS(JSMap, table, Object, kTableOffset)
 
 #define ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(name, type, offset)    \
   template<class Derived, class TableType>                           \
-  type* OrderedHashTableIterator<Derived, TableType>::name() {       \
+  type* OrderedHashTableIterator<Derived, TableType>::name() const { \
     return type::cast(READ_FIELD(this, offset));                     \
   }                                                                  \
   template<class Derived, class TableType>                           \
@@ -6042,7 +6047,7 @@ bool Code::contains(byte* inner_pointer) {
 ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 
-void* JSArrayBuffer::backing_store() {
+void* JSArrayBuffer::backing_store() const {
   intptr_t ptr = READ_INTPTR_FIELD(this, kBackingStoreOffset);
   return reinterpret_cast<void*>(ptr);
 }
@@ -6972,6 +6977,7 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 #undef BOOL_GETTER
 #undef BOOL_ACCESSORS
 #undef FIELD_ADDR
+#undef FIELD_ADDR_CONST
 #undef READ_FIELD
 #undef NOBARRIER_READ_FIELD
 #undef WRITE_FIELD

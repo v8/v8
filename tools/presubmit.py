@@ -54,6 +54,7 @@ build/class
 build/deprecated
 build/endif_comment
 build/forward_decl
+build/include_alpha
 build/include_order
 build/printf_format
 build/storage_class

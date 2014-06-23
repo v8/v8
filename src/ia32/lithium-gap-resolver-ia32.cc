@@ -6,8 +6,8 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/ia32/lithium-gap-resolver-ia32.h"
 #include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ia32/lithium-gap-resolver-ia32.h"
 
 namespace v8 {
 namespace internal {

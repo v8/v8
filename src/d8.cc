@@ -290,9 +290,18 @@ int PerIsolateData::RealmIndexOrThrow(
 
 #ifndef V8_SHARED
 // performance.now() returns a time stamp as double, measured in milliseconds.
+// When FLAG_verify_predictable mode is enabled it returns current value
+// of Heap::allocations_count().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
-  args.GetReturnValue().Set(delta.InMillisecondsF());
+  if (i::FLAG_verify_predictable) {
+    Isolate* v8_isolate = args.GetIsolate();
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(v8_isolate)->heap();
+    args.GetReturnValue().Set(heap->synthetic_time());
+
+  } else {
+    i::TimeDelta delta = i::TimeTicks::HighResolutionNow() - kInitialTicks;
+    args.GetReturnValue().Set(delta.InMillisecondsF());
+  }
 }
 #endif  // !V8_SHARED
 
@@ -552,7 +561,7 @@ void Shell::ReportException(Isolate* isolate, v8::TryCatch* try_catch) {
     printf("%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
-    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    v8::String::Utf8Value filename(message->GetScriptOrigin().ResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
     printf("%s:%i: %s\n", filename_string, linenum, exception_string);

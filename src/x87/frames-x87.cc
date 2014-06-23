@@ -7,9 +7,9 @@
 #if V8_TARGET_ARCH_X87
 
 #include "src/assembler.h"
-#include "src/x87/assembler-x87.h"
-#include "src/x87/assembler-x87-inl.h"
 #include "src/frames.h"
+#include "src/x87/assembler-x87-inl.h"
+#include "src/x87/assembler-x87.h"
 
 namespace v8 {
 namespace internal {

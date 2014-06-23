@@ -792,9 +792,8 @@ Object* Isolate::StackOverflow() {
       JSObject::GetDataProperty(Handle<JSObject>::cast(error),
                                 stackTraceLimit);
   if (!stack_trace_limit->IsNumber()) return heap()->exception();
-  double dlimit = stack_trace_limit->Number();
-  int limit = std::isnan(dlimit) ? 0 : static_cast<int>(dlimit);
-
+  int limit = FastD2IChecked(stack_trace_limit->Number());
+  if (limit < 0) limit = 0;
   Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
       exception, factory()->undefined_value(), limit);
   JSObject::SetHiddenProperty(exception,

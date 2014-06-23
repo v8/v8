@@ -4,8 +4,8 @@
 
 #include "src/v8.h"
 
-#include "src/mips/lithium-gap-resolver-mips.h"
 #include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-gap-resolver-mips.h"
 
 namespace v8 {
 namespace internal {

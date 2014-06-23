@@ -15,20 +15,6 @@ namespace base {
 #ifndef TSAN_INTERFACE_ATOMIC_H
 #define TSAN_INTERFACE_ATOMIC_H
 
-// This struct is not part of the public API of this module; clients may not
-// use it.  (However, it's exported via BASE_EXPORT because clients implicitly
-// do use it at link time by inlining these functions.)
-// Features of this x86.  Values may not be correct before main() is run,
-// but are set conservatively.
-struct AtomicOps_x86CPUFeatureStruct {
-  bool has_amd_lock_mb_bug;  // Processor has AMD memory-barrier bug; do lfence
-                             // after acquire compare-and-swap.
-  bool has_sse2;             // Processor has SSE2.
-};
-extern struct AtomicOps_x86CPUFeatureStruct
-    AtomicOps_Internalx86CPUFeatures;
-
-#define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
 
 extern "C" {
 typedef char  __tsan_atomic8;
@@ -373,7 +359,5 @@ inline void MemoryBarrier() {
 
 }  // namespace base
 }  // namespace v8
-
-#undef ATOMICOPS_COMPILER_BARRIER
 
 #endif  // V8_BASE_ATOMICOPS_INTERNALS_TSAN_H_

@@ -3518,34 +3518,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       handler_count = function_state.handler_count();
     }
 
-    // Validate strict mode. We can do this only after parsing the function,
-    // since the function can declare itself strict.
+    // Validate strict mode.
     if (strict_mode() == STRICT) {
-      if (IsEvalOrArguments(function_name)) {
-        ReportMessageAt(function_name_location, "strict_eval_arguments");
-        *ok = false;
-        return NULL;
-      }
-      if (name_is_strict_reserved) {
-        ReportMessageAt(function_name_location, "unexpected_strict_reserved");
-        *ok = false;
-        return NULL;
-      }
-      if (eval_args_error_log.IsValid()) {
-        ReportMessageAt(eval_args_error_log, "strict_eval_arguments");
-        *ok = false;
-        return NULL;
-      }
-      if (dupe_error_loc.IsValid()) {
-        ReportMessageAt(dupe_error_loc, "strict_param_dupe");
-        *ok = false;
-        return NULL;
-      }
-      if (reserved_loc.IsValid()) {
-        ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
-        *ok = false;
-        return NULL;
-      }
+      CheckStrictFunctionNameAndParameters(function_name,
+                                           name_is_strict_reserved,
+                                           function_name_location,
+                                           eval_args_error_log,
+                                           dupe_error_loc,
+                                           reserved_loc,
+                                           CHECK_OK);
       CheckOctalLiteral(scope->start_position(),
                         scope->end_position(),
                         CHECK_OK);

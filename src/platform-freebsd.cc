@@ -8,22 +8,22 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
-#include <sys/time.h>
+#include <stdlib.h>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/ucontext.h>
-#include <stdlib.h>
 
-#include <sys/types.h>  // mmap & munmap
+#include <sys/fcntl.h>  // open
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <sys/fcntl.h>  // open
+#include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // getpagesize
 // If you don't have execinfo.h then you need devel/libexecinfo from ports.
-#include <strings.h>    // index
 #include <errno.h>
-#include <stdarg.h>
 #include <limits.h>
+#include <stdarg.h>
+#include <strings.h>    // index
 
 #undef MAP_TYPE
 

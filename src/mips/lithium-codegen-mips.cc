@@ -27,11 +27,11 @@
 
 #include "src/v8.h"
 
+#include "src/code-stubs.h"
+#include "src/hydrogen-osr.h"
 #include "src/mips/lithium-codegen-mips.h"
 #include "src/mips/lithium-gap-resolver-mips.h"
-#include "src/code-stubs.h"
 #include "src/stub-cache.h"
-#include "src/hydrogen-osr.h"
 
 namespace v8 {
 namespace internal {

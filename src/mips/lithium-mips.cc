@@ -4,10 +4,10 @@
 
 #include "src/v8.h"
 
-#include "src/lithium-allocator-inl.h"
-#include "src/mips/lithium-mips.h"
-#include "src/mips/lithium-codegen-mips.h"
 #include "src/hydrogen-osr.h"
+#include "src/lithium-allocator-inl.h"
+#include "src/mips/lithium-codegen-mips.h"
+#include "src/mips/lithium-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -1492,7 +1492,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
   } else if (instr->representation().IsDouble()) {
     if (kArchVariant == kMips32r2) {
-      if (instr->UseCount() == 1 && instr->uses().value()->IsAdd()) {
+      if (instr->HasOneUse() && instr->uses().value()->IsAdd()) {
         HAdd* add = HAdd::cast(instr->uses().value());
         if (instr == add->left()) {
           // This mul is the lhs of an add. The add and mul will be folded

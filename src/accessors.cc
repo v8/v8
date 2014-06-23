@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/v8.h"
-#include "src/accessors.h"
 
+#include "src/accessors.h"
+#include "src/api.h"
 #include "src/compiler.h"
 #include "src/contexts.h"
 #include "src/deoptimizer.h"
@@ -14,7 +15,6 @@
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/property-details.h"
-#include "src/api.h"
 
 namespace v8 {
 namespace internal {

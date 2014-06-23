@@ -9,8 +9,8 @@
 
 // TODO(jochen): We should have our own version of checks.h.
 #include "src/checks.h"
-#include "src/platform.h"
 #include "src/libplatform/worker-thread.h"
+#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

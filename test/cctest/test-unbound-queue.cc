@@ -28,8 +28,9 @@
 // Tests of the unbound queue.
 
 #include "src/v8.h"
-#include "src/unbound-queue-inl.h"
 #include "test/cctest/cctest.h"
+
+#include "src/unbound-queue-inl.h"
 
 using i::UnboundQueue;
 

@@ -3,13 +3,11 @@
 // found in the LICENSE file.
 
 #include "include/v8stdint.h"
-
-#include "src/preparse-data-format.h"
-#include "src/preparse-data.h"
-
 #include "src/checks.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
+#include "src/preparse-data.h"
+#include "src/preparse-data-format.h"
 
 namespace v8 {
 namespace internal {

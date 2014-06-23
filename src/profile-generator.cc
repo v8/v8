@@ -8,8 +8,8 @@
 
 #include "src/compiler.h"
 #include "src/debug.h"
-#include "src/sampler.h"
 #include "src/global-handles.h"
+#include "src/sampler.h"
 #include "src/scopeinfo.h"
 #include "src/unicode.h"
 #include "src/zone-inl.h"

@@ -5,10 +5,10 @@
 #ifndef V8_ARM64_INSTRUCTIONS_ARM64_H_
 #define V8_ARM64_INSTRUCTIONS_ARM64_H_
 
-#include "src/globals.h"
-#include "src/utils.h"
 #include "src/arm64/constants-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/globals.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {

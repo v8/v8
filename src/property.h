@@ -5,10 +5,10 @@
 #ifndef V8_PROPERTY_H_
 #define V8_PROPERTY_H_
 
-#include "src/isolate.h"
 #include "src/factory.h"
 #include "src/field-index.h"
 #include "src/field-index-inl.h"
+#include "src/isolate.h"
 #include "src/types.h"
 
 namespace v8 {

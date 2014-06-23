@@ -5,12 +5,13 @@
 #ifndef V8_PREPARSER_H
 #define V8_PREPARSER_H
 
+#include "src/v8.h"
+
 #include "src/func-name-inferrer.h"
 #include "src/hashmap.h"
+#include "src/scanner.h"
 #include "src/scopes.h"
 #include "src/token.h"
-#include "src/scanner.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
@@ -330,6 +331,44 @@ class ParserBase : public Traits {
       ReportMessageAt(octal, "strict_octal_literal");
       scanner()->clear_octal_position();
       *ok = false;
+    }
+  }
+
+  // Validates strict mode for function parameter lists. This has to be
+  // done after parsing the function, since the function can declare
+  // itself strict.
+  void CheckStrictFunctionNameAndParameters(
+      IdentifierT function_name,
+      bool function_name_is_strict_reserved,
+      const Scanner::Location& function_name_loc,
+      const Scanner::Location& eval_args_error_loc,
+      const Scanner::Location& dupe_error_loc,
+      const Scanner::Location& reserved_loc,
+      bool* ok) {
+    if (this->IsEvalOrArguments(function_name)) {
+      Traits::ReportMessageAt(function_name_loc, "strict_eval_arguments");
+      *ok = false;
+      return;
+    }
+    if (function_name_is_strict_reserved) {
+      Traits::ReportMessageAt(function_name_loc, "unexpected_strict_reserved");
+      *ok = false;
+      return;
+    }
+    if (eval_args_error_loc.IsValid()) {
+      Traits::ReportMessageAt(eval_args_error_loc, "strict_eval_arguments");
+      *ok = false;
+      return;
+    }
+    if (dupe_error_loc.IsValid()) {
+      Traits::ReportMessageAt(dupe_error_loc, "strict_param_dupe");
+      *ok = false;
+      return;
+    }
+    if (reserved_loc.IsValid()) {
+      Traits::ReportMessageAt(reserved_loc, "unexpected_strict_reserved");
+      *ok = false;
+      return;
     }
   }
 
