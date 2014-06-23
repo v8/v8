@@ -2086,7 +2086,7 @@ RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
   Handle<Map> old_map(object->map());
-  ASSERT(!old_map->is_access_check_needed());
+  RUNTIME_ASSERT(!old_map->is_access_check_needed());
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(old_map);
   new_map->set_is_access_check_needed(true);
