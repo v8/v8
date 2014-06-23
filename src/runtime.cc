@@ -10816,13 +10816,6 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
     isolate->set_context(*isolate->debug()->debugger_entry()->GetContext());
   }
 
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (obj->IsJSGlobalProxy()) {
-    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
-  }
-
-
   // Check if the name is trivially convertible to an index and get the element
   // if so.
   uint32_t index;
