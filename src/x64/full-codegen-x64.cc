@@ -4004,6 +4004,17 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  __ Move(kScratchRegister, debug_is_active);
+  __ movzxbp(rax, Operand(kScratchRegister, 0));
+  __ Integer32ToSmi(rax, rax);
+  context()->Plug(rax);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->function() != NULL &&
       expr->function()->intrinsic_type == Runtime::INLINE) {

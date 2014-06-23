@@ -911,6 +911,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference cpu_features();
 
+  static ExternalReference debug_is_active_address(Isolate* isolate);
   static ExternalReference debug_after_break_target_address(Isolate* isolate);
   static ExternalReference debug_restarter_frame_function_pointer_address(
       Isolate* isolate);

@@ -1428,6 +1428,12 @@ ExternalReference ExternalReference::cpu_features() {
 }
 
 
+ExternalReference ExternalReference::debug_is_active_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->is_active_address());
+}
+
+
 ExternalReference ExternalReference::debug_after_break_target_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->after_break_target_address());

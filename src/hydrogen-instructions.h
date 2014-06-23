@@ -6120,6 +6120,11 @@ class HObjectAccess V8_FINAL {
                          Handle<String>::null(), false, false);
   }
 
+  static HObjectAccess ForExternalUInteger8() {
+    return HObjectAccess(kExternalMemory, 0, Representation::UInteger8(),
+                         Handle<String>::null(), false, false);
+  }
+
   // Create an access to an offset in a fixed array header.
   static HObjectAccess ForFixedArrayHeader(int offset);
 
