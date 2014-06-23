@@ -1041,6 +1041,8 @@ MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     BailoutId osr_ast_id) {
   if (FLAG_cache_optimized_code) {
     Handle<SharedFunctionInfo> shared(function->shared());
+    // Bound functions are not cached.
+    if (shared->bound()) return MaybeHandle<Code>();
     DisallowHeapAllocation no_gc;
     int index = shared->SearchOptimizedCodeMap(
         function->context()->native_context(), osr_ast_id);
@@ -1070,6 +1072,8 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (FLAG_cache_optimized_code) {
     Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
+    // Do not cache bound functions.
+    if (shared->bound()) return;
     Handle<FixedArray> literals(function->literals());
     Handle<Context> native_context(function->context()->native_context());
     SharedFunctionInfo::AddToOptimizedCodeMap(
