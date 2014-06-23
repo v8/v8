@@ -870,7 +870,7 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-  int DiscoverAndPromoteBlackObjectsOnPage(NewSpace* new_space,
+  int DiscoverAndEvacuateBlackObjectsOnPage(NewSpace* new_space,
                                            NewSpacePage* p);
 
   void EvacuateNewSpace();

@@ -4315,6 +4315,7 @@ TEST(ArrayShiftSweeping) {
       "var tmp = new Array(100000);"
       "array[0] = 10;"
       "gc();"
+      "gc();"
       "array.shift();"
       "array;");
 

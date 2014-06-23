@@ -19879,6 +19879,7 @@ TEST(PersistentHandleInNewSpaceVisitor) {
   CHECK_EQ(42, object1.WrapperClassId());
 
   CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
+  CcTest::heap()->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   v8::Persistent<v8::Object> object2(isolate, v8::Object::New(isolate));
   CHECK_EQ(0, object2.WrapperClassId());

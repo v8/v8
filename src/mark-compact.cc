@@ -1975,7 +1975,7 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque,
 }
 
 
-int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
+int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
     NewSpace* new_space,
     NewSpacePage* p) {
   ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
@@ -2008,8 +2008,10 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
 
       offset++;
       current_cell >>= 1;
-      // Aggressively promote young survivors to the old space.
-      if (TryPromoteObject(object, size)) {
+
+      // TODO(hpayer): Refactor EvacuateObject and call this function instead.
+      if (heap()->ShouldBePromoted(object->address(), size) &&
+          TryPromoteObject(object, size)) {
         continue;
       }
 
@@ -3049,7 +3051,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
   NewSpacePageIterator it(from_bottom, from_top);
   while (it.has_next()) {
     NewSpacePage* p = it.next();
-    survivors_size += DiscoverAndPromoteBlackObjectsOnPage(new_space, p);
+    survivors_size += DiscoverAndEvacuateBlackObjectsOnPage(new_space, p);
   }
 
   heap_->IncrementYoungSurvivorsCounter(survivors_size);
