@@ -895,6 +895,9 @@ class MarkCompactCollector {
 
   void ParallelSweepSpaceComplete(PagedSpace* space);
 
+  // Updates store buffer and slot buffer for a pointer in a migrating object.
+  void RecordMigratedSlot(Object* value, Address slot);
+
 #ifdef DEBUG
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);

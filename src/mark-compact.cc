@@ -2788,6 +2788,19 @@ void MarkCompactCollector::ClearWeakCollections() {
 }
 
 
+void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
+  if (heap_->InNewSpace(value)) {
+    heap_->store_buffer()->Mark(slot);
+  } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
+    SlotsBuffer::AddTo(&slots_buffer_allocator_,
+                       &migration_slots_buffer_,
+                       reinterpret_cast<Object**>(slot),
+                       SlotsBuffer::IGNORE_OVERFLOW);
+  }
+}
+
+
+
 // We scavange new space simultaneously with sweeping. This is done in two
 // passes.
 //
@@ -2820,13 +2833,11 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
 
       Memory::Object_at(dst_slot) = value;
 
-      if (heap_->InNewSpace(value)) {
-        heap_->store_buffer()->Mark(dst_slot);
-      } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
-        SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                           &migration_slots_buffer_,
-                           reinterpret_cast<Object**>(dst_slot),
-                           SlotsBuffer::IGNORE_OVERFLOW);
+      // We special case ConstantPoolArrays below since they could contain
+      // integers value entries which look like tagged pointers.
+      // TODO(mstarzinger): restructure this code to avoid this special-casing.
+      if (!src->IsConstantPoolArray()) {
+        RecordMigratedSlot(value, dst_slot);
       }
 
       src_slot += kPointerSize;
@@ -2844,7 +2855,7 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
                            code_entry_slot,
                            SlotsBuffer::IGNORE_OVERFLOW);
       }
-    } else if (compacting_ && dst->IsConstantPoolArray()) {
+    } else if (dst->IsConstantPoolArray()) {
       ConstantPoolArray* array = ConstantPoolArray::cast(dst);
       ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
       while (!code_iter.is_finished()) {
@@ -2859,6 +2870,13 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst,
                              code_entry_slot,
                              SlotsBuffer::IGNORE_OVERFLOW);
         }
+      }
+      ConstantPoolArray::Iterator heap_iter(array, ConstantPoolArray::HEAP_PTR);
+      while (!heap_iter.is_finished()) {
+        Address heap_slot =
+            dst_addr + array->OffsetOfElementAt(heap_iter.next_index());
+        Object* value = Memory::Object_at(heap_slot);
+        RecordMigratedSlot(value, heap_slot);
       }
     }
   } else if (dest == CODE_SPACE) {
