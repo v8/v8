@@ -462,6 +462,34 @@ void ConstPool::EmitMarker() {
 }
 
 
+MemOperand::PairResult MemOperand::AreConsistentForPair(
+    const MemOperand& operandA,
+    const MemOperand& operandB,
+    int access_size_log2) {
+  ASSERT(access_size_log2 >= 0);
+  ASSERT(access_size_log2 <= 3);
+  // Step one: check that they share the same base, that the mode is Offset
+  // and that the offset is a multiple of access size.
+  if (!operandA.base().Is(operandB.base()) ||
+      (operandA.addrmode() != Offset) ||
+      (operandB.addrmode() != Offset) ||
+      ((operandA.offset() & ((1 << access_size_log2) - 1)) != 0)) {
+    return kNotPair;
+  }
+  // Step two: check that the offsets are contiguous and that the range
+  // is OK for ldp/stp.
+  if ((operandB.offset() == operandA.offset() + (1 << access_size_log2)) &&
+      is_int7(operandA.offset() >> access_size_log2)) {
+    return kPairAB;
+  }
+  if ((operandA.offset() == operandB.offset() + (1 << access_size_log2)) &&
+      is_int7(operandB.offset() >> access_size_log2)) {
+    return kPairBA;
+  }
+  return kNotPair;
+}
+
+
 void ConstPool::EmitGuard() {
 #ifdef DEBUG
   Instruction* instr = reinterpret_cast<Instruction*>(assm_->pc());
