@@ -9184,17 +9184,6 @@ TEST(AccessControl) {
   ExpectUndefined(
       "Object.getOwnPropertyDescriptor(other, 'js_accessor_p')");
 
-  // Enable ACCESS_HAS.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  ExpectUndefined("other.js_accessor_p");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
-  allowed_access_type[v8::ACCESS_HAS] = false;
-
   // Enable both ACCESS_HAS and ACCESS_GET.
   allowed_access_type[v8::ACCESS_HAS] = true;
   allowed_access_type[v8::ACCESS_GET] = true;
@@ -9202,45 +9191,13 @@ TEST(AccessControl) {
   ExpectString("other.js_accessor_p", "getter");
   ExpectObject(
       "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get", getter);
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
-
-  allowed_access_type[v8::ACCESS_GET] = false;
-  allowed_access_type[v8::ACCESS_HAS] = false;
-
-  // Enable both ACCESS_HAS and ACCESS_SET.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  allowed_access_type[v8::ACCESS_SET] = true;
-
-  ExpectUndefined("other.js_accessor_p");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get");
   ExpectObject(
       "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set", setter);
   ExpectUndefined(
       "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
 
-  allowed_access_type[v8::ACCESS_SET] = false;
   allowed_access_type[v8::ACCESS_HAS] = false;
-
-  // Enable both ACCESS_HAS, ACCESS_GET and ACCESS_SET.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  allowed_access_type[v8::ACCESS_GET] = true;
-  allowed_access_type[v8::ACCESS_SET] = true;
-
-  ExpectString("other.js_accessor_p", "getter");
-  ExpectObject(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').get", getter);
-  ExpectObject(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').set", setter);
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p').value");
-
-  allowed_access_type[v8::ACCESS_SET] = false;
   allowed_access_type[v8::ACCESS_GET] = false;
-  allowed_access_type[v8::ACCESS_HAS] = false;
 
   // Access an element with JS accessor.
   CompileRun("other[42] = 2");
@@ -9248,51 +9205,17 @@ TEST(AccessControl) {
   ExpectUndefined("other[42]");
   ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42')");
 
-  // Enable ACCESS_HAS.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  ExpectUndefined("other[42]");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').get");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').set");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').value");
-  allowed_access_type[v8::ACCESS_HAS] = false;
-
   // Enable both ACCESS_HAS and ACCESS_GET.
   allowed_access_type[v8::ACCESS_HAS] = true;
   allowed_access_type[v8::ACCESS_GET] = true;
 
   ExpectString("other[42]", "el_getter");
   ExpectObject("Object.getOwnPropertyDescriptor(other, '42').get", el_getter);
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').set");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').value");
-
-  allowed_access_type[v8::ACCESS_GET] = false;
-  allowed_access_type[v8::ACCESS_HAS] = false;
-
-  // Enable both ACCESS_HAS and ACCESS_SET.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  allowed_access_type[v8::ACCESS_SET] = true;
-
-  ExpectUndefined("other[42]");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').get");
   ExpectObject("Object.getOwnPropertyDescriptor(other, '42').set", el_setter);
   ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').value");
 
-  allowed_access_type[v8::ACCESS_SET] = false;
   allowed_access_type[v8::ACCESS_HAS] = false;
-
-  // Enable both ACCESS_HAS, ACCESS_GET and ACCESS_SET.
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  allowed_access_type[v8::ACCESS_GET] = true;
-  allowed_access_type[v8::ACCESS_SET] = true;
-
-  ExpectString("other[42]", "el_getter");
-  ExpectObject("Object.getOwnPropertyDescriptor(other, '42').get", el_getter);
-  ExpectObject("Object.getOwnPropertyDescriptor(other, '42').set", el_setter);
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42').value");
-
-  allowed_access_type[v8::ACCESS_SET] = false;
   allowed_access_type[v8::ACCESS_GET] = false;
-  allowed_access_type[v8::ACCESS_HAS] = false;
 
   v8::Handle<Value> value;
 
