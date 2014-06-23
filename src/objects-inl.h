@@ -60,10 +60,17 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 
-#define CAST_ACCESSOR(type)                     \
-  type* type::cast(Object* object) {            \
-    SLOW_ASSERT(object->Is##type());            \
-    return reinterpret_cast<type*>(object);     \
+// TODO(svenpanne) We use const_cast here and at a few other places to break our
+// dependency cycle between the cast methods and the predicates. This can be
+// removed when the predicates are const-correct, too.
+#define CAST_ACCESSOR(type)                       \
+  type* type::cast(Object* object) {              \
+    SLOW_ASSERT(object->Is##type());              \
+    return reinterpret_cast<type*>(object);       \
+  }                                               \
+  const type* type::cast(const Object* object) {  \
+    SLOW_ASSERT(const_cast<Object*>(object)->Is##type()); \
+    return reinterpret_cast<const type*>(object); \
   }
 
 
@@ -821,9 +828,29 @@ bool Object::IsHashTable() {
 }
 
 
+bool Object::IsWeakHashTable() {
+  return IsHashTable();
+}
+
+
 bool Object::IsDictionary() {
   return IsHashTable() &&
       this != HeapObject::cast(this)->GetHeap()->string_table();
+}
+
+
+bool Object::IsNameDictionary() {
+  return IsDictionary();
+}
+
+
+bool Object::IsSeededNumberDictionary() {
+  return IsDictionary();
+}
+
+
+bool Object::IsUnseededNumberDictionary() {
+  return IsDictionary();
 }
 
 
@@ -904,6 +931,16 @@ bool Object::IsOrderedHashTable() {
   return IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->ordered_hash_table_map();
+}
+
+
+bool Object::IsOrderedHashSet() {
+  return IsOrderedHashTable();
+}
+
+
+bool Object::IsOrderedHashMap() {
+  return IsOrderedHashTable();
 }
 
 
@@ -2101,12 +2138,6 @@ void Object::VerifyApiCallResultType() {
 }
 
 
-FixedArrayBase* FixedArrayBase::cast(Object* object) {
-  ASSERT(object->IsFixedArrayBase());
-  return reinterpret_cast<FixedArrayBase*>(object);
-}
-
-
 Object* FixedArray::get(int index) {
   SLOW_ASSERT(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
@@ -3016,84 +3047,109 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 // Cast operations
 
 
-CAST_ACCESSOR(FixedArray)
-CAST_ACCESSOR(FixedDoubleArray)
-CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR(AccessorInfo)
+CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(Cell)
+CAST_ACCESSOR(Code)
+CAST_ACCESSOR(CodeCacheHashTable)
+CAST_ACCESSOR(CompilationCacheTable)
+CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(ConstantPoolArray)
-CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(DeoptimizationInputData)
 CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
-CAST_ACCESSOR(StringTable)
-CAST_ACCESSOR(JSFunctionResultCache)
-CAST_ACCESSOR(NormalizedMapCache)
-CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(CompilationCacheTable)
-CAST_ACCESSOR(CodeCacheHashTable)
-CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
-CAST_ACCESSOR(MapCache)
-CAST_ACCESSOR(String)
-CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(SeqOneByteString)
-CAST_ACCESSOR(SeqTwoByteString)
-CAST_ACCESSOR(SlicedString)
-CAST_ACCESSOR(ConsString)
-CAST_ACCESSOR(ExternalString)
+CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(ExternalArray)
 CAST_ACCESSOR(ExternalAsciiString)
+CAST_ACCESSOR(ExternalFloat32Array)
+CAST_ACCESSOR(ExternalFloat64Array)
+CAST_ACCESSOR(ExternalInt16Array)
+CAST_ACCESSOR(ExternalInt32Array)
+CAST_ACCESSOR(ExternalInt8Array)
+CAST_ACCESSOR(ExternalString)
 CAST_ACCESSOR(ExternalTwoByteString)
-CAST_ACCESSOR(Symbol)
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(HeapNumber)
-CAST_ACCESSOR(Oddball)
-CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(PropertyCell)
-CAST_ACCESSOR(SharedFunctionInfo)
-CAST_ACCESSOR(Map)
-CAST_ACCESSOR(JSFunction)
+CAST_ACCESSOR(ExternalUint16Array)
+CAST_ACCESSOR(ExternalUint32Array)
+CAST_ACCESSOR(ExternalUint8Array)
+CAST_ACCESSOR(ExternalUint8ClampedArray)
+CAST_ACCESSOR(FixedArray)
+CAST_ACCESSOR(FixedArrayBase)
+CAST_ACCESSOR(FixedDoubleArray)
+CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(FreeSpace)
 CAST_ACCESSOR(GlobalObject)
-CAST_ACCESSOR(JSGlobalProxy)
-CAST_ACCESSOR(JSGlobalObject)
-CAST_ACCESSOR(JSBuiltinsObject)
-CAST_ACCESSOR(Code)
+CAST_ACCESSOR(HeapNumber)
+CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(JSDataView)
-CAST_ACCESSOR(JSRegExp)
-CAST_ACCESSOR(JSProxy)
+CAST_ACCESSOR(JSDate)
+CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSFunctionProxy)
-CAST_ACCESSOR(JSSet)
+CAST_ACCESSOR(JSFunctionResultCache)
+CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(JSGlobalObject)
+CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMap)
-CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSMapIterator)
+CAST_ACCESSOR(JSMessageObject)
+CAST_ACCESSOR(JSModule)
+CAST_ACCESSOR(JSObject)
+CAST_ACCESSOR(JSProxy)
+CAST_ACCESSOR(JSReceiver)
+CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSSet)
+CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(JSWeakSet)
-CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(ByteArray)
-CAST_ACCESSOR(FreeSpace)
-CAST_ACCESSOR(ExternalArray)
-CAST_ACCESSOR(ExternalInt8Array)
-CAST_ACCESSOR(ExternalUint8Array)
-CAST_ACCESSOR(ExternalInt16Array)
-CAST_ACCESSOR(ExternalUint16Array)
-CAST_ACCESSOR(ExternalInt32Array)
-CAST_ACCESSOR(ExternalUint32Array)
-CAST_ACCESSOR(ExternalFloat32Array)
-CAST_ACCESSOR(ExternalFloat64Array)
-CAST_ACCESSOR(ExternalUint8ClampedArray)
+CAST_ACCESSOR(Map)
+CAST_ACCESSOR(MapCache)
+CAST_ACCESSOR(Name)
+CAST_ACCESSOR(NameDictionary)
+CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(Object)
+CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(OrderedHashMap)
+CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR(PolymorphicCodeCacheHashTable)
+CAST_ACCESSOR(PropertyCell)
+CAST_ACCESSOR(ScopeInfo)
+CAST_ACCESSOR(SeededNumberDictionary)
+CAST_ACCESSOR(SeqOneByteString)
+CAST_ACCESSOR(SeqString)
+CAST_ACCESSOR(SeqTwoByteString)
+CAST_ACCESSOR(SharedFunctionInfo)
+CAST_ACCESSOR(SlicedString)
+CAST_ACCESSOR(Smi)
+CAST_ACCESSOR(String)
+CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
-CAST_ACCESSOR(AccessorInfo)
+CAST_ACCESSOR(Symbol)
+CAST_ACCESSOR(UnseededNumberDictionary)
+CAST_ACCESSOR(WeakHashTable)
+
 
 template <class Traits>
 FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
   SLOW_ASSERT(object->IsHeapObject() &&
-      HeapObject::cast(object)->map()->instance_type() ==
-          Traits::kInstanceType);
+              HeapObject::cast(object)->map()->instance_type() ==
+              Traits::kInstanceType);
+  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
+}
+
+
+template <class Traits>
+const FixedTypedArray<Traits>*
+FixedTypedArray<Traits>::cast(const Object* object) {
+  SLOW_ASSERT(const_cast<Object*>(object)->IsHeapObject() &&
+              HeapObject::cast(object)->map()->instance_type() ==
+              Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
 }
 
@@ -3106,8 +3162,16 @@ FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
 template <typename Derived, typename Shape, typename Key>
 HashTable<Derived, Shape, Key>*
 HashTable<Derived, Shape, Key>::cast(Object* obj) {
-  ASSERT(obj->IsHashTable());
+  SLOW_ASSERT(obj->IsHashTable());
   return reinterpret_cast<HashTable*>(obj);
+}
+
+
+template <typename Derived, typename Shape, typename Key>
+const HashTable<Derived, Shape, Key>*
+HashTable<Derived, Shape, Key>::cast(const Object* obj) {
+  SLOW_ASSERT(const_cast<Object*>(obj)->IsHashTable());
+  return reinterpret_cast<const HashTable*>(obj);
 }
 
 
@@ -5883,32 +5947,11 @@ bool JSGeneratorObject::is_executing() {
   return continuation() == kGeneratorExecuting;
 }
 
-JSGeneratorObject* JSGeneratorObject::cast(Object* obj) {
-  ASSERT(obj->IsJSGeneratorObject());
-  ASSERT(HeapObject::cast(obj)->Size() == JSGeneratorObject::kSize);
-  return reinterpret_cast<JSGeneratorObject*>(obj);
-}
-
-
 ACCESSORS(JSModule, context, Object, kContextOffset)
 ACCESSORS(JSModule, scope_info, ScopeInfo, kScopeInfoOffset)
 
 
-JSModule* JSModule::cast(Object* obj) {
-  ASSERT(obj->IsJSModule());
-  ASSERT(HeapObject::cast(obj)->Size() == JSModule::kSize);
-  return reinterpret_cast<JSModule*>(obj);
-}
-
-
 ACCESSORS(JSValue, value, Object, kValueOffset)
-
-
-JSValue* JSValue::cast(Object* obj) {
-  ASSERT(obj->IsJSValue());
-  ASSERT(HeapObject::cast(obj)->Size() == JSValue::kSize);
-  return reinterpret_cast<JSValue*>(obj);
-}
 
 
 ACCESSORS(JSDate, value, Object, kValueOffset)
@@ -5922,26 +5965,12 @@ ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 
-JSDate* JSDate::cast(Object* obj) {
-  ASSERT(obj->IsJSDate());
-  ASSERT(HeapObject::cast(obj)->Size() == JSDate::kSize);
-  return reinterpret_cast<JSDate*>(obj);
-}
-
-
 ACCESSORS(JSMessageObject, type, String, kTypeOffset)
 ACCESSORS(JSMessageObject, arguments, JSArray, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Object, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
-
-
-JSMessageObject* JSMessageObject::cast(Object* obj) {
-  ASSERT(obj->IsJSMessageObject());
-  ASSERT(HeapObject::cast(obj)->Size() == JSMessageObject::kSize);
-  return reinterpret_cast<JSMessageObject*>(obj);
-}
 
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
