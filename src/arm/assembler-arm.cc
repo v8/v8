@@ -418,11 +418,11 @@ const Instr kPopRegPattern =
 // mov lr, pc
 const Instr kMovLrPc = al | MOV | kRegister_pc_Code | kRegister_lr_Code * B12;
 // ldr rd, [pc, #offset]
-const Instr kLdrPCMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCPattern = 5 * B24 | L | kRegister_pc_Code * B16;
+const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPCImmedPattern = 5 * B24 | L | kRegister_pc_Code * B16;
 // ldr rd, [pp, #offset]
-const Instr kLdrPpMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpPattern = 5 * B24 | L | kRegister_r8_Code * B16;
+const Instr kLdrPpImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPpImmedPattern = 5 * B24 | L | kRegister_r8_Code * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | kRegister_pc_Code * B16 | 11 * B8;
@@ -640,6 +640,15 @@ Register Assembler::GetRm(Instr instr) {
 }
 
 
+Instr Assembler::GetConsantPoolLoadPattern() {
+  if (FLAG_enable_ool_constant_pool) {
+    return kLdrPpImmedPattern;
+  } else {
+    return kLdrPCImmedPattern;
+  }
+}
+
+
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -673,14 +682,14 @@ bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
 bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pc +/- offset_12].
-  return (instr & kLdrPCMask) == kLdrPCPattern;
+  return (instr & kLdrPCImmedMask) == kLdrPCImmedPattern;
 }
 
 
 bool Assembler::IsLdrPpImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pp +/- offset_12].
-  return (instr & kLdrPpMask) == kLdrPpPattern;
+  return (instr & kLdrPpImmedMask) == kLdrPpImmedPattern;
 }
 
 
@@ -695,6 +704,20 @@ bool Assembler::IsVldrDPpImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // vldr<cond> <Dd>, [pp +/- offset_10].
   return (instr & kVldrDPpMask) == kVldrDPpPattern;
+}
+
+
+bool Assembler::IsBlxReg(Instr instr) {
+  // Check the instruction is indeed a
+  // blxcc <Rm>
+  return (instr & kBlxRegMask) == kBlxRegPattern;
+}
+
+
+bool Assembler::IsBlxIp(Instr instr) {
+  // Check the instruction is indeed a
+  // blx ip
+  return instr == kBlxIp;
 }
 
 

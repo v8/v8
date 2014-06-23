@@ -1236,10 +1236,8 @@ template <class C> inline bool Is(Object* obj);
     "The current stack pointer is below csp")                                 \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")           \
   V(kTheInstructionShouldBeAnOri, "The instruction should be an ori")         \
-  V(kTheInstructionToPatchShouldBeALoadFromPc,                                \
-    "The instruction to patch should be a load from pc")                      \
-  V(kTheInstructionToPatchShouldBeALoadFromPp,                                \
-    "The instruction to patch should be a load from pp")                      \
+  V(kTheInstructionToPatchShouldBeALoadFromConstantPool,                      \
+    "The instruction to patch should be a load from the constant pool")       \
   V(kTheInstructionToPatchShouldBeAnLdrLiteral,                               \
     "The instruction to patch should be a ldr literal")                       \
   V(kTheInstructionToPatchShouldBeALui,                                       \
