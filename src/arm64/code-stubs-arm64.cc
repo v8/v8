@@ -101,40 +101,6 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { x1, x0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry;
-}
-
-
-void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x1: receiver
-  // x0: key
-  static Register registers[] = { x1, x0 };
-  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
-}
-
-
-void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x1: receiver
-  // x0: key
-  static Register registers[] = { x1, x0 };
-  descriptor->register_param_count_ = sizeof(registers) / sizeof(registers[0]);
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
-}
-
-
 void RegExpConstructResultStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: length

@@ -275,7 +275,7 @@ struct CodeStubInterfaceDescriptor {
   // return sequence. Default value is -1, which means it is ignored.
   int hint_stack_parameter_count_;
   StubFunctionMode function_mode_;
-  Register* register_params_;
+  const Register* register_params_;
   // Specifies Representations for the stub's parameter. Points to an array of
   // Representations of the same length of the numbers of parameters to the
   // stub, or if NULL (the default value), Representation of each parameter

@@ -539,9 +539,14 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(0), GetParameter(1), NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      LOAD, NEVER_RETURN_HOLE, STANDARD_STORE);
+      GetParameter(KeyedLoadIC::kReceiverIndex),
+      GetParameter(KeyedLoadIC::kNameIndex),
+      NULL,
+      casted_stub()->is_js_array(),
+      casted_stub()->elements_kind(),
+      LOAD,
+      NEVER_RETURN_HOLE,
+      STANDARD_STORE);
   return load;
 }
 
@@ -1371,8 +1376,8 @@ Handle<Code> FastNewContextStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(0);
-  HValue* key = GetParameter(1);
+  HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
+  HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
 
   Add<HCheckSmi>(key);
 
@@ -1504,8 +1509,8 @@ void CodeStubGraphBuilder<
 
 
 HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(0);
-  HValue* key = GetParameter(1);
+  HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
+  HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
 
   // Split into a smi/integer case and unique string case.
   HIfContinuation index_name_split_continuation(graph()->CreateBasicBlock(),
