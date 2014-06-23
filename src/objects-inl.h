@@ -1810,7 +1810,7 @@ void JSObject::initialize_elements() {
 }
 
 
-Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
+Handle<String> Map::ExpectedTransitionKey(Handle<Map> map) {
   DisallowHeapAllocation no_gc;
   if (!map->HasTransitionArray()) return Handle<String>::null();
   TransitionArray* transitions = map->transitions();
@@ -1825,14 +1825,14 @@ Handle<String> JSObject::ExpectedTransitionKey(Handle<Map> map) {
 }
 
 
-Handle<Map> JSObject::ExpectedTransitionTarget(Handle<Map> map) {
+Handle<Map> Map::ExpectedTransitionTarget(Handle<Map> map) {
   ASSERT(!ExpectedTransitionKey(map).is_null());
   return Handle<Map>(map->transitions()->GetTarget(
       TransitionArray::kSimpleTransitionIndex));
 }
 
 
-Handle<Map> JSObject::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
+Handle<Map> Map::FindTransitionToField(Handle<Map> map, Handle<Name> key) {
   DisallowHeapAllocation no_allocation;
   if (!map->HasTransitionArray()) return Handle<Map>::null();
   TransitionArray* transitions = map->transitions();
