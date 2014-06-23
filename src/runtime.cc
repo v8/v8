@@ -2126,11 +2126,7 @@ RUNTIME_FUNCTION(Runtime_DisableAccessChecks) {
     // Copy map so it won't interfere constructor's initial map.
     Handle<Map> new_map = Map::Copy(old_map);
     new_map->set_is_access_check_needed(false);
-    if (object->IsJSObject()) {
-      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
-    } else {
-      object->set_map(*new_map);
-    }
+    JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
   }
   return isolate->heap()->ToBoolean(needs_access_checks);
 }
@@ -2141,16 +2137,11 @@ RUNTIME_FUNCTION(Runtime_EnableAccessChecks) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
   Handle<Map> old_map(object->map());
-  if (!old_map->is_access_check_needed()) {
-    // Copy map so it won't interfere constructor's initial map.
-    Handle<Map> new_map = Map::Copy(old_map);
-    new_map->set_is_access_check_needed(true);
-    if (object->IsJSObject()) {
-      JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
-    } else {
-      object->set_map(*new_map);
-    }
-  }
+  ASSERT(!old_map->is_access_check_needed());
+  // Copy map so it won't interfere constructor's initial map.
+  Handle<Map> new_map = Map::Copy(old_map);
+  new_map->set_is_access_check_needed(true);
+  JSObject::MigrateToMap(Handle<JSObject>::cast(object), new_map);
   return isolate->heap()->undefined_value();
 }
 
