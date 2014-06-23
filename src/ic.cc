@@ -2087,26 +2087,7 @@ RUNTIME_FUNCTION(SharedStoreIC_ExtendStorage) {
   ASSERT(object->HasFastProperties());
   ASSERT(object->map()->unused_property_fields() == 0);
 
-  // Expand the properties array.
-  Handle<FixedArray> old_storage = handle(object->properties(), isolate);
-  int new_unused = transition->unused_property_fields();
-  int new_size = old_storage->length() + new_unused + 1;
-
-  Handle<FixedArray> new_storage = FixedArray::CopySize(old_storage, new_size);
-
-  Handle<Object> to_store = value;
-
-  PropertyDetails details = transition->instance_descriptors()->GetDetails(
-      transition->LastAdded());
-  if (details.representation().IsDouble()) {
-    to_store = isolate->factory()->NewHeapNumber(value->Number());
-  }
-
-  new_storage->set(old_storage->length(), *to_store);
-
-  // Set the new property value and do the map transition.
-  object->set_properties(*new_storage);
-  object->set_map(*transition);
+  JSObject::MigrateToNewProperty(object, transition, value);
 
   // Return the stored value.
   return *value;

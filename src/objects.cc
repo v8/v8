@@ -2153,6 +2153,38 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
+
+  if ((old_map->unused_property_fields() == 0) &&
+      (new_map->GetBackPointer() == *old_map)) {
+    // This migration is a transition from a map that has run out out property
+    // space. Therefore it could be done by extending the backing store.
+    Handle<FixedArray> old_storage = handle(object->properties(), isolate);
+    Handle<FixedArray> new_storage =
+        FixedArray::CopySize(old_storage, external);
+
+    // Properly initialize newly added property.
+    PropertyDetails details = new_map->GetLastDescriptorDetails();
+    Handle<Object> value;
+    if (details.representation().IsDouble()) {
+      value = isolate->factory()->NewHeapNumber(0);
+    } else {
+      value = isolate->factory()->uninitialized_value();
+    }
+    ASSERT(details.type() == FIELD);
+    int target_index = details.field_index() - inobject;
+    ASSERT(target_index >= 0);  // Must be a backing store index.
+    new_storage->set(target_index, *value);
+
+    // From here on we cannot fail and we shouldn't GC anymore.
+    DisallowHeapAllocation no_allocation;
+
+    // Set the new property value and do the map transition.
+    object->set_properties(*new_storage);
+    // Writing the new map here does not require synchronization since it does
+    // not change the actual object size.
+    object->set_map(*new_map);
+    return;
+  }
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
 
   Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
@@ -2223,7 +2255,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   Address address = object->address() + new_instance_size;
 
   // The trimming is performed on a newly allocated object, which is on a
-  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // freshly allocated page or on an already swept page. Hence, the sweeper
   // thread can not get confused with the filler creation. No synchronization
   // needed.
   isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
@@ -2236,7 +2268,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   }
 
   // The trimming is performed on a newly allocated object, which is on a
-  // fresly allocated page or on an already swept page. Hence, the sweeper
+  // freshly allocated page or on an already swept page. Hence, the sweeper
   // thread can not get confused with the filler creation. No synchronization
   // needed.
   object->set_map(*new_map);
