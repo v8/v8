@@ -12201,26 +12201,6 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object,
 }
 
 
-MaybeHandle<AccessorPair> JSObject::GetOwnPropertyAccessorPair(
-    Handle<JSObject> object,
-    Handle<Name> name) {
-  uint32_t index = 0;
-  if (name->AsArrayIndex(&index)) {
-    return GetOwnElementAccessorPair(object, index);
-  }
-
-  Isolate* isolate = object->GetIsolate();
-  LookupResult lookup(isolate);
-  object->LookupOwnRealNamedProperty(name, &lookup);
-
-  if (lookup.IsPropertyCallbacks() &&
-      lookup.GetCallbackObject()->IsAccessorPair()) {
-    return handle(AccessorPair::cast(lookup.GetCallbackObject()), isolate);
-  }
-  return MaybeHandle<AccessorPair>();
-}
-
-
 MaybeHandle<AccessorPair> JSObject::GetOwnElementAccessorPair(
     Handle<JSObject> object,
     uint32_t index) {

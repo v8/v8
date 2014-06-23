@@ -1887,86 +1887,6 @@ RUNTIME_FUNCTION(Runtime_IsInPrototypeChain) {
 }
 
 
-static bool CheckAccessException(Object* callback,
-                                 v8::AccessType access_type) {
-  DisallowHeapAllocation no_gc;
-  ASSERT(!callback->IsForeign());
-  if (callback->IsAccessorInfo()) {
-    AccessorInfo* info = AccessorInfo::cast(callback);
-    return
-        (access_type == v8::ACCESS_HAS &&
-           (info->all_can_read() || info->all_can_write())) ||
-        (access_type == v8::ACCESS_GET && info->all_can_read()) ||
-        (access_type == v8::ACCESS_SET && info->all_can_write());
-  }
-  return false;
-}
-
-
-template<class Key>
-static bool CheckGenericAccess(
-    Handle<JSObject> receiver,
-    Handle<Object> end,
-    Key key,
-    v8::AccessType access_type,
-    bool (Isolate::*mayAccess)(Handle<JSObject>, Key, v8::AccessType)) {
-  Isolate* isolate = receiver->GetIsolate();
-  for (Handle<Object> current = receiver;
-       !current.is_identical_to(end);
-       current = Object::GetPrototype(isolate, current)) {
-    if (current->IsAccessCheckNeeded() &&
-        !(isolate->*mayAccess)(
-            Handle<JSObject>::cast(current), key, access_type)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-static void CheckPropertyAccess(Handle<JSObject> obj,
-                                Handle<Name> name,
-                                v8::AccessType access_type) {
-  Isolate* isolate = obj->GetIsolate();
-  uint32_t index;
-  if (name->AsArrayIndex(&index)) {
-    Handle<Object> next(obj->GetPrototype(), isolate);
-    // TODO(1095): we should traverse hidden prototype hierachy as well.
-    if (!CheckGenericAccess(
-            obj, next, index, access_type, &Isolate::MayIndexedAccess)) {
-      obj->GetIsolate()->ReportFailedAccessCheck(obj, access_type);
-    }
-    return;
-  }
-
-  LookupResult lookup(isolate);
-  obj->LookupOwn(name, &lookup, true);
-
-  Handle<Object> next = lookup.IsProperty()
-      ? handle(lookup.holder()->GetPrototype(), isolate)
-      : Handle<Object>::cast(isolate->factory()->null_value());
-  if (CheckGenericAccess<Handle<Object> >(
-          obj, next, name, access_type, &Isolate::MayNamedAccess)) {
-    return;
-  }
-
-  // Access check callback denied the access, but some properties
-  // can have a special permissions which override callbacks decision
-  // (see v8::AccessControl).
-  // API callbacks can have per callback access exceptions.
-  if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
-    lookup.holder()->LookupOwnRealNamedProperty(name, &lookup);
-  }
-
-  if (lookup.IsPropertyCallbacks() &&
-      CheckAccessException(lookup.GetCallbackObject(), access_type)) {
-    return;
-  }
-
-  isolate->ReportFailedAccessCheck(obj, access_type);
-}
-
-
 // Enumerator used as indices into the array returned from GetOwnProperty
 enum PropertyDescriptorIndices {
   IS_ACCESSOR_INDEX,
@@ -1986,36 +1906,65 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
 
-  CheckPropertyAccess(obj, name, v8::ACCESS_HAS);
-  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  PropertyAttributes attrs;
+  uint32_t index = 0;
+  Handle<Object> value;
+  MaybeHandle<AccessorPair> maybe_accessors;
+  // TODO(verwaest): Unify once indexed properties can be handled by the
+  // LookupIterator.
+  if (name->AsArrayIndex(&index)) {
+    // Get attributes.
+    attrs = JSReceiver::GetOwnElementAttribute(obj, index);
+    if (attrs == ABSENT) {
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return factory->undefined_value();
+    }
 
-  PropertyAttributes attrs = JSReceiver::GetOwnPropertyAttributes(obj, name);
-  if (attrs == ABSENT) {
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return factory->undefined_value();
+    // Get AccessorPair if present.
+    maybe_accessors = JSObject::GetOwnElementAccessorPair(obj, index);
+
+    // Get value if not an AccessorPair.
+    if (maybe_accessors.is_null()) {
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+          Runtime::GetElementOrCharAt(isolate, obj, index), Object);
+    }
+  } else {
+    // Get attributes.
+    LookupIterator it(obj, name, LookupIterator::CHECK_OWN);
+    attrs = JSObject::GetPropertyAttributes(&it);
+    if (attrs == ABSENT) {
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+      return factory->undefined_value();
+    }
+
+    // Get AccessorPair if present.
+    if (it.state() == LookupIterator::PROPERTY &&
+        it.property_kind() == LookupIterator::ACCESSOR &&
+        it.GetAccessors()->IsAccessorPair()) {
+      maybe_accessors = Handle<AccessorPair>::cast(it.GetAccessors());
+    }
+
+    // Get value if not an AccessorPair.
+    if (maybe_accessors.is_null()) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, value, Object::GetProperty(&it), Object);
+    }
   }
   ASSERT(!isolate->has_scheduled_exception());
-  Handle<AccessorPair> accessors;
-  bool has_accessors =
-      JSObject::GetOwnPropertyAccessorPair(obj, name).ToHandle(&accessors);
   Handle<FixedArray> elms = factory->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(has_accessors));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(!maybe_accessors.is_null()));
 
-  if (!has_accessors) {
-    elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
-    // Runtime::GetObjectProperty does access check.
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value, Runtime::GetObjectProperty(isolate, obj, name),
-        Object);
-    elms->set(VALUE_INDEX, *value);
-  } else {
+  Handle<AccessorPair> accessors;
+  if (maybe_accessors.ToHandle(&accessors)) {
     Handle<Object> getter(accessors->GetComponent(ACCESSOR_GETTER), isolate);
     Handle<Object> setter(accessors->GetComponent(ACCESSOR_SETTER), isolate);
     elms->set(GETTER_INDEX, *getter);
     elms->set(SETTER_INDEX, *setter);
+  } else {
+    elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
+    elms->set(VALUE_INDEX, *value);
   }
 
   return factory->NewJSArrayWithElements(elms);

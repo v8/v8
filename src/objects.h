@@ -2317,9 +2317,6 @@ class JSObject: public JSReceiver {
   }
 
   // These methods do not perform access checks!
-  MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnPropertyAccessorPair(
-      Handle<JSObject> object,
-      Handle<Name> name);
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnElementAccessorPair(
       Handle<JSObject> object,
       uint32_t index);

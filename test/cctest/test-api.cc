@@ -9131,16 +9131,6 @@ TEST(AccessControl) {
       "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
   ExpectFalse("propertyIsEnumerable.call(other, 'blocked_prop')");
 
-  // Enable ACCESS_HAS
-  allowed_access_type[v8::ACCESS_HAS] = true;
-  ExpectUndefined("other.blocked_prop");
-  // ... and now we can get the descriptor...
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'blocked_prop').value");
-  // ... and enumerate the property.
-  ExpectTrue("propertyIsEnumerable.call(other, 'blocked_prop')");
-  allowed_access_type[v8::ACCESS_HAS] = false;
-
   // Access blocked element.
   CompileRun("other[239] = 1");
 
