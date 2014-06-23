@@ -809,26 +809,15 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
        !holder->IsNull();
        holder = Handle<Object>(holder->GetPrototype(isolate), isolate)) {
     if (!holder->IsJSObject()) {
-      Context* native_context = isolate->context()->native_context();
-      if (holder->IsNumber()) {
-        holder = Handle<Object>(
-            native_context->number_function()->instance_prototype(), isolate);
-      } else if (holder->IsString()) {
-        holder = Handle<Object>(
-            native_context->string_function()->instance_prototype(), isolate);
-      } else if (holder->IsSymbol()) {
-        holder = Handle<Object>(
-            native_context->symbol_function()->instance_prototype(), isolate);
-      } else if (holder->IsBoolean()) {
-        holder = Handle<Object>(
-            native_context->boolean_function()->instance_prototype(), isolate);
-      } else if (holder->IsJSProxy()) {
+      if (holder->IsJSProxy()) {
         return JSProxy::GetElementWithHandler(
             Handle<JSProxy>::cast(holder), receiver, index);
-      } else {
-        // Undefined and null have no indexed properties.
-        ASSERT(holder->IsUndefined() || holder->IsNull());
+      } else if (holder->IsUndefined()) {
+        // Undefined has no indexed properties.
         return isolate->factory()->undefined_value();
+      } else {
+        holder = Handle<Object>(holder->GetPrototype(isolate), isolate);
+        ASSERT(holder->IsJSObject());
       }
     }
 
