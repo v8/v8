@@ -283,8 +283,60 @@ TEST(SerializeTwice) {
 //----------------------------------------------------------------------------
 // Tests that the heap can be deserialized.
 
+
+static void ReserveSpaceForSnapshot(Deserializer* deserializer,
+                                    const char* file_name) {
+  int file_name_length = StrLength(file_name) + 10;
+  Vector<char> name = Vector<char>::New(file_name_length + 1);
+  SNPrintF(name, "%s.size", file_name);
+  FILE* fp = OS::FOpen(name.start(), "r");
+  name.Dispose();
+  int new_size, pointer_size, data_size, code_size, map_size, cell_size,
+      property_cell_size;
+#ifdef _MSC_VER
+  // Avoid warning about unsafe fscanf from MSVC.
+  // Please note that this is only fine if %c and %s are not being used.
+#define fscanf fscanf_s
+#endif
+  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
+  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
+  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
+  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
+  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
+  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
+  CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
+#ifdef _MSC_VER
+#undef fscanf
+#endif
+  fclose(fp);
+  deserializer->set_reservation(NEW_SPACE, new_size);
+  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_size);
+  deserializer->set_reservation(OLD_DATA_SPACE, data_size);
+  deserializer->set_reservation(CODE_SPACE, code_size);
+  deserializer->set_reservation(MAP_SPACE, map_size);
+  deserializer->set_reservation(CELL_SPACE, cell_size);
+  deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_size);
+}
+
+
+bool InitializeFromFile(const char* snapshot_file) {
+  int len;
+  byte* str = ReadBytes(snapshot_file, &len);
+  if (!str) return false;
+  bool success;
+  {
+    SnapshotByteSource source(str, len);
+    Deserializer deserializer(&source);
+    ReserveSpaceForSnapshot(&deserializer, snapshot_file);
+    success = V8::Initialize(&deserializer);
+  }
+  DeleteArray(str);
+  return success;
+}
+
+
 static void Deserialize() {
-  CHECK(Snapshot::Initialize(FLAG_testing_serialization_file));
+  CHECK(InitializeFromFile(FLAG_testing_serialization_file));
 }
 
 
@@ -443,48 +495,13 @@ TEST(PartialSerialization) {
 }
 
 
-static void ReserveSpaceForSnapshot(Deserializer* deserializer,
-                                    const char* file_name) {
-  int file_name_length = StrLength(file_name) + 10;
-  Vector<char> name = Vector<char>::New(file_name_length + 1);
-  SNPrintF(name, "%s.size", file_name);
-  FILE* fp = OS::FOpen(name.start(), "r");
-  name.Dispose();
-  int new_size, pointer_size, data_size, code_size, map_size, cell_size,
-      property_cell_size;
-#ifdef _MSC_VER
-  // Avoid warning about unsafe fscanf from MSVC.
-  // Please note that this is only fine if %c and %s are not being used.
-#define fscanf fscanf_s
-#endif
-  CHECK_EQ(1, fscanf(fp, "new %d\n", &new_size));
-  CHECK_EQ(1, fscanf(fp, "pointer %d\n", &pointer_size));
-  CHECK_EQ(1, fscanf(fp, "data %d\n", &data_size));
-  CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
-  CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
-  CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
-  CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
-#ifdef _MSC_VER
-#undef fscanf
-#endif
-  fclose(fp);
-  deserializer->set_reservation(NEW_SPACE, new_size);
-  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_size);
-  deserializer->set_reservation(OLD_DATA_SPACE, data_size);
-  deserializer->set_reservation(CODE_SPACE, code_size);
-  deserializer->set_reservation(MAP_SPACE, map_size);
-  deserializer->set_reservation(CELL_SPACE, cell_size);
-  deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_size);
-}
-
-
 DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
     SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-    CHECK(Snapshot::Initialize(startup_name.start()));
+    CHECK(InitializeFromFile(startup_name.start()));
     startup_name.Dispose();
 
     const char* file_name = FLAG_testing_serialization_file;
@@ -596,7 +613,7 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
     SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
 
-    CHECK(Snapshot::Initialize(startup_name.start()));
+    CHECK(InitializeFromFile(startup_name.start()));
     startup_name.Dispose();
 
     const char* file_name = FLAG_testing_serialization_file;
