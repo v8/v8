@@ -89,6 +89,10 @@ var kMessages = {
   array_functions_on_frozen:     ["Cannot modify frozen array elements"],
   array_functions_change_sealed: ["Cannot add/remove sealed array elements"],
   first_argument_not_regexp:     ["First argument to ", "%0", " must not be a regular expression"],
+  not_iterable:                  ["%0", " is not iterable"],
+  not_an_iterator:               ["%0", " is not an iterator"],
+  iterator_result_not_an_object: ["Iterator result ", "%0", " is not an object"],
+  iterator_value_not_an_object:  ["Iterator value ", "%0", " is not an entry object"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
   invalid_array_buffer_length:   ["Invalid array buffer length"],
