@@ -6,9 +6,9 @@
 
 #include "src/snapshot.h"
 
-#include "src/v8.h"  // for V8::Initialize
 #include "src/serialize.h"
 #include "src/snapshot-source-sink.h"
+#include "src/v8.h"  // for V8::Initialize
 
 namespace v8 {
 namespace internal {
