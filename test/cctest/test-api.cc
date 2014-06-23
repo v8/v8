@@ -20828,6 +20828,37 @@ TEST(RunMicrotasksWithoutEnteringContext) {
 }
 
 
+static void DebugEventInObserver(const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+  if (event != v8::Break) return;
+  Handle<Object> exec_state = event_details.GetExecutionState();
+  Handle<Value> break_id = exec_state->Get(v8_str("break_id"));
+  CompileRun("function f(id) { new FrameDetails(id, 0); }");
+  Handle<Function> fun = Handle<Function>::Cast(
+      CcTest::global()->Get(v8_str("f"))->ToObject());
+  fun->Call(CcTest::global(), 1, &break_id);
+}
+
+
+TEST(Regress385349) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  isolate->SetAutorunMicrotasks(false);
+  Handle<Context> context = Context::New(isolate);
+  v8::Debug::SetDebugEventListener(DebugEventInObserver);
+  {
+    Context::Scope context_scope(context);
+    CompileRun("var obj = {};"
+               "Object.observe(obj, function(changes) { debugger; });"
+               "obj.a = 0;");
+  }
+  isolate->RunMicrotasks();
+  isolate->SetAutorunMicrotasks(true);
+  v8::Debug::SetDebugEventListener(NULL);
+}
+
+
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;
