@@ -2343,6 +2343,19 @@ void Isolate::RunMicrotasks() {
 }
 
 
+void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
+  ASSERT(!use_counter_callback_);
+  use_counter_callback_ = callback;
+}
+
+
+void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
+  if (use_counter_callback_) {
+    use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
+  }
+}
+
+
 bool StackLimitCheck::JsHasOverflowed() const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR

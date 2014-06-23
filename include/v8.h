@@ -4129,6 +4129,19 @@ class V8_EXPORT Isolate {
   };
 
   /**
+   * Features reported via the SetUseCounterCallback callback. Do not chang
+   * assigned numbers of existing items; add new features to the end of this
+   * list.
+   */
+  enum UseCounterFeature {
+    kUseAsm = 0
+  };
+
+  typedef void (*UseCounterCallback)(Isolate* isolate,
+                                     UseCounterFeature feature);
+
+
+  /**
    * Creates a new isolate.  Does not change the currently entered
    * isolate.
    *
@@ -4396,6 +4409,11 @@ class V8_EXPORT Isolate {
    * run when the script call depth decrements to zero.
    */
   bool WillAutorunMicrotasks() const;
+
+  /**
+   * Sets a callback for counting the number of times a feature of V8 is used.
+   */
+  void SetUseCounterCallback(UseCounterCallback callback);
 
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;

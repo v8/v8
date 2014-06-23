@@ -6718,6 +6718,11 @@ bool Isolate::WillAutorunMicrotasks() const {
 }
 
 
+void Isolate::SetUseCounterCallback(UseCounterCallback callback) {
+  reinterpret_cast<i::Isolate*>(this)->SetUseCounterCallback(callback);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();
