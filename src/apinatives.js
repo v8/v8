@@ -94,14 +94,14 @@ function ConfigureTemplateInstance(obj, data) {
         var attributes = properties[i + 3];
         var value = Instantiate(prop_data, name);
         %SetProperty(obj, name, value, attributes);
-      } else if (length == 5) {
+      } else if (length == 4 || length == 5) {
+        // TODO(verwaest): The 5th value used to be access_control. Remove once
+        // the bindings are updated.
         var name = properties[i + 1];
         var getter = properties[i + 2];
         var setter = properties[i + 3];
         var attribute = properties[i + 4];
-        var access_control = properties[i + 5];
-        %SetAccessorProperty(
-            obj, name, getter, setter, attribute, access_control);
+        %SetAccessorProperty(obj, name, getter, setter, attribute);
       } else {
         throw "Bad properties array";
       }

@@ -1899,14 +1899,6 @@ static bool CheckAccessException(Object* callback,
         (access_type == v8::ACCESS_GET && info->all_can_read()) ||
         (access_type == v8::ACCESS_SET && info->all_can_write());
   }
-  if (callback->IsAccessorPair()) {
-    AccessorPair* info = AccessorPair::cast(callback);
-    return
-        (access_type == v8::ACCESS_HAS &&
-           (info->all_can_read() || info->all_can_write())) ||
-        (access_type == v8::ACCESS_GET && info->all_can_read()) ||
-        (access_type == v8::ACCESS_SET && info->all_can_write());
-  }
   return false;
 }
 
@@ -1959,8 +1951,8 @@ static void CheckPropertyAccess(Handle<JSObject> obj,
   }
 
   // Access check callback denied the access, but some properties
-  // can have a special permissions which override callbacks descision
-  // (currently see v8::AccessControl).
+  // can have a special permissions which override callbacks decision
+  // (see v8::AccessControl).
   // API callbacks can have per callback access exceptions.
   if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
     lookup.holder()->LookupOwnRealNamedProperty(name, &lookup);
@@ -2175,13 +2167,12 @@ static Handle<Object> InstantiateAccessorComponent(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_SetAccessorProperty) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 6);
+  ASSERT(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
   CONVERT_SMI_ARG_CHECKED(attribute, 4);
-  CONVERT_SMI_ARG_CHECKED(access_control, 5);
   RUNTIME_ASSERT(getter->IsUndefined() || getter->IsFunctionTemplateInfo());
   RUNTIME_ASSERT(setter->IsUndefined() || setter->IsFunctionTemplateInfo());
   RUNTIME_ASSERT(PropertyDetails::AttributesField::is_valid(
@@ -2190,8 +2181,7 @@ RUNTIME_FUNCTION(Runtime_SetAccessorProperty) {
                            name,
                            InstantiateAccessorComponent(isolate, getter),
                            InstantiateAccessorComponent(isolate, setter),
-                           static_cast<PropertyAttributes>(attribute),
-                           static_cast<v8::AccessControl>(access_control));
+                           static_cast<PropertyAttributes>(attribute));
   return isolate->heap()->undefined_value();
 }
 

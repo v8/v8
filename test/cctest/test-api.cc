@@ -9020,19 +9020,13 @@ static bool IndexedAccessBlocker(Local<v8::Object> global,
 }
 
 
-static int g_echo_value_1 = -1;
-static int g_echo_value_2 = -1;
+static int g_echo_value = -1;
 
 
 static void EchoGetter(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_num(g_echo_value_1));
-}
-
-
-static void EchoGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(v8_num(g_echo_value_2));
+  info.GetReturnValue().Set(v8_num(g_echo_value));
 }
 
 
@@ -9040,14 +9034,7 @@ static void EchoSetter(Local<String> name,
                        Local<Value> value,
                        const v8::PropertyCallbackInfo<void>&) {
   if (value->IsNumber())
-    g_echo_value_1 = value->Int32Value();
-}
-
-
-static void EchoSetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  v8::Handle<v8::Value> value = info[0];
-  if (value->IsNumber())
-    g_echo_value_2 = value->Int32Value();
+    g_echo_value = value->Int32Value();
 }
 
 
@@ -9087,13 +9074,6 @@ TEST(AccessControl) {
       v8::Handle<Value>(),
       v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
 
-
-  global_template->SetAccessorProperty(
-      v8_str("accessible_js_prop"),
-      v8::FunctionTemplate::New(isolate, EchoGetter),
-      v8::FunctionTemplate::New(isolate, EchoSetter),
-      v8::None,
-      v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
 
   // Add an accessor that is not accessible by cross-domain JS code.
   global_template->SetAccessor(v8_str("blocked_prop"),
@@ -9223,19 +9203,9 @@ TEST(AccessControl) {
   value = CompileRun("other.accessible_prop = 3");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
-  CHECK_EQ(3, g_echo_value_1);
-
-  // Access accessible js property
-  value = CompileRun("other.accessible_js_prop = 3");
-  CHECK(value->IsNumber());
-  CHECK_EQ(3, value->Int32Value());
-  CHECK_EQ(3, g_echo_value_2);
+  CHECK_EQ(3, g_echo_value);
 
   value = CompileRun("other.accessible_prop");
-  CHECK(value->IsNumber());
-  CHECK_EQ(3, value->Int32Value());
-
-  value = CompileRun("other.accessible_js_prop");
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
 
@@ -9244,15 +9214,7 @@ TEST(AccessControl) {
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
 
-  value = CompileRun(
-      "Object.getOwnPropertyDescriptor(other, 'accessible_js_prop').get()");
-  CHECK(value->IsNumber());
-  CHECK_EQ(3, value->Int32Value());
-
   value = CompileRun("propertyIsEnumerable.call(other, 'accessible_prop')");
-  CHECK(value->IsTrue());
-
-  value = CompileRun("propertyIsEnumerable.call(other, 'accessible_js_prop')");
   CHECK(value->IsTrue());
 
   // Enumeration doesn't enumerate accessors from inaccessible objects in
@@ -9261,7 +9223,6 @@ TEST(AccessControl) {
       CompileRun("(function(){var obj = {'__proto__':other};"
                  "for (var p in obj)"
                  "   if (p == 'accessible_prop' ||"
-                 "       p == 'accessible_js_prop' ||"
                  "       p == 'blocked_js_prop' ||"
                  "       p == 'blocked_js_prop') {"
                  "     return false;"
@@ -9336,7 +9297,7 @@ TEST(AccessControlES5) {
   // Make sure that we can set the accessible accessors value using normal
   // assignment.
   CompileRun("other.accessible_prop = 42");
-  CHECK_EQ(42, g_echo_value_1);
+  CHECK_EQ(42, g_echo_value);
 
   v8::Handle<Value> value;
   CompileRun("Object.defineProperty(other, 'accessible_prop', {value: -1})");

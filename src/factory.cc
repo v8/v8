@@ -151,7 +151,6 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
       Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
   accessors->set_getter(*the_hole_value(), SKIP_WRITE_BARRIER);
   accessors->set_setter(*the_hole_value(), SKIP_WRITE_BARRIER);
-  accessors->set_access_flags(Smi::FromInt(0), SKIP_WRITE_BARRIER);
   return accessors;
 }
 
