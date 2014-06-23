@@ -512,33 +512,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  descriptor->register_param_count_ = KeyedLoadIC::kRegisterArgumentCount;
-  descriptor->register_params_ = KeyedLoadIC::registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
-}
-
-
-void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  descriptor->register_param_count_ = KeyedLoadIC::kRegisterArgumentCount;
-  descriptor->register_params_ = KeyedLoadIC::registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
-}
-
-
-void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  descriptor->register_param_count_ = KeyedLoadIC::kRegisterArgumentCount;
-  descriptor->register_params_ = KeyedLoadIC::registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry;
-}
-
-
 void KeyedLoadDictionaryElementPlatformStub::Generate(
     MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);

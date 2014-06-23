@@ -398,15 +398,6 @@ class LoadIC: public IC {
   class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
   STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
 
-  enum RegisterInfo {
-    kReceiverIndex,
-    kNameIndex,
-    kRegisterArgumentCount
-  };
-  static Register kReceiverRegister;
-  static Register kNameRegister;
-  static const Register registers[kRegisterArgumentCount];
-
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
     return ContextualModeBits::encode(contextual_mode);
   }
@@ -506,10 +497,6 @@ class KeyedLoadIC: public LoadIC {
       : LoadIC(depth, isolate) {
     ASSERT(target()->is_keyed_load_stub());
   }
-
-  static const Register registers[kRegisterArgumentCount];
-  static Register kReceiverRegister;
-  static Register kNameRegister;
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);

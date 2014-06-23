@@ -1025,17 +1025,6 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-// IC register specifications
-Register LoadIC::kReceiverRegister = edx;
-Register LoadIC::kNameRegister = ecx;
-const Register LoadIC::registers[] = { kReceiverRegister, kNameRegister };
-
-
-Register KeyedLoadIC::kReceiverRegister = LoadIC::kReceiverRegister;
-Register KeyedLoadIC::kNameRegister = LoadIC::kNameRegister;
-const Register KeyedLoadIC::registers[] = { kReceiverRegister, kNameRegister };
-
-
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : key
