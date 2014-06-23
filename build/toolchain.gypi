@@ -47,7 +47,7 @@
     # these registers in the snapshot and use CPU feature probing when running
     # on the target.
     'v8_can_use_vfp32dregs%': 'false',
-    'arm_test%': 'off',
+    'arm_test_noprobe%': 'off',
 
     # Similar to vfp but on MIPS.
     'v8_can_use_fpu_instructions%': 'true',
@@ -89,6 +89,36 @@
         'defines': [
           'V8_TARGET_ARCH_ARM',
         ],
+        'conditions': [
+          [ 'arm_version==7 or arm_version=="default"', {
+            'defines': [
+              'CAN_USE_ARMV7_INSTRUCTIONS',
+            ],
+          }],
+          [ 'arm_fpu=="vfpv3-d16" or arm_fpu=="default"', {
+            'defines': [
+              'CAN_USE_VFP3_INSTRUCTIONS',
+            ],
+          }],
+          [ 'arm_fpu=="vfpv3"', {
+            'defines': [
+              'CAN_USE_VFP3_INSTRUCTIONS',
+              'CAN_USE_VFP32DREGS',
+            ],
+          }],
+          [ 'arm_fpu=="neon"', {
+            'defines': [
+              'CAN_USE_VFP3_INSTRUCTIONS',
+              'CAN_USE_VFP32DREGS',
+              'CAN_USE_NEON',
+            ],
+          }],
+          [ 'arm_test_noprobe=="on"', {
+            'defines': [
+              'ARM_TEST_NO_FEATURE_PROBE',
+            ],
+          }],
+        ],
         'target_conditions': [
           ['_toolset=="host"', {
             'variables': {
@@ -116,45 +146,10 @@
                   [ 'arm_thumb==0', {
                     'cflags': ['-marm',],
                   }],
-                  [ 'arm_test=="on"', {
-                    'defines': [
-                      'ARM_TEST',
-                    ],
-                  }],
                 ],
               }, {
                 # armcompiler=="no"
                 'conditions': [
-                  [ 'arm_version==7 or arm_version=="default"', {
-                    'defines': [
-                      'CAN_USE_ARMV7_INSTRUCTIONS=1',
-                    ],
-                    'conditions': [
-                      [ 'arm_fpu=="default"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="vfpv3-d16"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="vfpv3"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="neon"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                          'CAN_USE_NEON',
-                        ],
-                      }],
-                    ],
-                  }],
                   [ 'arm_float_abi=="hard"', {
                     'defines': [
                       'USE_EABI_HARDFLOAT=1',
@@ -165,9 +160,6 @@
                       'USE_EABI_HARDFLOAT=0',
                     ],
                   }],
-                ],
-                'defines': [
-                  'ARM_TEST',
                 ],
               }],
             ],
@@ -198,67 +190,10 @@
                   [ 'arm_thumb==0', {
                     'cflags': ['-marm',],
                   }],
-                  [ 'arm_test=="on"', {
-                    'defines': [
-                      'ARM_TEST',
-                    ],
-                    'conditions': [
-                      [ 'arm_fpu=="vfpv3-d16"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="vfpv3"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="neon"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                          'CAN_USE_NEON',
-                        ],
-                      }],
-                    ],
-                  }],
                 ],
               }, {
                 # armcompiler=="no"
                 'conditions': [
-                  [ 'arm_version==7 or arm_version=="default"', {
-                    'defines': [
-                      'CAN_USE_ARMV7_INSTRUCTIONS=1',
-                    ],
-                    'conditions': [
-                      [ 'arm_fpu=="default"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                          'CAN_USE_NEON',
-                        ],
-                      }],
-                      [ 'arm_fpu=="vfpv3-d16"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="vfpv3"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                        ],
-                      }],
-                      [ 'arm_fpu=="neon"', {
-                        'defines': [
-                          'CAN_USE_VFP3_INSTRUCTIONS',
-                          'CAN_USE_VFP32DREGS',
-                          'CAN_USE_NEON',
-                        ],
-                      }],
-                    ],
-                  }],
                   [ 'arm_float_abi=="hard"', {
                     'defines': [
                       'USE_EABI_HARDFLOAT=1',
@@ -269,9 +204,6 @@
                       'USE_EABI_HARDFLOAT=0',
                     ],
                   }],
-                ],
-                'defines': [
-                  'ARM_TEST',
                 ],
               }],
             ],

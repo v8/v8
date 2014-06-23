@@ -105,22 +105,22 @@ struct MaybeBoolFlag {
 };
 #endif
 
-#if (defined CAN_USE_VFP3_INSTRUCTIONS) || !(defined ARM_TEST)
+#if (defined CAN_USE_VFP3_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 # define ENABLE_VFP3_DEFAULT true
 #else
 # define ENABLE_VFP3_DEFAULT false
 #endif
-#if (defined CAN_USE_ARMV7_INSTRUCTIONS) || !(defined ARM_TEST)
+#if (defined CAN_USE_ARMV7_INSTRUCTIONS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 # define ENABLE_ARMV7_DEFAULT true
 #else
 # define ENABLE_ARMV7_DEFAULT false
 #endif
-#if (defined CAN_USE_VFP32DREGS) || !(defined ARM_TEST)
+#if (defined CAN_USE_VFP32DREGS) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 # define ENABLE_32DREGS_DEFAULT true
 #else
 # define ENABLE_32DREGS_DEFAULT false
 #endif
-#if (defined CAN_USE_NEON) || !(defined ARM_TEST)
+#if (defined CAN_USE_NEON) || !(defined ARM_TEST_NO_FEATURE_PROBE)
 # define ENABLE_NEON_DEFAULT true
 #else
 # define ENABLE_NEON_DEFAULT false

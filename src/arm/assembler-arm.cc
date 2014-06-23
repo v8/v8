@@ -129,10 +129,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 void CpuFeatures::PrintTarget() {
   const char* arm_arch = NULL;
-  const char* arm_test = "";
+  const char* arm_target_type = "";
+  const char* arm_no_probe = "";
   const char* arm_fpu = "";
   const char* arm_thumb = "";
   const char* arm_float_abi = NULL;
+
+#if !defined __arm__
+  arm_target_type = " simulator";
+#endif
+
+#if defined ARM_TEST_NO_FEATURE_PROBE
+  arm_no_probe = " noprobe";
+#endif
 
 #if defined CAN_USE_ARMV7_INSTRUCTIONS
   arm_arch = "arm v7";
@@ -140,45 +149,33 @@ void CpuFeatures::PrintTarget() {
   arm_arch = "arm v6";
 #endif
 
-#ifdef __arm__
-
-# ifdef ARM_TEST
-  arm_test = " test";
-# endif
-# if defined __ARM_NEON__
+#if defined CAN_USE_NEON
   arm_fpu = " neon";
-# elif defined CAN_USE_VFP3_INSTRUCTIONS
-  arm_fpu = " vfp3";
-# else
-  arm_fpu = " vfp2";
-# endif
-# if (defined __thumb__) || (defined __thumb2__)
-  arm_thumb = " thumb";
-# endif
-  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
-
-#else  // __arm__
-
-  arm_test = " simulator";
-# if defined CAN_USE_VFP3_INSTRUCTIONS
+#elif defined CAN_USE_VFP3_INSTRUCTIONS
 #  if defined CAN_USE_VFP32DREGS
   arm_fpu = " vfp3";
 #  else
   arm_fpu = " vfp3-d16";
 #  endif
-# else
+#else
   arm_fpu = " vfp2";
-# endif
-# if USE_EABI_HARDFLOAT == 1
+#endif
+
+#ifdef __arm__
+  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
+#elif USE_EABI_HARDFLOAT
   arm_float_abi = "hard";
-# else
+#else
   arm_float_abi = "softfp";
-# endif
+#endif
 
-#endif  // __arm__
+#if defined __arm__ && (defined __thumb__) || (defined __thumb2__)
+  arm_thumb = " thumb";
+#endif
 
-  printf("target%s %s%s%s %s\n",
-         arm_test, arm_arch, arm_fpu, arm_thumb, arm_float_abi);
+  printf("target%s%s %s%s%s %s\n",
+         arm_target_type, arm_no_probe, arm_arch, arm_fpu, arm_thumb,
+         arm_float_abi);
 }
 
 
