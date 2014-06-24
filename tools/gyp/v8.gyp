@@ -42,17 +42,21 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['v8_use_snapshot=="true"', {
+
+        ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
           # The dependency on v8_base should come from a transitive
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
           'dependencies': ['v8_base', 'v8_snapshot'],
-        },
-        {
+        }],
+        ['v8_use_snapshot!="true" and v8_use_external_startup_data==0', {
           # The dependency on v8_base should come from a transitive
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
           'dependencies': ['v8_base', 'v8_nosnapshot'],
+        }],
+        ['v8_use_external_startup_data==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -148,6 +152,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
+        '../../src/snapshot-common.cc',
       ],
       'actions': [
         {
@@ -172,7 +177,7 @@
           'action': [
             '<@(_inputs)',
             '<@(mksnapshot_flags)',
-            '<@(_outputs)'
+            '<@(INTERMEDIATE_DIR)/snapshot.cc'
           ],
         },
       ],
@@ -190,6 +195,7 @@
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+        '../../src/snapshot-common.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
@@ -207,6 +213,80 @@
           ],
         }],
       ]
+    },
+    {
+      'target_name': 'v8_external_snapshot',
+      'type': 'static_library',
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+          'dependencies': [
+            'mksnapshot#host',
+            'js2c#host',
+            'generate_trig_table#host',
+            'natives_blob#host',
+        ]}, {
+          'toolsets': ['target'],
+          'dependencies': [
+            'mksnapshot',
+            'js2c',
+            'generate_trig_table',
+            'natives_blob',
+          ],
+        }],
+        ['component=="shared_library"', {
+          'defines': [
+            'V8_SHARED',
+            'BUILDING_V8_SHARED',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'V8_SHARED',
+              'USING_V8_SHARED',
+            ],
+          },
+        }],
+      ],
+      'dependencies': [
+        'v8_base',
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
+        '../../src/natives-external.cc',
+        '../../src/snapshot-external.cc',
+      ],
+      'actions': [
+        {
+          'action_name': 'run_mksnapshot (external)',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+          ],
+          'outputs': [
+            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(PRODUCT_DIR)/snapshot_blob.bin',
+          ],
+          'variables': {
+            'mksnapshot_flags': [
+              '--log-snapshot-positions',
+              '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
+            ],
+            'conditions': [
+              ['v8_random_seed!=0', {
+                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+              }],
+            ],
+          },
+          'action': [
+            '<@(_inputs)',
+            '<@(mksnapshot_flags)',
+            '<@(INTERMEDIATE_DIR)/snapshot.cc',
+            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
+          ],
+        },
+      ],
     },
     { 'target_name': 'generate_trig_table',
       'type': 'none',
@@ -546,8 +626,9 @@
         '../../src/serialize.h',
         '../../src/small-pointer-list.h',
         '../../src/smart-pointers.h',
-        '../../src/snapshot-common.cc',
         '../../src/snapshot.h',
+        '../../src/snapshot-source-sink.cc',
+        '../../src/snapshot-source-sink.h',
         '../../src/spaces-inl.h',
         '../../src/spaces.cc',
         '../../src/spaces.h',
@@ -661,6 +742,9 @@
             '../../src/arm64/decoder-arm64.cc',
             '../../src/arm64/decoder-arm64.h',
             '../../src/arm64/decoder-arm64-inl.h',
+            '../../src/arm64/delayed-masm-arm64.cc',
+            '../../src/arm64/delayed-masm-arm64.h',
+            '../../src/arm64/delayed-masm-arm64-inl.h',
             '../../src/arm64/deoptimizer-arm64.cc',
             '../../src/arm64/disasm-arm64.cc',
             '../../src/arm64/disasm-arm64.h',
@@ -837,9 +921,6 @@
           }
         ],
         ['OS=="android"', {
-            'defines': [
-              'CAN_USE_VFP_INSTRUCTIONS',
-            ],
             'sources': [
               '../../src/platform-posix.cc'
             ],
@@ -1101,6 +1182,32 @@
       ],
     },
     {
+      'target_name': 'natives_blob',
+      'type': 'none',
+      'conditions': [
+        [ 'v8_use_external_startup_data==1', {
+          'dependencies': ['js2c'],
+          'actions': [{
+            'action_name': 'concatenate_natives_blob',
+            'inputs': [
+              '../../tools/concatenate-files.py',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
+              '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
+            ],
+            'outputs': [
+              '<(PRODUCT_DIR)/natives_blob.bin',
+            ],
+            'action': ['python', '<@(_inputs)', '<@(_outputs)'],
+          }],
+        }],
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ]
+    },
+    {
       'target_name': 'js2c',
       'type': 'none',
       'conditions': [
@@ -1156,6 +1263,8 @@
           '../../src/harmony-array.js',
           '../../src/harmony-math.js'
         ],
+        'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
+        'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
       },
       'actions': [
         {
@@ -1171,11 +1280,19 @@
           'action': [
             'python',
             '../../tools/js2c.py',
-            '<@(_outputs)',
+            '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
             'CORE',
             '<(v8_compress_startup_data)',
             '<@(library_files)',
             '<@(i18n_library_files)',
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_bin_file)',
+              ],
+            }],
           ],
         },
         {
@@ -1190,10 +1307,18 @@
           'action': [
             'python',
             '../../tools/js2c.py',
-            '<@(_outputs)',
+            '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
             'EXPERIMENTAL',
             '<(v8_compress_startup_data)',
             '<@(experimental_library_files)'
+          ],
+          'conditions': [
+            [ 'v8_use_external_startup_data==1', {
+              'outputs': ['<@(libraries_experimental_bin_file)'],
+              'action': [
+                '--startup_blob', '<@(libraries_experimental_bin_file)'
+              ],
+            }],
           ],
         },
       ],

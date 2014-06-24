@@ -1128,7 +1128,7 @@ function ArrayFilter(f, receiver) {
   var result = new $Array();
   var accumulator = new InternalArray();
   var accumulator_length = 0;
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1161,7 +1161,7 @@ function ArrayForEach(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1192,7 +1192,7 @@ function ArraySome(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1222,7 +1222,7 @@ function ArrayEvery(f, receiver) {
     receiver = ToObject(receiver);
   }
 
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1253,7 +1253,7 @@ function ArrayMap(f, receiver) {
 
   var result = new $Array();
   var accumulator = new InternalArray(length);
-  var stepping = %_DebugCallbackSupportsStepping(f);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
   for (var i = 0; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1400,7 +1400,7 @@ function ArrayReduce(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  var stepping = %_DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i < length; i++) {
     if (i in array) {
       var element = array[i];
@@ -1437,7 +1437,7 @@ function ArrayReduceRight(callback, current) {
   }
 
   var receiver = %GetDefaultReceiver(callback);
-  var stepping = %_DebugCallbackSupportsStepping(callback);
+  var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(callback);
   for (; i >= 0; i--) {
     if (i in array) {
       var element = array[i];

@@ -3630,15 +3630,9 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
   ldr(result, MemOperand(ldr_location));
   if (emit_debug_code()) {
     // Check that the instruction is a ldr reg, [<pc or pp> + offset] .
-    if (FLAG_enable_ool_constant_pool) {
-      and_(result, result, Operand(kLdrPpPattern));
-      cmp(result, Operand(kLdrPpPattern));
-      Check(eq, kTheInstructionToPatchShouldBeALoadFromPp);
-    } else {
-      and_(result, result, Operand(kLdrPCPattern));
-      cmp(result, Operand(kLdrPCPattern));
-      Check(eq, kTheInstructionToPatchShouldBeALoadFromPc);
-    }
+    and_(result, result, Operand(GetConsantPoolLoadPattern()));
+    cmp(result, Operand(GetConsantPoolLoadPattern()));
+    Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
     // Result was clobbered. Restore it.
     ldr(result, MemOperand(ldr_location));
   }

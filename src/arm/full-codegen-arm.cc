@@ -4009,6 +4009,17 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
+  ASSERT(expr->arguments()->length() == 0);
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  __ mov(ip, Operand(debug_is_active));
+  __ ldrb(r0, MemOperand(ip));
+  __ SmiTag(r0);
+  context()->Plug(r0);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->function() != NULL &&
       expr->function()->intrinsic_type == Runtime::INLINE) {
@@ -4742,9 +4753,8 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Address pc,
                             BackEdgeState target_state,
                             Code* replacement_code) {
-  static const int kInstrSize = Assembler::kInstrSize;
   Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
-  Address branch_address = pc_immediate_load_address - kInstrSize;
+  Address branch_address = pc_immediate_load_address - Assembler::kInstrSize;
   CodePatcher patcher(branch_address, 1);
   switch (target_state) {
     case INTERRUPT:
@@ -4759,7 +4769,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
 
       // Calculate branch offet to the ok-label - this is the difference between
       // the branch address and |pc| (which points at <blx ip>) plus one instr.
-      int branch_offset = pc + kInstrSize - branch_address;
+      int branch_offset = pc + Assembler::kInstrSize - branch_address;
       patcher.masm()->b(branch_offset, pl);
       break;
     }
@@ -4789,11 +4799,10 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
     Isolate* isolate,
     Code* unoptimized_code,
     Address pc) {
-  static const int kInstrSize = Assembler::kInstrSize;
-  ASSERT(Memory::int32_at(pc - kInstrSize) == kBlxIp);
+  ASSERT(Assembler::IsBlxIp(Memory::int32_at(pc - Assembler::kInstrSize)));
 
   Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
-  Address branch_address = pc_immediate_load_address - kInstrSize;
+  Address branch_address = pc_immediate_load_address - Assembler::kInstrSize;
   Address interrupt_address = Assembler::target_address_at(
       pc_immediate_load_address, unoptimized_code);
 

@@ -7,6 +7,7 @@
 
 #include <list>
 #include <map>
+#include <vector>
 
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
@@ -729,6 +730,16 @@ class MemOperand {
   // handle indexed modes.
   inline Operand OffsetAsOperand() const;
 
+  enum PairResult {
+    kNotPair,   // Can't use a pair instruction.
+    kPairAB,    // Can use a pair instruction (operandA has lower address).
+    kPairBA     // Can use a pair instruction (operandB has lower address).
+  };
+  // Check if two MemOperand are consistent for stp/ldp use.
+  static PairResult AreConsistentForPair(const MemOperand& operandA,
+                                         const MemOperand& operandB,
+                                         int access_size_log2 = kXRegSizeLog2);
+
  private:
   Register base_;
   Register regoffset_;
@@ -737,6 +748,55 @@ class MemOperand {
   Shift shift_;
   Extend extend_;
   unsigned shift_amount_;
+};
+
+
+class ConstPool {
+ public:
+  explicit ConstPool(Assembler* assm)
+      : assm_(assm),
+        first_use_(-1),
+        shared_entries_count(0) {}
+  void RecordEntry(intptr_t data, RelocInfo::Mode mode);
+  int EntryCount() const {
+    return shared_entries_count + unique_entries_.size();
+  }
+  bool IsEmpty() const {
+    return shared_entries_.empty() && unique_entries_.empty();
+  }
+  // Distance in bytes between the current pc and the first instruction
+  // using the pool. If there are no pending entries return kMaxInt.
+  int DistanceToFirstUse();
+  // Offset after which instructions using the pool will be out of range.
+  int MaxPcOffset();
+  // Maximum size the constant pool can be with current entries. It always
+  // includes alignment padding and branch over.
+  int WorstCaseSize();
+  // Size in bytes of the literal pool *if* it is emitted at the current
+  // pc. The size will include the branch over the pool if it was requested.
+  int SizeIfEmittedAtCurrentPc(bool require_jump);
+  // Emit the literal pool at the current pc with a branch over the pool if
+  // requested.
+  void Emit(bool require_jump);
+  // Discard any pending pool entries.
+  void Clear();
+
+ private:
+  bool CanBeShared(RelocInfo::Mode mode);
+  void EmitMarker();
+  void EmitGuard();
+  void EmitEntries();
+
+  Assembler* assm_;
+  // Keep track of the first instruction requiring a constant pool entry
+  // since the previous constant pool was emitted.
+  int first_use_;
+  // values, pc offset(s) of entries which can be shared.
+  std::multimap<uint64_t, int> shared_entries_;
+  // Number of distinct literal in shared entries.
+  int shared_entries_count;
+  // values, pc offset of entries which cannot be shared.
+  std::vector<std::pair<uint64_t, int> > unique_entries_;
 };
 
 
@@ -763,7 +823,7 @@ class Assembler : public AssemblerBase {
   virtual ~Assembler();
 
   virtual void AbortedCodeGeneration() {
-    num_pending_reloc_info_ = 0;
+    constpool_.Clear();
   }
 
   // System functions ---------------------------------------------------------
@@ -912,9 +972,7 @@ class Assembler : public AssemblerBase {
   static bool IsConstantPoolAt(Instruction* instr);
   static int ConstantPoolSizeAt(Instruction* instr);
   // See Assembler::CheckConstPool for more info.
-  void ConstantPoolMarker(uint32_t size);
   void EmitPoolGuard();
-  void ConstantPoolGuard();
 
   // Prevent veneer pool emission until EndBlockVeneerPool is called.
   // Call to this function can be nested but must be followed by an equal
@@ -1695,7 +1753,9 @@ class Assembler : public AssemblerBase {
 
   // Code generation helpers --------------------------------------------------
 
-  unsigned num_pending_reloc_info() const { return num_pending_reloc_info_; }
+  bool IsConstPoolEmpty() const { return constpool_.IsEmpty(); }
+
+  Instruction* pc() const { return Instruction::Cast(pc_); }
 
   Instruction* InstructionAt(int offset) const {
     return reinterpret_cast<Instruction*>(buffer_ + offset);
@@ -2019,6 +2079,11 @@ class Assembler : public AssemblerBase {
   // instructions.
   void BlockConstPoolFor(int instructions);
 
+  // Set how far from current pc the next constant pool check will be.
+  void SetNextConstPoolCheckIn(int instructions) {
+    next_constant_pool_check_ = pc_offset() + instructions * kInstructionSize;
+  }
+
   // Emit the instruction at pc_.
   void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
@@ -2050,12 +2115,13 @@ class Assembler : public AssemblerBase {
   int next_constant_pool_check_;
 
   // Constant pool generation
-  // Pools are emitted in the instruction stream, preferably after unconditional
-  // jumps or after returns from functions (in dead code locations).
-  // If a long code sequence does not contain unconditional jumps, it is
-  // necessary to emit the constant pool before the pool gets too far from the
-  // location it is accessed from. In this case, we emit a jump over the emitted
-  // constant pool.
+  // Pools are emitted in the instruction stream. They are emitted when:
+  //  * the distance to the first use is above a pre-defined distance or
+  //  * the numbers of entries in the pool is above a pre-defined size or
+  //  * code generation is finished
+  // If a pool needs to be emitted before code generation is finished a branch
+  // over the emitted pool will be inserted.
+
   // Constants in the pool may be addresses of functions that gets relocated;
   // if so, a relocation info entry is associated to the constant pool entry.
 
@@ -2063,33 +2129,21 @@ class Assembler : public AssemblerBase {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckConstPoolIntervalInst = 128;
-  static const int kCheckConstPoolInterval =
-    kCheckConstPoolIntervalInst * kInstructionSize;
+  static const int kCheckConstPoolInterval = 128;
 
-  // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB thereby defining a maximum distance between the instruction
-  // and the accessed constant.
-  static const int kMaxDistToConstPool = 4 * KB;
-  static const int kMaxNumPendingRelocInfo =
-    kMaxDistToConstPool / kInstructionSize;
+  // Distance to first use after a which a pool will be emitted. Pool entries
+  // are accessed with pc relative load therefore this cannot be more than
+  // 1 * MB. Since constant pool emission checks are interval based this value
+  // is an approximation.
+  static const int kApproxMaxDistToConstPool = 64 * KB;
 
-
-  // Average distance beetween a constant pool and the first instruction
-  // accessing the constant pool. Longer distance should result in less I-cache
-  // pollution.
-  // In practice the distance will be smaller since constant pool emission is
-  // forced after function return and sometimes after unconditional branches.
-  static const int kAvgDistToConstPool =
-    kMaxDistToConstPool - kCheckConstPoolInterval;
+  // Number of pool entries after which a pool will be emitted. Since constant
+  // pool emission checks are interval based this value is an approximation.
+  static const int kApproxMaxPoolEntryCount = 512;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
-
-  // Keep track of the first instruction requiring a constant pool entry
-  // since the previous constant pool was emitted.
-  int first_const_pool_use_;
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
@@ -2106,10 +2160,8 @@ class Assembler : public AssemblerBase {
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
 
-  // the buffer of pending relocation info
-  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
-  // number of pending reloc info entries in the buffer
-  int num_pending_reloc_info_;
+  // The pending constant pool.
+  ConstPool constpool_;
 
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
@@ -2196,6 +2248,7 @@ class Assembler : public AssemblerBase {
   PositionsRecorder positions_recorder_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
+  friend class ConstPool;
 };
 
 class PatchingAssembler : public Assembler {
@@ -2228,7 +2281,7 @@ class PatchingAssembler : public Assembler {
     // Verify we have generated the number of instruction we expected.
     ASSERT((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.
-    ASSERT(num_pending_reloc_info() == 0);
+    ASSERT(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
     CPU::FlushICache(buffer_, length);

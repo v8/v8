@@ -517,6 +517,7 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
+  CpuFeatures::Probe(false);
   CpuFeatures::PrintTarget();
   CpuFeatures::PrintFeatures();
 

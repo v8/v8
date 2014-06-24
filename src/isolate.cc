@@ -2292,12 +2292,10 @@ void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
 
 
 void Isolate::RunMicrotasks() {
-  // TODO(adamk): This ASSERT triggers in mjsunit tests which
-  // call the %RunMicrotasks runtime function. But it should
-  // never happen outside of tests, so it would be nice to
-  // uncomment it.
-  //
-  // ASSERT(handle_scope_implementer()->CallDepthIsZero());
+  // In some mjsunit tests %RunMicrotasks is called explicitly, violating
+  // this assertion.  Therefore we also check for --allow-natives-syntax.
+  ASSERT(FLAG_allow_natives_syntax ||
+         handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
@@ -2317,6 +2315,8 @@ void Isolate::RunMicrotasks() {
       if (microtask->IsJSFunction()) {
         Handle<JSFunction> microtask_function =
             Handle<JSFunction>::cast(microtask);
+        SaveContext save(this);
+        set_context(microtask_function->context()->native_context());
         Handle<Object> exception;
         MaybeHandle<Object> result = Execution::TryCall(
             microtask_function, factory()->undefined_value(),
@@ -2339,6 +2339,19 @@ void Isolate::RunMicrotasks() {
         callback(data);
       }
     }
+  }
+}
+
+
+void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
+  ASSERT(!use_counter_callback_);
+  use_counter_callback_ = callback;
+}
+
+
+void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
+  if (use_counter_callback_) {
+    use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
   }
 }
 

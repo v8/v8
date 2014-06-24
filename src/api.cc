@@ -28,9 +28,7 @@
 #include "src/icu_util.h"
 #include "src/json-parser.h"
 #include "src/messages.h"
-#ifdef COMPRESS_STARTUP_DATA_BZ2
 #include "src/natives.h"
-#endif
 #include "src/parser.h"
 #include "src/platform.h"
 #include "src/platform/time.h"
@@ -349,6 +347,24 @@ void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
       decompressed_data[kExperimentalLibraries].data,
       decompressed_data[kExperimentalLibraries].raw_size);
   i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
+#endif
+}
+
+
+void V8::SetNativesDataBlob(StartupData* natives_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::SetNativesFromFile(natives_blob);
+#else
+  CHECK(false);
+#endif
+}
+
+
+void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
+#ifdef V8_USE_EXTERNAL_STARTUP_DATA
+  i::SetSnapshotFromFile(snapshot_blob);
+#else
+  CHECK(false);
 #endif
 }
 
@@ -833,6 +849,8 @@ void Template::SetAccessorProperty(
     v8::Local<FunctionTemplate> setter,
     v8::PropertyAttribute attribute,
     v8::AccessControl access_control) {
+  // TODO(verwaest): Remove |access_control|.
+  ASSERT_EQ(v8::DEFAULT, access_control);
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ENTER_V8(isolate);
   ASSERT(!name.IsEmpty());
@@ -844,8 +862,7 @@ void Template::SetAccessorProperty(
     name,
     getter,
     setter,
-    v8::Integer::New(v8_isolate, attribute),
-    v8::Integer::New(v8_isolate, access_control)};
+    v8::Integer::New(v8_isolate, attribute)};
   TemplateSet(isolate, this, kSize, data);
 }
 
@@ -3446,6 +3463,8 @@ void Object::SetAccessorProperty(Local<String> name,
                                  Handle<Function> setter,
                                  PropertyAttribute attribute,
                                  AccessControl settings) {
+  // TODO(verwaest): Remove |settings|.
+  ASSERT_EQ(v8::DEFAULT, settings);
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::SetAccessorProperty()", return);
   ENTER_V8(isolate);
@@ -3457,8 +3476,7 @@ void Object::SetAccessorProperty(Local<String> name,
                               v8::Utils::OpenHandle(*name),
                               getter_i,
                               setter_i,
-                              static_cast<PropertyAttributes>(attribute),
-                              settings);
+                              static_cast<PropertyAttributes>(attribute));
 }
 
 
@@ -6713,6 +6731,11 @@ void Isolate::SetAutorunMicrotasks(bool autorun) {
 
 bool Isolate::WillAutorunMicrotasks() const {
   return reinterpret_cast<const i::Isolate*>(this)->autorun_microtasks();
+}
+
+
+void Isolate::SetUseCounterCallback(UseCounterCallback callback) {
+  reinterpret_cast<i::Isolate*>(this)->SetUseCounterCallback(callback);
 }
 
 

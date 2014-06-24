@@ -4,36 +4,36 @@
 
 #include "src/v8.h"
 
+#include "src/arm64/delayed-masm-arm64-inl.h"
 #include "src/arm64/lithium-codegen-arm64.h"
 #include "src/arm64/lithium-gap-resolver-arm64.h"
 
 namespace v8 {
 namespace internal {
 
-// We use the root register to spill a value while breaking a cycle in parallel
-// moves. We don't need access to roots while resolving the move list and using
-// the root register has two advantages:
-//  - It is not in crankshaft allocatable registers list, so it can't interfere
-//    with any of the moves we are resolving.
-//  - We don't need to push it on the stack, as we can reload it with its value
-//    once we have resolved a cycle.
-#define kSavedValue root
+#define __ ACCESS_MASM((&masm_))
 
-// We use the MacroAssembler floating-point scratch register to break a cycle
-// involving double values as the MacroAssembler will not need it for the
-// operations performed by the gap resolver.
-#define kSavedDoubleValue fp_scratch
+
+void DelayedGapMasm::EndDelayedUse() {
+  DelayedMasm::EndDelayedUse();
+  if (scratch_register_used()) {
+    ASSERT(ScratchRegister().Is(root));
+    ASSERT(!pending());
+    InitializeRootRegister();
+    reset_scratch_register_used();
+  }
+}
 
 
 LGapResolver::LGapResolver(LCodeGen* owner)
-    : cgen_(owner), moves_(32, owner->zone()), root_index_(0), in_cycle_(false),
-      saved_destination_(NULL), need_to_restore_root_(false) { }
+    : cgen_(owner), masm_(owner, owner->masm()), moves_(32, owner->zone()),
+      root_index_(0), in_cycle_(false), saved_destination_(NULL) {
+}
 
-
-#define __ ACCESS_MASM(cgen_->masm())
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
   ASSERT(moves_.is_empty());
+  ASSERT(!masm_.pending());
 
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
@@ -61,11 +61,7 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
     }
   }
 
-  if (need_to_restore_root_) {
-    ASSERT(kSavedValue.Is(root));
-    __ InitializeRootRegister();
-    need_to_restore_root_ = false;
-  }
+  __ EndDelayedUse();
 
   moves_.Rewind(0);
 }
@@ -152,11 +148,6 @@ void LGapResolver::BreakCycle(int index) {
   ASSERT(moves_[index].destination()->Equals(moves_[root_index_].source()));
   ASSERT(!in_cycle_);
 
-  // We use registers which are not allocatable by crankshaft to break the cycle
-  // to be sure they don't interfere with the moves we are resolving.
-  ASSERT(!kSavedValue.IsAllocatable());
-  ASSERT(!kSavedDoubleValue.IsAllocatable());
-
   // We save in a register the source of that move and we remember its
   // destination. Then we mark this move as resolved so the cycle is
   // broken and we can perform the other moves.
@@ -165,19 +156,15 @@ void LGapResolver::BreakCycle(int index) {
   saved_destination_ = moves_[index].destination();
 
   if (source->IsRegister()) {
-    need_to_restore_root_ = true;
-    __ Mov(kSavedValue, cgen_->ToRegister(source));
+    AcquireSavedValueRegister();
+    __ Mov(SavedValueRegister(), cgen_->ToRegister(source));
   } else if (source->IsStackSlot()) {
-    need_to_restore_root_ = true;
-    __ Ldr(kSavedValue, cgen_->ToMemOperand(source));
+    AcquireSavedValueRegister();
+    __ Load(SavedValueRegister(), cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
-    ASSERT(cgen_->masm()->FPTmpList()->IncludesAliasOf(kSavedDoubleValue));
-    cgen_->masm()->FPTmpList()->Remove(kSavedDoubleValue);
-    __ Fmov(kSavedDoubleValue, cgen_->ToDoubleRegister(source));
+    __ Fmov(SavedFPValueRegister(), cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(cgen_->masm()->FPTmpList()->IncludesAliasOf(kSavedDoubleValue));
-    cgen_->masm()->FPTmpList()->Remove(kSavedDoubleValue);
-    __ Ldr(kSavedDoubleValue, cgen_->ToMemOperand(source));
+    __ Load(SavedFPValueRegister(), cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
   }
@@ -194,15 +181,16 @@ void LGapResolver::RestoreValue() {
   ASSERT(saved_destination_ != NULL);
 
   if (saved_destination_->IsRegister()) {
-    __ Mov(cgen_->ToRegister(saved_destination_), kSavedValue);
+    __ Mov(cgen_->ToRegister(saved_destination_), SavedValueRegister());
+    ReleaseSavedValueRegister();
   } else if (saved_destination_->IsStackSlot()) {
-    __ Str(kSavedValue, cgen_->ToMemOperand(saved_destination_));
+    __ Store(SavedValueRegister(), cgen_->ToMemOperand(saved_destination_));
+    ReleaseSavedValueRegister();
   } else if (saved_destination_->IsDoubleRegister()) {
-    __ Fmov(cgen_->ToDoubleRegister(saved_destination_), kSavedDoubleValue);
-    cgen_->masm()->FPTmpList()->Combine(kSavedDoubleValue);
+    __ Fmov(cgen_->ToDoubleRegister(saved_destination_),
+            SavedFPValueRegister());
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    __ Str(kSavedDoubleValue, cgen_->ToMemOperand(saved_destination_));
-    cgen_->masm()->FPTmpList()->Combine(kSavedDoubleValue);
+    __ Store(SavedFPValueRegister(), cgen_->ToMemOperand(saved_destination_));
   } else {
     UNREACHABLE();
   }
@@ -225,13 +213,13 @@ void LGapResolver::EmitMove(int index) {
       __ Mov(cgen_->ToRegister(destination), source_register);
     } else {
       ASSERT(destination->IsStackSlot());
-      __ Str(source_register, cgen_->ToMemOperand(destination));
+      __ Store(source_register, cgen_->ToMemOperand(destination));
     }
 
   } else if (source->IsStackSlot()) {
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsRegister()) {
-      __ Ldr(cgen_->ToRegister(destination), source_operand);
+      __ Load(cgen_->ToRegister(destination), source_operand);
     } else {
       ASSERT(destination->IsStackSlot());
       EmitStackSlotMove(index);
@@ -254,15 +242,28 @@ void LGapResolver::EmitMove(int index) {
     } else {
       ASSERT(destination->IsStackSlot());
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
-      need_to_restore_root_ = true;
       if (cgen_->IsSmi(constant_source)) {
-        __ Mov(kSavedValue, cgen_->ToSmi(constant_source));
+        Smi* smi = cgen_->ToSmi(constant_source);
+        __ StoreConstant(reinterpret_cast<intptr_t>(smi),
+                         cgen_->ToMemOperand(destination));
       } else if (cgen_->IsInteger32Constant(constant_source)) {
-        __ Mov(kSavedValue, cgen_->ToInteger32(constant_source));
+        __ StoreConstant(cgen_->ToInteger32(constant_source),
+                         cgen_->ToMemOperand(destination));
       } else {
-        __ LoadObject(kSavedValue, cgen_->ToHandle(constant_source));
+        Handle<Object> handle = cgen_->ToHandle(constant_source);
+        AllowDeferredHandleDereference smi_object_check;
+        if (handle->IsSmi()) {
+          Object* obj = *handle;
+          ASSERT(!obj->IsHeapObject());
+          __ StoreConstant(reinterpret_cast<intptr_t>(obj),
+                           cgen_->ToMemOperand(destination));
+        } else {
+          AcquireSavedValueRegister();
+          __ LoadObject(SavedValueRegister(), handle);
+          __ Store(SavedValueRegister(), cgen_->ToMemOperand(destination));
+          ReleaseSavedValueRegister();
+        }
       }
-      __ Str(kSavedValue, cgen_->ToMemOperand(destination));
     }
 
   } else if (source->IsDoubleRegister()) {
@@ -271,13 +272,13 @@ void LGapResolver::EmitMove(int index) {
       __ Fmov(cgen_->ToDoubleRegister(destination), src);
     } else {
       ASSERT(destination->IsDoubleStackSlot());
-      __ Str(src, cgen_->ToMemOperand(destination));
+      __ Store(src, cgen_->ToMemOperand(destination));
     }
 
   } else if (source->IsDoubleStackSlot()) {
     MemOperand src = cgen_->ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
-      __ Ldr(cgen_->ToDoubleRegister(destination), src);
+      __ Load(cgen_->ToDoubleRegister(destination), src);
     } else {
       ASSERT(destination->IsDoubleStackSlot());
       EmitStackSlotMove(index);
@@ -289,23 +290,6 @@ void LGapResolver::EmitMove(int index) {
 
   // The move has been emitted, we can eliminate it.
   moves_[index].Eliminate();
-}
-
-
-void LGapResolver::EmitStackSlotMove(int index) {
-  // We need a temp register to perform a stack slot to stack slot move, and
-  // the register must not be involved in breaking cycles.
-
-  // Use the Crankshaft double scratch register as the temporary.
-  DoubleRegister temp = crankshaft_fp_scratch;
-
-  LOperand* src = moves_[index].source();
-  LOperand* dst = moves_[index].destination();
-
-  ASSERT(src->IsStackSlot());
-  ASSERT(dst->IsStackSlot());
-  __ Ldr(temp, cgen_->ToMemOperand(src));
-  __ Str(temp, cgen_->ToMemOperand(dst));
 }
 
 } }  // namespace v8::internal

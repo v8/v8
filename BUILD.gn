@@ -16,6 +16,7 @@ v8_object_print = false
 v8_postmortem_support = false
 v8_use_default_platform = true
 v8_use_snapshot = true
+v8_use_external_startup_data = false
 v8_enable_extra_checks = is_debug
 v8_target_arch = cpu_arch
 v8_random_seed = "314159265"
@@ -107,6 +108,11 @@ config("features") {
   if (v8_enable_handle_zapping == true) {
     defines += [
       "ENABLE_HANDLE_ZAPPING",
+    ]
+  }
+  if (v8_use_external_startup_data == true) {
+    defines += [
+      "V8_USE_EXTERNAL_STARTUP_DATA",
     ]
   }
 }
@@ -212,10 +218,19 @@ action("js2c") {
     sources += [ "src/i18n.js" ]
   }
 
-  args =
-    rebase_path(outputs, root_build_dir) +
-    [ "CORE", v8_compress_startup_data ] +
-    rebase_path(sources, root_build_dir)
+  args = [
+    rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
+    "CORE",
+    v8_compress_startup_data
+  ] + rebase_path(sources, root_build_dir)
+
+  if (v8_use_external_startup_data) {
+    outputs += [ "$target_gen_dir/libraries.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$target_gen_dir/libraries.bin", root_build_dir)
+    ]
+  }
 }
 
 action("js2c_experimental") {
@@ -244,10 +259,43 @@ action("js2c_experimental") {
     "$target_gen_dir/experimental-libraries.cc"
   ]
 
-  args =
-    rebase_path(outputs, root_build_dir) +
-    [ "EXPERIMENTAL", v8_compress_startup_data ] +
-    rebase_path(sources, root_build_dir)
+  args = [
+    rebase_path("$target_gen_dir/experimental-libraries.cc", root_build_dir),
+    "EXPERIMENTAL",
+    v8_compress_startup_data
+  ] + rebase_path(sources, root_build_dir)
+
+  if (v8_use_external_startup_data) {
+    outputs += [ "$target_gen_dir/libraries_experimental.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir)
+    ]
+  }
+}
+
+if (v8_use_external_startup_data) {
+  action("natives_blob") {
+    visibility = ":*"  # Only targets in this file can depend on this.
+
+    deps = [
+      ":js2c",
+      ":js2c_experimental"
+    ]
+
+    sources = [
+      "$target_gen_dir/libraries.bin",
+      "$target_gen_dir/libraries_experimental.bin"
+    ]
+
+    outputs = [
+      "$root_gen_dir/natives_blob.bin"
+    ]
+
+    script = "tools/concatenate-files.py"
+
+    args = rebase_path(sources + outputs, root_build_dir)
+  }
 }
 
 action("postmortem-metadata") {
@@ -285,14 +333,21 @@ action("run_mksnapshot") {
                                       "root_out_dir") + "/mksnapshot",
                        root_build_dir),
     "--log-snapshot-positions",
-    "--logfile", rebase_path("$target_gen_dir/snapshot.log", root_build_dir)
+    "--logfile", rebase_path("$target_gen_dir/snapshot.log", root_build_dir),
+    rebase_path("$target_gen_dir/snapshot.cc", root_build_dir)
   ]
 
   if (v8_random_seed != "0") {
     args += [ "--random-seed", v8_random_seed ]
   }
 
-  args += rebase_path(outputs, root_build_dir)
+  if (v8_use_external_startup_data) {
+    outputs += [ "$root_gen_dir/snapshot_blob.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$root_gen_dir/snapshot_blob.bin", root_build_dir)
+    ]
+  }
 }
 
 
@@ -315,6 +370,7 @@ source_set("v8_nosnapshot") {
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/trig-table.cc",
     "src/snapshot-empty.cc",
+    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
@@ -338,11 +394,37 @@ source_set("v8_snapshot") {
     "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/trig-table.cc",
     "$target_gen_dir/snapshot.cc",
+    "src/snapshot-common.cc",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features", ":toolchain" ]
+}
+
+if (v8_use_external_startup_data) {
+  source_set("v8_external_snapshot") {
+    visibility = ":*"  # Only targets in this file can depend on this.
+
+    deps = [
+      ":js2c",
+      ":js2c_experimental",
+      ":generate_trig_table",
+      ":run_mksnapshot",
+      ":v8_base",
+      ":natives_blob",
+    ]
+
+    sources = [
+      "$target_gen_dir/trig-table.cc",
+      "src/natives-external.cc",
+      "src/snapshot-external.cc",
+    ]
+
+    configs -= [ "//build/config/compiler:chromium_code" ]
+    configs += [ "//build/config/compiler:no_chromium_code" ]
+    configs += [ ":internal_config", ":features", ":toolchain" ]
+  }
 }
 
 source_set("v8_base") {
@@ -648,7 +730,8 @@ source_set("v8_base") {
     "src/serialize.h",
     "src/small-pointer-list.h",
     "src/smart-pointers.h",
-    "src/snapshot-common.cc",
+    "src/snapshot-source-sink.cc",
+    "src/snapshot-source-sink.h",
     "src/snapshot.h",
     "src/spaces-inl.h",
     "src/spaces.cc",
@@ -1024,7 +1107,12 @@ component("v8") {
     "src/v8dll-main.cc",
   ]
 
-  if (v8_use_snapshot) {
+  if (v8_use_external_startup_data) {
+    deps = [
+      ":v8_base",
+      ":v8_external_snapshot",
+    ]
+  } else if (v8_use_snapshot) {
     deps = [
       ":v8_base",
       ":v8_snapshot",
@@ -1050,7 +1138,12 @@ component("v8") {
 } else {
 
 group("v8") {
-  if (v8_use_snapshot) {
+  if (v8_use_external_startup_data) {
+    deps = [
+      ":v8_base",
+      ":v8_external_snapshot",
+    ]
+  } else if (v8_use_snapshot) {
     deps = [
       ":v8_base",
       ":v8_snapshot",

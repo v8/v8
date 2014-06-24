@@ -191,15 +191,14 @@ ifeq ($(armthumb), on)
   GYPFLAGS += -Darm_thumb=1
 endif
 endif
-# armtest=on
+# arm_test_noprobe=on
 # With this flag set, by default v8 will only use features implied
 # by the compiler (no probe). This is done by modifying the default
 # values of enable_armv7, enable_vfp3, enable_32dregs and enable_neon.
 # Modifying these flags when launching v8 will enable the probing for
 # the specified values.
-# When using the simulator, this flag is implied.
-ifeq ($(armtest), on)
-  GYPFLAGS += -Darm_test=on
+ifeq ($(arm_test_noprobe), on)
+  GYPFLAGS += -Darm_test_noprobe=on
 endif
 
 # ----------------- available targets: --------------------

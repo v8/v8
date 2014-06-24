@@ -296,10 +296,257 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 }
 
 
-// Assembler
+// Constant Pool.
+void ConstPool::RecordEntry(intptr_t data,
+                            RelocInfo::Mode mode) {
+  ASSERT(mode != RelocInfo::COMMENT &&
+         mode != RelocInfo::POSITION &&
+         mode != RelocInfo::STATEMENT_POSITION &&
+         mode != RelocInfo::CONST_POOL &&
+         mode != RelocInfo::VENEER_POOL &&
+         mode != RelocInfo::CODE_AGE_SEQUENCE);
 
+  uint64_t raw_data = static_cast<uint64_t>(data);
+  int offset = assm_->pc_offset();
+  if (IsEmpty()) {
+    first_use_ = offset;
+  }
+
+  std::pair<uint64_t, int> entry = std::make_pair(raw_data, offset);
+  if (CanBeShared(mode)) {
+    shared_entries_.insert(entry);
+    if (shared_entries_.count(entry.first) == 1) {
+      shared_entries_count++;
+    }
+  } else {
+    unique_entries_.push_back(entry);
+  }
+
+  if (EntryCount() > Assembler::kApproxMaxPoolEntryCount) {
+    // Request constant pool emission after the next instruction.
+    assm_->SetNextConstPoolCheckIn(1);
+  }
+}
+
+
+int ConstPool::DistanceToFirstUse() {
+  ASSERT(first_use_ >= 0);
+  return assm_->pc_offset() - first_use_;
+}
+
+
+int ConstPool::MaxPcOffset() {
+  // There are no pending entries in the pool so we can never get out of
+  // range.
+  if (IsEmpty()) return kMaxInt;
+
+  // Entries are not necessarily emitted in the order they are added so in the
+  // worst case the first constant pool use will be accessing the last entry.
+  return first_use_ + kMaxLoadLiteralRange - WorstCaseSize();
+}
+
+
+int ConstPool::WorstCaseSize() {
+  if (IsEmpty()) return 0;
+
+  // Max size prologue:
+  //   b   over
+  //   ldr xzr, #pool_size
+  //   blr xzr
+  //   nop
+  // All entries are 64-bit for now.
+  return 4 * kInstructionSize + EntryCount() * kPointerSize;
+}
+
+
+int ConstPool::SizeIfEmittedAtCurrentPc(bool require_jump) {
+  if (IsEmpty()) return 0;
+
+  // Prologue is:
+  //   b   over  ;; if require_jump
+  //   ldr xzr, #pool_size
+  //   blr xzr
+  //   nop       ;; if not 64-bit aligned
+  int prologue_size = require_jump ? kInstructionSize : 0;
+  prologue_size += 2 * kInstructionSize;
+  prologue_size += IsAligned(assm_->pc_offset() + prologue_size, 8) ?
+                   0 : kInstructionSize;
+
+  // All entries are 64-bit for now.
+  return prologue_size + EntryCount() * kPointerSize;
+}
+
+
+void ConstPool::Emit(bool require_jump) {
+  ASSERT(!assm_->is_const_pool_blocked());
+  // Prevent recursive pool emission and protect from veneer pools.
+  Assembler::BlockPoolsScope block_pools(assm_);
+
+  int size = SizeIfEmittedAtCurrentPc(require_jump);
+  Label size_check;
+  assm_->bind(&size_check);
+
+  assm_->RecordConstPool(size);
+  // Emit the constant pool. It is preceded by an optional branch if
+  // require_jump and a header which will:
+  //  1) Encode the size of the constant pool, for use by the disassembler.
+  //  2) Terminate the program, to try to prevent execution from accidentally
+  //     flowing into the constant pool.
+  //  3) align the pool entries to 64-bit.
+  // The header is therefore made of up to three arm64 instructions:
+  //   ldr xzr, #<size of the constant pool in 32-bit words>
+  //   blr xzr
+  //   nop
+  //
+  // If executed, the header will likely segfault and lr will point to the
+  // instruction following the offending blr.
+  // TODO(all): Make the alignment part less fragile. Currently code is
+  // allocated as a byte array so there are no guarantees the alignment will
+  // be preserved on compaction. Currently it works as allocation seems to be
+  // 64-bit aligned.
+
+  // Emit branch if required
+  Label after_pool;
+  if (require_jump) {
+    assm_->b(&after_pool);
+  }
+
+  // Emit the header.
+  assm_->RecordComment("[ Constant Pool");
+  EmitMarker();
+  EmitGuard();
+  assm_->Align(8);
+
+  // Emit constant pool entries.
+  // TODO(all): currently each relocated constant is 64 bits, consider adding
+  // support for 32-bit entries.
+  EmitEntries();
+  assm_->RecordComment("]");
+
+  if (after_pool.is_linked()) {
+    assm_->bind(&after_pool);
+  }
+
+  ASSERT(assm_->SizeOfCodeGeneratedSince(&size_check) ==
+         static_cast<unsigned>(size));
+}
+
+
+void ConstPool::Clear() {
+  shared_entries_.clear();
+  shared_entries_count = 0;
+  unique_entries_.clear();
+  first_use_ = -1;
+}
+
+
+bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
+  // Constant pool currently does not support 32-bit entries.
+  ASSERT(mode != RelocInfo::NONE32);
+
+  return RelocInfo::IsNone(mode) ||
+         (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
+}
+
+
+void ConstPool::EmitMarker() {
+  // A constant pool size is expressed in number of 32-bits words.
+  // Currently all entries are 64-bit.
+  // + 1 is for the crash guard.
+  // + 0/1 for alignment.
+  int word_count = EntryCount() * 2 + 1 +
+                   (IsAligned(assm_->pc_offset(), 8)) ? 0 : 1;
+  assm_->Emit(LDR_x_lit                          |
+              Assembler::ImmLLiteral(word_count) |
+              Assembler::Rt(xzr));
+}
+
+
+MemOperand::PairResult MemOperand::AreConsistentForPair(
+    const MemOperand& operandA,
+    const MemOperand& operandB,
+    int access_size_log2) {
+  ASSERT(access_size_log2 >= 0);
+  ASSERT(access_size_log2 <= 3);
+  // Step one: check that they share the same base, that the mode is Offset
+  // and that the offset is a multiple of access size.
+  if (!operandA.base().Is(operandB.base()) ||
+      (operandA.addrmode() != Offset) ||
+      (operandB.addrmode() != Offset) ||
+      ((operandA.offset() & ((1 << access_size_log2) - 1)) != 0)) {
+    return kNotPair;
+  }
+  // Step two: check that the offsets are contiguous and that the range
+  // is OK for ldp/stp.
+  if ((operandB.offset() == operandA.offset() + (1 << access_size_log2)) &&
+      is_int7(operandA.offset() >> access_size_log2)) {
+    return kPairAB;
+  }
+  if ((operandA.offset() == operandB.offset() + (1 << access_size_log2)) &&
+      is_int7(operandB.offset() >> access_size_log2)) {
+    return kPairBA;
+  }
+  return kNotPair;
+}
+
+
+void ConstPool::EmitGuard() {
+#ifdef DEBUG
+  Instruction* instr = reinterpret_cast<Instruction*>(assm_->pc());
+  ASSERT(instr->preceding()->IsLdrLiteralX() &&
+         instr->preceding()->Rt() == xzr.code());
+#endif
+  assm_->EmitPoolGuard();
+}
+
+
+void ConstPool::EmitEntries() {
+  ASSERT(IsAligned(assm_->pc_offset(), 8));
+
+  typedef std::multimap<uint64_t, int>::const_iterator SharedEntriesIterator;
+  SharedEntriesIterator value_it;
+  // Iterate through the keys (constant pool values).
+  for (value_it = shared_entries_.begin();
+       value_it != shared_entries_.end();
+       value_it = shared_entries_.upper_bound(value_it->first)) {
+    std::pair<SharedEntriesIterator, SharedEntriesIterator> range;
+    uint64_t data = value_it->first;
+    range = shared_entries_.equal_range(data);
+    SharedEntriesIterator offset_it;
+    // Iterate through the offsets of a given key.
+    for (offset_it = range.first; offset_it != range.second; offset_it++) {
+      Instruction* instr = assm_->InstructionAt(offset_it->second);
+
+      // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
+      ASSERT(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
+      instr->SetImmPCOffsetTarget(assm_->pc());
+    }
+    assm_->dc64(data);
+  }
+  shared_entries_.clear();
+  shared_entries_count = 0;
+
+  // Emit unique entries.
+  std::vector<std::pair<uint64_t, int> >::const_iterator unique_it;
+  for (unique_it = unique_entries_.begin();
+       unique_it != unique_entries_.end();
+       unique_it++) {
+    Instruction* instr = assm_->InstructionAt(unique_it->second);
+
+    // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
+    ASSERT(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
+    instr->SetImmPCOffsetTarget(assm_->pc());
+    assm_->dc64(unique_it->first);
+  }
+  unique_entries_.clear();
+  first_use_ = -1;
+}
+
+
+// Assembler
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
+      constpool_(this),
       recorded_ast_id_(TypeFeedbackId::None()),
       unresolved_branches_(),
       positions_recorder_(this) {
@@ -310,7 +557,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  ASSERT(num_pending_reloc_info_ == 0);
+  ASSERT(constpool_.IsEmpty());
   ASSERT(const_pool_blocked_nesting_ == 0);
   ASSERT(veneer_pool_blocked_nesting_ == 0);
 }
@@ -327,11 +574,10 @@ void Assembler::Reset() {
   pc_ = buffer_;
   reloc_info_writer.Reposition(reinterpret_cast<byte*>(buffer_ + buffer_size_),
                                reinterpret_cast<byte*>(pc_));
-  num_pending_reloc_info_ = 0;
+  constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
   no_const_pool_before_ = 0;
-  first_const_pool_use_ = -1;
   ClearRecordedAstId();
 }
 
@@ -339,7 +585,7 @@ void Assembler::Reset() {
 void Assembler::GetCode(CodeDesc* desc) {
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
-  ASSERT(num_pending_reloc_info_ == 0);
+  ASSERT(constpool_.IsEmpty());
 
   // Set up code descriptor.
   if (desc) {
@@ -622,8 +868,7 @@ void Assembler::StartBlockConstPool() {
 void Assembler::EndBlockConstPool() {
   if (--const_pool_blocked_nesting_ == 0) {
     // Check the constant pool hasn't been blocked for too long.
-    ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_offset() < (first_const_pool_use_ + kMaxDistToConstPool)));
+    ASSERT(pc_offset() < constpool_.MaxPcOffset());
     // Two cases:
     //  * no_const_pool_before_ >= next_constant_pool_check_ and the emission is
     //    still blocked
@@ -682,29 +927,10 @@ int Assembler::ConstantPoolSizeAt(Instruction* instr) {
 }
 
 
-void Assembler::ConstantPoolMarker(uint32_t size) {
-  ASSERT(is_const_pool_blocked());
-  // + 1 is for the crash guard.
-  Emit(LDR_x_lit | ImmLLiteral(size + 1) | Rt(xzr));
-}
-
-
 void Assembler::EmitPoolGuard() {
   // We must generate only one instruction as this is used in scopes that
   // control the size of the code generated.
   Emit(BLR | Rn(xzr));
-}
-
-
-void Assembler::ConstantPoolGuard() {
-#ifdef DEBUG
-  // Currently this is only used after a constant pool marker.
-  ASSERT(is_const_pool_blocked());
-  Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  ASSERT(instr->preceding()->IsLdrLiteralX() &&
-         instr->preceding()->Rt() == xzr.code());
-#endif
-  EmitPoolGuard();
 }
 
 
@@ -2466,15 +2692,7 @@ void Assembler::GrowBuffer() {
   // buffer nor pc absolute pointing inside the code buffer, so there is no need
   // to relocate any emitted relocation entries.
 
-  // Relocate pending relocation entries.
-  for (int i = 0; i < num_pending_reloc_info_; i++) {
-    RelocInfo& rinfo = pending_reloc_info_[i];
-    ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
-           rinfo.rmode() != RelocInfo::POSITION);
-    if (rinfo.rmode() != RelocInfo::JS_RETURN) {
-      rinfo.set_pc(rinfo.pc() + pc_delta);
-    }
-  }
+  // Pending relocation entries are also relative, no need to relocate.
 }
 
 
@@ -2494,11 +2712,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsVeneerPool(rmode));
     // These modes do not need an entry in the constant pool.
   } else {
-    ASSERT(num_pending_reloc_info_ < kMaxNumPendingRelocInfo);
-    if (num_pending_reloc_info_ == 0) {
-      first_const_pool_use_ = pc_offset();
-    }
-    pending_reloc_info_[num_pending_reloc_info_++] = rinfo;
+    constpool_.RecordEntry(data, rmode);
     // Make sure the constant pool is not emitted in place of the next
     // instruction for which we just recorded relocation info.
     BlockConstPoolFor(1);
@@ -2526,11 +2740,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 void Assembler::BlockConstPoolFor(int instructions) {
   int pc_limit = pc_offset() + instructions * kInstructionSize;
   if (no_const_pool_before_ < pc_limit) {
-    // If there are some pending entries, the constant pool cannot be blocked
-    // further than first_const_pool_use_ + kMaxDistToConstPool
-    ASSERT((num_pending_reloc_info_ == 0) ||
-           (pc_limit < (first_const_pool_use_ + kMaxDistToConstPool)));
     no_const_pool_before_ = pc_limit;
+    // Make sure the pool won't be blocked for too long.
+    ASSERT(pc_limit < constpool_.MaxPcOffset());
   }
 
   if (next_constant_pool_check_ < no_const_pool_before_) {
@@ -2550,106 +2762,48 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   }
 
   // There is nothing to do if there are no pending constant pool entries.
-  if (num_pending_reloc_info_ == 0)  {
+  if (constpool_.IsEmpty())  {
     // Calculate the offset of the next check.
-    next_constant_pool_check_ = pc_offset() + kCheckConstPoolInterval;
+    SetNextConstPoolCheckIn(kCheckConstPoolInterval);
     return;
   }
 
   // We emit a constant pool when:
   //  * requested to do so by parameter force_emit (e.g. after each function).
   //  * the distance to the first instruction accessing the constant pool is
-  //    kAvgDistToConstPool or more.
-  //  * no jump is required and the distance to the first instruction accessing
-  //    the constant pool is at least kMaxDistToPConstool / 2.
-  ASSERT(first_const_pool_use_ >= 0);
-  int dist = pc_offset() - first_const_pool_use_;
-  if (!force_emit && dist < kAvgDistToConstPool &&
-      (require_jump || (dist < (kMaxDistToConstPool / 2)))) {
+  //    kApproxMaxDistToConstPool or more.
+  //  * the number of entries in the pool is kApproxMaxPoolEntryCount or more.
+  int dist = constpool_.DistanceToFirstUse();
+  int count = constpool_.EntryCount();
+  if (!force_emit &&
+      (dist < kApproxMaxDistToConstPool) &&
+      (count < kApproxMaxPoolEntryCount)) {
     return;
   }
 
-  int jump_instr = require_jump ? kInstructionSize : 0;
-  int size_pool_marker = kInstructionSize;
-  int size_pool_guard = kInstructionSize;
-  int pool_size = jump_instr + size_pool_marker + size_pool_guard +
-    num_pending_reloc_info_ * kPointerSize;
-  int needed_space = pool_size + kGap;
 
   // Emit veneers for branches that would go out of range during emission of the
   // constant pool.
-  CheckVeneerPool(false, require_jump, kVeneerDistanceMargin + pool_size);
-
-  Label size_check;
-  bind(&size_check);
+  int worst_case_size = constpool_.WorstCaseSize();
+  CheckVeneerPool(false, require_jump,
+                  kVeneerDistanceMargin + worst_case_size);
 
   // Check that the code buffer is large enough before emitting the constant
-  // pool (include the jump over the pool, the constant pool marker, the
-  // constant pool guard, and the gap to the relocation information).
+  // pool (this includes the gap to the relocation information).
+  int needed_space = worst_case_size + kGap + 1 * kInstructionSize;
   while (buffer_space() <= needed_space) {
     GrowBuffer();
   }
 
-  {
-    // Block recursive calls to CheckConstPool and protect from veneer pools.
-    BlockPoolsScope block_pools(this);
-    RecordConstPool(pool_size);
-
-    // Emit jump over constant pool if necessary.
-    Label after_pool;
-    if (require_jump) {
-      b(&after_pool);
-    }
-
-    // Emit a constant pool header. The header has two goals:
-    //  1) Encode the size of the constant pool, for use by the disassembler.
-    //  2) Terminate the program, to try to prevent execution from accidentally
-    //     flowing into the constant pool.
-    // The header is therefore made of two arm64 instructions:
-    //   ldr xzr, #<size of the constant pool in 32-bit words>
-    //   blr xzr
-    // If executed the code will likely segfault and lr will point to the
-    // beginning of the constant pool.
-    // TODO(all): currently each relocated constant is 64 bits, consider adding
-    // support for 32-bit entries.
-    RecordComment("[ Constant Pool");
-    ConstantPoolMarker(2 * num_pending_reloc_info_);
-    ConstantPoolGuard();
-
-    // Emit constant pool entries.
-    for (int i = 0; i < num_pending_reloc_info_; i++) {
-      RelocInfo& rinfo = pending_reloc_info_[i];
-      ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
-             rinfo.rmode() != RelocInfo::POSITION &&
-             rinfo.rmode() != RelocInfo::STATEMENT_POSITION &&
-             rinfo.rmode() != RelocInfo::CONST_POOL &&
-             rinfo.rmode() != RelocInfo::VENEER_POOL);
-
-      Instruction* instr = reinterpret_cast<Instruction*>(rinfo.pc());
-      // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-      ASSERT(instr->IsLdrLiteral() &&
-             instr->ImmLLiteral() == 0);
-
-      instr->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
-      dc64(rinfo.data());
-    }
-
-    num_pending_reloc_info_ = 0;
-    first_const_pool_use_ = -1;
-
-    RecordComment("]");
-
-    if (after_pool.is_linked()) {
-      bind(&after_pool);
-    }
-  }
+  Label size_check;
+  bind(&size_check);
+  constpool_.Emit(require_jump);
+  ASSERT(SizeOfCodeGeneratedSince(&size_check) <=
+         static_cast<unsigned>(worst_case_size));
 
   // Since a constant pool was just emitted, move the check offset forward by
   // the standard interval.
-  next_constant_pool_check_ = pc_offset() + kCheckConstPoolInterval;
-
-  ASSERT(SizeOfCodeGeneratedSince(&size_check) ==
-         static_cast<unsigned>(pool_size));
+  SetNextConstPoolCheckIn(kCheckConstPoolInterval);
 }
 
 

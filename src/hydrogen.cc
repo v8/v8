@@ -11711,11 +11711,13 @@ void HOptimizedGraphBuilder::GenerateDebugBreakInOptimizedCode(
 }
 
 
-void HOptimizedGraphBuilder::GenerateDebugCallbackSupportsStepping(
-    CallRuntime* call) {
-  ASSERT(call->arguments()->length() == 1);
-  // Debugging is not supported in optimized code.
-  return ast_context()->ReturnValue(graph()->GetConstantFalse());
+void HOptimizedGraphBuilder::GenerateDebugIsActive(CallRuntime* call) {
+  ASSERT(call->arguments()->length() == 0);
+  HValue* ref =
+      Add<HConstant>(ExternalReference::debug_is_active_address(isolate()));
+  HValue* value = Add<HLoadNamedField>(
+      ref, static_cast<HValue*>(NULL), HObjectAccess::ForExternalUInteger8());
+  return ast_context()->ReturnValue(value);
 }
 
 

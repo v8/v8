@@ -505,6 +505,10 @@ class Debug {
   int break_id() { return thread_local_.break_id_; }
 
   // Support for embedding into generated code.
+  Address is_active_address() {
+    return reinterpret_cast<Address>(&is_active_);
+  }
+
   Address after_break_target_address() {
     return reinterpret_cast<Address>(&after_break_target_);
   }

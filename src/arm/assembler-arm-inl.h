@@ -119,21 +119,14 @@ Address RelocInfo::target_address_address() {
     return reinterpret_cast<Address>(pc_);
   } else {
     ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_pointer_address_at(pc_);
+    return constant_pool_entry_address();
   }
 }
 
 
 Address RelocInfo::constant_pool_entry_address() {
   ASSERT(IsInConstantPool());
-  if (FLAG_enable_ool_constant_pool) {
-    ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_constant_pool_address_at(pc_,
-                                                      host_->constant_pool());
-  } else {
-    ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc_)));
-    return Assembler::target_pointer_address_at(pc_);
-  }
+  return Assembler::constant_pool_entry_address(pc_, host_->constant_pool());
 }
 
 
@@ -314,8 +307,8 @@ bool RelocInfo::IsPatchedReturnSequence() {
   // A patched return sequence is:
   //  ldr ip, [pc, #0]
   //  blx ip
-  return ((current_instr & kLdrPCMask) == kLdrPCPattern)
-          && ((next_instr & kBlxRegMask) == kBlxRegPattern);
+  return Assembler::IsLdrPcImmediateOffset(current_instr) &&
+         Assembler::IsBlxReg(next_instr);
 }
 
 
@@ -428,42 +421,6 @@ void Assembler::emit(Instr x) {
 }
 
 
-Address Assembler::target_pointer_address_at(Address pc) {
-  Instr instr = Memory::int32_at(pc);
-  return pc + GetLdrRegisterImmediateOffset(instr) + kPcLoadDelta;
-}
-
-
-Address Assembler::target_constant_pool_address_at(
-    Address pc, ConstantPoolArray* constant_pool) {
-  ASSERT(constant_pool != NULL);
-  ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-  Instr instr = Memory::int32_at(pc);
-  return reinterpret_cast<Address>(constant_pool) +
-      GetLdrRegisterImmediateOffset(instr);
-}
-
-
-Address Assembler::target_address_at(Address pc,
-                                     ConstantPoolArray* constant_pool) {
-  if (IsMovW(Memory::int32_at(pc))) {
-    ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
-    Instruction* instr = Instruction::At(pc);
-    Instruction* next_instr = Instruction::At(pc + kInstrSize);
-    return reinterpret_cast<Address>(
-        (next_instr->ImmedMovwMovtValue() << 16) |
-        instr->ImmedMovwMovtValue());
-  } else if (FLAG_enable_ool_constant_pool) {
-    ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-    return Memory::Address_at(
-        target_constant_pool_address_at(pc, constant_pool));
-  } else {
-    ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
-    return Memory::Address_at(target_pointer_address_at(pc));
-  }
-}
-
-
 Address Assembler::target_address_from_return_address(Address pc) {
   // Returns the address of the call target from the return address that will
   // be returned to after a call.
@@ -523,11 +480,63 @@ static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate) {
 }
 
 
+static bool IsConstantPoolLoad(Address pc) {
+  return !Assembler::IsMovW(Memory::int32_at(pc));
+}
+
+
+Address Assembler::constant_pool_entry_address(
+    Address pc, ConstantPoolArray* constant_pool) {
+  if (FLAG_enable_ool_constant_pool) {
+    ASSERT(constant_pool != NULL);
+    ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc)));
+    return reinterpret_cast<Address>(constant_pool) +
+        GetLdrRegisterImmediateOffset(Memory::int32_at(pc));
+  } else {
+    ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc)));
+    Instr instr = Memory::int32_at(pc);
+    return pc + GetLdrRegisterImmediateOffset(instr) + kPcLoadDelta;
+  }
+}
+
+
+Address Assembler::target_address_at(Address pc,
+                                     ConstantPoolArray* constant_pool) {
+  if (IsConstantPoolLoad(pc)) {
+    // This is a constant pool lookup. Return the value in the constant pool.
+    return Memory::Address_at(constant_pool_entry_address(pc, constant_pool));
+  } else {
+    // This is an movw_movt immediate load. Return the immediate.
+    ASSERT(IsMovW(Memory::int32_at(pc)) &&
+           IsMovT(Memory::int32_at(pc + kInstrSize)));
+    Instruction* movw_instr = Instruction::At(pc);
+    Instruction* movt_instr = Instruction::At(pc + kInstrSize);
+    return reinterpret_cast<Address>(
+        (movt_instr->ImmedMovwMovtValue() << 16) |
+         movw_instr->ImmedMovwMovtValue());
+  }
+}
+
+
 void Assembler::set_target_address_at(Address pc,
                                       ConstantPoolArray* constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  if (IsMovW(Memory::int32_at(pc))) {
+  if (IsConstantPoolLoad(pc)) {
+    // This is a constant pool lookup. Update the entry in the constant pool.
+    Memory::Address_at(constant_pool_entry_address(pc, constant_pool)) = target;
+    // Intuitively, we would think it is necessary to always flush the
+    // instruction cache after patching a target address in the code as follows:
+    //   CPU::FlushICache(pc, sizeof(target));
+    // However, on ARM, no instruction is actually patched in the case
+    // of embedded constants of the form:
+    // ldr   ip, [pp, #...]
+    // since the instruction accessing this address in the constant pool remains
+    // unchanged.
+  } else {
+    // This is an movw_movt immediate load. Patch the immediate embedded in the
+    // instructions.
+    ASSERT(IsMovW(Memory::int32_at(pc)));
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     uint32_t* instr_ptr = reinterpret_cast<uint32_t*>(pc);
     uint32_t immediate = reinterpret_cast<uint32_t>(target);
@@ -538,21 +547,6 @@ void Assembler::set_target_address_at(Address pc,
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
       CPU::FlushICache(pc, 2 * kInstrSize);
     }
-  } else if (FLAG_enable_ool_constant_pool) {
-    ASSERT(IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-    Memory::Address_at(
-      target_constant_pool_address_at(pc, constant_pool)) = target;
-  } else {
-    ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
-    Memory::Address_at(target_pointer_address_at(pc)) = target;
-    // Intuitively, we would think it is necessary to always flush the
-    // instruction cache after patching a target address in the code as follows:
-    //   CPU::FlushICache(pc, sizeof(target));
-    // However, on ARM, no instruction is actually patched in the case
-    // of embedded constants of the form:
-    // ldr   ip, [pc, #...]
-    // since the instruction accessing this address in the constant pool remains
-    // unchanged.
   }
 }
 

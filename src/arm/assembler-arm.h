@@ -672,32 +672,6 @@ class ConstantPoolBuilder BASE_EMBEDDED {
   int count_of_32bit_;
 };
 
-
-extern const Instr kMovLrPc;
-extern const Instr kLdrPCMask;
-extern const Instr kLdrPCPattern;
-extern const Instr kLdrPpMask;
-extern const Instr kLdrPpPattern;
-extern const Instr kBlxRegMask;
-extern const Instr kBlxRegPattern;
-extern const Instr kBlxIp;
-
-extern const Instr kMovMvnMask;
-extern const Instr kMovMvnPattern;
-extern const Instr kMovMvnFlip;
-
-extern const Instr kMovLeaveCCMask;
-extern const Instr kMovLeaveCCPattern;
-extern const Instr kMovwMask;
-extern const Instr kMovwPattern;
-extern const Instr kMovwLeaveCCFlip;
-
-extern const Instr kCmpCmnMask;
-extern const Instr kCmpCmnPattern;
-extern const Instr kCmpCmnFlip;
-extern const Instr kAddSubFlip;
-extern const Instr kAndBicFlip;
-
 struct VmovIndex {
   unsigned char index;
 };
@@ -751,11 +725,7 @@ class Assembler : public AssemblerBase {
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address target_pointer_address_at(Address pc));
-
-  // Return the address in the constant pool of the code target address used by
-  // the branch/call instruction at pc, or the object in a mov.
-  INLINE(static Address target_constant_pool_address_at(
+  INLINE(static Address constant_pool_entry_address(
     Address pc, ConstantPoolArray* constant_pool));
 
   // Read/Modify the code target address in the branch/call instruction at pc.
@@ -1390,6 +1360,7 @@ class Assembler : public AssemblerBase {
   static int GetBranchOffset(Instr instr);
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
+  static Instr GetConsantPoolLoadPattern();
   static bool IsLdrPpImmediateOffset(Instr instr);
   static bool IsVldrDPpImmediateOffset(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
@@ -1411,6 +1382,8 @@ class Assembler : public AssemblerBase {
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
   static bool IsVldrDPcImmediateOffset(Instr instr);
+  static bool IsBlxReg(Instr instr);
+  static bool IsBlxIp(Instr instr);
   static bool IsTstImmediate(Instr instr);
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);

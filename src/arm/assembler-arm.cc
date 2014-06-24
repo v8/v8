@@ -129,10 +129,19 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 void CpuFeatures::PrintTarget() {
   const char* arm_arch = NULL;
-  const char* arm_test = "";
+  const char* arm_target_type = "";
+  const char* arm_no_probe = "";
   const char* arm_fpu = "";
   const char* arm_thumb = "";
   const char* arm_float_abi = NULL;
+
+#if !defined __arm__
+  arm_target_type = " simulator";
+#endif
+
+#if defined ARM_TEST_NO_FEATURE_PROBE
+  arm_no_probe = " noprobe";
+#endif
 
 #if defined CAN_USE_ARMV7_INSTRUCTIONS
   arm_arch = "arm v7";
@@ -140,45 +149,33 @@ void CpuFeatures::PrintTarget() {
   arm_arch = "arm v6";
 #endif
 
-#ifdef __arm__
-
-# ifdef ARM_TEST
-  arm_test = " test";
-# endif
-# if defined __ARM_NEON__
+#if defined CAN_USE_NEON
   arm_fpu = " neon";
-# elif defined CAN_USE_VFP3_INSTRUCTIONS
-  arm_fpu = " vfp3";
-# else
-  arm_fpu = " vfp2";
-# endif
-# if (defined __thumb__) || (defined __thumb2__)
-  arm_thumb = " thumb";
-# endif
-  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
-
-#else  // __arm__
-
-  arm_test = " simulator";
-# if defined CAN_USE_VFP3_INSTRUCTIONS
+#elif defined CAN_USE_VFP3_INSTRUCTIONS
 #  if defined CAN_USE_VFP32DREGS
   arm_fpu = " vfp3";
 #  else
   arm_fpu = " vfp3-d16";
 #  endif
-# else
+#else
   arm_fpu = " vfp2";
-# endif
-# if USE_EABI_HARDFLOAT == 1
+#endif
+
+#ifdef __arm__
+  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
+#elif USE_EABI_HARDFLOAT
   arm_float_abi = "hard";
-# else
+#else
   arm_float_abi = "softfp";
-# endif
+#endif
 
-#endif  // __arm__
+#if defined __arm__ && (defined __thumb__) || (defined __thumb2__)
+  arm_thumb = " thumb";
+#endif
 
-  printf("target%s %s%s%s %s\n",
-         arm_test, arm_arch, arm_fpu, arm_thumb, arm_float_abi);
+  printf("target%s%s %s%s%s %s\n",
+         arm_target_type, arm_no_probe, arm_arch, arm_fpu, arm_thumb,
+         arm_float_abi);
 }
 
 
@@ -418,11 +415,11 @@ const Instr kPopRegPattern =
 // mov lr, pc
 const Instr kMovLrPc = al | MOV | kRegister_pc_Code | kRegister_lr_Code * B12;
 // ldr rd, [pc, #offset]
-const Instr kLdrPCMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCPattern = 5 * B24 | L | kRegister_pc_Code * B16;
+const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPCImmedPattern = 5 * B24 | L | kRegister_pc_Code * B16;
 // ldr rd, [pp, #offset]
-const Instr kLdrPpMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPpPattern = 5 * B24 | L | kRegister_r8_Code * B16;
+const Instr kLdrPpImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
+const Instr kLdrPpImmedPattern = 5 * B24 | L | kRegister_r8_Code * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | kRegister_pc_Code * B16 | 11 * B8;
@@ -640,6 +637,15 @@ Register Assembler::GetRm(Instr instr) {
 }
 
 
+Instr Assembler::GetConsantPoolLoadPattern() {
+  if (FLAG_enable_ool_constant_pool) {
+    return kLdrPpImmedPattern;
+  } else {
+    return kLdrPCImmedPattern;
+  }
+}
+
+
 bool Assembler::IsPush(Instr instr) {
   return ((instr & ~kRdMask) == kPushRegPattern);
 }
@@ -673,14 +679,14 @@ bool Assembler::IsLdrRegFpNegOffset(Instr instr) {
 bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pc +/- offset_12].
-  return (instr & kLdrPCMask) == kLdrPCPattern;
+  return (instr & kLdrPCImmedMask) == kLdrPCImmedPattern;
 }
 
 
 bool Assembler::IsLdrPpImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // ldr<cond> <Rd>, [pp +/- offset_12].
-  return (instr & kLdrPpMask) == kLdrPpPattern;
+  return (instr & kLdrPpImmedMask) == kLdrPpImmedPattern;
 }
 
 
@@ -695,6 +701,20 @@ bool Assembler::IsVldrDPpImmediateOffset(Instr instr) {
   // Check the instruction is indeed a
   // vldr<cond> <Dd>, [pp +/- offset_10].
   return (instr & kVldrDPpMask) == kVldrDPpPattern;
+}
+
+
+bool Assembler::IsBlxReg(Instr instr) {
+  // Check the instruction is indeed a
+  // blxcc <Rm>
+  return (instr & kBlxRegMask) == kBlxRegPattern;
+}
+
+
+bool Assembler::IsBlxIp(Instr instr) {
+  // Check the instruction is indeed a
+  // blx ip
+  return instr == kBlxIp;
 }
 
 

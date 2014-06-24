@@ -285,3 +285,6 @@ const PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
 const ITERATOR_KIND_KEYS = 1;
 const ITERATOR_KIND_VALUES = 2;
 const ITERATOR_KIND_ENTRIES = 3;
+
+# Check whether debug is active.
+const DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);

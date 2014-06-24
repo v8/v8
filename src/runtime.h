@@ -206,7 +206,7 @@ namespace internal {
   F(GetTemplateField, 2, 1) \
   F(DisableAccessChecks, 1, 1) \
   F(EnableAccessChecks, 1, 1) \
-  F(SetAccessorProperty, 6, 1) \
+  F(SetAccessorProperty, 5, 1) \
   \
   /* Dates */ \
   F(DateCurrentTime, 0, 1) \
@@ -438,6 +438,7 @@ namespace internal {
   F(DebugConstructedBy, 2, 1) \
   F(DebugGetPrototype, 1, 1) \
   F(DebugSetScriptSource, 2, 1) \
+  F(DebugCallbackSupportsStepping, 1, 1) \
   F(SystemBreak, 0, 1) \
   F(DebugDisassembleFunction, 1, 1) \
   F(DebugDisassembleConstructor, 1, 1) \
@@ -654,7 +655,8 @@ namespace internal {
   F(RegExpExec, 4, 1)                                                        \
   F(RegExpConstructResult, 3, 1)                                             \
   F(GetFromCache, 2, 1)                                                      \
-  F(NumberToString, 1, 1)
+  F(NumberToString, 1, 1)                                                    \
+  F(DebugIsActive, 0, 1)
 
 
 // ----------------------------------------------------------------------------
@@ -680,9 +682,7 @@ namespace internal {
   F(DoubleHi, 1, 1)                                                          \
   F(DoubleLo, 1, 1)                                                          \
   F(MathSqrtRT, 1, 1)                                                        \
-  F(MathLogRT, 1, 1)                                                         \
-  /* Debugger */                                                             \
-  F(DebugCallbackSupportsStepping, 1, 1)
+  F(MathLogRT, 1, 1)
 
 
 //---------------------------------------------------------------------------
