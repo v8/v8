@@ -310,7 +310,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // computed properties have been assigned so that we can generate
   // constant function properties.
   if (should_transform && !has_function_literal) {
-    JSObject::TransformToFastProperties(
+    JSObject::MigrateSlowToFast(
         boilerplate, boilerplate->map()->unused_property_fields());
   }
 
@@ -5055,7 +5055,7 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineAccessorProperty) {
   // DefineAccessor checks access rights.
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (fast) JSObject::TransformToFastProperties(obj, 0);
+  if (fast) JSObject::MigrateSlowToFast(obj, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -6036,7 +6036,7 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   if (object->IsJSObject() && !object->IsGlobalObject()) {
-    JSObject::TransformToFastProperties(Handle<JSObject>::cast(object), 0);
+    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(object), 0);
   }
   return *object;
 }

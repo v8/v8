@@ -2426,13 +2426,7 @@ class JSObject: public JSReceiver {
   static void TransitionElementsKind(Handle<JSObject> object,
                                      ElementsKind to_kind);
 
-  // TODO(mstarzinger): Both public because of ConvertAndSetOwnProperty().
   static void MigrateToMap(Handle<JSObject> object, Handle<Map> new_map);
-  static void GeneralizeFieldRepresentation(Handle<JSObject> object,
-                                            int modify_index,
-                                            Representation new_representation,
-                                            Handle<HeapType> new_field_type,
-                                            StoreMode store_mode);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -2448,8 +2442,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object);
 
   // Transform slow named properties to fast variants.
-  static void TransformToFastProperties(Handle<JSObject> object,
-                                        int unused_property_fields);
+  static void MigrateSlowToFast(Handle<JSObject> object,
+                                int unused_property_fields);
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
@@ -2637,6 +2631,23 @@ class JSObject: public JSReceiver {
   static void MigrateFastToSlow(Handle<JSObject> object,
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
+
+  static void SetPropertyToField(LookupResult* lookup, Handle<Object> value);
+
+  static void ConvertAndSetOwnProperty(LookupResult* lookup,
+                                       Handle<Name> name,
+                                       Handle<Object> value,
+                                       PropertyAttributes attributes);
+
+  static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
+                                               Handle<Name> name,
+                                               Handle<Object> value,
+                                               PropertyAttributes attributes);
+  static void GeneralizeFieldRepresentation(Handle<JSObject> object,
+                                            int modify_index,
+                                            Representation new_representation,
+                                            Handle<HeapType> new_field_type,
+                                            StoreMode store_mode);
 
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);

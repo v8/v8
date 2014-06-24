@@ -3432,7 +3432,7 @@ static inline bool ObjectSetAccessor(Object* obj,
       i::JSObject::SetAccessor(Utils::OpenHandle(obj), info),
       false);
   if (result->IsUndefined()) return false;
-  if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
+  if (fast) i::JSObject::MigrateSlowToFast(Utils::OpenHandle(obj), 0);
   return true;
 }
 

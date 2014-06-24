@@ -2123,7 +2123,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
-// To migrate an fast instance to a fast map:
+// To migrate a fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
 // - Otherwise, allocate a fixed array large enough to hold all fields, in
@@ -3979,8 +3979,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 }
 
 
-static void SetPropertyToField(LookupResult* lookup,
-                               Handle<Object> value) {
+void JSObject::SetPropertyToField(LookupResult* lookup, Handle<Object> value) {
   if (lookup->type() == CONSTANT || !lookup->CanHoldValue(value)) {
     Representation field_representation = value->OptimalRepresentation();
     Handle<HeapType> field_type = value->OptimalType(
@@ -3994,10 +3993,10 @@ static void SetPropertyToField(LookupResult* lookup,
 }
 
 
-static void ConvertAndSetOwnProperty(LookupResult* lookup,
-                                     Handle<Name> name,
-                                     Handle<Object> value,
-                                     PropertyAttributes attributes) {
+void JSObject::ConvertAndSetOwnProperty(LookupResult* lookup,
+                                        Handle<Name> name,
+                                        Handle<Object> value,
+                                        PropertyAttributes attributes) {
   Handle<JSObject> object(lookup->holder());
   if (object->TooManyFastProperties()) {
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
@@ -4024,10 +4023,10 @@ static void ConvertAndSetOwnProperty(LookupResult* lookup,
 }
 
 
-static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyAttributes attributes) {
+void JSObject::SetPropertyToFieldWithAttributes(LookupResult* lookup,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                PropertyAttributes attributes) {
   if (lookup->GetAttributes() == attributes) {
     if (value->IsUninitialized()) return;
     SetPropertyToField(lookup, value);
@@ -4677,8 +4676,8 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
 }
 
 
-void JSObject::TransformToFastProperties(Handle<JSObject> object,
-                                         int unused_property_fields) {
+void JSObject::MigrateSlowToFast(Handle<JSObject> object,
+                                 int unused_property_fields) {
   if (object->HasFastProperties()) return;
   ASSERT(!object->IsGlobalObject());
   Isolate* isolate = object->GetIsolate();
@@ -9913,7 +9912,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
   if (!object->HasFastProperties()) {
-    TransformToFastProperties(object, 0);
+    MigrateSlowToFast(object, 0);
   }
 }
 
