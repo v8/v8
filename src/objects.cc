@@ -761,7 +761,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
         // the hole value.
         Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
         ASSERT(new_map->is_dictionary_map());
-        object->set_map(*new_map);
+        JSObject::MigrateToMap(object, new_map);
       }
       Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
       Handle<Object> value = isolate->factory()->the_hole_value();
@@ -2130,8 +2130,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(
           *new_map, number_of_fields, inobject, unused)) {
-    // Writing the new map here does not require synchronization since it does
-    // not change the actual object size.
     object->synchronized_set_map(*new_map);
     return;
   }
@@ -2165,9 +2163,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 
     // Set the new property value and do the map transition.
     object->set_properties(*new_storage);
-    // Writing the new map here does not require synchronization since it does
-    // not change the actual object size.
-    object->set_map(*new_map);
+    object->synchronized_set_map(*new_map);
     return;
   }
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
@@ -2239,24 +2235,21 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   ASSERT(instance_size_delta >= 0);
   Address address = object->address() + new_instance_size;
 
-  // The trimming is performed on a newly allocated object, which is on a
-  // freshly allocated page or on an already swept page. Hence, the sweeper
-  // thread can not get confused with the filler creation. No synchronization
-  // needed.
-  isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
+  Heap* heap = isolate->heap();
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<Heap::FROM_MUTATOR>(isolate->heap(), *array, inobject);
+    RightTrimFixedArray<Heap::FROM_MUTATOR>(heap, *array, inobject);
     object->set_properties(*array);
   }
 
-  // The trimming is performed on a newly allocated object, which is on a
-  // freshly allocated page or on an already swept page. Hence, the sweeper
-  // thread can not get confused with the filler creation. No synchronization
-  // needed.
-  object->set_map(*new_map);
+  heap->CreateFillerObjectAt(address, instance_size_delta);
+  heap->AdjustLiveBytes(address, -instance_size_delta, Heap::FROM_MUTATOR);
+
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  object->synchronized_set_map(*new_map);
 }
 
 
@@ -4703,7 +4696,7 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
     ASSERT_LE(unused_property_fields, inobject_props);
     // Transform the object.
     new_map->set_unused_property_fields(inobject_props);
-    object->set_map(*new_map);
+    object->synchronized_set_map(*new_map);
     object->set_properties(isolate->heap()->empty_fixed_array());
     // Check that it really works.
     ASSERT(object->HasFastProperties());
@@ -4784,7 +4777,7 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
   new_map->set_unused_property_fields(unused_property_fields);
 
   // Transform the object.
-  object->set_map(*new_map);
+  object->synchronized_set_map(*new_map);
 
   object->set_properties(*fields);
   ASSERT(object->IsJSObject());
@@ -6626,7 +6619,7 @@ void JSObject::SetPropertyCallback(Handle<JSObject> object,
   if (object->IsGlobalObject()) {
     Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
     ASSERT(new_map->is_dictionary_map());
-    object->set_map(*new_map);
+    JSObject::MigrateToMap(object, new_map);
 
     // When running crankshaft, changing the map is not enough. We
     // need to deoptimize all functions that rely on this global

@@ -342,10 +342,10 @@ Handle<Context> Bootstrapper::CreateEnvironment(
 
 static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
   // object.__proto__ = proto;
-  Handle<Map> old_to_map = Handle<Map>(object->map());
-  Handle<Map> new_to_map = Map::Copy(old_to_map);
-  new_to_map->set_prototype(*proto);
-  object->set_map(*new_to_map);
+  Handle<Map> old_map = Handle<Map>(object->map());
+  Handle<Map> new_map = Map::Copy(old_map);
+  new_map->set_prototype(*proto);
+  JSObject::MigrateToMap(object, new_map);
 }
 
 
@@ -2540,10 +2540,8 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   TransferIndexedProperties(from, to);
 
   // Transfer the prototype (new map is needed).
-  Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = Map::Copy(old_to_map);
-  new_to_map->set_prototype(from->map()->prototype());
-  to->set_map(*new_to_map);
+  Handle<Object> proto(from->map()->prototype(), isolate());
+  SetObjectPrototype(to, proto);
 }
 
 
