@@ -7626,6 +7626,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   // Parse and allocate variables.
   CompilationInfo target_info(target, zone());
+  // Use the same AstValueFactory for creating strings in the sub-compilation
+  // step, but don't transfer ownership to target_info.
+  target_info.SetAstValueFactory(top_info()->ast_value_factory(), false);
   Handle<SharedFunctionInfo> target_shared(target->shared());
   if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
     if (target_info.isolate()->has_pending_exception()) {

@@ -9,15 +9,6 @@
 namespace v8 {
 namespace internal {
 
-static bool Match(void* key1, void* key2) {
-  String* name1 = *static_cast<String**>(key1);
-  String* name2 = *static_cast<String**>(key2);
-  ASSERT(name1->IsInternalizedString());
-  ASSERT(name2->IsInternalizedString());
-  return name1 == name2;
-}
-
-
 Interface* Interface::Lookup(Handle<String> name, Zone* zone) {
   ASSERT(IsModule());
   ZoneHashMap* map = Chase()->exports_;
@@ -47,8 +38,8 @@ int Nesting::current_ = 0;
 #endif
 
 
-void Interface::DoAdd(
-    void* name, uint32_t hash, Interface* interface, Zone* zone, bool* ok) {
+void Interface::DoAdd(const void* name, uint32_t hash, Interface* interface,
+                      Zone* zone, bool* ok) {
   MakeModule(ok);
   if (!*ok) return;
 
@@ -57,8 +48,9 @@ void Interface::DoAdd(
     PrintF("%*s# Adding...\n", Nesting::current(), "");
     PrintF("%*sthis = ", Nesting::current(), "");
     this->Print(Nesting::current());
-    PrintF("%*s%s : ", Nesting::current(), "",
-           (*static_cast<String**>(name))->ToAsciiArray());
+    const AstRawString* symbol = static_cast<const AstRawString*>(name);
+    PrintF("%*s%.*s : ", Nesting::current(), "", symbol->length(),
+           symbol->raw_data());
     interface->Print(Nesting::current());
   }
 #endif
@@ -68,10 +60,12 @@ void Interface::DoAdd(
 
   if (*map == NULL) {
     *map = new(zone->New(sizeof(ZoneHashMap)))
-        ZoneHashMap(Match, ZoneHashMap::kDefaultHashMapCapacity, allocator);
+        ZoneHashMap(ZoneHashMap::PointersMatch,
+                    ZoneHashMap::kDefaultHashMapCapacity, allocator);
   }
 
-  ZoneHashMap::Entry* p = (*map)->Lookup(name, hash, !IsFrozen(), allocator);
+  ZoneHashMap::Entry* p =
+      (*map)->Lookup(const_cast<void*>(name), hash, !IsFrozen(), allocator);
   if (p == NULL) {
     // This didn't have name but was frozen already, that's an error.
     *ok = false;

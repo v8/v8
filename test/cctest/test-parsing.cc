@@ -31,6 +31,7 @@
 
 #include "src/v8.h"
 
+#include "src/ast-value-factory.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/isolate.h"
@@ -796,8 +797,12 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
   CHECK(scanner.ScanRegExpPattern(start == i::Token::ASSIGN_DIV));
   scanner.Next();  // Current token is now the regexp literal.
+  i::Zone zone(CcTest::i_isolate());
+  i::AstValueFactory ast_value_factory(&zone,
+                                       CcTest::i_isolate()->heap()->HashSeed());
+  ast_value_factory.Internalize(CcTest::i_isolate());
   i::Handle<i::String> val =
-      scanner.AllocateInternalizedString(CcTest::i_isolate());
+      scanner.CurrentSymbol(&ast_value_factory)->string();
   i::DisallowHeapAllocation no_alloc;
   i::String::FlatContent content = val->GetFlatContent();
   CHECK(content.IsAscii());
@@ -2586,4 +2591,21 @@ TEST(FuncNameInferrerEscaped) {
   CHECK(result->Equals(expected_name));
   i::DeleteArray(two_byte_source);
   i::DeleteArray(two_byte_name);
+}
+
+
+TEST(RegressionLazyFunctionWithErrorWithArg) {
+  // The bug occurred when a lazy function had an error which requires a
+  // parameter (such as "unknown label" here). The error message was processed
+  // before the AstValueFactory containing the error message string was
+  // internalized.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  i::FLAG_lazy = true;
+  i::FLAG_min_preparse_length = 0;
+  CompileRun("function this_is_lazy() {\n"
+             "  break p;\n"
+             "}\n"
+             "this_is_lazy();\n");
 }

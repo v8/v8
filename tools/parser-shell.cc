@@ -44,6 +44,18 @@
 
 using namespace v8::internal;
 
+class StringResource8 : public v8::String::ExternalAsciiStringResource {
+ public:
+  StringResource8(const char* data, int length)
+      : data_(data), length_(length) { }
+  virtual size_t length() const { return length_; }
+  virtual const char* data() const { return data_; }
+
+ private:
+  const char* data_;
+  int length_;
+};
+
 std::pair<TimeDelta, TimeDelta> RunBaselineParser(
     const char* fname, Encoding encoding, int repeat, v8::Isolate* isolate,
     v8::Handle<v8::Context> context) {
@@ -63,7 +75,9 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
       break;
     }
     case LATIN1: {
-      source_handle = v8::String::NewFromOneByte(isolate, source);
+      StringResource8* string_resource =
+          new StringResource8(reinterpret_cast<const char*>(source), length);
+      source_handle = v8::String::NewExternal(isolate, string_resource);
       break;
     }
   }
