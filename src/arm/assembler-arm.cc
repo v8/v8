@@ -400,10 +400,6 @@ NeonListOperand::NeonListOperand(DoubleRegister base, int registers_count) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-// add(sp, sp, 4) instruction (aka Pop())
-const Instr kPopInstruction =
-    al | PostIndex | 4 | LeaveCC | I | kRegister_sp_Code * B16 |
-        kRegister_sp_Code * B12;
 // str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
 // register r is not encoded.
 const Instr kPushRegPattern =
@@ -412,8 +408,6 @@ const Instr kPushRegPattern =
 // register r is not encoded.
 const Instr kPopRegPattern =
     al | B26 | L | 4 | PostIndex | kRegister_sp_Code * B16;
-// mov lr, pc
-const Instr kMovLrPc = al | MOV | kRegister_pc_Code | kRegister_lr_Code * B12;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCImmedPattern = 5 * B24 | L | kRegister_pc_Code * B16;
@@ -437,8 +431,6 @@ const Instr kMovMvnPattern = 0xd * B21;
 const Instr kMovMvnFlip = B22;
 const Instr kMovLeaveCCMask = 0xdff * B16;
 const Instr kMovLeaveCCPattern = 0x1a0 * B16;
-const Instr kMovwMask = 0xff * B20;
-const Instr kMovwPattern = 0x30 * B20;
 const Instr kMovwLeaveCCFlip = 0x5 * B21;
 const Instr kCmpCmnMask = 0xdd * B20 | 0xf * B12;
 const Instr kCmpCmnPattern = 0x15 * B20;
@@ -456,8 +448,6 @@ const Instr kLdrRegFpNegOffsetPattern =
 const Instr kStrRegFpNegOffsetPattern =
     al | B26 | NegOffset | kRegister_fp_Code * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
-const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
-const Instr kLdrStrOffsetMask = 0x00000fff;
 
 
 Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
