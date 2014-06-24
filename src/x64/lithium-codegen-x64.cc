@@ -167,7 +167,7 @@ bool LCodeGen::GeneratePrologue() {
 #endif
       __ Push(rax);
       __ Set(rax, slots);
-      __ movq(kScratchRegister, kSlotsZapValue);
+      __ Set(kScratchRegister, kSlotsZapValue);
       Label loop;
       __ bind(&loop);
       __ movp(MemOperand(rsp, rax, times_pointer_size, 0),
@@ -744,7 +744,7 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     ExternalReference count = ExternalReference::stress_deopt_count(isolate());
     Label no_deopt;
     __ pushfq();
-    __ Push(rax);
+    __ pushq(rax);
     Operand count_operand = masm()->ExternalOperand(count, kScratchRegister);
     __ movl(rax, count_operand);
     __ subl(rax, Immediate(1));
@@ -752,13 +752,13 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     if (FLAG_trap_on_deopt) __ int3();
     __ movl(rax, Immediate(FLAG_deopt_every_n_times));
     __ movl(count_operand, rax);
-    __ Pop(rax);
+    __ popq(rax);
     __ popfq();
     ASSERT(frame_is_built_);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
     __ bind(&no_deopt);
     __ movl(count_operand, rax);
-    __ Pop(rax);
+    __ popq(rax);
     __ popfq();
   }
 
@@ -2746,7 +2746,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
     __ Push(ToRegister(instr->value()));
     __ Push(instr->function());
 
-    static const int kAdditionalDelta = 10;
+    static const int kAdditionalDelta = kPointerSize == kInt64Size ? 10 : 16;
     int delta =
         masm_->SizeOfCodeGeneratedSince(map_check) + kAdditionalDelta;
     ASSERT(delta >= 0);
@@ -4715,7 +4715,7 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
   if (FLAG_inline_new) {
     __ AllocateHeapNumber(reg, tmp, &slow);
-    __ jmp(&done, Label::kNear);
+    __ jmp(&done, kPointerSize == kInt64Size ? Label::kNear : Label::kFar);
   }
 
   // Slow case: Call the runtime system to do the number allocation.
