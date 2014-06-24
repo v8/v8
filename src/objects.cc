@@ -2104,7 +2104,26 @@ Handle<TransitionArray> Map::SetElementsTransitionMap(
 }
 
 
-// To migrate an instance to a map:
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+  if (object->map() == *new_map) return;
+  if (object->HasFastProperties()) {
+    if (!new_map->is_dictionary_map()) {
+      MigrateFastToFast(object, new_map);
+    } else {
+      MigrateFastToSlow(object, new_map, 0);
+    }
+  } else {
+    // For slow-to-fast migrations JSObject::TransformToFastProperties()
+    // must be used instead.
+    CHECK(new_map->is_dictionary_map());
+
+    // Slow-to-slow migration is trivial.
+    object->set_map(*new_map);
+  }
+}
+
+
+// To migrate an fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
 // - Otherwise, allocate a fixed array large enough to hold all fields, in
@@ -2119,7 +2138,7 @@ Handle<TransitionArray> Map::SetElementsTransitionMap(
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
   int number_of_fields = new_map->NumberOfFields();
@@ -2261,8 +2280,7 @@ void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
   Handle<Map> new_map = Map::GeneralizeRepresentation(
       handle(object->map()), modify_index, new_representation,
       new_field_type, store_mode);
-  if (object->map() == *new_map) return;
-  return MigrateToMap(object, new_map);
+  MigrateToMap(object, new_map);
 }
 
 
@@ -4555,6 +4573,16 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    int expected_additional_properties) {
   if (!object->HasFastProperties()) return;
 
+  Handle<Map> map(object->map());
+  Handle<Map> new_map = Map::Normalize(map, mode);
+
+  MigrateFastToSlow(object, new_map, expected_additional_properties);
+}
+
+
+void JSObject::MigrateFastToSlow(Handle<JSObject> object,
+                                 Handle<Map> new_map,
+                                 int expected_additional_properties) {
   // The global object is always normalized.
   ASSERT(!object->IsGlobalObject());
   // JSGlobalProxy must never be normalized
@@ -4563,7 +4591,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Map> map(object->map());
-  Handle<Map> new_map = Map::Normalize(map, mode);
 
   // Allocate new content.
   int real_size = map->NumberOfOwnDescriptors();

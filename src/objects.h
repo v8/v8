@@ -2633,6 +2633,11 @@ class JSObject: public JSReceiver {
   friend class JSReceiver;
   friend class Object;
 
+  static void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map);
+  static void MigrateFastToSlow(Handle<JSObject> object,
+                                Handle<Map> new_map,
+                                int expected_additional_properties);
+
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
 
