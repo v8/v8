@@ -2026,6 +2026,19 @@ class ScavengingVisitor : public StaticVisitorBase {
     AllocationResult allocation =
         heap->new_space()->AllocateRaw(allocation_size);
     heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
+
+    // Allocation in the other semi-space may fail due to fragmentation.
+    // In that case we allocate in the old generation.
+    if (allocation.IsRetry()) {
+      if (object_contents == DATA_OBJECT) {
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
+        allocation = heap->old_data_space()->AllocateRaw(allocation_size);
+      } else {
+        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
+        allocation = heap->old_pointer_space()->AllocateRaw(allocation_size);
+      }
+    }
+
     HeapObject* target = HeapObject::cast(allocation.ToObjectChecked());
 
     if (alignment != kObjectAlignment) {
