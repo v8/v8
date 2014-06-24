@@ -92,8 +92,8 @@ bool Object::BooleanValue() {
 }
 
 
-bool Object::IsCallable() {
-  Object* fun = this;
+bool Object::IsCallable() const {
+  const Object* fun = this;
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }

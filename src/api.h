@@ -370,8 +370,7 @@ MAKE_TO_LOCAL(ToLocal, DeclaredAccessorDescriptor, DeclaredAccessorDescriptor)
     const v8::From* that, bool allow_empty_handle) {                        \
     EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
     EXTRA_CHECK(that == NULL ||                                             \
-        (*reinterpret_cast<v8::internal::Object**>(                         \
-            const_cast<v8::From*>(that)))->Is##To());                       \
+        (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                          \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }

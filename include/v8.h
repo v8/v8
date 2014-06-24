@@ -6214,7 +6214,7 @@ Local<String> String::Empty(Isolate* isolate) {
 String::ExternalStringResource* String::GetExternalStringResource() const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
+  O* obj = *reinterpret_cast<O* const*>(this);
   String::ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
     void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
@@ -6233,7 +6233,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
     String::Encoding* encoding_out) const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<String*>(this));
+  O* obj = *reinterpret_cast<O* const*>(this);
   int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   ExternalStringResourceBase* resource = NULL;
@@ -6260,7 +6260,7 @@ bool Value::IsUndefined() const {
 bool Value::QuickIsUndefined() const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  O* obj = *reinterpret_cast<O* const*>(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kUndefinedOddballKind);
@@ -6278,7 +6278,7 @@ bool Value::IsNull() const {
 bool Value::QuickIsNull() const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  O* obj = *reinterpret_cast<O* const*>(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   if (I::GetInstanceType(obj) != I::kOddballType) return false;
   return (I::GetOddballKind(obj) == I::kNullOddballKind);
@@ -6296,7 +6296,7 @@ bool Value::IsString() const {
 bool Value::QuickIsString() const {
   typedef internal::Object O;
   typedef internal::Internals I;
-  O* obj = *reinterpret_cast<O**>(const_cast<Value*>(this));
+  O* obj = *reinterpret_cast<O* const*>(this);
   if (!I::HasHeapObjectTag(obj)) return false;
   return (I::GetInstanceType(obj) < I::kFirstNonstringType);
 }

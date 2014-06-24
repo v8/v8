@@ -1350,48 +1350,49 @@ const char* GetBailoutReason(BailoutReason reason);
 class Object {
  public:
   // Type testing.
-  bool IsObject() { return true; }
+  bool IsObject() const { return true; }
 
-#define IS_TYPE_FUNCTION_DECL(type_)  inline bool Is##type_();
+#define IS_TYPE_FUNCTION_DECL(type_)  INLINE(bool Is##type_() const);
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  inline bool IsFixedArrayBase();
-  inline bool IsExternal();
-  inline bool IsAccessorInfo();
+  INLINE(bool IsFixedArrayBase() const);
+  INLINE(bool IsExternal() const);
+  INLINE(bool IsAccessorInfo() const);
 
-  inline bool IsStruct();
-#define DECLARE_STRUCT_PREDICATE(NAME, Name, name) inline bool Is##Name();
+  INLINE(bool IsStruct() const);
+#define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
+  INLINE(bool Is##Name() const);
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
 
-  INLINE(bool IsSpecObject());
-  INLINE(bool IsSpecFunction());
-  INLINE(bool IsTemplateInfo());
-  INLINE(bool IsNameDictionary());
-  INLINE(bool IsSeededNumberDictionary());
-  INLINE(bool IsUnseededNumberDictionary());
-  INLINE(bool IsOrderedHashSet());
-  INLINE(bool IsOrderedHashMap());
-  bool IsCallable();
+  INLINE(bool IsSpecObject()) const;
+  INLINE(bool IsSpecFunction()) const;
+  INLINE(bool IsTemplateInfo()) const;
+  INLINE(bool IsNameDictionary() const);
+  INLINE(bool IsSeededNumberDictionary() const);
+  INLINE(bool IsUnseededNumberDictionary() const);
+  INLINE(bool IsOrderedHashSet() const);
+  INLINE(bool IsOrderedHashMap() const);
+  bool IsCallable() const;
 
   // Oddball testing.
-  INLINE(bool IsUndefined());
-  INLINE(bool IsNull());
-  INLINE(bool IsTheHole());
-  INLINE(bool IsException());
-  INLINE(bool IsUninitialized());
-  INLINE(bool IsTrue());
-  INLINE(bool IsFalse());
-  inline bool IsArgumentsMarker();
+  INLINE(bool IsUndefined() const);
+  INLINE(bool IsNull() const);
+  INLINE(bool IsTheHole() const);
+  INLINE(bool IsException() const);
+  INLINE(bool IsUninitialized() const);
+  INLINE(bool IsTrue() const);
+  INLINE(bool IsFalse() const);
+  INLINE(bool IsArgumentsMarker() const);
 
   // Filler objects (fillers and free space objects).
-  inline bool IsFiller();
+  INLINE(bool IsFiller() const);
 
   // Extract the number.
   inline double Number();
-  inline bool IsNaN();
+  INLINE(bool IsNaN() const);
   bool ToInt32(int32_t* value);
   bool ToUint32(uint32_t* value);
 
@@ -1683,7 +1684,7 @@ class HeapObject: public Object {
   inline Heap* GetHeap() const;
 
   // Convenience method to get current isolate.
-  inline Isolate* GetIsolate();
+  inline Isolate* GetIsolate() const;
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address);
@@ -1813,7 +1814,7 @@ class FlexibleBodyDescriptor {
 class HeapNumber: public HeapObject {
  public:
   // [value]: number value.
-  inline double value();
+  inline double value() const;
   inline void set_value(double value);
 
   DECLARE_CAST(HeapNumber)
@@ -1969,7 +1970,7 @@ class JSReceiver: public HeapObject {
       uint32_t index);
 
   // Return the object's prototype (might be Heap::null_value()).
-  inline Object* GetPrototype();
+  inline Object* GetPrototype() const;
 
   // Return the constructor function (may be Heap::null_value()).
   inline Object* GetConstructor();
@@ -4770,7 +4771,7 @@ class NormalizedMapCache: public FixedArray {
 
   DECLARE_CAST(NormalizedMapCache)
 
-  static inline bool IsNormalizedMapCache(Object* obj);
+  static inline bool IsNormalizedMapCache(const Object* obj);
 
   DECLARE_VERIFIER(NormalizedMapCache)
  private:
@@ -7808,7 +7809,7 @@ class JSGlobalProxy : public JSObject {
 
   DECLARE_CAST(JSGlobalProxy)
 
-  inline bool IsDetachedFrom(GlobalObject* global);
+  inline bool IsDetachedFrom(GlobalObject* global) const;
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSGlobalProxy)
@@ -8804,7 +8805,7 @@ class StringHasher {
 // concrete performance benefit at that particular point in the code.
 class StringShape BASE_EMBEDDED {
  public:
-  inline explicit StringShape(String* s);
+  inline explicit StringShape(const String* s);
   inline explicit StringShape(Map* s);
   inline explicit StringShape(InstanceType t);
   inline bool IsSequential();
@@ -9063,8 +9064,8 @@ class String: public Name {
   // be ASCII encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for ASCII data.
-  inline bool IsOneByteRepresentation();
-  inline bool IsTwoByteRepresentation();
+  inline bool IsOneByteRepresentation() const;
+  inline bool IsTwoByteRepresentation() const;
 
   // Cons and slices have an encoding flag that may not represent the actual
   // encoding of the underlying string.  This is taken into account here.
@@ -9732,7 +9733,7 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
-  inline byte kind();
+  inline byte kind() const;
   inline void set_kind(byte kind);
 
   DECLARE_CAST(Oddball)
