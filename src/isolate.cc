@@ -1480,7 +1480,8 @@ Isolate::Isolate()
       sweeper_thread_(NULL),
       num_sweeper_threads_(0),
       stress_deopt_count_(0),
-      next_optimization_id_(0) {
+      next_optimization_id_(0),
+      use_counter_callback_(NULL) {
   id_ = base::NoBarrier_AtomicIncrement(&isolate_counter_, 1);
   TRACE_ISOLATE(constructor);
 
