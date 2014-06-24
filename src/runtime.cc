@@ -8530,16 +8530,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
+    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")) && FLAG_use_osr) {
       // Start patching from the currently patched loop nesting level.
-      int current_level = unoptimized->allow_osr_at_loop_nesting_level();
-      ASSERT(BackEdgeTable::Verify(isolate, unoptimized, current_level));
-      if (FLAG_use_osr) {
-        for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
-          unoptimized->set_allow_osr_at_loop_nesting_level(i);
-          isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
-        }
-      }
+      ASSERT(BackEdgeTable::Verify(isolate, unoptimized));
+      isolate->runtime_profiler()->AttemptOnStackReplacement(
+          *function, Code::kMaxLoopNestingMarker);
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
       function->MarkForConcurrentOptimization();

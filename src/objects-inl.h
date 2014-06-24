@@ -4651,14 +4651,17 @@ void Code::set_compiled_optimizable(bool value) {
 
 int Code::allow_osr_at_loop_nesting_level() {
   ASSERT_EQ(FUNCTION, kind());
-  return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
+  int fields = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  return AllowOSRAtLoopNestingLevelField::decode(fields);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
   ASSERT_EQ(FUNCTION, kind());
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
-  WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = AllowOSRAtLoopNestingLevelField::update(previous, level);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
@@ -4711,13 +4714,14 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 unsigned Code::back_edge_table_offset() {
   ASSERT_EQ(FUNCTION, kind());
   return BackEdgeTableOffsetField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset)) << kPointerSizeLog2;
 }
 
 
 void Code::set_back_edge_table_offset(unsigned offset) {
   ASSERT_EQ(FUNCTION, kind());
-  ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
+  ASSERT(IsAligned(offset, static_cast<unsigned>(kPointerSize)));
+  offset = offset >> kPointerSizeLog2;
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = BackEdgeTableOffsetField::update(previous, offset);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
@@ -4726,18 +4730,8 @@ void Code::set_back_edge_table_offset(unsigned offset) {
 
 bool Code::back_edges_patched_for_osr() {
   ASSERT_EQ(FUNCTION, kind());
-  return BackEdgesPatchedForOSRField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+  return allow_osr_at_loop_nesting_level() > 0;
 }
-
-
-void Code::set_back_edges_patched_for_osr(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = BackEdgesPatchedForOSRField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
 
 
 byte Code::to_boolean_state() {

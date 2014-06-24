@@ -5569,7 +5569,6 @@ class Code: public HeapObject {
   inline void set_back_edge_table_offset(unsigned offset);
 
   inline bool back_edges_patched_for_osr();
-  inline void set_back_edges_patched_for_osr(bool value);
 
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
@@ -5814,8 +5813,7 @@ class Code: public HeapObject {
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
-  static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
-  static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
+  static const int kProfilerTicksOffset = kFullCodeFlags + 1;
 
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
@@ -5886,9 +5884,10 @@ class Code: public HeapObject {
 
   // KindSpecificFlags2 layout (FUNCTION)
   class BackEdgeTableOffsetField: public BitField<int,
-      kIsCrankshaftedBit + 1, 29> {};  // NOLINT
-  class BackEdgesPatchedForOSRField: public BitField<bool,
-      kIsCrankshaftedBit + 1 + 29, 1> {};  // NOLINT
+      kIsCrankshaftedBit + 1, 27> {};  // NOLINT
+  class AllowOSRAtLoopNestingLevelField: public BitField<int,
+      kIsCrankshaftedBit + 1 + 27, 4> {};  // NOLINT
+  STATIC_ASSERT(AllowOSRAtLoopNestingLevelField::kMax >= kMaxLoopNestingMarker);
 
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;

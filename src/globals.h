@@ -168,6 +168,8 @@ const size_t kMaximalCodeRangeSize = 0 * MB;
 #endif
 #endif
 
+STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
+
 const int kBitsPerByte = 8;
 const int kBitsPerByteLog2 = 3;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
