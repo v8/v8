@@ -1715,7 +1715,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) {
     msg.Append(",overflow");
   }
-  for (int i = 0; i < sample->frames_count; ++i) {
+  for (unsigned i = 0; i < sample->frames_count; ++i) {
     msg.Append(',');
     msg.AppendAddress(sample->stack[i]);
   }

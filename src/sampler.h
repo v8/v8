@@ -44,10 +44,11 @@ struct TickSample {
     Address tos;   // Top stack value (*sp).
     Address external_callback;
   };
-  static const int kMaxFramesCount = 64;
+  static const unsigned kMaxFramesCountLog2 = 8;
+  static const unsigned kMaxFramesCount = (1 << kMaxFramesCountLog2) - 1;
   Address stack[kMaxFramesCount];  // Call stack.
   TimeTicks timestamp;
-  int frames_count : 8;  // Number of captured frames.
+  unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
   StackFrame::Type top_frame_type : 4;
 };

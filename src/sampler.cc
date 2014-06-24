@@ -596,7 +596,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 
   SafeStackFrameIterator it(isolate, regs.fp, regs.sp, js_entry_sp);
   top_frame_type = it.top_frame_type();
-  int i = 0;
+  unsigned i = 0;
   while (!it.done() && i < TickSample::kMaxFramesCount) {
     stack[i++] = it.frame()->pc();
     it.Advance();
