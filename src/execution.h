@@ -227,7 +227,7 @@ enum InterruptFlag {
   void EnableInterrupts();
   void DisableInterrupts();
 
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_64_BIT
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
   static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
 #else

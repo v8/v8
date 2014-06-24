@@ -649,10 +649,11 @@ class ELF BASE_EMBEDDED {
   void WriteHeader(Writer* w) {
     ASSERT(w->position() == 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
+     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #else
@@ -762,7 +763,8 @@ class ELFSymbol BASE_EMBEDDED {
   Binding binding() const {
     return static_cast<Binding>(info >> 4);
   }
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87
+#if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
+     (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -785,7 +787,7 @@ class ELFSymbol BASE_EMBEDDED {
     uint8_t other;
     uint16_t section;
   };
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,

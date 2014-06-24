@@ -1318,7 +1318,11 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
+#if V8_HOST_ARCH_32_BIT
+#define STOS "addr32 stosl"
+#else
 #define STOS "stosq"
+#endif
 #endif
 #if defined(__native_client__)
   // This STOS sequence does not validate for x86_64 Native Client.

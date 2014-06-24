@@ -9138,6 +9138,23 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
   // In Win64 they are assigned to a hidden first argument.
   return result;
 }
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+// For x32 a 128-bit struct return is done as rax and rdx from the ObjectPair
+// are used in the full codegen and Crankshaft compiler. An alternative is
+// using uint64_t and modifying full codegen and Crankshaft compiler.
+struct ObjectPair {
+  Object* x;
+  uint32_t x_upper;
+  Object* y;
+  uint32_t y_upper;
+};
+
+
+static inline ObjectPair MakePair(Object* x, Object* y) {
+  ObjectPair result = {x, 0, y, 0};
+  // Pointers x and y returned in rax and rdx, in x32-abi.
+  return result;
+}
 #else
 typedef uint64_t ObjectPair;
 static inline ObjectPair MakePair(Object* x, Object* y) {

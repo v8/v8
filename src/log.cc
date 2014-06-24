@@ -554,8 +554,10 @@ LowLevelLogger::~LowLevelLogger() {
 void LowLevelLogger::LogCodeInfo() {
 #if V8_TARGET_ARCH_IA32
   const char arch[] = "ia32";
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
   const char arch[] = "x64";
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+  const char arch[] = "x32";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_MIPS
