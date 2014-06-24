@@ -4383,12 +4383,6 @@ class HCompareObjectEqAndBranch : public HTemplateControlInstruction<2, 2> {
                             HBasicBlock* true_target = NULL,
                             HBasicBlock* false_target = NULL)
       : known_successor_index_(kNoKnownSuccessorIndex) {
-    ASSERT(!left->IsConstant() ||
-           (!HConstant::cast(left)->HasInteger32Value() ||
-            HConstant::cast(left)->HasSmiValue()));
-    ASSERT(!right->IsConstant() ||
-           (!HConstant::cast(right)->HasInteger32Value() ||
-            HConstant::cast(right)->HasSmiValue()));
     SetOperandAt(0, left);
     SetOperandAt(1, right);
     SetSuccessorAt(0, true_target);
