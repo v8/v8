@@ -119,7 +119,7 @@ $(ANDROID_MAKEFILES):
 	GYP_DEFINES="${DEFINES}" \
 	CC="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_PREFIX}-gcc" \
 	CXX="${ANDROID_TOOLCHAIN}/bin/${TOOLCHAIN_PREFIX}-g++" \
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH)" \
 	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
 	              -S$(suffix $(basename $@))$(suffix $@) ${GYPFLAGS}

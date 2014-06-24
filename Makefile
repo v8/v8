@@ -398,8 +398,7 @@ clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES) $(NACL_ARCHES)) native.cl
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
-	PYTHONPATH="$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. \
@@ -408,8 +407,7 @@ $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	              -S$(suffix $(basename $@))$(suffix $@) $(GYPFLAGS)
 
 $(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
-	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(PYTHONPATH)" \
-	PYTHONPATH="$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
+	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
