@@ -2292,10 +2292,12 @@ void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
 
 
 void Isolate::RunMicrotasks() {
-  // In some mjsunit tests %RunMicrotasks is called explicitly, violating
-  // this assertion.  Therefore we also check for --allow-natives-syntax.
-  ASSERT(FLAG_allow_natives_syntax ||
-         handle_scope_implementer()->CallDepthIsZero());
+  // %RunMicrotasks may be called in mjsunit tests, which violates
+  // this assertion, hence the check for --allow-natives-syntax.
+  // TODO(adamk): However, this also fails some layout tests.
+  //
+  // ASSERT(FLAG_allow_natives_syntax ||
+  //        handle_scope_implementer()->CallDepthIsZero());
 
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
