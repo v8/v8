@@ -21,7 +21,7 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
   Register registers[] = { a2 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNewClosureFromStubFailure)->entry);
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
 
@@ -44,7 +44,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   Register registers[] = { a0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNumberToString)->entry);
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
 
@@ -57,8 +57,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Representation::Tagged() };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(
-          Runtime::kHiddenCreateArrayLiteralStubBailout)->entry,
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry,
       representations);
 }
 
@@ -68,7 +67,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   Register registers[] = { a3, a2, a1, a0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenCreateObjectLiteral)->entry);
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
@@ -84,7 +83,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
   Register registers[] = { a2, a1, a0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenRegExpConstructResult)->entry);
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
 
@@ -153,7 +152,7 @@ static void InitializeArrayConstructorDescriptor(
   // a1 -- function
   // a2 -- allocation site with elements kind
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenArrayConstructor)->entry;
+      Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { a1, a2 };
@@ -187,7 +186,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   // a0 -- number of arguments
   // a1 -- constructor function
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenInternalArrayConstructor)->entry;
+      Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { a1 };
@@ -298,7 +297,7 @@ void StringAddStub::InitializeInterfaceDescriptor(
   Register registers[] = { a1, a0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenStringAdd)->entry);
+      Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 
