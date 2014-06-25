@@ -404,7 +404,8 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 };
 
 
-struct PlatformCallInterfaceDescriptor {
+class PlatformCallInterfaceDescriptor {
+ public:
   explicit PlatformCallInterfaceDescriptor(
       TargetAddressStorageMode storage_mode)
       : storage_mode_(storage_mode) { }

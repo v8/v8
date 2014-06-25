@@ -28,7 +28,7 @@ namespace v8 {
 namespace internal {
 
 class Bootstrapper;
-struct CallInterfaceDescriptor;
+class CallInterfaceDescriptor;
 class CodeGenerator;
 class CodeRange;
 class CodeStubInterfaceDescriptor;

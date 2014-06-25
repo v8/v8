@@ -311,87 +311,77 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
-    static Register registers[] = { r1,  // JSFunction
-                                    cp,  // context
-                                    r0,  // actual number of arguments
-                                    r2,  // expected number of arguments
+    Register registers[] = { r1,  // JSFunction
+                             cp,  // context
+                             r0,  // actual number of arguments
+                             r2,  // expected number of arguments
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // JSFunction
         Representation::Tagged(),     // context
         Representation::Integer32(),  // actual number of arguments
         Representation::Integer32(),  // expected number of arguments
     };
-    descriptor->register_param_count_ = 4;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &default_descriptor;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           representations, &default_descriptor);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::KeyedCall);
-    static Register registers[] = { cp,  // context
-                                    r2,  // key
+    Register registers[] = { cp,  // context
+                             r2,  // key
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // key
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &noInlineDescriptor;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           representations, &noInlineDescriptor);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::NamedCall);
-    static Register registers[] = { cp,  // context
-                                    r2,  // name
+    Register registers[] = { cp,  // context
+                             r2,  // name
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // name
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &noInlineDescriptor;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           representations, &noInlineDescriptor);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::CallHandler);
-    static Register registers[] = { cp,  // context
-                                    r0,  // receiver
+    Register registers[] = { cp,  // context
+                             r0,  // receiver
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),  // context
         Representation::Tagged(),  // receiver
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &default_descriptor;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           representations, &default_descriptor);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::ApiFunctionCall);
-    static Register registers[] = { r0,  // callee
-                                    r4,  // call_data
-                                    r2,  // holder
-                                    r1,  // api_function_address
-                                    cp,  // context
+    Register registers[] = { r0,  // callee
+                             r4,  // call_data
+                             r2,  // holder
+                             r1,  // api_function_address
+                             cp,  // context
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),    // callee
         Representation::Tagged(),    // call_data
         Representation::Tagged(),    // holder
         Representation::External(),  // api_function_address
         Representation::Tagged(),    // context
     };
-    descriptor->register_param_count_ = 5;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
-    descriptor->platform_specific_descriptor_ = &default_descriptor;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           representations, &default_descriptor);
   }
 }
 

@@ -77,6 +77,29 @@ void CodeStubInterfaceDescriptor::Initialize(
 }
 
 
+void CallInterfaceDescriptor::Initialize(
+    int register_parameter_count,
+    Register* registers,
+    Representation* param_representations,
+    PlatformCallInterfaceDescriptor* platform_descriptor) {
+  // CallInterfaceDescriptor owns a copy of the registers array.
+  register_param_count_ = register_parameter_count;
+  register_params_.Reset(NewArray<Register>(register_parameter_count));
+  for (int i = 0; i < register_parameter_count; i++) {
+    register_params_[i] = registers[i];
+  }
+
+  // Also the register parameter representations.
+  param_representations_.Reset(
+      NewArray<Representation>(register_parameter_count));
+  for (int i = 0; i < register_parameter_count; i++) {
+    param_representations_[i] = param_representations[i];
+  }
+
+  platform_specific_descriptor_ = platform_descriptor;
+}
+
+
 bool CodeStub::FindCodeInCache(Code** code_out) {
   UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(GetKey());

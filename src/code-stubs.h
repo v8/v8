@@ -367,15 +367,27 @@ class CodeStubInterfaceDescriptor {
 };
 
 
-struct PlatformCallInterfaceDescriptor;
+class PlatformCallInterfaceDescriptor;
 
 
-struct CallInterfaceDescriptor {
+class CallInterfaceDescriptor {
+ public:
   CallInterfaceDescriptor()
       : register_param_count_(-1),
         register_params_(NULL),
         param_representations_(NULL),
         platform_specific_descriptor_(NULL) { }
+
+  // A copy of the passed in registers and param_representations is made
+  // and owned by the CallInterfaceDescriptor.
+
+  // TODO(mvstanton): Instead of taking parallel arrays register and
+  // param_representations, how about a struct that puts the representation
+  // and register side by side (eg, RegRep(r1, Representation::Tagged()).
+  // The same should go for the CodeStubInterfaceDescriptor class.
+  void Initialize(int register_parameter_count, Register* registers,
+                  Representation* param_representations,
+                  PlatformCallInterfaceDescriptor* platform_descriptor = NULL);
 
   bool initialized() const { return register_param_count_ >= 0; }
 
@@ -395,9 +407,10 @@ struct CallInterfaceDescriptor {
     return platform_specific_descriptor_;
   }
 
+ private:
   int register_param_count_;
-  Register* register_params_;
-  Representation* param_representations_;
+  SmartArrayPointer<Register> register_params_;
+  SmartArrayPointer<Representation> param_representations_;
   PlatformCallInterfaceDescriptor* platform_specific_descriptor_;
 };
 
