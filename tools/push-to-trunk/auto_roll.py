@@ -80,7 +80,7 @@ class CheckClusterFuzz(Step):
     result = self._side_effect_handler.ReadClusterFuzzAPI(
         api_key, job_type="linux_asan_d8_dbg", reproducible="True",
         open="True", bug_information="",
-        revision_greater_or_equal=self["last_push"])
+        revision_greater_or_equal=str(self["last_push"]))
     if result:
       print "Stop due to pending ClusterFuzz issues."
       return True

@@ -37,6 +37,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import urllib
 import urllib2
 
 from git_recipes import GitRecipesMixin
@@ -209,7 +210,7 @@ class SideEffectHandler(object):  # pragma: no cover
       url_fh.close()
 
   def ReadClusterFuzzAPI(self, api_key, **params):
-    params["api_key"] = api_key
+    params["api_key"] = api_key.strip()
     params = urllib.urlencode(params)
 
     headers = {"Content-type": "application/x-www-form-urlencoded"}
