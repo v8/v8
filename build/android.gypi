@@ -66,7 +66,6 @@
     'android_stlport_library': 'stlport_static',
     # Copy it out one scope.
     'android_webview_build%': '<(android_webview_build)',
-    'OS': 'android',
   },  # variables
   'target_defaults': {
     'defines': [
