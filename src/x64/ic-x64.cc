@@ -1052,6 +1052,13 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
+// IC register specifications
+const Register LoadIC::ReceiverRegister() { return rax; }
+const Register LoadIC::NameRegister() { return rcx; }
+const Register KeyedLoadIC::ReceiverRegister() { return rdx; }
+const Register KeyedLoadIC::NameRegister() { return rax; }
+
+
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : key

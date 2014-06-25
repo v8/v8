@@ -1558,8 +1558,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
-  CHECK_GE(descriptor->register_param_count_, 0);
-  int height_in_bytes = kPointerSize * descriptor->register_param_count_ +
+  CHECK_GE(descriptor->register_param_count(), 0);
+  int height_in_bytes = kPointerSize * descriptor->register_param_count() +
       sizeof(Arguments) + kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
   int input_frame_size = input_->GetFrameSize();
@@ -1654,7 +1654,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  bool arg_count_known = !descriptor->stack_parameter_count_.is_valid();
+  bool arg_count_known = !descriptor->stack_parameter_count().is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
@@ -1702,7 +1702,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Copy the register parameters to the failure frame.
   int arguments_length_offset = -1;
-  for (int i = 0; i < descriptor->register_param_count_; ++i) {
+  for (int i = 0; i < descriptor->register_param_count(); ++i) {
     output_frame_offset -= kPointerSize;
     DoTranslateCommand(iterator, 0, output_frame_offset);
 
@@ -1749,7 +1749,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  StubFunctionMode function_mode = descriptor->function_mode_;
+  StubFunctionMode function_mode = descriptor->function_mode();
   StubFailureTrampolineStub(isolate_,
                             function_mode).FindCodeInCache(&trampoline);
   ASSERT(trampoline != NULL);

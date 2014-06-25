@@ -266,25 +266,22 @@ class PlatformCodeStub : public CodeStub {
 enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
-struct CodeStubInterfaceDescriptor {
+class CodeStubInterfaceDescriptor {
+ public:
   CodeStubInterfaceDescriptor();
-  int register_param_count_;
 
-  Register stack_parameter_count_;
-  // if hint_stack_parameter_count_ > 0, the code stub can optimize the
-  // return sequence. Default value is -1, which means it is ignored.
-  int hint_stack_parameter_count_;
-  StubFunctionMode function_mode_;
-  Register* register_params_;
-  // Specifies Representations for the stub's parameter. Points to an array of
-  // Representations of the same length of the numbers of parameters to the
-  // stub, or if NULL (the default value), Representation of each parameter
-  // assumed to be Tagged()
-  Representation* register_param_representations_;
-
-  Address deoptimization_handler_;
-  HandlerArgumentsMode handler_arguments_mode_;
-
+  void Initialize(int register_parameter_count, Register* registers,
+                  Address deoptimization_handler = NULL,
+                  Representation* register_param_representations = NULL,
+                  int hint_stack_parameter_count = -1,
+                  StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
+  void Initialize(int register_parameter_count, Register* registers,
+                  Register stack_parameter_count,
+                  Address deoptimization_handler = NULL,
+                  Representation* register_param_representations = NULL,
+                  int hint_stack_parameter_count = -1,
+                  StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE,
+                  HandlerArgumentsMode handler_mode = DONT_PASS_ARGUMENTS);
   bool initialized() const { return register_param_count_ >= 0; }
 
   int environment_length() const {
@@ -299,12 +296,12 @@ struct CodeStubInterfaceDescriptor {
     ASSERT(!stack_parameter_count_.is_valid());
   }
 
-  ExternalReference miss_handler() {
+  ExternalReference miss_handler() const {
     ASSERT(has_miss_handler_);
     return miss_handler_;
   }
 
-  bool has_miss_handler() {
+  bool has_miss_handler() const {
     return has_miss_handler_;
   }
 
@@ -312,11 +309,20 @@ struct CodeStubInterfaceDescriptor {
     return register_params_[index];
   }
 
-  bool IsParameterCountRegister(int index) {
+  Representation GetRegisterParameterRepresentation(int index) const {
+    ASSERT(index < register_param_count_);
+    if (register_param_representations_.get() == NULL) {
+      return Representation::Tagged();
+    }
+
+    return register_param_representations_[index];
+  }
+
+  bool IsParameterCountRegister(int index) const {
     return GetParameterRegister(index).is(stack_parameter_count_);
   }
 
-  int GetHandlerParameterCount() {
+  int GetHandlerParameterCount() const {
     int params = environment_length();
     if (handler_arguments_mode_ == PASS_ARGUMENTS) {
       params += 1;
@@ -324,9 +330,40 @@ struct CodeStubInterfaceDescriptor {
     return params;
   }
 
+  int register_param_count() const { return register_param_count_; }
+  int hint_stack_parameter_count() const { return hint_stack_parameter_count_; }
+  Register stack_parameter_count() const { return stack_parameter_count_; }
+  StubFunctionMode function_mode() const { return function_mode_; }
+  Address deoptimization_handler() const { return deoptimization_handler_; }
+  Representation* register_param_representations() const {
+    return register_param_representations_.get();
+  }
+
  private:
+  int register_param_count_;
+
+  Register stack_parameter_count_;
+  // If hint_stack_parameter_count_ > 0, the code stub can optimize the
+  // return sequence. Default value is -1, which means it is ignored.
+  int hint_stack_parameter_count_;
+  StubFunctionMode function_mode_;
+  // The Register params are allocated dynamically by the
+  // CodeStubInterfaceDescriptor, and freed on destruction. This is because
+  // static arrays of Registers cause creation of runtime static initializers
+  // which we don't want.
+  SmartArrayPointer<Register> register_params_;
+  // Specifies Representations for the stub's parameter. Points to an array of
+  // Representations of the same length of the numbers of parameters to the
+  // stub, or if NULL (the default value), Representation of each parameter
+  // assumed to be Tagged().
+  SmartArrayPointer<Representation> register_param_representations_;
+
+  Address deoptimization_handler_;
+  HandlerArgumentsMode handler_arguments_mode_;
+
   ExternalReference miss_handler_;
   bool has_miss_handler_;
+  DISALLOW_COPY_AND_ASSIGN(CodeStubInterfaceDescriptor);
 };
 
 

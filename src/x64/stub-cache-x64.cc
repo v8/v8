@@ -1222,14 +1222,18 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<HeapType> type,
 
 Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  static Register registers[] = { rax, rcx, rdx, rbx, rdi, r8 };
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  static Register registers[] = { receiver, name, rdx, rbx, rdi, r8 };
   return registers;
 }
 
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  static Register registers[] = { rdx, rax, rbx, rcx, rdi, r8 };
+  Register receiver = KeyedLoadIC::ReceiverRegister();
+  Register name = KeyedLoadIC::NameRegister();
+  static Register registers[] = { receiver, name, rbx, rcx, rdi, r8 };
   return registers;
 }
 

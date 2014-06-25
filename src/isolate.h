@@ -31,7 +31,7 @@ class Bootstrapper;
 struct CallInterfaceDescriptor;
 class CodeGenerator;
 class CodeRange;
-struct CodeStubInterfaceDescriptor;
+class CodeStubInterfaceDescriptor;
 class CodeTracer;
 class CompilationCache;
 class ConsStringIteratorOp;
