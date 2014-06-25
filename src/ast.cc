@@ -1117,9 +1117,11 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     // optimize them.
     add_flag(kDontInline);
   } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-             node->raw_name()->IsOneByteEqualTo("_Arguments")) {
-    // Don't inline the %_Arguments because it's implementation will not work.
-    // There is no stack frame to get them from.
+             (node->raw_name()->IsOneByteEqualTo("_ArgumentsLength") ||
+              node->raw_name()->IsOneByteEqualTo("_Arguments"))) {
+    // Don't inline the %_ArgumentsLength or %_Arguments because their
+    // implementation will not work.  There is no stack frame to get them
+    // from.
     add_flag(kDontInline);
   }
 }
