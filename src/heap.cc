@@ -1986,17 +1986,14 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     Heap* heap = map->GetHeap();
-    if (heap->ShouldBePromoted(object->address(), object_size)) {
-      AllocationResult allocation;
+    AllocationResult allocation;
 
-      if (object_contents == DATA_OBJECT) {
-        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
-        allocation = heap->old_data_space()->AllocateRaw(allocation_size);
-      } else {
-        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
-        allocation = heap->old_pointer_space()->AllocateRaw(allocation_size);
-      }
+    if (!heap->ShouldBePromoted(object->address(), object_size)) {
+      ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
+      allocation = heap->new_space()->AllocateRaw(allocation_size);
 
+      // Allocation in the other semi-space may fail due to fragmentation.
+      // In that case we allocate in the old generation.
       HeapObject* target = NULL;  // Initialization to please compiler.
       if (allocation.To(&target)) {
         if (alignment != kObjectAlignment) {
@@ -2009,49 +2006,48 @@ class ScavengingVisitor : public StaticVisitorBase {
         *slot = target;
         MigrateObject(heap, object, target, object_size);
 
-        if (object_contents == POINTER_OBJECT) {
-          if (map->instance_type() == JS_FUNCTION_TYPE) {
-            heap->promotion_queue()->insert(
-                target, JSFunction::kNonWeakFieldsEndOffset);
-          } else {
-            heap->promotion_queue()->insert(target, object_size);
-          }
-        }
-
-        heap->IncrementPromotedObjectsSize(object_size);
+        heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
+        heap->IncrementSemiSpaceCopiedObjectSize(object_size);
         return;
       }
     }
-    ASSERT(heap->AllowedToBeMigrated(object, NEW_SPACE));
-    AllocationResult allocation =
-        heap->new_space()->AllocateRaw(allocation_size);
-    heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
 
-    // Allocation in the other semi-space may fail due to fragmentation.
-    // In that case we allocate in the old generation.
-    if (allocation.IsRetry()) {
-      if (object_contents == DATA_OBJECT) {
-        ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
-        allocation = heap->old_data_space()->AllocateRaw(allocation_size);
-      } else {
-        ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
-        allocation = heap->old_pointer_space()->AllocateRaw(allocation_size);
+    if (object_contents == DATA_OBJECT) {
+      ASSERT(heap->AllowedToBeMigrated(object, OLD_DATA_SPACE));
+      allocation = heap->old_data_space()->AllocateRaw(allocation_size);
+    } else {
+      ASSERT(heap->AllowedToBeMigrated(object, OLD_POINTER_SPACE));
+      allocation = heap->old_pointer_space()->AllocateRaw(allocation_size);
+    }
+
+    HeapObject* target = NULL;  // Initialization to please compiler.
+    if (allocation.To(&target)) {
+      if (alignment != kObjectAlignment) {
+        target = EnsureDoubleAligned(heap, target, allocation_size);
       }
+
+      // Order is important: slot might be inside of the target if target
+      // was allocated over a dead object and slot comes from the store
+      // buffer.
+      *slot = target;
+      MigrateObject(heap, object, target, object_size);
+
+      if (object_contents == POINTER_OBJECT) {
+        if (map->instance_type() == JS_FUNCTION_TYPE) {
+          heap->promotion_queue()->insert(target,
+              JSFunction::kNonWeakFieldsEndOffset);
+        } else {
+          heap->promotion_queue()->insert(target, object_size);
+        }
+      }
+
+      heap->IncrementPromotedObjectsSize(object_size);
+      return;
     }
 
-    HeapObject* target = HeapObject::cast(allocation.ToObjectChecked());
-
-    if (alignment != kObjectAlignment) {
-      target = EnsureDoubleAligned(heap, target, allocation_size);
-    }
-
-    // Order is important: slot might be inside of the target if target
-    // was allocated over a dead object and slot comes from the store
-    // buffer.
-    *slot = target;
-    MigrateObject(heap, object, target, object_size);
-    heap->IncrementSemiSpaceCopiedObjectSize(object_size);
-    return;
+    // The scavenger should always have enough space available in the old
+    // generation for promotion. Otherwise a full gc would have been triggered.
+    UNREACHABLE();
   }
 
 
