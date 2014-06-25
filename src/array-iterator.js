@@ -111,7 +111,7 @@ function SetUpArrayIterator() {
   ));
   %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
   %SetProperty(ArrayIterator.prototype, symbolIterator, ArrayIteratorIterator,
-      DONT_ENUM | DONT_DELETE | READ_ONLY);
+      DONT_ENUM);
 }
 SetUpArrayIterator();
 
@@ -124,5 +124,7 @@ function ExtendArrayPrototype() {
     'values', ArrayValues,
     'keys', ArrayKeys
   ));
+
+  %SetProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
 }
 ExtendArrayPrototype();

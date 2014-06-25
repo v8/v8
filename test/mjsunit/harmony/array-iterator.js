@@ -28,14 +28,28 @@
 // Flags: --harmony-iteration --allow-natives-syntax
 
 
-function TestArrayPrototype() {
-  assertTrue(Array.prototype.hasOwnProperty('entries'));
-  assertTrue(Array.prototype.hasOwnProperty('values'));
-  assertTrue(Array.prototype.hasOwnProperty('keys'));
+var NONE = 0;
+var READ_ONLY = 1;
+var DONT_ENUM = 2;
+var DONT_DELETE = 4;
 
-  assertFalse(Array.prototype.propertyIsEnumerable('entries'));
-  assertFalse(Array.prototype.propertyIsEnumerable('values'));
-  assertFalse(Array.prototype.propertyIsEnumerable('keys'));
+
+function assertHasOwnProperty(object, name, attrs) {
+  assertTrue(object.hasOwnProperty(name));
+  var desc = Object.getOwnPropertyDescriptor(object, name);
+  assertEquals(desc.writable, !(attrs & READ_ONLY));
+  assertEquals(desc.enumerable, !(attrs & DONT_ENUM));
+  assertEquals(desc.configurable, !(attrs & DONT_DELETE));
+}
+
+
+function TestArrayPrototype() {
+  assertHasOwnProperty(Array.prototype, 'entries', DONT_ENUM);
+  assertHasOwnProperty(Array.prototype, 'values', DONT_ENUM);
+  assertHasOwnProperty(Array.prototype, 'keys', DONT_ENUM);
+  assertHasOwnProperty(Array.prototype, Symbol.iterator, DONT_ENUM);
+
+  assertEquals(Array.prototype.values, Array.prototype[Symbol.iterator]);
 }
 TestArrayPrototype();
 
@@ -127,16 +141,6 @@ TestEntriesMutate();
 
 
 function TestArrayIteratorPrototype() {
-  var ArrayIteratorPrototype = [].values().__proto__;
-  assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
-  assertEquals(ArrayIteratorPrototype.__proto__, Object.prototype);
-  assertArrayEquals(['next'],
-      Object.getOwnPropertyNames(ArrayIteratorPrototype));
-}
-TestArrayIteratorPrototype();
-
-
-function TestArrayIteratorPrototype() {
   var array = [];
   var iterator = array.values();
 
@@ -155,6 +159,8 @@ function TestArrayIteratorPrototype() {
   assertFalse(ArrayIteratorPrototype.hasOwnProperty('constructor'));
   assertArrayEquals(['next'],
       Object.getOwnPropertyNames(ArrayIteratorPrototype));
+  assertHasOwnProperty(ArrayIteratorPrototype, 'next', DONT_ENUM);
+  assertHasOwnProperty(ArrayIteratorPrototype, Symbol.iterator, DONT_ENUM);
 }
 TestArrayIteratorPrototype();
 
@@ -170,7 +176,7 @@ function TestForArrayValues() {
   assertEquals(8, buffer.length);
 
   for (var i = 0; i < buffer.length - 1; i++) {
-    assertEquals(array[i], buffer[i]);
+    assertSame(array[i], buffer[i]);
   }
   assertTrue(isNaN(buffer[buffer.length - 1]));
 }
@@ -205,7 +211,7 @@ function TestForArrayEntries() {
   assertEquals(8, buffer.length);
 
   for (var i = 0; i < buffer.length - 1; i++) {
-    assertEquals(array[i], buffer[i][1]);
+    assertSame(array[i], buffer[i][1]);
   }
   assertTrue(isNaN(buffer[buffer.length - 1][1]));
 
@@ -214,6 +220,24 @@ function TestForArrayEntries() {
   }
 }
 TestForArrayEntries();
+
+
+function TestForArray() {
+  var buffer = [];
+  var array = [0, 'a', true, false, null, /* hole */, undefined, NaN];
+  var i = 0;
+  for (var value of array) {
+    buffer[i++] = value;
+  }
+
+  assertEquals(8, buffer.length);
+
+  for (var i = 0; i < buffer.length - 1; i++) {
+    assertSame(array[i], buffer[i]);
+  }
+  assertTrue(isNaN(buffer[buffer.length - 1]));
+}
+TestForArrayValues();
 
 
 function TestNonOwnSlots() {
