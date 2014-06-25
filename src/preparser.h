@@ -1543,7 +1543,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
   //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
   //      ) ',')* '}'
-  // (Except that trailing comma is not required and not allowed.)
+  // (Except that the trailing comma is not required.)
 
   int pos = peek_position();
   typename Traits::Type::PropertyList properties =
@@ -1674,7 +1674,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     }
     properties->Add(property, zone());
 
-    // TODO(1240767): Consider allowing trailing comma.
     if (peek() != Token::RBRACE) {
       // Need {} because of the CHECK_OK macro.
       Expect(Token::COMMA, CHECK_OK);
