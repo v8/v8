@@ -6512,6 +6512,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
   VariableProxy* proxy = expr->target()->AsVariableProxy();
   Property* prop = expr->target()->AsProperty();
   ASSERT(proxy == NULL || prop == NULL);
@@ -7212,6 +7213,8 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+
+  if (!FLAG_hydrogen_track_positions) SetSourcePosition(expr->position());
 
   if (TryArgumentsAccess(expr)) return;
 
