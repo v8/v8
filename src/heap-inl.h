@@ -388,8 +388,6 @@ bool Heap::OldGenerationAllocationLimitReached() {
 
 
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
-  // An object should be promoted if the object has survived a
-  // scavenge operation.
   NewSpacePage* page = NewSpacePage::FromAddress(old_address);
   Address age_mark = new_space_.age_mark();
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
