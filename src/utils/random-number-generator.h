@@ -71,13 +71,15 @@ class RandomNumberGenerator V8_FINAL {
   // Fills the elements of a specified array of bytes with random numbers.
   void NextBytes(void* buffer, size_t buflen);
 
+  // Override the current ssed.
+  void SetSeed(int64_t seed);
+
  private:
   static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
   static const int64_t kAddend = 0xb;
   static const int64_t kMask = V8_2PART_UINT64_C(0xffff, ffffffff);
 
   int Next(int bits) V8_WARN_UNUSED_RESULT;
-  void SetSeed(int64_t seed);
 
   int64_t seed_;
 };

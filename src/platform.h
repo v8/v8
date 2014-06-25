@@ -212,6 +212,10 @@ class OS {
   // Assign memory as a guard page so that access will cause an exception.
   static void Guard(void* address, const size_t size);
 
+  // Set a fixed random seed for the random number generator used for
+  // GetRandomMmapAddr.
+  static void SetRandomSeed(int64_t seed);
+
   // Generate a random address to be used for hinting mmap().
   static void* GetRandomMmapAddr();
 

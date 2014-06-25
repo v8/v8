@@ -90,6 +90,8 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
+  if (FLAG_random_seed != 0) OS::SetRandomSeed(FLAG_random_seed);
+
 #ifdef V8_USE_DEFAULT_PLATFORM
   platform_ = new DefaultPlatform;
 #endif
