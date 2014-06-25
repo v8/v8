@@ -394,7 +394,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = FLAG_hydrogen_track_positions
+  graph_builder_ = (FLAG_hydrogen_track_positions || FLAG_trace_ic)
       ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 
