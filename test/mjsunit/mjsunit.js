@@ -391,9 +391,8 @@ var assertUnoptimized;
       } catch (e) {
         throw new Error("natives syntax not allowed");
       }
-    } else {
-      OptimizationStatusImpl(fun, sync_opt);
     }
+    return OptimizationStatusImpl(fun, sync_opt);
   }
 
   assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
