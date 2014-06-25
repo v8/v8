@@ -128,3 +128,30 @@ function ExtendArrayPrototype() {
   %SetProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
 }
 ExtendArrayPrototype();
+
+
+function ExtendTypedArrayPrototypes() {
+  %CheckIsBootstrapping();
+
+macro TYPED_ARRAYS(FUNCTION)
+  FUNCTION(Uint8Array)
+  FUNCTION(Int8Array)
+  FUNCTION(Uint16Array)
+  FUNCTION(Int16Array)
+  FUNCTION(Uint32Array)
+  FUNCTION(Int32Array)
+  FUNCTION(Float32Array)
+  FUNCTION(Float64Array)
+  FUNCTION(Uint8ClampedArray)
+endmacro
+
+macro EXTEND_TYPED_ARRAY(NAME)
+  %SetProperty($NAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
+  %SetProperty($NAME.prototype, 'values', ArrayValues, DONT_ENUM);
+  %SetProperty($NAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
+  %SetProperty($NAME.prototype, symbolIterator, ArrayValues, DONT_ENUM);
+endmacro
+
+  TYPED_ARRAYS(EXTEND_TYPED_ARRAY)
+}
+ExtendTypedArrayPrototypes();
