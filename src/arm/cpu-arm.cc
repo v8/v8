@@ -52,7 +52,7 @@ void CPU::FlushICache(void* start, size_t size) {
                                   // r0 = beg
                                   // r1 = end
                                   // r2 = flags (0)
-    "  ldr r7, =%[scno]\n"        // r7 = syscall number
+    "  ldr r7, =%c[scno]\n"       // r7 = syscall number
     "  svc 0\n"
 
     "  pop {r7}\n"

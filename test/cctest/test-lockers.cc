@@ -247,6 +247,8 @@ class IsolateNonlockingThread : public JoinableThread {
 TEST(MultithreadedParallelIsolates) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 10;
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+  const int kNThreads = 4;
 #else
   const int kNThreads = 50;
 #endif
@@ -713,6 +715,8 @@ class IsolateGenesisThread : public JoinableThread {
 TEST(ExtensionsRegistration) {
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
   const int kNThreads = 10;
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+  const int kNThreads = 4;
 #else
   const int kNThreads = 40;
 #endif

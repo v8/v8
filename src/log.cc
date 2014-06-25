@@ -554,14 +554,18 @@ LowLevelLogger::~LowLevelLogger() {
 void LowLevelLogger::LogCodeInfo() {
 #if V8_TARGET_ARCH_IA32
   const char arch[] = "ia32";
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT
   const char arch[] = "x64";
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+  const char arch[] = "x32";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_MIPS
   const char arch[] = "mips";
 #elif V8_TARGET_ARCH_X87
   const char arch[] = "x87";
+#elif V8_TARGET_ARCH_ARM64
+  const char arch[] = "arm64";
 #else
   const char arch[] = "unknown";
 #endif
@@ -1711,7 +1715,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) {
     msg.Append(",overflow");
   }
-  for (int i = 0; i < sample->frames_count; ++i) {
+  for (unsigned i = 0; i < sample->frames_count; ++i) {
     msg.Append(',');
     msg.AppendAddress(sample->stack[i]);
   }

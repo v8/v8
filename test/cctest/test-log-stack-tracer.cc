@@ -172,7 +172,7 @@ TEST(CFromJSStackTrace) {
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::Trace), sample.external_callback);
 
   // Stack tracing will start from the first JS function, i.e. "JSFuncDoTrace"
-  int base = 0;
+  unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
 
   CHECK(IsAddressWithinFuncCode(
@@ -225,7 +225,7 @@ TEST(PureJSStackTrace) {
   CHECK_EQ(FUNCTION_ADDR(i::TraceExtension::JSTrace), sample.external_callback);
 
   // Stack sampling will start from the caller of JSFuncDoTrace, i.e. "JSTrace"
-  int base = 0;
+  unsigned base = 0;
   CHECK_GT(sample.frames_count, base + 1);
   CHECK(IsAddressWithinFuncCode(context, "JSTrace", sample.stack[base + 0]));
   CHECK(IsAddressWithinFuncCode(

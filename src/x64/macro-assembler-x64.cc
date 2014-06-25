@@ -1100,7 +1100,7 @@ void MacroAssembler::LoadSmiConstant(Register dst, Smi* source) {
   if (emit_debug_code()) {
     Move(dst, Smi::FromInt(kSmiConstantRegisterValue),
          Assembler::RelocInfoNone());
-    cmpq(dst, kSmiConstantRegister);
+    cmpp(dst, kSmiConstantRegister);
     Assert(equal, kUninitializedKSmiConstantRegister);
   }
   int value = source->value();

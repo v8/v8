@@ -2015,7 +2015,6 @@ int MarkCompactCollector::DiscoverAndEvacuateBlackObjectsOnPage(
         continue;
       }
 
-      // Promotion failed. Just migrate object to another semispace.
       AllocationResult allocation = new_space->AllocateRaw(size);
       if (allocation.IsRetry()) {
         if (!new_space->AddFreshPage()) {

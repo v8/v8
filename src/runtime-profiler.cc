@@ -110,7 +110,9 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
 }
 
 
-void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
+void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function,
+                                                int loop_nesting_levels) {
+  SharedFunctionInfo* shared = function->shared();
   // See AlwaysFullCompiler (in compiler.cc) comment on why we need
   // Debug::has_break_points().
   if (!FLAG_use_osr ||
@@ -119,7 +121,6 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     return;
   }
 
-  SharedFunctionInfo* shared = function->shared();
   // If the code is not optimizable, don't try OSR.
   if (!shared->code()->optimizable()) return;
 
@@ -137,7 +138,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
     PrintF("]\n");
   }
 
-  BackEdgeTable::Patch(isolate_, shared->code());
+  for (int i = 0; i < loop_nesting_levels; i++) {
+    BackEdgeTable::Patch(isolate_, shared->code());
+  }
 }
 
 
@@ -175,14 +178,8 @@ void RuntimeProfiler::OptimizeNow() {
     if (shared_code->kind() != Code::FUNCTION) continue;
     if (function->IsInOptimizationQueue()) continue;
 
-    if (FLAG_always_osr &&
-        shared_code->allow_osr_at_loop_nesting_level() == 0) {
-      // Testing mode: always try an OSR compile for every function.
-      for (int i = 0; i < Code::kMaxLoopNestingMarker; i++) {
-        // TODO(titzer): fix AttemptOnStackReplacement to avoid this dumb loop.
-        shared_code->set_allow_osr_at_loop_nesting_level(i);
-        AttemptOnStackReplacement(function);
-      }
+    if (FLAG_always_osr) {
+      AttemptOnStackReplacement(function, Code::kMaxLoopNestingMarker);
       // Fall through and do a normal optimized compile as well.
     } else if (!frame->is_optimized() &&
         (function->IsMarkedForOptimization() ||
@@ -196,12 +193,7 @@ void RuntimeProfiler::OptimizeNow() {
       if (shared_code->CodeSize() > allowance) {
         if (ticks < 255) shared_code->set_profiler_ticks(ticks + 1);
       } else {
-        int nesting = shared_code->allow_osr_at_loop_nesting_level();
-        if (nesting < Code::kMaxLoopNestingMarker) {
-          int new_nesting = nesting + 1;
-          shared_code->set_allow_osr_at_loop_nesting_level(new_nesting);
-          AttemptOnStackReplacement(function);
-        }
+        AttemptOnStackReplacement(function);
       }
       continue;
     }

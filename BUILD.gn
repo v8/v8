@@ -447,6 +447,8 @@ source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.h",
     "src/assert-scope.cc",
+    "src/ast-value-factory.cc",
+    "src/ast-value-factory.h",
     "src/ast.cc",
     "src/ast.h",
     "src/bignum-dtoa.cc",
@@ -986,7 +988,6 @@ source_set("v8_base") {
     }
   } else if (is_android) {
     defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
-    sources += [ "src/platform-posix.cc" ]
 
     if (build_os == "mac") {
       if (current_toolchain == host_toolchain) {

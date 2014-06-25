@@ -24,7 +24,11 @@
 #define V8_HOST_CAN_READ_UNALIGNED 1
 #else
 #define V8_HOST_ARCH_X64 1
+#if defined(__x86_64__) && !defined(__LP64__)
+#define V8_HOST_ARCH_32_BIT 1
+#else
 #define V8_HOST_ARCH_64_BIT 1
+#endif
 #define V8_HOST_CAN_READ_UNALIGNED 1
 #endif  // __native_client__
 #elif defined(_M_IX86) || defined(__i386__)
@@ -75,12 +79,40 @@
 #endif
 #endif
 
+// Determine architecture pointer size.
+#if V8_TARGET_ARCH_IA32
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_64_BIT
+#if defined(__x86_64__) && !defined(__LP64__)
+#define V8_TARGET_ARCH_32_BIT 1
+#else
+#define V8_TARGET_ARCH_64_BIT 1
+#endif
+#endif
+#elif V8_TARGET_ARCH_ARM
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_ARM64
+#define V8_TARGET_ARCH_64_BIT 1
+#elif V8_TARGET_ARCH_MIPS
+#define V8_TARGET_ARCH_32_BIT 1
+#elif V8_TARGET_ARCH_X87
+#define V8_TARGET_ARCH_32_BIT 1
+#else
+#error Unknown target architecture pointer size
+#endif
+
 // Check for supported combinations of host and target architectures.
 #if V8_TARGET_ARCH_IA32 && !V8_HOST_ARCH_IA32
 #error Target architecture ia32 is only supported on ia32 host
 #endif
-#if V8_TARGET_ARCH_X64 && !V8_HOST_ARCH_X64
+#if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_64_BIT && \
+     !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_64_BIT))
 #error Target architecture x64 is only supported on x64 host
+#endif
+#if (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT && \
+     !(V8_HOST_ARCH_X64 && V8_HOST_ARCH_32_BIT))
+#error Target architecture x32 is only supported on x64 host with x32 support
 #endif
 #if (V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM))
 #error Target architecture arm is only supported on arm and ia32 host

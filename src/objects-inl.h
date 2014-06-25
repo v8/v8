@@ -54,22 +54,19 @@ PropertyDetails PropertyDetails::AsDeleted() const {
 
 
 #define TYPE_CHECKER(type, instancetype)                                \
-  bool Object::Is##type() {                                             \
+  bool Object::Is##type() const {                                       \
   return Object::IsHeapObject() &&                                      \
       HeapObject::cast(this)->map()->instance_type() == instancetype;   \
   }
 
 
-// TODO(svenpanne) We use const_cast here and at a few other places to break our
-// dependency cycle between the cast methods and the predicates. This can be
-// removed when the predicates are const-correct, too.
 #define CAST_ACCESSOR(type)                       \
   type* type::cast(Object* object) {              \
     SLOW_ASSERT(object->Is##type());              \
     return reinterpret_cast<type*>(object);       \
   }                                               \
   const type* type::cast(const Object* object) {  \
-    SLOW_ASSERT(const_cast<Object*>(object)->Is##type()); \
+    SLOW_ASSERT(object->Is##type());              \
     return reinterpret_cast<const type*>(object); \
   }
 
@@ -138,31 +135,31 @@ PropertyDetails PropertyDetails::AsDeleted() const {
   }
 
 
-bool Object::IsFixedArrayBase() {
+bool Object::IsFixedArrayBase() const {
   return IsFixedArray() || IsFixedDoubleArray() || IsConstantPoolArray() ||
          IsFixedTypedArrayBase() || IsExternalArray();
 }
 
 
 // External objects are not extensible, so the map check is enough.
-bool Object::IsExternal() {
+bool Object::IsExternal() const {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->external_map();
 }
 
 
-bool Object::IsAccessorInfo() {
+bool Object::IsAccessorInfo() const {
   return IsExecutableAccessorInfo() || IsDeclaredAccessorInfo();
 }
 
 
-bool Object::IsSmi() {
+bool Object::IsSmi() const {
   return HAS_SMI_TAG(this);
 }
 
 
-bool Object::IsHeapObject() {
+bool Object::IsHeapObject() const {
   return Internals::HasHeapObjectTag(this);
 }
 
@@ -171,41 +168,41 @@ TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 
 
-bool Object::IsString() {
+bool Object::IsString() const {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() < FIRST_NONSTRING_TYPE;
 }
 
 
-bool Object::IsName() {
+bool Object::IsName() const {
   return IsString() || IsSymbol();
 }
 
 
-bool Object::IsUniqueName() {
+bool Object::IsUniqueName() const {
   return IsInternalizedString() || IsSymbol();
 }
 
 
-bool Object::IsSpecObject() {
+bool Object::IsSpecObject() const {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
 }
 
 
-bool Object::IsSpecFunction() {
+bool Object::IsSpecFunction() const {
   if (!Object::IsHeapObject()) return false;
   InstanceType type = HeapObject::cast(this)->map()->instance_type();
   return type == JS_FUNCTION_TYPE || type == JS_FUNCTION_PROXY_TYPE;
 }
 
 
-bool Object::IsTemplateInfo() {
+bool Object::IsTemplateInfo() const {
   return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
 }
 
 
-bool Object::IsInternalizedString() {
+bool Object::IsInternalizedString() const {
   if (!this->IsHeapObject()) return false;
   uint32_t type = HeapObject::cast(this)->map()->instance_type();
   STATIC_ASSERT(kNotInternalizedTag != 0);
@@ -214,52 +211,52 @@ bool Object::IsInternalizedString() {
 }
 
 
-bool Object::IsConsString() {
+bool Object::IsConsString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsCons();
 }
 
 
-bool Object::IsSlicedString() {
+bool Object::IsSlicedString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSliced();
 }
 
 
-bool Object::IsSeqString() {
+bool Object::IsSeqString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential();
 }
 
 
-bool Object::IsSeqOneByteString() {
+bool Object::IsSeqOneByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
          String::cast(this)->IsOneByteRepresentation();
 }
 
 
-bool Object::IsSeqTwoByteString() {
+bool Object::IsSeqTwoByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSequential() &&
          String::cast(this)->IsTwoByteRepresentation();
 }
 
 
-bool Object::IsExternalString() {
+bool Object::IsExternalString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal();
 }
 
 
-bool Object::IsExternalAsciiString() {
+bool Object::IsExternalAsciiString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
          String::cast(this)->IsOneByteRepresentation();
 }
 
 
-bool Object::IsExternalTwoByteString() {
+bool Object::IsExternalTwoByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
          String::cast(this)->IsTwoByteRepresentation();
@@ -287,7 +284,7 @@ Handle<Object> Object::NewStorageFor(Isolate* isolate,
 }
 
 
-StringShape::StringShape(String* str)
+StringShape::StringShape(const String* str)
   : type_(str->map()->instance_type()) {
   set_valid();
   ASSERT((type_ & kIsNotStringMask) == kStringTag);
@@ -316,13 +313,13 @@ bool StringShape::IsInternalized() {
 }
 
 
-bool String::IsOneByteRepresentation() {
+bool String::IsOneByteRepresentation() const {
   uint32_t type = map()->instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
 
-bool String::IsTwoByteRepresentation() {
+bool String::IsTwoByteRepresentation() const {
   uint32_t type = map()->instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
@@ -612,7 +609,7 @@ class Utf8StringKey : public HashTableKey {
 };
 
 
-bool Object::IsNumber() {
+bool Object::IsNumber() const {
   return IsSmi() || IsHeapNumber();
 }
 
@@ -621,14 +618,14 @@ TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 
 
-bool Object::IsFiller() {
+bool Object::IsFiller() const {
   if (!Object::IsHeapObject()) return false;
   InstanceType instance_type = HeapObject::cast(this)->map()->instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
 
-bool Object::IsExternalArray() {
+bool Object::IsExternalArray() const {
   if (!Object::IsHeapObject())
     return false;
   InstanceType instance_type =
@@ -646,7 +643,7 @@ TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
 #undef TYPED_ARRAY_TYPE_CHECKER
 
 
-bool Object::IsFixedTypedArrayBase() {
+bool Object::IsFixedTypedArrayBase() const {
   if (!Object::IsHeapObject()) return false;
 
   InstanceType instance_type =
@@ -656,21 +653,21 @@ bool Object::IsFixedTypedArrayBase() {
 }
 
 
-bool Object::IsJSReceiver() {
+bool Object::IsJSReceiver() const {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return IsHeapObject() &&
       HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
 
 
-bool Object::IsJSObject() {
+bool Object::IsJSObject() const {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   return IsHeapObject() &&
       HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
 }
 
 
-bool Object::IsJSProxy() {
+bool Object::IsJSProxy() const {
   if (!Object::IsHeapObject()) return false;
   return  HeapObject::cast(this)->map()->IsJSProxyMap();
 }
@@ -690,22 +687,22 @@ TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(ConstantPoolArray, CONSTANT_POOL_ARRAY_TYPE)
 
 
-bool Object::IsJSWeakCollection() {
+bool Object::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
 }
 
 
-bool Object::IsDescriptorArray() {
+bool Object::IsDescriptorArray() const {
   return IsFixedArray();
 }
 
 
-bool Object::IsTransitionArray() {
+bool Object::IsTransitionArray() const {
   return IsFixedArray();
 }
 
 
-bool Object::IsDeoptimizationInputData() {
+bool Object::IsDeoptimizationInputData() const {
   // Must be a fixed array.
   if (!IsFixedArray()) return false;
 
@@ -722,7 +719,7 @@ bool Object::IsDeoptimizationInputData() {
 }
 
 
-bool Object::IsDeoptimizationOutputData() {
+bool Object::IsDeoptimizationOutputData() const {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can check
@@ -732,7 +729,7 @@ bool Object::IsDeoptimizationOutputData() {
 }
 
 
-bool Object::IsDependentCode() {
+bool Object::IsDependentCode() const {
   if (!IsFixedArray()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a dependent codes array.
@@ -740,7 +737,7 @@ bool Object::IsDependentCode() {
 }
 
 
-bool Object::IsContext() {
+bool Object::IsContext() const {
   if (!Object::IsHeapObject()) return false;
   Map* map = HeapObject::cast(this)->map();
   Heap* heap = map->GetHeap();
@@ -754,14 +751,14 @@ bool Object::IsContext() {
 }
 
 
-bool Object::IsNativeContext() {
+bool Object::IsNativeContext() const {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->native_context_map();
 }
 
 
-bool Object::IsScopeInfo() {
+bool Object::IsScopeInfo() const {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->scope_info_map();
@@ -788,7 +785,7 @@ TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 
 
-bool Object::IsStringWrapper() {
+bool Object::IsStringWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
 }
 
@@ -796,7 +793,7 @@ bool Object::IsStringWrapper() {
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 
 
-bool Object::IsBoolean() {
+bool Object::IsBoolean() const {
   return IsOddball() &&
       ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
 }
@@ -808,7 +805,7 @@ TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
 TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
 
 
-bool Object::IsJSArrayBufferView() {
+bool Object::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
@@ -821,47 +818,47 @@ template <> inline bool Is<JSArray>(Object* obj) {
 }
 
 
-bool Object::IsHashTable() {
+bool Object::IsHashTable() const {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->hash_table_map();
 }
 
 
-bool Object::IsWeakHashTable() {
+bool Object::IsWeakHashTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsDictionary() {
+bool Object::IsDictionary() const {
   return IsHashTable() &&
       this != HeapObject::cast(this)->GetHeap()->string_table();
 }
 
 
-bool Object::IsNameDictionary() {
+bool Object::IsNameDictionary() const {
   return IsDictionary();
 }
 
 
-bool Object::IsSeededNumberDictionary() {
+bool Object::IsSeededNumberDictionary() const {
   return IsDictionary();
 }
 
 
-bool Object::IsUnseededNumberDictionary() {
+bool Object::IsUnseededNumberDictionary() const {
   return IsDictionary();
 }
 
 
-bool Object::IsStringTable() {
+bool Object::IsStringTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsJSFunctionResultCache() {
+bool Object::IsJSFunctionResultCache() const {
   if (!IsFixedArray()) return false;
-  FixedArray* self = FixedArray::cast(this);
+  const FixedArray* self = FixedArray::cast(this);
   int length = self->length();
   if (length < JSFunctionResultCache::kEntriesIndex) return false;
   if ((length - JSFunctionResultCache::kEntriesIndex)
@@ -870,7 +867,10 @@ bool Object::IsJSFunctionResultCache() {
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    reinterpret_cast<JSFunctionResultCache*>(this)->
+    // TODO(svenpanne) We use const_cast here and below to break our dependency
+    // cycle between the predicates and the verifiers. This can be removed when
+    // the verifiers are const-correct, too.
+    reinterpret_cast<JSFunctionResultCache*>(const_cast<Object*>(this))->
         JSFunctionResultCacheVerify();
   }
 #endif
@@ -878,7 +878,7 @@ bool Object::IsJSFunctionResultCache() {
 }
 
 
-bool Object::IsNormalizedMapCache() {
+bool Object::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
 }
 
@@ -888,68 +888,69 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
 }
 
 
-bool NormalizedMapCache::IsNormalizedMapCache(Object* obj) {
+bool NormalizedMapCache::IsNormalizedMapCache(const Object* obj) {
   if (!obj->IsFixedArray()) return false;
   if (FixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(obj)->NormalizedMapCacheVerify();
+    reinterpret_cast<NormalizedMapCache*>(const_cast<Object*>(obj))->
+        NormalizedMapCacheVerify();
   }
 #endif
   return true;
 }
 
 
-bool Object::IsCompilationCacheTable() {
+bool Object::IsCompilationCacheTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsCodeCacheHashTable() {
+bool Object::IsCodeCacheHashTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsPolymorphicCodeCacheHashTable() {
+bool Object::IsPolymorphicCodeCacheHashTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsMapCache() {
+bool Object::IsMapCache() const {
   return IsHashTable();
 }
 
 
-bool Object::IsObjectHashTable() {
+bool Object::IsObjectHashTable() const {
   return IsHashTable();
 }
 
 
-bool Object::IsOrderedHashTable() {
+bool Object::IsOrderedHashTable() const {
   return IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->ordered_hash_table_map();
 }
 
 
-bool Object::IsOrderedHashSet() {
+bool Object::IsOrderedHashSet() const {
   return IsOrderedHashTable();
 }
 
 
-bool Object::IsOrderedHashMap() {
+bool Object::IsOrderedHashMap() const {
   return IsOrderedHashTable();
 }
 
 
-bool Object::IsPrimitive() {
+bool Object::IsPrimitive() const {
   return IsOddball() || IsNumber() || IsString();
 }
 
 
-bool Object::IsJSGlobalProxy() {
+bool Object::IsJSGlobalProxy() const {
   bool result = IsHeapObject() &&
                 (HeapObject::cast(this)->map()->instance_type() ==
                  JS_GLOBAL_PROXY_TYPE);
@@ -959,7 +960,7 @@ bool Object::IsJSGlobalProxy() {
 }
 
 
-bool Object::IsGlobalObject() {
+bool Object::IsGlobalObject() const {
   if (!IsHeapObject()) return false;
 
   InstanceType type = HeapObject::cast(this)->map()->instance_type();
@@ -972,25 +973,24 @@ TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSBuiltinsObject, JS_BUILTINS_OBJECT_TYPE)
 
 
-bool Object::IsUndetectableObject() {
+bool Object::IsUndetectableObject() const {
   return IsHeapObject()
     && HeapObject::cast(this)->map()->is_undetectable();
 }
 
 
-bool Object::IsAccessCheckNeeded() {
+bool Object::IsAccessCheckNeeded() const {
   if (!IsHeapObject()) return false;
   if (IsJSGlobalProxy()) {
-    JSGlobalProxy* proxy = JSGlobalProxy::cast(this);
-    GlobalObject* global =
-        proxy->GetIsolate()->context()->global_object();
+    const JSGlobalProxy* proxy = JSGlobalProxy::cast(this);
+    GlobalObject* global = proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
   return HeapObject::cast(this)->map()->is_access_check_needed();
 }
 
 
-bool Object::IsStruct() {
+bool Object::IsStruct() const {
   if (!IsHeapObject()) return false;
   switch (HeapObject::cast(this)->map()->instance_type()) {
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return true;
@@ -1001,51 +1001,51 @@ bool Object::IsStruct() {
 }
 
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                  \
-  bool Object::Is##Name() {                                      \
-    return Object::IsHeapObject()                                \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                         \
+  bool Object::Is##Name() const {                                       \
+    return Object::IsHeapObject()                                       \
       && HeapObject::cast(this)->map()->instance_type() == NAME##_TYPE; \
   }
   STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
 
-bool Object::IsUndefined() {
+bool Object::IsUndefined() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUndefined;
 }
 
 
-bool Object::IsNull() {
+bool Object::IsNull() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kNull;
 }
 
 
-bool Object::IsTheHole() {
+bool Object::IsTheHole() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTheHole;
 }
 
 
-bool Object::IsException() {
+bool Object::IsException() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kException;
 }
 
 
-bool Object::IsUninitialized() {
+bool Object::IsUninitialized() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kUninitialized;
 }
 
 
-bool Object::IsTrue() {
+bool Object::IsTrue() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kTrue;
 }
 
 
-bool Object::IsFalse() {
+bool Object::IsFalse() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kFalse;
 }
 
 
-bool Object::IsArgumentsMarker() {
+bool Object::IsArgumentsMarker() const {
   return IsOddball() && Oddball::cast(this)->kind() == Oddball::kArgumentMarker;
 }
 
@@ -1058,7 +1058,7 @@ double Object::Number() {
 }
 
 
-bool Object::IsNaN() {
+bool Object::IsNaN() const {
   return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
 }
 
@@ -1369,7 +1369,7 @@ Heap* HeapObject::GetHeap() const {
 }
 
 
-Isolate* HeapObject::GetIsolate() {
+Isolate* HeapObject::GetIsolate() const {
   return GetHeap()->isolate();
 }
 
@@ -1478,7 +1478,7 @@ void HeapObject::IterateNextCodeLink(ObjectVisitor* v, int offset) {
 }
 
 
-double HeapNumber::value() {
+double HeapNumber::value() const {
   return READ_DOUBLE_FIELD(this, kValueOffset);
 }
 
@@ -1849,7 +1849,7 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
-byte Oddball::kind() {
+byte Oddball::kind() const {
   return Smi::cast(READ_FIELD(this, kKindOffset))->value();
 }
 
@@ -3147,7 +3147,7 @@ FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
 template <class Traits>
 const FixedTypedArray<Traits>*
 FixedTypedArray<Traits>::cast(const Object* object) {
-  SLOW_ASSERT(const_cast<Object*>(object)->IsHeapObject() &&
+  SLOW_ASSERT(object->IsHeapObject() &&
               HeapObject::cast(object)->map()->instance_type() ==
               Traits::kInstanceType);
   return reinterpret_cast<FixedTypedArray<Traits>*>(object);
@@ -3170,7 +3170,7 @@ HashTable<Derived, Shape, Key>::cast(Object* obj) {
 template <typename Derived, typename Shape, typename Key>
 const HashTable<Derived, Shape, Key>*
 HashTable<Derived, Shape, Key>::cast(const Object* obj) {
-  SLOW_ASSERT(const_cast<Object*>(obj)->IsHashTable());
+  SLOW_ASSERT(obj->IsHashTable());
   return reinterpret_cast<const HashTable*>(obj);
 }
 
@@ -4651,14 +4651,17 @@ void Code::set_compiled_optimizable(bool value) {
 
 int Code::allow_osr_at_loop_nesting_level() {
   ASSERT_EQ(FUNCTION, kind());
-  return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
+  int fields = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  return AllowOSRAtLoopNestingLevelField::decode(fields);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
   ASSERT_EQ(FUNCTION, kind());
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
-  WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int updated = AllowOSRAtLoopNestingLevelField::update(previous, level);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
 }
 
 
@@ -4711,13 +4714,14 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 unsigned Code::back_edge_table_offset() {
   ASSERT_EQ(FUNCTION, kind());
   return BackEdgeTableOffsetField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset)) << kPointerSizeLog2;
 }
 
 
 void Code::set_back_edge_table_offset(unsigned offset) {
   ASSERT_EQ(FUNCTION, kind());
-  ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
+  ASSERT(IsAligned(offset, static_cast<unsigned>(kPointerSize)));
+  offset = offset >> kPointerSizeLog2;
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = BackEdgeTableOffsetField::update(previous, offset);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
@@ -4726,18 +4730,8 @@ void Code::set_back_edge_table_offset(unsigned offset) {
 
 bool Code::back_edges_patched_for_osr() {
   ASSERT_EQ(FUNCTION, kind());
-  return BackEdgesPatchedForOSRField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+  return allow_osr_at_loop_nesting_level() > 0;
 }
-
-
-void Code::set_back_edges_patched_for_osr(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = BackEdgesPatchedForOSRField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
 
 
 byte Code::to_boolean_state() {
@@ -6438,7 +6432,7 @@ bool String::AsArrayIndex(uint32_t* index) {
 }
 
 
-Object* JSReceiver::GetPrototype() {
+Object* JSReceiver::GetPrototype() const {
   return map()->prototype();
 }
 
@@ -6494,7 +6488,7 @@ bool JSGlobalObject::IsDetached() {
 }
 
 
-bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) {
+bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) const {
   return GetPrototype() != global;
 }
 

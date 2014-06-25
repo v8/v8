@@ -3432,7 +3432,7 @@ static inline bool ObjectSetAccessor(Object* obj,
       i::JSObject::SetAccessor(Utils::OpenHandle(obj), info),
       false);
   if (result->IsUndefined()) return false;
-  if (fast) i::JSObject::TransformToFastProperties(Utils::OpenHandle(obj), 0);
+  if (fast) i::JSObject::MigrateSlowToFast(Utils::OpenHandle(obj), 0);
   return true;
 }
 
@@ -3600,7 +3600,7 @@ void v8::Object::TurnOnAccessCheck() {
 
   i::Handle<i::Map> new_map = i::Map::Copy(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
-  obj->set_map(*new_map);
+  i::JSObject::MigrateToMap(obj, new_map);
 }
 
 

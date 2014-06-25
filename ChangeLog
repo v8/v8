@@ -1,3 +1,19 @@
+2014-06-25: Version 3.28.2
+
+        Remove bogus assertions in HCompareObjectEqAndBranch (Chromium issue
+        387636).
+
+        Do not eagerly update allow_osr_at_loop_nesting_level (Chromium issue
+        387599).
+
+        Set host_arch to ia32 on machines with a 32bit userland but a 64bit
+        kernel (Chromium issue 368384).
+
+        Map/Set: Implement constructor parameter handling (issue 3398).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-24: Version 3.28.1
 
         Support LiveEdit on Arm64 (Chromium issue 368580).

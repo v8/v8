@@ -1818,8 +1818,15 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
   // before object re-initialization is finished and filler object is installed.
   DisallowHeapAllocation no_allocation;
 
+  // Put in filler if the new object is smaller than the old.
+  if (size_difference > 0) {
+    Address address = object->address() + map->instance_size();
+    heap->CreateFillerObjectAt(address, size_difference);
+    heap->AdjustLiveBytes(address, -size_difference, Heap::FROM_MUTATOR);
+  }
+
   // Reset the map for the object.
-  object->set_map(*map);
+  object->synchronized_set_map(*map);
   Handle<JSObject> jsobj = Handle<JSObject>::cast(object);
 
   // Reinitialize the object from the constructor map.
@@ -1831,12 +1838,6 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(object);
     Handle<Context> context(isolate()->context()->native_context());
     InitializeFunction(js_function, shared.ToHandleChecked(), context);
-  }
-
-  // Put in filler if the new object is smaller than the old.
-  if (size_difference > 0) {
-    heap->CreateFillerObjectAt(
-        object->address() + map->instance_size(), size_difference);
   }
 }
 
@@ -1863,7 +1864,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   DisallowHeapAllocation no_allocation;
 
   // Reset the map for the object.
-  object->set_map(constructor->initial_map());
+  object->synchronized_set_map(*map);
 
   Heap* heap = isolate()->heap();
   // Reinitialize the object from the constructor map.

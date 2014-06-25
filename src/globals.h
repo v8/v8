@@ -138,7 +138,11 @@ const int kInt64Size     = sizeof(int64_t);   // NOLINT
 const int kDoubleSize    = sizeof(double);    // NOLINT
 const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
 const int kPointerSize   = sizeof(void*);     // NOLINT
+#if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+const int kRegisterSize  = kPointerSize + kPointerSize;
+#else
 const int kRegisterSize  = kPointerSize;
+#endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
@@ -154,9 +158,17 @@ const size_t kMaximalCodeRangeSize = 512 * MB;
 const int kPointerSizeLog2 = 2;
 const intptr_t kIntptrSignBit = 0x80000000;
 const uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
+#if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+// x32 port also requires code range.
+const bool kRequiresCodeRange = true;
+const size_t kMaximalCodeRangeSize = 256 * MB;
+#else
 const bool kRequiresCodeRange = false;
 const size_t kMaximalCodeRangeSize = 0 * MB;
 #endif
+#endif
+
+STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
 const int kBitsPerByte = 8;
 const int kBitsPerByteLog2 = 3;

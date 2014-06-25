@@ -86,6 +86,7 @@ SUPPORTED_ARCHS = ["android_arm",
                    "nacl_ia32",
                    "nacl_x64",
                    "x64",
+                   "x32",
                    "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",

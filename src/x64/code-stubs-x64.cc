@@ -2375,10 +2375,10 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ SmiToInteger32(rdx, rdx);
 
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
-  __ cmpq(rdi, rcx);
+  __ cmpp(rdi, rcx);
   __ j(not_equal, &miss);
 
-  __ movq(rax, Immediate(arg_count()));
+  __ movp(rax, Immediate(arg_count()));
   __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
 
@@ -2417,7 +2417,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
-  __ cmpq(rdi, FieldOperand(rbx, rdx, times_pointer_size,
+  __ cmpp(rdi, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
   __ j(not_equal, &extra_checks_or_miss);
 

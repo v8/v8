@@ -343,6 +343,8 @@
         '../../src/assembler.h',
         '../../src/assert-scope.h',
         '../../src/assert-scope.cc',
+        '../../src/ast-value-factory.cc',
+        '../../src/ast-value-factory.h',
         '../../src/ast.cc',
         '../../src/ast.h',
         '../../src/bignum-dtoa.cc',
@@ -870,7 +872,7 @@
             '../../src/mips/stub-cache-mips.cc',
           ],
         }],
-        ['v8_target_arch=="x64"', {
+        ['v8_target_arch=="x64" or v8_target_arch=="x32"', {
           'sources': [  ### gcmole(arch:x64) ###
             '../../src/x64/assembler-x64-inl.h',
             '../../src/x64/assembler-x64.cc',

@@ -41,6 +41,7 @@ def _V8PresubmitChecks(input_api, output_api):
         input_api.PresubmitLocalPath(), 'tools'))
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
+  from presubmit import CheckGeneratedRuntimeTests
 
   results = []
   if not CppLintProcessor().Run(input_api.PresubmitLocalPath()):
@@ -49,6 +50,9 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError(
         "Copyright header, trailing whitespaces and two empty lines " \
         "between declarations check failed"))
+  if not CheckGeneratedRuntimeTests(input_api.PresubmitLocalPath()):
+    results.append(output_api.PresubmitError(
+        "Generated runtime tests check failed"))
   return results
 
 

@@ -92,8 +92,8 @@ bool Object::BooleanValue() {
 }
 
 
-bool Object::IsCallable() {
-  Object* fun = this;
+bool Object::IsCallable() const {
+  const Object* fun = this;
   while (fun->IsJSFunctionProxy()) {
     fun = JSFunctionProxy::cast(fun)->call_trap();
   }
@@ -761,7 +761,7 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
         // the hole value.
         Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
         ASSERT(new_map->is_dictionary_map());
-        object->set_map(*new_map);
+        JSObject::MigrateToMap(object, new_map);
       }
       Handle<PropertyCell> cell(PropertyCell::cast(dictionary->ValueAt(entry)));
       Handle<Object> value = isolate->factory()->the_hole_value();
@@ -1701,22 +1701,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 
 
 bool HeapNumber::HeapNumberBooleanValue() {
-  // NaN, +0, and -0 should return the false object
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-  union IeeeDoubleLittleEndianArchType u;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-  union IeeeDoubleBigEndianArchType u;
-#endif
-  u.d = value();
-  if (u.bits.exp == 2047) {
-    // Detect NaN for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) != 0) return false;
-  }
-  if (u.bits.exp == 0) {
-    // Detect +0, and -0 for IEEE double precision floating point.
-    if ((u.bits.man_low | u.bits.man_high) == 0) return false;
-  }
-  return true;
+  return DoubleToBoolean(value());
 }
 
 
@@ -2119,7 +2104,26 @@ Handle<TransitionArray> Map::SetElementsTransitionMap(
 }
 
 
-// To migrate an instance to a map:
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+  if (object->map() == *new_map) return;
+  if (object->HasFastProperties()) {
+    if (!new_map->is_dictionary_map()) {
+      MigrateFastToFast(object, new_map);
+    } else {
+      MigrateFastToSlow(object, new_map, 0);
+    }
+  } else {
+    // For slow-to-fast migrations JSObject::TransformToFastProperties()
+    // must be used instead.
+    CHECK(new_map->is_dictionary_map());
+
+    // Slow-to-slow migration is trivial.
+    object->set_map(*new_map);
+  }
+}
+
+
+// To migrate a fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
 // - Otherwise, allocate a fixed array large enough to hold all fields, in
@@ -2134,7 +2138,7 @@ Handle<TransitionArray> Map::SetElementsTransitionMap(
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
+void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
   int number_of_fields = new_map->NumberOfFields();
@@ -2145,8 +2149,6 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   // converted to doubles.
   if (!old_map->InstancesNeedRewriting(
           *new_map, number_of_fields, inobject, unused)) {
-    // Writing the new map here does not require synchronization since it does
-    // not change the actual object size.
     object->synchronized_set_map(*new_map);
     return;
   }
@@ -2180,9 +2182,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 
     // Set the new property value and do the map transition.
     object->set_properties(*new_storage);
-    // Writing the new map here does not require synchronization since it does
-    // not change the actual object size.
-    object->set_map(*new_map);
+    object->synchronized_set_map(*new_map);
     return;
   }
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
@@ -2254,24 +2254,21 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   ASSERT(instance_size_delta >= 0);
   Address address = object->address() + new_instance_size;
 
-  // The trimming is performed on a newly allocated object, which is on a
-  // freshly allocated page or on an already swept page. Hence, the sweeper
-  // thread can not get confused with the filler creation. No synchronization
-  // needed.
-  isolate->heap()->CreateFillerObjectAt(address, instance_size_delta);
+  Heap* heap = isolate->heap();
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<Heap::FROM_MUTATOR>(isolate->heap(), *array, inobject);
+    RightTrimFixedArray<Heap::FROM_MUTATOR>(heap, *array, inobject);
     object->set_properties(*array);
   }
 
-  // The trimming is performed on a newly allocated object, which is on a
-  // freshly allocated page or on an already swept page. Hence, the sweeper
-  // thread can not get confused with the filler creation. No synchronization
-  // needed.
-  object->set_map(*new_map);
+  heap->CreateFillerObjectAt(address, instance_size_delta);
+  heap->AdjustLiveBytes(address, -instance_size_delta, Heap::FROM_MUTATOR);
+
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  object->synchronized_set_map(*new_map);
 }
 
 
@@ -2283,8 +2280,7 @@ void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
   Handle<Map> new_map = Map::GeneralizeRepresentation(
       handle(object->map()), modify_index, new_representation,
       new_field_type, store_mode);
-  if (object->map() == *new_map) return;
-  return MigrateToMap(object, new_map);
+  MigrateToMap(object, new_map);
 }
 
 
@@ -3983,8 +3979,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 }
 
 
-static void SetPropertyToField(LookupResult* lookup,
-                               Handle<Object> value) {
+void JSObject::SetPropertyToField(LookupResult* lookup, Handle<Object> value) {
   if (lookup->type() == CONSTANT || !lookup->CanHoldValue(value)) {
     Representation field_representation = value->OptimalRepresentation();
     Handle<HeapType> field_type = value->OptimalType(
@@ -3998,10 +3993,10 @@ static void SetPropertyToField(LookupResult* lookup,
 }
 
 
-static void ConvertAndSetOwnProperty(LookupResult* lookup,
-                                     Handle<Name> name,
-                                     Handle<Object> value,
-                                     PropertyAttributes attributes) {
+void JSObject::ConvertAndSetOwnProperty(LookupResult* lookup,
+                                        Handle<Name> name,
+                                        Handle<Object> value,
+                                        PropertyAttributes attributes) {
   Handle<JSObject> object(lookup->holder());
   if (object->TooManyFastProperties()) {
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
@@ -4028,10 +4023,10 @@ static void ConvertAndSetOwnProperty(LookupResult* lookup,
 }
 
 
-static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             PropertyAttributes attributes) {
+void JSObject::SetPropertyToFieldWithAttributes(LookupResult* lookup,
+                                                Handle<Name> name,
+                                                Handle<Object> value,
+                                                PropertyAttributes attributes) {
   if (lookup->GetAttributes() == attributes) {
     if (value->IsUninitialized()) return;
     SetPropertyToField(lookup, value);
@@ -4577,6 +4572,16 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    int expected_additional_properties) {
   if (!object->HasFastProperties()) return;
 
+  Handle<Map> map(object->map());
+  Handle<Map> new_map = Map::Normalize(map, mode);
+
+  MigrateFastToSlow(object, new_map, expected_additional_properties);
+}
+
+
+void JSObject::MigrateFastToSlow(Handle<JSObject> object,
+                                 Handle<Map> new_map,
+                                 int expected_additional_properties) {
   // The global object is always normalized.
   ASSERT(!object->IsGlobalObject());
   // JSGlobalProxy must never be normalized
@@ -4585,7 +4590,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Map> map(object->map());
-  Handle<Map> new_map = Map::Normalize(map, mode);
 
   // Allocate new content.
   int real_size = map->NumberOfOwnDescriptors();
@@ -4672,8 +4676,8 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
 }
 
 
-void JSObject::TransformToFastProperties(Handle<JSObject> object,
-                                         int unused_property_fields) {
+void JSObject::MigrateSlowToFast(Handle<JSObject> object,
+                                 int unused_property_fields) {
   if (object->HasFastProperties()) return;
   ASSERT(!object->IsGlobalObject());
   Isolate* isolate = object->GetIsolate();
@@ -4718,7 +4722,7 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
     ASSERT_LE(unused_property_fields, inobject_props);
     // Transform the object.
     new_map->set_unused_property_fields(inobject_props);
-    object->set_map(*new_map);
+    object->synchronized_set_map(*new_map);
     object->set_properties(isolate->heap()->empty_fixed_array());
     // Check that it really works.
     ASSERT(object->HasFastProperties());
@@ -4799,7 +4803,7 @@ void JSObject::TransformToFastProperties(Handle<JSObject> object,
   new_map->set_unused_property_fields(unused_property_fields);
 
   // Transform the object.
-  object->set_map(*new_map);
+  object->synchronized_set_map(*new_map);
 
   object->set_properties(*fields);
   ASSERT(object->IsJSObject());
@@ -6641,7 +6645,7 @@ void JSObject::SetPropertyCallback(Handle<JSObject> object,
   if (object->IsGlobalObject()) {
     Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
     ASSERT(new_map->is_dictionary_map());
-    object->set_map(*new_map);
+    JSObject::MigrateToMap(object, new_map);
 
     // When running crankshaft, changing the map is not enough. We
     // need to deoptimize all functions that rely on this global
@@ -9362,29 +9366,7 @@ bool String::ComputeArrayIndex(uint32_t* index) {
   if (length == 0 || length > kMaxArrayIndexSize) return false;
   ConsStringIteratorOp op;
   StringCharacterStream stream(this, &op);
-  uint16_t ch = stream.GetNext();
-
-  // If the string begins with a '0' character, it must only consist
-  // of it to be a legal array index.
-  if (ch == '0') {
-    *index = 0;
-    return length == 1;
-  }
-
-  // Convert string to uint32 array index; character by character.
-  int d = ch - '0';
-  if (d < 0 || d > 9) return false;
-  uint32_t result = d;
-  while (stream.HasMore()) {
-    d = stream.GetNext() - '0';
-    if (d < 0 || d > 9) return false;
-    // Check that the new result is below the 32 bit limit.
-    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
-    result = (result * 10) + d;
-  }
-
-  *index = result;
-  return true;
+  return StringToArrayIndex(&stream, index);
 }
 
 
@@ -9930,7 +9912,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
   if (!object->HasFastProperties()) {
-    TransformToFastProperties(object, 0);
+    MigrateSlowToFast(object, 0);
   }
 }
 

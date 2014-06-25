@@ -310,7 +310,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
   // computed properties have been assigned so that we can generate
   // constant function properties.
   if (should_transform && !has_function_literal) {
-    JSObject::TransformToFastProperties(
+    JSObject::MigrateSlowToFast(
         boilerplate, boilerplate->map()->unused_property_fields());
   }
 
@@ -5055,7 +5055,7 @@ RUNTIME_FUNCTION(Runtime_DefineOrRedefineAccessorProperty) {
   // DefineAccessor checks access rights.
   JSObject::DefineAccessor(obj, name, getter, setter, attr);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (fast) JSObject::TransformToFastProperties(obj, 0);
+  if (fast) JSObject::MigrateSlowToFast(obj, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -6036,7 +6036,7 @@ RUNTIME_FUNCTION(Runtime_ToFastProperties) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   if (object->IsJSObject() && !object->IsGlobalObject()) {
-    JSObject::TransformToFastProperties(Handle<JSObject>::cast(object), 0);
+    JSObject::MigrateSlowToFast(Handle<JSObject>::cast(object), 0);
   }
   return *object;
 }
@@ -8530,16 +8530,11 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr"))) {
+    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")) && FLAG_use_osr) {
       // Start patching from the currently patched loop nesting level.
-      int current_level = unoptimized->allow_osr_at_loop_nesting_level();
-      ASSERT(BackEdgeTable::Verify(isolate, unoptimized, current_level));
-      if (FLAG_use_osr) {
-        for (int i = current_level + 1; i <= Code::kMaxLoopNestingMarker; i++) {
-          unoptimized->set_allow_osr_at_loop_nesting_level(i);
-          isolate->runtime_profiler()->AttemptOnStackReplacement(*function);
-        }
-      }
+      ASSERT(BackEdgeTable::Verify(isolate, unoptimized));
+      isolate->runtime_profiler()->AttemptOnStackReplacement(
+          *function, Code::kMaxLoopNestingMarker);
     } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
       function->MarkForConcurrentOptimization();
@@ -9136,6 +9131,23 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
   ObjectPair result = {x, y};
   // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
   // In Win64 they are assigned to a hidden first argument.
+  return result;
+}
+#elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
+// For x32 a 128-bit struct return is done as rax and rdx from the ObjectPair
+// are used in the full codegen and Crankshaft compiler. An alternative is
+// using uint64_t and modifying full codegen and Crankshaft compiler.
+struct ObjectPair {
+  Object* x;
+  uint32_t x_upper;
+  Object* y;
+  uint32_t y_upper;
+};
+
+
+static inline ObjectPair MakePair(Object* x, Object* y) {
+  ObjectPair result = {x, 0, y, 0};
+  // Pointers x and y returned in rax and rdx, in x32-abi.
   return result;
 }
 #else

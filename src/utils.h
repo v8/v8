@@ -1318,7 +1318,11 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
+#if V8_HOST_ARCH_32_BIT
+#define STOS "addr32 stosl"
+#else
 #define STOS "stosq"
+#endif
 #endif
 #if defined(__native_client__)
   // This STOS sequence does not validate for x86_64 Native Client.
@@ -1576,6 +1580,36 @@ class StringBuilder : public SimpleStringBuilder {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
+
+
+bool DoubleToBoolean(double d);
+
+template <typename Stream>
+bool StringToArrayIndex(Stream* stream, uint32_t* index) {
+  uint16_t ch = stream->GetNext();
+
+  // If the string begins with a '0' character, it must only consist
+  // of it to be a legal array index.
+  if (ch == '0') {
+    *index = 0;
+    return !stream->HasMore();
+  }
+
+  // Convert string to uint32 array index; character by character.
+  int d = ch - '0';
+  if (d < 0 || d > 9) return false;
+  uint32_t result = d;
+  while (stream->HasMore()) {
+    d = stream->GetNext() - '0';
+    if (d < 0 || d > 9) return false;
+    // Check that the new result is below the 32 bit limit.
+    if (result > 429496729U - ((d > 5) ? 1 : 0)) return false;
+    result = (result * 10) + d;
+  }
+
+  *index = result;
+  return true;
+}
 
 
 } }  // namespace v8::internal

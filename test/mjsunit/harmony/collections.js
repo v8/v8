@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-collections
+// Flags: --harmony-collections --harmony-iteration
 // Flags: --expose-gc --allow-natives-syntax
 
 
@@ -986,4 +986,262 @@ for (var i = 9; i >= 0; i--) {
   });
 
   assertArrayEquals([0, 1, 2, 3, 4], buffer);
+})();
+
+
+(function TestSetConstructor() {
+  var s = new Set(null);
+  assertEquals(s.size, 0);
+
+  s = new Set(undefined);
+  assertEquals(s.size, 0);
+
+  // No @@iterator
+  assertThrows(function() {
+    new Set({});
+  }, TypeError);
+
+  // @@iterator not callable
+  assertThrows(function() {
+    var object = {};
+    object[Symbol.iterator] = 42;
+    new Set(object);
+  }, TypeError);
+
+  // @@iterator result not object
+  assertThrows(function() {
+    var object = {};
+    object[Symbol.iterator] = function() {
+      return 42;
+    };
+    new Set(object);
+  }, TypeError);
+
+  var s2 = new Set();
+  s2.add('a');
+  s2.add('b');
+  s2.add('c');
+  s = new Set(s2.values());
+  assertEquals(s.size, 3);
+  assertTrue(s.has('a'));
+  assertTrue(s.has('b'));
+  assertTrue(s.has('c'));
+})();
+
+
+(function TestSetConstructorAddNotCallable() {
+  var originalSetPrototypeAdd = Set.prototype.add;
+  assertThrows(function() {
+    Set.prototype.add = 42;
+    new Set([1, 2].values());
+  }, TypeError);
+  Set.prototype.add = originalSetPrototypeAdd;
+})();
+
+
+(function TestSetConstructorGetAddOnce() {
+  var originalSetPrototypeAdd = Set.prototype.add;
+  var getAddCount = 0;
+  Object.defineProperty(Set.prototype, 'add', {
+    get: function() {
+      getAddCount++;
+      return function() {};
+    }
+  });
+  var s = new Set([1, 2].values());
+  assertEquals(getAddCount, 1);
+  assertEquals(s.size, 0);
+  Object.defineProperty(Set.prototype, 'add', {
+    value: originalSetPrototypeAdd,
+    writable: true
+  });
+})();
+
+
+(function TestSetConstructorAddReplaced() {
+  var originalSetPrototypeAdd = Set.prototype.add;
+  var addCount = 0;
+  Set.prototype.add = function(value) {
+    addCount++;
+    originalSetPrototypeAdd.call(this, value);
+    Set.prototype.add = null;
+  };
+  var s = new Set([1, 2].values());
+  assertEquals(addCount, 2);
+  assertEquals(s.size, 2);
+  Set.prototype.add = originalSetPrototypeAdd;
+})();
+
+
+(function TestSetConstructorOrderOfDoneValue() {
+  var valueCount = 0, doneCount = 0;
+  var iterator = {
+    next: function() {
+      return {
+        get value() {
+          valueCount++;
+        },
+        get done() {
+          doneCount++;
+          throw new Error();
+        }
+      };
+    }
+  };
+  iterator[Symbol.iterator] = function() {
+    return this;
+  };
+  assertThrows(function() {
+    new Set(iterator);
+  });
+  assertEquals(doneCount, 1);
+  assertEquals(valueCount, 0);
+})();
+
+
+(function TestSetConstructorNextNotAnObject() {
+  var iterator = {
+    next: function() {
+      return 'abc';
+    }
+  };
+  iterator[Symbol.iterator] = function() {
+    return this;
+  };
+  assertThrows(function() {
+    new Set(iterator);
+  }, TypeError);
+})();
+
+
+(function TestMapConstructor() {
+  var m = new Map(null);
+  assertEquals(m.size, 0);
+
+  m = new Map(undefined);
+  assertEquals(m.size, 0);
+
+  // No @@iterator
+  assertThrows(function() {
+    new Map({});
+  }, TypeError);
+
+  // @@iterator not callable
+  assertThrows(function() {
+    var object = {};
+    object[Symbol.iterator] = 42;
+    new Map(object);
+  }, TypeError);
+
+  // @@iterator result not object
+  assertThrows(function() {
+    var object = {};
+    object[Symbol.iterator] = function() {
+      return 42;
+    };
+    new Map(object);
+  }, TypeError);
+
+  var m2 = new Map();
+  m2.set(0, 'a');
+  m2.set(1, 'b');
+  m2.set(2, 'c');
+  m = new Map(m2.entries());
+  assertEquals(m.size, 3);
+  assertEquals(m.get(0), 'a');
+  assertEquals(m.get(1), 'b');
+  assertEquals(m.get(2), 'c');
+})();
+
+
+(function TestMapConstructorSetNotCallable() {
+  var originalMapPrototypeSet = Map.prototype.set;
+  assertThrows(function() {
+    Map.prototype.set = 42;
+    new Map([1, 2].entries());
+  }, TypeError);
+  Map.prototype.set = originalMapPrototypeSet;
+})();
+
+
+(function TestMapConstructorGetAddOnce() {
+  var originalMapPrototypeSet = Map.prototype.set;
+  var getSetCount = 0;
+  Object.defineProperty(Map.prototype, 'set', {
+    get: function() {
+      getSetCount++;
+      return function() {};
+    }
+  });
+  var m = new Map([1, 2].entries());
+  assertEquals(getSetCount, 1);
+  assertEquals(m.size, 0);
+  Object.defineProperty(Map.prototype, 'set', {
+    value: originalMapPrototypeSet,
+    writable: true
+  });
+})();
+
+
+(function TestMapConstructorSetReplaced() {
+  var originalMapPrototypeSet = Map.prototype.set;
+  var setCount = 0;
+  Map.prototype.set = function(key, value) {
+    setCount++;
+    originalMapPrototypeSet.call(this, key, value);
+    Map.prototype.set = null;
+  };
+  var m = new Map([1, 2].entries());
+  assertEquals(setCount, 2);
+  assertEquals(m.size, 2);
+  Map.prototype.set = originalMapPrototypeSet;
+})();
+
+
+(function TestMapConstructorOrderOfDoneValue() {
+  var valueCount = 0, doneCount = 0;
+  function FakeError() {}
+  var iterator = {
+    next: function() {
+      return {
+        get value() {
+          valueCount++;
+        },
+        get done() {
+          doneCount++;
+          throw new FakeError();
+        }
+      };
+    }
+  };
+  iterator[Symbol.iterator] = function() {
+    return this;
+  };
+  assertThrows(function() {
+    new Map(iterator);
+  }, FakeError);
+  assertEquals(doneCount, 1);
+  assertEquals(valueCount, 0);
+})();
+
+
+(function TestMapConstructorNextNotAnObject() {
+  var iterator = {
+    next: function() {
+      return 'abc';
+    }
+  };
+  iterator[Symbol.iterator] = function() {
+    return this;
+  };
+  assertThrows(function() {
+    new Map(iterator);
+  }, TypeError);
+})();
+
+
+(function TestMapConstructorIteratorNotObjectValues() {
+  assertThrows(function() {
+    new Map([1, 2].values());
+  }, TypeError);
 })();

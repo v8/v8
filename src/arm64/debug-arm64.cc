@@ -132,12 +132,10 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     FrameScope scope(masm, StackFrame::INTERNAL);
 
     // Load padding words on stack.
-    __ ldr(scratch, Smi::FromInt(LiveEdit::kFramePaddingValue));
-    for (int i = 0; i < LiveEdit::kFramePaddingInitialSize; i++) {
-      __ push(scratch);
-    }
-    __ ldr(scratch, Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
-    __ push(scratch);
+    __ Mov(scratch, Smi::FromInt(LiveEdit::kFramePaddingValue));
+    __ PushMultipleTimes(scratch, LiveEdit::kFramePaddingInitialSize);
+    __ Mov(scratch, Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
+    __ Push(scratch);
 
     // Any live values (object_regs and non_object_regs) in caller-saved
     // registers (or lr) need to be stored on the stack so that their values are
@@ -360,25 +358,28 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
       ExternalReference::debug_restarter_frame_function_pointer_address(
           masm->isolate());
-  __ mov(x1, xzr);
-  __ Mov(ip0, restarter_frame_function_slot);
-  __ str(x1, MemOperand(ip0, 0));
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
+  __ Mov(scratch, restarter_frame_function_slot);
+  __ Str(xzr, MemOperand(scratch));
 
   // We do not know our frame height, but set sp based on fp.
-  __ sub(jssp, fp, Operand(kPointerSize));
+  __ Sub(masm->StackPointer(), fp, kPointerSize);
+  __ AssertStackConsistency();
 
   __ Pop(x1, fp, lr);  // Function, Frame, Return address.
 
   // Load context from the function.
-  __ ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
 
   // Get function code.
-  __ ldr(ip0, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(ip0, FieldMemOperand(ip0, SharedFunctionInfo::kCodeOffset));
-  __ add(ip0, ip0, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Ldr(scratch, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(scratch, FieldMemOperand(scratch, SharedFunctionInfo::kCodeOffset));
+  __ Add(scratch, scratch, Code::kHeaderSize - kHeapObjectTag);
 
   // Re-run JSFunction, x1 is function, cp is context.
-  __ Jump(ip0);
+  __ Br(scratch);
 }
 
 

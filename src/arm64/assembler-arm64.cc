@@ -455,7 +455,7 @@ void ConstPool::EmitMarker() {
   // + 1 is for the crash guard.
   // + 0/1 for alignment.
   int word_count = EntryCount() * 2 + 1 +
-                   (IsAligned(assm_->pc_offset(), 8)) ? 0 : 1;
+                   (IsAligned(assm_->pc_offset(), 8) ? 0 : 1);
   assm_->Emit(LDR_x_lit                          |
               Assembler::ImmLLiteral(word_count) |
               Assembler::Rt(xzr));

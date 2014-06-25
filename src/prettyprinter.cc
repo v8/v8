@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/ast-value-factory.h"
 #include "src/platform.h"
 #include "src/prettyprinter.h"
 #include "src/scopes.h"
@@ -133,7 +134,7 @@ void PrettyPrinter::VisitIfStatement(IfStatement* node) {
 
 void PrettyPrinter::VisitContinueStatement(ContinueStatement* node) {
   Print("continue");
-  ZoneStringList* labels = node->target()->labels();
+  ZoneList<const AstRawString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
     ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
@@ -145,7 +146,7 @@ void PrettyPrinter::VisitContinueStatement(ContinueStatement* node) {
 
 void PrettyPrinter::VisitBreakStatement(BreakStatement* node) {
   Print("break");
-  ZoneStringList* labels = node->target()->labels();
+  ZoneList<const AstRawString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
     ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
@@ -524,7 +525,7 @@ void PrettyPrinter::PrintStatements(ZoneList<Statement*>* statements) {
 }
 
 
-void PrettyPrinter::PrintLabels(ZoneStringList* labels) {
+void PrettyPrinter::PrintLabels(ZoneList<const AstRawString*>* labels) {
   if (labels != NULL) {
     for (int i = 0; i < labels->length(); i++) {
       PrintLiteral(labels->at(i), false);
@@ -579,6 +580,11 @@ void PrettyPrinter::PrintLiteral(Handle<Object> value, bool quote) {
   } else {
     Print("<unknown literal %p>", object);
   }
+}
+
+
+void PrettyPrinter::PrintLiteral(const AstRawString* value, bool quote) {
+  PrintLiteral(value->string(), quote);
 }
 
 
@@ -676,7 +682,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
 }
 
 
-void AstPrinter::PrintLabelsIndented(ZoneStringList* labels) {
+void AstPrinter::PrintLabelsIndented(ZoneList<const AstRawString*>* labels) {
   if (labels == NULL || labels->length() == 0) return;
   PrintIndented("LABELS ");
   PrintLabels(labels);
