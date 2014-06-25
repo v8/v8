@@ -219,7 +219,7 @@ assertEquals(0, fold(sum, 0, unreachable(undefined)));
 
 // Other non-iterators do cause an error.
 assertThrows('fold(sum, 0, unreachable({}))', TypeError);
-assertThrows('fold(sum, 0, unreachable("foo"))', TypeError);
+assertThrows('fold(sum, 0, unreachable(false))', TypeError);
 assertThrows('fold(sum, 0, unreachable(37))', TypeError);
 
 // "next" is looked up each time.
