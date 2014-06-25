@@ -281,6 +281,7 @@ Operand::Operand(Handle<Object> handle) {
 
 Operand::Operand(Register rm, ShiftOp shift_op, int shift_imm) {
   ASSERT(is_uint5(shift_imm));
+  ASSERT(shift_op != NO_SHIFT);
 
   rm_ = rm;
   rs_ = no_reg;
@@ -301,7 +302,7 @@ Operand::Operand(Register rm, ShiftOp shift_op, int shift_imm) {
 
 
 Operand::Operand(Register rm, ShiftOp shift_op, Register rs) {
-  ASSERT(shift_op != RRX);
+  ASSERT((shift_op != RRX) && (shift_op != NO_SHIFT));
   rm_ = rm;
   rs_ = no_reg;
   shift_op_ = shift_op;
@@ -957,16 +958,16 @@ void Assembler::next(Label* L) {
 // If this returns true then you have to use the rotate_imm and immed_8
 // that it returns, because it may have already changed the instruction
 // to match them!
-static bool fits_shifter(uint32_t imm32,
-                         uint32_t* rotate_imm,
-                         uint32_t* immed_8,
-                         Instr* instr) {
+bool fits_shifter(uint32_t imm32,
+                  uint32_t* rotate_imm,
+                  uint32_t* immed_8,
+                  Instr* instr) {
   // imm32 must be unsigned.
   for (int rot = 0; rot < 16; rot++) {
     uint32_t imm8 = (imm32 << 2*rot) | (imm32 >> (32 - 2*rot));
     if ((imm8 <= 0xff)) {
-      *rotate_imm = rot;
-      *immed_8 = imm8;
+      if (rotate_imm != NULL) *rotate_imm = rot;
+      if (immed_8 != NULL) *immed_8 = imm8;
       return true;
     }
   }
@@ -982,7 +983,8 @@ static bool fits_shifter(uint32_t imm32,
           if (imm32 < 0x10000) {
             *instr ^= kMovwLeaveCCFlip;
             *instr |= EncodeMovwImmediate(imm32);
-            *rotate_imm = *immed_8 = 0;  // Not used for movw.
+            if (rotate_imm != NULL) *rotate_imm = 0;  // Not used for movw.
+            if (immed_8 != NULL) *immed_8 = 0;  // Not used for movw.
             return true;
           }
         }

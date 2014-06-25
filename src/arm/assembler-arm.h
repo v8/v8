@@ -1598,6 +1598,10 @@ class Assembler : public AssemblerBase {
 };
 
 
+bool fits_shifter(uint32_t imm32, uint32_t* rotate_imm,
+                  uint32_t* immed_8, Instr* instr);
+
+
 class EnsureSpace BASE_EMBEDDED {
  public:
   explicit EnsureSpace(Assembler* assembler) {
