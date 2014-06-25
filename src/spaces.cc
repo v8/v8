@@ -2595,6 +2595,16 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // collection.
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
+    // If sweeper threads are active, wait for them at that point.
+     if (collector->IsConcurrentSweepingInProgress()) {
+       collector->WaitUntilSweepingCompleted();
+
+       // After waiting for the sweeper threads, there may be new free-list
+       // entries.
+       HeapObject* object = free_list_.Allocate(size_in_bytes);
+       if (object != NULL) return object;
+     }
+
     return NULL;
   }
 
@@ -2602,16 +2612,6 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   if (Expand()) {
     ASSERT(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
     return free_list_.Allocate(size_in_bytes);
-  }
-
-  // If sweeper threads are active, wait for them at that point.
-  if (collector->IsConcurrentSweepingInProgress()) {
-    collector->WaitUntilSweepingCompleted();
-
-    // After waiting for the sweeper threads, there may be new free-list
-    // entries.
-    HeapObject* object = free_list_.Allocate(size_in_bytes);
-    if (object != NULL) return object;
   }
 
   // Finally, fail.
