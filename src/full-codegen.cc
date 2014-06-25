@@ -854,11 +854,6 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
 }
 
 
-void FullCodeGenerator::SetStatementPosition(int pos) {
-  CodeGenerator::RecordPositions(masm_, pos);
-}
-
-
 void FullCodeGenerator::SetSourcePosition(int pos) {
   if (pos != RelocInfo::kNoPosition) {
     masm_->positions_recorder()->RecordPosition(pos);
@@ -1283,31 +1278,28 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
 void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   Comment cmnt(masm_, "[ WhileStatement");
-  Label test, body;
+  Label loop, body;
 
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Emit the test at the bottom of the loop.
-  __ jmp(&test);
+  __ bind(&loop);
+
+  SetExpressionPosition(stmt->cond());
+  VisitForControl(stmt->cond(),
+                  &body,
+                  loop_statement.break_label(),
+                  &body);
 
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&body);
   Visit(stmt->body());
 
-  // Emit the statement position here as this is where the while
-  // statement code starts.
   __ bind(loop_statement.continue_label());
-  SetStatementPosition(stmt);
 
   // Check stack before looping.
-  EmitBackEdgeBookkeeping(stmt, &body);
-
-  __ bind(&test);
-  VisitForControl(stmt->cond(),
-                  &body,
-                  loop_statement.break_label(),
-                  loop_statement.break_label());
+  EmitBackEdgeBookkeeping(stmt, &loop);
+  __ jmp(&loop);
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(loop_statement.break_label());
