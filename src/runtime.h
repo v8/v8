@@ -397,6 +397,91 @@ namespace internal {
   F(IsJSGlobalProxy, 1, 1)
 
 
+#define RUNTIME_FUNCTION_LIST_ALWAYS_3(F) \
+  /* String and Regexp */ \
+  F(NumberToStringRT, 1, 1) \
+  F(RegExpConstructResult, 3, 1) \
+  F(RegExpExecRT, 4, 1) \
+  F(StringAdd, 2, 1)  \
+  F(SubString, 3, 1) \
+  F(StringCompare, 2, 1) \
+  F(StringCharCodeAtRT, 2, 1) \
+  F(GetFromCache, 2, 1) \
+  \
+  /* Compilation */ \
+  F(CompileUnoptimized, 1, 1) \
+  F(CompileOptimized, 2, 1) \
+  F(TryInstallOptimizedCode, 1, 1) \
+  F(NotifyDeoptimized, 1, 1) \
+  F(NotifyStubFailure, 0, 1) \
+  \
+  /* Utilities */ \
+  F(AllocateInNewSpace, 1, 1) \
+  F(AllocateInTargetSpace, 2, 1) \
+  F(AllocateHeapNumber, 0, 1) \
+  F(NumberToSmi, 1, 1) \
+  F(NumberToStringSkipCache, 1, 1) \
+  \
+  F(NewSloppyArguments, 3, 1) \
+  F(NewStrictArguments, 3, 1) \
+  \
+  /* Harmony generators */ \
+  F(CreateJSGeneratorObject, 0, 1) \
+  F(SuspendJSGeneratorObject, 1, 1) \
+  F(ResumeJSGeneratorObject, 3, 1) \
+  F(ThrowGeneratorStateError, 1, 1) \
+  \
+  /* Arrays */ \
+  F(ArrayConstructor, -1, 1) \
+  F(InternalArrayConstructor, -1, 1) \
+  \
+  /* Literals */ \
+  F(MaterializeRegExpLiteral, 4, 1)\
+  F(CreateObjectLiteral, 4, 1) \
+  F(CreateArrayLiteral, 4, 1) \
+  F(CreateArrayLiteralStubBailout, 3, 1) \
+  \
+  /* Statements */ \
+  F(NewClosure, 3, 1) \
+  F(NewClosureFromStubFailure, 1, 1) \
+  F(NewObject, 1, 1) \
+  F(NewObjectWithAllocationSite, 2, 1) \
+  F(FinalizeInstanceSize, 1, 1) \
+  F(Throw, 1, 1) \
+  F(ReThrow, 1, 1) \
+  F(ThrowReferenceError, 1, 1) \
+  F(ThrowNotDateError, 0, 1) \
+  F(StackGuard, 0, 1) \
+  F(Interrupt, 0, 1) \
+  F(PromoteScheduledException, 0, 1) \
+  \
+  /* Contexts */ \
+  F(NewGlobalContext, 2, 1) \
+  F(NewFunctionContext, 1, 1) \
+  F(PushWithContext, 2, 1) \
+  F(PushCatchContext, 3, 1) \
+  F(PushBlockContext, 2, 1) \
+  F(PushModuleContext, 2, 1) \
+  F(DeleteContextSlot, 2, 1) \
+  F(LoadContextSlot, 2, 2) \
+  F(LoadContextSlotNoReferenceError, 2, 2) \
+  F(StoreContextSlot, 4, 1) \
+  \
+  /* Declarations and initialization */ \
+  F(DeclareGlobals, 3, 1) \
+  F(DeclareModules, 1, 1) \
+  F(DeclareContextSlot, 4, 1) \
+  F(InitializeConstGlobal, 2, 1) \
+  F(InitializeConstContextSlot, 3, 1) \
+  \
+  /* Eval */ \
+  F(ResolvePossiblyDirectEval, 5, 2) \
+  \
+  /* Maths */ \
+  F(MathPowSlow, 2, 1) \
+  F(MathPowRT, 2, 1)
+
+
 #define RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   /* Debugger support*/ \
   F(DebugBreak, 0, 1) \
@@ -522,96 +607,10 @@ namespace internal {
 #define RUNTIME_FUNCTION_LIST(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F) \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS_3(F) \
   RUNTIME_FUNCTION_LIST_DEBUG(F) \
   RUNTIME_FUNCTION_LIST_DEBUGGER(F) \
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
-
-// RUNTIME_HIDDEN_FUNCTION_LIST defines all runtime functions accessed
-// by id from code generator, but not via native call by name.
-// Entries have the form F(name, number of arguments, number of return values).
-#define RUNTIME_HIDDEN_FUNCTION_LIST(F) \
-  /* String and Regexp */ \
-  F(NumberToString, 1, 1) \
-  F(RegExpConstructResult, 3, 1) \
-  F(RegExpExec, 4, 1) \
-  F(StringAdd, 2, 1)  \
-  F(SubString, 3, 1) \
-  F(StringCompare, 2, 1) \
-  F(StringCharCodeAt, 2, 1) \
-  F(GetFromCache, 2, 1) \
-  \
-  /* Compilation */ \
-  F(CompileUnoptimized, 1, 1) \
-  F(CompileOptimized, 2, 1) \
-  F(TryInstallOptimizedCode, 1, 1) \
-  F(NotifyDeoptimized, 1, 1) \
-  F(NotifyStubFailure, 0, 1) \
-  \
-  /* Utilities */ \
-  F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInTargetSpace, 2, 1) \
-  F(AllocateHeapNumber, 0, 1) \
-  F(NumberToSmi, 1, 1) \
-  F(NumberToStringSkipCache, 1, 1) \
-  \
-  F(NewSloppyArguments, 3, 1) \
-  F(NewStrictArguments, 3, 1) \
-  \
-  /* Harmony generators */ \
-  F(CreateJSGeneratorObject, 0, 1) \
-  F(SuspendJSGeneratorObject, 1, 1) \
-  F(ResumeJSGeneratorObject, 3, 1) \
-  F(ThrowGeneratorStateError, 1, 1) \
-  \
-  /* Arrays */ \
-  F(ArrayConstructor, -1, 1) \
-  F(InternalArrayConstructor, -1, 1) \
-  \
-  /* Literals */ \
-  F(MaterializeRegExpLiteral, 4, 1)\
-  F(CreateObjectLiteral, 4, 1) \
-  F(CreateArrayLiteral, 4, 1) \
-  F(CreateArrayLiteralStubBailout, 3, 1) \
-  \
-  /* Statements */ \
-  F(NewClosure, 3, 1) \
-  F(NewClosureFromStubFailure, 1, 1) \
-  F(NewObject, 1, 1) \
-  F(NewObjectWithAllocationSite, 2, 1) \
-  F(FinalizeInstanceSize, 1, 1) \
-  F(Throw, 1, 1) \
-  F(ReThrow, 1, 1) \
-  F(ThrowReferenceError, 1, 1) \
-  F(ThrowNotDateError, 0, 1) \
-  F(StackGuard, 0, 1) \
-  F(Interrupt, 0, 1) \
-  F(PromoteScheduledException, 0, 1) \
-  \
-  /* Contexts */ \
-  F(NewGlobalContext, 2, 1) \
-  F(NewFunctionContext, 1, 1) \
-  F(PushWithContext, 2, 1) \
-  F(PushCatchContext, 3, 1) \
-  F(PushBlockContext, 2, 1) \
-  F(PushModuleContext, 2, 1) \
-  F(DeleteContextSlot, 2, 1) \
-  F(LoadContextSlot, 2, 2) \
-  F(LoadContextSlotNoReferenceError, 2, 2) \
-  F(StoreContextSlot, 4, 1) \
-  \
-  /* Declarations and initialization */ \
-  F(DeclareGlobals, 3, 1) \
-  F(DeclareModules, 1, 1) \
-  F(DeclareContextSlot, 4, 1) \
-  F(InitializeConstGlobal, 2, 1) \
-  F(InitializeConstContextSlot, 3, 1) \
-  \
-  /* Eval */ \
-  F(ResolvePossiblyDirectEval, 5, 2) \
-  \
-  /* Maths */ \
-  F(MathPowSlow, 2, 1) \
-  F(MathPow, 2, 1)
 
 // ----------------------------------------------------------------------------
 // INLINE_FUNCTION_LIST defines all inlined functions accessed
@@ -737,9 +736,6 @@ class Runtime : public AllStatic {
     RUNTIME_FUNCTION_LIST(F)
     INLINE_OPTIMIZED_FUNCTION_LIST(F)
 #undef F
-#define F(name, nargs, ressize) kHidden##name,
-    RUNTIME_HIDDEN_FUNCTION_LIST(F)
-#undef F
 #define F(name, nargs, ressize) kInline##name,
     INLINE_FUNCTION_LIST(F)
 #undef F
@@ -752,7 +748,6 @@ class Runtime : public AllStatic {
 
   enum IntrinsicType {
     RUNTIME,
-    RUNTIME_HIDDEN,
     INLINE,
     INLINE_OPTIMIZED
   };

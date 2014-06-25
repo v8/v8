@@ -20,7 +20,7 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
   Register registers[] = { x2 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNewClosureFromStubFailure)->entry);
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
 
@@ -46,7 +46,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   Register registers[] = { x0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNumberToString)->entry);
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
 
@@ -63,7 +63,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
       Runtime::FunctionForId(
-          Runtime::kHiddenCreateArrayLiteralStubBailout)->entry,
+          Runtime::kCreateArrayLiteralStubBailout)->entry,
       representations);
 }
 
@@ -77,7 +77,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   Register registers[] = { x3, x2, x1, x0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenCreateObjectLiteral)->entry);
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
@@ -98,7 +98,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
   Register registers[] = { x2, x1, x0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenRegExpConstructResult)->entry);
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
 
@@ -174,7 +174,7 @@ static void InitializeArrayConstructorDescriptor(
   // x2: allocation site with elements kind
   // x0: number of arguments to the constructor function
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenArrayConstructor)->entry;
+      Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { x1, x2 };
@@ -225,7 +225,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   // x1: constructor function
   // x0: number of arguments to the constructor function
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenInternalArrayConstructor)->entry;
+      Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { x1 };
@@ -333,7 +333,7 @@ void StringAddStub::InitializeInterfaceDescriptor(
   Register registers[] = { x1, x0 };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenStringAdd)->entry);
+      Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 
@@ -1279,7 +1279,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ Bind(&call_runtime);
     // Put the arguments back on the stack.
     __ Push(base_tagged, exponent_tagged);
-    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
+    __ TailCallRuntime(Runtime::kMathPowRT, 2, 1);
 
     // Return.
     __ Bind(&done);
@@ -2044,7 +2044,7 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   __ Poke(x10, 1 * kXRegSize);
 
   __ Bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -2316,7 +2316,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // Do the runtime call to allocate the arguments object.
   __ Bind(&runtime);
   __ Push(function, recv_arg, arg_count_smi);
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -2449,13 +2449,13 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the runtime call to allocate the arguments object.
   __ Bind(&runtime);
   __ Push(function, params, param_count_smi);
-  __ TailCallRuntime(Runtime::kHiddenNewStrictArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewStrictArguments, 3, 1);
 }
 
 
 void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.
@@ -2929,7 +2929,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ Bind(&runtime);
   __ PopCPURegList(used_callee_saved_registers);
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
 
   // Deferred code for string handling.
   // (6) Not a long external string?  If yes, go to (8).
@@ -3480,7 +3480,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   } else {
     ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
     // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kHiddenNumberToSmi, 1);
+    __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
   // Save the conversion result before the pop instructions below
   // have a chance to overwrite it.
@@ -3503,7 +3503,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ SmiTag(index_);
   __ Push(object_, index_);
-  __ CallRuntime(Runtime::kHiddenStringCharCodeAt, 2);
+  __ CallRuntime(Runtime::kStringCharCodeAtRT, 2);
   __ Mov(result_, x0);
   call_helper.AfterCall(masm);
   __ B(&exit_);
@@ -3785,7 +3785,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
-    __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
   }
 
   __ Bind(&miss);
@@ -4175,7 +4175,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenSubString, 3, 1);
+  __ TailCallRuntime(Runtime::kSubString, 3, 1);
 
   __ bind(&single_char);
   // x1: result_length
@@ -4352,7 +4352,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   // Call the runtime.
   // Returns -1 (less), 0 (equal), or 1 (greater) tagged as a small integer.
-  __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 
 

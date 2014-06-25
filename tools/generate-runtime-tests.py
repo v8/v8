@@ -47,8 +47,8 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 358
-EXPECTED_FUZZABLE_COUNT = 326
+EXPECTED_FUNCTION_COUNT = 415
+EXPECTED_FUZZABLE_COUNT = 330
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 4
 EXPECTED_BUILTINS_COUNT = 808
@@ -86,6 +86,90 @@ BLACKLISTED = [
   # TODO(jkummerow): Fix these and un-blacklist them!
   "CreateDateTimeFormat",
   "CreateNumberFormat",
+
+  # TODO(danno): Fix these internal function that are only callable form stubs
+  # and un-blacklist them!
+  "NumberToString",
+  "RxegExpConstructResult",
+  "RegExpExec",
+  "StringAdd",
+  "SubString",
+  "StringCompare",
+  "StringCharCodeAt",
+  "GetFromCache",
+
+  # Compilation
+  "CompileUnoptimized",
+  "CompileOptimized",
+  "TryInstallOptimizedCode",
+  "NotifyDeoptimized",
+  "NotifyStubFailure",
+
+  # Utilities
+  "AllocateInNewSpace",
+  "AllocateInTargetSpace",
+  "AllocateHeapNumber",
+  "NumberToSmi",
+  "NumberToStringSkipCache",
+
+  "NewSloppyArguments",
+  "NewStrictArguments",
+
+  # Harmony
+  "CreateJSGeneratorObject",
+  "SuspendJSGeneratorObject",
+  "ResumeJSGeneratorObject",
+  "ThrowGeneratorStateError",
+
+  # Arrays
+  "ArrayConstructor",
+  "InternalArrayConstructor",
+
+  # Literals
+  "MaterializeRegExpLiteral",
+  "CreateObjectLiteral",
+  "CreateArrayLiteral",
+  "CreateArrayLiteralStubBailout",
+
+  # Statements
+  "NewClosure",
+  "NewClosureFromStubFailure",
+  "NewObject",
+  "NewObjectWithAllocationSite",
+  "FinalizeInstanceSize",
+  "Throw",
+  "ReThrow",
+  "ThrowReferenceError",
+  "ThrowNotDateError",
+  "StackGuard",
+  "Interrupt",
+  "PromoteScheduledException",
+
+  # Contexts
+  "NewGlobalContext",
+  "NewFunctionContext",
+  "PushWithContext",
+  "PushCatchContext",
+  "PushBlockContext",
+  "PushModuleContext",
+  "DeleteContextSlot",
+  "LoadContextSlot",
+  "LoadContextSlotNoReferenceError",
+  "StoreContextSlot",
+
+  # Declarations
+  "DeclareGlobals",
+  "DeclareModules",
+  "DeclareContextSlot",
+  "InitializeConstGlobal",
+  "InitializeConstContextSlot",
+
+  # Eval
+  "ResolvePossiblyDirectEval",
+
+  # Maths
+  "MathPowSlow",
+  "MathPowRT"
 ]
 
 

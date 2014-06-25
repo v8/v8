@@ -2222,7 +2222,7 @@ Block* Parser::ParseVariableDeclarations(
         // the number of arguments (1 or 2).
         initialize = factory()->NewCallRuntime(
             ast_value_factory_->initialize_const_global_string(),
-            Runtime::FunctionForId(Runtime::kHiddenInitializeConstGlobal),
+            Runtime::FunctionForId(Runtime::kInitializeConstGlobal),
             arguments, pos);
       } else {
         // Add strict mode.
@@ -3676,7 +3676,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         new(zone()) ZoneList<Expression*>(0, zone());
     CallRuntime* allocation = factory()->NewCallRuntime(
         ast_value_factory_->empty_string(),
-        Runtime::FunctionForId(Runtime::kHiddenCreateJSGeneratorObject),
+        Runtime::FunctionForId(Runtime::kCreateJSGeneratorObject),
         arguments, pos);
     VariableProxy* init_proxy = factory()->NewVariableProxy(
         function_state_->generator_object_variable());

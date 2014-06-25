@@ -598,7 +598,7 @@ void FullCodeGenerator::AllocateModules(ZoneList<Declaration*>* declarations) {
         ASSERT(scope->interface()->Index() >= 0);
         __ Push(Smi::FromInt(scope->interface()->Index()));
         __ Push(scope->GetScopeInfo());
-        __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
+        __ CallRuntime(Runtime::kPushModuleContext, 2);
         StoreToFrameField(StandardFrameConstants::kContextOffset,
                           context_register());
 
@@ -738,7 +738,7 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   ASSERT(interface->Index() >= 0);
   __ Push(Smi::FromInt(interface->Index()));
   __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
+  __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   {
@@ -1054,7 +1054,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
     { Comment cmnt(masm_, "[ Extend block context");
       __ Push(scope_->GetScopeInfo());
       PushFunctionArgumentForContextAllocation();
-      __ CallRuntime(Runtime::kHiddenPushBlockContext, 2);
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
 
       // Replace the context stored in the frame.
       StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -1087,7 +1087,7 @@ void FullCodeGenerator::VisitModuleStatement(ModuleStatement* stmt) {
 
   __ Push(Smi::FromInt(stmt->proxy()->interface()->Index()));
   __ Push(Smi::FromInt(0));
-  __ CallRuntime(Runtime::kHiddenPushModuleContext, 2);
+  __ CallRuntime(Runtime::kPushModuleContext, 2);
   StoreToFrameField(
       StandardFrameConstants::kContextOffset, context_register());
 
@@ -1226,7 +1226,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
 
   VisitForStackValue(stmt->expression());
   PushFunctionArgumentForContextAllocation();
-  __ CallRuntime(Runtime::kHiddenPushWithContext, 2);
+  __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   Scope* saved_scope = scope();
@@ -1376,7 +1376,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     __ Push(stmt->variable()->name());
     __ Push(result_register());
     PushFunctionArgumentForContextAllocation();
-    __ CallRuntime(Runtime::kHiddenPushCatchContext, 3);
+    __ CallRuntime(Runtime::kPushCatchContext, 3);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }
@@ -1440,7 +1440,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // rethrow the exception if it returns.
   __ Call(&finally_entry);
   __ Push(result_register());
-  __ CallRuntime(Runtime::kHiddenReThrow, 1);
+  __ CallRuntime(Runtime::kReThrow, 1);
 
   // Finally block implementation.
   __ bind(&finally_entry);
@@ -1566,7 +1566,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
-  __ CallRuntime(Runtime::kHiddenThrow, 1);
+  __ CallRuntime(Runtime::kThrow, 1);
   // Never returns here.
 }
 

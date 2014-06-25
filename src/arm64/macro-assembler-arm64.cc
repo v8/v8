@@ -1779,7 +1779,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
     FrameScope frame(this, StackFrame::INTERNAL);
     CallExternalReference(
         ExternalReference(
-            Runtime::kHiddenPromoteScheduledException, isolate()), 0);
+            Runtime::kPromoteScheduledException, isolate()), 0);
   }
   B(&exception_handled);
 

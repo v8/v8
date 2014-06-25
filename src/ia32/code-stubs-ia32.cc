@@ -25,7 +25,7 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
   Register registers[] = { ebx };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNewClosureFromStubFailure)->entry);
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
 
@@ -48,7 +48,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   Register registers[] = { eax };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenNumberToString)->entry);
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
 
@@ -63,7 +63,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
       Runtime::FunctionForId(
-          Runtime::kHiddenCreateArrayLiteralStubBailout)->entry,
+          Runtime::kCreateArrayLiteralStubBailout)->entry,
       representations);
 }
 
@@ -73,7 +73,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   Register registers[] = { eax, ebx, ecx, edx };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenCreateObjectLiteral)->entry);
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
@@ -89,7 +89,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
   Register registers[] = { ecx, ebx, eax };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenRegExpConstructResult)->entry);
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
 
@@ -148,7 +148,7 @@ static void InitializeArrayConstructorDescriptor(
   // edi -- function
   // ebx -- allocation site with elements kind
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenArrayConstructor)->entry;
+      Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { edi, ebx };
@@ -182,7 +182,7 @@ static void InitializeInternalArrayConstructorDescriptor(
   // eax -- number of arguments
   // edi -- constructor function
   Address deopt_handler = Runtime::FunctionForId(
-      Runtime::kHiddenInternalArrayConstructor)->entry;
+      Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { edi };
@@ -302,7 +302,7 @@ void StringAddStub::InitializeInterfaceDescriptor(
   Register registers[] = { edx, eax };
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
-      Runtime::FunctionForId(Runtime::kHiddenStringAdd)->entry);
+      Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 
@@ -897,7 +897,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type_ == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
+    __ TailCallRuntime(Runtime::kMathPowRT, 2, 1);
 
     // The stub is called from non-optimized code, which expects the result
     // as heap number in exponent.
@@ -1030,7 +1030,7 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -1253,7 +1253,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ bind(&runtime);
   __ pop(eax);  // Remove saved parameter count.
   __ mov(Operand(esp, 1 * kPointerSize), ecx);  // Patch argument count.
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -1350,7 +1350,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenNewStrictArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewStrictArguments, 3, 1);
 }
 
 
@@ -1359,7 +1359,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.
@@ -1742,7 +1742,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
 
   // Deferred code for string handling.
   // (7) Not a long external string?  If yes, go to (10).
@@ -3038,7 +3038,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   } else {
     ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
     // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kHiddenNumberToSmi, 1);
+    __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
   if (!index_.is(eax)) {
     // Save the conversion result before the pop instructions below
@@ -3064,7 +3064,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ push(object_);
   __ SmiTag(index_);
   __ push(index_);
-  __ CallRuntime(Runtime::kHiddenStringCharCodeAt, 2);
+  __ CallRuntime(Runtime::kStringCharCodeAtRT, 2);
   if (!result_.is(eax)) {
     __ mov(result_, eax);
   }
@@ -3429,7 +3429,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenSubString, 3, 1);
+  __ TailCallRuntime(Runtime::kSubString, 3, 1);
 
   __ bind(&single_char);
   // eax: string
@@ -3611,7 +3611,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 
 
@@ -3923,7 +3923,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
-    __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
   }
 
   __ bind(&miss);

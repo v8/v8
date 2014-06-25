@@ -294,7 +294,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   __ CompareRoot(masm->StackPointer(), Heap::kStackLimitRootIndex);
   __ B(hs, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kHiddenTryInstallOptimizedCode);
+  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
   GenerateTailCallToReturnedCode(masm);
 
   __ Bind(&ok);
@@ -380,7 +380,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // Push the constructor and map to the stack, and the constructor again
         // as argument to the runtime call.
         __ Push(constructor, init_map, constructor);
-        __ CallRuntime(Runtime::kHiddenFinalizeInstanceSize, 1);
+        __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
         __ Pop(init_map, constructor);
         __ Mov(constructon_count, Operand(JSFunction::kNoSlackTracking));
         __ Bind(&allocate);
@@ -542,7 +542,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Peek(x4, 2 * kXRegSize);
       __ Push(x4);
       __ Push(constructor);  // Argument for Runtime_NewObject.
-      __ CallRuntime(Runtime::kHiddenNewObjectWithAllocationSite, 2);
+      __ CallRuntime(Runtime::kNewObjectWithAllocationSite, 2);
       __ Mov(x4, x0);
       // If we ended up using the runtime, and we want a memento, then the
       // runtime call made it for us, and we shouldn't do create count
@@ -550,7 +550,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ jmp(&count_incremented);
     } else {
       __ Push(constructor);  // Argument for Runtime_NewObject.
-      __ CallRuntime(Runtime::kHiddenNewObject, 1);
+      __ CallRuntime(Runtime::kNewObject, 1);
       __ Mov(x4, x0);
     }
 
@@ -782,7 +782,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_CompileUnoptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kHiddenCompileUnoptimized);
+  CallRuntimePassFunction(masm, Runtime::kCompileUnoptimized);
   GenerateTailCallToReturnedCode(masm);
 }
 
@@ -792,11 +792,11 @@ static void CallCompileOptimized(MacroAssembler* masm, bool concurrent) {
   Register function = x1;
 
   // Preserve function. At the same time, push arguments for
-  // kHiddenCompileOptimized.
+  // kCompileOptimized.
   __ LoadObject(x10, masm->isolate()->factory()->ToBoolean(concurrent));
   __ Push(function, function, x10);
 
-  __ CallRuntime(Runtime::kHiddenCompileOptimized, 2);
+  __ CallRuntime(Runtime::kCompileOptimized, 2);
 
   // Restore receiver.
   __ Pop(function);
@@ -906,7 +906,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // preserve the registers with parameters.
     __ PushXRegList(kSafepointSavedRegisters);
     // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kHiddenNotifyStubFailure, 0, save_doubles);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
     __ PopXRegList(kSafepointSavedRegisters);
   }
 
@@ -936,7 +936,7 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
     // Pass the deoptimization type to the runtime system.
     __ Mov(x0, Smi::FromInt(static_cast<int>(type)));
     __ Push(x0);
-    __ CallRuntime(Runtime::kHiddenNotifyDeoptimized, 1);
+    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
   }
 
   // Get the full codegen state from the stack and untag it.
@@ -1021,7 +1021,7 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
   __ B(hs, &ok);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kHiddenStackGuard, 0);
+    __ CallRuntime(Runtime::kStackGuard, 0);
   }
   __ Jump(masm->isolate()->builtins()->OnStackReplacement(),
           RelocInfo::CODE_TARGET);
