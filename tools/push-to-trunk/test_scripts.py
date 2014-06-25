@@ -35,6 +35,7 @@ import auto_push
 from auto_push import CheckLastPush
 from auto_push import SETTINGS_LOCATION
 import auto_roll
+from auto_roll import CLUSTERFUZZ_API_KEY_FILE
 import common_includes
 from common_includes import *
 import merge_to_branch
@@ -66,6 +67,7 @@ TEST_CONFIG = {
       "/tmp/test-merge-to-branch-tempfile-already-merging",
   COMMIT_HASHES_FILE: "/tmp/test-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
   TEMPORARY_PATCH_FILE: "/tmp/test-merge-to-branch-tempfile-temporary-patch",
+  CLUSTERFUZZ_API_KEY_FILE: "/tmp/test-fake-cf-api-key",
 }
 
 
@@ -383,6 +385,11 @@ class ScriptTest(unittest.TestCase):
       return self._url_mock.Call("readurl", url, params)
     else:
       return self._url_mock.Call("readurl", url)
+
+  def ReadClusterFuzzAPI(self, api_key, **params):
+    # TODO(machenbach): Use a mock for this and add a test that stops rolling
+    # due to clustefuzz results.
+    return []
 
   def Sleep(self, seconds):
     pass
@@ -996,6 +1003,8 @@ deps = {
     self.assertEquals(1, result)
 
   def testAutoRoll(self):
+    TEST_CONFIG[CLUSTERFUZZ_API_KEY_FILE]  = self.MakeEmptyTempFile()
+    TextToFile("fake key", TEST_CONFIG[CLUSTERFUZZ_API_KEY_FILE])
     self.ExpectReadURL([
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",

@@ -28,6 +28,7 @@
 
 import argparse
 import datetime
+import httplib
 import imp
 import json
 import os
@@ -206,6 +207,25 @@ class SideEffectHandler(object):  # pragma: no cover
       return url_fh.read()
     finally:
       url_fh.close()
+
+  def ReadClusterFuzzAPI(self, api_key, **params):
+    params["api_key"] = api_key
+    params = urllib.urlencode(params)
+
+    headers = {"Content-type": "application/x-www-form-urlencoded"}
+
+    conn = httplib.HTTPSConnection("backend-dot-cluster-fuzz.appspot.com")
+    conn.request("POST", "/_api/", params, headers)
+
+    response = conn.getresponse()
+    data = response.read()
+
+    try:
+      return json.loads(data)
+    except:
+      print data
+      print "ERROR: Could not read response. Is your key valid?"
+      raise
 
   def Sleep(self, seconds):
     time.sleep(seconds)
