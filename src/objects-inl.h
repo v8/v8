@@ -6964,6 +6964,36 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 }
 
 
+template<class Derived, class TableType>
+Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
+  TableType* table(TableType::cast(this->table()));
+  int index = Smi::cast(this->index())->value();
+  Object* key = table->KeyAt(index);
+  ASSERT(!key->IsTheHole());
+  return key;
+}
+
+
+void JSSetIterator::PopulateValueArray(FixedArray* array) {
+  array->set(0, CurrentKey());
+}
+
+
+void JSMapIterator::PopulateValueArray(FixedArray* array) {
+  array->set(0, CurrentKey());
+  array->set(1, CurrentValue());
+}
+
+
+Object* JSMapIterator::CurrentValue() {
+  OrderedHashMap* table(OrderedHashMap::cast(this->table()));
+  int index = Smi::cast(this->index())->value();
+  Object* value = table->ValueAt(index);
+  ASSERT(!value->IsTheHole());
+  return value;
+}
+
+
 #undef TYPE_CHECKER
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS

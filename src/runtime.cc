@@ -1604,10 +1604,11 @@ RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
 
 
 RUNTIME_FUNCTION(Runtime_SetIteratorNext) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSSetIterator, holder, 0);
-  return *JSSetIterator::Next(holder);
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSSetIterator, holder, 0);
+  CONVERT_ARG_CHECKED(JSArray, value_array, 1);
+  return holder->Next(value_array);
 }
 
 
@@ -1708,10 +1709,11 @@ RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
 
 
 RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSMapIterator, holder, 0);
-  return *JSMapIterator::Next(holder);
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(JSMapIterator, holder, 0);
+  CONVERT_ARG_CHECKED(JSArray, value_array, 1);
+  return holder->Next(value_array);
 }
 
 

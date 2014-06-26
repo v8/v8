@@ -4463,11 +4463,11 @@ class OrderedHashMap:public OrderedHashTable<
       Handle<Object> key,
       Handle<Object> value);
 
- private:
   Object* ValueAt(int entry) {
     return get(EntryToIndex(entry) + kValueOffset);
   }
 
+ private:
   static const int kValueOffset = 1;
 };
 
@@ -10104,13 +10104,26 @@ class OrderedHashTableIterator: public JSObject {
     kKindEntries = 3
   };
 
-  // Returns an iterator result object: {value: any, done: boolean} and moves
-  // the index to the next valid entry. Closes the iterator if moving past the
-  // end.
-  static Handle<JSObject> Next(Handle<Derived> iterator);
+  // Whether the iterator has more elements. This needs to be called before
+  // calling |CurrentKey| and/or |CurrentValue|.
+  bool HasMore();
+
+  // Move the index forward one.
+  void MoveNext() {
+    set_index(Smi::FromInt(Smi::cast(index())->value() + 1));
+  }
+
+  // Populates the array with the next key and value and then moves the iterator
+  // forward.
+  // This returns the |kind| or 0 if the iterator is already at the end.
+  Smi* Next(JSArray* value_array);
+
+  // Returns the current key of the iterator. This should only be called when
+  // |HasMore| returns true.
+  inline Object* CurrentKey();
 
  private:
-  // Transitions the iterator to the non obsolote backing store. This is a NOP
+  // Transitions the iterator to the non obsolete backing store. This is a NOP
   // if the [table] is not obsolete.
   void Transition();
 
@@ -10127,9 +10140,9 @@ class JSSetIterator: public OrderedHashTableIterator<JSSetIterator,
 
   DECLARE_CAST(JSSetIterator)
 
-  static Handle<Object> ValueForKind(
-      Handle<JSSetIterator> iterator,
-      int entry_index);
+  // Called by |Next| to populate the array. This allows the subclasses to
+  // populate the array differently.
+  inline void PopulateValueArray(FixedArray* array);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSetIterator);
@@ -10145,11 +10158,15 @@ class JSMapIterator: public OrderedHashTableIterator<JSMapIterator,
 
   DECLARE_CAST(JSMapIterator)
 
-  static Handle<Object> ValueForKind(
-      Handle<JSMapIterator> iterator,
-      int entry_index);
+  // Called by |Next| to populate the array. This allows the subclasses to
+  // populate the array differently.
+  inline void PopulateValueArray(FixedArray* array);
 
  private:
+  // Returns the current value of the iterator. This should only be called when
+  // |HasMore| returns true.
+  inline Object* CurrentValue();
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMapIterator);
 };
 

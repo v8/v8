@@ -1394,18 +1394,6 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 }
 
 
-Handle<JSObject> Factory::NewIteratorResultObject(Handle<Object> value,
-                                                     bool done) {
-  Handle<Map> map(isolate()->native_context()->iterator_result_map());
-  Handle<JSObject> result = NewJSObjectFromMap(map, NOT_TENURED, false);
-  result->InObjectPropertyAtPut(
-      JSGeneratorObject::kResultValuePropertyIndex, *value);
-  result->InObjectPropertyAtPut(
-      JSGeneratorObject::kResultDonePropertyIndex, *ToBoolean(done));
-  return result;
-}
-
-
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   Handle<FixedArray> array = NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(*scope_info_map());

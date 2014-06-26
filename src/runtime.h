@@ -274,7 +274,7 @@ namespace internal {
   F(SetGetSize, 1, 1) \
   \
   F(SetIteratorInitialize, 3, 1) \
-  F(SetIteratorNext, 1, 1) \
+  F(SetIteratorNext, 2, 1) \
   \
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
@@ -286,7 +286,7 @@ namespace internal {
   F(MapGetSize, 1, 1) \
   \
   F(MapIteratorInitialize, 3, 1) \
-  F(MapIteratorNext, 1, 1) \
+  F(MapIteratorNext, 2, 1) \
   \
   /* Harmony weak maps and sets */ \
   F(WeakCollectionInitialize, 1, 1) \
