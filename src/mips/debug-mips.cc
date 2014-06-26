@@ -185,16 +185,9 @@ void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
-  // Calling convention for IC load (from ic-mips.cc).
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- ra    : return address
-  //  -- a0    : receiver
-  //  -- [sp]  : receiver
-  // -----------------------------------
-  // Registers a0 and a2 contain objects that need to be pushed on the
-  // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, a0.bit() | a2.bit(), 0);
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0);
 }
 
 
@@ -213,11 +206,10 @@ void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- ra  : return address
-  //  -- a0  : key
-  //  -- a1  : receiver
-  Generate_DebugBreakCallHelper(masm, a0.bit() | a1.bit(), 0);
+  // Calling convention for keyed IC load (from ic-arm.cc).
+  Register receiver = KeyedLoadIC::ReceiverRegister();
+  Register name = KeyedLoadIC::NameRegister();
+  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0);
 }
 
 
