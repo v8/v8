@@ -199,7 +199,7 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubInterfaceDescriptor* descriptor) {
   intptr_t handler =
-      reinterpret_cast<intptr_t>(descriptor->deoptimization_handler_);
+      reinterpret_cast<intptr_t>(descriptor->deoptimization_handler());
   int params = descriptor->GetHandlerParameterCount();
   output_frame->SetRegister(eax.code(), params);
   output_frame->SetRegister(ebx.code(), handler);
