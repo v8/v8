@@ -1393,8 +1393,8 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     __ Bind(&fast);
   }
 
-  __ Ldr(x0, GlobalObjectMemOperand());
-  __ Mov(x2, Operand(var->name()));
+  __ Ldr(LoadIC::ReceiverRegister(), GlobalObjectMemOperand());
+  __ Mov(LoadIC::NameRegister(), Operand(var->name()));
   ContextualMode mode = (typeof_state == INSIDE_TYPEOF) ? NOT_CONTEXTUAL
                                                         : CONTEXTUAL;
   CallLoadIC(mode);
@@ -1472,10 +1472,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
   switch (var->location()) {
     case Variable::UNALLOCATED: {
       Comment cmnt(masm_, "Global variable");
-      // Use inline caching. Variable name is passed in x2 and the global
-      // object (receiver) in x0.
-      __ Ldr(x0, GlobalObjectMemOperand());
-      __ Mov(x2, Operand(var->name()));
+      __ Ldr(LoadIC::ReceiverRegister(), GlobalObjectMemOperand());
+      __ Mov(LoadIC::NameRegister(), Operand(var->name()));
       CallLoadIC(CONTEXTUAL);
       context()->Plug(x0);
       break;
@@ -1949,7 +1947,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
-  __ Mov(x2, Operand(key->value()));
+  __ Mov(LoadIC::NameRegister(), Operand(key->value()));
   // Call load IC. It has arguments receiver and property name x0 and x2.
   CallLoadIC(NOT_CONTEXTUAL, prop->PropertyFeedbackId());
 }
@@ -2262,13 +2260,15 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
+    ASSERT(x0.is(LoadIC::ReceiverRegister()));
     EmitNamedPropertyLoad(expr);
     PrepareForBailoutForId(expr->LoadId(), TOS_REG);
     context()->Plug(x0);
   } else {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
-    __ Pop(x1);
+    ASSERT(x0.is(KeyedLoadIC::NameRegister()));
+    __ Pop(KeyedLoadIC::ReceiverRegister());
     EmitKeyedPropertyLoad(expr);
     context()->Plug(x0);
   }
@@ -2304,7 +2304,7 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   } else {
     // Load the function from the receiver.
     ASSERT(callee->IsProperty());
-    __ Peek(x0, 0);
+    __ Peek(LoadIC::ReceiverRegister(), 0);
     EmitNamedPropertyLoad(callee->AsProperty());
     PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
     // Push the target function under the receiver.
@@ -2321,12 +2321,13 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
                                                 Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
+  ASSERT(x0.is(KeyedLoadIC::NameRegister()));
 
   Expression* callee = expr->expression();
 
   // Load the function from the receiver.
   ASSERT(callee->IsProperty());
-  __ Peek(x1, 0);
+  __ Peek(KeyedLoadIC::ReceiverRegister(), 0);
   EmitKeyedPropertyLoad(callee->AsProperty());
   PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
 
@@ -3746,12 +3747,13 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     // Push the builtins object as the receiver.
     __ Ldr(x10, GlobalObjectMemOperand());
-    __ Ldr(x0, FieldMemOperand(x10, GlobalObject::kBuiltinsOffset));
-    __ Push(x0);
+    __ Ldr(LoadIC::ReceiverRegister(),
+           FieldMemOperand(x10, GlobalObject::kBuiltinsOffset));
+    __ Push(LoadIC::ReceiverRegister());
 
     // Load the function from the receiver.
     Handle<String> name = expr->name();
-    __ Mov(x2, Operand(name));
+    __ Mov(LoadIC::NameRegister(), Operand(name));
     CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
 
     // Push the target function under the receiver.
@@ -3927,14 +3929,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     if (assign_type == NAMED_PROPERTY) {
       // Put the object both on the stack and in the accumulator.
       VisitForAccumulatorValue(prop->obj());
-      __ Push(x0);
+      ASSERT(x0.is(LoadIC::ReceiverRegister()));
+      __ Push(LoadIC::ReceiverRegister());
       EmitNamedPropertyLoad(prop);
     } else {
       // KEYED_PROPERTY
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
-      __ Peek(x1, 0);
-      __ Push(x0);
+      ASSERT(x0.is(KeyedLoadIC::NameRegister()));
+      __ Peek(KeyedLoadIC::ReceiverRegister(), 0);
+      __ Push(KeyedLoadIC::NameRegister());
       EmitKeyedPropertyLoad(prop);
     }
   }
@@ -4084,8 +4088,8 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   VariableProxy* proxy = expr->AsVariableProxy();
   if (proxy != NULL && proxy->var()->IsUnallocated()) {
     Comment cmnt(masm_, "Global variable");
-    __ Ldr(x0, GlobalObjectMemOperand());
-    __ Mov(x2, Operand(proxy->name()));
+    __ Ldr(LoadIC::ReceiverRegister(), GlobalObjectMemOperand());
+    __ Mov(LoadIC::NameRegister(), Operand(proxy->name()));
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     CallLoadIC(NOT_CONTEXTUAL);
@@ -4433,14 +4437,19 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // receiver = iter; f = 'next'; arg = received;
       __ Bind(&l_next);
+      Register keyedload_receiver = KeyedLoadIC::ReceiverRegister();
+      Register keyedload_name = KeyedLoadIC::NameRegister();
+      ASSERT(keyedload_receiver.is(x1));
+      ASSERT(keyedload_name.is(x0));
+
       __ LoadRoot(x2, Heap::knext_stringRootIndex);  // "next"
       __ Peek(x3, 1 * kPointerSize);                 // iter
       __ Push(x2, x3, x0);                           // "next", iter, received
 
       // result = receiver[f](arg);
       __ Bind(&l_call);
-      __ Peek(x1, 1 * kPointerSize);
-      __ Peek(x0, 2 * kPointerSize);
+      __ Peek(keyedload_receiver, 1 * kPointerSize);
+      __ Peek(keyedload_name, 2 * kPointerSize);
       Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
       CallIC(ic, TypeFeedbackId::None());
       __ Mov(x1, x0);
@@ -4453,19 +4462,23 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // if (!result.done) goto l_try;
       __ Bind(&l_loop);
-      __ Push(x0);                                       // save result
-      __ LoadRoot(x2, Heap::kdone_stringRootIndex);      // "done"
-      CallLoadIC(NOT_CONTEXTUAL);                        // result.done in x0
+      Register load_receiver = LoadIC::ReceiverRegister();
+      Register load_name = LoadIC::NameRegister();
+      ASSERT(load_receiver.is(x0));
+      ASSERT(load_name.is(x2));
+      __ Push(load_receiver);                               // save result
+      __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
+      CallLoadIC(NOT_CONTEXTUAL);                           // x0=result.done
       // The ToBooleanStub argument (result.done) is in x0.
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
       __ Cbz(x0, &l_try);
 
       // result.value
-      __ Pop(x0);                                        // result
-      __ LoadRoot(x2, Heap::kvalue_stringRootIndex);     // "value"
-      CallLoadIC(NOT_CONTEXTUAL);                        // result.value in x0
-      context()->DropAndPlug(2, x0);                     // drop iter and g
+      __ Pop(load_receiver);                                 // result
+      __ LoadRoot(load_name, Heap::kvalue_stringRootIndex);  // "value"
+      CallLoadIC(NOT_CONTEXTUAL);                            // x0=result.value
+      context()->DropAndPlug(2, x0);                         // drop iter and g
       break;
     }
   }

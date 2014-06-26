@@ -1398,6 +1398,8 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
+  ASSERT(rdx.is(KeyedLoadIC::ReceiverRegister()));
+  ASSERT(rax.is(KeyedLoadIC::NameRegister()));
   Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already

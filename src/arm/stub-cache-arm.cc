@@ -1479,6 +1479,8 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- r0     : key
   //  -- r1     : receiver
   // -----------------------------------
+  ASSERT(r1.is(KeyedLoadIC::ReceiverRegister()));
+  ASSERT(r0.is(KeyedLoadIC::NameRegister()));
   Label slow, miss;
 
   Register key = r0;
