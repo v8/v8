@@ -468,9 +468,8 @@ class ParserTraits {
   void CheckPossibleEvalCall(Expression* expression, Scope* scope);
 
   // Determine if the expression is a variable proxy and mark it as being used
-  // in an assignment or with a increment/decrement operator. This is currently
-  // used on for the statically checking assignments to harmony const bindings.
-  static Expression* MarkExpressionAsLValue(Expression* expression);
+  // in an assignment or with a increment/decrement operator.
+  static Expression* MarkExpressionAsAssigned(Expression* expression);
 
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the

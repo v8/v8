@@ -64,8 +64,7 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
       name_(var->raw_name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
-      is_trivial_(false),
-      is_lvalue_(false),
+      is_assigned_(false),
       interface_(var->interface()) {
   BindTo(var);
 }
@@ -80,8 +79,7 @@ VariableProxy::VariableProxy(Zone* zone,
       name_(name),
       var_(NULL),
       is_this_(is_this),
-      is_trivial_(false),
-      is_lvalue_(false),
+      is_assigned_(false),
       interface_(interface) {
 }
 
@@ -97,7 +95,7 @@ void VariableProxy::BindTo(Variable* var) {
   // eval() etc.  Const-ness and variable declarations are a complete mess
   // in JS. Sigh...
   var_ = var;
-  var->set_is_used(true);
+  var->set_is_used();
 }
 
 

@@ -50,6 +50,7 @@ Variable::Variable(Scope* scope,
     is_valid_ref_(is_valid_ref),
     force_context_allocation_(false),
     is_used_(false),
+    maybe_assigned_(false),
     initialization_flag_(initialization_flag),
     interface_(interface) {
   // Var declared variables never need initialization.
