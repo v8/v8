@@ -2647,8 +2647,7 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
 
 
 // Handle debugger actions when a new script is compiled.
-void Debug::OnAfterCompile(Handle<Script> script,
-                           AfterCompileFlags after_compile_flags) {
+void Debug::OnAfterCompile(Handle<Script> script) {
   // Add the newly compiled script to the script cache.
   if (script_cache_ != NULL) script_cache_->Add(script);
 
@@ -2656,9 +2655,6 @@ void Debug::OnAfterCompile(Handle<Script> script,
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
-  // Store whether in debugger before entering debugger.
-  bool was_in_scope = in_debug_scope();
-
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
@@ -2690,8 +2686,6 @@ void Debug::OnAfterCompile(Handle<Script> script,
                          argv).is_null()) {
     return;
   }
-  // Bail out based on state or if there is no listener for this event
-  if (was_in_scope && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
 
   // Create the compile state object.
   Handle<Object> event_data;
