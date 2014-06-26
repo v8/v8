@@ -2252,7 +2252,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   bind(&promote_scheduled_exception);
   {
     FrameScope frame(this, StackFrame::INTERNAL);
-    CallRuntime(Runtime::kHiddenPromoteScheduledException, 0);
+    CallRuntime(Runtime::kPromoteScheduledException, 0);
   }
   jmp(&exception_handled);
 

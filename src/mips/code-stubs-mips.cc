@@ -18,181 +18,127 @@ namespace internal {
 
 void FastNewClosureStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenNewClosureFromStubFailure)->entry;
+  Register registers[] = { a2 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
 
 void FastNewContextStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a1 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void ToNumberStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void NumberToStringStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenNumberToString)->entry;
+  Register registers[] = { a0 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
 
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a3, a2, a1 };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  static Representation representations[] = {
+  Register registers[] = { a3, a2, a1 };
+  Representation representations[] = {
     Representation::Tagged(),
     Representation::Smi(),
     Representation::Tagged() };
-  descriptor->register_param_representations_ = representations;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(
-          Runtime::kHiddenCreateArrayLiteralStubBailout)->entry;
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry,
+      representations);
 }
 
 
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a3, a2, a1, a0 };
-  descriptor->register_param_count_ = 4;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenCreateObjectLiteral)->entry;
+  Register registers[] = { a3, a2, a1, a0 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2, a3 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
-}
-
-
-void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
-}
-
-
-void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = {a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure);
+  Register registers[] = { a2, a3 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void RegExpConstructResultStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2, a1, a0 };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenRegExpConstructResult)->entry;
-}
-
-
-void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry;
+  Register registers[] = { a2, a1, a0 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
 
 void LoadFieldStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a1 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void StringLengthStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0, a2 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a0, a2 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void KeyedStringLengthStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = NULL;
+  Register registers[] = { a1, a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
 }
 
 
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2, a1, a0 };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure);
+  Register registers[] = { a2, a1, a0 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
 
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0, a1 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
+  Register registers[] = { a0, a1 };
   Address entry =
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(entry);
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(entry));
 }
 
 
 void CompareNilICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(CompareNilIC_Miss);
+  Register registers[] = { a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
 }
@@ -205,29 +151,31 @@ static void InitializeArrayConstructorDescriptor(
   // a0 -- number of arguments
   // a1 -- function
   // a2 -- allocation site with elements kind
-  static Register registers_variable_args[] = { a1, a2, a0 };
-  static Register registers_no_args[] = { a1, a2 };
+  Address deopt_handler = Runtime::FunctionForId(
+      Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers_no_args;
+    Register registers[] = { a1, a2 };
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           deopt_handler,
+                           NULL,
+                           constant_stack_parameter_count,
+                           JS_FUNCTION_STUB_MODE);
   } else {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-    descriptor->stack_parameter_count_ = a0;
-    descriptor->register_param_count_ = 3;
-    descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
+    Register registers[] = { a1, a2, a0 };
+    Representation representations[] = {
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           a0,
+                           deopt_handler,
+                           representations,
+                           constant_stack_parameter_count,
+                           JS_FUNCTION_STUB_MODE,
+                           PASS_ARGUMENTS);
   }
-
-  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenArrayConstructor)->entry;
 }
 
 
@@ -237,28 +185,30 @@ static void InitializeInternalArrayConstructorDescriptor(
   // register state
   // a0 -- number of arguments
   // a1 -- constructor function
-  static Register registers_variable_args[] = { a1, a0 };
-  static Register registers_no_args[] = { a1 };
+  Address deopt_handler = Runtime::FunctionForId(
+      Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    descriptor->register_param_count_ = 1;
-    descriptor->register_params_ = registers_no_args;
+    Register registers[] = { a1 };
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           deopt_handler,
+                           NULL,
+                           constant_stack_parameter_count,
+                           JS_FUNCTION_STUB_MODE);
   } else {
     // stack param count needs (constructor pointer, and single argument)
-    descriptor->handler_arguments_mode_ = PASS_ARGUMENTS;
-    descriptor->stack_parameter_count_ = a0;
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers_variable_args;
-    static Representation representations[] = {
+    Register registers[] = { a1, a0 };
+    Representation representations[] = {
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->register_param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                           a0,
+                           deopt_handler,
+                           representations,
+                           constant_stack_parameter_count,
+                           JS_FUNCTION_STUB_MODE,
+                           PASS_ARGUMENTS);
   }
-
-  descriptor->hint_stack_parameter_count_ = constant_stack_parameter_count;
-  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenInternalArrayConstructor)->entry;
 }
 
 
@@ -282,11 +232,9 @@ void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 
 void ToBooleanStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0 };
-  descriptor->register_param_count_ = 1;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ToBooleanIC_Miss);
+  Register registers[] = { a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
 }
@@ -312,30 +260,25 @@ void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a2, a0 };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(StoreIC_MissFromStubFailure);
+  Register registers[] = { a1, a2, a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(StoreIC_MissFromStubFailure));
 }
 
 
 void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a0, a3, a1, a2 };
-  descriptor->register_param_count_ = 4;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss);
+  Register registers[] = { a0, a3, a1, a2 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
 
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ = FUNCTION_ADDR(BinaryOpIC_Miss);
+  Register registers[] = { a1, a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(BinaryOpIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
 }
@@ -343,21 +286,18 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
 
 void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a2, a1, a0 };
-  descriptor->register_param_count_ = 3;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite);
+  Register registers[] = { a2, a1, a0 };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
 }
 
 
 void StringAddStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  static Register registers[] = { a1, a0 };
-  descriptor->register_param_count_ = 2;
-  descriptor->register_params_ = registers;
-  descriptor->deoptimization_handler_ =
-      Runtime::FunctionForId(Runtime::kHiddenStringAdd)->entry;
+  Register registers[] = { a1, a0 };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 
@@ -365,82 +305,72 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
-    static Register registers[] = { a1,  // JSFunction
-                                    cp,  // context
-                                    a0,  // actual number of arguments
-                                    a2,  // expected number of arguments
+    Register registers[] = { a1,  // JSFunction
+                             cp,  // context
+                             a0,  // actual number of arguments
+                             a2,  // expected number of arguments
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // JSFunction
         Representation::Tagged(),     // context
         Representation::Integer32(),  // actual number of arguments
         Representation::Integer32(),  // expected number of arguments
     };
-    descriptor->register_param_count_ = 4;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::KeyedCall);
-    static Register registers[] = { cp,  // context
-                                    a2,  // key
+    Register registers[] = { cp,  // context
+                             a2,  // key
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // key
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::NamedCall);
-    static Register registers[] = { cp,  // context
-                                    a2,  // name
+    Register registers[] = { cp,  // context
+                             a2,  // name
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // name
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::CallHandler);
-    static Register registers[] = { cp,  // context
-                                    a0,  // receiver
+    Register registers[] = { cp,  // context
+                             a0,  // receiver
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),  // context
         Representation::Tagged(),  // receiver
     };
-    descriptor->register_param_count_ = 2;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(Isolate::ApiFunctionCall);
-    static Register registers[] = { a0,  // callee
-                                    t0,  // call_data
-                                    a2,  // holder
-                                    a1,  // api_function_address
-                                    cp,  // context
+    Register registers[] = { a0,  // callee
+                             t0,  // call_data
+                             a2,  // holder
+                             a1,  // api_function_address
+                             cp,  // context
     };
-    static Representation representations[] = {
+    Representation representations[] = {
         Representation::Tagged(),    // callee
         Representation::Tagged(),    // call_data
         Representation::Tagged(),    // holder
         Representation::External(),  // api_function_address
         Representation::Tagged(),    // context
     };
-    descriptor->register_param_count_ = 5;
-    descriptor->register_params_ = registers;
-    descriptor->param_representations_ = representations;
+    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
   }
 }
 
@@ -467,21 +397,21 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   isolate()->counters()->code_stubs()->Increment();
 
   CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor();
-  int param_count = descriptor->register_param_count_;
+  int param_count = descriptor->register_param_count();
   {
     // Call the runtime system in a fresh internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
-    ASSERT(descriptor->register_param_count_ == 0 ||
-           a0.is(descriptor->register_params_[param_count - 1]));
+    ASSERT(descriptor->register_param_count() == 0 ||
+           a0.is(descriptor->GetParameterRegister(param_count - 1)));
     // Push arguments, adjust sp.
     __ Subu(sp, sp, Operand(param_count * kPointerSize));
     for (int i = 0; i < param_count; ++i) {
       // Store argument to stack.
-      __ sw(descriptor->register_params_[i],
+      __ sw(descriptor->GetParameterRegister(i),
             MemOperand(sp, (param_count-1-i) * kPointerSize));
     }
     ExternalReference miss = descriptor->miss_handler();
-    __ CallExternalReference(miss, descriptor->register_param_count_);
+    __ CallExternalReference(miss, descriptor->register_param_count());
   }
 
   __ Ret();
@@ -1484,7 +1414,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   if (exponent_type_ == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
-    __ TailCallRuntime(Runtime::kHiddenMathPow, 2, 1);
+    __ TailCallRuntime(Runtime::kMathPowRT, 2, 1);
 
     // The stub is called from non-optimized code, which expects the result
     // as heap number in exponent.
@@ -2178,7 +2108,7 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   __ sw(a3, MemOperand(sp, 1 * kPointerSize));
 
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -2397,7 +2327,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // a2 = argument count (tagged)
   __ bind(&runtime);
   __ sw(a2, MemOperand(sp, 0 * kPointerSize));  // Patch argument count.
-  __ TailCallRuntime(Runtime::kHiddenNewSloppyArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments, 3, 1);
 }
 
 
@@ -2495,7 +2425,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenNewStrictArguments, 3, 1);
+  __ TailCallRuntime(Runtime::kNewStrictArguments, 3, 1);
 }
 
 
@@ -2504,7 +2434,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // time or if regexp entry in generated code is turned off runtime switch or
   // at compilation.
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.
@@ -2894,7 +2824,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Do the runtime call to execute the regexp.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
 
   // Deferred code for string handling.
   // (6) Not a long external string?  If yes, go to (8).
@@ -3419,7 +3349,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   } else {
     ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
     // NumberToSmi discards numbers that are not exact integers.
-    __ CallRuntime(Runtime::kHiddenNumberToSmi, 1);
+    __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
 
   // Save the conversion result before the pop instructions below
@@ -3443,7 +3373,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   call_helper.BeforeCall(masm);
   __ sll(index_, index_, kSmiTagSize);
   __ Push(object_, index_);
-  __ CallRuntime(Runtime::kHiddenStringCharCodeAt, 2);
+  __ CallRuntime(Runtime::kStringCharCodeAtRT, 2);
 
   __ Move(result_, v0);
 
@@ -3807,7 +3737,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Just jump to runtime to create the sub string.
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenSubString, 3, 1);
+  __ TailCallRuntime(Runtime::kSubString, 3, 1);
 
   __ bind(&single_char);
   // v0: original string
@@ -3972,7 +3902,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   GenerateCompareFlatAsciiStrings(masm, a1, a0, a2, a3, t0, t1);
 
   __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+  __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
 
 
@@ -4282,7 +4212,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   if (equality) {
     __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
   } else {
-    __ TailCallRuntime(Runtime::kHiddenStringCompare, 2, 1);
+    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
   }
 
   __ bind(&miss);

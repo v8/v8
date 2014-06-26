@@ -5447,8 +5447,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_optimize,
-               kDontOptimize)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
@@ -6963,6 +6961,36 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
                                                        ObjectVisitor* v) {
   v->VisitPointers(HeapObject::RawField(obj, start_offset),
                    HeapObject::RawField(obj, object_size));
+}
+
+
+template<class Derived, class TableType>
+Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
+  TableType* table(TableType::cast(this->table()));
+  int index = Smi::cast(this->index())->value();
+  Object* key = table->KeyAt(index);
+  ASSERT(!key->IsTheHole());
+  return key;
+}
+
+
+void JSSetIterator::PopulateValueArray(FixedArray* array) {
+  array->set(0, CurrentKey());
+}
+
+
+void JSMapIterator::PopulateValueArray(FixedArray* array) {
+  array->set(0, CurrentKey());
+  array->set(1, CurrentValue());
+}
+
+
+Object* JSMapIterator::CurrentValue() {
+  OrderedHashMap* table(OrderedHashMap::cast(this->table()));
+  int index = Smi::cast(this->index())->value();
+  Object* value = table->ValueAt(index);
+  ASSERT(!value->IsTheHole());
+  return value;
 }
 
 

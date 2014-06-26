@@ -306,8 +306,10 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // generated code for this from the shared function object.
   if (FLAG_always_full_compiler) return AbortOptimization();
 
-  // Do not use crankshaft if compiling for debugging.
-  if (info()->is_debug()) return AbortOptimization(kDebuggerIsActive);
+  // Do not use crankshaft if we need to be able to set break points.
+  if (isolate()->DebuggerHasBreakPoints()) {
+    return AbortOptimization(kDebuggerHasBreakPoints);
+  }
 
   // Limit the number of times we re-compile a functions with
   // the optimizing compiler.
@@ -394,7 +396,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // Type-check the function.
   AstTyper::Run(info());
 
-  graph_builder_ = FLAG_hydrogen_track_positions
+  graph_builder_ = (FLAG_hydrogen_track_positions || FLAG_trace_ic)
       ? new(info()->zone()) HOptimizedGraphBuilderWithPositions(info())
       : new(info()->zone()) HOptimizedGraphBuilder(info());
 

@@ -2503,7 +2503,7 @@ void MacroAssembler::CallApiFunctionAndReturn(
   {
     FrameScope frame(this, StackFrame::INTERNAL);
     CallExternalReference(
-        ExternalReference(Runtime::kHiddenPromoteScheduledException, isolate()),
+        ExternalReference(Runtime::kPromoteScheduledException, isolate()),
         0);
   }
   jmp(&exception_handled);

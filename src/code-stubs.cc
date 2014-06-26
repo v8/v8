@@ -21,12 +21,83 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      register_params_(NULL),
-      register_param_representations_(NULL),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
       has_miss_handler_(false) { }
+
+
+void CodeStubInterfaceDescriptor::Initialize(
+    int register_parameter_count,
+    Register* registers,
+    Address deoptimization_handler,
+    Representation* register_param_representations,
+    int hint_stack_parameter_count,
+    StubFunctionMode function_mode) {
+  // CodeStubInterfaceDescriptor owns a copy of the registers array.
+  register_param_count_ = register_parameter_count;
+  register_params_.Reset(NewArray<Register>(register_parameter_count));
+  for (int i = 0; i < register_parameter_count; i++) {
+    register_params_[i] = registers[i];
+  }
+
+  // If a representations array is specified, then the descriptor owns that as
+  // well.
+  if (register_param_representations != NULL) {
+    register_param_representations_.Reset(
+        NewArray<Representation>(register_parameter_count));
+    for (int i = 0; i < register_parameter_count; i++) {
+      register_param_representations_[i] = register_param_representations[i];
+    }
+  }
+
+  deoptimization_handler_ = deoptimization_handler;
+
+  hint_stack_parameter_count_ = hint_stack_parameter_count;
+  function_mode_ = function_mode;
+}
+
+
+void CodeStubInterfaceDescriptor::Initialize(
+    int register_parameter_count,
+    Register* registers,
+    Register stack_parameter_count,
+    Address deoptimization_handler,
+    Representation* register_param_representations,
+    int hint_stack_parameter_count,
+    StubFunctionMode function_mode,
+    HandlerArgumentsMode handler_mode) {
+  Initialize(register_parameter_count, registers,
+             deoptimization_handler,
+             register_param_representations,
+             hint_stack_parameter_count,
+             function_mode);
+  stack_parameter_count_ = stack_parameter_count;
+  handler_arguments_mode_ = handler_mode;
+}
+
+
+void CallInterfaceDescriptor::Initialize(
+    int register_parameter_count,
+    Register* registers,
+    Representation* param_representations,
+    PlatformCallInterfaceDescriptor* platform_descriptor) {
+  // CallInterfaceDescriptor owns a copy of the registers array.
+  register_param_count_ = register_parameter_count;
+  register_params_.Reset(NewArray<Register>(register_parameter_count));
+  for (int i = 0; i < register_parameter_count; i++) {
+    register_params_[i] = registers[i];
+  }
+
+  // Also the register parameter representations.
+  param_representations_.Reset(
+      NewArray<Representation>(register_parameter_count));
+  for (int i = 0; i < register_parameter_count; i++) {
+    param_representations_[i] = param_representations[i];
+  }
+
+  platform_specific_descriptor_ = platform_descriptor;
+}
 
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
@@ -509,6 +580,37 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
       code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
   code->set_handler_table(*handler_table);
+}
+
+
+void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedLoadIC::ReceiverRegister(),
+                           KeyedLoadIC::NameRegister() };
+  STATIC_ASSERT(KeyedLoadIC::kRegisterArgumentCount == 2);
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+}
+
+
+void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedLoadIC::ReceiverRegister(),
+                           KeyedLoadIC::NameRegister() };
+  STATIC_ASSERT(KeyedLoadIC::kRegisterArgumentCount == 2);
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+}
+
+
+void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedLoadIC::ReceiverRegister(),
+                           KeyedLoadIC::NameRegister() };
+  STATIC_ASSERT(KeyedLoadIC::kRegisterArgumentCount == 2);
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
 

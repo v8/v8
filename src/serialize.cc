@@ -154,14 +154,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   INLINE_OPTIMIZED_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
 
-#define RUNTIME_HIDDEN_ENTRY(name, nargs, ressize) \
-  { RUNTIME_FUNCTION, \
-    Runtime::kHidden##name, \
-    "Runtime::Hidden" #name },
-
-  RUNTIME_HIDDEN_FUNCTION_LIST(RUNTIME_HIDDEN_ENTRY)
-#undef RUNTIME_HIDDEN_ENTRY
-
 #define INLINE_OPTIMIZED_ENTRY(name, nargs, ressize) \
   { RUNTIME_FUNCTION, \
     Runtime::kInlineOptimized##name, \
@@ -460,12 +452,11 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       52,
       "cpu_features");
-  Add(ExternalReference(Runtime::kHiddenAllocateInNewSpace, isolate).address(),
+  Add(ExternalReference(Runtime::kAllocateInNewSpace, isolate).address(),
       UNCLASSIFIED,
       53,
       "Runtime::AllocateInNewSpace");
-  Add(ExternalReference(
-          Runtime::kHiddenAllocateInTargetSpace, isolate).address(),
+  Add(ExternalReference(Runtime::kAllocateInTargetSpace, isolate).address(),
       UNCLASSIFIED,
       54,
       "Runtime::AllocateInTargetSpace");

@@ -4269,7 +4269,8 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
       isolate_->compilation_cache()->Clear();
       uncommit = true;
     }
-    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
+    CollectAllGarbage(kReduceMemoryFootprintMask,
+                      "idle notification: finalize incremental");
     mark_sweeps_since_idle_round_started_++;
     gc_count_at_last_idle_gc_ = gc_count_;
     if (uncommit) {

@@ -129,11 +129,13 @@ function SetForEach(f, receiver) {
   }
 
   var iterator = new SetIterator(this, ITERATOR_KIND_VALUES);
-  var entry;
+  var key;
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
-  while (!(entry = %SetIteratorNext(iterator)).done) {
+  var value_array = [UNDEFINED];
+  while (%SetIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    %_CallFunction(receiver, entry.value, entry.value, this, f);
+    key = value_array[0];
+    %_CallFunction(receiver, key, key, this, f);
   }
 }
 
@@ -264,11 +266,11 @@ function MapForEach(f, receiver) {
   }
 
   var iterator = new MapIterator(this, ITERATOR_KIND_ENTRIES);
-  var entry;
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
-  while (!(entry = %MapIteratorNext(iterator)).done) {
+  var value_array = [UNDEFINED, UNDEFINED];
+  while (%MapIteratorNext(iterator, value_array)) {
     if (stepping) %DebugPrepareStepInIfStepping(f);
-    %_CallFunction(receiver, entry.value[1], entry.value[0], this, f);
+    %_CallFunction(receiver, value_array[1], value_array[0], this, f);
   }
 }
 

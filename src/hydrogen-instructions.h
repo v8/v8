@@ -7470,7 +7470,7 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     ASSERT(value->IsCallRuntime());
 #ifdef DEBUG
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
-    ASSERT(function->function_id == Runtime::kHiddenCreateObjectLiteral);
+    ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
 #endif
   }
 

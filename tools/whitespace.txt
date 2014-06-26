@@ -1,7 +1,5 @@
-You can modify this file to create no-op changelists (like this one).
+You can modify this file to create no-op changelists.
 
+Try to write something funny. And please don't add trailing whitespace.
 
-
-
-
-
+A Smi walks into a bar and says...

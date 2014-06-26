@@ -1,3 +1,16 @@
+2014-06-26: Version 3.28.4
+
+        Compile optimized code with active debugger but no break points
+        (Chromium issue 386492).
+
+        Optimize Map/Set.prototype.forEach.
+
+        Collect garbage with kReduceMemoryFootprintMask in IdleNotification
+        (Chromium issue 350720).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-26: Version 3.28.3
 
         Grow heap slower if GC freed many global handles (Chromium issue

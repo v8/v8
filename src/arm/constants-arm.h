@@ -236,6 +236,7 @@ enum ShiftOp {
   // as an argument, and will never actually be encoded. The Assembler will
   // detect it and emit the correct ROR shift operand with shift_imm == 0.
   RRX = -1,
+  NO_SHIFT = -2,
   kNumberOfShifts = 4
 };
 

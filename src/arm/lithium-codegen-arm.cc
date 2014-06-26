@@ -188,7 +188,7 @@ bool LCodeGen::GeneratePrologue() {
       need_write_barrier = false;
     } else {
       __ push(r1);
-      __ CallRuntime(Runtime::kHiddenNewFunctionContext, 1);
+      __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
     RecordSafepoint(Safepoint::kNoLazyDeopt);
     // Context is returned in both r0 and cp.  It replaces the context
@@ -477,6 +477,19 @@ Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
 
 bool LCodeGen::IsInteger32(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsSmiOrInteger32();
+}
+
+
+template<class LI>
+Operand LCodeGen::ToShiftedRightOperand(LOperand* right, LI* shift_info) {
+  if (shift_info->shift() == NO_SHIFT) {
+    return ToOperand(right);
+  } else {
+    return Operand(
+        ToRegister(right),
+        shift_info->shift(),
+        JSShiftAmountFromLConstant(shift_info->shift_amount()));
+  }
 }
 
 
@@ -1712,11 +1725,13 @@ void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister(instr->result());
   Operand right(no_reg);
 
+  ASSERT(right_op->IsRegister() || (instr->shift() == NO_SHIFT));
+
   if (right_op->IsStackSlot()) {
     right = Operand(EmitLoadRegister(right_op, ip));
   } else {
     ASSERT(right_op->IsRegister() || right_op->IsConstantOperand());
-    right = ToOperand(right_op);
+    right = ToShiftedRightOperand(right_op, instr);
   }
 
   switch (instr->op()) {
@@ -1773,9 +1788,7 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
     }
   } else {
-    // Mask the right_op operand.
-    int value = ToInteger32(LConstantOperand::cast(right_op));
-    uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
+    int shift_count = JSShiftAmountFromLConstant(right_op);
     switch (instr->op()) {
       case Token::ROR:
           if (shift_count != 0) {
@@ -1835,12 +1848,15 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
+  ASSERT(right->IsRegister() || (instr->shift() == NO_SHIFT));
+
   if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ sub(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
     ASSERT(right->IsRegister() || right->IsConstantOperand());
-    __ sub(ToRegister(result), ToRegister(left), ToOperand(right), set_cond);
+    __ sub(ToRegister(result), ToRegister(left),
+           ToShiftedRightOperand(right, instr), set_cond);
   }
 
   if (can_overflow) {
@@ -2029,12 +2045,15 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
+  ASSERT(right->IsRegister() || (instr->shift() == NO_SHIFT));
+
   if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ add(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
     ASSERT(right->IsRegister() || right->IsConstantOperand());
-    __ add(ToRegister(result), ToRegister(left), ToOperand(right), set_cond);
+    __ add(ToRegister(result), ToRegister(left),
+           ToShiftedRightOperand(right, instr), set_cond);
   }
 
   if (can_overflow) {
@@ -3575,7 +3594,7 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   __ push(scratch0());
   __ mov(scratch0(), Operand(Smi::FromInt(instr->hydrogen()->flags())));
   __ push(scratch0());
-  CallRuntime(Runtime::kHiddenDeclareGlobals, 3, instr);
+  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
 }
 
 
@@ -3666,7 +3685,7 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
     // Slow case: Call the runtime system to do the number allocation.
     __ bind(&slow);
 
-    CallRuntimeFromDeferred(Runtime::kHiddenAllocateHeapNumber, 0, instr,
+    CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr,
                             instr->context());
     // Set the pointer to the new heap number in tmp.
     if (!tmp1.is(r0)) __ mov(tmp1, Operand(r0));
@@ -4478,7 +4497,7 @@ void LCodeGen::DoDeferredStringCharCodeAt(LStringCharCodeAt* instr) {
     __ SmiTag(index);
     __ push(index);
   }
-  CallRuntimeFromDeferred(Runtime::kHiddenStringCharCodeAt, 2, instr,
+  CallRuntimeFromDeferred(Runtime::kStringCharCodeAtRT, 2, instr,
                           instr->context());
   __ AssertSmi(r0);
   __ SmiUntag(r0);
@@ -4665,11 +4684,11 @@ void LCodeGen::DoDeferredNumberTagIU(LInstruction* instr,
 
     // NumberTagI and NumberTagD use the context from the frame, rather than
     // the environment's HContext or HInlinedContext value.
-    // They only call Runtime::kHiddenAllocateHeapNumber.
+    // They only call Runtime::kAllocateHeapNumber.
     // The corresponding HChange instructions are added in a phase that does
     // not have easy access to the local context.
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
     RecordSafepointWithRegisters(
         instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
     __ sub(r0, r0, Operand(kHeapObjectTag));
@@ -4729,11 +4748,11 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   // NumberTagI and NumberTagD use the context from the frame, rather than
   // the environment's HContext or HInlinedContext value.
-  // They only call Runtime::kHiddenAllocateHeapNumber.
+  // They only call Runtime::kAllocateHeapNumber.
   // The corresponding HChange instructions are added in a phase that does
   // not have easy access to the local context.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ CallRuntimeSaveDoubles(Runtime::kHiddenAllocateHeapNumber);
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
   RecordSafepointWithRegisters(
       instr->pointer_map(), 0, Safepoint::kNoLazyDeopt);
   __ sub(r0, r0, Operand(kHeapObjectTag));
@@ -5339,7 +5358,7 @@ void LCodeGen::DoDeferredAllocate(LAllocate* instr) {
   __ Push(Smi::FromInt(flags));
 
   CallRuntimeFromDeferred(
-      Runtime::kHiddenAllocateInTargetSpace, 2, instr, instr->context());
+      Runtime::kAllocateInTargetSpace, 2, instr, instr->context());
   __ StoreToSafepointRegisterSlot(r0, result);
 }
 
@@ -5373,7 +5392,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ mov(r4, Operand(instr->hydrogen()->pattern()));
   __ mov(r3, Operand(instr->hydrogen()->flags()));
   __ Push(r6, r5, r4, r3);
-  CallRuntime(Runtime::kHiddenMaterializeRegExpLiteral, 4, instr);
+  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
   __ mov(r1, r0);
 
   __ bind(&materialized);
@@ -5386,7 +5405,7 @@ void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
   __ bind(&runtime_allocate);
   __ mov(r0, Operand(Smi::FromInt(size)));
   __ Push(r1, r0);
-  CallRuntime(Runtime::kHiddenAllocateInNewSpace, 1, instr);
+  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
   __ pop(r1);
 
   __ bind(&allocated);
@@ -5411,7 +5430,7 @@ void LCodeGen::DoFunctionLiteral(LFunctionLiteral* instr) {
     __ mov(r1, Operand(pretenure ? factory()->true_value()
                                  : factory()->false_value()));
     __ Push(cp, r2, r1);
-    CallRuntime(Runtime::kHiddenNewClosure, 3, instr);
+    CallRuntime(Runtime::kNewClosure, 3, instr);
   }
 }
 
@@ -5598,7 +5617,7 @@ void LCodeGen::DoDummyUse(LDummyUse* instr) {
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
   LoadContextFromDeferred(instr->context());
-  __ CallRuntimeSaveDoubles(Runtime::kHiddenStackGuard);
+  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
   RecordSafepointWithLazyDeopt(
       instr, RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
   ASSERT(instr->HasEnvironment());
@@ -5824,7 +5843,7 @@ void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
   Handle<ScopeInfo> scope_info = instr->scope_info();
   __ Push(scope_info);
   __ push(ToRegister(instr->function()));
-  CallRuntime(Runtime::kHiddenPushBlockContext, 2, instr);
+  CallRuntime(Runtime::kPushBlockContext, 2, instr);
   RecordSafepoint(Safepoint::kNoLazyDeopt);
 }
 

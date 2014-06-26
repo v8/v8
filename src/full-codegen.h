@@ -562,7 +562,6 @@ class FullCodeGenerator: public AstVisitor {
   void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
-  void SetStatementPosition(int pos);
   void SetSourcePosition(int pos);
 
   // Non-local control flow support.

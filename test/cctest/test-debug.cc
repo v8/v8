@@ -3193,19 +3193,26 @@ TEST(DebugStepWhile) {
   v8::Local<v8::Function> foo = CompileFunction(&env, src, "foo");
   SetBreakPoint(foo, 8);  // "var a = 0;"
 
+  // Looping 0 times.  We still should break at the while-condition once.
+  step_action = StepIn;
+  break_point_hit_count = 0;
+  v8::Handle<v8::Value> argv_0[argc] = { v8::Number::New(isolate, 0) };
+  foo->Call(env->Global(), argc, argv_0);
+  CHECK_EQ(3, break_point_hit_count);
+
   // Looping 10 times.
   step_action = StepIn;
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_10[argc] = { v8::Number::New(isolate, 10) };
   foo->Call(env->Global(), argc, argv_10);
-  CHECK_EQ(22, break_point_hit_count);
+  CHECK_EQ(23, break_point_hit_count);
 
   // Looping 100 times.
   step_action = StepIn;
   break_point_hit_count = 0;
   v8::Handle<v8::Value> argv_100[argc] = { v8::Number::New(isolate, 100) };
   foo->Call(env->Global(), argc, argv_100);
-  CHECK_EQ(202, break_point_hit_count);
+  CHECK_EQ(203, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -5123,10 +5130,7 @@ static void ThreadedMessageHandler(const v8::Debug::Message& message) {
   if (IsBreakEventMessage(print_buffer)) {
     // Check that we are inside the while loop.
     int source_line = GetSourceLineFromBreakEventMessage(print_buffer);
-    // TODO(2047): This should really be 8 <= source_line <= 13; but we
-    // currently have an off-by-one error when calculating the source
-    // position corresponding to the program counter at the debug break.
-    CHECK(7 <= source_line && source_line <= 13);
+    CHECK(8 <= source_line && source_line <= 13);
     threaded_debugging_barriers.barrier_2.Wait();
   }
 }
