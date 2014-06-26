@@ -2248,12 +2248,6 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     object->FastPropertyAtPut(index, array->get(external + i));
   }
 
-  // Create filler object past the new instance size.
-  int new_instance_size = new_map->instance_size();
-  int instance_size_delta = old_map->instance_size() - new_instance_size;
-  ASSERT(instance_size_delta >= 0);
-  Address address = object->address() + new_instance_size;
-
   Heap* heap = isolate->heap();
 
   // If there are properties in the new backing store, trim it to the correct
@@ -2263,8 +2257,17 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     object->set_properties(*array);
   }
 
-  heap->CreateFillerObjectAt(address, instance_size_delta);
-  heap->AdjustLiveBytes(address, -instance_size_delta, Heap::FROM_MUTATOR);
+  // Create filler object past the new instance size.
+  int new_instance_size = new_map->instance_size();
+  int instance_size_delta = old_map->instance_size() - new_instance_size;
+  ASSERT(instance_size_delta >= 0);
+
+  if (instance_size_delta > 0) {
+    Address address = object->address();
+    heap->CreateFillerObjectAt(
+        address + new_instance_size, instance_size_delta);
+    heap->AdjustLiveBytes(address, -instance_size_delta, Heap::FROM_MUTATOR);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
