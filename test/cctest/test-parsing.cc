@@ -2240,10 +2240,12 @@ TEST(ErrorsNewExpression) {
 TEST(StrictObjectLiteralChecking) {
   const char* strict_context_data[][2] = {
     {"\"use strict\"; var myobject = {", "};"},
+    {"\"use strict\"; var myobject = {", ",};"},
     { NULL, NULL }
   };
   const char* non_strict_context_data[][2] = {
     {"var myobject = {", "};"},
+    {"var myobject = {", ",};"},
     { NULL, NULL }
   };
 
@@ -2272,6 +2274,7 @@ TEST(ErrorsObjectLiteralChecking) {
   };
 
   const char* statement_data[] = {
+    ",",
     "foo: 1, get foo() {}",
     "foo: 1, set foo(v) {}",
     "\"foo\": 1, get \"foo\"() {}",
@@ -2307,7 +2310,9 @@ TEST(ErrorsObjectLiteralChecking) {
 TEST(NoErrorsObjectLiteralChecking) {
   const char* context_data[][2] = {
     {"var myobject = {", "};"},
+    {"var myobject = {", ",};"},
     {"\"use strict\"; var myobject = {", "};"},
+    {"\"use strict\"; var myobject = {", ",};"},
     { NULL, NULL }
   };
 

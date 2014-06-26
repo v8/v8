@@ -2534,10 +2534,9 @@ MaybeHandle<Object> Debug::MakeExecutionState() {
 
 
 MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
-  Handle<Object> exec_state;
-  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new break event object.
-  Handle<Object> argv[] = { exec_state, break_points_hit };
+  Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
+                            break_points_hit };
   return MakeJSObject("MakeBreakEvent", ARRAY_SIZE(argv), argv);
 }
 
@@ -2545,10 +2544,8 @@ MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
 MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
                                               bool uncaught,
                                               Handle<Object> promise) {
-  Handle<Object> exec_state;
-  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the new exception event object.
-  Handle<Object> argv[] = { exec_state,
+  Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
                             exception,
                             isolate_->factory()->ToBoolean(uncaught),
                             promise };
@@ -2558,23 +2555,18 @@ MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
 
 MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
                                             bool before) {
-  Handle<Object> exec_state;
-  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the compile event object.
   Handle<Object> script_wrapper = Script::GetWrapper(script);
-  Handle<Object> argv[] = { exec_state,
-                            script_wrapper,
+  Handle<Object> argv[] = { script_wrapper,
                             isolate_->factory()->ToBoolean(before) };
   return MakeJSObject("MakeCompileEvent", ARRAY_SIZE(argv), argv);
 }
 
 
 MaybeHandle<Object> Debug::MakeScriptCollectedEvent(int id) {
-  Handle<Object> exec_state;
-  if (!MakeExecutionState().ToHandle(&exec_state)) return MaybeHandle<Object>();
   // Create the script collected event object.
   Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id), isolate_);
-  Handle<Object> argv[] = { exec_state, id_object };
+  Handle<Object> argv[] = { id_object };
   return MakeJSObject("MakeScriptCollectedEvent", ARRAY_SIZE(argv), argv);
 }
 

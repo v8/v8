@@ -2052,6 +2052,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, maths, "harmony-math.js")
