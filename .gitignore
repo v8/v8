@@ -23,6 +23,7 @@
 .cpplint-cache
 .cproject
 .d8_history
+.gclient_entries
 .project
 .pydevproject
 .settings
