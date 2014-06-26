@@ -2554,11 +2554,11 @@ MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
 
 
 MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
-                                            bool before) {
+                                            v8::DebugEvent type) {
   // Create the compile event object.
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = { script_wrapper,
-                            isolate_->factory()->ToBoolean(before) };
+                            isolate_->factory()->NewNumberFromInt(type) };
   return MakeJSObject("MakeCompileEvent", ARRAY_SIZE(argv), argv);
 }
 
@@ -2607,6 +2607,24 @@ void Debug::OnException(Handle<Object> exception, bool uncaught) {
 }
 
 
+void Debug::OnCompileError(Handle<Script> script) {
+  // No more to do if not debugging.
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the compile state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakeCompileEvent(script, v8::CompileError).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::CompileError, Handle<JSObject>::cast(event_data), true);
+}
+
+
 void Debug::OnDebugBreak(Handle<Object> break_points_hit,
                             bool auto_continue) {
   // The caller provided for DebugScope.
@@ -2637,7 +2655,8 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeCompileEvent(script, true).ToHandle(&event_data)) return;
+  if (!MakeCompileEvent(script, v8::BeforeCompile).ToHandle(&event_data))
+    return;
 
   // Process debug event.
   ProcessDebugEvent(v8::BeforeCompile,
@@ -2690,7 +2709,7 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   // Create the compile state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeCompileEvent(script, false).ToHandle(&event_data)) return;
+  if (!MakeCompileEvent(script, v8::AfterCompile).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AfterCompile, Handle<JSObject>::cast(event_data), true);

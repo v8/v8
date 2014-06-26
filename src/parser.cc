@@ -3888,6 +3888,8 @@ void Parser::ThrowPendingError() {
           .ToHandleChecked();
       elements->set(0, *arg_string);
     }
+    isolate()->debug()->OnCompileError(script_);
+
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> result = pending_error_is_reference_error_
         ? factory->NewReferenceError(pending_error_message_, array)
