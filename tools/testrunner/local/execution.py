@@ -27,6 +27,7 @@
 
 
 import os
+import shutil
 import time
 
 from pool import Pool
@@ -60,9 +61,10 @@ def RunTest(job):
 class Runner(object):
 
   def __init__(self, suites, progress_indicator, context):
-    datapath = os.path.join("out", "testrunner_data")
-    self.perf_data_manager = perfdata.PerfDataManager(datapath)
+    self.datapath = os.path.join("out", "testrunner_data")
+    self.perf_data_manager = perfdata.PerfDataManager(self.datapath)
     self.perfdata = self.perf_data_manager.GetStore(context.arch, context.mode)
+    self.perf_failures = False
     self.tests = [ t for s in suites for t in s.tests ]
     if not context.no_sorting:
       for t in self.tests:
@@ -79,6 +81,13 @@ class Runner(object):
     self.remaining = num_tests
     self.failed = []
     self.crashed = 0
+
+  def _RunPerfSafe(self, fun):
+    try:
+      fun()
+    except Exception, e:
+      print("PerfData exception: %s" % e)
+      self.perf_failures = True
 
   def Run(self, jobs):
     self.indicator.Starting()
@@ -130,17 +139,18 @@ class Runner(object):
           if test.output.HasCrashed():
             self.crashed += 1
         else:
+          self._RunPerfSafe(lambda: self.perfdata.UpdatePerfData(test))
           self.succeeded += 1
         self.remaining -= 1
-        try:
-          self.perfdata.UpdatePerfData(test)
-        except Exception, e:
-          print("UpdatePerfData exception: %s" % e)
-          pass  # Just keep working.
         self.indicator.HasRun(test, has_unexpected_output)
     finally:
       pool.terminate()
-      self.perf_data_manager.close()
+      self._RunPerfSafe(lambda: self.perf_data_manager.close())
+      if self.perf_failures:
+        # Nuke perf data in case of failures. This might not work on windows as
+        # some files might still be open.
+        print "Deleting perf test data due to db corruption."
+        shutil.rmtree(self.datapath)
     if queued_exception:
       raise queued_exception
 
