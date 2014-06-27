@@ -8221,7 +8221,7 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
       // instead of a new JSFunction object. This way, errors are
       // reported the same way whether or not 'Function' is called
       // using 'new'.
-      return isolate->context()->global_object();
+      return isolate->context()->global_proxy();
     }
   }
 
