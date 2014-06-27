@@ -474,6 +474,7 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
+  bool inner_scope_contains_with_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 
@@ -551,7 +552,7 @@ class Scope: public ZoneObject {
   // Lookup a variable reference given by name recursively starting with this
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
-  Variable* LookupRecursive(const AstRawString* name,
+  Variable* LookupRecursive(VariableProxy* proxy,
                             BindingKind* binding_kind,
                             AstNodeFactory<AstNullVisitor>* factory);
   MUST_USE_RESULT
@@ -563,7 +564,7 @@ class Scope: public ZoneObject {
                                    AstNodeFactory<AstNullVisitor>* factory);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
+  void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
   bool HasTrivialContext() const;
 
   // Predicates.

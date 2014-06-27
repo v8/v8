@@ -5,7 +5,7 @@
 vars = {
   "chromium_trunk": "https://src.chromium.org/svn/trunk",
 
-  "buildtools_revision": "5d89977ce55240995d1596fe420b818468f5ec37",
+  "buildtools_revision": "fb782d4369d5ae04f17a2fceef7de5a63e50f07b",
 }
 
 deps = {
@@ -44,6 +44,40 @@ skip_child_includes = [
 ]
 
 hooks = [
+  # Pull clang-format binaries using checked-in hashes.
+  {
+    "name": "clang_format_win",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--platform=win32",
+                "--no_auth",
+                "--bucket", "chromium-clang-format",
+                "-s", "v8/buildtools/win/clang-format.exe.sha1",
+    ],
+  },
+  {
+    "name": "clang_format_mac",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--platform=darwin",
+                "--no_auth",
+                "--bucket", "chromium-clang-format",
+                "-s", "v8/buildtools/mac/clang-format.sha1",
+    ],
+  },
+  {
+    "name": "clang_format_linux",
+    "pattern": ".",
+    "action": [ "download_from_google_storage",
+                "--no_resume",
+                "--platform=linux*",
+                "--no_auth",
+                "--bucket", "chromium-clang-format",
+                "-s", "v8/buildtools/linux64/clang-format.sha1",
+    ],
+  },
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     "pattern": ".",

@@ -19,7 +19,8 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     ScriptCollected: 6 };
+                     ScriptCollected: 6,
+                     CompileError: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1143,23 +1144,19 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeCompileEvent(script, before) {
-  return new CompileEvent(script, before);
+function MakeCompileEvent(script, type) {
+  return new CompileEvent(script, type);
 }
 
 
-function CompileEvent(script, before) {
+function CompileEvent(script, type) {
   this.script_ = MakeMirror(script);
-  this.before_ = before;
+  this.type_ = type;
 }
 
 
 CompileEvent.prototype.eventType = function() {
-  if (this.before_) {
-    return Debug.DebugEvent.BeforeCompile;
-  } else {
-    return Debug.DebugEvent.AfterCompile;
-  }
+  return this.type_;
 };
 
 
@@ -1171,10 +1168,13 @@ CompileEvent.prototype.script = function() {
 CompileEvent.prototype.toJSONProtocol = function() {
   var o = new ProtocolMessage();
   o.running = true;
-  if (this.before_) {
-    o.event = "beforeCompile";
-  } else {
-    o.event = "afterCompile";
+  switch (this.type_) {
+    case Debug.DebugEvent.BeforeCompile:
+      o.event = "beforeCompile";
+    case Debug.DebugEvent.AfterCompile:
+      o.event = "afterCompile";
+    case Debug.DebugEvent.CompileError:
+      o.event = "compileError";
   }
   o.body = {};
   o.body.script = this.script_;

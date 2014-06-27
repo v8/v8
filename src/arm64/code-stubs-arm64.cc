@@ -102,36 +102,6 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 }
 
 
-void LoadFieldStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x0: receiver
-  Register registers[] = { x0 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
-void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x1: receiver
-  Register registers[] = { x1 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
-void StringLengthStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { x0, x2 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
-void KeyedStringLengthStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { x1, x0 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
 void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   // x2: receiver
@@ -2455,7 +2425,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
-  __ TailCallRuntime(Runtime::kRegExpExec, 4, 1);
+  __ TailCallRuntime(Runtime::kRegExpExecRT, 4, 1);
 #else  // V8_INTERPRETED_REGEXP
 
   // Stack frame on entry.

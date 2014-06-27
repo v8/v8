@@ -170,6 +170,7 @@ void Scope::SetDefaults(ScopeType scope_type,
   strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
+  inner_scope_contains_with_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
@@ -194,6 +195,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
+  bool inner_contains_with = false;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new(zone) Scope(current_scope,
@@ -243,7 +245,11 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
           global_scope->ast_value_factory_->GetString(Handle<String>(name)),
           global_scope->ast_value_factory_, zone);
     }
-    if (contains_with) current_scope->RecordWithStatement();
+    if (inner_contains_with) current_scope->inner_scope_contains_with_ = true;
+    if (contains_with) {
+      current_scope->RecordWithStatement();
+      inner_contains_with = true;
+    }
     if (innermost_scope == NULL) innermost_scope = current_scope;
 
     // Forget about a with when we move to a context for a different function.
@@ -819,9 +825,15 @@ static void PrintVar(int indent, Variable* var) {
     PrintName(var->raw_name());
     PrintF(";  // ");
     PrintLocation(var);
+    bool comma = !var->IsUnallocated();
     if (var->has_forced_context_allocation()) {
-      if (!var->IsUnallocated()) PrintF(", ");
+      if (comma) PrintF(", ");
       PrintF("forced context allocation");
+      comma = true;
+    }
+    if (var->maybe_assigned()) {
+      if (comma) PrintF(", ");
+      PrintF("maybe assigned");
     }
     PrintF("\n");
   }
@@ -875,6 +887,9 @@ void Scope::Print(int n) {
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
+  if (inner_scope_contains_with_) {
+    Indent(n1, "// inner scope contains 'with'\n");
+  }
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
@@ -951,7 +966,7 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
 }
 
 
-Variable* Scope::LookupRecursive(const AstRawString* name,
+Variable* Scope::LookupRecursive(VariableProxy* proxy,
                                  BindingKind* binding_kind,
                                  AstNodeFactory<AstNullVisitor>* factory) {
   ASSERT(binding_kind != NULL);
@@ -963,7 +978,7 @@ Variable* Scope::LookupRecursive(const AstRawString* name,
   }
 
   // Try to find the variable in this scope.
-  Variable* var = LookupLocal(name);
+  Variable* var = LookupLocal(proxy->raw_name());
 
   // We found a variable and we are done. (Even if there is an 'eval' in
   // this scope which introduces the same variable again, the resulting
@@ -977,11 +992,11 @@ Variable* Scope::LookupRecursive(const AstRawString* name,
   // if any. We can do this for all scopes, since the function variable is
   // only present - if at all - for function scopes.
   *binding_kind = UNBOUND;
-  var = LookupFunctionVar(name, factory);
+  var = LookupFunctionVar(proxy->raw_name(), factory);
   if (var != NULL) {
     *binding_kind = BOUND;
   } else if (outer_scope_ != NULL) {
-    var = outer_scope_->LookupRecursive(name, binding_kind, factory);
+    var = outer_scope_->LookupRecursive(proxy, binding_kind, factory);
     if (*binding_kind == BOUND && (is_function_scope() || is_with_scope())) {
       var->ForceContextAllocation();
     }
@@ -997,6 +1012,7 @@ Variable* Scope::LookupRecursive(const AstRawString* name,
     // the associated variable has to be marked as potentially being accessed
     // from inside of an inner with scope (the property may not be in the 'with'
     // object).
+    if (var != NULL && proxy->is_assigned()) var->set_maybe_assigned();
     *binding_kind = DYNAMIC_LOOKUP;
     return NULL;
   } else if (calls_sloppy_eval()) {
@@ -1025,7 +1041,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
   // Otherwise, try to resolve the variable.
   BindingKind binding_kind;
-  Variable* var = LookupRecursive(proxy->raw_name(), &binding_kind, factory);
+  Variable* var = LookupRecursive(proxy, &binding_kind, factory);
   switch (binding_kind) {
     case BOUND:
       // We found a variable binding.
@@ -1064,9 +1080,10 @@ bool Scope::ResolveVariable(CompilationInfo* info,
   }
 
   ASSERT(var != NULL);
+  if (proxy->is_assigned()) var->set_maybe_assigned();
 
   if (FLAG_harmony_scoping && strict_mode() == STRICT &&
-      var->is_const_mode() && proxy->IsLValue()) {
+      var->is_const_mode() && proxy->is_assigned()) {
     // Assignment to const. Throw a syntax error.
     MessageLocation location(
         info->script(), proxy->position(), proxy->position());
@@ -1140,7 +1157,7 @@ bool Scope::ResolveVariablesRecursively(
 }
 
 
-bool Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
+void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
   if (outer_scope_calls_sloppy_eval) {
     outer_scope_calls_sloppy_eval_ = true;
   }
@@ -1148,16 +1165,18 @@ bool Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
   bool calls_sloppy_eval =
       this->calls_sloppy_eval() || outer_scope_calls_sloppy_eval_;
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* inner_scope = inner_scopes_[i];
-    if (inner_scope->PropagateScopeInfo(calls_sloppy_eval)) {
+    Scope* inner = inner_scopes_[i];
+    inner->PropagateScopeInfo(calls_sloppy_eval);
+    if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
     }
-    if (inner_scope->force_eager_compilation_) {
+    if (inner->scope_contains_with_ || inner->inner_scope_contains_with_) {
+      inner_scope_contains_with_ = true;
+    }
+    if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;
     }
   }
-
-  return scope_calls_eval_ || inner_scope_calls_eval_;
 }
 
 
@@ -1174,7 +1193,8 @@ bool Scope::MustAllocate(Variable* var) {
        is_block_scope() ||
        is_module_scope() ||
        is_global_scope())) {
-    var->set_is_used(true);
+    var->set_is_used();
+    if (scope_calls_eval_ || inner_scope_calls_eval_) var->set_maybe_assigned();
   }
   // Global variables do not need to be allocated.
   return !var->IsGlobalObjectProperty() && var->is_used();

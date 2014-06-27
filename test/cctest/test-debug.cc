@@ -6376,6 +6376,60 @@ TEST(AfterCompileMessageWhenMessageHandlerIsReset) {
 }
 
 
+// Syntax error event handler which counts a number of events.
+int compile_error_event_count = 0;
+
+static void CompileErrorEventCounterClear() {
+  compile_error_event_count = 0;
+}
+
+static void CompileErrorEventCounter(
+    const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+
+  if (event == v8::CompileError) {
+    compile_error_event_count++;
+  }
+}
+
+
+// Tests that syntax error event is sent as many times as there are scripts
+// with syntax error compiled.
+TEST(SyntaxErrorMessageOnSyntaxException) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(false, true);
+
+  v8::Debug::SetDebugEventListener(CompileErrorEventCounter);
+
+  CompileErrorEventCounterClear();
+
+  // Check initial state.
+  CHECK_EQ(0, compile_error_event_count);
+
+  // Throws SyntaxError: Unexpected end of input
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "+++"));
+  CHECK_EQ(1, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "/sel\\/: \\"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "JSON.parse('1234:')"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "new RegExp('/\\/\\\\');"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "throw 1;"));
+  CHECK_EQ(2, compile_error_event_count);
+}
+
+
 // Tests that break event is sent when message handler is reset.
 TEST(BreakMessageWhenMessageHandlerIsReset) {
   DebugLocalContext env;

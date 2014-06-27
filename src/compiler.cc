@@ -860,7 +860,7 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
 
-  isolate->debug()->OnAfterCompile(script, Debug::NO_AFTER_COMPILE_FLAGS);
+  isolate->debug()->OnAfterCompile(script);
 
   return result;
 }

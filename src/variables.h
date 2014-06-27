@@ -82,7 +82,9 @@ class Variable: public ZoneObject {
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
-  void set_is_used(bool flag) { is_used_ = flag; }
+  void set_is_used() { is_used_ = true; }
+  bool maybe_assigned() { return maybe_assigned_; }
+  void set_maybe_assigned() { maybe_assigned_ = true; }
 
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
@@ -157,6 +159,7 @@ class Variable: public ZoneObject {
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
+  bool maybe_assigned_;
   InitializationFlag initialization_flag_;
 
   // Module type info.

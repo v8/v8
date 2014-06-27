@@ -614,6 +614,36 @@ void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void LoadFieldStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { LoadIC::ReceiverRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+}
+
+
+void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedLoadIC::ReceiverRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+}
+
+
+void StringLengthStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { LoadIC::ReceiverRegister(),
+                           LoadIC::NameRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+}
+
+
+void KeyedStringLengthStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedLoadIC::ReceiverRegister(),
+                           KeyedLoadIC::NameRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+}
+
+
 void KeyedLoadDictionaryElementPlatformStub::Generate(
     MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
