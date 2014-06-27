@@ -1658,8 +1658,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* global_object = UseFixed(instr->global_object(),
-                                     LoadIC::ReceiverRegister());
+  LOperand* global_object = UseFixed(instr->global_object(), x0);
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, x0), instr);
@@ -1715,8 +1714,8 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), KeyedLoadIC::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), KeyedLoadIC::NameRegister());
+  LOperand* object = UseFixed(instr->object(), x1);
+  LOperand* key = UseFixed(instr->key(), x0);
 
   LInstruction* result =
       DefineFixed(new(zone()) LLoadKeyedGeneric(context, object, key), x0);
@@ -1732,7 +1731,7 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), LoadIC::ReceiverRegister());
+  LOperand* object = UseFixed(instr->object(), x0);
   LInstruction* result =
       DefineFixed(new(zone()) LLoadNamedGeneric(context, object), x0);
   return MarkAsCall(result, instr);

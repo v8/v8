@@ -144,7 +144,6 @@
   'regress/regress-2249': [SKIP],
   'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
   'elements-transition-hoisting': [PASS, FAIL],
-  'getters-on-elements': [PASS, FAIL],
 }],  # 'gc_stress == True'
 
 ##############################################################################

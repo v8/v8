@@ -388,8 +388,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  ASSERT(edx.is(ReceiverRegister()));
-  ASSERT(ecx.is(NameRegister()));
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
 
@@ -562,25 +560,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-// A register that isn't one of the parameters to the load ic.
-static const Register LoadIC_TempRegister() { return ebx; }
-
-
-// A register that isn't one of the parameters to the load ic.
-static const Register KeyedLoadIC_TempRegister() {
-  return LoadIC_TempRegister();
-}
-
-
 void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // ----------- S t a t e -------------
+  //  -- ecx    : key (index)
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
   Label miss;
 
-  Register receiver = ReceiverRegister();
-  Register index = NameRegister();
-  Register scratch = KeyedLoadIC_TempRegister();
+  Register receiver = edx;
+  Register index = ecx;
+  Register scratch = ebx;
   Register result = eax;
-  ASSERT(!result.is(scratch));
 
   StringCharAtGenerator char_at_generator(receiver,
                                           index,
@@ -602,36 +593,35 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 
 
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // ----------- S t a t e -------------
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
   Label slow;
 
-  Register receiver = ReceiverRegister();
-  Register key = NameRegister();
-  Register scratch = eax;
-  ASSERT(!scratch.is(receiver) && !scratch.is(key));
-
   // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
+  __ JumpIfSmi(edx, &slow);
 
   // Check that the key is an array index, that is Uint32.
-  __ test(key, Immediate(kSmiTagMask | kSmiSignMask));
+  __ test(ecx, Immediate(kSmiTagMask | kSmiSignMask));
   __ j(not_zero, &slow);
 
   // Get the map of the receiver.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
 
   // Check that it has indexed interceptor and access checks
   // are not enabled for this object.
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
-  __ and_(scratch, Immediate(kSlowCaseBitFieldMask));
-  __ cmp(scratch, Immediate(1 << Map::kHasIndexedInterceptor));
+  __ movzx_b(eax, FieldOperand(eax, Map::kBitFieldOffset));
+  __ and_(eax, Immediate(kSlowCaseBitFieldMask));
+  __ cmp(eax, Immediate(1 << Map::kHasIndexedInterceptor));
   __ j(not_zero, &slow);
 
   // Everything is fine, call runtime.
-  __ pop(scratch);
-  __ push(receiver);  // receiver
-  __ push(key);       // key
-  __ push(scratch);   // return address
+  __ pop(eax);
+  __ push(edx);  // receiver
+  __ push(ecx);  // key
+  __ push(eax);  // return address
 
   // Perform tail call to the entry.
   ExternalReference ref =
@@ -650,8 +640,6 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  ASSERT(edx.is(ReceiverRegister()));
-  ASSERT(ecx.is(NameRegister()));
   Label slow, notin;
   Factory* factory = masm->isolate()->factory();
   Operand mapped_location =
@@ -942,8 +930,6 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  ASSERT(edx.is(ReceiverRegister()));
-  ASSERT(ecx.is(NameRegister()));
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
@@ -961,9 +947,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  ASSERT(edx.is(ReceiverRegister()));
-  ASSERT(ecx.is(NameRegister()));
-
   Label miss, slow;
 
   GenerateNameDictionaryReceiverCheck(masm, edx, eax, ebx, &miss);
@@ -984,13 +967,18 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // ----------- S t a t e -------------
+  //  -- ecx    : name
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
   __ IncrementCounter(masm->isolate()->counters()->load_miss(), 1);
 
-  __ pop(LoadIC_TempRegister());
-  __ push(ReceiverRegister());  // receiver
-  __ push(NameRegister());  // name
-  __ push(LoadIC_TempRegister());  // return address
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   ExternalReference ref =
@@ -1000,11 +988,16 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // Return address is on the stack.
-  __ pop(LoadIC_TempRegister());
-  __ push(ReceiverRegister());   // receiver
-  __ push(NameRegister());       // name
-  __ push(LoadIC_TempRegister());  // return address
+  // ----------- S t a t e -------------
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
@@ -1012,13 +1005,18 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // ----------- S t a t e -------------
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
   __ IncrementCounter(masm->isolate()->counters()->keyed_load_miss(), 1);
 
-  __ pop(KeyedLoadIC_TempRegister());
-  __ push(ReceiverRegister());  // receiver
-  __ push(NameRegister());  // name
-  __ push(KeyedLoadIC_TempRegister());  // return address
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   ExternalReference ref =
@@ -1041,11 +1039,16 @@ const Register KeyedLoadIC::NameRegister() { return LoadIC::NameRegister(); }
 
 
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // Return address is on the stack.
-  __ pop(KeyedLoadIC_TempRegister());
-  __ push(ReceiverRegister());  // receiver
-  __ push(NameRegister());  // name
-  __ push(KeyedLoadIC_TempRegister());  // return address
+  // ----------- S t a t e -------------
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  __ pop(ebx);
+  __ push(edx);  // receiver
+  __ push(ecx);  // name
+  __ push(ebx);  // return address
 
   // Perform tail call to the entry.
   __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);

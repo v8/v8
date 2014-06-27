@@ -2969,10 +2969,10 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->global_object()).is(LoadIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->global_object()).is(r0));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  __ mov(LoadIC::NameRegister(), Operand(instr->name()));
+  __ mov(r2, Operand(instr->name()));
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3088,11 +3088,11 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->object()).is(r0));
   ASSERT(ToRegister(instr->result()).is(r0));
 
   // Name is always in r2.
-  __ mov(LoadIC::NameRegister(), Operand(instr->name()));
+  __ mov(r2, Operand(instr->name()));
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);
 }
@@ -3394,8 +3394,8 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->object()).is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(ToRegister(instr->key()).is(KeyedLoadIC::NameRegister()));
+  ASSERT(ToRegister(instr->object()).is(r1));
+  ASSERT(ToRegister(instr->key()).is(r0));
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);

@@ -364,12 +364,17 @@ class PromiseOnStack {
 // DebugInfo.
 class Debug {
  public:
+  enum AfterCompileFlags {
+    NO_AFTER_COMPILE_FLAGS,
+    SEND_WHEN_DEBUGGING
+  };
+
   // Debug event triggers.
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   void OnException(Handle<Object> exception, bool uncaught);
-  void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
-  void OnAfterCompile(Handle<Script> script);
+  void OnAfterCompile(Handle<Script> script,
+                      AfterCompileFlags after_compile_flags);
   void OnScriptCollected(int id);
 
   // API facing.
@@ -543,7 +548,7 @@ class Debug {
       bool uncaught,
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
-      Handle<Script> script, v8::DebugEvent type);
+      Handle<Script> script, bool before);
   MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
 
   // Mirror cache handling.

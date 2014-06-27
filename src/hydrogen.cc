@@ -11310,17 +11310,13 @@ void HOptimizedGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
 
 // Support for arguments.length and arguments[?].
 void HOptimizedGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
+  // Our implementation of arguments (based on this stack frame or an
+  // adapter below it) does not work for inlined functions.  This runtime
+  // function is blacklisted by AstNode::IsInlineable.
+  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 0);
-  HInstruction* result = NULL;
-  if (function_state()->outer() == NULL) {
-    HInstruction* elements = Add<HArgumentsElements>(false);
-    result = New<HArgumentsLength>(elements);
-  } else {
-    // Number of arguments without receiver.
-    int argument_count = environment()->
-        arguments_environment()->parameter_count() - 1;
-    result = New<HConstant>(argument_count);
-  }
+  HInstruction* elements = Add<HArgumentsElements>(false);
+  HArgumentsLength* result = New<HArgumentsLength>(elements);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

@@ -973,10 +973,10 @@ class PreParserTraits {
   static void CheckPossibleEvalCall(PreParserExpression expression,
                                     PreParserScope* scope) {}
 
-  static PreParserExpression MarkExpressionAsAssigned(
+  static PreParserExpression MarkExpressionAsLValue(
       PreParserExpression expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs
-    // to start tracking which expressions are variables and which are assigned.
+    // to start tracking which expressions are variables and which are lvalues.
     return expression;
   }
 
@@ -1753,7 +1753,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   expression = this->CheckAndRewriteReferenceExpression(
       expression, lhs_location, "invalid_lhs_in_assignment", CHECK_OK);
-  expression = this->MarkExpressionAsAssigned(expression);
+  expression = this->MarkExpressionAsLValue(expression);
 
   Token::Value op = Next();  // Get assignment operator.
   int pos = position();
@@ -1915,7 +1915,7 @@ ParserBase<Traits>::ParseUnaryExpression(bool* ok) {
     ExpressionT expression = this->ParseUnaryExpression(CHECK_OK);
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_location, "invalid_lhs_in_prefix_op", CHECK_OK);
-    this->MarkExpressionAsAssigned(expression);
+    this->MarkExpressionAsLValue(expression);
 
     return factory()->NewCountOperation(op,
                                         true /* prefix */,
@@ -1940,7 +1940,7 @@ ParserBase<Traits>::ParsePostfixExpression(bool* ok) {
       Token::IsCountOp(peek())) {
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_location, "invalid_lhs_in_postfix_op", CHECK_OK);
-    expression = this->MarkExpressionAsAssigned(expression);
+    expression = this->MarkExpressionAsLValue(expression);
 
     Token::Value next = Next();
     expression =
