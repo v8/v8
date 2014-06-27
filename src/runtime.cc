@@ -5337,7 +5337,7 @@ RUNTIME_FUNCTION(Runtime_AddProperty) {
 #ifdef DEBUG
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::CHECK_OWN);
+                      LookupIterator::CHECK_OWN_REAL);
     JSReceiver::GetPropertyAttributes(&it);
     RUNTIME_ASSERT(!it.IsFound());
   } else {
