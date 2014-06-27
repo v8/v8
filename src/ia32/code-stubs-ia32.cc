@@ -13,7 +13,6 @@
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/runtime.h"
-#include "src/runtime.h"
 #include "src/stub-cache.h"
 
 namespace v8 {
