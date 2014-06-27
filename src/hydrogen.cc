@@ -7738,19 +7738,19 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   HConstant* context = Add<HConstant>(Handle<Context>(target->context()));
   inner_env->BindContext(context);
 
-  HArgumentsObject* arguments_object = NULL;
-
-  // If the function uses arguments object create and bind one, also copy
+  // Create a dematerialized arguments object for the function, also copy the
   // current arguments values to use them for materialization.
+  HEnvironment* arguments_env = inner_env->arguments_environment();
+  int parameter_count = arguments_env->parameter_count();
+  HArgumentsObject* arguments_object = Add<HArgumentsObject>(parameter_count);
+  for (int i = 0; i < parameter_count; i++) {
+    arguments_object->AddArgument(arguments_env->Lookup(i), zone());
+  }
+
+  // If the function uses arguments object then bind bind one.
   if (function->scope()->arguments() != NULL) {
     ASSERT(function->scope()->arguments()->IsStackAllocated());
-    HEnvironment* arguments_env = inner_env->arguments_environment();
-    int arguments_count = arguments_env->parameter_count();
-    arguments_object = Add<HArgumentsObject>(arguments_count);
     inner_env->Bind(function->scope()->arguments(), arguments_object);
-    for (int i = 0; i < arguments_count; i++) {
-      arguments_object->AddArgument(arguments_env->Lookup(i), zone());
-    }
   }
 
   // Capture the state before invoking the inlined function for deopt in the
@@ -11326,18 +11326,26 @@ void HOptimizedGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
 
 
 void HOptimizedGraphBuilder::GenerateArguments(CallRuntime* call) {
-  // Our implementation of arguments (based on this stack frame or an
-  // adapter below it) does not work for inlined functions.  This runtime
-  // function is blacklisted by AstNode::IsInlineable.
-  ASSERT(function_state()->outer() == NULL);
   ASSERT(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* index = Pop();
-  HInstruction* elements = Add<HArgumentsElements>(false);
-  HInstruction* length = Add<HArgumentsLength>(elements);
-  HInstruction* checked_index = Add<HBoundsCheck>(index, length);
-  HAccessArgumentsAt* result = New<HAccessArgumentsAt>(
-      elements, length, checked_index);
+  HInstruction* result = NULL;
+  if (function_state()->outer() == NULL) {
+    HInstruction* elements = Add<HArgumentsElements>(false);
+    HInstruction* length = Add<HArgumentsLength>(elements);
+    HInstruction* checked_index = Add<HBoundsCheck>(index, length);
+    result = New<HAccessArgumentsAt>(elements, length, checked_index);
+  } else {
+    EnsureArgumentsArePushedForAccess();
+
+    // Number of arguments without receiver.
+    HInstruction* elements = function_state()->arguments_elements();
+    int argument_count = environment()->
+        arguments_environment()->parameter_count() - 1;
+    HInstruction* length = Add<HConstant>(argument_count);
+    HInstruction* checked_key = Add<HBoundsCheck>(index, length);
+    result = New<HAccessArgumentsAt>(elements, length, checked_key);
+  }
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

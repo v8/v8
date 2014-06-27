@@ -1114,11 +1114,6 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     // Don't try to inline JS runtime calls because we don't (currently) even
     // optimize them.
     add_flag(kDontInline);
-  } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-             node->raw_name()->IsOneByteEqualTo("_Arguments")) {
-    // Don't inline the %_Arguments because it's implementation will not work.
-    // There is no stack frame to get them from.
-    add_flag(kDontInline);
   }
 }
 
