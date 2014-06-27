@@ -2484,17 +2484,7 @@ void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
     EmitGoto(next_block);
   } else {
     if (instr->is_double()) {
-      if (right->IsConstantOperand()) {
-        __ Fcmp(ToDoubleRegister(left),
-                ToDouble(LConstantOperand::cast(right)));
-      } else if (left->IsConstantOperand()) {
-        // Commute the operands and the condition.
-        __ Fcmp(ToDoubleRegister(right),
-                ToDouble(LConstantOperand::cast(left)));
-        cond = CommuteCondition(cond);
-      } else {
-        __ Fcmp(ToDoubleRegister(left), ToDoubleRegister(right));
-      }
+      __ Fcmp(ToDoubleRegister(left), ToDoubleRegister(right));
 
       // If a NaN is involved, i.e. the result is unordered (V set),
       // jump to false block label.

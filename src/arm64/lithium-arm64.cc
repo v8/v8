@@ -1274,15 +1274,13 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
-    // TODO(all): In fact the only case that we can handle more efficiently is
-    // when one of the operand is the constant 0. Currently the MacroAssembler
-    // will be able to cope with any constant by loading it into an internal
-    // scratch register. This means that if the constant is used more that once,
-    // it will be loaded multiple times. Unfortunatly crankshaft already
-    // duplicates constant loads, but we should modify the code below once this
-    // issue has been addressed in crankshaft.
-    LOperand* left = UseRegisterOrConstantAtStart(instr->left());
-    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
+      LOperand* left = UseConstant(instr->left());
+      LOperand* right = UseConstant(instr->right());
+      return new(zone()) LCompareNumericAndBranch(left, right);
+    }
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
   }
 }
