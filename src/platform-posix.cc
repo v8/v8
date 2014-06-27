@@ -492,7 +492,7 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 // POSIX thread support.
 //
 
-class Thread::PlatformData : public Malloced {
+class Thread::PlatformData {
  public:
   PlatformData() : thread_(kNoThread) {}
   pthread_t thread_;  // Thread handle for pthread.

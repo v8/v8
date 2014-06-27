@@ -1335,7 +1335,7 @@ static unsigned int __stdcall ThreadEntry(void* arg) {
 }
 
 
-class Thread::PlatformData : public Malloced {
+class Thread::PlatformData {
  public:
   explicit PlatformData(HANDLE thread) : thread_(thread) {}
   HANDLE thread_;
