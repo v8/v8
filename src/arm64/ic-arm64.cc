@@ -911,12 +911,11 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   // Push receiver, key and value for runtime call.
   __ Push(x2, x1, x0);
 
-  // Push PropertyAttributes(NONE) and strict_mode for runtime call.
-  STATIC_ASSERT(NONE == 0);
+  // Push strict_mode for runtime call.
   __ Mov(x10, Smi::FromInt(strict_mode));
-  __ Push(xzr, x10);
+  __ Push(x10);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 
@@ -1258,12 +1257,11 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 
   __ Push(x1, x2, x0);
 
-  __ Mov(x11, Smi::FromInt(NONE));  // PropertyAttributes
   __ Mov(x10, Smi::FromInt(strict_mode));
-  __ Push(x11, x10);
+  __ Push(x10);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 

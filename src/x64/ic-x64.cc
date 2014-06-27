@@ -1148,12 +1148,11 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   __ Push(rdx);
   __ Push(rcx);
   __ Push(rax);
-  __ Push(Smi::FromInt(NONE));  // PropertyAttributes
   __ Push(Smi::FromInt(strict_mode));
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 
@@ -1170,12 +1169,11 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   __ Push(rdx);  // receiver
   __ Push(rcx);  // key
   __ Push(rax);  // value
-  __ Push(Smi::FromInt(NONE));          // PropertyAttributes
   __ Push(Smi::FromInt(strict_mode));   // Strict mode.
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 
