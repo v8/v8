@@ -208,10 +208,6 @@ function DebugEventDetails(response) {
       details.text = result;
       break;
 
-    case 'scriptCollected':
-      details.text = result;
-      break;
-
     default:
       details.text = 'Unknown debug event ' + response.event();
   }

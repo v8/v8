@@ -717,7 +717,6 @@ void Heap::GarbageCollectionEpilogue() {
 #ifdef DEBUG
   ReportStatisticsAfterGC();
 #endif  // DEBUG
-  isolate_->debug()->AfterGarbageCollection();
 
   // Remember the last top pointer so that we can later find out
   // whether we allocated in new space since the last GC.

@@ -592,8 +592,7 @@ int Debug::ArchiveSpacePerThread() {
 
 
 ScriptCache::ScriptCache(Isolate* isolate) : HashMap(HashMap::PointersMatch),
-                                             isolate_(isolate),
-                                             collected_scripts_(10) {
+                                             isolate_(isolate) {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
 
@@ -651,15 +650,6 @@ Handle<FixedArray> ScriptCache::GetScripts() {
 }
 
 
-void ScriptCache::ProcessCollectedScripts() {
-  Debug* debug = isolate_->debug();
-  for (int i = 0; i < collected_scripts_.length(); i++) {
-    debug->OnScriptCollected(collected_scripts_[i]);
-  }
-  collected_scripts_.Clear();
-}
-
-
 void ScriptCache::Clear() {
   // Iterate the script cache to get rid of all the weak handles.
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
@@ -688,7 +678,6 @@ void ScriptCache::HandleWeakScript(
   HashMap::Entry* entry = script_cache->Lookup(key, hash, false);
   Object** location = reinterpret_cast<Object**>(entry->value);
   script_cache->Remove(key, hash);
-  script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
   GlobalHandles::Destroy(location);
@@ -2500,14 +2489,6 @@ void Debug::RecordEvalCaller(Handle<Script> script) {
 }
 
 
-void Debug::AfterGarbageCollection() {
-  // Generate events for collected scripts.
-  if (script_cache_ != NULL) {
-    script_cache_->ProcessCollectedScripts();
-  }
-}
-
-
 MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
                                         int argc,
                                         Handle<Object> argv[]) {
@@ -2560,14 +2541,6 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   Handle<Object> argv[] = { script_wrapper,
                             isolate_->factory()->NewNumberFromInt(type) };
   return MakeJSObject("MakeCompileEvent", ARRAY_SIZE(argv), argv);
-}
-
-
-MaybeHandle<Object> Debug::MakeScriptCollectedEvent(int id) {
-  // Create the script collected event object.
-  Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id), isolate_);
-  Handle<Object> argv[] = { id_object };
-  return MakeJSObject("MakeScriptCollectedEvent", ARRAY_SIZE(argv), argv);
 }
 
 
@@ -2716,25 +2689,6 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 }
 
 
-void Debug::OnScriptCollected(int id) {
-  if (in_debug_scope() || ignore_events()) return;
-
-  HandleScope scope(isolate_);
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
-
-  // Create the script collected state object.
-  Handle<Object> event_data;
-  // Bail out and don't call debugger if exception.
-  if (!MakeScriptCollectedEvent(id).ToHandle(&event_data)) return;
-
-  // Process debug event.
-  ProcessDebugEvent(v8::ScriptCollected,
-                    Handle<JSObject>::cast(event_data),
-                    true);
-}
-
-
 void Debug::ProcessDebugEvent(v8::DebugEvent event,
                               Handle<JSObject> event_data,
                               bool auto_continue) {
@@ -2836,9 +2790,6 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     case v8::AfterCompile:
       sendEventMessage = true;
       break;
-    case v8::ScriptCollected:
-      sendEventMessage = true;
-      break;
     case v8::NewFunction:
       break;
     default:
@@ -2866,9 +2817,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
   // in the queue if any. For script collected events don't even process
   // messages in the queue as the execution state might not be what is expected
   // by the client.
-  if ((auto_continue && !has_commands()) || event == v8::ScriptCollected) {
-    return;
-  }
+  if (auto_continue && !has_commands()) return;
 
   // DebugCommandProcessor goes here.
   bool running = auto_continue;
@@ -3251,7 +3200,7 @@ v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
   Isolate* isolate = event_data_->GetIsolate();
   v8::Handle<v8::Context> context = GetDebugEventContext(isolate);
   // Isolate::context() may be NULL when "script collected" event occures.
-  ASSERT(!context.IsEmpty() || event_ == v8::ScriptCollected);
+  ASSERT(!context.IsEmpty());
   return context;
 }
 

@@ -19,8 +19,7 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     ScriptCollected: 6,
-                     CompileError: 7 };
+                     CompileError: 6 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1179,31 +1178,6 @@ CompileEvent.prototype.toJSONProtocol = function() {
   o.body = {};
   o.body.script = this.script_;
 
-  return o.toJSONProtocol();
-};
-
-
-function MakeScriptCollectedEvent(id) {
-  return new ScriptCollectedEvent(id);
-}
-
-
-function ScriptCollectedEvent(id) {
-  this.id_ = id;
-}
-
-
-ScriptCollectedEvent.prototype.id = function() {
-  return this.id_;
-};
-
-
-ScriptCollectedEvent.prototype.toJSONProtocol = function() {
-  var o = new ProtocolMessage();
-  o.running = true;
-  o.event = "scriptCollected";
-  o.body = {};
-  o.body.script = { id: this.id() };
   return o.toJSONProtocol();
 };
 
