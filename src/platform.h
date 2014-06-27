@@ -141,6 +141,14 @@ class TimezoneCache;
 
 class OS {
  public:
+  // Initialize the OS class.
+  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
+  // - hard_abort: If true, OS::Abort() will crash instead of aborting.
+  // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
+  static void Initialize(int64_t random_seed,
+                         bool hard_abort,
+                         const char* const gc_fake_mmap);
+
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable
@@ -211,10 +219,6 @@ class OS {
 
   // Assign memory as a guard page so that access will cause an exception.
   static void Guard(void* address, const size_t size);
-
-  // Set a fixed random seed for the random number generator used for
-  // GetRandomMmapAddr.
-  static void SetRandomSeed(int64_t seed);
 
   // Generate a random address to be used for hinting mmap().
   static void* GetRandomMmapAddr();
@@ -305,6 +309,10 @@ class OS {
 
  private:
   static const int msPerSecond = 1000;
+
+#if V8_OS_POSIX
+  static const char* GetGCFakeMMapFile();
+#endif
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };

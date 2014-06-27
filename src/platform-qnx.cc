@@ -27,11 +27,12 @@
 #include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
 
+#include <cmath>
+
 #undef MAP_TYPE
 
-#include "src/v8.h"
-
 #include "src/platform.h"
+#include "src/utils.h"
 
 
 namespace v8 {
@@ -259,8 +260,8 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
                            kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
 
-  Address base = static_cast<Address>(reservation);
-  Address aligned_base = RoundUp(base, alignment);
+  uint8_t* base = static_cast<uint8_t*>(reservation);
+  uint8_t* aligned_base = RoundUp(base, alignment);
   ASSERT_LE(base, aligned_base);
 
   // Unmap extra memory reserved before and after the desired block.
