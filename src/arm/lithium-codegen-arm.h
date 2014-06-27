@@ -86,13 +86,6 @@ class LCodeGen: public LCodeGenBase {
   // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
   MemOperand ToHighMemOperand(LOperand* op) const;
 
-  template<class LI>
-  Operand ToShiftedRightOperand(LOperand* right, LI* shift_info);
-
-  int JSShiftAmountFromLConstant(LOperand* constant) {
-    return ToInteger32(LConstantOperand::cast(constant)) & 0x1f;
-  }
-
   bool IsInteger32(LConstantOperand* op) const;
   bool IsSmi(LConstantOperand* op) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;

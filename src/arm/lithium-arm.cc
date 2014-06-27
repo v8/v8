@@ -676,127 +676,11 @@ LInstruction* LChunkBuilder::DoDeoptimize(HDeoptimize* instr) {
 }
 
 
-HBitwiseBinaryOperation* LChunkBuilder::CanTransformToShiftedOp(HValue* val,
-                                                                HValue** left) {
-  if (!val->representation().IsInteger32()) return NULL;
-  if (!(val->IsBitwise() || val->IsAdd() || val->IsSub())) return NULL;
-
-  HBinaryOperation* hinstr = HBinaryOperation::cast(val);
-  HValue* hleft = hinstr->left();
-  HValue* hright = hinstr->right();
-  ASSERT(hleft->representation().Equals(hinstr->representation()));
-  ASSERT(hright->representation().Equals(hinstr->representation()));
-
-  if ((hright->IsConstant() &&
-       LikelyFitsImmField(hinstr, HConstant::cast(hright)->Integer32Value())) ||
-      (hinstr->IsCommutative() && hleft->IsConstant() &&
-       LikelyFitsImmField(hinstr, HConstant::cast(hleft)->Integer32Value()))) {
-    // The constant operand will likely fit in the immediate field. We are
-    // better off with
-    //     mov r1, r2 LSL #imm
-    //     add r0, r1, #imm2
-    // than with
-    //     mov r5, #imm2
-    //     add r0, r5, r2 LSL #imm
-    return NULL;
-  }
-
-  HBitwiseBinaryOperation* shift = NULL;
-  // TODO(aleram): We will miss situations where a shift operation is used by
-  // different instructions both as a left and right operands.
-  if (hright->IsBitwiseBinaryShift() &&
-      HBitwiseBinaryOperation::cast(hright)->right()->IsConstant()) {
-    shift = HBitwiseBinaryOperation::cast(hright);
-    if (left != NULL) {
-      *left = hleft;
-    }
-  } else if (hinstr->IsCommutative() &&
-             hleft->IsBitwiseBinaryShift() &&
-             HBitwiseBinaryOperation::cast(hleft)->right()->IsConstant()) {
-    shift = HBitwiseBinaryOperation::cast(hleft);
-    if (left != NULL) {
-      *left = hright;
-    }
-  } else {
-    return NULL;
-  }
-
-  if ((JSShiftAmountFromHConstant(shift->right()) == 0) && shift->IsShr()) {
-    // Logical shifts right by zero can deoptimize.
-    return NULL;
-  }
-
-  return shift;
-}
-
-
-bool LChunkBuilder::ShiftCanBeOptimizedAway(HBitwiseBinaryOperation* shift) {
-  if (!shift->representation().IsInteger32()) {
-    return false;
-  }
-  for (HUseIterator it(shift->uses()); !it.Done(); it.Advance()) {
-    if (shift != CanTransformToShiftedOp(it.value())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-
-LInstruction* LChunkBuilder::TryDoOpWithShiftedRightOperand(
-    HBinaryOperation* instr) {
-  HValue* left;
-  HBitwiseBinaryOperation* shift = CanTransformToShiftedOp(instr, &left);
-
-  if ((shift != NULL) && ShiftCanBeOptimizedAway(shift)) {
-    return DoShiftedBinaryOp(instr, left, shift);
-  }
-  return NULL;
-}
-
-
-LInstruction* LChunkBuilder::DoShiftedBinaryOp(
-    HBinaryOperation* hinstr, HValue* hleft, HBitwiseBinaryOperation* hshift) {
-  ASSERT(hshift->IsBitwiseBinaryShift());
-  ASSERT(!hshift->IsShr() || (JSShiftAmountFromHConstant(hshift->right()) > 0));
-
-  LTemplateResultInstruction<1>* res;
-  LOperand* left = UseRegisterAtStart(hleft);
-  LOperand* right = UseRegisterAtStart(hshift->left());
-  LOperand* shift_amount = UseConstant(hshift->right());
-  ShiftOp shift_op;
-  switch (hshift->opcode()) {
-    case HValue::kShl: shift_op = LSL; break;
-    case HValue::kShr: shift_op = LSR; break;
-    case HValue::kSar: shift_op = ASR; break;
-    default: UNREACHABLE(); shift_op = NO_SHIFT;
-  }
-
-  if (hinstr->IsBitwise()) {
-    res = new(zone()) LBitI(left, right, shift_op, shift_amount);
-  } else if (hinstr->IsAdd()) {
-    res = new(zone()) LAddI(left, right, shift_op, shift_amount);
-  } else {
-    ASSERT(hinstr->IsSub());
-    res = new(zone()) LSubI(left, right, shift_op, shift_amount);
-  }
-  if (hinstr->CheckFlag(HValue::kCanOverflow)) {
-    AssignEnvironment(res);
-  }
-  return DefineAsRegister(res);
-}
-
-
 LInstruction* LChunkBuilder::DoShift(Token::Value op,
                                      HBitwiseBinaryOperation* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-
-    if (ShiftCanBeOptimizedAway(instr)) {
-      return NULL;
-    }
-
     LOperand* left = UseRegisterAtStart(instr->left());
 
     HValue* right_value = instr->right();
@@ -806,7 +690,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     if (right_value->IsConstant()) {
       HConstant* constant = HConstant::cast(right_value);
       right = chunk_->DefineConstantOperand(constant);
-      constant_value = JSShiftAmountFromHConstant(constant);
+      constant_value = constant->Integer32Value() & 0x1f;
       // Left shifts can deoptimize if we shift by > 0 and the result cannot be
       // truncated to smi.
       if (instr->representation().IsSmi() && constant_value > 0) {
@@ -1366,11 +1250,6 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
     ASSERT(instr->right()->representation().Equals(instr->representation()));
     ASSERT(instr->CheckFlag(HValue::kTruncatingToInt32));
 
-    LInstruction* shifted_operation = TryDoOpWithShiftedRightOperand(instr);
-    if (shifted_operation != NULL) {
-      return shifted_operation;
-    }
-
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     return DefineAsRegister(new(zone()) LBitI(left, right));
@@ -1654,11 +1533,6 @@ LInstruction* LChunkBuilder::DoSub(HSub* instr) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
 
-    LInstruction* shifted_operation = TryDoOpWithShiftedRightOperand(instr);
-    if (shifted_operation != NULL) {
-      return shifted_operation;
-    }
-
     if (instr->left()->IsConstant()) {
       // If lhs is constant, do reverse subtraction instead.
       return DoRSub(instr);
@@ -1726,12 +1600,6 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-
-    LInstruction* shifted_operation = TryDoOpWithShiftedRightOperand(instr);
-    if (shifted_operation != NULL) {
-      return shifted_operation;
-    }
-
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     LAddI* add = new(zone()) LAddI(left, right);
