@@ -480,19 +480,6 @@ bool LCodeGen::IsInteger32(LConstantOperand* op) const {
 }
 
 
-template<class LI>
-Operand LCodeGen::ToShiftedRightOperand(LOperand* right, LI* shift_info) {
-  if (shift_info->shift() == NO_SHIFT) {
-    return ToOperand(right);
-  } else {
-    return Operand(
-        ToRegister(right),
-        shift_info->shift(),
-        JSShiftAmountFromLConstant(shift_info->shift_amount()));
-  }
-}
-
-
 bool LCodeGen::IsSmi(LConstantOperand* op) const {
   return chunk_->LookupLiteralRepresentation(op).IsSmi();
 }
@@ -1725,13 +1712,11 @@ void LCodeGen::DoBitI(LBitI* instr) {
   Register result = ToRegister(instr->result());
   Operand right(no_reg);
 
-  ASSERT(right_op->IsRegister() || (instr->shift() == NO_SHIFT));
-
   if (right_op->IsStackSlot()) {
     right = Operand(EmitLoadRegister(right_op, ip));
   } else {
     ASSERT(right_op->IsRegister() || right_op->IsConstantOperand());
-    right = ToShiftedRightOperand(right_op, instr);
+    right = ToOperand(right_op);
   }
 
   switch (instr->op()) {
@@ -1788,7 +1773,9 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
         break;
     }
   } else {
-    int shift_count = JSShiftAmountFromLConstant(right_op);
+    // Mask the right_op operand.
+    int value = ToInteger32(LConstantOperand::cast(right_op));
+    uint8_t shift_count = static_cast<uint8_t>(value & 0x1F);
     switch (instr->op()) {
       case Token::ROR:
           if (shift_count != 0) {
@@ -1848,15 +1835,12 @@ void LCodeGen::DoSubI(LSubI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  ASSERT(right->IsRegister() || (instr->shift() == NO_SHIFT));
-
   if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ sub(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
     ASSERT(right->IsRegister() || right->IsConstantOperand());
-    __ sub(ToRegister(result), ToRegister(left),
-           ToShiftedRightOperand(right, instr), set_cond);
+    __ sub(ToRegister(result), ToRegister(left), ToOperand(right), set_cond);
   }
 
   if (can_overflow) {
@@ -2045,15 +2029,12 @@ void LCodeGen::DoAddI(LAddI* instr) {
   bool can_overflow = instr->hydrogen()->CheckFlag(HValue::kCanOverflow);
   SBit set_cond = can_overflow ? SetCC : LeaveCC;
 
-  ASSERT(right->IsRegister() || (instr->shift() == NO_SHIFT));
-
   if (right->IsStackSlot()) {
     Register right_reg = EmitLoadRegister(right, ip);
     __ add(ToRegister(result), ToRegister(left), Operand(right_reg), set_cond);
   } else {
     ASSERT(right->IsRegister() || right->IsConstantOperand());
-    __ add(ToRegister(result), ToRegister(left),
-           ToShiftedRightOperand(right, instr), set_cond);
+    __ add(ToRegister(result), ToRegister(left), ToOperand(right), set_cond);
   }
 
   if (can_overflow) {
