@@ -180,11 +180,9 @@ void DebugCodegen::GenerateCallICStubDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-x87.cc).
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit() | edx.bit(), 0, false);
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0, false);
 }
 
 
@@ -202,11 +200,9 @@ void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-x87.cc).
-  // ----------- S t a t e -------------
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit() | edx.bit(), 0, false);
+  Register receiver = KeyedLoadIC::ReceiverRegister();
+  Register name = KeyedLoadIC::NameRegister();
+  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0, false);
 }
 
 
