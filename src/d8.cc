@@ -872,11 +872,9 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                        performance_template);
 #endif  // !V8_SHARED
 
-#if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New(isolate);
   AddOSMethods(isolate, os_templ);
   global_template->Set(String::NewFromUtf8(isolate, "os"), os_templ);
-#endif  // !V8_SHARED && !_WIN32 && !_WIN64
 
   return global_template;
 }
