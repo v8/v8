@@ -1698,7 +1698,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForStackValue(value);
           __ Mov(x0, Smi::FromInt(NONE));  // PropertyAttributes
           __ Push(x0);
-          __ CallRuntime(Runtime::kSetProperty, 4);
+          __ CallRuntime(Runtime::kAddProperty, 4);
         } else {
           VisitForEffect(key);
           VisitForEffect(value);
@@ -1736,7 +1736,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       EmitAccessor(it->second->setter);
       __ Mov(x10, Smi::FromInt(NONE));
       __ Push(x10);
-      __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
+      __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
   }
 
   if (expr->has_function()) {

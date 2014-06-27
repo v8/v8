@@ -942,7 +942,7 @@ function initializeCollator(collator, locales, options) {
  *
  * @constructor
  */
-%SetProperty(Intl, 'Collator', function() {
+%AddProperty(Intl, 'Collator', function() {
     var locales = %_Arguments(0);
     var options = %_Arguments(1);
 
@@ -960,7 +960,7 @@ function initializeCollator(collator, locales, options) {
 /**
  * Collator resolvedOptions method.
  */
-%SetProperty(Intl.Collator.prototype, 'resolvedOptions', function() {
+%AddProperty(Intl.Collator.prototype, 'resolvedOptions', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -997,7 +997,7 @@ function initializeCollator(collator, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%SetProperty(Intl.Collator, 'supportedLocalesOf', function(locales) {
+%AddProperty(Intl.Collator, 'supportedLocalesOf', function(locales) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1169,7 +1169,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  *
  * @constructor
  */
-%SetProperty(Intl, 'NumberFormat', function() {
+%AddProperty(Intl, 'NumberFormat', function() {
     var locales = %_Arguments(0);
     var options = %_Arguments(1);
 
@@ -1187,7 +1187,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
 /**
  * NumberFormat resolvedOptions method.
  */
-%SetProperty(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
+%AddProperty(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1243,7 +1243,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%SetProperty(Intl.NumberFormat, 'supportedLocalesOf', function(locales) {
+%AddProperty(Intl.NumberFormat, 'supportedLocalesOf', function(locales) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1562,7 +1562,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  *
  * @constructor
  */
-%SetProperty(Intl, 'DateTimeFormat', function() {
+%AddProperty(Intl, 'DateTimeFormat', function() {
     var locales = %_Arguments(0);
     var options = %_Arguments(1);
 
@@ -1580,7 +1580,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
 /**
  * DateTimeFormat resolvedOptions method.
  */
-%SetProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
+%AddProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1636,7 +1636,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%SetProperty(Intl.DateTimeFormat, 'supportedLocalesOf', function(locales) {
+%AddProperty(Intl.DateTimeFormat, 'supportedLocalesOf', function(locales) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1768,7 +1768,7 @@ function initializeBreakIterator(iterator, locales, options) {
  *
  * @constructor
  */
-%SetProperty(Intl, 'v8BreakIterator', function() {
+%AddProperty(Intl, 'v8BreakIterator', function() {
     var locales = %_Arguments(0);
     var options = %_Arguments(1);
 
@@ -1786,7 +1786,7 @@ function initializeBreakIterator(iterator, locales, options) {
 /**
  * BreakIterator resolvedOptions method.
  */
-%SetProperty(Intl.v8BreakIterator.prototype, 'resolvedOptions', function() {
+%AddProperty(Intl.v8BreakIterator.prototype, 'resolvedOptions', function() {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }
@@ -1819,7 +1819,7 @@ function initializeBreakIterator(iterator, locales, options) {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-%SetProperty(Intl.v8BreakIterator, 'supportedLocalesOf', function(locales) {
+%AddProperty(Intl.v8BreakIterator, 'supportedLocalesOf', function(locales) {
     if (%_IsConstructCall()) {
       throw new $TypeError(ORDINARY_FUNCTION_CALLED_AS_CONSTRUCTOR);
     }

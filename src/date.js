@@ -763,7 +763,7 @@ function SetUpDate() {
   ));
 
   // Set up non-enumerable constructor property of the Date prototype object.
-  %SetProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
+  %AddProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
 
   // Set up non-enumerable functions of the Date prototype object and
   // set their names.

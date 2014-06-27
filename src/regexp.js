@@ -381,7 +381,7 @@ var lastMatchInfoOverride = null;
 function SetUpRegExp() {
   %CheckIsBootstrapping();
   %FunctionSetInstanceClassName($RegExp, 'RegExp');
-  %SetProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
+  %AddProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
   %SetCode($RegExp, RegExpConstructor);
 
   InstallFunctions($RegExp.prototype, DONT_ENUM, $Array(
@@ -406,12 +406,12 @@ function SetUpRegExp() {
   };
 
   %OptimizeObjectForAddingMultipleProperties($RegExp, 22);
-  %DefineOrRedefineAccessorProperty($RegExp, 'input', RegExpGetInput,
-                                    RegExpSetInput, DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$_', RegExpGetInput,
-                                    RegExpSetInput, DONT_ENUM | DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$input', RegExpGetInput,
-                                    RegExpSetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'input', RegExpGetInput,
+                                   RegExpSetInput, DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$_', RegExpGetInput,
+                                   RegExpSetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$input', RegExpGetInput,
+                                   RegExpSetInput, DONT_ENUM | DONT_DELETE);
 
   // The properties multiline and $* are aliases for each other.  When this
   // value is set in SpiderMonkey, the value it is set to is coerced to a
@@ -425,40 +425,40 @@ function SetUpRegExp() {
   var RegExpGetMultiline = function() { return multiline; };
   var RegExpSetMultiline = function(flag) { multiline = flag ? true : false; };
 
-  %DefineOrRedefineAccessorProperty($RegExp, 'multiline', RegExpGetMultiline,
-                                    RegExpSetMultiline, DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$*', RegExpGetMultiline,
-                                    RegExpSetMultiline,
-                                    DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'multiline', RegExpGetMultiline,
+                                   RegExpSetMultiline, DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$*', RegExpGetMultiline,
+                                   RegExpSetMultiline,
+                                   DONT_ENUM | DONT_DELETE);
 
 
   var NoOpSetter = function(ignored) {};
 
 
   // Static properties set by a successful match.
-  %DefineOrRedefineAccessorProperty($RegExp, 'lastMatch', RegExpGetLastMatch,
-                                    NoOpSetter, DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$&', RegExpGetLastMatch,
-                                    NoOpSetter, DONT_ENUM | DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, 'lastParen', RegExpGetLastParen,
-                                    NoOpSetter, DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$+', RegExpGetLastParen,
-                                    NoOpSetter, DONT_ENUM | DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, 'leftContext',
-                                    RegExpGetLeftContext, NoOpSetter,
-                                    DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, '$`', RegExpGetLeftContext,
-                                    NoOpSetter, DONT_ENUM | DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, 'rightContext',
-                                    RegExpGetRightContext, NoOpSetter,
-                                    DONT_DELETE);
-  %DefineOrRedefineAccessorProperty($RegExp, "$'", RegExpGetRightContext,
-                                    NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'lastMatch', RegExpGetLastMatch,
+                                   NoOpSetter, DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$&', RegExpGetLastMatch,
+                                   NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'lastParen', RegExpGetLastParen,
+                                   NoOpSetter, DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$+', RegExpGetLastParen,
+                                   NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'leftContext',
+                                   RegExpGetLeftContext, NoOpSetter,
+                                   DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, '$`', RegExpGetLeftContext,
+                                   NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, 'rightContext',
+                                   RegExpGetRightContext, NoOpSetter,
+                                   DONT_DELETE);
+  %DefineAccessorPropertyUnchecked($RegExp, "$'", RegExpGetRightContext,
+                                   NoOpSetter, DONT_ENUM | DONT_DELETE);
 
   for (var i = 1; i < 10; ++i) {
-    %DefineOrRedefineAccessorProperty($RegExp, '$' + i,
-                                      RegExpMakeCaptureGetter(i), NoOpSetter,
-                                      DONT_DELETE);
+    %DefineAccessorPropertyUnchecked($RegExp, '$' + i,
+                                     RegExpMakeCaptureGetter(i), NoOpSetter,
+                                     DONT_DELETE);
   }
   %ToFastProperties($RegExp);
 }

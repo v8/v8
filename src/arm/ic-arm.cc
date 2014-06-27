@@ -872,11 +872,10 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
   // Push receiver, key and value for runtime call.
   __ Push(r2, r1, r0);
 
-  __ mov(r1, Operand(Smi::FromInt(NONE)));          // PropertyAttributes
   __ mov(r0, Operand(Smi::FromInt(strict_mode)));   // Strict mode.
   __ Push(r1, r0);
 
-  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 

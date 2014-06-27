@@ -30,10 +30,10 @@
 DontEnum = 2;
 
 var o = {};
-%SetProperty(o, "a", 0, DontEnum);
+%AddProperty(o, "a", 0, DontEnum);
 
 var o2 = {};
-%SetProperty(o2, "a", 0, DontEnum);
+%AddProperty(o2, "a", 0, DontEnum);
 
 assertTrue(%HaveSameMap(o, o2));
 

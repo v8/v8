@@ -109,10 +109,8 @@ class DebugLocalContext {
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
         factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
-    v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
-        Handle<Object>(debug_context->global_proxy(), isolate),
-        DONT_ENUM,
-        ::v8::internal::SLOPPY).Check();
+    v8::internal::Runtime::DefineObjectProperty(global, debug_string,
+        handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }
 
  private:

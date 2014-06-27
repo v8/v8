@@ -915,7 +915,7 @@ function SetUpString() {
   %FunctionSetPrototype($String, new $String());
 
   // Set up the constructor property on the String prototype object.
-  %SetProperty($String.prototype, "constructor", $String, DONT_ENUM);
+  %AddProperty($String.prototype, "constructor", $String, DONT_ENUM);
 
   // Set up the non-enumerable functions on the String object.
   InstallFunctions($String, DONT_ENUM, $Array(

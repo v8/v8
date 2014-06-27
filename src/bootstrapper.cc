@@ -855,11 +855,11 @@ void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
   native_context()->set_security_token(*inner_global);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Runtime::ForceSetObjectProperty(builtins_global,
-                                  factory()->InternalizeOneByteString(
-                                      STATIC_ASCII_VECTOR("global")),
-                                  inner_global,
-                                  attributes).Assert();
+  Runtime::DefineObjectProperty(builtins_global,
+                                factory()->InternalizeOneByteString(
+                                    STATIC_ASCII_VECTOR("global")),
+                                inner_global,
+                                attributes).Assert();
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
   TransferNamedProperties(inner_global_from_snapshot, inner_global);
@@ -2669,11 +2669,11 @@ Genesis::Genesis(Isolate* isolate,
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    Runtime::ForceSetObjectProperty(builtins,
-                                    factory()->InternalizeOneByteString(
-                                        STATIC_ASCII_VECTOR("rngstate")),
-                                    Utils::OpenHandle(*ta),
-                                    NONE).Assert();
+    Runtime::DefineObjectProperty(builtins,
+                                  factory()->InternalizeOneByteString(
+                                      STATIC_ASCII_VECTOR("rngstate")),
+                                  Utils::OpenHandle(*ta),
+                                  NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
     const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
@@ -2688,25 +2688,25 @@ Genesis::Genesis(Isolate* isolate,
     v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
         cos_buffer, 0, TrigonometricLookupTable::table_size());
 
-    Runtime::ForceSetObjectProperty(builtins,
-                                    factory()->InternalizeOneByteString(
-                                        STATIC_ASCII_VECTOR("kSinTable")),
-                                    Utils::OpenHandle(*sin_table),
-                                    NONE).Assert();
-    Runtime::ForceSetObjectProperty(
+    Runtime::DefineObjectProperty(builtins,
+                                  factory()->InternalizeOneByteString(
+                                      STATIC_ASCII_VECTOR("kSinTable")),
+                                  Utils::OpenHandle(*sin_table),
+                                  NONE).Assert();
+    Runtime::DefineObjectProperty(
         builtins,
         factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("kCosXIntervalTable")),
         Utils::OpenHandle(*cos_table),
         NONE).Assert();
-    Runtime::ForceSetObjectProperty(
+    Runtime::DefineObjectProperty(
         builtins,
         factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("kSamples")),
         factory()->NewHeapNumber(
             TrigonometricLookupTable::samples()),
         NONE).Assert();
-    Runtime::ForceSetObjectProperty(
+    Runtime::DefineObjectProperty(
         builtins,
         factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("kIndexConvert")),
