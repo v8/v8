@@ -14,7 +14,8 @@ using namespace v8::internal;
 
 TEST(OStringStreamConstructor) {
   OStringStream oss;
-  CHECK_EQ(0, oss.size());
+  const size_t expected_size = 0;
+  CHECK(expected_size == oss.size());
   CHECK_GT(oss.capacity(), 0);
   CHECK_NE(NULL, oss.data());
   CHECK_EQ("", oss.c_str());
@@ -42,7 +43,7 @@ TEST(OStringStreamGrow) {
       TEST_STRING TEST_STRING TEST_STRING TEST_STRING TEST_STRING
       TEST_STRING TEST_STRING TEST_STRING TEST_STRING TEST_STRING;
   const size_t expected_len = len * repeat;
-  CHECK_EQ(static_cast<int>(expected_len), oss.size());
+  CHECK(expected_len == oss.size());
   CHECK_GT(oss.capacity(), 0);
   CHECK_EQ(0, strncmp(expected, oss.data(), expected_len));
   CHECK_EQ(expected, oss.c_str());
