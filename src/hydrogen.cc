@@ -1513,13 +1513,23 @@ void HGraphBuilder::BuildKeyedIndexCheck(HValue* key,
               Token::BIT_AND,
               instance_type,
               Add<HConstant>(static_cast<int>(kIsNotInternalizedMask)));
-          DeoptimizeIf<HCompareNumericAndBranch>(
-              not_internalized_bit,
-              graph()->GetConstant0(),
-              Token::NE,
-              "BuildKeyedIndexCheck: string isn't internalized");
-          // Key guaranteed to be a unqiue string
+
+          IfBuilder internalized(this);
+          internalized.If<HCompareNumericAndBranch>(not_internalized_bit,
+                                                    graph()->GetConstant0(),
+                                                    Token::EQ);
+          internalized.Then();
           Push(key);
+
+          internalized.Else();
+          Add<HPushArguments>(key);
+          HValue* intern_key = Add<HCallRuntime>(
+              isolate()->factory()->empty_string(),
+              Runtime::FunctionForId(Runtime::kInternalizeString), 1);
+          Push(intern_key);
+
+          internalized.End();
+          // Key guaranteed to be a unique string
         }
         string_index_if.JoinContinuation(join_continuation);
       }
