@@ -20,9 +20,9 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
-
 #if defined(__linux__)
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
@@ -315,6 +315,11 @@ double OS::nan_value() {
 
 int OS::GetCurrentProcessId() {
   return static_cast<int>(getpid());
+}
+
+
+int OS::GetCurrentThreadId() {
+  return static_cast<int>(syscall(SYS_gettid));
 }
 
 
