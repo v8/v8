@@ -2544,6 +2544,13 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
 }
 
 
+MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
+  // Create the promise event object.
+  Handle<Object> argv[] = { event_data };
+  return MakeJSObject("MakePromiseEvent", ARRAY_SIZE(argv), argv);
+}
+
+
 void Debug::OnException(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
 
@@ -2686,6 +2693,25 @@ void Debug::OnAfterCompile(Handle<Script> script) {
 
   // Process debug event.
   ProcessDebugEvent(v8::AfterCompile, Handle<JSObject>::cast(event_data), true);
+}
+
+
+void Debug::OnPromiseEvent(Handle<JSObject> data) {
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the script collected state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakePromiseEvent(data).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::PromiseEvent,
+                    Handle<JSObject>::cast(event_data),
+                    true);
 }
 
 
