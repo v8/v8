@@ -38,7 +38,7 @@ namespace internal {
 
 #ifdef __linux__
 
-const char PerfJitLogger::kFilenameFormatString[] = "perfjit.dump";
+const char PerfJitLogger::kFilenameFormatString[] = "perfjit-%d.dump";
 
 // Timestamp module name
 const char PerfJitLogger::kTraceClockDevice[] = "/dev/trace_clock";
