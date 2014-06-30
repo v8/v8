@@ -438,8 +438,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
 
   for (var prop in changeRecord) {
     if (prop === 'object' || (hasType && prop === 'type')) continue;
-    %DefineOrRedefineDataProperty(newRecord, prop, changeRecord[prop],
-        READ_ONLY + DONT_DELETE);
+    %AddProperty(newRecord, prop, changeRecord[prop], READ_ONLY + DONT_DELETE);
   }
   ObjectFreezeJS(newRecord);
 

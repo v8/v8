@@ -110,7 +110,7 @@ function SetUpArrayIterator() {
     'next', ArrayIteratorNext
   ));
   %FunctionSetName(ArrayIteratorIterator, '[Symbol.iterator]');
-  %SetProperty(ArrayIterator.prototype, symbolIterator, ArrayIteratorIterator,
+  %AddProperty(ArrayIterator.prototype, symbolIterator, ArrayIteratorIterator,
       DONT_ENUM);
 }
 SetUpArrayIterator();
@@ -125,7 +125,7 @@ function ExtendArrayPrototype() {
     'keys', ArrayKeys
   ));
 
-  %SetProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
+  %AddProperty($Array.prototype, symbolIterator, ArrayValues, DONT_ENUM);
 }
 ExtendArrayPrototype();
 
@@ -146,10 +146,10 @@ macro TYPED_ARRAYS(FUNCTION)
 endmacro
 
 macro EXTEND_TYPED_ARRAY(NAME)
-  %SetProperty($NAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
-  %SetProperty($NAME.prototype, 'values', ArrayValues, DONT_ENUM);
-  %SetProperty($NAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
-  %SetProperty($NAME.prototype, symbolIterator, ArrayValues, DONT_ENUM);
+  %AddProperty($NAME.prototype, 'entries', ArrayEntries, DONT_ENUM);
+  %AddProperty($NAME.prototype, 'values', ArrayValues, DONT_ENUM);
+  %AddProperty($NAME.prototype, 'keys', ArrayKeys, DONT_ENUM);
+  %AddProperty($NAME.prototype, symbolIterator, ArrayValues, DONT_ENUM);
 endmacro
 
   TYPED_ARRAYS(EXTEND_TYPED_ARRAY)

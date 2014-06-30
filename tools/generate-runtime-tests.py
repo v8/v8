@@ -47,11 +47,11 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 415
-EXPECTED_FUZZABLE_COUNT = 330
+EXPECTED_FUNCTION_COUNT = 414
+EXPECTED_FUZZABLE_COUNT = 329
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 4
-EXPECTED_BUILTINS_COUNT = 808
+EXPECTED_BUILTINS_COUNT = 806
 
 
 # Don't call these at all.
@@ -211,6 +211,7 @@ _NUMBER_FORMAT = (
 # Format: "FunctionName": ["arg0", "arg1", ..., argslength].
 # None means "fall back to autodetected value".
 CUSTOM_KNOWN_GOOD_INPUT = {
+  "AddProperty": [None, 10, None, None, None],
   "Apply": ["function() {}", None, None, None, None, None],
   "ArrayBufferSliceImpl": [None, None, 0, None],
   "ArrayConcat": ["[1, 'a']", None],
@@ -225,8 +226,8 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "CreatePrivateSymbol": ["\"foo\"", None],
   "CreateSymbol": ["\"foo\"", None],
   "DateParseString": [None, "new Array(8)", None],
-  "DefineOrRedefineAccessorProperty": [None, None, "function() {}",
-                                       "function() {}", 2, None],
+  "DefineAccessorPropertyUnchecked": [None, None, "function() {}",
+                                      "function() {}", 2, None],
   "FunctionBindArguments": [None, None, "undefined", None, None],
   "GetBreakLocations": [None, 0, None],
   "GetDefaultReceiver": ["function() {}", None],
@@ -242,7 +243,7 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "NumberToRadixString": [None, "2", None],
   "ParseJson": ["\"{}\"", 1],
   "RegExpExecMultiple": [None, None, "['a']", "['a']", None],
-  "SetAccessorProperty": [None, None, "undefined", "undefined", None, None],
+  "DefineAccessorProperty": [None, None, "undefined", "undefined", None, None],
   "SetIteratorInitialize": [None, None, "2", None],
   "SetDebugEventListener": ["undefined", None, None],
   "SetFunctionBreakPoint": [None, 200, None, None],

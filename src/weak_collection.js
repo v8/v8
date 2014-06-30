@@ -89,7 +89,7 @@ function SetUpWeakMap() {
 
   %SetCode($WeakMap, WeakMapConstructor);
   %FunctionSetPrototype($WeakMap, new $Object());
-  %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
+  %AddProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakMap prototype object.
   InstallFunctions($WeakMap.prototype, DONT_ENUM, $Array(
@@ -169,7 +169,7 @@ function SetUpWeakSet() {
 
   %SetCode($WeakSet, WeakSetConstructor);
   %FunctionSetPrototype($WeakSet, new $Object());
-  %SetProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
+  %AddProperty($WeakSet.prototype, "constructor", $WeakSet, DONT_ENUM);
 
   // Set up the non-enumerable functions on the WeakSet prototype object.
   InstallFunctions($WeakSet.prototype, DONT_ENUM, $Array(

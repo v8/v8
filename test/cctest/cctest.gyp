@@ -96,6 +96,7 @@
         'test-mutex.cc',
         'test-object-observe.cc',
         'test-ordered-hash-table.cc',
+        'test-ostreams.cc',
         'test-parsing.cc',
         'test-platform.cc',
         'test-platform-tls.cc',

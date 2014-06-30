@@ -1274,15 +1274,13 @@ LInstruction* LChunkBuilder::DoCompareNumericAndBranch(
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
-    // TODO(all): In fact the only case that we can handle more efficiently is
-    // when one of the operand is the constant 0. Currently the MacroAssembler
-    // will be able to cope with any constant by loading it into an internal
-    // scratch register. This means that if the constant is used more that once,
-    // it will be loaded multiple times. Unfortunatly crankshaft already
-    // duplicates constant loads, but we should modify the code below once this
-    // issue has been addressed in crankshaft.
-    LOperand* left = UseRegisterOrConstantAtStart(instr->left());
-    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
+      LOperand* left = UseConstant(instr->left());
+      LOperand* right = UseConstant(instr->right());
+      return new(zone()) LCompareNumericAndBranch(left, right);
+    }
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterAtStart(instr->right());
     return new(zone()) LCompareNumericAndBranch(left, right);
   }
 }
@@ -1658,7 +1656,8 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* global_object = UseFixed(instr->global_object(), x0);
+  LOperand* global_object = UseFixed(instr->global_object(),
+                                     LoadIC::ReceiverRegister());
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, x0), instr);
@@ -1714,8 +1713,8 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), x1);
-  LOperand* key = UseFixed(instr->key(), x0);
+  LOperand* object = UseFixed(instr->object(), KeyedLoadIC::ReceiverRegister());
+  LOperand* key = UseFixed(instr->key(), KeyedLoadIC::NameRegister());
 
   LInstruction* result =
       DefineFixed(new(zone()) LLoadKeyedGeneric(context, object, key), x0);
@@ -1731,7 +1730,7 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), x0);
+  LOperand* object = UseFixed(instr->object(), LoadIC::ReceiverRegister());
   LInstruction* result =
       DefineFixed(new(zone()) LLoadNamedGeneric(context, object), x0);
   return MarkAsCall(result, instr);

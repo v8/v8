@@ -286,7 +286,7 @@ function MakeGenericError(constructor, type, args) {
  * Set up the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%SetProperty(Script.prototype, 'constructor', Script,
+%AddProperty(Script.prototype, 'constructor', Script,
              DONT_ENUM | DONT_DELETE | READ_ONLY);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
@@ -1148,7 +1148,7 @@ function captureStackTrace(obj, cons_opt) {
   // holder of this setter, the accessor pair is turned into a data property.
   var setter = function(v) {
     // Set data property on the receiver (not necessarily holder).
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    %DefineDataPropertyUnchecked(this, 'stack', v, NONE);
     if (this === obj) {
       // Release context values if holder is the same as the receiver.
       stack = error_string = UNDEFINED;
@@ -1163,14 +1163,14 @@ function captureStackTrace(obj, cons_opt) {
     // Stack is still a raw array awaiting to be formatted.
     var result = FormatStackTrace(obj, error_string, GetStackFrames(stack));
     // Replace this accessor to return result directly.
-    %DefineOrRedefineAccessorProperty(
+    %DefineAccessorPropertyUnchecked(
         obj, 'stack', function() { return result }, setter, DONT_ENUM);
     // Release context values.
     stack = error_string = UNDEFINED;
     return result;
   };
 
-  %DefineOrRedefineAccessorProperty(obj, 'stack', getter, setter, DONT_ENUM);
+  %DefineAccessorPropertyUnchecked(obj, 'stack', getter, setter, DONT_ENUM);
 }
 
 
@@ -1185,8 +1185,9 @@ function SetUpError() {
     // effects when overwriting the error functions from
     // user code.
     var name = f.name;
-    %SetProperty(global, name, f, DONT_ENUM);
-    %SetProperty(builtins, '$' + name, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
+    %AddProperty(global, name, f, DONT_ENUM);
+    %AddProperty(builtins, '$' + name, f,
+                 DONT_ENUM | DONT_DELETE | READ_ONLY);
     // Configure the error function.
     if (name == 'Error') {
       // The prototype of the Error object must itself be an error.
@@ -1201,17 +1202,16 @@ function SetUpError() {
       %FunctionSetPrototype(f, new $Error());
     }
     %FunctionSetInstanceClassName(f, 'Error');
-    %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    %SetProperty(f.prototype, "name", name, DONT_ENUM);
+    %AddProperty(f.prototype, 'constructor', f, DONT_ENUM);
+    %AddProperty(f.prototype, "name", name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
         // Define all the expected properties directly on the error
         // object. This avoids going through getters and setters defined
         // on prototype objects.
-        %IgnoreAttributesAndSetProperty(this, 'stack', UNDEFINED, DONT_ENUM);
+        %AddProperty(this, 'stack', UNDEFINED, DONT_ENUM);
         if (!IS_UNDEFINED(m)) {
-          %IgnoreAttributesAndSetProperty(
-            this, 'message', ToString(m), DONT_ENUM);
+          %AddProperty(this, 'message', ToString(m), DONT_ENUM);
         }
         captureStackTrace(this, f);
       } else {
@@ -1234,7 +1234,7 @@ SetUpError();
 
 $Error.captureStackTrace = captureStackTrace;
 
-%SetProperty($Error.prototype, 'message', '', DONT_ENUM);
+%AddProperty($Error.prototype, 'message', '', DONT_ENUM);
 
 // Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.
@@ -1311,7 +1311,7 @@ function SetUpStackOverflowBoilerplate() {
   // Set the 'stack' property on the receiver.  If the receiver is the same as
   // holder of this setter, the accessor pair is turned into a data property.
   var setter = function(v) {
-    %DefineOrRedefineDataProperty(this, 'stack', v, NONE);
+    %DefineDataPropertyUnchecked(this, 'stack', v, NONE);
     // Tentatively clear the hidden property. If the receiver is the same as
     // holder, we release the raw stack trace this way.
     %GetAndClearOverflowedStackTrace(this);
@@ -1333,12 +1333,12 @@ function SetUpStackOverflowBoilerplate() {
 
     var result = FormatStackTrace(holder, error_string, GetStackFrames(stack));
     // Replace this accessor to return result directly.
-    %DefineOrRedefineAccessorProperty(
+    %DefineAccessorPropertyUnchecked(
         holder, 'stack', function() { return result }, setter, DONT_ENUM);
     return result;
   };
 
-  %DefineOrRedefineAccessorProperty(
+  %DefineAccessorPropertyUnchecked(
       boilerplate, 'stack', getter, setter, DONT_ENUM);
 
   return boilerplate;

@@ -368,13 +368,11 @@ bool ScopeInfo::CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
     int context_index = Context::MIN_CONTEXT_SLOTS + i;
     RETURN_ON_EXCEPTION_VALUE(
         isolate,
-        Runtime::SetObjectProperty(
-            isolate,
+        Runtime::DefineObjectProperty(
             scope_object,
             Handle<String>(String::cast(scope_info->get(i + start))),
             Handle<Object>(context->get(context_index), isolate),
-            ::NONE,
-            SLOPPY),
+            ::NONE),
         false);
   }
   return true;

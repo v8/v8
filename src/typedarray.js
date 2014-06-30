@@ -299,11 +299,11 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %SetCode(global.NAME, NAMEConstructor);
   %FunctionSetPrototype(global.NAME, new $Object());
 
-  %SetProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
+  %AddProperty(global.NAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                READ_ONLY | DONT_ENUM | DONT_DELETE);
-  %SetProperty(global.NAME.prototype,
+  %AddProperty(global.NAME.prototype,
                "constructor", global.NAME, DONT_ENUM);
-  %SetProperty(global.NAME.prototype,
+  %AddProperty(global.NAME.prototype,
                "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                READ_ONLY | DONT_ENUM | DONT_DELETE);
   InstallGetter(global.NAME.prototype, "buffer", NAME_GetBuffer);
@@ -436,7 +436,7 @@ function SetupDataView() {
   %FunctionSetPrototype($DataView, new $Object);
 
   // Set up constructor property on the DataView prototype.
-  %SetProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
+  %AddProperty($DataView.prototype, "constructor", $DataView, DONT_ENUM);
 
   InstallGetter($DataView.prototype, "buffer", DataViewGetBufferJS);
   InstallGetter($DataView.prototype, "byteOffset", DataViewGetByteOffset);

@@ -4,6 +4,5 @@
 var _object = new Object();
 var _key = new Object();
 var _value = new Object();
-var _unchecked_attributes = 1;
 var _strict_mode_arg = 1;
-%SetProperty(_object, _key, _value, _unchecked_attributes, _strict_mode_arg);
+%SetProperty(_object, _key, _value, _strict_mode_arg);

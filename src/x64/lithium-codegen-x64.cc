@@ -2849,10 +2849,10 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->global_object()).is(rax));
+  ASSERT(ToRegister(instr->global_object()).is(LoadIC::ReceiverRegister()));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  __ Move(rcx, instr->name());
+  __ Move(LoadIC::NameRegister(), instr->name());
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -2989,10 +2989,10 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
 
 void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->object()).is(rax));
+  ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
   ASSERT(ToRegister(instr->result()).is(rax));
 
-  __ Move(rcx, instr->name());
+  __ Move(LoadIC::NameRegister(), instr->name());
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -3286,8 +3286,8 @@ Operand LCodeGen::BuildFastArrayOperand(
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(rsi));
-  ASSERT(ToRegister(instr->object()).is(rdx));
-  ASSERT(ToRegister(instr->key()).is(rax));
+  ASSERT(ToRegister(instr->object()).is(KeyedLoadIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->key()).is(KeyedLoadIC::NameRegister()));
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);

@@ -3030,6 +3030,9 @@ uint32_t Value::Uint32Value() const {
 }
 
 
+// TODO(verwaest): Remove the attribs argument, since it doesn't make sense for
+// existing properties. Use ForceSet instead to define or redefine properties
+// with specific attributes.
 bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
                      v8::PropertyAttribute attribs) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -3041,12 +3044,8 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
   has_pending_exception = i::Runtime::SetObjectProperty(
-      isolate,
-      self,
-      key_obj,
-      value_obj,
-      static_cast<PropertyAttributes>(attribs),
-      i::SLOPPY).is_null();
+      isolate, self, key_obj, value_obj, i::SLOPPY,
+      static_cast<PropertyAttributes>(attribs)).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3078,7 +3077,7 @@ bool v8::Object::ForceSet(v8::Handle<Value> key,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  has_pending_exception = i::Runtime::ForceSetObjectProperty(
+  has_pending_exception = i::Runtime::DefineObjectProperty(
       self,
       key_obj,
       value_obj,

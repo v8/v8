@@ -8,6 +8,7 @@
 
 #include <dlfcn.h>
 #include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
@@ -41,10 +42,13 @@
 #include <android/log.h>  // NOLINT
 #endif
 
-#include "src/v8.h"
+#include <cmath>
+#include <cstdlib>
 
 #include "src/base/lazy-instance.h"
+#include "src/base/macros.h"
 #include "src/platform.h"
+#include "src/platform/time.h"
 #include "src/utils/random-number-generator.h"
 
 #ifdef V8_FAST_TLS_SUPPORTED
@@ -54,8 +58,16 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 // 0 is never a valid thread id.
-static const pthread_t kNoThread = (pthread_t) 0;
+const pthread_t kNoThread = (pthread_t) 0;
+
+bool g_hard_abort = false;
+
+const char* g_gc_fake_mmap = NULL;
+
+}  // namespace
 
 
 int OS::NumberOfProcessorsOnline() {
@@ -191,8 +203,18 @@ static base::LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 
 
-void OS::SetRandomSeed(int64_t seed) {
-  platform_random_number_generator.Pointer()->SetSeed(seed);
+void OS::Initialize(int64_t random_seed, bool hard_abort,
+                    const char* const gc_fake_mmap) {
+  if (random_seed) {
+    platform_random_number_generator.Pointer()->SetSeed(random_seed);
+  }
+  g_hard_abort = hard_abort;
+  g_gc_fake_mmap = gc_fake_mmap;
+}
+
+
+const char* OS::GetGCFakeMMapFile() {
+  return g_gc_fake_mmap;
 }
 
 
@@ -253,7 +275,7 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  if (FLAG_hard_abort) {
+  if (g_hard_abort) {
     V8_IMMEDIATE_CRASH();
   }
   // Redirect to std abort to signal abnormal program termination.
@@ -470,7 +492,7 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 // POSIX thread support.
 //
 
-class Thread::PlatformData : public Malloced {
+class Thread::PlatformData {
  public:
   PlatformData() : thread_(kNoThread) {}
   pthread_t thread_;  // Thread handle for pthread.

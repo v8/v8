@@ -14,12 +14,13 @@
 #include <sys/time.h>
 #include <unistd.h>     // sysconf
 
-#undef MAP_TYPE
+#include <cmath>
 
-#include "src/v8.h"
+#undef MAP_TYPE
 
 #include "src/base/win32-headers.h"
 #include "src/platform.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -237,7 +238,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);
   if (address == NULL) return;
-  Address base = RoundUp(static_cast<Address>(address), alignment);
+  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
   // Try reducing the size by freeing and then reallocating a specific area.
   bool result = ReleaseRegion(address, request_size);
   USE(result);
@@ -245,7 +246,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != NULL) {
     request_size = size;
-    ASSERT(base == static_cast<Address>(address));
+    ASSERT(base == static_cast<uint8_t*>(address));
   } else {
     // Resizing failed, just go with a bigger area.
     address = ReserveRegion(request_size);

@@ -453,11 +453,10 @@ void ParserTraits::CheckPossibleEvalCall(Expression* expression,
 }
 
 
-Expression* ParserTraits::MarkExpressionAsLValue(Expression* expression) {
-  VariableProxy* proxy = expression != NULL
-      ? expression->AsVariableProxy()
-      : NULL;
-  if (proxy != NULL) proxy->MarkAsLValue();
+Expression* ParserTraits::MarkExpressionAsAssigned(Expression* expression) {
+  VariableProxy* proxy =
+      expression != NULL ? expression->AsVariableProxy() : NULL;
+  if (proxy != NULL) proxy->set_is_assigned();
   return expression;
 }
 
@@ -593,8 +592,7 @@ Expression* ParserTraits::NewThrowError(
   Zone* zone = parser_->zone();
   int argc = arg != NULL ? 1 : 0;
   const AstRawString* type =
-      parser_->ast_value_factory_->GetOneByteString(Vector<const uint8_t>(
-          reinterpret_cast<const uint8_t*>(message), StrLength(message)));
+      parser_->ast_value_factory_->GetOneByteString(message);
   ZoneList<const AstRawString*>* array =
       new (zone) ZoneList<const AstRawString*>(argc, zone);
   if (arg != NULL) {
@@ -1722,6 +1720,8 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       Expression* expression = NewThrowTypeError(
           "var_redeclaration", name, declaration->position());
       declaration_scope->SetIllegalRedeclaration(expression);
+    } else if (mode == VAR) {
+      var->set_maybe_assigned();
     }
   }
 
@@ -3888,6 +3888,8 @@ void Parser::ThrowPendingError() {
           .ToHandleChecked();
       elements->set(0, *arg_string);
     }
+    isolate()->debug()->OnCompileError(script_);
+
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
     Handle<Object> result = pending_error_is_reference_error_
         ? factory->NewReferenceError(pending_error_message_, array)

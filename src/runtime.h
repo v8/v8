@@ -206,7 +206,6 @@ namespace internal {
   F(GetTemplateField, 2, 1) \
   F(DisableAccessChecks, 1, 1) \
   F(EnableAccessChecks, 1, 1) \
-  F(SetAccessorProperty, 5, 1) \
   \
   /* Dates */ \
   F(DateCurrentTime, 0, 1) \
@@ -224,10 +223,10 @@ namespace internal {
   F(GlobalReceiver, 1, 1) \
   F(IsAttachedGlobal, 1, 1) \
   \
-  F(SetProperty, -1 /* 4 or 5 */, 1) \
-  F(DefineOrRedefineDataProperty, 4, 1) \
-  F(DefineOrRedefineAccessorProperty, 5, 1) \
-  F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
+  F(AddProperty, 4, 1) \
+  F(SetProperty, 4, 1) \
+  F(DefineDataPropertyUnchecked, 4, 1) \
+  F(DefineAccessorPropertyUnchecked, 5, 1) \
   F(GetDataProperty, 2, 1) \
   F(SetHiddenProperty, 3, 1) \
   \
@@ -800,21 +799,23 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       uint32_t index);
 
+  // Do not use SetObjectProperty to configure a property with specific
+  // attributes. The argument will be removed once the API is adapted.
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key,
       Handle<Object> value,
-      PropertyAttributes attr,
-      StrictMode strict_mode);
+      StrictMode strict_mode,
+      PropertyAttributes attributes = NONE);
 
-  MUST_USE_RESULT static MaybeHandle<Object> ForceSetObjectProperty(
+  MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
       Handle<JSObject> object,
       Handle<Object> key,
       Handle<Object> value,
       PropertyAttributes attr,
-      JSReceiver::StoreFromKeyed store_from_keyed
-        = JSReceiver::MAY_BE_STORE_FROM_KEYED);
+      JSReceiver::StoreFromKeyed store_from_keyed =
+          JSReceiver::MAY_BE_STORE_FROM_KEYED);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate,

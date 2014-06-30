@@ -57,6 +57,14 @@
           'libraries': [ '-lreadline', ],
           'sources': [ 'd8-readline.cc' ],
         }],
+        ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
+           or OS=="openbsd" or OS=="solaris" or OS=="android" \
+           or OS=="qnx")', {
+             'sources': [ 'd8-posix.cc', ]
+           }],
+        [ 'OS=="win"', {
+          'sources': [ 'd8-windows.cc', ]
+        }],
         [ 'component!="shared_library"', {
           'sources': [ 'd8-debug.cc', '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc', ],
           'conditions': [
@@ -68,14 +76,6 @@
               'dependencies': [
                 'd8_js2c',
               ],
-            }],
-            ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
-               or OS=="openbsd" or OS=="solaris" or OS=="android" \
-               or OS=="qnx")', {
-              'sources': [ 'd8-posix.cc', ]
-            }],
-            [ 'OS=="win"', {
-              'sources': [ 'd8-windows.cc', ]
             }],
           ],
         }],

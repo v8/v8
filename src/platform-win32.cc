@@ -17,10 +17,10 @@
 
 #include "src/base/win32-headers.h"
 
-#include "src/v8.h"
-
 #include "src/base/lazy-instance.h"
 #include "src/platform.h"
+#include "src/platform/time.h"
+#include "src/utils.h"
 #include "src/utils/random-number-generator.h"
 
 #ifdef _MSC_VER
@@ -102,6 +102,12 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 
 namespace v8 {
 namespace internal {
+
+namespace {
+
+bool g_hard_abort = false;
+
+}  // namespace
 
 intptr_t OS::MaxVirtualMemory() {
   return 0;
@@ -713,8 +719,12 @@ static base::LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 
 
-void OS::SetRandomSeed(int64_t seed) {
-  platform_random_number_generator.Pointer()->SetSeed(seed);
+void OS::Initialize(int64_t random_seed, bool hard_abort,
+                    const char* const gc_fake_mmap) {
+  if (random_seed) {
+    platform_random_number_generator.Pointer()->SetSeed(random_seed);
+  }
+  g_hard_abort = hard_abort;
 }
 
 
@@ -808,7 +818,7 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  if (FLAG_hard_abort) {
+  if (g_hard_abort) {
     V8_IMMEDIATE_CRASH();
   }
   // Make the MSVCRT do a silent abort.
@@ -1217,7 +1227,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);
   if (address == NULL) return;
-  Address base = RoundUp(static_cast<Address>(address), alignment);
+  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
   // Try reducing the size by freeing and then reallocating a specific area.
   bool result = ReleaseRegion(address, request_size);
   USE(result);
@@ -1225,7 +1235,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != NULL) {
     request_size = size;
-    ASSERT(base == static_cast<Address>(address));
+    ASSERT(base == static_cast<uint8_t*>(address));
   } else {
     // Resizing failed, just go with a bigger area.
     address = ReserveRegion(request_size);
@@ -1325,7 +1335,7 @@ static unsigned int __stdcall ThreadEntry(void* arg) {
 }
 
 
-class Thread::PlatformData : public Malloced {
+class Thread::PlatformData {
  public:
   explicit PlatformData(HANDLE thread) : thread_(thread) {}
   HANDLE thread_;

@@ -1,3 +1,10 @@
+2014-06-30: Version 3.28.6
+
+        Unbreak "os" stuff in shared d8 builds (issue 3407).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-26: Version 3.28.4
 
         Compile optimized code with active debugger but no break points

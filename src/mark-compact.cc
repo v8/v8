@@ -4224,17 +4224,24 @@ void MarkCompactCollector::SweepSpaces() {
     }
   }
   RemoveDeadInvalidatedCode();
-  SweepSpace(heap()->code_space(), PRECISE);
 
-  SweepSpace(heap()->cell_space(), PRECISE);
-  SweepSpace(heap()->property_cell_space(), PRECISE);
+  { GCTracer::Scope sweep_scope(tracer_, GCTracer::Scope::MC_SWEEP_CODE);
+    SweepSpace(heap()->code_space(), PRECISE);
+  }
+
+  { GCTracer::Scope sweep_scope(tracer_, GCTracer::Scope::MC_SWEEP_CELL);
+    SweepSpace(heap()->cell_space(), PRECISE);
+    SweepSpace(heap()->property_cell_space(), PRECISE);
+  }
 
   EvacuateNewSpaceAndCandidates();
 
   // ClearNonLiveTransitions depends on precise sweeping of map space to
   // detect whether unmarked map became dead in this collection or in one
   // of the previous ones.
-  SweepSpace(heap()->map_space(), PRECISE);
+  { GCTracer::Scope sweep_scope(tracer_, GCTracer::Scope::MC_SWEEP_MAP);
+    SweepSpace(heap()->map_space(), PRECISE);
+  }
 
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();

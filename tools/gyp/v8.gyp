@@ -55,8 +55,11 @@
           # to appear before libv8_snapshot.a so it's listed explicitly.
           'dependencies': ['v8_base', 'v8_nosnapshot'],
         }],
-        ['v8_use_external_startup_data==1', {
+        ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
+        }],
+        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot#host'],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -219,7 +222,7 @@
       'type': 'static_library',
       'conditions': [
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
+          'toolsets': ['host'],
           'dependencies': [
             'mksnapshot#host',
             'js2c#host',
@@ -570,8 +573,10 @@
         '../../src/objects-visiting.h',
         '../../src/objects.cc',
         '../../src/objects.h',
-        '../../src/optimizing-compiler-thread.h',
         '../../src/optimizing-compiler-thread.cc',
+        '../../src/optimizing-compiler-thread.h',
+        '../../src/ostreams.cc',
+        '../../src/ostreams.h',
         '../../src/parser.cc',
         '../../src/parser.h',
         '../../src/platform/elapsed-timer.h',

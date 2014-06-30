@@ -19,7 +19,7 @@ enum DebugEvent {
   NewFunction = 3,
   BeforeCompile = 4,
   AfterCompile  = 5,
-  ScriptCollected = 6,
+  CompileError = 6,
   BreakForCommand = 7
 };
 

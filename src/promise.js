@@ -299,7 +299,7 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
   // Install exported functions.
 
   %CheckIsBootstrapping();
-  %SetProperty(global, 'Promise', $Promise, DONT_ENUM);
+  %AddProperty(global, 'Promise', $Promise, DONT_ENUM);
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
     "accept", PromiseResolved,

@@ -278,6 +278,10 @@ class AstValueFactory {
   }
 
   const AstRawString* GetOneByteString(Vector<const uint8_t> literal);
+  const AstRawString* GetOneByteString(const char* string) {
+    return GetOneByteString(Vector<const uint8_t>(
+        reinterpret_cast<const uint8_t*>(string), StrLength(string)));
+  }
   const AstRawString* GetTwoByteString(Vector<const uint16_t> literal);
   const AstRawString* GetString(Handle<String> literal);
   const AstConsString* NewConsString(const AstString* left,

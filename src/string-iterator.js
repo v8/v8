@@ -84,7 +84,7 @@ function SetUpStringIterator() {
     'next', StringIteratorNext
   ));
   %FunctionSetName(StringIteratorIterator, '[Symbol.iterator]');
-  %SetProperty(StringIterator.prototype, symbolIterator, StringIteratorIterator,
+  %AddProperty(StringIterator.prototype, symbolIterator, StringIteratorIterator,
       DONT_ENUM);
 }
 SetUpStringIterator();
@@ -100,7 +100,7 @@ function ExtendStringPrototypeWithIterator() {
   %CheckIsBootstrapping();
 
   %FunctionSetName(StringPrototypeIterator, '[Symbol.iterator]');
-  %SetProperty($String.prototype, symbolIterator, StringPrototypeIterator,
+  %AddProperty($String.prototype, symbolIterator, StringPrototypeIterator,
       DONT_ENUM);
 }
 ExtendStringPrototypeWithIterator();

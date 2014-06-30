@@ -1743,7 +1743,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         isolate(),
         result,
         Runtime::SetObjectProperty(
-            isolate(), object, key, value, NONE, strict_mode()),
+            isolate(), object, key, value, strict_mode()),
         Object);
     return result;
   }
@@ -1811,7 +1811,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         isolate(),
         store_handle,
         Runtime::SetObjectProperty(
-            isolate(), object, key, value, NONE, strict_mode()),
+            isolate(), object, key, value, strict_mode()),
         Object);
   }
 
@@ -2143,7 +2143,7 @@ RUNTIME_FUNCTION(StoreIC_Slow) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Runtime::SetObjectProperty(
-          isolate, object, key, value, NONE, strict_mode));
+          isolate, object, key, value, strict_mode));
   return *result;
 }
 
@@ -2160,7 +2160,7 @@ RUNTIME_FUNCTION(KeyedStoreIC_Slow) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Runtime::SetObjectProperty(
-          isolate, object, key, value, NONE, strict_mode));
+          isolate, object, key, value, strict_mode));
   return *result;
 }
 
@@ -2184,7 +2184,7 @@ RUNTIME_FUNCTION(ElementsTransitionAndStoreIC_Miss) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       Runtime::SetObjectProperty(
-          isolate, object, key, value, NONE, strict_mode));
+          isolate, object, key, value, strict_mode));
   return *result;
 }
 

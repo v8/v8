@@ -159,9 +159,6 @@ class ScriptCache : private HashMap {
   // Return the scripts in the cache.
   Handle<FixedArray> GetScripts();
 
-  // Generate debugger events for collected scripts.
-  void ProcessCollectedScripts();
-
  private:
   // Calculate the hash value from the key (script id).
   static uint32_t Hash(int key) {
@@ -176,8 +173,6 @@ class ScriptCache : private HashMap {
       const v8::WeakCallbackData<v8::Value, void>& data);
 
   Isolate* isolate_;
-  // List used during GC to temporarily store id's of collected scripts.
-  List<int> collected_scripts_;
 };
 
 
@@ -364,18 +359,12 @@ class PromiseOnStack {
 // DebugInfo.
 class Debug {
  public:
-  enum AfterCompileFlags {
-    NO_AFTER_COMPILE_FLAGS,
-    SEND_WHEN_DEBUGGING
-  };
-
   // Debug event triggers.
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
   void OnException(Handle<Object> exception, bool uncaught);
+  void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
-  void OnAfterCompile(Handle<Script> script,
-                      AfterCompileFlags after_compile_flags);
-  void OnScriptCollected(int id);
+  void OnAfterCompile(Handle<Script> script);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -482,9 +471,6 @@ class Debug {
   // Record function from which eval was called.
   static void RecordEvalCaller(Handle<Script> script);
 
-  // Garbage collection notifications.
-  void AfterGarbageCollection();
-
   // Flags and states.
   DebugScope* debugger_entry() { return thread_local_.current_debug_scope_; }
   inline Handle<Context> debug_context() { return debug_context_; }
@@ -548,8 +534,7 @@ class Debug {
       bool uncaught,
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
-      Handle<Script> script, bool before);
-  MUST_USE_RESULT MaybeHandle<Object> MakeScriptCollectedEvent(int id);
+      Handle<Script> script, v8::DebugEvent type);
 
   // Mirror cache handling.
   void ClearMirrorCache();

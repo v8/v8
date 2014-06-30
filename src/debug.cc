@@ -592,8 +592,7 @@ int Debug::ArchiveSpacePerThread() {
 
 
 ScriptCache::ScriptCache(Isolate* isolate) : HashMap(HashMap::PointersMatch),
-                                             isolate_(isolate),
-                                             collected_scripts_(10) {
+                                             isolate_(isolate) {
   Heap* heap = isolate_->heap();
   HandleScope scope(isolate_);
 
@@ -651,15 +650,6 @@ Handle<FixedArray> ScriptCache::GetScripts() {
 }
 
 
-void ScriptCache::ProcessCollectedScripts() {
-  Debug* debug = isolate_->debug();
-  for (int i = 0; i < collected_scripts_.length(); i++) {
-    debug->OnScriptCollected(collected_scripts_[i]);
-  }
-  collected_scripts_.Clear();
-}
-
-
 void ScriptCache::Clear() {
   // Iterate the script cache to get rid of all the weak handles.
   for (HashMap::Entry* entry = Start(); entry != NULL; entry = Next(entry)) {
@@ -688,7 +678,6 @@ void ScriptCache::HandleWeakScript(
   HashMap::Entry* entry = script_cache->Lookup(key, hash, false);
   Object** location = reinterpret_cast<Object**>(entry->value);
   script_cache->Remove(key, hash);
-  script_cache->collected_scripts_.Add(id);
 
   // Clear the weak handle.
   GlobalHandles::Destroy(location);
@@ -2500,14 +2489,6 @@ void Debug::RecordEvalCaller(Handle<Script> script) {
 }
 
 
-void Debug::AfterGarbageCollection() {
-  // Generate events for collected scripts.
-  if (script_cache_ != NULL) {
-    script_cache_->ProcessCollectedScripts();
-  }
-}
-
-
 MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
                                         int argc,
                                         Handle<Object> argv[]) {
@@ -2554,20 +2535,12 @@ MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
 
 
 MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
-                                            bool before) {
+                                            v8::DebugEvent type) {
   // Create the compile event object.
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = { script_wrapper,
-                            isolate_->factory()->ToBoolean(before) };
+                            isolate_->factory()->NewNumberFromInt(type) };
   return MakeJSObject("MakeCompileEvent", ARRAY_SIZE(argv), argv);
-}
-
-
-MaybeHandle<Object> Debug::MakeScriptCollectedEvent(int id) {
-  // Create the script collected event object.
-  Handle<Object> id_object = Handle<Smi>(Smi::FromInt(id), isolate_);
-  Handle<Object> argv[] = { id_object };
-  return MakeJSObject("MakeScriptCollectedEvent", ARRAY_SIZE(argv), argv);
 }
 
 
@@ -2607,6 +2580,24 @@ void Debug::OnException(Handle<Object> exception, bool uncaught) {
 }
 
 
+void Debug::OnCompileError(Handle<Script> script) {
+  // No more to do if not debugging.
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the compile state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakeCompileEvent(script, v8::CompileError).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::CompileError, Handle<JSObject>::cast(event_data), true);
+}
+
+
 void Debug::OnDebugBreak(Handle<Object> break_points_hit,
                             bool auto_continue) {
   // The caller provided for DebugScope.
@@ -2637,7 +2628,8 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeCompileEvent(script, true).ToHandle(&event_data)) return;
+  if (!MakeCompileEvent(script, v8::BeforeCompile).ToHandle(&event_data))
+    return;
 
   // Process debug event.
   ProcessDebugEvent(v8::BeforeCompile,
@@ -2647,8 +2639,7 @@ void Debug::OnBeforeCompile(Handle<Script> script) {
 
 
 // Handle debugger actions when a new script is compiled.
-void Debug::OnAfterCompile(Handle<Script> script,
-                           AfterCompileFlags after_compile_flags) {
+void Debug::OnAfterCompile(Handle<Script> script) {
   // Add the newly compiled script to the script cache.
   if (script_cache_ != NULL) script_cache_->Add(script);
 
@@ -2656,9 +2647,6 @@ void Debug::OnAfterCompile(Handle<Script> script,
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
-  // Store whether in debugger before entering debugger.
-  bool was_in_scope = in_debug_scope();
-
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
@@ -2690,35 +2678,14 @@ void Debug::OnAfterCompile(Handle<Script> script,
                          argv).is_null()) {
     return;
   }
-  // Bail out based on state or if there is no listener for this event
-  if (was_in_scope && (after_compile_flags & SEND_WHEN_DEBUGGING) == 0) return;
 
   // Create the compile state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeCompileEvent(script, false).ToHandle(&event_data)) return;
+  if (!MakeCompileEvent(script, v8::AfterCompile).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AfterCompile, Handle<JSObject>::cast(event_data), true);
-}
-
-
-void Debug::OnScriptCollected(int id) {
-  if (in_debug_scope() || ignore_events()) return;
-
-  HandleScope scope(isolate_);
-  DebugScope debug_scope(this);
-  if (debug_scope.failed()) return;
-
-  // Create the script collected state object.
-  Handle<Object> event_data;
-  // Bail out and don't call debugger if exception.
-  if (!MakeScriptCollectedEvent(id).ToHandle(&event_data)) return;
-
-  // Process debug event.
-  ProcessDebugEvent(v8::ScriptCollected,
-                    Handle<JSObject>::cast(event_data),
-                    true);
 }
 
 
@@ -2823,9 +2790,6 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     case v8::AfterCompile:
       sendEventMessage = true;
       break;
-    case v8::ScriptCollected:
-      sendEventMessage = true;
-      break;
     case v8::NewFunction:
       break;
     default:
@@ -2853,9 +2817,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
   // in the queue if any. For script collected events don't even process
   // messages in the queue as the execution state might not be what is expected
   // by the client.
-  if ((auto_continue && !has_commands()) || event == v8::ScriptCollected) {
-    return;
-  }
+  if (auto_continue && !has_commands()) return;
 
   // DebugCommandProcessor goes here.
   bool running = auto_continue;
@@ -3238,7 +3200,7 @@ v8::Handle<v8::Context> MessageImpl::GetEventContext() const {
   Isolate* isolate = event_data_->GetIsolate();
   v8::Handle<v8::Context> context = GetDebugEventContext(isolate);
   // Isolate::context() may be NULL when "script collected" event occures.
-  ASSERT(!context.IsEmpty() || event_ == v8::ScriptCollected);
+  ASSERT(!context.IsEmpty());
   return context;
 }
 

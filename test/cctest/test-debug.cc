@@ -109,10 +109,8 @@ class DebugLocalContext {
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
         factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
-    v8::internal::Runtime::SetObjectProperty(isolate, global, debug_string,
-        Handle<Object>(debug_context->global_proxy(), isolate),
-        DONT_ENUM,
-        ::v8::internal::SLOPPY).Check();
+    v8::internal::Runtime::DefineObjectProperty(global, debug_string,
+        handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }
 
  private:
@@ -6221,120 +6219,6 @@ TEST(NestedBreakEventContextData) {
 }
 
 
-// Debug event listener which counts the script collected events.
-int script_collected_count = 0;
-static void DebugEventScriptCollectedEvent(
-    const v8::Debug::EventDetails& event_details) {
-  v8::DebugEvent event = event_details.GetEvent();
-  // Count the number of breaks.
-  if (event == v8::ScriptCollected) {
-    script_collected_count++;
-  }
-}
-
-
-// Test that scripts collected are reported through the debug event listener.
-TEST(ScriptCollectedEvent) {
-  v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  break_point_hit_count = 0;
-  script_collected_count = 0;
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  // Request the loaded scripts to initialize the debugger script cache.
-  debug->GetLoadedScripts();
-
-  // Do garbage collection to ensure that only the script in this test will be
-  // collected afterwards.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-
-  script_collected_count = 0;
-  v8::Debug::SetDebugEventListener(DebugEventScriptCollectedEvent);
-  {
-    v8::Script::Compile(
-        v8::String::NewFromUtf8(env->GetIsolate(), "eval('a=1')"))->Run();
-    v8::Script::Compile(
-        v8::String::NewFromUtf8(env->GetIsolate(), "eval('a=2')"))->Run();
-  }
-
-  // Do garbage collection to collect the script above which is no longer
-  // referenced.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-
-  CHECK_EQ(2, script_collected_count);
-
-  v8::Debug::SetDebugEventListener(NULL);
-  CheckDebuggerUnloaded();
-}
-
-
-// Debug event listener which counts the script collected events.
-int script_collected_message_count = 0;
-static void ScriptCollectedMessageHandler(const v8::Debug::Message& message) {
-  // Count the number of scripts collected.
-  if (message.IsEvent() && message.GetEvent() == v8::ScriptCollected) {
-    script_collected_message_count++;
-    v8::Handle<v8::Context> context = message.GetEventContext();
-    CHECK(context.IsEmpty());
-  }
-}
-
-
-// Test that GetEventContext doesn't fail and return empty handle for
-// ScriptCollected events.
-TEST(ScriptCollectedEventContext) {
-  i::FLAG_stress_compaction = false;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::internal::Debug* debug =
-      reinterpret_cast<v8::internal::Isolate*>(isolate)->debug();
-  script_collected_message_count = 0;
-  v8::HandleScope scope(isolate);
-
-  v8::Persistent<v8::Context> context;
-  {
-    v8::HandleScope scope(isolate);
-    context.Reset(isolate, v8::Context::New(isolate));
-  }
-
-  // Enter context.  We can't have a handle to the context in the outer
-  // scope, so we have to do it the hard way.
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> local_context =
-        v8::Local<v8::Context>::New(isolate, context);
-    local_context->Enter();
-  }
-
-  // Request the loaded scripts to initialize the debugger script cache.
-  debug->GetLoadedScripts();
-
-  // Do garbage collection to ensure that only the script in this test will be
-  // collected afterwards.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-
-  v8::Debug::SetMessageHandler(ScriptCollectedMessageHandler);
-  v8::Script::Compile(v8::String::NewFromUtf8(isolate, "eval('a=1')"))->Run();
-  v8::Script::Compile(v8::String::NewFromUtf8(isolate, "eval('a=2')"))->Run();
-
-  // Leave context
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> local_context =
-        v8::Local<v8::Context>::New(isolate, context);
-    local_context->Exit();
-  }
-  context.Reset();
-
-  // Do garbage collection to collect the script above which is no longer
-  // referenced.
-  CcTest::heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-
-  CHECK_EQ(2, script_collected_message_count);
-
-  v8::Debug::SetMessageHandler(NULL);
-}
-
-
 // Debug event listener which counts the after compile events.
 int after_compile_message_count = 0;
 static void AfterCompileMessageHandler(const v8::Debug::Message& message) {
@@ -6373,6 +6257,60 @@ TEST(AfterCompileMessageWhenMessageHandlerIsReset) {
 
   // Compilation cache should be disabled when debugger is active.
   CHECK_EQ(2, after_compile_message_count);
+}
+
+
+// Syntax error event handler which counts a number of events.
+int compile_error_event_count = 0;
+
+static void CompileErrorEventCounterClear() {
+  compile_error_event_count = 0;
+}
+
+static void CompileErrorEventCounter(
+    const v8::Debug::EventDetails& event_details) {
+  v8::DebugEvent event = event_details.GetEvent();
+
+  if (event == v8::CompileError) {
+    compile_error_event_count++;
+  }
+}
+
+
+// Tests that syntax error event is sent as many times as there are scripts
+// with syntax error compiled.
+TEST(SyntaxErrorMessageOnSyntaxException) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  // For this test, we want to break on uncaught exceptions:
+  ChangeBreakOnException(false, true);
+
+  v8::Debug::SetDebugEventListener(CompileErrorEventCounter);
+
+  CompileErrorEventCounterClear();
+
+  // Check initial state.
+  CHECK_EQ(0, compile_error_event_count);
+
+  // Throws SyntaxError: Unexpected end of input
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "+++"));
+  CHECK_EQ(1, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "/sel\\/: \\"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "JSON.parse('1234:')"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(
+    v8::String::NewFromUtf8(env->GetIsolate(), "new RegExp('/\\/\\\\');"));
+  CHECK_EQ(2, compile_error_event_count);
+
+  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "throw 1;"));
+  CHECK_EQ(2, compile_error_event_count);
 }
 
 

@@ -49,7 +49,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object());
-  Runtime::SetObjectProperty(isolate, global, internalized_name, object, NONE,
+  Runtime::SetObjectProperty(isolate, global, internalized_name, object,
                              SLOPPY).Check();
 }
 

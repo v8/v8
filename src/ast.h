@@ -1628,17 +1628,14 @@ class VariableProxy V8_FINAL : public Expression {
 
   bool IsArguments() const { return var_ != NULL && var_->is_arguments(); }
 
-  bool IsLValue() const { return is_lvalue_; }
-
   Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   Interface* interface() const { return interface_; }
 
-
-  void MarkAsTrivial() { is_trivial_ = true; }
-  void MarkAsLValue() { is_lvalue_ = true; }
+  bool is_assigned() const { return is_assigned_; }
+  void set_is_assigned() { is_assigned_ = true; }
 
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
@@ -1655,10 +1652,7 @@ class VariableProxy V8_FINAL : public Expression {
   const AstRawString* name_;
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
-  bool is_trivial_;
-  // True if this variable proxy is being used in an assignment
-  // or with a increment/decrement operator.
-  bool is_lvalue_;
+  bool is_assigned_;
   Interface* interface_;
 };
 

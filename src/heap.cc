@@ -717,7 +717,6 @@ void Heap::GarbageCollectionEpilogue() {
 #ifdef DEBUG
   ReportStatisticsAfterGC();
 #endif  // DEBUG
-  isolate_->debug()->AfterGarbageCollection();
 
   // Remember the last top pointer so that we can later find out
   // whether we allocated in new space since the last GC.
@@ -6121,6 +6120,9 @@ GCTracer::~GCTracer() {
     PrintF("sweep=%.2f ", scopes_[Scope::MC_SWEEP]);
     PrintF("sweepns=%.2f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
     PrintF("sweepos=%.2f ", scopes_[Scope::MC_SWEEP_OLDSPACE]);
+    PrintF("sweepcode=%.2f ", scopes_[Scope::MC_SWEEP_CODE]);
+    PrintF("sweepcell=%.2f ", scopes_[Scope::MC_SWEEP_CELL]);
+    PrintF("sweepmap=%.2f ", scopes_[Scope::MC_SWEEP_MAP]);
     PrintF("evacuate=%.1f ", scopes_[Scope::MC_EVACUATE_PAGES]);
     PrintF("new_new=%.1f ", scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
     PrintF("root_new=%.1f ", scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
