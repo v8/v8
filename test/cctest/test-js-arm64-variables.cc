@@ -32,11 +32,11 @@
 #include "src/v8.h"
 
 #include "src/api.h"
+#include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
 #include "src/parser.h"
-#include "src/platform.h"
 #include "src/snapshot.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"

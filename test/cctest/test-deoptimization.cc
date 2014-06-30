@@ -30,20 +30,20 @@
 #include "src/v8.h"
 
 #include "src/api.h"
+#include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/isolate.h"
-#include "src/platform.h"
 #include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
+using ::v8::base::OS;
 using ::v8::internal::Deoptimizer;
 using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Handle;
 using ::v8::internal::Isolate;
 using ::v8::internal::JSFunction;
-using ::v8::internal::OS;
 using ::v8::internal::Object;
 
 // Size of temp buffer for formatting small strings.

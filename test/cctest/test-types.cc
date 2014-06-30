@@ -27,9 +27,9 @@
 
 #include <vector>
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/hydrogen-types.h"
 #include "src/types.h"
-#include "src/utils/random-number-generator.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -339,7 +339,7 @@ class Types {
 
  private:
   Region* region_;
-  RandomNumberGenerator rng_;
+  v8::base::RandomNumberGenerator rng_;
 };
 
 
@@ -583,7 +583,7 @@ struct Tests : Rep {
     CHECK(T.Constant(fac->NewNumber(-10.1))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(10e60))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(-1.0*0.0))->Is(T.MinusZero));
-    CHECK(T.Constant(fac->NewNumber(OS::nan_value()))->Is(T.NaN));
+    CHECK(T.Constant(fac->NewNumber(v8::base::OS::nan_value()))->Is(T.NaN));
     CHECK(T.Constant(fac->NewNumber(V8_INFINITY))->Is(T.OtherNumber));
     CHECK(T.Constant(fac->NewNumber(-V8_INFINITY))->Is(T.OtherNumber));
   }

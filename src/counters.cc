@@ -4,9 +4,9 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/counters.h"
 #include "src/isolate.h"
-#include "src/platform.h"
 
 namespace v8 {
 namespace internal {

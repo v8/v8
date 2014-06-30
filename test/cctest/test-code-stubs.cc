@@ -31,10 +31,10 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/code-stubs.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
-#include "src/platform.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
@@ -92,7 +92,7 @@ int32_t DefaultCallWrapper(ConvertDToIFunc func,
 
 // #define NaN and Infinity so that it's possible to cut-and-paste these tests
 // directly to a .js file and run them.
-#define NaN (OS::nan_value())
+#define NaN (v8::base::OS::nan_value())
 #define Infinity (std::numeric_limits<double>::infinity())
 #define RunOneTruncationTest(p1, p2) \
     RunOneTruncationTestWithTest(callWrapper, func, p1, p2)

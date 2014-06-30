@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UTILS_RANDOM_NUMBER_GENERATOR_H_
-#define V8_UTILS_RANDOM_NUMBER_GENERATOR_H_
+#ifndef V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
+#define V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
 #include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // -----------------------------------------------------------------------------
 // RandomNumberGenerator
@@ -84,6 +84,6 @@ class RandomNumberGenerator V8_FINAL {
   int64_t seed_;
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_UTILS_RANDOM_NUMBER_GENERATOR_H_
+#endif  // V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_

@@ -488,8 +488,6 @@ source_set("v8_base") {
     "src/cpu-profiler-inl.h",
     "src/cpu-profiler.cc",
     "src/cpu-profiler.h",
-    "src/cpu.cc",
-    "src/cpu.h",
     "src/data-flow.cc",
     "src/data-flow.h",
     "src/date.cc",
@@ -680,16 +678,6 @@ source_set("v8_base") {
     "src/ostreams.h",
     "src/parser.cc",
     "src/parser.h",
-    "src/platform/elapsed-timer.h",
-    "src/platform/time.cc",
-    "src/platform/time.h",
-    "src/platform.h",
-    "src/platform/condition-variable.cc",
-    "src/platform/condition-variable.h",
-    "src/platform/mutex.cc",
-    "src/platform/mutex.h",
-    "src/platform/semaphore.cc",
-    "src/platform/semaphore.h",
     "src/preparse-data-format.h",
     "src/preparse-data.cc",
     "src/preparse-data.h",
@@ -775,11 +763,8 @@ source_set("v8_base") {
     "src/utils-inl.h",
     "src/utils.cc",
     "src/utils.h",
-    "src/utils/random-number-generator.cc",
-    "src/utils/random-number-generator.h",
     "src/v8.cc",
     "src/v8.h",
-    "src/v8checks.h",
     "src/v8memory.h",
     "src/v8threads.cc",
     "src/v8threads.h",
@@ -973,53 +958,11 @@ source_set("v8_base") {
   defines = []
   deps = [ ":v8_libbase" ]
 
-  if (is_posix) {
-    sources += [
-      "src/platform-posix.cc"
-    ]
-  }
-
   if (is_linux) {
-    sources += [
-      "src/platform-linux.cc"
-    ]
-
-    libs = [ "rt" ]
     if (v8_compress_startup_data == "bz2") {
       libs += [ "bz2" ]
     }
-  } else if (is_android) {
-    defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
-
-    if (build_os == "mac") {
-      if (current_toolchain == host_toolchain) {
-        sources += [ "src/platform-macos.cc" ]
-      } else {
-        sources += [ "src/platform-linux.cc" ]
-      }
-    } else {
-      sources += [ "src/platform-linux.cc" ]
-      if (current_toolchain == host_toolchain) {
-        defines += [ "V8_LIBRT_NOT_AVAILABLE" ]
-      }
-    }
-  } else if (is_mac) {
-    sources += [ "src/platform-macos.cc" ]
-  } else if (is_win) {
-    # TODO(jochen): Add support for cygwin.
-    sources += [
-      "src/platform-win32.cc",
-      "src/win32-math.cc",
-      "src/win32-math.h",
-    ]
-
-    defines += [ "_CRT_RAND_S" ]  # for rand_s()
-
-    libs = [ "winmm.lib", "ws2_32.lib" ]
   }
-
-  # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
-
 
   if (v8_enable_i18n_support) {
     deps += [ "//third_party/icu" ]
@@ -1056,20 +999,82 @@ source_set("v8_libbase") {
     "src/base/atomicops_internals_x86_gcc.h",
     "src/base/atomicops_internals_x86_msvc.h",
     "src/base/build_config.h",
+    "src/base/cpu.cc",
+    "src/base/cpu.h",
     "src/base/lazy-instance.h",
+    "src/base/logging.cc",
+    "src/base/logging.h",
     "src/base/macros.h",
     "src/base/once.cc",
     "src/base/once.h",
+    "src/base/platform/elapsed-timer.h",
+    "src/base/platform/time.cc",
+    "src/base/platform/time.h",
+    "src/base/platform/condition-variable.cc",
+    "src/base/platform/condition-variable.h",
+    "src/base/platform/mutex.cc",
+    "src/base/platform/mutex.h",
+    "src/base/platform/platform.h",
+    "src/base/platform/semaphore.cc",
+    "src/base/platform/semaphore.h",
     "src/base/safe_conversions.h",
     "src/base/safe_conversions_impl.h",
     "src/base/safe_math.h",
     "src/base/safe_math_impl.h",
-    "src/base/win32-headers.h",
+    "src/base/utils/random-number-generator.cc",
+    "src/base/utils/random-number-generator.h",
   ]
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features", ":toolchain" ]
+
+  defines = []
+
+  if (is_posix) {
+    sources += [
+      "src/base/platform/platform-posix.cc"
+    ]
+  }
+
+  if (is_linux) {
+    sources += [
+      "src/base/platform/platform-linux.cc"
+    ]
+
+    libs = [ "rt" ]
+  } else if (is_android) {
+    defines += [ "CAN_USE_VFP_INSTRUCTIONS" ]
+
+    if (build_os == "mac") {
+      if (current_toolchain == host_toolchain) {
+        sources += [ "src/base/platform/platform-macos.cc" ]
+      } else {
+        sources += [ "src/base/platform/platform-linux.cc" ]
+      }
+    } else {
+      sources += [ "src/base/platform/platform-linux.cc" ]
+      if (current_toolchain == host_toolchain) {
+        defines += [ "V8_LIBRT_NOT_AVAILABLE" ]
+      }
+    }
+  } else if (is_mac) {
+    sources += [ "src/base/platform/platform-macos.cc" ]
+  } else if (is_win) {
+    # TODO(jochen): Add support for cygwin.
+    sources += [
+      "src/base/platform/platform-win32.cc",
+      "src/base/platform/win32-headers.h",
+      "src/base/platform/win32-math.cc",
+      "src/base/platform/win32-math.h",
+    ]
+
+    defines += [ "_CRT_RAND_S" ]  # for rand_s()
+
+    libs = [ "winmm.lib", "ws2_32.lib" ]
+  }
+
+  # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
 ###############################################################################

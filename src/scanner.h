@@ -8,8 +8,8 @@
 #define V8_SCANNER_H_
 
 #include "src/allocation.h"
+#include "src/base/logging.h"
 #include "src/char-predicates.h"
-#include "src/checks.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
 #include "src/list.h"

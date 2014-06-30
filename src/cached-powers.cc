@@ -7,8 +7,8 @@
 #include <cmath>
 
 #include "include/v8stdint.h"
+#include "src/base/logging.h"
 #include "src/cached-powers.h"
-#include "src/checks.h"
 #include "src/globals.h"
 
 namespace v8 {

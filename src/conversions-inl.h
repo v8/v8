@@ -14,9 +14,9 @@
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
+#include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/double.h"
-#include "src/platform.h"
 #include "src/scanner.h"
 #include "src/strtod.h"
 

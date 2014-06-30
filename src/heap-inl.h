@@ -7,13 +7,13 @@
 
 #include <cmath>
 
+#include "src/base/platform/platform.h"
 #include "src/cpu-profiler.h"
 #include "src/heap.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/objects.h"
-#include "src/platform.h"
 #include "src/store-buffer.h"
 #include "src/store-buffer-inl.h"
 

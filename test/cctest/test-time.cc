@@ -36,6 +36,7 @@
 #include "src/base/win32-headers.h"
 #endif
 
+using namespace v8::base;
 using namespace v8::internal;
 
 

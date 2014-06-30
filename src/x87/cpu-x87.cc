@@ -12,13 +12,13 @@
 
 #if V8_TARGET_ARCH_X87
 
-#include "src/cpu.h"
+#include "src/assembler.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-void CPU::FlushICache(void* start, size_t size) {
+void CpuFeatures::FlushICache(void* start, size_t size) {
   // No need to flush the instruction cache on Intel. On Intel instruction
   // cache flushing is only necessary when multiple cores running the same
   // code simultaneously. V8 (and JavaScript) is single threaded and when code

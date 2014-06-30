@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/platform/mutex.h"
+#include "src/base/platform/mutex.h"
 
 #include <errno.h>
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #if V8_OS_POSIX
 
@@ -188,4 +188,4 @@ bool RecursiveMutex::TryLock() {
   return true;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

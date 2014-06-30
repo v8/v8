@@ -49,7 +49,7 @@ namespace internal {
 // Implementation of CpuFeatures
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  CPU cpu;
+  base::CPU cpu;
 
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
@@ -107,7 +107,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   }
 
   // Indicate that code has changed.
-  CPU::FlushICache(pc_, instruction_count);
+  CpuFeatures::FlushICache(pc_, instruction_count);
 }
 
 

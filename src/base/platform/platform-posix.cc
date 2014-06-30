@@ -47,16 +47,16 @@
 
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
-#include "src/platform.h"
-#include "src/platform/time.h"
-#include "src/utils/random-number-generator.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/base/utils/random-number-generator.h"
 
 #ifdef V8_FAST_TLS_SUPPORTED
 #include "src/base/atomicops.h"
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 namespace {
 
@@ -199,7 +199,7 @@ void OS::Guard(void* address, const size_t size) {
 }
 
 
-static base::LazyInstance<RandomNumberGenerator>::type
+static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 
 
@@ -626,7 +626,7 @@ static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 
 #ifdef V8_FAST_TLS_SUPPORTED
 
-static base::Atomic32 tls_base_offset_initialized = 0;
+static Atomic32 tls_base_offset_initialized = 0;
 intptr_t kMacTlsBaseOffset = 0;
 
 // It's safe to do the initialization more that once, but it has to be
@@ -662,7 +662,7 @@ static void InitializeTlsBaseOffset() {
     kMacTlsBaseOffset = 0;
   }
 
-  base::Release_Store(&tls_base_offset_initialized, 1);
+  Release_Store(&tls_base_offset_initialized, 1);
 }
 
 
@@ -723,4 +723,4 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 }
 
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

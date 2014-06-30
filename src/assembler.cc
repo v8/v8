@@ -36,10 +36,11 @@
 
 #include <cmath>
 #include "src/api.h"
+#include "src/base/cpu.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/platform/platform.h"
 #include "src/builtins.h"
 #include "src/counters.h"
-#include "src/cpu.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
@@ -47,7 +48,6 @@
 #include "src/ic.h"
 #include "src/isolate-inl.h"
 #include "src/jsregexp.h"
-#include "src/platform.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
 #include "src/runtime.h"
@@ -98,16 +98,16 @@ namespace internal {
 // Common double constants.
 
 struct DoubleConstant BASE_EMBEDDED {
-  double min_int;
-  double one_half;
-  double minus_one_half;
-  double minus_zero;
-  double zero;
-  double uint8_max_value;
-  double negative_infinity;
-  double canonical_non_hole_nan;
-  double the_hole_nan;
-  double uint32_bias;
+double min_int;
+double one_half;
+double minus_one_half;
+double minus_zero;
+double zero;
+double uint8_max_value;
+double negative_infinity;
+double canonical_non_hole_nan;
+double the_hole_nan;
+double uint32_bias;
 };
 
 static DoubleConstant double_constants;
@@ -115,7 +115,7 @@ static DoubleConstant double_constants;
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 static bool math_exp_data_initialized = false;
-static Mutex* math_exp_data_mutex = NULL;
+static base::Mutex* math_exp_data_mutex = NULL;
 static double* math_exp_constants_array = NULL;
 static double* math_exp_log_table_array = NULL;
 
@@ -907,13 +907,13 @@ void ExternalReference::SetUp() {
   double_constants.minus_zero = -0.0;
   double_constants.uint8_max_value = 255;
   double_constants.zero = 0.0;
-  double_constants.canonical_non_hole_nan = OS::nan_value();
+  double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
 
-  math_exp_data_mutex = new Mutex();
+  math_exp_data_mutex = new base::Mutex();
 }
 
 
@@ -921,7 +921,7 @@ void ExternalReference::InitializeMathExpData() {
   // Early return?
   if (math_exp_data_initialized) return;
 
-  LockGuard<Mutex> lock_guard(math_exp_data_mutex);
+  base::LockGuard<base::Mutex> lock_guard(math_exp_data_mutex);
   if (!math_exp_data_initialized) {
     // If this is changed, generated code must be adapted too.
     const int kTableSizeBits = 11;
@@ -1031,7 +1031,8 @@ ExternalReference ExternalReference::
 
 
 ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CPU::FlushICache)));
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CpuFeatures::FlushICache)));
 }
 
 
@@ -1506,7 +1507,7 @@ double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already
   // been done in generated code before bailing out here.
   if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
-    return OS::nan_value();
+    return base::OS::nan_value();
   }
   return std::pow(x, y);
 }

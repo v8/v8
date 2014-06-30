@@ -18,16 +18,16 @@
 // implementation and the overhead of virtual methods for performance
 // sensitive like mutex locking/unlocking.
 
-#ifndef V8_PLATFORM_H_
-#define V8_PLATFORM_H_
+#ifndef V8_BASE_PLATFORM_PLATFORM_H_
+#define V8_BASE_PLATFORM_PLATFORM_H_
 
 #include <stdarg.h>
 #include <string>
 #include <vector>
 
 #include "src/base/build_config.h"
-#include "src/platform/mutex.h"
-#include "src/platform/semaphore.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 
 #ifdef __sun
 # ifndef signbit
@@ -38,14 +38,14 @@ int signbit(double x);
 #endif
 
 #if V8_OS_QNX
-#include "src/qnx-math.h"
+#include "src/base/qnx-math.h"
 #endif
 
 // Microsoft Visual C++ specific stuff.
 #if V8_LIBC_MSVCRT
 
 #include "src/base/win32-headers.h"
-#include "src/win32-math.h"
+#include "src/base/win32-math.h"
 
 int strncasecmp(const char* s1, const char* s2, int n);
 
@@ -72,7 +72,7 @@ inline int lrint(double flt) {
 #endif  // V8_LIBC_MSVCRT
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // ----------------------------------------------------------------------------
 // Fast TLS support
@@ -519,6 +519,6 @@ class Thread {
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_H_
+#endif  // V8_BASE_PLATFORM_PLATFORM_H_

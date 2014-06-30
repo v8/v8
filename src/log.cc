@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/cpu-profiler.h"
@@ -14,7 +15,6 @@
 #include "src/log.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
-#include "src/platform.h"
 #include "src/runtime-profiler.h"
 #include "src/serialize.h"
 #include "src/string-stream.h"
@@ -262,9 +262,10 @@ PerfBasicLogger::PerfBasicLogger()
   int size = SNPrintF(
       perf_dump_name,
       kFilenameFormatString,
-      OS::GetCurrentProcessId());
+      base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
-  perf_output_handle_ = OS::FOpen(perf_dump_name.start(), OS::LogFileOpenMode);
+  perf_output_handle_ =
+      base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
   CHECK_NE(perf_output_handle_, NULL);
   setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
 }
@@ -282,10 +283,9 @@ void PerfBasicLogger::LogRecordedBuffer(Code* code,
                                        int length) {
   ASSERT(code->instruction_start() == code->address() + Code::kHeaderSize);
 
-  OS::FPrint(perf_output_handle_, "%llx %x %.*s\n",
-      reinterpret_cast<uint64_t>(code->instruction_start()),
-      code->instruction_size(),
-      length, name);
+  base::OS::FPrint(perf_output_handle_, "%llx %x %.*s\n",
+                   reinterpret_cast<uint64_t>(code->instruction_start()),
+                   code->instruction_size(), length, name);
 }
 
 
@@ -386,9 +386,10 @@ PerfJitLogger::PerfJitLogger()
   int size = SNPrintF(
       perf_dump_name,
       kFilenameFormatString,
-      OS::GetCurrentProcessId());
+      base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
-  perf_output_handle_ = OS::FOpen(perf_dump_name.start(), OS::LogFileOpenMode);
+  perf_output_handle_ =
+      base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
   CHECK_NE(perf_output_handle_, NULL);
   setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
 
@@ -419,7 +420,7 @@ void PerfJitLogger::LogRecordedBuffer(Code* code,
   code_load.id = JIT_CODE_LOAD;
   code_load.total_size = sizeof(code_load) + length + 1 + code_size;
   code_load.timestamp =
-      static_cast<uint64_t>(OS::TimeCurrentMillis() * 1000.0);
+      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
   code_load.vma = 0x0;  //  Our addresses are absolute.
   code_load.code_addr = reinterpret_cast<uint64_t>(code->instruction_start());
   code_load.code_size = code_size;
@@ -447,8 +448,9 @@ void PerfJitLogger::LogWriteHeader() {
   header.total_size = sizeof(jitheader);
   header.pad1 = 0xdeadbeef;
   header.elf_mach = GetElfMach();
-  header.pid = OS::GetCurrentProcessId();
-  header.timestamp = static_cast<uint64_t>(OS::TimeCurrentMillis() * 1000.0);
+  header.pid = base::OS::GetCurrentProcessId();
+  header.timestamp =
+      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
   LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));
 }
 
@@ -538,7 +540,8 @@ LowLevelLogger::LowLevelLogger(const char* name)
   ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
   MemCopy(ll_name.start(), name, len);
   MemCopy(ll_name.start() + len, kLogExt, sizeof(kLogExt));
-  ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
+  ll_output_handle_ =
+      base::OS::FOpen(ll_name.start(), base::OS::LogFileOpenMode);
   setvbuf(ll_output_handle_, NULL, _IOFBF, kLogBufferSize);
 
   LogCodeInfo();
@@ -755,7 +758,7 @@ void JitLogger::EndCodePosInfoEvent(Code* code, void* jit_handler_data) {
 // An independent thread removes data and writes it to the log.
 // This design minimizes the time spent in the sampler.
 //
-class Profiler: public Thread {
+class Profiler: public base::Thread {
  public:
   explicit Profiler(Isolate* isolate);
   void Engage();
@@ -804,7 +807,7 @@ class Profiler: public Thread {
   int tail_;  // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Sempahore used for buffer synchronization.
-  Semaphore buffer_semaphore_;
+  base::Semaphore buffer_semaphore_;
 
   // Tells whether profiler is engaged, that is, processing thread is stated.
   bool engaged_;
@@ -855,7 +858,7 @@ class Ticker: public Sampler {
 // Profiler implementation.
 //
 Profiler::Profiler(Isolate* isolate)
-    : Thread("v8:Profiler"),
+    : base::Thread("v8:Profiler"),
       isolate_(isolate),
       head_(0),
       tail_(0),
@@ -871,8 +874,8 @@ void Profiler::Engage() {
   if (engaged_) return;
   engaged_ = true;
 
-  std::vector<OS::SharedLibraryAddress> addresses =
-      OS::GetSharedLibraryAddresses();
+  std::vector<base::OS::SharedLibraryAddress> addresses =
+      base::OS::GetSharedLibraryAddresses();
   for (size_t i = 0; i < addresses.size(); ++i) {
     LOG(isolate_, SharedLibraryEvent(
         addresses[i].library_path, addresses[i].start, addresses[i].end));
@@ -1486,7 +1489,7 @@ void Logger::CodeMovingGCEvent() {
   if (!is_logging_code_events()) return;
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
   CALL_LISTENERS(CodeMovingGCEvent());
-  OS::SignalCodeMovingGC();
+  base::OS::SignalCodeMovingGC();
 }
 
 
@@ -1615,10 +1618,10 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
   msg.Append("%s,%s,", name, tag);
 
   uint32_t sec, usec;
-  if (OS::GetUserTime(&sec, &usec) != -1) {
+  if (base::OS::GetUserTime(&sec, &usec) != -1) {
     msg.Append("%d,%d,", sec, usec);
   }
-  msg.Append("%.0f", OS::TimeCurrentMillis());
+  msg.Append("%.0f", base::OS::TimeCurrentMillis());
 
   msg.Append('\n');
   msg.WriteToLogFile();
@@ -1652,7 +1655,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
   // Using non-relative system time in order to be able to synchronize with
   // external memory profiling events (e.g. DOM memory size).
   msg.Append("heap-sample-begin,\"%s\",\"%s\",%.0f\n",
-             space, kind, OS::TimeCurrentMillis());
+             space, kind, base::OS::TimeCurrentMillis());
   msg.WriteToLogFile();
 }
 
@@ -1691,7 +1694,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
   Log::MessageBuilder msg(log_);
   msg.Append("debug-queue-event,%s,%15.3f,%s\n",
              event_type,
-             OS::TimeCurrentMillis(),
+             base::OS::TimeCurrentMillis(),
              parameter_string);
   DeleteArray(parameter_string);
   msg.WriteToLogFile();
@@ -1989,11 +1992,11 @@ static SmartArrayPointer<const char> PrepareLogFileName(
           p--;
           break;
         case 'p':
-          stream.Add("%d", OS::GetCurrentProcessId());
+          stream.Add("%d", base::OS::GetCurrentProcessId());
           break;
         case 't': {
           // %t expands to the current time in milliseconds.
-          double time = OS::TimeCurrentMillis();
+          double time = base::OS::TimeCurrentMillis();
           stream.Add("%.0f", FmtElm(time));
           break;
         }

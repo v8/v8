@@ -29,10 +29,10 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
-#include "src/platform.h"
 #include "src/serialize.h"
 #include "test/cctest/cctest.h"
 
@@ -224,7 +224,7 @@ TEST(AssemblerIa329) {
   CHECK_EQ(kLess, f(1.1, 2.2));
   CHECK_EQ(kEqual, f(2.2, 2.2));
   CHECK_EQ(kGreater, f(3.3, 2.2));
-  CHECK_EQ(kNaN, f(OS::nan_value(), 1.1));
+  CHECK_EQ(kNaN, f(v8::base::OS::nan_value(), 1.1));
 }
 
 

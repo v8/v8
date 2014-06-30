@@ -2753,29 +2753,29 @@ class HStatistics V8_FINAL: public Malloced {
 
   void Initialize(CompilationInfo* info);
   void Print();
-  void SaveTiming(const char* name, TimeDelta time, unsigned size);
+  void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
 
-  void IncrementFullCodeGen(TimeDelta full_code_gen) {
+  void IncrementFullCodeGen(base::TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
   }
 
-  void IncrementSubtotals(TimeDelta create_graph,
-                          TimeDelta optimize_graph,
-                          TimeDelta generate_code) {
+  void IncrementSubtotals(base::TimeDelta create_graph,
+                          base::TimeDelta optimize_graph,
+                          base::TimeDelta generate_code) {
     create_graph_ += create_graph;
     optimize_graph_ += optimize_graph;
     generate_code_ += generate_code;
   }
 
  private:
-  List<TimeDelta> times_;
+  List<base::TimeDelta> times_;
   List<const char*> names_;
   List<unsigned> sizes_;
-  TimeDelta create_graph_;
-  TimeDelta optimize_graph_;
-  TimeDelta generate_code_;
+  base::TimeDelta create_graph_;
+  base::TimeDelta optimize_graph_;
+  base::TimeDelta generate_code_;
   unsigned total_size_;
-  TimeDelta full_code_gen_;
+  base::TimeDelta full_code_gen_;
   double source_size_;
 };
 
@@ -2804,7 +2804,7 @@ class HTracer V8_FINAL : public Malloced {
     if (FLAG_trace_hydrogen_file == NULL) {
       SNPrintF(filename_,
                "hydrogen-%d-%d.cfg",
-               OS::GetCurrentProcessId(),
+               base::OS::GetCurrentProcessId(),
                isolate_id);
     } else {
       StrNCpy(filename_, FLAG_trace_hydrogen_file, filename_.length());

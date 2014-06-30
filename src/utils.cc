@@ -7,8 +7,8 @@
 
 #include "src/v8.h"
 
-#include "src/checks.h"
-#include "src/platform.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -80,7 +80,7 @@ char* SimpleStringBuilder::Finalize() {
 void PrintF(const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
-  OS::VPrint(format, arguments);
+  base::OS::VPrint(format, arguments);
   va_end(arguments);
 }
 
@@ -88,16 +88,16 @@ void PrintF(const char* format, ...) {
 void PrintF(FILE* out, const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
-  OS::VFPrint(out, format, arguments);
+  base::OS::VFPrint(out, format, arguments);
   va_end(arguments);
 }
 
 
 void PrintPID(const char* format, ...) {
-  OS::Print("[%d] ", OS::GetCurrentProcessId());
+  base::OS::Print("[%d] ", base::OS::GetCurrentProcessId());
   va_list arguments;
   va_start(arguments, format);
-  OS::VPrint(format, arguments);
+  base::OS::VPrint(format, arguments);
   va_end(arguments);
 }
 
@@ -112,12 +112,12 @@ int SNPrintF(Vector<char> str, const char* format, ...) {
 
 
 int VSNPrintF(Vector<char> str, const char* format, va_list args) {
-  return OS::VSNPrintF(str.start(), str.length(), format, args);
+  return base::OS::VSNPrintF(str.start(), str.length(), format, args);
 }
 
 
 void StrNCpy(Vector<char> dest, const char* src, size_t n) {
-  OS::StrNCpy(dest.start(), dest.length(), src, n);
+  base::OS::StrNCpy(dest.start(), dest.length(), src, n);
 }
 
 
@@ -185,7 +185,7 @@ char* ReadCharsFromFile(FILE* file,
                         const char* filename) {
   if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
     if (verbose) {
-      OS::PrintError("Cannot read from file %s.\n", filename);
+      base::OS::PrintError("Cannot read from file %s.\n", filename);
     }
     return NULL;
   }
@@ -212,7 +212,7 @@ char* ReadCharsFromFile(const char* filename,
                         int* size,
                         int extra_space,
                         bool verbose) {
-  FILE* file = OS::FOpen(filename, "rb");
+  FILE* file = base::OS::FOpen(filename, "rb");
   char* result = ReadCharsFromFile(file, size, extra_space, verbose, filename);
   if (file != NULL) fclose(file);
   return result;
@@ -274,10 +274,10 @@ int AppendChars(const char* filename,
                 const char* str,
                 int size,
                 bool verbose) {
-  FILE* f = OS::FOpen(filename, "ab");
+  FILE* f = base::OS::FOpen(filename, "ab");
   if (f == NULL) {
     if (verbose) {
-      OS::PrintError("Cannot open file %s for writing.\n", filename);
+      base::OS::PrintError("Cannot open file %s for writing.\n", filename);
     }
     return 0;
   }
@@ -291,10 +291,10 @@ int WriteChars(const char* filename,
                const char* str,
                int size,
                bool verbose) {
-  FILE* f = OS::FOpen(filename, "wb");
+  FILE* f = base::OS::FOpen(filename, "wb");
   if (f == NULL) {
     if (verbose) {
-      OS::PrintError("Cannot open file %s for writing.\n", filename);
+      base::OS::PrintError("Cannot open file %s for writing.\n", filename);
     }
     return 0;
   }

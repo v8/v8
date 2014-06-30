@@ -262,7 +262,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
     ASSERT(!descriptor->stack_parameter_count().is_valid());
     return stub->GenerateLightweightMissCode();
   }
-  ElapsedTimer timer;
+  base::ElapsedTimer timer;
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }

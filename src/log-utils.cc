@@ -61,13 +61,13 @@ void Log::OpenStdout() {
 
 void Log::OpenTemporaryFile() {
   ASSERT(!IsEnabled());
-  output_handle_ = i::OS::OpenTemporaryFile();
+  output_handle_ = base::OS::OpenTemporaryFile();
 }
 
 
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
-  output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
+  output_handle_ = base::OS::FOpen(name, base::OS::LogFileOpenMode);
 }
 
 

@@ -7,6 +7,8 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
+#include "src/base/platform/platform.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -19,7 +21,6 @@
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
-#include "src/platform.h"
 #include "src/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
@@ -29,7 +30,6 @@
 #include "src/spaces.h"
 #include "src/stub-cache.h"
 #include "src/sweeper-thread.h"
-#include "src/utils/random-number-generator.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 
@@ -46,10 +46,10 @@ int ThreadId::AllocateThreadId() {
 
 
 int ThreadId::GetCurrentThreadId() {
-  int thread_id = Thread::GetThreadLocalInt(Isolate::thread_id_key_);
+  int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
-    Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
+    base::Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
   }
   return thread_id;
 }
@@ -98,13 +98,13 @@ void ThreadLocalTop::Initialize() {
 }
 
 
-Thread::LocalStorageKey Isolate::isolate_key_;
-Thread::LocalStorageKey Isolate::thread_id_key_;
-Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
+base::Thread::LocalStorageKey Isolate::isolate_key_;
+base::Thread::LocalStorageKey Isolate::thread_id_key_;
+base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
-Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
+base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-Mutex Isolate::process_wide_mutex_;
+base::Mutex Isolate::process_wide_mutex_;
 // TODO(dcarney): Remove with default isolate.
 enum DefaultIsolateStatus {
   kDefaultIsolateUninitialized,
@@ -121,7 +121,7 @@ Isolate::PerIsolateThreadData*
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = new PerIsolateThreadData(this, thread_id);
@@ -143,7 +143,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
   PerIsolateThreadData* per_thread = NULL;
   {
-    LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
@@ -151,21 +151,22 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 
 void Isolate::SetCrashIfDefaultIsolateInitialized() {
-  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
   CHECK(default_isolate_status_ != kDefaultIsolateInitialized);
   default_isolate_status_ = kDefaultIsolateCrashIfInitialized;
 }
 
 
 void Isolate::EnsureDefaultIsolate() {
-  LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
   CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
   if (thread_data_table_ == NULL) {
-    isolate_key_ = Thread::CreateThreadLocalKey();
-    thread_id_key_ = Thread::CreateThreadLocalKey();
-    per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
+    isolate_key_ = base::Thread::CreateThreadLocalKey();
+    thread_id_key_ = base::Thread::CreateThreadLocalKey();
+    per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
 #ifdef DEBUG
-    PerThreadAssertScopeBase::thread_local_key = Thread::CreateThreadLocalKey();
+    PerThreadAssertScopeBase::thread_local_key =
+        base::Thread::CreateThreadLocalKey();
 #endif  // DEBUG
     thread_data_table_ = new Isolate::ThreadDataTable();
   }
@@ -286,14 +287,14 @@ Handle<String> Isolate::StackTraceString() {
     return stack_trace;
   } else if (stack_trace_nesting_level_ == 1) {
     stack_trace_nesting_level_++;
-    OS::PrintError(
+    base::OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
-    OS::PrintError(
+    base::OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
     incomplete_message_->OutputToStdOut();
     return factory()->empty_string();
   } else {
-    OS::Abort();
+    base::OS::Abort();
     // Unreachable
     return factory()->empty_string();
   }
@@ -311,11 +312,10 @@ void Isolate::PushStackTraceAndDie(unsigned int magic,
   String::WriteToFlat(*trace, buffer, 0, length);
   buffer[length] = '\0';
   // TODO(dcarney): convert buffer to utf8?
-  OS::PrintError("Stacktrace (%x-%x) %p %p: %s\n",
-                 magic, magic2,
-                 static_cast<void*>(object), static_cast<void*>(map),
-                 reinterpret_cast<char*>(buffer));
-  OS::Abort();
+  base::OS::PrintError("Stacktrace (%x-%x) %p %p: %s\n", magic, magic2,
+                       static_cast<void*>(object), static_cast<void*>(map),
+                       reinterpret_cast<char*>(buffer));
+  base::OS::Abort();
 }
 
 
@@ -571,9 +571,9 @@ void Isolate::PrintStack(FILE* out) {
     stack_trace_nesting_level_ = 0;
   } else if (stack_trace_nesting_level_ == 1) {
     stack_trace_nesting_level_++;
-    OS::PrintError(
+    base::OS::PrintError(
       "\n\nAttempt to print stack while printing stack (double fault)\n");
-    OS::PrintError(
+    base::OS::PrintError(
       "If you are lucky you may find a partial stack dump on stdout.\n\n");
     incomplete_message_->OutputToFile(out);
   }
@@ -1108,7 +1108,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
                "%s\n\nFROM\n",
                MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
-        OS::Abort();
+        base::OS::Abort();
       }
     } else if (location != NULL && !location->script().is_null()) {
       // We are bootstrapping and caught an error where the location is set
@@ -1119,18 +1119,18 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       int line_number =
           location->script()->GetLineNumber(location->start_pos()) + 1;
       if (exception->IsString() && location->script()->name()->IsString()) {
-        OS::PrintError(
+        base::OS::PrintError(
             "Extension or internal compilation error: %s in %s at line %d.\n",
             String::cast(exception)->ToCString().get(),
             String::cast(location->script()->name())->ToCString().get(),
             line_number);
       } else if (location->script()->name()->IsString()) {
-        OS::PrintError(
+        base::OS::PrintError(
             "Extension or internal compilation error in %s at line %d.\n",
             String::cast(location->script()->name())->ToCString().get(),
             line_number);
       } else {
-        OS::PrintError("Extension or internal compilation error.\n");
+        base::OS::PrintError("Extension or internal compilation error.\n");
       }
 #ifdef OBJECT_PRINT
       // Since comments and empty lines have been stripped from the source of
@@ -1531,7 +1531,7 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { LockGuard<Mutex> lock_guard(&process_wide_mutex_);
+  { base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -1632,8 +1632,8 @@ void Isolate::PushToPartialSnapshotCache(Object* obj) {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  Thread::SetThreadLocal(isolate_key_, isolate);
-  Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+  base::Thread::SetThreadLocal(isolate_key_, isolate);
+  base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
 }
 
 
@@ -1901,7 +1901,8 @@ bool Isolate::Init(Deserializer* des) {
   // once ResourceConstraints becomes an argument to the Isolate constructor.
   if (max_available_threads_ < 1) {
     // Choose the default between 1 and 4.
-    max_available_threads_ = Max(Min(OS::NumberOfProcessorsOnline(), 4), 1);
+    max_available_threads_ =
+        Max(Min(base::OS::NumberOfProcessorsOnline(), 4), 1);
   }
 
   if (!FLAG_job_based_sweeping) {
@@ -1976,7 +1977,7 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
 
   state_ = INITIALIZED;
-  time_millis_at_init_ = OS::TimeCurrentMillis();
+  time_millis_at_init_ = base::OS::TimeCurrentMillis();
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the

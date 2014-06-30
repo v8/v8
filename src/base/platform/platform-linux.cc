@@ -43,12 +43,12 @@
 
 #undef MAP_TYPE
 
-#include "src/platform.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 
 #ifdef __arm__
@@ -429,4 +429,4 @@ bool VirtualMemory::HasLazyCommits() {
   return true;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

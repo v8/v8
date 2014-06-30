@@ -3351,13 +3351,13 @@ LockingCommandMessageQueue::LockingCommandMessageQueue(Logger* logger, int size)
 
 
 bool LockingCommandMessageQueue::IsEmpty() const {
-  LockGuard<Mutex> lock_guard(&mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
   return queue_.IsEmpty();
 }
 
 
 CommandMessage LockingCommandMessageQueue::Get() {
-  LockGuard<Mutex> lock_guard(&mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
   CommandMessage result = queue_.Get();
   logger_->DebugEvent("Get", result.text());
   return result;
@@ -3365,14 +3365,14 @@ CommandMessage LockingCommandMessageQueue::Get() {
 
 
 void LockingCommandMessageQueue::Put(const CommandMessage& message) {
-  LockGuard<Mutex> lock_guard(&mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
   queue_.Put(message);
   logger_->DebugEvent("Put", message.text());
 }
 
 
 void LockingCommandMessageQueue::Clear() {
-  LockGuard<Mutex> lock_guard(&mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
   queue_.Clear();
 }
 

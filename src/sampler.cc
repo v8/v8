@@ -44,11 +44,11 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/cpu-profiler-inl.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
 #include "src/log.h"
-#include "src/platform.h"
 #include "src/simulator.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
@@ -269,16 +269,16 @@ class SimulatorHelper {
 
 class SignalHandler : public AllStatic {
  public:
-  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
   static void TearDown() { delete mutex_; }
 
   static void IncreaseSamplerCount() {
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (--client_count_ == 0) Restore();
   }
 
@@ -309,14 +309,14 @@ class SignalHandler : public AllStatic {
 
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static base::Mutex* mutex_;
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
 
-Mutex* SignalHandler::mutex_ = NULL;
+base::Mutex* SignalHandler::mutex_ = NULL;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
@@ -473,20 +473,20 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #endif
 
 
-class SamplerThread : public Thread {
+class SamplerThread : public base::Thread {
  public:
   static const int kSamplerThreadStackSize = 64 * KB;
 
   explicit SamplerThread(int interval)
-      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
+      : Thread(base::Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = new Mutex(); }
+  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
   static void TearDown() { delete mutex_; mutex_ = NULL; }
 
   static void AddActiveSampler(Sampler* sampler) {
     bool need_to_start = false;
-    LockGuard<Mutex> lock_guard(mutex_);
+    base::LockGuard<base::Mutex> lock_guard(mutex_);
     if (instance_ == NULL) {
       // Start a thread that will send SIGPROF signal to VM threads,
       // when CPU profiling will be enabled.
@@ -505,7 +505,7 @@ class SamplerThread : public Thread {
   static void RemoveActiveSampler(Sampler* sampler) {
     SamplerThread* instance_to_remove = NULL;
     {
-      LockGuard<Mutex> lock_guard(mutex_);
+      base::LockGuard<base::Mutex> lock_guard(mutex_);
 
       ASSERT(sampler->IsActive());
       bool removed = instance_->active_samplers_.RemoveElement(sampler);
@@ -529,7 +529,7 @@ class SamplerThread : public Thread {
   virtual void Run() {
     while (true) {
       {
-        LockGuard<Mutex> lock_guard(mutex_);
+        base::LockGuard<base::Mutex> lock_guard(mutex_);
         if (active_samplers_.is_empty()) break;
         // When CPU profiling is enabled both JavaScript and C++ code is
         // profiled. We must not suspend.
@@ -540,13 +540,13 @@ class SamplerThread : public Thread {
           sampler->DoSample();
         }
       }
-      OS::Sleep(interval_);
+      base::OS::Sleep(interval_);
     }
   }
 
  private:
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static base::Mutex* mutex_;
   static SamplerThread* instance_;
 
   const int interval_;
@@ -556,7 +556,7 @@ class SamplerThread : public Thread {
 };
 
 
-Mutex* SamplerThread::mutex_ = NULL;
+base::Mutex* SamplerThread::mutex_ = NULL;
 SamplerThread* SamplerThread::instance_ = NULL;
 
 
@@ -566,7 +566,7 @@ SamplerThread* SamplerThread::instance_ = NULL;
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
                                    const RegisterState& regs) {
   ASSERT(isolate->IsInitialized());
-  timestamp = TimeTicks::HighResolutionNow();
+  timestamp = base::TimeTicks::HighResolutionNow();
   pc = regs.pc;
   state = isolate->current_vm_state();
 

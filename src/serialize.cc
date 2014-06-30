@@ -6,13 +6,13 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/global-handles.h"
 #include "src/ic-inl.h"
 #include "src/natives.h"
-#include "src/platform.h"
 #include "src/runtime.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
@@ -729,7 +729,7 @@ void Deserializer::FlushICacheForNewCodeObjects() {
   PageIterator it(isolate_->heap()->code_space());
   while (it.has_next()) {
     Page* p = it.next();
-    CPU::FlushICache(p->area_start(), p->area_end() - p->area_start());
+    CpuFeatures::FlushICache(p->area_start(), p->area_end() - p->area_start());
   }
 }
 

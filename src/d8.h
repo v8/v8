@@ -141,10 +141,10 @@ class SourceGroup {
   void WaitForThread();
 
  private:
-  class IsolateThread : public i::Thread {
+  class IsolateThread : public base::Thread {
    public:
     explicit IsolateThread(SourceGroup* group)
-        : i::Thread(GetThreadOptions()), group_(group) {}
+        : base::Thread(GetThreadOptions()), group_(group) {}
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -154,12 +154,12 @@ class SourceGroup {
     SourceGroup* group_;
   };
 
-  static i::Thread::Options GetThreadOptions();
+  static base::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::Semaphore next_semaphore_;
-  i::Semaphore done_semaphore_;
-  i::Thread* thread_;
+  base::Semaphore next_semaphore_;
+  base::Semaphore done_semaphore_;
+  base::Thread* thread_;
 #endif  // !V8_SHARED
 
   void ExitShell(int exit_code);
@@ -367,9 +367,9 @@ class Shell : public i::AllStatic {
   // don't want to store the stats in a memory-mapped file
   static CounterCollection local_counters_;
   static CounterCollection* counters_;
-  static i::OS::MemoryMappedFile* counters_file_;
-  static i::Mutex context_mutex_;
-  static const i::TimeTicks kInitialTicks;
+  static base::OS::MemoryMappedFile* counters_file_;
+  static base::Mutex context_mutex_;
+  static const base::TimeTicks kInitialTicks;
 
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript(Isolate* isolate);

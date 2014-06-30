@@ -894,7 +894,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc) {
   sub(esp, Immediate(argc * kPointerSize));
 
   // Get the required frame alignment for the OS.
-  const int kFrameAlignment = OS::ActivationFrameAlignment();
+  const int kFrameAlignment = base::OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
     and_(esp, -kFrameAlignment);
@@ -2659,7 +2659,7 @@ void MacroAssembler::Check(Condition cc, BailoutReason reason) {
 
 
 void MacroAssembler::CheckStackAlignment() {
-  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
@@ -2886,7 +2886,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
 
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
-  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment = base::OS::ActivationFrameAlignment();
   if (frame_alignment != 0) {
     // Make stack end at alignment and make room for num_arguments words
     // and the original value of esp.
@@ -2918,7 +2918,7 @@ void MacroAssembler::CallCFunction(Register function,
   }
 
   call(function);
-  if (OS::ActivationFrameAlignment() != 0) {
+  if (base::OS::ActivationFrameAlignment() != 0) {
     mov(esp, Operand(esp, num_arguments * kPointerSize));
   } else {
     add(esp, Immediate(num_arguments * kPointerSize));
@@ -2950,7 +2950,7 @@ CodePatcher::CodePatcher(byte* address, int size)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CPU::FlushICache(address_, size_);
+  CpuFeatures::FlushICache(address_, size_);
 
   // Check that the code was patched as expected.
   ASSERT(masm_.pc_ == address_ + size_);

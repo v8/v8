@@ -8,7 +8,7 @@
 #include "src/v8.h"
 
 #include "src/assembler.h"
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "src/smart-pointers.h"
 #include "src/string-stream.h"
 

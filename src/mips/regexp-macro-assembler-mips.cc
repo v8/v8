@@ -1041,7 +1041,7 @@ bool RegExpMacroAssemblerMIPS::CanReadUnaligned() {
 // Private methods:
 
 void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
-  int stack_alignment = OS::ActivationFrameAlignment();
+  int stack_alignment = base::OS::ActivationFrameAlignment();
 
   // Align the stack pointer and save the original sp value on the stack.
   __ mov(scratch, sp);

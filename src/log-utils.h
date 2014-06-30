@@ -85,7 +85,7 @@ class Log {
 
    private:
     Log* log_;
-    LockGuard<Mutex> lock_guard_;
+    base::LockGuard<base::Mutex> lock_guard_;
     int pos_;
   };
 
@@ -120,7 +120,7 @@ class Log {
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
-  Mutex mutex_;
+  base::Mutex mutex_;
 
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.

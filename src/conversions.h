@@ -7,7 +7,7 @@
 
 #include <limits>
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/utils.h"

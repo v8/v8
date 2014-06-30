@@ -39,7 +39,7 @@
 
 #include "src/arm/assembler-arm.h"
 
-#include "src/cpu.h"
+#include "src/assembler.h"
 #include "src/debug.h"
 
 
@@ -527,7 +527,7 @@ void Assembler::set_target_address_at(Address pc,
     Memory::Address_at(constant_pool_entry_address(pc, constant_pool)) = target;
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code as follows:
-    //   CPU::FlushICache(pc, sizeof(target));
+    //   CpuFeatures::FlushICache(pc, sizeof(target));
     // However, on ARM, no instruction is actually patched in the case
     // of embedded constants of the form:
     // ldr   ip, [pp, #...]
@@ -545,7 +545,7 @@ void Assembler::set_target_address_at(Address pc,
     ASSERT(IsMovW(Memory::int32_at(pc)));
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      CPU::FlushICache(pc, 2 * kInstrSize);
+      CpuFeatures::FlushICache(pc, 2 * kInstrSize);
     }
   }
 }

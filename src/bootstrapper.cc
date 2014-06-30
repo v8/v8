@@ -2361,8 +2361,8 @@ bool Genesis::InstallExtension(Isolate* isolate,
     // When an error is thrown during bootstrapping we automatically print
     // the line number at which this happened to the console in the isolate
     // error throwing functionality.
-    OS::PrintError("Error installing extension '%s'.\n",
-                   current->extension()->name());
+    base::OS::PrintError("Error installing extension '%s'.\n",
+                         current->extension()->name());
     isolate->clear_pending_exception();
   }
   extension_states->set_state(current, INSTALLED);

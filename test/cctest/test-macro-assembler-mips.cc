@@ -67,10 +67,12 @@ TEST(CopyBytes) {
   size_t act_size;
 
   // Allocate two blocks to copy data between.
-  byte* src_buffer = static_cast<byte*>(OS::Allocate(data_size, &act_size, 0));
+  byte* src_buffer =
+      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
   CHECK(src_buffer);
   CHECK(act_size >= static_cast<size_t>(data_size));
-  byte* dest_buffer = static_cast<byte*>(OS::Allocate(data_size, &act_size, 0));
+  byte* dest_buffer =
+      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
   CHECK(dest_buffer);
   CHECK(act_size >= static_cast<size_t>(data_size));
 

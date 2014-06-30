@@ -7,7 +7,7 @@
 
 #include "src/ia32/lithium-ia32.h"
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/deoptimizer.h"
 #include "src/ia32/lithium-gap-resolver-ia32.h"
 #include "src/lithium-codegen.h"

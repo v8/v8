@@ -10686,7 +10686,7 @@ void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta, SKIP_ICACHE_FLUSH);
   }
-  CPU::FlushICache(instruction_start(), instruction_size());
+  CpuFeatures::FlushICache(instruction_start(), instruction_size());
 }
 
 
@@ -10740,7 +10740,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
       it.rinfo()->apply(delta, SKIP_ICACHE_FLUSH);
     }
   }
-  CPU::FlushICache(instruction_start(), instruction_size());
+  CpuFeatures::FlushICache(instruction_start(), instruction_size());
 }
 
 
@@ -15080,7 +15080,7 @@ Handle<Object> ExternalFloat32Array::SetValue(
     Handle<ExternalFloat32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  float cast_value = static_cast<float>(OS::nan_value());
+  float cast_value = static_cast<float>(base::OS::nan_value());
   if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
       int int_value = Handle<Smi>::cast(value)->value();
@@ -15103,7 +15103,7 @@ Handle<Object> ExternalFloat64Array::SetValue(
     Handle<ExternalFloat64Array> array,
     uint32_t index,
     Handle<Object> value) {
-  double double_value = OS::nan_value();
+  double double_value = base::OS::nan_value();
   if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsNumber()) {
       double_value = value->Number();

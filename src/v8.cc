@@ -6,6 +6,7 @@
 
 #include "src/assembler.h"
 #include "src/base/once.h"
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
@@ -19,7 +20,6 @@
 #endif
 #include "src/lithium-allocator.h"
 #include "src/objects.h"
-#include "src/platform.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
 #include "src/serialize.h"
@@ -90,7 +90,7 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-  OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
+  base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
 #ifdef V8_USE_DEFAULT_PLATFORM
   platform_ = new DefaultPlatform;

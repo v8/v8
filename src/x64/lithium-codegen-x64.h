@@ -7,7 +7,7 @@
 
 #include "src/x64/lithium-x64.h"
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/deoptimizer.h"
 #include "src/lithium-codegen.h"
 #include "src/safepoint-table.h"

@@ -6,7 +6,7 @@
 #define V8_HASHMAP_H_
 
 #include "src/allocation.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/utils.h"
 
 namespace v8 {

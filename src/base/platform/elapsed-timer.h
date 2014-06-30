@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PLATFORM_ELAPSED_TIMER_H_
-#define V8_PLATFORM_ELAPSED_TIMER_H_
+#ifndef V8_BASE_PLATFORM_ELAPSED_TIMER_H_
+#define V8_BASE_PLATFORM_ELAPSED_TIMER_H_
 
-#include "src/checks.h"
-#include "src/platform/time.h"
+#include "src/base/logging.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
-class ElapsedTimer V8_FINAL BASE_EMBEDDED {
+class ElapsedTimer V8_FINAL {
  public:
 #ifdef DEBUG
   ElapsedTimer() : started_(false) {}
@@ -92,6 +92,6 @@ class ElapsedTimer V8_FINAL BASE_EMBEDDED {
 #endif
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_ELAPSED_TIMER_H_
+#endif  // V8_BASE_PLATFORM_ELAPSED_TIMER_H_

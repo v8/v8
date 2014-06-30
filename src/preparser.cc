@@ -7,7 +7,7 @@
 #include "include/v8stdint.h"
 
 #include "src/allocation.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/conversions-inl.h"
 #include "src/conversions.h"
 #include "src/globals.h"

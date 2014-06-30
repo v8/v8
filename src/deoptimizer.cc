@@ -19,7 +19,7 @@ namespace internal {
 
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
-                                  OS::CommitPageSize(),
+                                  base::OS::CommitPageSize(),
 #if defined(__native_client__)
   // The Native Client port of V8 uses an interpreter,
   // so code pages don't need PROT_EXEC.
@@ -101,7 +101,7 @@ static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
 size_t Deoptimizer::GetMaxDeoptTableSize() {
   int entries_size =
       Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(OS::CommitPageSize());
+  int commit_page_size = static_cast<int>(base::OS::CommitPageSize());
   int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
                     commit_page_size) + 1;
   return static_cast<size_t>(commit_page_size * page_count);
@@ -739,7 +739,7 @@ void Deoptimizer::DoComputeOutputFrames() {
       compiled_code_->kind() == Code::OPTIMIZED_FUNCTION) {
     LOG(isolate(), CodeDeoptEvent(compiled_code_));
   }
-  ElapsedTimer timer;
+  base::ElapsedTimer timer;
 
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
@@ -2780,7 +2780,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   chunk->CommitArea(desc.instr_size);
   CopyBytes(chunk->area_start(), desc.buffer,
       static_cast<size_t>(desc.instr_size));
-  CPU::FlushICache(chunk->area_start(), desc.instr_size);
+  CpuFeatures::FlushICache(chunk->area_start(), desc.instr_size);
 
   data->deopt_entry_code_entries_[type] = entry_count;
 }

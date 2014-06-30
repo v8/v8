@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/cpu.h"
+#include "src/base/cpu.h"
 
 #if V8_LIBC_MSVCRT
 #include <intrin.h>  // __cpuid()
@@ -21,13 +21,13 @@
 #include <string.h>
 #include <algorithm>
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"  // NOLINT
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
@@ -495,4 +495,4 @@ CPU::CPU() : stepping_(0),
 #endif
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

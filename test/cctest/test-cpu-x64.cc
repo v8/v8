@@ -27,7 +27,7 @@
 
 #include "src/v8.h"
 
-#include "src/cpu.h"
+#include "src/base/cpu.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -35,7 +35,7 @@ using namespace v8::internal;
 
 TEST(RequiredFeaturesX64) {
   // Test for the features required by every x64 CPU.
-  CPU cpu;
+  v8::base::CPU cpu;
   CHECK(cpu.has_fpu());
   CHECK(cpu.has_cmov());
   CHECK(cpu.has_mmx());

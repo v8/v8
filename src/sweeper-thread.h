@@ -6,8 +6,8 @@
 #define V8_SWEEPER_THREAD_H_
 
 #include "src/base/atomicops.h"
+#include "src/base/platform/platform.h"
 #include "src/flags.h"
-#include "src/platform.h"
 #include "src/utils.h"
 
 #include "src/spaces.h"
@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-class SweeperThread : public Thread {
+class SweeperThread : public base::Thread {
  public:
   explicit SweeperThread(Isolate* isolate);
   ~SweeperThread() {}
@@ -34,9 +34,9 @@ class SweeperThread : public Thread {
   Isolate* isolate_;
   Heap* heap_;
   MarkCompactCollector* collector_;
-  Semaphore start_sweeping_semaphore_;
-  Semaphore end_sweeping_semaphore_;
-  Semaphore stop_semaphore_;
+  base::Semaphore start_sweeping_semaphore_;
+  base::Semaphore end_sweeping_semaphore_;
+  base::Semaphore stop_semaphore_;
   volatile base::AtomicWord stop_thread_;
 };
 

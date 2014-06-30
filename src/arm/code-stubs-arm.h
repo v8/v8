@@ -229,7 +229,8 @@ class RecordWriteStub: public PlatformCodeStub {
         break;
     }
     ASSERT(GetMode(stub) == mode);
-    CPU::FlushICache(stub->instruction_start(), 2 * Assembler::kInstrSize);
+    CpuFeatures::FlushICache(stub->instruction_start(),
+                             2 * Assembler::kInstrSize);
   }
 
  private:

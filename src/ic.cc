@@ -448,7 +448,7 @@ void IC::InvalidateMaps(Code* stub) {
       it.rinfo()->set_target_object(undefined, SKIP_WRITE_BARRIER);
     }
   }
-  CPU::FlushICache(stub->instruction_start(), stub->instruction_size());
+  CpuFeatures::FlushICache(stub->instruction_start(), stub->instruction_size());
 }
 
 

@@ -1898,7 +1898,7 @@ int MacroAssembler::ActivationFrameAlignment() {
   // environment.
   // Note: This will break if we ever start generating snapshots on one ARM
   // platform for another ARM platform with a different alignment.
-  return OS::ActivationFrameAlignment();
+  return base::OS::ActivationFrameAlignment();
 #else  // V8_HOST_ARCH_ARM64
   // If we are using the simulator then we should always align to the expected
   // alignment. As the simulator is used to generate snapshots we do not know

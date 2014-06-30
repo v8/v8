@@ -10,13 +10,13 @@
 // The build system then uses the implementation for the target architecture.
 //
 
-#ifndef V8_CPU_H_
-#define V8_CPU_H_
+#ifndef V8_BASE_CPU_H_
+#define V8_BASE_CPU_H_
 
-#include "src/allocation.h"
+#include "src/base/macros.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // ----------------------------------------------------------------------------
 // CPU
@@ -28,7 +28,7 @@ namespace internal {
 // architectures. For each architecture the file cpu_<arch>.cc contains the
 // implementation of these static functions.
 
-class CPU V8_FINAL BASE_EMBEDDED {
+class CPU V8_FINAL {
  public:
   CPU();
 
@@ -77,9 +77,6 @@ class CPU V8_FINAL BASE_EMBEDDED {
   bool has_vfp3() const { return has_vfp3_; }
   bool has_vfp3_d32() const { return has_vfp3_d32_; }
 
-  // Flush instruction cache.
-  static void FlushICache(void* start, size_t size);
-
  private:
   char vendor_[13];
   int stepping_;
@@ -109,6 +106,6 @@ class CPU V8_FINAL BASE_EMBEDDED {
   bool has_vfp3_d32_;
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_CPU_H_
+#endif  // V8_BASE_CPU_H_

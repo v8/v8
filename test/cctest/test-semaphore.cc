@@ -29,23 +29,24 @@
 
 #include "src/v8.h"
 
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
 
 using namespace ::v8::internal;
 
 
-class WaitAndSignalThread V8_FINAL : public Thread {
+class WaitAndSignalThread V8_FINAL : public v8::base::Thread {
  public:
-  explicit WaitAndSignalThread(Semaphore* semaphore)
+  explicit WaitAndSignalThread(v8::base::Semaphore* semaphore)
       : Thread("WaitAndSignalThread"), semaphore_(semaphore) {}
   virtual ~WaitAndSignalThread() {}
 
   virtual void Run() V8_OVERRIDE {
     for (int n = 0; n < 1000; ++n) {
       semaphore_->Wait();
-      bool result = semaphore_->WaitFor(TimeDelta::FromMicroseconds(1));
+      bool result =
+          semaphore_->WaitFor(v8::base::TimeDelta::FromMicroseconds(1));
       ASSERT(!result);
       USE(result);
       semaphore_->Signal();
@@ -53,12 +54,12 @@ class WaitAndSignalThread V8_FINAL : public Thread {
   }
 
  private:
-  Semaphore* semaphore_;
+  v8::base::Semaphore* semaphore_;
 };
 
 
 TEST(WaitAndSignal) {
-  Semaphore semaphore(0);
+  v8::base::Semaphore semaphore(0);
   WaitAndSignalThread t1(&semaphore);
   WaitAndSignalThread t2(&semaphore);
 
@@ -73,7 +74,7 @@ TEST(WaitAndSignal) {
 
   semaphore.Wait();
 
-  bool result = semaphore.WaitFor(TimeDelta::FromMicroseconds(1));
+  bool result = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(1));
   ASSERT(!result);
   USE(result);
 }
@@ -81,25 +82,25 @@ TEST(WaitAndSignal) {
 
 TEST(WaitFor) {
   bool ok;
-  Semaphore semaphore(0);
+  v8::base::Semaphore semaphore(0);
 
   // Semaphore not signalled - timeout.
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(0));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(0));
   CHECK(!ok);
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(100));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(100));
   CHECK(!ok);
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(1000));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(1000));
   CHECK(!ok);
 
   // Semaphore signalled - no timeout.
   semaphore.Signal();
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(0));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(0));
   CHECK(ok);
   semaphore.Signal();
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(100));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(100));
   CHECK(ok);
   semaphore.Signal();
-  ok = semaphore.WaitFor(TimeDelta::FromMicroseconds(1000));
+  ok = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(1000));
   CHECK(ok);
 }
 
@@ -110,11 +111,11 @@ static const int kBufferSize = 4096;  // GCD(buffer size, alphabet size) = 1
 static char buffer[kBufferSize];
 static const int kDataSize = kBufferSize * kAlphabetSize * 10;
 
-static Semaphore free_space(kBufferSize);
-static Semaphore used_space(0);
+static v8::base::Semaphore free_space(kBufferSize);
+static v8::base::Semaphore used_space(0);
 
 
-class ProducerThread V8_FINAL : public Thread {
+class ProducerThread V8_FINAL : public v8::base::Thread {
  public:
   ProducerThread() : Thread("ProducerThread") {}
   virtual ~ProducerThread() {}
@@ -129,7 +130,7 @@ class ProducerThread V8_FINAL : public Thread {
 };
 
 
-class ConsumerThread V8_FINAL : public Thread {
+class ConsumerThread V8_FINAL : public v8::base::Thread {
  public:
   ConsumerThread() : Thread("ConsumerThread") {}
   virtual ~ConsumerThread() {}

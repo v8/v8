@@ -33,9 +33,9 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/constants-arm.h"
+#include "src/base/platform/platform.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
-#include "src/platform.h"
 
 
 namespace v8 {

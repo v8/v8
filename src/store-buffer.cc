@@ -37,7 +37,7 @@ StoreBuffer::StoreBuffer(Heap* heap)
 
 
 void StoreBuffer::SetUp() {
-  virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
+  virtual_memory_ = new base::VirtualMemory(kStoreBufferSize * 3);
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());
   start_ =
@@ -45,13 +45,14 @@ void StoreBuffer::SetUp() {
   limit_ = start_ + (kStoreBufferSize / kPointerSize);
 
   old_virtual_memory_ =
-      new VirtualMemory(kOldStoreBufferLength * kPointerSize);
+      new base::VirtualMemory(kOldStoreBufferLength * kPointerSize);
   old_top_ = old_start_ =
       reinterpret_cast<Address*>(old_virtual_memory_->address());
   // Don't know the alignment requirements of the OS, but it is certainly not
   // less than 0xfff.
   ASSERT((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
-  int initial_length = static_cast<int>(OS::CommitPageSize() / kPointerSize);
+  int initial_length =
+      static_cast<int>(base::OS::CommitPageSize() / kPointerSize);
   ASSERT(initial_length > 0);
   ASSERT(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;

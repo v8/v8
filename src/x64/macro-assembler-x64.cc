@@ -542,7 +542,7 @@ void MacroAssembler::Check(Condition cc, BailoutReason reason) {
 
 
 void MacroAssembler::CheckStackAlignment() {
-  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
     ASSERT(IsPowerOf2(frame_alignment));
@@ -4097,7 +4097,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   }
 
   // Get the required frame alignment for the OS.
-  const int kFrameAlignment = OS::ActivationFrameAlignment();
+  const int kFrameAlignment = base::OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
     ASSERT(IsPowerOf2(kFrameAlignment));
     ASSERT(is_int8(kFrameAlignment));
@@ -4977,7 +4977,7 @@ void MacroAssembler::EmitSeqStringSetCharCheck(Register string,
 
 
 void MacroAssembler::PrepareCallCFunction(int num_arguments) {
-  int frame_alignment = OS::ActivationFrameAlignment();
+  int frame_alignment = base::OS::ActivationFrameAlignment();
   ASSERT(frame_alignment != 0);
   ASSERT(num_arguments >= 0);
 
@@ -5007,7 +5007,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   }
 
   call(function);
-  ASSERT(OS::ActivationFrameAlignment() != 0);
+  ASSERT(base::OS::ActivationFrameAlignment() != 0);
   ASSERT(num_arguments >= 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
@@ -5039,7 +5039,7 @@ CodePatcher::CodePatcher(byte* address, int size)
 
 CodePatcher::~CodePatcher() {
   // Indicate that code has changed.
-  CPU::FlushICache(address_, size_);
+  CpuFeatures::FlushICache(address_, size_);
 
   // Check that the code was patched as expected.
   ASSERT(masm_.pc_ == address_ + size_);

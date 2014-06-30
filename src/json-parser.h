@@ -528,7 +528,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonNumber() {
     number = StringToDouble(isolate()->unicode_cache(),
                             chars,
                             NO_FLAGS,  // Hex, octal or trailing junk.
-                            OS::nan_value());
+                            base::OS::nan_value());
   } else {
     Vector<uint8_t> buffer = Vector<uint8_t>::New(length);
     String::WriteToFlat(*source_, buffer.start(), beg_pos, position_);

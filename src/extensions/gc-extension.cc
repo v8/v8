@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/extensions/gc-extension.h"
-#include "src/platform.h"
+
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace internal {

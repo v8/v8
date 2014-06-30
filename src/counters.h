@@ -7,9 +7,9 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/platform/elapsed-timer.h"
 
 namespace v8 {
 namespace internal {
@@ -241,11 +241,11 @@ class HistogramTimer : public Histogram {
 
   // TODO(bmeurer): Remove this when HistogramTimerScope is fixed.
 #ifdef DEBUG
-  ElapsedTimer* timer() { return &timer_; }
+  base::ElapsedTimer* timer() { return &timer_; }
 #endif
 
  private:
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 };
 
 // Helper class for scoping a HistogramTimer.

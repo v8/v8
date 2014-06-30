@@ -6,9 +6,9 @@
 #define V8_STORE_BUFFER_H_
 
 #include "src/allocation.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/globals.h"
-#include "src/platform.h"
 
 namespace v8 {
 namespace internal {
@@ -119,7 +119,7 @@ class StoreBuffer {
   Address* old_limit_;
   Address* old_top_;
   Address* old_reserved_limit_;
-  VirtualMemory* old_virtual_memory_;
+  base::VirtualMemory* old_virtual_memory_;
 
   bool old_buffer_is_sorted_;
   bool old_buffer_is_filtered_;
@@ -131,7 +131,7 @@ class StoreBuffer {
   StoreBufferCallback callback_;
   bool may_move_store_buffer_entries_;
 
-  VirtualMemory* virtual_memory_;
+  base::VirtualMemory* virtual_memory_;
 
   // Two hash sets used for filtering.
   // If address is in the hash set then it is guaranteed to be in the

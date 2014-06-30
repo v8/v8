@@ -15,13 +15,17 @@
 #endif  // MINGW_HAS_SECURE_API
 #endif  // __MINGW32__
 
+#ifdef _MSC_VER
+#include <limits>
+#endif
+
 #include "src/base/win32-headers.h"
 
 #include "src/base/lazy-instance.h"
-#include "src/platform.h"
-#include "src/platform/time.h"
-#include "src/utils.h"
-#include "src/utils/random-number-generator.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/base/utils/random-number-generator.h"
 
 #ifdef _MSC_VER
 
@@ -101,7 +105,7 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 #endif  // __MINGW32__
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 namespace {
 
@@ -715,7 +719,7 @@ size_t OS::AllocateAlignment() {
 }
 
 
-static base::LazyInstance<RandomNumberGenerator>::type
+static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 
 
@@ -890,7 +894,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
   if (file_mapping == NULL) return NULL;
   // Map a view of the file into memory
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
-  if (memory) MemMove(memory, initial, size);
+  if (memory) memmove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
 
@@ -1096,7 +1100,7 @@ static std::vector<OS::SharedLibraryAddress> LoadSymbols(
   ok = _SymGetSearchPath(process_handle, buf, OS::kStackWalkMaxNameLen);
   if (!ok) {
     int err = GetLastError();
-    PrintF("%d\n", err);
+    OS::Print("%d\n", err);
     return result;
   }
 
@@ -1190,10 +1194,7 @@ int OS::NumberOfProcessorsOnline() {
 
 double OS::nan_value() {
 #ifdef _MSC_VER
-  // Positive Quiet NaN with no payload (aka. Indeterminate) has all bits
-  // in mask set, so value equals mask.
-  static const __int64 nanval = kQuietNaNMask;
-  return *reinterpret_cast<const double*>(&nanval);
+  return std::numeric_limits<double>::quiet_NaN();
 #else  // _MSC_VER
   return NAN;
 #endif  // _MSC_VER
@@ -1420,4 +1421,4 @@ void Thread::YieldCPU() {
   Sleep(0);
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

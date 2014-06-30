@@ -7,6 +7,7 @@
 #include "src/runtime-profiler.h"
 
 #include "src/assembler.h"
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
@@ -15,7 +16,6 @@
 #include "src/global-handles.h"
 #include "src/isolate-inl.h"
 #include "src/mark-compact.h"
-#include "src/platform.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {

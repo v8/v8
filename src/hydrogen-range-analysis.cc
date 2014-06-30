@@ -26,7 +26,7 @@ void HRangeAnalysisPhase::TraceRange(const char* msg, ...) {
   if (FLAG_trace_range) {
     va_list arguments;
     va_start(arguments, msg);
-    OS::VPrint(msg, arguments);
+    base::OS::VPrint(msg, arguments);
     va_end(arguments);
   }
 }

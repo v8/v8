@@ -6,13 +6,13 @@
 
 #include "src/api.h"
 #include "src/ast.h"
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/char-predicates-inl.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/messages.h"
 #include "src/parser.h"
-#include "src/platform.h"
 #include "src/preparser.h"
 #include "src/runtime.h"
 #include "src/scanner-character-streams.h"
@@ -792,7 +792,7 @@ FunctionLiteral* Parser::ParseProgram() {
   HistogramTimerScope timer_scope(isolate()->counters()->parse(), true);
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  ElapsedTimer timer;
+  base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
   }
@@ -947,7 +947,7 @@ FunctionLiteral* Parser::ParseLazy() {
   HistogramTimerScope timer_scope(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
-  ElapsedTimer timer;
+  base::ElapsedTimer timer;
   if (FLAG_trace_parse) {
     timer.Start();
   }

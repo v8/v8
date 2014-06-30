@@ -8,7 +8,7 @@
 #include <queue>
 
 #include "src/base/macros.h"
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 
@@ -16,7 +16,7 @@ namespace internal {
 
 class TaskQueue;
 
-class WorkerThread : public Thread {
+class WorkerThread : public base::Thread {
  public:
   explicit WorkerThread(TaskQueue* queue);
   virtual ~WorkerThread();

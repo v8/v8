@@ -13,6 +13,9 @@
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
 #include "src/assert-scope.h"
+#include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
@@ -30,8 +33,6 @@
 #include "src/messages.h"
 #include "src/natives.h"
 #include "src/parser.h"
-#include "src/platform.h"
-#include "src/platform/time.h"
 #include "src/profile-generator-inl.h"
 #include "src/property.h"
 #include "src/property-details.h"
@@ -41,7 +42,6 @@
 #include "src/simulator.h"
 #include "src/snapshot.h"
 #include "src/unicode-inl.h"
-#include "src/utils/random-number-generator.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -174,9 +174,9 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
   FatalErrorCallback callback = isolate->exception_behavior();
   if (callback == NULL) {
-    i::OS::PrintError("\n#\n# Fatal error in %s\n# %s\n#\n\n",
-                      location, message);
-    i::OS::Abort();
+    base::OS::PrintError("\n#\n# Fatal error in %s\n# %s\n#\n\n", location,
+                         message);
+    base::OS::Abort();
   } else {
     callback(location, message);
   }
@@ -2823,7 +2823,7 @@ double Value::NumberValue() const {
     EXCEPTION_PREAMBLE(isolate);
     has_pending_exception = !i::Execution::ToNumber(
         isolate, obj).ToHandle(&num);
-    EXCEPTION_BAILOUT_CHECK(isolate, i::OS::nan_value());
+    EXCEPTION_BAILOUT_CHECK(isolate, base::OS::nan_value());
   }
   return num->Number();
 }
@@ -4959,7 +4959,7 @@ bool v8::V8::Initialize() {
 
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
-  i::RandomNumberGenerator::SetEntropySource(entropy_source);
+  base::RandomNumberGenerator::SetEntropySource(entropy_source);
 }
 
 
@@ -5669,7 +5669,7 @@ Local<v8::Value> v8::Date::New(Isolate* isolate, double time) {
   LOG_API(i_isolate, "Date::New");
   if (std::isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
-    time = i::OS::nan_value();
+    time = base::OS::nan_value();
   }
   ENTER_V8(i_isolate);
   EXCEPTION_PREAMBLE(i_isolate);
@@ -6239,7 +6239,7 @@ Local<Number> v8::Number::New(Isolate* isolate, double value) {
   ASSERT(internal_isolate->IsInitialized());
   if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
-    value = i::OS::nan_value();
+    value = base::OS::nan_value();
   }
   ENTER_V8(internal_isolate);
   i::Handle<i::Object> result = internal_isolate->factory()->NewNumber(value);
@@ -7095,19 +7095,20 @@ const CpuProfileNode* CpuProfile::GetSample(int index) const {
 
 int64_t CpuProfile::GetSampleTimestamp(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->sample_timestamp(index) - i::TimeTicks()).InMicroseconds();
+  return (profile->sample_timestamp(index) - base::TimeTicks())
+      .InMicroseconds();
 }
 
 
 int64_t CpuProfile::GetStartTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->start_time() - i::TimeTicks()).InMicroseconds();
+  return (profile->start_time() - base::TimeTicks()).InMicroseconds();
 }
 
 
 int64_t CpuProfile::GetEndTime() const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->end_time() - i::TimeTicks()).InMicroseconds();
+  return (profile->end_time() - base::TimeTicks()).InMicroseconds();
 }
 
 
@@ -7119,7 +7120,7 @@ int CpuProfile::GetSamplesCount() const {
 void CpuProfiler::SetSamplingInterval(int us) {
   ASSERT(us >= 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
-      i::TimeDelta::FromMicroseconds(us));
+      base::TimeDelta::FromMicroseconds(us));
 }
 
 

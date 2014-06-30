@@ -5,11 +5,11 @@
 #ifndef V8_TRANSITIONS_H_
 #define V8_TRANSITIONS_H_
 
+#include "src/checks.h"
 #include "src/elements-kind.h"
 #include "src/heap.h"
 #include "src/isolate.h"
 #include "src/objects.h"
-#include "src/v8checks.h"
 
 namespace v8 {
 namespace internal {

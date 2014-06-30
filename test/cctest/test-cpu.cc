@@ -27,7 +27,7 @@
 
 #include "src/v8.h"
 
-#include "src/cpu.h"
+#include "src/base/cpu.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -35,7 +35,7 @@ using namespace v8::internal;
 
 TEST(FeatureImplications) {
   // Test for features implied by other features.
-  CPU cpu;
+  v8::base::CPU cpu;
 
   // ia32 and x64 features
   CHECK(!cpu.has_sse() || cpu.has_mmx());
@@ -51,5 +51,5 @@ TEST(FeatureImplications) {
 
 
 TEST(NumberOfProcessorsOnline) {
-  CHECK_GT(OS::NumberOfProcessorsOnline(), 0);
+  CHECK_GT(v8::base::OS::NumberOfProcessorsOnline(), 0);
 }

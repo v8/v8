@@ -8,8 +8,8 @@
 #include <queue>
 
 #include "src/base/macros.h"
-#include "src/platform/mutex.h"
-#include "src/platform/semaphore.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 
 namespace v8 {
 
@@ -33,8 +33,8 @@ class TaskQueue {
   void Terminate();
 
  private:
-  Mutex lock_;
-  Semaphore process_queue_semaphore_;
+  base::Mutex lock_;
+  base::Semaphore process_queue_semaphore_;
   std::queue<Task*> task_queue_;
   bool terminated_;
 
