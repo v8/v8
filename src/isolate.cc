@@ -2371,15 +2371,4 @@ bool StackLimitCheck::JsHasOverflowed() const {
 }
 
 
-bool PostponeInterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
-  // First check whether the previous scope intercepts.
-  if (prev_ && prev_->Intercept(flag)) return true;
-  // Then check whether this scope intercepts.
-  if ((flag & intercept_mask_)) {
-    intercepted_flags_ |= flag;
-    return true;
-  }
-  return false;
-}
-
 } }  // namespace v8::internal

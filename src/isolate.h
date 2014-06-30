@@ -1420,29 +1420,22 @@ class StackLimitCheck BASE_EMBEDDED {
 // account.
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
-  PostponeInterruptsScope(Isolate* isolate,
-                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
-      : stack_guard_(isolate->stack_guard()),
-        intercept_mask_(intercept_mask),
-        intercepted_flags_(0) {
-    stack_guard_->PushPostponeInterruptsScope(this);
+  explicit PostponeInterruptsScope(Isolate* isolate)
+      : stack_guard_(isolate->stack_guard()), isolate_(isolate) {
+    ExecutionAccess access(isolate_);
+    stack_guard_->thread_local_.postpone_interrupts_nesting_++;
+    stack_guard_->DisableInterrupts();
   }
 
   ~PostponeInterruptsScope() {
-    stack_guard_->PopPostponeInterruptsScope();
+    ExecutionAccess access(isolate_);
+    if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
+      stack_guard_->EnableInterrupts();
+    }
   }
-
-  // Find the bottom-most scope that intercepts this interrupt.
-  // Return whether the interrupt has been intercepted.
-  bool Intercept(StackGuard::InterruptFlag flag);
-
  private:
   StackGuard* stack_guard_;
-  int intercept_mask_;
-  int intercepted_flags_;
-  PostponeInterruptsScope* prev_;
-
-  friend class StackGuard;
+  Isolate* isolate_;
 };
 
 
