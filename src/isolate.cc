@@ -353,10 +353,23 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
 }
 
 
-Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
-                                                 Handle<Object> caller,
-                                                 int limit) {
+Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
+                                                Handle<Object> caller) {
+  // Get stack trace limit.
+  Handle<Object> error = Object::GetProperty(
+      this, js_builtins_object(), "$Error").ToHandleChecked();
+  if (!error->IsJSObject()) return factory()->undefined_value();
+
+  Handle<String> stackTraceLimit =
+      factory()->InternalizeUtf8String("stackTraceLimit");
+  ASSERT(!stackTraceLimit.is_null());
+  Handle<Object> stack_trace_limit =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
+                                stackTraceLimit);
+  if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
+  int limit = FastD2IChecked(stack_trace_limit->Number());
   limit = Max(limit, 0);  // Ensure that limit is not negative.
+
   int initial_size = Min(limit, 10);
   Handle<FixedArray> elements =
       factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
@@ -426,12 +439,22 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
 void Isolate::CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object) {
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
-    Handle<String> key = factory()->hidden_stack_trace_string();
+    Handle<Name> key = factory()->detailed_stack_trace_symbol();
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    JSObject::SetHiddenProperty(error_object, key, stack_trace);
+    JSObject::SetProperty(
+        error_object, key, stack_trace, NONE, STRICT).Assert();
   }
+}
+
+
+void Isolate::CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
+                                            Handle<Object> caller) {
+  // Capture stack trace for simple stack trace string formatting.
+  Handle<Name> key = factory()->stack_trace_symbol();
+  Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
+  JSObject::SetProperty(error_object, key, stack_trace, NONE, STRICT).Assert();
 }
 
 
@@ -780,25 +803,7 @@ Object* Isolate::StackOverflow() {
   Handle<JSObject> exception = factory()->CopyJSObject(boilerplate);
   DoThrow(*exception, NULL);
 
-  // Get stack trace limit.
-  Handle<Object> error = Object::GetProperty(
-      this, js_builtins_object(), "$Error").ToHandleChecked();
-  if (!error->IsJSObject()) return heap()->exception();
-
-  Handle<String> stackTraceLimit =
-      factory()->InternalizeUtf8String("stackTraceLimit");
-  ASSERT(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit =
-      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
-                                stackTraceLimit);
-  if (!stack_trace_limit->IsNumber()) return heap()->exception();
-  int limit = FastD2IChecked(stack_trace_limit->Number());
-  if (limit < 0) limit = 0;
-  Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
-      exception, factory()->undefined_value(), limit);
-  JSObject::SetHiddenProperty(exception,
-                              factory()->hidden_stack_trace_string(),
-                              stack_trace);
+  CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());
   return heap()->exception();
 }
 
@@ -1054,13 +1059,16 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
           // We fetch the stack trace that corresponds to this error object.
-          Handle<String> key = factory()->hidden_stack_trace_string();
-          Object* stack_property =
-              JSObject::cast(*exception_handle)->GetHiddenProperty(key);
-          // Property lookup may have failed.  In this case it's probably not
-          // a valid Error object.
-          if (stack_property->IsJSArray()) {
-            stack_trace_object = Handle<JSArray>(JSArray::cast(stack_property));
+          Handle<Name> key = factory()->detailed_stack_trace_symbol();
+          // Look up as own property.  If the lookup fails, the exception is
+          // probably not a valid Error object.  In that case, we fall through
+          // and capture the stack trace at this throw site.
+          LookupIterator lookup(
+              exception_handle, key, LookupIterator::CHECK_OWN_REAL);
+          Handle<Object> stack_trace_property;
+          if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
+              stack_trace_property->IsJSArray()) {
+            stack_trace_object = Handle<JSArray>::cast(stack_trace_property);
           }
         }
         if (stack_trace_object.is_null()) {

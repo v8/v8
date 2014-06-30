@@ -2917,6 +2917,8 @@ void Heap::CreateInitialObjects() {
   set_uninitialized_symbol(*factory->NewPrivateSymbol());
   set_megamorphic_symbol(*factory->NewPrivateSymbol());
   set_observed_symbol(*factory->NewPrivateSymbol());
+  set_stack_trace_symbol(*factory->NewPrivateSymbol());
+  set_detailed_stack_trace_symbol(*factory->NewPrivateSymbol());
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
       SeededNumberDictionary::New(isolate(), 0, TENURED);
