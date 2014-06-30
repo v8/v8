@@ -1,3 +1,8 @@
+2014-06-30: Version 3.28.7
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-30: Version 3.28.6
 
         Unbreak "os" stuff in shared d8 builds (issue 3407).

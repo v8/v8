@@ -1992,13 +1992,17 @@ class ScavengingVisitor : public StaticVisitorBase {
         target = EnsureDoubleAligned(heap, target, allocation_size);
       }
 
+      // Order is important here: Set the promotion limit before migrating
+      // the object. Otherwise we may end up overwriting promotion queue
+      // entries when we migrate the object.
+      heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
+
       // Order is important: slot might be inside of the target if target
       // was allocated over a dead object and slot comes from the store
       // buffer.
       *slot = target;
       MigrateObject(heap, object, target, object_size);
 
-      heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
       heap->IncrementSemiSpaceCopiedObjectSize(object_size);
       return true;
     }

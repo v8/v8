@@ -403,6 +403,7 @@ namespace internal {
   F(RegExpExecRT, 4, 1) \
   F(StringAdd, 2, 1)  \
   F(SubString, 3, 1) \
+  F(InternalizeString, 1, 1) \
   F(StringCompare, 2, 1) \
   F(StringCharCodeAtRT, 2, 1) \
   F(GetFromCache, 2, 1) \

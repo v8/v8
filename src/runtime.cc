@@ -4455,6 +4455,14 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_InternalizeString) {
+  HandleScope handles(isolate);
+  RUNTIME_ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+  return *isolate->factory()->InternalizeString(string);
+}
+
+
 RUNTIME_FUNCTION(Runtime_StringMatch) {
   HandleScope handles(isolate);
   ASSERT(args.length() == 3);

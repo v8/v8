@@ -580,8 +580,7 @@ static void UpdateSharedFunctionInfo(CompilationInfo* info) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  shared->set_dont_optimize_reason(lit->dont_optimize_reason());
-  shared->set_dont_inline(lit->flags()->Contains(kDontInline));
+  shared->set_bailout_reason(lit->dont_optimize_reason());
   shared->set_ast_node_count(lit->ast_node_count());
   shared->set_strict_mode(lit->strict_mode());
 }
@@ -613,8 +612,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
   function_info->set_ast_node_count(lit->ast_node_count());
   function_info->set_is_function(lit->is_function());
-  function_info->set_dont_optimize_reason(lit->dont_optimize_reason());
-  function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
+  function_info->set_bailout_reason(lit->dont_optimize_reason());
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_is_generator(lit->is_generator());
 }
