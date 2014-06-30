@@ -888,10 +888,8 @@ class Assembler : public AssemblerBase {
   void mov_label_offset(Register dst, Label* label);
 
   // ARMv7 instructions for loading a 32 bit immediate in two instructions.
-  // This may actually emit a different mov instruction, but on an ARMv7 it
-  // is guaranteed to only emit one instruction.
+  // The constant for movw and movt should be in the range 0-0xffff.
   void movw(Register reg, uint32_t immediate, Condition cond = al);
-  // The constant for movt should be in the range 0-0xffff.
   void movt(Register reg, uint32_t immediate, Condition cond = al);
 
   void bic(Register dst, Register src1, const Operand& src2,

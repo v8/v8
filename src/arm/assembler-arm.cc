@@ -1092,8 +1092,7 @@ void Assembler::move_32_bit_immediate(Register rd,
       // Make sure the movw/movt doesn't get separated.
       BlockConstPoolFor(2);
     }
-    emit(cond | 0x30*B20 | target.code()*B12 |
-         EncodeMovwImmediate(x.imm32_ & 0xffff));
+    movw(target, static_cast<uint32_t>(x.imm32_ & 0xffff), cond);
     movt(target, static_cast<uint32_t>(x.imm32_) >> 16, cond);
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
@@ -1457,11 +1456,7 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
 
 
 void Assembler::movw(Register reg, uint32_t immediate, Condition cond) {
-  ASSERT(immediate < 0x10000);
-  // May use movw if supported, but on unsupported platforms will try to use
-  // equivalent rotated immed_8 value and other tricks before falling back to a
-  // constant pool load.
-  mov(reg, Operand(immediate), LeaveCC, cond);
+  emit(cond | 0x30*B20 | reg.code()*B12 | EncodeMovwImmediate(immediate));
 }
 
 
