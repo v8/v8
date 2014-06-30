@@ -14515,8 +14515,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
                    object->properties()->length());
   }
   Handle<Object> raw_value(object->RawFastPropertyAt(field_index), isolate);
-  RUNTIME_ASSERT(raw_value->IsMutableHeapNumber());
-  return *Object::WrapForRead(isolate, raw_value, Representation::Double());
+  RUNTIME_ASSERT(raw_value->IsNumber() || raw_value->IsUninitialized());
+  return *Object::NewStorageFor(isolate, raw_value, Representation::Double());
 }
 
 

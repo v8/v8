@@ -413,9 +413,8 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
   } else if (representation.IsDouble()) {
     Label do_store, heap_number;
-    __ LoadRoot(scratch3, Heap::kMutableHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow,
-                          TAG_RESULT, MUTABLE);
+    __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow);
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiUntag(scratch1, value_reg);

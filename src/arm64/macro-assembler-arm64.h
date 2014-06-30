@@ -1371,8 +1371,7 @@ class MacroAssembler : public Assembler {
                           Register scratch1,
                           Register scratch2,
                           CPURegister value = NoFPReg,
-                          CPURegister heap_number_map = NoReg,
-                          MutableMode mode = IMMUTABLE);
+                          CPURegister heap_number_map = NoReg);
 
   // ---------------------------------------------------------------------------
   // Support functions.

@@ -1186,8 +1186,7 @@ class MacroAssembler: public Assembler {
   // space is full.
   void AllocateHeapNumber(Register result,
                           Register scratch,
-                          Label* gc_required,
-                          MutableMode mode = IMMUTABLE);
+                          Label* gc_required);
 
   // Allocate a sequential string. All the header fields of the string object
   // are initialized.

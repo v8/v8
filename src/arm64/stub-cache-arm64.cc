@@ -399,8 +399,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ Ldr(temp_double, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
     __ Bind(&do_store);
-    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2, temp_double,
-                          NoReg, MUTABLE);
+    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2, temp_double);
   }
 
   // Stub never generated for non-global objects that require access checks.

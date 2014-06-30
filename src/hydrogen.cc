@@ -5781,9 +5781,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
           HType::HeapObject(),
           NOT_TENURED,
-          MUTABLE_HEAP_NUMBER_TYPE);
-      AddStoreMapConstant(
-          heap_number, isolate()->factory()->mutable_heap_number_map());
+          HEAP_NUMBER_TYPE);
+      AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
       instr = New<HStoreNamedField>(checked_object->ActualValue(),
@@ -10954,14 +10953,11 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         // 2) we can just use the mode of the parent object for pretenuring
         HInstruction* double_box =
             Add<HAllocate>(heap_number_constant, HType::HeapObject(),
-                pretenure_flag, MUTABLE_HEAP_NUMBER_TYPE);
+                pretenure_flag, HEAP_NUMBER_TYPE);
         AddStoreMapConstant(double_box,
-            isolate()->factory()->mutable_heap_number_map());
-        // Unwrap the mutable heap number from the boilerplate.
-        HValue* double_value =
-            Add<HConstant>(Handle<HeapNumber>::cast(value)->value());
-        Add<HStoreNamedField>(
-            double_box, HObjectAccess::ForHeapNumberValue(), double_value);
+            isolate()->factory()->heap_number_map());
+        Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
+                              Add<HConstant>(value));
         value_instruction = double_box;
       } else if (representation.IsSmi()) {
         value_instruction = value->IsUninitialized()

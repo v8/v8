@@ -42,7 +42,6 @@ namespace internal {
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, heap_number_map, HeapNumberMap)                                       \
-  V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
@@ -231,7 +230,6 @@ namespace internal {
   V(shared_function_info_map)             \
   V(meta_map)                             \
   V(heap_number_map)                      \
-  V(mutable_heap_number_map)              \
   V(native_context_map)                   \
   V(fixed_array_map)                      \
   V(code_map)                             \
@@ -1462,9 +1460,7 @@ class Heap {
 
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
-      double value,
-      MutableMode mode = IMMUTABLE,
-      PretenureFlag pretenure = NOT_TENURED);
+      double value, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a byte array of the specified length
   MUST_USE_RESULT AllocationResult AllocateByteArray(

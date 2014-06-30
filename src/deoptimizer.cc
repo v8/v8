@@ -1813,11 +1813,9 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     Handle<Map> map = Map::GeneralizeAllFieldRepresentations(
         Handle<Map>::cast(MaterializeNextValue()));
     switch (map->instance_type()) {
-      case MUTABLE_HEAP_NUMBER_TYPE:
       case HEAP_NUMBER_TYPE: {
         // Reuse the HeapNumber value directly as it is already properly
-        // tagged and skip materializing the HeapNumber explicitly. Turn mutable
-        // heap numbers immutable.
+        // tagged and skip materializing the HeapNumber explicitly.
         Handle<Object> object = MaterializeNextValue();
         if (object_index < prev_materialized_count_) {
           materialized_objects_->Add(Handle<Object>(
@@ -1879,9 +1877,6 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
 Handle<Object> Deoptimizer::MaterializeNextValue() {
   int value_index = materialization_value_index_++;
   Handle<Object> value = materialized_values_->at(value_index);
-  if (value->IsMutableHeapNumber()) {
-    HeapNumber::cast(*value)->set_map(isolate_->heap()->heap_number_map());
-  }
   if (*value == isolate_->heap()->arguments_marker()) {
     value = MaterializeNextHeapObject();
   }
@@ -3388,7 +3383,6 @@ Handle<Object> SlotRefValueBuilder::GetNext(Isolate* isolate, int lvl) {
       // TODO(jarin) this should be unified with the code in
       // Deoptimizer::MaterializeNextHeapObject()
       switch (map->instance_type()) {
-        case MUTABLE_HEAP_NUMBER_TYPE:
         case HEAP_NUMBER_TYPE: {
           // Reuse the HeapNumber value directly as it is already properly
           // tagged and skip materializing the HeapNumber explicitly.

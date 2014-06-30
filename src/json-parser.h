@@ -387,9 +387,11 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
           Representation expected_representation = details.representation();
 
           if (value->FitsRepresentation(expected_representation)) {
-            if (expected_representation.IsDouble()) {
-              value = Object::NewStorageFor(isolate(), value,
-                                            expected_representation);
+            // If the target representation is double and the value is already
+            // double, use the existing box.
+            if (value->IsSmi() && expected_representation.IsDouble()) {
+              value = factory()->NewHeapNumber(
+                  Handle<Smi>::cast(value)->value());
             } else if (expected_representation.IsHeapObject() &&
                        !target->instance_descriptors()->GetFieldType(
                            descriptor)->NowContains(value)) {
