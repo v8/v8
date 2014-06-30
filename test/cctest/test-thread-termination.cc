@@ -403,3 +403,59 @@ TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
   delete semaphore;
   semaphore = NULL;
 }
+
+
+static int callback_counter = 0;
+
+
+static void CounterCallback(v8::Isolate* isolate, void* data) {
+  callback_counter++;
+}
+
+
+TEST(PostponeTerminateException) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Handle<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(CcTest::isolate(), TerminateCurrentThread, DoLoop);
+  v8::Handle<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global);
+  v8::Context::Scope context_scope(context);
+
+  v8::TryCatch try_catch;
+  static const char* terminate_and_loop =
+      "terminate(); for (var i = 0; i < 10000; i++);";
+
+  { // Postpone terminate execution interrupts.
+    i::PostponeInterruptsScope p1(CcTest::i_isolate(),
+                                  i::StackGuard::TERMINATE_EXECUTION) ;
+
+    // API interrupts should still be triggered.
+    CcTest::isolate()->RequestInterrupt(&CounterCallback, NULL);
+    CHECK_EQ(0, callback_counter);
+    CompileRun(terminate_and_loop);
+    CHECK(!try_catch.HasTerminated());
+    CHECK_EQ(1, callback_counter);
+
+    { // Postpone API interrupts as well.
+      i::PostponeInterruptsScope p2(CcTest::i_isolate(),
+                                    i::StackGuard::API_INTERRUPT);
+
+      // None of the two interrupts should trigger.
+      CcTest::isolate()->RequestInterrupt(&CounterCallback, NULL);
+      CompileRun(terminate_and_loop);
+      CHECK(!try_catch.HasTerminated());
+      CHECK_EQ(1, callback_counter);
+    }
+
+    // Now the previously requested API interrupt should trigger.
+    CompileRun(terminate_and_loop);
+    CHECK(!try_catch.HasTerminated());
+    CHECK_EQ(2, callback_counter);
+  }
+
+  // Now the previously requested terminate execution interrupt should trigger.
+  CompileRun("for (var i = 0; i < 10000; i++);");
+  CHECK(try_catch.HasTerminated());
+  CHECK_EQ(2, callback_counter);
+}
