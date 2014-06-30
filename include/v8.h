@@ -4134,7 +4134,8 @@ class V8_EXPORT Isolate {
    * list.
    */
   enum UseCounterFeature {
-    kUseAsm = 0
+    kUseAsm = 0,
+    kUseCounterFeatureCount  // This enum value must be last.
   };
 
   typedef void (*UseCounterCallback)(Isolate* isolate,

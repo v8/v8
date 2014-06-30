@@ -783,6 +783,10 @@ Parser::Parser(CompilationInfo* info)
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
+  for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
+       ++feature) {
+    use_counts_[feature] = 0;
+  }
 }
 
 
@@ -1087,11 +1091,13 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
           literal->raw_value()->IsString()) {
-        // Check "use strict" directive (ES5 14.1).
+        // Check "use strict" directive (ES5 14.1) and "use asm" directive. Only
+        // one can be present.
         if (strict_mode() == SLOPPY &&
             literal->raw_value()->AsString() ==
                 ast_value_factory_->use_strict_string() &&
-            token_loc.end_pos - token_loc.beg_pos == 12) {
+            token_loc.end_pos - token_loc.beg_pos ==
+                ast_value_factory_->use_strict_string()->length() + 2) {
           // TODO(mstarzinger): Global strict eval calls, need their own scope
           // as specified in ES5 10.4.2(3). The correct fix would be to always
           // add this scope in DoParseProgram(), but that requires adaptations
@@ -1108,6 +1114,13 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           scope_->SetStrictMode(STRICT);
           // "use strict" is the only directive for now.
           directive_prologue = false;
+        } else if (literal->raw_value()->AsString() ==
+                       ast_value_factory_->use_asm_string() &&
+                   token_loc.end_pos - token_loc.beg_pos ==
+                       ast_value_factory_->use_asm_string()->length() + 2) {
+          // Store the usage count; The actual use counter on the isolate is
+          // incremented after parsing is done.
+          ++use_counts_[v8::Isolate::kUseAsm];
         }
       } else {
         // End of the directive prologue.
@@ -3899,6 +3912,16 @@ void Parser::ThrowPendingError() {
 }
 
 
+void Parser::InternalizeUseCounts() {
+  for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
+       ++feature) {
+    for (int i = 0; i < use_counts_[feature]; ++i) {
+      isolate()->CountUsage(v8::Isolate::UseCounterFeature(feature));
+    }
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Regular expressions
 
@@ -4840,6 +4863,9 @@ bool Parser::Parse() {
     info()->SetAstValueFactory(ast_value_factory_);
   }
   ast_value_factory_ = NULL;
+
+  InternalizeUseCounts();
+
   return (result != NULL);
 }
 
