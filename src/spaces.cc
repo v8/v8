@@ -193,7 +193,7 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
       return true;  // Found a large enough allocation block.
     }
   }
-
+  current_allocation_block_index_ = 0;
   // Code range is full or too fragmented.
   return false;
 }
