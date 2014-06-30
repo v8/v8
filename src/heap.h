@@ -193,8 +193,6 @@ namespace internal {
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
   V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
-  V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
-  V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)
@@ -342,6 +340,7 @@ namespace internal {
   V(strict_compare_ic_string, "===")                                     \
   V(infinity_string, "Infinity")                                         \
   V(minus_infinity_string, "-Infinity")                                  \
+  V(hidden_stack_trace_string, "v8::hidden_stack_trace")                 \
   V(query_colon_string, "(?:)")                                          \
   V(Generator_string, "Generator")                                       \
   V(throw_string, "throw")                                               \

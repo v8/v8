@@ -2211,17 +2211,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
         false);
   }
 
-  // Expose the stack trace symbol to native JS.
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          handle(native_context->builtins(), isolate),
-          factory->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("stack_trace_symbol")),
-          factory->stack_trace_symbol(),
-          NONE),
-      false);
-
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
     // If loading fails we just bail out without installing the
