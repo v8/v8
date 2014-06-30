@@ -1008,7 +1008,7 @@ Handle<Object> Factory::NewNumber(double value,
   // We need to distinguish the minus zero value and this cannot be
   // done after conversion to int. Doing this by comparing bit
   // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) return NewHeapNumber(-0.0, pretenure);
+  if (IsMinusZero(value)) return NewHeapNumber(-0.0, IMMUTABLE, pretenure);
 
   int int_value = FastD2I(value);
   if (value == int_value && Smi::IsValid(int_value)) {
@@ -1016,15 +1016,15 @@ Handle<Object> Factory::NewNumber(double value,
   }
 
   // Materialize the value in the heap.
-  return NewHeapNumber(value, pretenure);
+  return NewHeapNumber(value, IMMUTABLE, pretenure);
 }
 
 
 Handle<Object> Factory::NewNumberFromInt(int32_t value,
                                          PretenureFlag pretenure) {
   if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
-  // Bypass NumberFromDouble to avoid various redundant checks.
-  return NewHeapNumber(FastI2D(value), pretenure);
+  // Bypass NewNumber to avoid various redundant checks.
+  return NewHeapNumber(FastI2D(value), IMMUTABLE, pretenure);
 }
 
 
@@ -1034,15 +1034,17 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
   if (int32v >= 0 && Smi::IsValid(int32v)) {
     return handle(Smi::FromInt(int32v), isolate());
   }
-  return NewHeapNumber(FastUI2D(value), pretenure);
+  return NewHeapNumber(FastUI2D(value), IMMUTABLE, pretenure);
 }
 
 
 Handle<HeapNumber> Factory::NewHeapNumber(double value,
+                                          MutableMode mode,
                                           PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
+      isolate()->heap()->AllocateHeapNumber(value, mode, pretenure),
+      HeapNumber);
 }
 
 

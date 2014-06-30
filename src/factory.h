@@ -352,8 +352,8 @@ class Factory V8_FINAL {
     return NewNumber(static_cast<double>(value), pretenure);
   }
   Handle<HeapNumber> NewHeapNumber(double value,
+                                   MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
-
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.

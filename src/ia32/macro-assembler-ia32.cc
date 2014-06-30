@@ -1683,14 +1683,18 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
-                                        Label* gc_required) {
+                                        Label* gc_required,
+                                        MutableMode mode) {
   // Allocate heap number in new space.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
            TAG_OBJECT);
 
+  Handle<Map> map = mode == MUTABLE
+      ? isolate()->factory()->mutable_heap_number_map()
+      : isolate()->factory()->heap_number_map();
+
   // Set the map.
-  mov(FieldOperand(result, HeapObject::kMapOffset),
-      Immediate(isolate()->factory()->heap_number_map()));
+  mov(FieldOperand(result, HeapObject::kMapOffset), Immediate(map));
 }
 
 

@@ -407,6 +407,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
 
   switch (HeapObject::cast(*object)->map()->instance_type()) {
     case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeHeapNumber(Handle<HeapNumber>::cast(object));
     case ODDBALL_TYPE:

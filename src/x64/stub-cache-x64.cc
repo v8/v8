@@ -489,7 +489,7 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
   } else if (representation.IsDouble()) {
     Label do_store, heap_number;
-    __ AllocateHeapNumber(storage_reg, scratch1, slow);
+    __ AllocateHeapNumber(storage_reg, scratch1, slow, MUTABLE);
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiToInteger32(scratch1, value_reg);

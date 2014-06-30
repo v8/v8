@@ -64,6 +64,11 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberPrint(out);
       break;
+    case MUTABLE_HEAP_NUMBER_TYPE:
+      PrintF(out, "<mutable ");
+      HeapNumber::cast(this)->HeapNumberPrint(out);
+      PrintF(out, ">");
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(out);
       break;

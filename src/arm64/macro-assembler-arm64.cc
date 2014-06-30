@@ -3560,7 +3560,8 @@ void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         CPURegister value,
-                                        CPURegister heap_number_map) {
+                                        CPURegister heap_number_map,
+                                        MutableMode mode) {
   ASSERT(!value.IsValid() || value.Is64Bits());
   UseScratchRegisterScope temps(this);
 
@@ -3568,6 +3569,10 @@ void MacroAssembler::AllocateHeapNumber(Register result,
   // object.
   Allocate(HeapNumber::kSize, result, scratch1, scratch2, gc_required,
            NO_ALLOCATION_FLAGS);
+
+  Heap::RootListIndex map_index = mode == MUTABLE
+      ? Heap::kMutableHeapNumberMapRootIndex
+      : Heap::kHeapNumberMapRootIndex;
 
   // Prepare the heap number map.
   if (!heap_number_map.IsValid()) {
@@ -3578,7 +3583,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
     } else {
       heap_number_map = scratch1;
     }
-    LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
+    LoadRoot(heap_number_map, map_index);
   }
   if (emit_debug_code()) {
     Register map;
@@ -3588,7 +3593,7 @@ void MacroAssembler::AllocateHeapNumber(Register result,
     } else {
       map = Register(heap_number_map);
     }
-    AssertRegisterIsRoot(map, Heap::kHeapNumberMapRootIndex);
+    AssertRegisterIsRoot(map, map_index);
   }
 
   // Store the heap number map and the value in the allocated object.

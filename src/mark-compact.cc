@@ -292,6 +292,7 @@ class VerifyNativeContextSeparationVisitor: public ObjectVisitor {
           case CODE_TYPE:
           case FIXED_DOUBLE_ARRAY_TYPE:
           case HEAP_NUMBER_TYPE:
+          case MUTABLE_HEAP_NUMBER_TYPE:
           case INTERCEPTOR_INFO_TYPE:
           case ODDBALL_TYPE:
           case SCRIPT_TYPE:
