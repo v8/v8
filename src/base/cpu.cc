@@ -115,7 +115,7 @@ static uint32_t ReadELFHWCaps() {
 #endif  // V8_HOST_ARCH_ARM
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
-class CPUInfo V8_FINAL BASE_EMBEDDED {
+class CPUInfo V8_FINAL {
  public:
   CPUInfo() : datalen_(0) {
     // Get the size of the cpuinfo file by reading it until the end. This is

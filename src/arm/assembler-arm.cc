@@ -39,6 +39,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/base/cpu.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
 
