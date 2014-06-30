@@ -1333,10 +1333,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
   if (!function->shared()->is_generator()) {
-    JSObject::SetOwnPropertyIgnoreAttributes(prototype,
-                                             constructor_string(),
-                                             function,
-                                             DONT_ENUM).Assert();
+    JSObject::AddProperty(prototype, constructor_string(), function, DONT_ENUM);
   }
 
   return prototype;
@@ -2159,11 +2156,19 @@ Handle<JSFunction> Factory::CreateApiFunction(
     return result;
   }
 
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      handle(JSObject::cast(result->prototype())),
-      constructor_string(),
-      result,
-      DONT_ENUM).Assert();
+  if (prototype->IsTheHole()) {
+#ifdef DEBUG
+    LookupIterator it(handle(JSObject::cast(result->prototype())),
+                      constructor_string(),
+                      LookupIterator::CHECK_OWN_REAL);
+    MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
+    ASSERT(it.IsFound());
+    ASSERT(maybe_prop.ToHandleChecked().is_identical_to(result));
+#endif
+  } else {
+    JSObject::AddProperty(handle(JSObject::cast(result->prototype())),
+                          constructor_string(), result, DONT_ENUM);
+  }
 
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).

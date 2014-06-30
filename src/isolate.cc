@@ -494,31 +494,29 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          JSObject::SetOwnPropertyIgnoreAttributes(
+          JSObject::AddProperty(
               stack_frame, column_key,
-              Handle<Smi>(Smi::FromInt(column_offset + 1), this), NONE).Check();
+              handle(Smi::FromInt(column_offset + 1), this), NONE);
         }
-       JSObject::SetOwnPropertyIgnoreAttributes(
+       JSObject::AddProperty(
             stack_frame, line_key,
-            Handle<Smi>(Smi::FromInt(line_number + 1), this), NONE).Check();
+            handle(Smi::FromInt(line_number + 1), this), NONE);
       }
 
       if (options & StackTrace::kScriptId) {
-        Handle<Smi> script_id(script->id(), this);
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, script_id_key, script_id, NONE).Check();
+        JSObject::AddProperty(
+            stack_frame, script_id_key, handle(script->id(), this), NONE);
       }
 
       if (options & StackTrace::kScriptName) {
-        Handle<Object> script_name(script->name(), this);
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, script_name_key, script_name, NONE).Check();
+        JSObject::AddProperty(
+            stack_frame, script_name_key, handle(script->name(), this), NONE);
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
         Handle<Object> result = Script::GetNameOrSourceURL(script);
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, script_name_or_source_url_key, result, NONE).Check();
+        JSObject::AddProperty(
+            stack_frame, script_name_or_source_url_key, result, NONE);
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -526,23 +524,21 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         if (!fun_name->BooleanValue()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
         }
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, function_key, fun_name, NONE).Check();
+        JSObject::AddProperty(stack_frame, function_key, fun_name, NONE);
       }
 
       if (options & StackTrace::kIsEval) {
         Handle<Object> is_eval =
             script->compilation_type() == Script::COMPILATION_TYPE_EVAL ?
                 factory()->true_value() : factory()->false_value();
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, eval_key, is_eval, NONE).Check();
+        JSObject::AddProperty(stack_frame, eval_key, is_eval, NONE);
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             factory()->true_value() : factory()->false_value();
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            stack_frame, constructor_key, is_constructor, NONE).Check();
+        JSObject::AddProperty(
+            stack_frame, constructor_key, is_constructor, NONE);
       }
 
       FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
