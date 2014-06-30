@@ -38,6 +38,7 @@
 
 #if V8_TARGET_ARCH_X87
 
+#include "src/base/cpu.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"

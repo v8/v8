@@ -37,6 +37,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include "src/base/cpu.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/serialize.h"
 
