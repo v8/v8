@@ -1247,16 +1247,16 @@ Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
   Register receiver = LoadIC::ReceiverRegister();
   Register name = LoadIC::NameRegister();
-  static Register registers[] = { receiver, name, x3, x1, x4, x5 };
+  static Register registers[] = { receiver, name, x3, x0, x4, x5 };
   return registers;
 }
 
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = KeyedLoadIC::ReceiverRegister();
-  Register name = KeyedLoadIC::NameRegister();
-  static Register registers[] = { receiver, name, x2, x3, x4, x5 };
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  static Register registers[] = { receiver, name, x3, x0, x4, x5 };
   return registers;
 }
 
@@ -1449,27 +1449,23 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
 void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
     MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- x0     : key
-  //  -- x1     : receiver
-  // -----------------------------------
-  ASSERT(x1.is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(x0.is(KeyedLoadIC::NameRegister()));
+  // The return address is in lr.
   Label slow, miss;
 
   Register result = x0;
-  Register key = x0;
-  Register receiver = x1;
+  Register key = LoadIC::NameRegister();
+  Register receiver = LoadIC::ReceiverRegister();
+  ASSERT(receiver.is(x1));
+  ASSERT(key.is(x2));
 
   __ JumpIfNotSmi(key, &miss);
   __ Ldr(x4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ LoadFromNumberDictionary(&slow, x4, key, result, x2, x3, x5, x6);
+  __ LoadFromNumberDictionary(&slow, x4, key, result, x7, x3, x5, x6);
   __ Ret();
 
   __ Bind(&slow);
   __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, x2, x3);
+      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, x4, x3);
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.

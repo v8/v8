@@ -995,10 +995,12 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    __ mov(ecx, Operand(ebp, kIndexOffset));
+    Register receiver = LoadIC::ReceiverRegister();
+    Register key = LoadIC::NameRegister();
+    __ mov(key, Operand(ebp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
-    __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
+    __ mov(receiver, Operand(ebp, kArgumentsOffset));  // load arguments
 
     // Use inline caching to speed up access to arguments.
     Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
@@ -1011,19 +1013,19 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Push the nth argument.
     __ push(eax);
 
-    // Update the index on the stack and in register eax.
-    __ mov(ecx, Operand(ebp, kIndexOffset));
-    __ add(ecx, Immediate(1 << kSmiTagSize));
-    __ mov(Operand(ebp, kIndexOffset), ecx);
+    // Update the index on the stack and in register key.
+    __ mov(key, Operand(ebp, kIndexOffset));
+    __ add(key, Immediate(1 << kSmiTagSize));
+    __ mov(Operand(ebp, kIndexOffset), key);
 
     __ bind(&entry);
-    __ cmp(ecx, Operand(ebp, kLimitOffset));
+    __ cmp(key, Operand(ebp, kLimitOffset));
     __ j(not_equal, &loop);
 
     // Call the function.
     Label call_proxy;
-    __ mov(eax, ecx);
     ParameterCount actual(eax);
+    __ Move(eax, key);
     __ SmiUntag(eax);
     __ mov(edi, Operand(ebp, kFunctionOffset));
     __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);

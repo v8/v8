@@ -506,9 +506,6 @@ class KeyedLoadIC: public LoadIC {
     ASSERT(target()->is_keyed_load_stub());
   }
 
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
 

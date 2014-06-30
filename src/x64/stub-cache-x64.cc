@@ -1224,16 +1224,16 @@ Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
   Register receiver = LoadIC::ReceiverRegister();
   Register name = LoadIC::NameRegister();
-  static Register registers[] = { receiver, name, rdx, rbx, rdi, r8 };
+  static Register registers[] = { receiver, name, rax, rbx, rdi, r8 };
   return registers;
 }
 
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = KeyedLoadIC::ReceiverRegister();
-  Register name = KeyedLoadIC::NameRegister();
-  static Register registers[] = { receiver, name, rbx, rcx, rdi, r8 };
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  static Register registers[] = { receiver, name, rax, rbx, rdi, r8 };
   return registers;
 }
 
@@ -1394,32 +1394,32 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
 void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rax    : key
+  //  -- rcx    : key
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  ASSERT(rdx.is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(rax.is(KeyedLoadIC::NameRegister()));
+  ASSERT(rdx.is(LoadIC::ReceiverRegister()));
+  ASSERT(rcx.is(LoadIC::NameRegister()));
   Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  __ JumpIfNotSmi(rax, &miss);
-  __ SmiToInteger32(rbx, rax);
-  __ movp(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ JumpIfNotSmi(rcx, &miss);
+  __ SmiToInteger32(rbx, rcx);
+  __ movp(rax, FieldOperand(rdx, JSObject::kElementsOffset));
 
   // Check whether the elements is a number dictionary.
   // rdx: receiver
-  // rax: key
+  // rcx: key
   // rbx: key as untagged int32
-  // rcx: elements
-  __ LoadFromNumberDictionary(&slow, rcx, rax, rbx, r9, rdi, rax);
+  // rax: elements
+  __ LoadFromNumberDictionary(&slow, rax, rcx, rbx, r9, rdi, rax);
   __ ret(0);
 
   __ bind(&slow);
   // ----------- S t a t e -------------
-  //  -- rax    : key
+  //  -- rcx    : key
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
@@ -1427,7 +1427,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 
   __ bind(&miss);
   // ----------- S t a t e -------------
-  //  -- rax    : key
+  //  -- rcx    : key
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------

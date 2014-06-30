@@ -1844,9 +1844,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
-        // We need the receiver both on the stack and in the accumulator.
-        VisitForAccumulatorValue(property->obj());
-        __ Push(result_register());
+        // We need the receiver both on the stack and in the register.
+        VisitForStackValue(property->obj());
+        __ movp(LoadIC::ReceiverRegister(), Operand(rsp, 0));
       } else {
         VisitForStackValue(property->obj());
       }
@@ -1854,9 +1854,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case KEYED_PROPERTY: {
       if (expr->is_compound()) {
         VisitForStackValue(property->obj());
-        VisitForAccumulatorValue(property->key());
-        __ movp(rdx, Operand(rsp, 0));
-        __ Push(rax);
+        VisitForStackValue(property->key());
+        __ movp(LoadIC::ReceiverRegister(), Operand(rsp, kPointerSize));
+        __ movp(LoadIC::NameRegister(), Operand(rsp, 0));
       } else {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
@@ -1997,6 +1997,9 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       Label l_catch, l_try, l_suspend, l_continuation, l_resume;
       Label l_next, l_call, l_loop;
+      Register load_receiver = LoadIC::ReceiverRegister();
+      Register load_name = LoadIC::NameRegister();
+
       // Initial send value is undefined.
       __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       __ jmp(&l_next);
@@ -2004,10 +2007,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // catch (e) { receiver = iter; f = 'throw'; arg = e; goto l_call; }
       __ bind(&l_catch);
       handler_table()->set(expr->index(), Smi::FromInt(l_catch.pos()));
-      __ LoadRoot(rcx, Heap::kthrow_stringRootIndex);    // "throw"
-      __ Push(rcx);
-      __ Push(Operand(rsp, 2 * kPointerSize));           // iter
-      __ Push(rax);                                      // exception
+      __ LoadRoot(load_name, Heap::kthrow_stringRootIndex);  // "throw"
+      __ Push(load_name);
+      __ Push(Operand(rsp, 2 * kPointerSize));               // iter
+      __ Push(rax);                                          // exception
       __ jmp(&l_call);
 
       // try { received = %yield result }
@@ -2042,20 +2045,15 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // receiver = iter; f = 'next'; arg = received;
       __ bind(&l_next);
-      Register keyedload_receiver = KeyedLoadIC::ReceiverRegister();
-      Register keyedload_name = KeyedLoadIC::NameRegister();
-      ASSERT(keyedload_receiver.is(rdx));
-      ASSERT(keyedload_name.is(rax));
 
-      __ LoadRoot(rcx, Heap::knext_stringRootIndex);     // "next"
-      __ Push(rcx);
-      __ Push(Operand(rsp, 2 * kPointerSize));           // iter
-      __ Push(rax);                                      // received
+      __ LoadRoot(load_name, Heap::knext_stringRootIndex);
+      __ Push(load_name);                           // "next"
+      __ Push(Operand(rsp, 2 * kPointerSize));      // iter
+      __ Push(rax);                                 // received
 
       // result = receiver[f](arg);
       __ bind(&l_call);
-      __ movp(keyedload_receiver, Operand(rsp, kPointerSize));
-      __ movp(keyedload_name, Operand(rsp, 2 * kPointerSize));
+      __ movp(load_receiver, Operand(rsp, kPointerSize));
       Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
       CallIC(ic, TypeFeedbackId::None());
       __ movp(rdi, rax);
@@ -2068,11 +2066,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       // if (!result.done) goto l_try;
       __ bind(&l_loop);
-      Register load_receiver = LoadIC::ReceiverRegister();
-      Register load_name = LoadIC::NameRegister();
-      ASSERT(load_receiver.is(rax));
-      ASSERT(load_name.is(rcx));
-
+      __ Move(load_receiver, rax);
       __ Push(load_receiver);                               // save result
       __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
       CallLoadIC(NOT_CONTEXTUAL);                           // rax=result.done
@@ -2503,15 +2497,16 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
-    ASSERT(rax.is(LoadIC::ReceiverRegister()));
+    ASSERT(!rax.is(LoadIC::ReceiverRegister()));
+    __ movp(LoadIC::ReceiverRegister(), rax);
     EmitNamedPropertyLoad(expr);
     PrepareForBailoutForId(expr->LoadId(), TOS_REG);
     context()->Plug(rax);
   } else {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
-    ASSERT(rax.is(KeyedLoadIC::NameRegister()));
-    __ Pop(KeyedLoadIC::ReceiverRegister());
+    __ Move(LoadIC::NameRegister(), rax);
+    __ Pop(LoadIC::ReceiverRegister());
     EmitKeyedPropertyLoad(expr);
     context()->Plug(rax);
   }
@@ -2561,13 +2556,13 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
                                                 Expression* key) {
   // Load the key.
   VisitForAccumulatorValue(key);
-  ASSERT(rax.is(KeyedLoadIC::NameRegister()));
 
   Expression* callee = expr->expression();
 
   // Load the function from the receiver.
   ASSERT(callee->IsProperty());
-  __ movp(KeyedLoadIC::ReceiverRegister(), Operand(rsp, 0));
+  __ movp(LoadIC::ReceiverRegister(), Operand(rsp, 0));
+  __ Move(LoadIC::NameRegister(), rax);
   EmitKeyedPropertyLoad(callee->AsProperty());
   PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
 
@@ -4224,18 +4219,16 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ Push(Smi::FromInt(0));
     }
     if (assign_type == NAMED_PROPERTY) {
-      VisitForAccumulatorValue(prop->obj());
-      ASSERT(rax.is(LoadIC::ReceiverRegister()));
-      __ Push(rax);  // Copy of receiver, needed for later store.
+      VisitForStackValue(prop->obj());
+      __ movp(LoadIC::ReceiverRegister(), Operand(rsp, 0));
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForStackValue(prop->obj());
-      VisitForAccumulatorValue(prop->key());
-      ASSERT(rax.is(KeyedLoadIC::NameRegister()));
+      VisitForStackValue(prop->key());
       // Leave receiver on stack
-      __ movp(KeyedLoadIC::ReceiverRegister(), Operand(rsp, 0));
+      __ movp(LoadIC::ReceiverRegister(), Operand(rsp, kPointerSize));
       // Copy of key, needed for later store.
-      __ Push(KeyedLoadIC::NameRegister());
+      __ movp(LoadIC::NameRegister(), Operand(rsp, 0));
       EmitKeyedPropertyLoad(prop);
     }
   }

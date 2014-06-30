@@ -407,18 +407,16 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- x2    : name
-  //  -- lr    : return address
-  //  -- x0    : receiver
-  // -----------------------------------
-  ASSERT(x0.is(ReceiverRegister()));
-  ASSERT(x2.is(NameRegister()));
+  // The return address is in lr.
+  Register receiver = ReceiverRegister();
+  Register name = NameRegister();
+  ASSERT(receiver.is(x1));
+  ASSERT(name.is(x2));
 
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, flags, x0, x2, x3, x4, x5, x6);
+      masm, flags, receiver, name, x3, x4, x5, x6);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -429,16 +427,16 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x2    : name
   //  -- lr    : return address
-  //  -- x0    : receiver
+  //  -- x1    : receiver
   // -----------------------------------
-  ASSERT(x0.is(ReceiverRegister()));
+  ASSERT(x1.is(ReceiverRegister()));
   ASSERT(x2.is(NameRegister()));
   Label miss, slow;
 
-  GenerateNameDictionaryReceiverCheck(masm, x0, x1, x3, x4, &miss);
+  GenerateNameDictionaryReceiverCheck(masm, x1, x0, x3, x4, &miss);
 
-  // x1 now holds the property dictionary.
-  GenerateDictionaryLoad(masm, &slow, x1, x2, x0, x3, x4);
+  // x0 now holds the property dictionary.
+  GenerateDictionaryLoad(masm, &slow, x0, x2, x0, x3, x4);
   __ Ret();
 
   // Dictionary load failed, go slow (but don't miss).
@@ -452,7 +450,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is on the stack.
+  // The return address is in lr.
   Isolate* isolate = masm->isolate();
   ASM_LOCATION("LoadIC::GenerateMiss");
 
@@ -467,27 +465,23 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // The return address is on the stack.
+  // The return address is in lr.
   __ Push(ReceiverRegister(), NameRegister());
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
 
 
 void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- x0     : key
-  //  -- x1     : receiver
-  // -----------------------------------
+  // The return address is in lr.
   Register result = x0;
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
   ASSERT(receiver.is(x1));
-  ASSERT(key.is(x0));
+  ASSERT(key.is(x2));
 
   Label miss, unmapped;
 
-  Register map_scratch = x2;
+  Register map_scratch = x0;
   MemOperand mapped_location = GenerateMappedArgumentsLookup(
       masm, receiver, key, map_scratch, x3, x4, &unmapped, &miss);
   __ Ldr(result, mapped_location);
@@ -497,10 +491,8 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // Parameter map is left in map_scratch when a jump on unmapped is done.
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, key, map_scratch, x3, &miss);
-  __ Ldr(x2, unmapped_location);
-  __ JumpIfRoot(x2, Heap::kTheHoleValueRootIndex, &miss);
-  // Move the result in x0. x0 must be preserved on miss.
-  __ Mov(result, x2);
+  __ Ldr(result, unmapped_location);
+  __ JumpIfRoot(result, Heap::kTheHoleValueRootIndex, &miss);
   __ Ret();
 
   __ Bind(&miss);
@@ -560,7 +552,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
 
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is on the stack.
+  // The return address is in lr.
   Isolate* isolate = masm->isolate();
 
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, x10, x11);
@@ -576,14 +568,12 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 
 
 // IC register specifications
-const Register LoadIC::ReceiverRegister() { return x0; }
+const Register LoadIC::ReceiverRegister() { return x1; }
 const Register LoadIC::NameRegister() { return x2; }
-const Register KeyedLoadIC::ReceiverRegister() { return x1; }
-const Register KeyedLoadIC::NameRegister() { return x0; }
 
 
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // The return address is on the stack.
+  // The return address is in lr.
   __ Push(ReceiverRegister(), NameRegister());
   __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
 }
@@ -753,34 +743,30 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm,
 
 
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- x0     : key
-  //  -- x1     : receiver
-  // -----------------------------------
+  // The return address is in lr.
   Label slow, check_name, index_smi, index_name;
 
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(key.is(x0));
+  ASSERT(key.is(x2));
   ASSERT(receiver.is(x1));
 
   __ JumpIfNotSmi(key, &check_name);
   __ Bind(&index_smi);
   // Now the key is known to be a smi. This place is also jumped to from below
   // where a numeric string is converted to a smi.
-  GenerateKeyedLoadWithSmiKey(masm, key, receiver, x2, x3, x4, x5, x6, &slow);
+  GenerateKeyedLoadWithSmiKey(masm, key, receiver, x7, x3, x4, x5, x6, &slow);
 
-  // Slow case, key and receiver still in x0 and x1.
+  // Slow case.
   __ Bind(&slow);
   __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_generic_slow(), 1, x2, x3);
+      masm->isolate()->counters()->keyed_load_generic_slow(), 1, x4, x3);
   GenerateRuntimeGetProperty(masm);
 
   __ Bind(&check_name);
-  GenerateKeyNameCheck(masm, key, x2, x3, &index_name, &slow);
+  GenerateKeyNameCheck(masm, key, x0, x3, &index_name, &slow);
 
-  GenerateKeyedLoadWithNameKey(masm, key, receiver, x2, x3, x4, x5, x6, &slow);
+  GenerateKeyedLoadWithNameKey(masm, key, receiver, x7, x3, x4, x5, x6, &slow);
 
   __ Bind(&index_name);
   __ IndexFromHash(x3, key);
@@ -790,7 +776,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
 
 void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // Return address is in lr.
   Label miss;
 
   Register receiver = ReceiverRegister();
@@ -819,15 +805,14 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 
 
 void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is on the stack.
+  // Return address is in lr.
   Label slow;
 
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  Register scratch1 = x2;
-  Register scratch2 = x3;
-  ASSERT(!scratch1.is(receiver) && !scratch1.is(key));
-  ASSERT(!scratch2.is(receiver) && !scratch2.is(key));
+  Register scratch1 = x3;
+  Register scratch2 = x4;
+  ASSERT(!AreAliased(scratch1, scratch2, receiver, key));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &slow);
