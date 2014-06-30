@@ -7576,7 +7576,7 @@ int HOptimizedGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
     TraceInline(target, caller, "target not inlineable");
     return kNotInlinable;
   }
-  if (target_shared->dont_inline()) {
+  if (target_shared->DisableOptimizationReason() != kNoReason) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
     return kNotInlinable;
   }
@@ -7663,8 +7663,7 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     TraceInline(target, caller, "target AST is too large [late]");
     return false;
   }
-  AstProperties::Flags* flags(function->flags());
-  if (flags->Contains(kDontInline) || function->dont_optimize()) {
+  if (function->dont_optimize()) {
     TraceInline(target, caller, "target contains unsupported syntax [late]");
     return false;
   }

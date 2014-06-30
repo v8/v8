@@ -1028,7 +1028,6 @@ CaseClause::CaseClause(Zone* zone,
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
     set_dont_optimize_reason(k##NodeType); \
-    add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
   }
 #define DONT_SELFOPTIMIZE_NODE(NodeType) \
@@ -1046,7 +1045,6 @@ CaseClause::CaseClause(Zone* zone,
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
     set_dont_optimize_reason(k##NodeType); \
-    add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
     add_flag(kDontCache); \
   }
@@ -1079,7 +1077,8 @@ REGULAR_NODE(ThisFunction)
 REGULAR_NODE_WITH_FEEDBACK_SLOTS(Call)
 REGULAR_NODE_WITH_FEEDBACK_SLOTS(CallNew)
 // In theory, for VariableProxy we'd have to add:
-// if (node->var()->IsLookupSlot()) add_flag(kDontInline);
+// if (node->var()->IsLookupSlot())
+//   set_dont_optimize_reason(kReferenceToAVariableWhichRequiresDynamicLookup);
 // But node->var() is usually not bound yet at VariableProxy creation time, and
 // LOOKUP variables only result from constructs that cannot be inlined anyway.
 REGULAR_NODE(VariableProxy)
@@ -1111,9 +1110,8 @@ DONT_CACHE_NODE(ModuleLiteral)
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
   if (node->is_jsruntime()) {
-    // Don't try to inline JS runtime calls because we don't (currently) even
-    // optimize them.
-    add_flag(kDontInline);
+    // Don't try to optimize JS runtime calls because we bailout on them.
+    set_dont_optimize_reason(kCallToAJavaScriptRuntimeFunction);
   }
 }
 
