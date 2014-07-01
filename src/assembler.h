@@ -189,6 +189,9 @@ class CpuFeatures : public AllStatic {
   static void PrintTarget();
   static void PrintFeatures();
 
+  // Flush instruction cache.
+  static void FlushICache(void* start, size_t size);
+
  private:
   // Platform-dependent implementation.
   static void ProbeImpl(bool cross_compile);

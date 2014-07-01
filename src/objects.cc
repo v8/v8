@@ -1873,7 +1873,7 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
 }
 
 
-MaybeHandle<Object> JSObject::AddProperty(
+MaybeHandle<Object> JSObject::AddPropertyInternal(
     Handle<JSObject> object,
     Handle<Name> name,
     Handle<Object> value,
@@ -3926,10 +3926,10 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
   PropertyDetails details = descriptors->GetDetails(descriptor);
 
   if (details.type() == CALLBACKS || attributes != details.attributes()) {
-    // AddProperty will either normalize the object, or create a new fast copy
-    // of the map. If we get a fast copy of the map, all field representations
-    // will be tagged since the transition is omitted.
-    return JSObject::AddProperty(
+    // AddPropertyInternal will either normalize the object, or create a new
+    // fast copy of the map. If we get a fast copy of the map, all field
+    // representations will be tagged since the transition is omitted.
+    return JSObject::AddPropertyInternal(
         object, name, value, attributes, SLOPPY,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
         JSReceiver::OMIT_EXTENSIBILITY_CHECK,
@@ -4093,7 +4093,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
 
   if (!lookup->IsFound()) {
     // Neither properties nor transitions found.
-    return AddProperty(
+    return AddPropertyInternal(
         object, name, value, attributes, strict_mode, store_mode);
   }
 
@@ -4173,6 +4173,28 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
 }
 
 
+void JSObject::AddProperty(
+    Handle<JSObject> object,
+    Handle<Name> name,
+    Handle<Object> value,
+    PropertyAttributes attributes,
+    ValueType value_type,
+    StoreMode store_mode) {
+#ifdef DEBUG
+  uint32_t index;
+  ASSERT(!object->IsJSProxy());
+  ASSERT(!name->AsArrayIndex(&index));
+  LookupIterator it(object, name, LookupIterator::CHECK_OWN_REAL);
+  GetPropertyAttributes(&it);
+  ASSERT(!it.IsFound());
+  ASSERT(object->map()->is_extensible());
+#endif
+  SetOwnPropertyIgnoreAttributes(
+      object, name, value, attributes, value_type, store_mode,
+      OMIT_EXTENSIBILITY_CHECK).Check();
+}
+
+
 // Set a real own property, even if it is READ_ONLY.  If the property is not
 // present, add it with attributes NONE.  This code is an exact clone of
 // SetProperty, with the check for IsReadOnly and the check for a
@@ -4228,7 +4250,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     TransitionFlag flag = lookup.IsFound()
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
-    return AddProperty(object, name, value, attributes, SLOPPY,
+    return AddPropertyInternal(object, name, value, attributes, SLOPPY,
         store_from_keyed, extensibility_check, value_type, mode, flag);
   }
 
@@ -5154,13 +5176,8 @@ Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
   }
 
   JSObject::SetOwnPropertyIgnoreAttributes(
-      object,
-      isolate->factory()->hidden_string(),
-      hashtable,
-      DONT_ENUM,
-      OPTIMAL_REPRESENTATION,
-      ALLOW_AS_CONSTANT,
-      OMIT_EXTENSIBILITY_CHECK).Assert();
+      object, isolate->factory()->hidden_string(),
+      hashtable, DONT_ENUM).Assert();
 
   return hashtable;
 }
@@ -10686,7 +10703,7 @@ void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta, SKIP_ICACHE_FLUSH);
   }
-  CPU::FlushICache(instruction_start(), instruction_size());
+  CpuFeatures::FlushICache(instruction_start(), instruction_size());
 }
 
 
@@ -10740,7 +10757,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
       it.rinfo()->apply(delta, SKIP_ICACHE_FLUSH);
     }
   }
-  CPU::FlushICache(instruction_start(), instruction_size());
+  CpuFeatures::FlushICache(instruction_start(), instruction_size());
 }
 
 
@@ -15080,7 +15097,7 @@ Handle<Object> ExternalFloat32Array::SetValue(
     Handle<ExternalFloat32Array> array,
     uint32_t index,
     Handle<Object> value) {
-  float cast_value = static_cast<float>(OS::nan_value());
+  float cast_value = static_cast<float>(base::OS::nan_value());
   if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsSmi()) {
       int int_value = Handle<Smi>::cast(value)->value();
@@ -15103,7 +15120,7 @@ Handle<Object> ExternalFloat64Array::SetValue(
     Handle<ExternalFloat64Array> array,
     uint32_t index,
     Handle<Object> value) {
-  double double_value = OS::nan_value();
+  double double_value = base::OS::nan_value();
   if (index < static_cast<uint32_t>(array->length())) {
     if (value->IsNumber()) {
       double_value = value->Number();

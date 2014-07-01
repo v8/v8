@@ -177,7 +177,7 @@ class CcTest {
 // thread fuzzing test.  In the thread fuzzing test it will
 // pseudorandomly select a successor thread and switch execution
 // to that thread, suspending the current test.
-class ApiTestFuzzer: public v8::internal::Thread {
+class ApiTestFuzzer: public v8::base::Thread {
  public:
   void CallTest();
 
@@ -212,11 +212,11 @@ class ApiTestFuzzer: public v8::internal::Thread {
   static int active_tests_;
   static bool NextThread();
   int test_number_;
-  v8::internal::Semaphore gate_;
+  v8::base::Semaphore gate_;
   bool active_;
   void ContextSwitch();
   static int GetNextTestNumber();
-  static v8::internal::Semaphore all_tests_done_;
+  static v8::base::Semaphore all_tests_done_;
 };
 
 

@@ -27,8 +27,8 @@
 
 #include "src/v8.h"
 
-#include "src/platform/condition-variable.h"
-#include "src/platform/time.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/time.h"
 #include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
@@ -36,21 +36,23 @@ using namespace ::v8::internal;
 
 TEST(WaitForAfterNofityOnSameThread) {
   for (int n = 0; n < 10; ++n) {
-    Mutex mutex;
-    ConditionVariable cv;
+    v8::base::Mutex mutex;
+    v8::base::ConditionVariable cv;
 
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
 
     cv.NotifyOne();
-    CHECK_EQ(false, cv.WaitFor(&mutex, TimeDelta::FromMicroseconds(n)));
+    CHECK_EQ(false,
+             cv.WaitFor(&mutex, v8::base::TimeDelta::FromMicroseconds(n)));
 
     cv.NotifyAll();
-    CHECK_EQ(false, cv.WaitFor(&mutex, TimeDelta::FromMicroseconds(n)));
+    CHECK_EQ(false,
+             cv.WaitFor(&mutex, v8::base::TimeDelta::FromMicroseconds(n)));
   }
 }
 
 
-class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
+class ThreadWithMutexAndConditionVariable V8_FINAL : public v8::base::Thread {
  public:
   ThreadWithMutexAndConditionVariable()
       : Thread("ThreadWithMutexAndConditionVariable"),
@@ -58,7 +60,7 @@ class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
   virtual ~ThreadWithMutexAndConditionVariable() {}
 
   virtual void Run() V8_OVERRIDE {
-    LockGuard<Mutex> lock_guard(&mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
     running_ = true;
     cv_.NotifyOne();
     while (running_) {
@@ -70,8 +72,8 @@ class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
 
   bool running_;
   bool finished_;
-  ConditionVariable cv_;
-  Mutex mutex_;
+  v8::base::ConditionVariable cv_;
+  v8::base::Mutex mutex_;
 };
 
 
@@ -80,7 +82,7 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
   ThreadWithMutexAndConditionVariable threads[kThreadCount];
 
   for (int n = 0; n < kThreadCount; ++n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&threads[n].mutex_);
     CHECK(!threads[n].running_);
     CHECK(!threads[n].finished_);
     threads[n].Start();
@@ -91,13 +93,13 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
   }
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&threads[n].mutex_);
     CHECK(threads[n].running_);
     CHECK(!threads[n].finished_);
   }
 
   for (int n = 0; n < kThreadCount; ++n) {
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&threads[n].mutex_);
     CHECK(threads[n].running_);
     CHECK(!threads[n].finished_);
     // Tell the nth thread to quit.
@@ -107,7 +109,7 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
 
   for (int n = kThreadCount - 1; n >= 0; --n) {
     // Wait for nth thread to quit.
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&threads[n].mutex_);
     while (!threads[n].finished_) {
       threads[n].cv_.Wait(&threads[n].mutex_);
     }
@@ -117,14 +119,15 @@ TEST(MultipleThreadsWithSeparateConditionVariables) {
 
   for (int n = 0; n < kThreadCount; ++n) {
     threads[n].Join();
-    LockGuard<Mutex> lock_guard(&threads[n].mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&threads[n].mutex_);
     CHECK(!threads[n].running_);
     CHECK(threads[n].finished_);
   }
 }
 
 
-class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
+class ThreadWithSharedMutexAndConditionVariable V8_FINAL
+    : public v8::base::Thread {
  public:
   ThreadWithSharedMutexAndConditionVariable()
       : Thread("ThreadWithSharedMutexAndConditionVariable"),
@@ -132,7 +135,7 @@ class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
   virtual ~ThreadWithSharedMutexAndConditionVariable() {}
 
   virtual void Run() V8_OVERRIDE {
-    LockGuard<Mutex> lock_guard(mutex_);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(mutex_);
     running_ = true;
     cv_->NotifyAll();
     while (running_) {
@@ -144,16 +147,16 @@ class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
 
   bool running_;
   bool finished_;
-  ConditionVariable* cv_;
-  Mutex* mutex_;
+  v8::base::ConditionVariable* cv_;
+  v8::base::Mutex* mutex_;
 };
 
 
 TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
   static const int kThreadCount = 128;
   ThreadWithSharedMutexAndConditionVariable threads[kThreadCount];
-  ConditionVariable cv;
-  Mutex mutex;
+  v8::base::ConditionVariable cv;
+  v8::base::Mutex mutex;
 
   for (int n = 0; n < kThreadCount; ++n) {
     threads[n].mutex_ = &mutex;
@@ -162,7 +165,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Start all threads.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       CHECK(!threads[n].running_);
       CHECK(!threads[n].finished_);
@@ -172,7 +175,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Wait for all threads to start.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       while (!threads[n].running_) {
         cv.Wait(&mutex);
@@ -182,7 +185,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Make sure that all threads are running.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       CHECK(threads[n].running_);
       CHECK(!threads[n].finished_);
@@ -191,7 +194,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Tell all threads to quit.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       CHECK(threads[n].running_);
       CHECK(!threads[n].finished_);
@@ -203,7 +206,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Wait for all threads to quit.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = 0; n < kThreadCount; ++n) {
       while (!threads[n].finished_) {
         cv.Wait(&mutex);
@@ -213,7 +216,7 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 
   // Make sure all threads are finished.
   {
-    LockGuard<Mutex> lock_guard(&mutex);
+    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
     for (int n = kThreadCount - 1; n >= 0; --n) {
       CHECK(!threads[n].running_);
       CHECK(threads[n].finished_);
@@ -227,14 +230,14 @@ TEST(MultipleThreadsWithSharedSeparateConditionVariables) {
 }
 
 
-class LoopIncrementThread V8_FINAL : public Thread {
+class LoopIncrementThread V8_FINAL : public v8::base::Thread {
  public:
   LoopIncrementThread(int rem,
                       int* counter,
                       int limit,
                       int thread_count,
-                      ConditionVariable* cv,
-                      Mutex* mutex)
+                      v8::base::ConditionVariable* cv,
+                      v8::base::Mutex* mutex)
       : Thread("LoopIncrementThread"), rem_(rem), counter_(counter),
         limit_(limit), thread_count_(thread_count), cv_(cv), mutex_(mutex) {
     CHECK_LT(rem, thread_count);
@@ -244,7 +247,7 @@ class LoopIncrementThread V8_FINAL : public Thread {
   virtual void Run() V8_OVERRIDE {
     int last_count = -1;
     while (true) {
-      LockGuard<Mutex> lock_guard(mutex_);
+      v8::base::LockGuard<v8::base::Mutex> lock_guard(mutex_);
       int count = *counter_;
       while (count % thread_count_ != rem_ && count < limit_) {
         cv_->Wait(mutex_);
@@ -267,21 +270,21 @@ class LoopIncrementThread V8_FINAL : public Thread {
   int* counter_;
   const int limit_;
   const int thread_count_;
-  ConditionVariable* cv_;
-  Mutex* mutex_;
+  v8::base::ConditionVariable* cv_;
+  v8::base::Mutex* mutex_;
 };
 
 
 TEST(LoopIncrement) {
   static const int kMaxThreadCount = 16;
-  Mutex mutex;
-  ConditionVariable cv;
+  v8::base::Mutex mutex;
+  v8::base::ConditionVariable cv;
   for (int thread_count = 1; thread_count < kMaxThreadCount; ++thread_count) {
     int limit = thread_count * 100;
     int counter = 0;
 
     // Setup the threads.
-    Thread** threads = new Thread*[thread_count];
+    v8::base::Thread** threads = new v8::base::Thread*[thread_count];
     for (int n = 0; n < thread_count; ++n) {
       threads[n] = new LoopIncrementThread(
           n, &counter, limit, thread_count, &cv, &mutex);

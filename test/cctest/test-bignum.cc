@@ -29,8 +29,8 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/bignum.h"
-#include "src/platform.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

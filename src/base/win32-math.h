@@ -7,8 +7,8 @@
 // semantics for these functions.
 // (http://www.opengroup.org/onlinepubs/000095399/)
 
-#ifndef V8_WIN32_MATH_H_
-#define V8_WIN32_MATH_H_
+#ifndef V8_BASE_WIN32_MATH_H_
+#define V8_BASE_WIN32_MATH_H_
 
 #ifndef _MSC_VER
 #error Wrong environment, expected MSVC.
@@ -39,4 +39,4 @@ int signbit(double x);
 
 #endif  // _MSC_VER < 1800
 
-#endif  // V8_WIN32_MATH_H_
+#endif  // V8_BASE_WIN32_MATH_H_

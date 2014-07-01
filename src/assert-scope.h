@@ -6,7 +6,7 @@
 #define V8_ASSERT_SCOPE_H_
 
 #include "src/allocation.h"
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -81,16 +81,16 @@ class PerThreadAssertScopeBase {
 
   static PerThreadAssertData* GetAssertData() {
     return reinterpret_cast<PerThreadAssertData*>(
-        Thread::GetThreadLocal(thread_local_key));
+        base::Thread::GetThreadLocal(thread_local_key));
   }
 
-  static Thread::LocalStorageKey thread_local_key;
+  static base::Thread::LocalStorageKey thread_local_key;
   PerThreadAssertData* data_;
   friend class Isolate;
 
  private:
   static void SetThreadLocalData(PerThreadAssertData* data) {
-    Thread::SetThreadLocal(thread_local_key, data);
+    base::Thread::SetThreadLocal(thread_local_key, data);
   }
 };
 

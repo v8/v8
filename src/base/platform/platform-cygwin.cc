@@ -18,12 +18,12 @@
 
 #undef MAP_TYPE
 
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 #include "src/base/win32-headers.h"
-#include "src/platform.h"
-#include "src/utils.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
@@ -328,4 +328,4 @@ bool VirtualMemory::HasLazyCommits() {
   return false;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

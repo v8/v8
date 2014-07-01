@@ -499,7 +499,7 @@ static void PatchIncrementalMarkingRecordWriteStubs(
 
 void IncrementalMarking::EnsureMarkingDequeIsCommitted() {
   if (marking_deque_memory_ == NULL) {
-    marking_deque_memory_ = new VirtualMemory(4 * MB);
+    marking_deque_memory_ = new base::VirtualMemory(4 * MB);
   }
   if (!marking_deque_memory_committed_) {
     bool success = marking_deque_memory_->Commit(
@@ -723,7 +723,7 @@ void IncrementalMarking::Hurry() {
   if (state() == MARKING) {
     double start = 0.0;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
-      start = OS::TimeCurrentMillis();
+      start = base::OS::TimeCurrentMillis();
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Hurry\n");
       }
@@ -733,7 +733,7 @@ void IncrementalMarking::Hurry() {
     ProcessMarkingDeque();
     state_ = COMPLETE;
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
-      double end = OS::TimeCurrentMillis();
+      double end = base::OS::TimeCurrentMillis();
       double delta = end - start;
       heap_->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
@@ -876,7 +876,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
       FLAG_print_cumulative_gc_stat) {
-    start = OS::TimeCurrentMillis();
+    start = base::OS::TimeCurrentMillis();
   }
 
   if (state_ == SWEEPING) {
@@ -961,7 +961,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
       FLAG_print_cumulative_gc_stat) {
-    double end = OS::TimeCurrentMillis();
+    double end = base::OS::TimeCurrentMillis();
     double delta = (end - start);
     longest_step_ = Max(longest_step_, delta);
     steps_took_ += delta;

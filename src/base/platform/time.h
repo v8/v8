@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PLATFORM_TIME_H_
-#define V8_PLATFORM_TIME_H_
+#ifndef V8_BASE_PLATFORM_TIME_H_
+#define V8_BASE_PLATFORM_TIME_H_
 
 #include <time.h>
 #include <limits>
@@ -19,7 +19,7 @@ struct timeval;
 }
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 class Time;
 class TimeTicks;
@@ -388,6 +388,6 @@ inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
   return ticks + delta;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_TIME_H_
+#endif  // V8_BASE_PLATFORM_TIME_H_

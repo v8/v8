@@ -5,7 +5,7 @@
 #ifndef V8_ELEMENTS_KIND_H_
 #define V8_ELEMENTS_KIND_H_
 
-#include "src/v8checks.h"
+#include "src/checks.h"
 
 namespace v8 {
 namespace internal {

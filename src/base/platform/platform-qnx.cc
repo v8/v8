@@ -1,24 +1,28 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Platform-specific code for OpenBSD and NetBSD goes here. For the
-// POSIX-compatible parts, the implementation is in platform-posix.cc.
+// Platform-specific code for QNX goes here. For the POSIX-compatible
+// parts the implementation is in platform-posix.cc.
 
+#include <backtrace.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/resource.h>
-#include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <ucontext.h>
 
+// QNX requires memory pages to be marked as executable.
+// Otherwise, the OS raises an exception when executing code in that page.
 #include <errno.h>
 #include <fcntl.h>      // open
 #include <stdarg.h>
 #include <strings.h>    // index
 #include <sys/mman.h>   // mmap & munmap
+#include <sys/procfs.h>
 #include <sys/stat.h>   // open
 #include <sys/types.h>  // mmap & munmap
 #include <unistd.h>     // sysconf
@@ -27,12 +31,59 @@
 
 #undef MAP_TYPE
 
-#include "src/platform.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 
 namespace v8 {
-namespace internal {
+namespace base {
+
+// 0 is never a valid thread id on Qnx since tids and pids share a
+// name space and pid 0 is reserved (see man 2 kill).
+static const pthread_t kNoThread = (pthread_t) 0;
+
+
+#ifdef __arm__
+
+bool OS::ArmUsingHardFloat() {
+  // GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
+  // the Floating Point ABI used (PCS stands for Procedure Call Standard).
+  // We use these as well as a couple of other defines to statically determine
+  // what FP ABI used.
+  // GCC versions 4.4 and below don't support hard-fp.
+  // GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
+  // __ARM_PCS_VFP.
+
+#define GCC_VERSION (__GNUC__ * 10000                                          \
+                     + __GNUC_MINOR__ * 100                                    \
+                     + __GNUC_PATCHLEVEL__)
+#if GCC_VERSION >= 40600
+#if defined(__ARM_PCS_VFP)
+  return true;
+#else
+  return false;
+#endif
+
+#elif GCC_VERSION < 40500
+  return false;
+
+#else
+#if defined(__ARM_PCS_VFP)
+  return true;
+#elif defined(__ARM_PCS) || defined(__SOFTFP__) || defined(__SOFTFP) || \
+      !defined(__VFP_FP__)
+  return false;
+#else
+#error "Your version of GCC does not report the FP ABI compiled for."          \
+       "Please report it on this issue"                                        \
+       "http://code.google.com/p/v8/issues/detail?id=2140"
+
+#endif
+#endif
+#undef GCC_VERSION
+}
+
+#endif  // __arm__
 
 
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
@@ -59,7 +110,7 @@ void* OS::Allocate(const size_t requested,
   const size_t msize = RoundUp(requested, AllocateAlignment());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
   void* addr = OS::GetRandomMmapAddr();
-  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
@@ -88,7 +139,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   int size = ftell(file);
 
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+           size,
+           PROT_READ | PROT_WRITE,
+           MAP_SHARED,
+           fileno(file),
+           0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -103,7 +159,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     return NULL;
   }
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+           size,
+           PROT_READ | PROT_WRITE,
+           MAP_SHARED,
+           fileno(file),
+           0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -116,87 +177,62 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
-  // This function assumes that the layout of the file is as follows:
-  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
-  // If we encounter an unexpected situation we abort scanning further entries.
-  FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  procfs_mapinfo *mapinfos = NULL, *mapinfo;
+  int proc_fd, num, i;
 
-  // Allocate enough room to be able to store a full file name.
-  const int kLibNameLen = FILENAME_MAX + 1;
-  char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
+  struct {
+    procfs_debuginfo info;
+    char buff[PATH_MAX];
+  } map;
 
-  // This loop will terminate once the scanning hits an EOF.
-  while (true) {
-    uintptr_t start, end;
-    char attr_r, attr_w, attr_x, attr_p;
-    // Parse the addresses and permission bits at the beginning of the line.
-    if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
-    if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+  char buf[PATH_MAX + 1];
+  snprintf(buf, PATH_MAX + 1, "/proc/%d/as", getpid());
 
-    int c;
-    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
-      // Found a read-only executable entry. Skip characters until we reach
-      // the beginning of the filename or the end of the line.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n') && (c != '/'));
-      if (c == EOF) break;  // EOF: Was unexpected, just exit.
+  if ((proc_fd = open(buf, O_RDONLY)) == -1) {
+    close(proc_fd);
+    return result;
+  }
 
-      // Process the filename if found.
-      if (c == '/') {
-        ungetc(c, fp);  // Push the '/' back into the stream to be read below.
+  /* Get the number of map entries.  */
+  if (devctl(proc_fd, DCMD_PROC_MAPINFO, NULL, 0, &num) != EOK) {
+    close(proc_fd);
+    return result;
+  }
 
-        // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+  mapinfos = reinterpret_cast<procfs_mapinfo *>(
+      malloc(num * sizeof(procfs_mapinfo)));
+  if (mapinfos == NULL) {
+    close(proc_fd);
+    return result;
+  }
 
-        // Drop the newline character read by fgets. We do not need to check
-        // for a zero-length string because we know that we at least read the
-        // '/' character.
-        lib_name[strlen(lib_name) - 1] = '\0';
-      } else {
-        // No library name found, just record the raw address range.
-        snprintf(lib_name, kLibNameLen,
-                 "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
+  /* Fill the map entries.  */
+  if (devctl(proc_fd, DCMD_PROC_PAGEDATA,
+      mapinfos, num * sizeof(procfs_mapinfo), &num) != EOK) {
+    free(mapinfos);
+    close(proc_fd);
+    return result;
+  }
+
+  for (i = 0; i < num; i++) {
+    mapinfo = mapinfos + i;
+    if (mapinfo->flags & MAP_ELF) {
+      map.info.vaddr = mapinfo->vaddr;
+      if (devctl(proc_fd, DCMD_PROC_MAPDEBUG, &map, sizeof(map), 0) != EOK) {
+        continue;
       }
-      result.push_back(SharedLibraryAddress(lib_name, start, end));
-    } else {
-      // Entry not describing executable data. Skip to end of line to set up
-      // reading the next entry.
-      do {
-        c = getc(fp);
-      } while ((c != EOF) && (c != '\n'));
-      if (c == EOF) break;
+      result.push_back(SharedLibraryAddress(
+          map.info.path, mapinfo->vaddr, mapinfo->vaddr + mapinfo->size));
     }
   }
-  free(lib_name);
-  fclose(fp);
+  free(mapinfos);
+  close(proc_fd);
   return result;
 }
 
 
 void OS::SignalCodeMovingGC() {
-  // Support for ll_prof.py.
-  //
-  // The Linux profiler built into the kernel logs all mmap's with
-  // PROT_EXEC so that analysis tools can properly attribute ticks. We
-  // do a mmap with a name known by ll_prof.py and immediately munmap
-  // it. This injects a GC marker into the stream of events generated
-  // by the kernel and allows us to synchronize V8 code log and the
-  // kernel log.
-  int size = sysconf(_SC_PAGESIZE);
-  FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
-  if (f == NULL) {
-    OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
-    OS::Abort();
-  }
-  void* addr = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE,
-                    fileno(f), 0);
-  ASSERT(addr != MAP_FAILED);
-  OS::Free(addr, size);
-  fclose(f);
 }
-
 
 
 // Constants used for mmap.
@@ -219,7 +255,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   void* reservation = mmap(OS::GetRandomMmapAddr(),
                            request_size,
                            PROT_NONE,
-                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_LAZY,
                            kMmapFd,
                            kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
@@ -291,7 +327,7 @@ void* VirtualMemory::ReserveRegion(size_t size) {
   void* result = mmap(OS::GetRandomMmapAddr(),
                       size,
                       PROT_NONE,
-                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_LAZY,
                       kMmapFd,
                       kMmapFdOffset);
 
@@ -306,11 +342,12 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
   if (MAP_FAILED == mmap(base,
                          size,
                          prot,
-                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
                          kMmapFd,
                          kMmapFdOffset)) {
     return false;
   }
+
   return true;
 }
 
@@ -319,7 +356,7 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
   return mmap(base,
               size,
               PROT_NONE,
-              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED | MAP_LAZY,
               kMmapFd,
               kMmapFdOffset) != MAP_FAILED;
 }
@@ -331,8 +368,7 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 
 
 bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
   return false;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

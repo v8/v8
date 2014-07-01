@@ -7,7 +7,7 @@
 #include "src/v8.h"
 
 #include "src/ast-value-factory.h"
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "src/prettyprinter.h"
 #include "src/scopes.h"
 

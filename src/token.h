@@ -5,7 +5,7 @@
 #ifndef V8_TOKEN_H_
 #define V8_TOKEN_H_
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 
 namespace v8 {
 namespace internal {

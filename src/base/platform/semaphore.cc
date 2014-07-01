@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/platform/semaphore.h"
+#include "src/base/platform/semaphore.h"
 
 #if V8_OS_MACOSX
 #include <mach/mach_init.h>
@@ -11,11 +11,11 @@
 
 #include <errno.h>
 
-#include "src/checks.h"
-#include "src/platform/time.h"
+#include "src/base/logging.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #if V8_OS_MACOSX
 
@@ -188,4 +188,4 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 
 #endif  // V8_OS_MACOSX
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

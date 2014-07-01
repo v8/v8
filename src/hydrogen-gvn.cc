@@ -98,7 +98,7 @@ class HSideEffectMap V8_FINAL BASE_EMBEDDED {
 void TraceGVN(const char* msg, ...) {
   va_list arguments;
   va_start(arguments, msg);
-  OS::VPrint(msg, arguments);
+  base::OS::VPrint(msg, arguments);
   va_end(arguments);
 }
 

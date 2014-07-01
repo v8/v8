@@ -4,7 +4,7 @@
 
 #include "src/natives.h"
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/list.h"
 #include "src/list-inl.h"
 #include "src/snapshot-source-sink.h"

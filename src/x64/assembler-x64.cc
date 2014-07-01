@@ -16,7 +16,7 @@ namespace internal {
 // Implementation of CpuFeatures
 
 void CpuFeatures::ProbeImpl(bool cross_compile) {
-  CPU cpu;
+  base::CPU cpu;
   CHECK(cpu.has_sse2());  // SSE2 support is mandatory.
   CHECK(cpu.has_cmov());  // CMOV support is mandatory.
 
@@ -74,7 +74,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   }
 
   // Indicate that code has changed.
-  CPU::FlushICache(pc_, instruction_count);
+  CpuFeatures::FlushICache(pc_, instruction_count);
 }
 
 

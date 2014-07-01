@@ -37,6 +37,11 @@
 })();
 
 
+(function TestSetIteratorKeys() {
+  assertEquals(Set.prototype.keys, Set.prototype.values);
+})();
+
+
 (function TestSetIteratorEntries() {
   var s = new Set;
   s.add(1);

@@ -38,6 +38,11 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
     if (!IS_SPEC_FUNCTION(resolver))
       throw MakeTypeError('resolver_not_a_function', [resolver]);
     var promise = PromiseInit(this);
+    if (DEBUG_IS_ACTIVE) {
+      %DebugPromiseEvent({ type : "new Promise",
+                           promise: this,
+                           resolver: resolver });
+    }
     try {
       %DebugPromiseHandlePrologue(function() { return promise });
       resolver(function(x) { PromiseResolve(promise, x) },

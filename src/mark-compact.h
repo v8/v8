@@ -735,7 +735,7 @@ class MarkCompactCollector {
   // True if concurrent or parallel sweeping is currently in progress.
   bool sweeping_pending_;
 
-  Semaphore pending_sweeper_jobs_semaphore_;
+  base::Semaphore pending_sweeper_jobs_semaphore_;
 
   bool sequential_sweeping_;
 

@@ -35,7 +35,8 @@ UnaryMathFunction CreateExpFunction() {
   // an AAPCS64-compliant exp() function. This will be faster than the C
   // library's exp() function, but probably less accurate.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer =
+      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::exp;
 
   ExternalReference::InitializeMathExpData();
@@ -63,8 +64,8 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   ASSERT(!RelocInfo::RequiresRelocation(desc));
 
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
+  CpuFeatures::FlushICache(buffer, actual_size);
+  base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
   return FUNCTION_CAST<UnaryMathFunction>(buffer);

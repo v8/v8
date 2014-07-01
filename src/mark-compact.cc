@@ -613,7 +613,8 @@ bool MarkCompactCollector::IsSweepingCompleted() {
     }
   }
   if (FLAG_job_based_sweeping) {
-    if (!pending_sweeper_jobs_semaphore_.WaitFor(TimeDelta::FromSeconds(0))) {
+    if (!pending_sweeper_jobs_semaphore_.WaitFor(
+            base::TimeDelta::FromSeconds(0))) {
       return false;
     }
     pending_sweeper_jobs_semaphore_.Signal();
@@ -3239,7 +3240,7 @@ static void SweepPrecisely(PagedSpace* space,
 
   double start_time = 0.0;
   if (FLAG_print_cumulative_gc_stat) {
-    start_time = OS::TimeCurrentMillis();
+    start_time = base::OS::TimeCurrentMillis();
   }
 
   p->MarkSweptPrecisely();
@@ -3308,7 +3309,7 @@ static void SweepPrecisely(PagedSpace* space,
   }
   p->ResetLiveBytes();
   if (FLAG_print_cumulative_gc_stat) {
-    space->heap()->AddSweepingTime(OS::TimeCurrentMillis() - start_time);
+    space->heap()->AddSweepingTime(base::OS::TimeCurrentMillis() - start_time);
   }
 }
 

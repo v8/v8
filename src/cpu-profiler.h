@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
+#include "src/base/platform/time.h"
 #include "src/circular-queue.h"
-#include "src/platform/time.h"
 #include "src/sampler.h"
 #include "src/unbound-queue.h"
 
@@ -122,11 +122,11 @@ class CodeEventsContainer {
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
-class ProfilerEventsProcessor : public Thread {
+class ProfilerEventsProcessor : public base::Thread {
  public:
   ProfilerEventsProcessor(ProfileGenerator* generator,
                           Sampler* sampler,
-                          TimeDelta period);
+                          base::TimeDelta period);
   virtual ~ProfilerEventsProcessor() {}
 
   // Thread control.
@@ -165,7 +165,7 @@ class ProfilerEventsProcessor : public Thread {
   Sampler* sampler_;
   bool running_;
   // Sampling period in microseconds.
-  const TimeDelta period_;
+  const base::TimeDelta period_;
   UnboundQueue<CodeEventsContainer> events_buffer_;
   static const size_t kTickSampleBufferSize = 1 * MB;
   static const size_t kTickSampleQueueLength =
@@ -200,7 +200,7 @@ class CpuProfiler : public CodeEventListener {
 
   virtual ~CpuProfiler();
 
-  void set_sampling_interval(TimeDelta value);
+  void set_sampling_interval(base::TimeDelta value);
   void StartProfiling(const char* title, bool record_samples = false);
   void StartProfiling(String* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
@@ -259,7 +259,7 @@ class CpuProfiler : public CodeEventListener {
   void LogBuiltins();
 
   Isolate* isolate_;
-  TimeDelta sampling_interval_;
+  base::TimeDelta sampling_interval_;
   CpuProfilesCollection* profiles_;
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;

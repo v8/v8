@@ -1292,8 +1292,8 @@ Register* LoadStubCompiler::registers() {
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = KeyedLoadIC::ReceiverRegister();
-  Register name = KeyedLoadIC::NameRegister();
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
   static Register registers[] = { receiver, name, ebx, eax, edi, no_reg };
   return registers;
 }
@@ -1454,8 +1454,8 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  ASSERT(edx.is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(ecx.is(KeyedLoadIC::NameRegister()));
+  ASSERT(edx.is(LoadIC::ReceiverRegister()));
+  ASSERT(ecx.is(LoadIC::NameRegister()));
   Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already

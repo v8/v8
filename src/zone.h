@@ -6,7 +6,7 @@
 #define V8_ZONE_H_
 
 #include "src/allocation.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
 #include "src/list.h"

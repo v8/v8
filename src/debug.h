@@ -8,13 +8,13 @@
 #include "src/allocation.h"
 #include "src/arguments.h"
 #include "src/assembler.h"
+#include "src/base/platform/platform.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
 #include "src/frames-inl.h"
 #include "src/hashmap.h"
 #include "src/liveedit.h"
-#include "src/platform.h"
 #include "src/string-stream.h"
 #include "src/v8threads.h"
 
@@ -328,7 +328,7 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
  private:
   Logger* logger_;
   CommandMessageQueue queue_;
-  mutable Mutex mutex_;
+  mutable base::Mutex mutex_;
   DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
 };
 
@@ -365,6 +365,7 @@ class Debug {
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
+  void OnPromiseEvent(Handle<JSObject> data);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -535,6 +536,8 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
+  MUST_USE_RESULT MaybeHandle<Object> MakePromiseEvent(
+      Handle<JSObject> promise_event);
 
   // Mirror cache handling.
   void ClearMirrorCache();
@@ -581,7 +584,7 @@ class Debug {
   v8::Debug::MessageHandler message_handler_;
 
   static const int kQueueInitialSize = 4;
-  Semaphore command_received_;  // Signaled for each command received.
+  base::Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue command_queue_;
   LockingCommandMessageQueue event_command_queue_;
 

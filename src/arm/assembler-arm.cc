@@ -39,6 +39,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/base/cpu.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
 
@@ -93,7 +94,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 #else  // __arm__
   // Probe for additional features at runtime.
-  CPU cpu;
+  base::CPU cpu;
   if (FLAG_enable_vfp3 && cpu.has_vfp3()) {
     // This implementation also sets the VFP flags if runtime
     // detection of VFP returns true. VFPv3 implies ARMv7, see ARM DDI
@@ -109,14 +110,15 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     if (FLAG_enable_armv7) supported_ |= 1u << ARMv7;
     if (FLAG_enable_unaligned_accesses) supported_ |= 1u << UNALIGNED_ACCESSES;
     // Use movw/movt for QUALCOMM ARMv7 cores.
-    if (FLAG_enable_movw_movt && cpu.implementer() == CPU::QUALCOMM) {
+    if (FLAG_enable_movw_movt && cpu.implementer() == base::CPU::QUALCOMM) {
       supported_ |= 1u << MOVW_MOVT_IMMEDIATE_LOADS;
     }
   }
 
   // ARM Cortex-A9 and Cortex-A5 have 32 byte cachelines.
-  if (cpu.implementer() == CPU::ARM && (cpu.part() == CPU::ARM_CORTEX_A5 ||
-                                        cpu.part() == CPU::ARM_CORTEX_A9)) {
+  if (cpu.implementer() == base::CPU::ARM &&
+      (cpu.part() == base::CPU::ARM_CORTEX_A5 ||
+       cpu.part() == base::CPU::ARM_CORTEX_A9)) {
     cache_line_size_ = 32;
   }
 
@@ -162,7 +164,7 @@ void CpuFeatures::PrintTarget() {
 #endif
 
 #ifdef __arm__
-  arm_float_abi = OS::ArmUsingHardFloat() ? "hard" : "softfp";
+  arm_float_abi = base::OS::ArmUsingHardFloat() ? "hard" : "softfp";
 #elif USE_EABI_HARDFLOAT
   arm_float_abi = "hard";
 #else
@@ -191,7 +193,7 @@ void CpuFeatures::PrintFeatures() {
     CpuFeatures::IsSupported(UNALIGNED_ACCESSES),
     CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS));
 #ifdef __arm__
-  bool eabi_hardfloat = OS::ArmUsingHardFloat();
+  bool eabi_hardfloat = base::OS::ArmUsingHardFloat();
 #elif USE_EABI_HARDFLOAT
   bool eabi_hardfloat = true;
 #else
@@ -246,7 +248,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   }
 
   // Indicate that code has changed.
-  CPU::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
+  CpuFeatures::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
 }
 
 
@@ -1092,8 +1094,7 @@ void Assembler::move_32_bit_immediate(Register rd,
       // Make sure the movw/movt doesn't get separated.
       BlockConstPoolFor(2);
     }
-    emit(cond | 0x30*B20 | target.code()*B12 |
-         EncodeMovwImmediate(x.imm32_ & 0xffff));
+    movw(target, static_cast<uint32_t>(x.imm32_ & 0xffff), cond);
     movt(target, static_cast<uint32_t>(x.imm32_) >> 16, cond);
     if (target.code() != rd.code()) {
       mov(rd, target, LeaveCC, cond);
@@ -1457,11 +1458,7 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
 
 
 void Assembler::movw(Register reg, uint32_t immediate, Condition cond) {
-  ASSERT(immediate < 0x10000);
-  // May use movw if supported, but on unsupported platforms will try to use
-  // equivalent rotated immed_8 value and other tricks before falling back to a
-  // constant pool load.
-  mov(reg, Operand(immediate), LeaveCC, cond);
+  emit(cond | 0x30*B20 | reg.code()*B12 | EncodeMovwImmediate(immediate));
 }
 
 

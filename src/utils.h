@@ -10,11 +10,11 @@
 #include <string.h>
 
 #include "src/allocation.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/checks.h"
+#include "src/base/platform/platform.h"
 #include "src/globals.h"
 #include "src/list.h"
-#include "src/platform.h"
 #include "src/vector.h"
 
 namespace v8 {
@@ -22,14 +22,6 @@ namespace internal {
 
 // ----------------------------------------------------------------------------
 // General helper functions
-
-// Returns true iff x is a power of 2. Cannot be used with the maximally
-// negative value of the type T (the -1 overflows).
-template <typename T>
-inline bool IsPowerOf2(T x) {
-  return IS_POWER_OF_TWO(x);
-}
-
 
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
@@ -90,50 +82,6 @@ inline int ArithmeticShiftRight(int x, int s) {
 }
 
 
-// Compute the 0-relative offset of some absolute value x of type T.
-// This allows conversion of Addresses and integral types into
-// 0-relative int offsets.
-template <typename T>
-inline intptr_t OffsetFrom(T x) {
-  return x - static_cast<T>(0);
-}
-
-
-// Compute the absolute value of type T for some 0-relative offset x.
-// This allows conversion of 0-relative int offsets into Addresses and
-// integral types.
-template <typename T>
-inline T AddressFrom(intptr_t x) {
-  return static_cast<T>(static_cast<T>(0) + x);
-}
-
-
-// Return the largest multiple of m which is <= x.
-template <typename T>
-inline T RoundDown(T x, intptr_t m) {
-  ASSERT(IsPowerOf2(m));
-  return AddressFrom<T>(OffsetFrom(x) & -m);
-}
-
-
-// Return the smallest multiple of m which is >= x.
-template <typename T>
-inline T RoundUp(T x, intptr_t m) {
-  return RoundDown<T>(static_cast<T>(x + m - 1), m);
-}
-
-
-// Increment a pointer until it has the specified alignment.
-// This works like RoundUp, but it works correctly on pointer types where
-// sizeof(*pointer) might not be 1.
-template<class T>
-T AlignUp(T pointer, size_t alignment) {
-  ASSERT(sizeof(pointer) == sizeof(uintptr_t));
-  uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
-  return reinterpret_cast<T>(RoundUp(pointer_raw, alignment));
-}
-
-
 template <typename T>
 int Compare(const T& a, const T& b) {
   if (a == b)
@@ -158,35 +106,6 @@ template<typename T> class Handle;  // Forward declaration.
 template <typename T>
 int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
   return Compare<T*>(*(*a), *(*b));
-}
-
-
-// Returns the smallest power of two which is >= x. If you pass in a
-// number that is already a power of two, it is returned as is.
-// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
-// figure 3-3, page 48, where the function is called clp2.
-inline uint32_t RoundUpToPowerOf2(uint32_t x) {
-  ASSERT(x <= 0x80000000u);
-  x = x - 1;
-  x = x | (x >> 1);
-  x = x | (x >> 2);
-  x = x | (x >> 4);
-  x = x | (x >> 8);
-  x = x | (x >> 16);
-  return x + 1;
-}
-
-
-inline uint32_t RoundDownToPowerOf2(uint32_t x) {
-  uint32_t rounded_up = RoundUpToPowerOf2(x);
-  if (rounded_up > x) return rounded_up >> 1;
-  return rounded_up;
-}
-
-
-template <typename T, typename U>
-inline bool IsAligned(T value, U alignment) {
-  return (value & (alignment - 1)) == 0;
 }
 
 

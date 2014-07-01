@@ -27,8 +27,10 @@
 
 #include <stdlib.h>
 
+#include "src/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
+
 
 using namespace v8::internal;
 
@@ -170,11 +172,13 @@ static void VerifyMemoryChunk(Isolate* isolate,
                                                               executable,
                                                               NULL);
   size_t alignment = code_range != NULL && code_range->valid() ?
-                     MemoryChunk::kAlignment : OS::CommitPageSize();
-  size_t reserved_size = ((executable == EXECUTABLE))
-      ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
-                alignment)
-      : RoundUp(header_size + reserve_area_size, OS::CommitPageSize());
+                     MemoryChunk::kAlignment : v8::base::OS::CommitPageSize();
+  size_t reserved_size =
+      ((executable == EXECUTABLE))
+          ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
+                    alignment)
+          : RoundUp(header_size + reserve_area_size,
+                    v8::base::OS::CommitPageSize());
   CHECK(memory_chunk->size() == reserved_size);
   CHECK(memory_chunk->area_start() < memory_chunk->address() +
                                      memory_chunk->size());
@@ -403,6 +407,8 @@ TEST(LargeObjectSpace) {
 
 TEST(SizeOfFirstPageIsLargeEnough) {
   if (i::FLAG_always_opt) return;
+  // Bootstrapping without a snapshot causes more allocations.
+  if (!i::Snapshot::HaveASnapshotToStartFrom()) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 

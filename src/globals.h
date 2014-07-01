@@ -8,8 +8,8 @@
 #include "include/v8stdint.h"
 
 #include "src/base/build_config.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/checks.h"
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
@@ -26,6 +26,13 @@
 #endif
 
 namespace v8 {
+
+namespace base {
+class Mutex;
+class RecursiveMutex;
+class VirtualMemory;
+}
+
 namespace internal {
 
 // Determine whether we are running in a simulated environment.
@@ -239,10 +246,6 @@ const uint32_t kFreeListZapValue = 0xfeed1eaf;
 
 const int kCodeZapValue = 0xbadc0de;
 
-// Number of bits to represent the page size for paged spaces. The value of 20
-// gives 1Mb bytes per page.
-const int kPageSizeBits = 20;
-
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
 // used for aligning data, it doesn't hurt to align on a greater value.
@@ -311,9 +314,6 @@ class Variable;
 class RelocInfo;
 class Deserializer;
 class MessageLocation;
-class VirtualMemory;
-class Mutex;
-class RecursiveMutex;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
 

@@ -30,24 +30,24 @@
 #include "src/v8.h"
 
 #include "src/api.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
-#include "src/platform.h"
-#include "src/platform/condition-variable.h"
 #include "src/stub-cache.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
 
-using ::v8::internal::Mutex;
-using ::v8::internal::LockGuard;
-using ::v8::internal::ConditionVariable;
-using ::v8::internal::Semaphore;
+using ::v8::base::Mutex;
+using ::v8::base::LockGuard;
+using ::v8::base::ConditionVariable;
+using ::v8::base::OS;
+using ::v8::base::Semaphore;
 using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Object;
-using ::v8::internal::OS;
 using ::v8::internal::Handle;
 using ::v8::internal::Heap;
 using ::v8::internal::JSGlobalProxy;
@@ -4744,8 +4744,8 @@ class Barriers {
   ThreadBarrier<2> barrier_3;
   ThreadBarrier<2> barrier_4;
   ThreadBarrier<2> barrier_5;
-  v8::internal::Semaphore semaphore_1;
-  v8::internal::Semaphore semaphore_2;
+  v8::base::Semaphore semaphore_1;
+  v8::base::Semaphore semaphore_2;
 };
 
 
@@ -4845,7 +4845,7 @@ Barriers message_queue_barriers;
 
 // This is the debugger thread, that executes no v8 calls except
 // placing JSON debugger commands in the queue.
-class MessageQueueDebuggerThread : public v8::internal::Thread {
+class MessageQueueDebuggerThread : public v8::base::Thread {
  public:
   MessageQueueDebuggerThread()
       : Thread("MessageQueueDebuggerThread") { }
@@ -5102,13 +5102,13 @@ TEST(SendClientDataToHandler) {
 
 Barriers threaded_debugging_barriers;
 
-class V8Thread : public v8::internal::Thread {
+class V8Thread : public v8::base::Thread {
  public:
   V8Thread() : Thread("V8Thread") { }
   void Run();
 };
 
-class DebuggerThread : public v8::internal::Thread {
+class DebuggerThread : public v8::base::Thread {
  public:
   DebuggerThread() : Thread("DebuggerThread") { }
   void Run();
@@ -5214,13 +5214,13 @@ TEST(ThreadedDebugging) {
  * breakpoint is hit when enabled, and missed when disabled.
  */
 
-class BreakpointsV8Thread : public v8::internal::Thread {
+class BreakpointsV8Thread : public v8::base::Thread {
  public:
   BreakpointsV8Thread() : Thread("BreakpointsV8Thread") { }
   void Run();
 };
 
-class BreakpointsDebuggerThread : public v8::internal::Thread {
+class BreakpointsDebuggerThread : public v8::base::Thread {
  public:
   explicit BreakpointsDebuggerThread(bool global_evaluate)
       : Thread("BreakpointsDebuggerThread"),
@@ -6529,7 +6529,7 @@ TEST(ProcessDebugMessages) {
 }
 
 
-class SendCommandThread : public v8::internal::Thread {
+class SendCommandThread : public v8::base::Thread {
  public:
   explicit SendCommandThread(v8::Isolate* isolate)
       : Thread("SendCommandThread"),
@@ -6538,7 +6538,7 @@ class SendCommandThread : public v8::internal::Thread {
 
   static void ProcessDebugMessages(v8::Isolate* isolate, void* data) {
     v8::Debug::ProcessDebugMessages();
-    reinterpret_cast<v8::internal::Semaphore*>(data)->Signal();
+    reinterpret_cast<v8::base::Semaphore*>(data)->Signal();
   }
 
   virtual void Run() {
@@ -6569,7 +6569,7 @@ class SendCommandThread : public v8::internal::Thread {
   }
 
  private:
-  v8::internal::Semaphore semaphore_;
+  v8::base::Semaphore semaphore_;
   v8::Isolate* isolate_;
 };
 
@@ -7369,8 +7369,8 @@ TEST(DebugBreakStackTrace) {
 }
 
 
-v8::internal::Semaphore terminate_requested_semaphore(0);
-v8::internal::Semaphore terminate_fired_semaphore(0);
+v8::base::Semaphore terminate_requested_semaphore(0);
+v8::base::Semaphore terminate_fired_semaphore(0);
 bool terminate_already_fired = false;
 
 
@@ -7379,7 +7379,7 @@ static void DebugBreakTriggerTerminate(
   if (event_details.GetEvent() != v8::Break || terminate_already_fired) return;
   terminate_requested_semaphore.Signal();
   // Wait for at most 2 seconds for the terminate request.
-  CHECK(terminate_fired_semaphore.WaitFor(i::TimeDelta::FromSeconds(2)));
+  CHECK(terminate_fired_semaphore.WaitFor(v8::base::TimeDelta::FromSeconds(2)));
   terminate_already_fired = true;
   v8::internal::Isolate* isolate =
       v8::Utils::OpenHandle(*event_details.GetEventContext())->GetIsolate();
@@ -7387,7 +7387,7 @@ static void DebugBreakTriggerTerminate(
 }
 
 
-class TerminationThread : public v8::internal::Thread {
+class TerminationThread : public v8::base::Thread {
  public:
   explicit TerminationThread(v8::Isolate* isolate) : Thread("terminator"),
                                                      isolate_(isolate) { }

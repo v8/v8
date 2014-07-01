@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PLATFORM_MUTEX_H_
-#define V8_PLATFORM_MUTEX_H_
+#ifndef V8_BASE_PLATFORM_MUTEX_H_
+#define V8_BASE_PLATFORM_MUTEX_H_
 
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
 #include "src/base/win32-headers.h"
 #endif
-#include "src/checks.h"
+#include "src/base/logging.h"
 
 #if V8_OS_POSIX
 #include <pthread.h>  // NOLINT
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // ----------------------------------------------------------------------------
 // Mutex
@@ -101,9 +101,8 @@ class Mutex V8_FINAL {
 //     // Do something.
 //   }
 //
-typedef v8::base::LazyStaticInstance<
-    Mutex, v8::base::DefaultConstructTrait<Mutex>,
-    v8::base::ThreadSafeInitOnceTrait>::type LazyMutex;
+typedef LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
+                           ThreadSafeInitOnceTrait>::type LazyMutex;
 
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
@@ -182,9 +181,9 @@ class RecursiveMutex V8_FINAL {
 //     // Do something.
 //   }
 //
-typedef v8::base::LazyStaticInstance<
-    RecursiveMutex, v8::base::DefaultConstructTrait<RecursiveMutex>,
-    v8::base::ThreadSafeInitOnceTrait>::type LazyRecursiveMutex;
+typedef LazyStaticInstance<RecursiveMutex,
+                           DefaultConstructTrait<RecursiveMutex>,
+                           ThreadSafeInitOnceTrait>::type LazyRecursiveMutex;
 
 #define LAZY_RECURSIVE_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
@@ -211,6 +210,6 @@ class LockGuard V8_FINAL {
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_MUTEX_H_
+#endif  // V8_BASE_PLATFORM_MUTEX_H_

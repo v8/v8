@@ -149,4 +149,8 @@
 #define USING_BSD_ABI
 #endif
 
+// Number of bits to represent the page size for paged spaces. The value of 20
+// gives 1Mb bytes per page.
+const int kPageSizeBits = 20;
+
 #endif  // V8_BASE_BUILD_CONFIG_H_

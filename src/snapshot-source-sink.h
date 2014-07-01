@@ -5,7 +5,7 @@
 #ifndef V8_SNAPSHOT_SOURCE_SINK_H_
 #define V8_SNAPSHOT_SOURCE_SINK_H_
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/utils.h"
 
 namespace v8 {

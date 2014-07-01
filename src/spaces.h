@@ -7,10 +7,10 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
+#include "src/base/platform/mutex.h"
 #include "src/hashmap.h"
 #include "src/list.h"
 #include "src/log.h"
-#include "src/platform/mutex.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -328,7 +328,7 @@ class MemoryChunk {
            kFailureTag);
   }
 
-  VirtualMemory* reserved_memory() {
+  base::VirtualMemory* reserved_memory() {
     return &reservation_;
   }
 
@@ -336,7 +336,7 @@ class MemoryChunk {
     reservation_.Reset();
   }
 
-  void set_reserved_memory(VirtualMemory* reservation) {
+  void set_reserved_memory(base::VirtualMemory* reservation) {
     ASSERT_NOT_NULL(reservation);
     reservation_.TakeControl(reservation);
   }
@@ -690,7 +690,7 @@ class MemoryChunk {
   Address area_end_;
 
   // If the chunk needs to remember its memory reservation, it is stored here.
-  VirtualMemory reservation_;
+  base::VirtualMemory reservation_;
   // The identity of the owning space.  This is tagged as a failure pointer, but
   // no failure can be in an object, so this can be distinguished from any entry
   // in a fixed array.
@@ -958,7 +958,7 @@ class CodeRange {
   Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.
-  VirtualMemory* code_range_;
+  base::VirtualMemory* code_range_;
   // Plain old data class, just a struct plus a constructor.
   class FreeBlock {
    public:
@@ -1116,16 +1116,16 @@ class MemoryAllocator {
 
   Address ReserveAlignedMemory(size_t requested,
                                size_t alignment,
-                               VirtualMemory* controller);
+                               base::VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size,
                                 size_t commit_size,
                                 size_t alignment,
                                 Executability executable,
-                                VirtualMemory* controller);
+                                base::VirtualMemory* controller);
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
-  void FreeMemory(VirtualMemory* reservation, Executability executable);
+  void FreeMemory(base::VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
@@ -1170,7 +1170,7 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm,
+  MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
                                               Address start,
                                               size_t commit_size,
                                               size_t reserved_size);
@@ -1551,7 +1551,7 @@ class FreeListCategory {
   int available() const { return available_; }
   void set_available(int available) { available_ = available; }
 
-  Mutex* mutex() { return &mutex_; }
+  base::Mutex* mutex() { return &mutex_; }
 
   bool IsEmpty() {
     return top() == 0;
@@ -1566,7 +1566,7 @@ class FreeListCategory {
   // top_ points to the top FreeListNode* in the free list category.
   base::AtomicWord top_;
   FreeListNode* end_;
-  Mutex mutex_;
+  base::Mutex mutex_;
 
   // Total available bytes in all blocks of this free list category.
   int available_;
@@ -2007,8 +2007,11 @@ class PagedSpace : public Space {
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
 
+  MUST_USE_RESULT HeapObject*
+      WaitForSweeperThreadsAndRetryAllocation(int size_in_bytes);
+
   // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
   friend class MarkCompactCollector;
@@ -2657,7 +2660,7 @@ class NewSpace : public Space {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
-  VirtualMemory reservation_;
+  base::VirtualMemory reservation_;
   int pages_used_;
 
   // Start address and bit mask for containment testing.

@@ -30,8 +30,8 @@
 #include "src/v8.h"
 
 #include "include/v8-profiler.h"
+#include "src/base/platform/platform.h"
 #include "src/cpu-profiler-inl.h"
-#include "src/platform.h"
 #include "src/smart-pointers.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -46,7 +46,6 @@ using i::ProfileNode;
 using i::ProfilerEventsProcessor;
 using i::ScopedVector;
 using i::SmartPointer;
-using i::TimeDelta;
 using i::Vector;
 
 
@@ -55,7 +54,7 @@ TEST(StartStop) {
   CpuProfilesCollection profiles(isolate->heap());
   ProfileGenerator generator(&profiles);
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, TimeDelta::FromMicroseconds(100)));
+          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   processor->StopSynchronously();
 }
@@ -143,7 +142,7 @@ TEST(CodeEvents) {
   profiles->StartProfiling("", false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, TimeDelta::FromMicroseconds(100)));
+          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
@@ -204,7 +203,7 @@ TEST(TickEvents) {
   profiles->StartProfiling("", false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, TimeDelta::FromMicroseconds(100)));
+          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
@@ -273,7 +272,7 @@ TEST(Issue1398) {
   profiles->StartProfiling("", false);
   ProfileGenerator generator(profiles);
   SmartPointer<ProfilerEventsProcessor> processor(new ProfilerEventsProcessor(
-          &generator, NULL, TimeDelta::FromMicroseconds(100)));
+          &generator, NULL, v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   CpuProfiler profiler(isolate, profiles, &generator, processor.get());
 
@@ -791,11 +790,11 @@ class TestApiCallbacks {
  private:
   void Wait() {
     if (is_warming_up_) return;
-    double start = i::OS::TimeCurrentMillis();
+    double start = v8::base::OS::TimeCurrentMillis();
     double duration = 0;
     while (duration < min_duration_ms_) {
-      i::OS::Sleep(1);
-      duration = i::OS::TimeCurrentMillis() - start;
+      v8::base::OS::Sleep(1);
+      duration = v8::base::OS::TimeCurrentMillis() - start;
     }
   }
 
@@ -1491,6 +1490,7 @@ TEST(JsNativeJsRuntimeJsSample) {
 
 
 static void CallJsFunction2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::base::OS::Print("In CallJsFunction2\n");
   CallJsFunction(info);
 }
 

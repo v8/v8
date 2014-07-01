@@ -87,6 +87,7 @@ function ExtendSetPrototype() {
 
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     'entries', SetEntries,
+    'keys', SetValues,
     'values', SetValues
   ));
 

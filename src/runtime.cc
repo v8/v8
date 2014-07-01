@@ -11,12 +11,13 @@
 #include "src/allocation-site-scopes.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/base/cpu.h"
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/conversions.h"
-#include "src/cpu.h"
 #include "src/cpu-profiler.h"
 #include "src/date.h"
 #include "src/dateparser-inl.h"
@@ -33,7 +34,6 @@
 #include "src/liveedit.h"
 #include "src/misc-intrinsics.h"
 #include "src/parser.h"
-#include "src/platform.h"
 #include "src/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
@@ -303,8 +303,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
       maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE,
-          value_type, mode);
+          boilerplate, name, value, NONE, value_type, mode);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -1548,7 +1547,7 @@ RUNTIME_FUNCTION(Runtime_SetAdd) {
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   table = OrderedHashSet::Add(table, key);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return *holder;
 }
 
 
@@ -1686,7 +1685,7 @@ RUNTIME_FUNCTION(Runtime_MapSet) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   Handle<OrderedHashMap> new_table = OrderedHashMap::Put(table, key, value);
   holder->set_table(*new_table);
-  return isolate->heap()->undefined_value();
+  return *holder;
 }
 
 
@@ -1800,7 +1799,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   RUNTIME_ASSERT(table->IsKey(*key));
   Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   weak_collection->set_table(*new_table);
-  return isolate->heap()->undefined_value();
+  return *weak_collection;
 }
 
 
@@ -2396,10 +2395,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   if (!lookup.IsFound()) {
     HandleScope handle_scope(isolate);
     Handle<GlobalObject> global(isolate->context()->global_object());
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(global, name, value,
-                                                 attributes));
+    JSObject::AddProperty(global, name, value, attributes);
     return *value;
   }
 
@@ -5343,15 +5339,59 @@ RUNTIME_FUNCTION(Runtime_AddProperty) {
       static_cast<PropertyAttributes>(unchecked_attributes);
 
 #ifdef DEBUG
+  bool duplicate;
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
                       LookupIterator::CHECK_OWN_REAL);
     JSReceiver::GetPropertyAttributes(&it);
-    RUNTIME_ASSERT(!it.IsFound());
+    duplicate = it.IsFound();
   } else {
     uint32_t index = 0;
     RUNTIME_ASSERT(key->ToArrayIndex(&index));
-    RUNTIME_ASSERT(!JSReceiver::HasOwnElement(object, index));
+    duplicate = JSReceiver::HasOwnElement(object, index);
+  }
+  RUNTIME_ASSERT(!duplicate);
+#endif
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Runtime::DefineObjectProperty(object, key, value, attributes));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 4);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
+  RUNTIME_ASSERT(
+      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+  // Compute attributes.
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(unchecked_attributes);
+
+#ifdef DEBUG
+  bool duplicate;
+  if (key->IsName()) {
+    LookupIterator it(object, Handle<Name>::cast(key),
+                      LookupIterator::CHECK_OWN_REAL);
+    JSReceiver::GetPropertyAttributes(&it);
+    duplicate = it.IsFound();
+  } else {
+    uint32_t index = 0;
+    RUNTIME_ASSERT(key->ToArrayIndex(&index));
+    duplicate = JSReceiver::HasOwnElement(object, index);
+  }
+  if (duplicate) {
+    Handle<Object> args[1] = { key };
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "duplicate_template_property", HandleVector(args, 1));
+    return isolate->Throw(*error);
   }
 #endif
 
@@ -5526,6 +5566,15 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseHandleEpilogue) {
   ASSERT(args.length() == 0);
   SealHandleScope shs(isolate);
   isolate->debug()->PromiseHandleEpilogue();
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugPromiseEvent) {
+  ASSERT(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
+  isolate->debug()->OnPromiseEvent(data);
   return isolate->heap()->undefined_value();
 }
 
@@ -6279,8 +6328,8 @@ RUNTIME_FUNCTION(Runtime_StringParseFloat) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
 
   subject = String::Flatten(subject);
-  double value = StringToDouble(
-      isolate->unicode_cache(), *subject, ALLOW_TRAILING_JUNK, OS::nan_value());
+  double value = StringToDouble(isolate->unicode_cache(), *subject,
+                                ALLOW_TRAILING_JUNK, base::OS::nan_value());
 
   return *isolate->factory()->NewNumber(value);
 }
@@ -8124,8 +8173,8 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
   RETURN_FAILURE_ON_EXCEPTION(
       isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(bound_function, length_string,
-                                               new_length, attr));
+      JSObject::SetOwnPropertyIgnoreAttributes(
+          bound_function, length_string, new_length, attr));
   return *bound_function;
 }
 
@@ -8555,7 +8604,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
       sync_with_compiler_thread) {
     while (function->IsInOptimizationQueue()) {
       isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
-      OS::Sleep(50);
+      base::OS::Sleep(50);
     }
   }
   if (FLAG_always_opt) {
@@ -9542,7 +9591,7 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
     millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
     millis += std::floor(isolate->heap()->synthetic_time());
   } else {
-    millis = std::floor(OS::TimeCurrentMillis());
+    millis = std::floor(base::OS::TimeCurrentMillis());
   }
   return *isolate->factory()->NewNumber(millis);
 }
@@ -13198,7 +13247,7 @@ RUNTIME_FUNCTION(Runtime_DebugSetScriptSource) {
 RUNTIME_FUNCTION(Runtime_SystemBreak) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
-  OS::DebugBreak();
+  base::OS::DebugBreak();
   return isolate->heap()->undefined_value();
 }
 
@@ -13800,18 +13849,10 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
     }
 
     Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            result,
-            maximized,
-            factory->NewStringFromAsciiChecked(base_max_locale),
-            NONE));
-    RETURN_FAILURE_ON_EXCEPTION(isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            result,
-            base,
-            factory->NewStringFromAsciiChecked(base_locale),
-            NONE));
+    Handle<String> value = factory->NewStringFromAsciiChecked(base_max_locale);
+    JSObject::AddProperty(result, maximized, value, NONE);
+    value = factory->NewStringFromAsciiChecked(base_locale);
+    JSObject::AddProperty(result, base, value, NONE);
     output->set(i, *result);
   }
 
@@ -13928,12 +13969,10 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(date_format));
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          local_object,
-          isolate->factory()->NewStringFromStaticAscii("dateFormat"),
-          isolate->factory()->NewStringFromStaticAscii("valid"),
-          NONE));
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticAscii("dateFormat");
+  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
 
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -14027,12 +14066,10 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          local_object,
-          isolate->factory()->NewStringFromStaticAscii("numberFormat"),
-          isolate->factory()->NewStringFromStaticAscii("valid"),
-          NONE));
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticAscii("numberFormat");
+  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(),
@@ -14135,12 +14172,10 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          local_object,
-          isolate->factory()->NewStringFromStaticAscii("collator"),
-          isolate->factory()->NewStringFromStaticAscii("valid"),
-          NONE));
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticAscii("collator");
+  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(),
@@ -14241,12 +14276,10 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   // Make sure that the pointer to adopted text is NULL.
   local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          local_object,
-          isolate->factory()->NewStringFromStaticAscii("breakIterator"),
-          isolate->factory()->NewStringFromStaticAscii("valid"),
-          NONE));
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticAscii("breakIterator");
+  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
 
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
@@ -14463,9 +14496,9 @@ RUNTIME_FUNCTION(Runtime_Abort) {
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   const char* message = GetBailoutReason(
       static_cast<BailoutReason>(message_id));
-  OS::PrintError("abort: %s\n", message);
+  base::OS::PrintError("abort: %s\n", message);
   isolate->PrintStack(stderr);
-  OS::Abort();
+  base::OS::Abort();
   UNREACHABLE();
   return NULL;
 }
@@ -14475,9 +14508,9 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
-  OS::PrintError("abort: %s\n", message->ToCString().get());
+  base::OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
-  OS::Abort();
+  base::OS::Abort();
   UNREACHABLE();
   return NULL;
 }

@@ -145,7 +145,13 @@ ifneq ($(strip $(asan)),)
   export LINK=$(asan)
   export ASAN_SYMBOLIZER_PATH="$(dir $(asan))llvm-symbolizer"
 endif
-
+# msan=/path/to/clang++
+ifneq ($(strip $(msan)),)
+  GYPFLAGS += -Dmsan=1 -Dmsan_track_origins=2
+  export CXX=$(msan)
+  export CXX_host=$(msan)
+  export LINK=$(msan)
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)

@@ -145,6 +145,9 @@
   'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
   'elements-transition-hoisting': [PASS, FAIL],
   'getters-on-elements': [PASS, FAIL],
+  # Tests taking too long
+  'regress/regress-1122': [PASS, TIMEOUT],
+  'regress/regress-331444': [PASS, TIMEOUT],
 }],  # 'gc_stress == True'
 
 ##############################################################################

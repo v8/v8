@@ -1249,7 +1249,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
             isolate, exception_handle, "message").ToHandleChecked());
 
     if (result == kSuccess) {
-      i::OS::Print(
+      v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
           "with error:\n"
@@ -1260,7 +1260,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     }
 
     if (!data.has_error()) {
-      i::OS::Print(
+      v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
           "with error:\n"
@@ -1272,7 +1272,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Check that preparser and parser produce the same error.
     i::Handle<i::String> preparser_message = FormatMessage(&data);
     if (!i::String::Equals(message_string, preparser_message)) {
-      i::OS::Print(
+      v8::base::OS::Print(
           "Expected parser and preparser to produce the same error on:\n"
           "\t%s\n"
           "However, found the following error messages\n"
@@ -1284,7 +1284,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
   } else if (data.has_error()) {
-    i::OS::Print(
+    v8::base::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
         "with error:\n"
@@ -1293,7 +1293,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         source->ToCString().get(), FormatMessage(&data)->ToCString().get());
     CHECK(false);
   } else if (result == kError) {
-    i::OS::Print(
+    v8::base::OS::Print(
         "Expected error on:\n"
         "\t%s\n"
         "However, parser and preparser succeeded",
@@ -2041,7 +2041,7 @@ TEST(DontRegressPreParserDataSizes) {
     CHECK(!data->HasError());
 
     if (data->function_count() != test_cases[i].functions) {
-      i::OS::Print(
+      v8::base::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
@@ -2744,4 +2744,30 @@ TEST(InnerAssignment) {
       CHECK(var->maybe_assigned() == expected);
     }
   }
+}
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+
+}
+
+
+TEST(UseAsmUseCount) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CompileRun("\"use asm\";\n"
+             "var foo = 1;\n"
+             "\"use asm\";\n"  // Only the first one counts.
+             "function bar() { \"use asm\"; var baz = 1; }");
+  CHECK_EQ(2, use_counts[v8::Isolate::kUseAsm]);
 }

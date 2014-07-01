@@ -5,7 +5,7 @@
 #ifndef V8_SMALL_POINTER_LIST_H_
 #define V8_SMALL_POINTER_LIST_H_
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/zone.h"
 

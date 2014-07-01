@@ -77,6 +77,7 @@ namespace internal {
   F(DebugPrepareStepInIfStepping, 1, 1) \
   F(DebugPromiseHandlePrologue, 1, 1) \
   F(DebugPromiseHandleEpilogue, 0, 1) \
+  F(DebugPromiseEvent, 1, 1) \
   F(FlattenString, 1, 1) \
   F(LoadMutableDouble, 2, 1) \
   F(TryMigrateInstance, 1, 1) \
@@ -224,6 +225,7 @@ namespace internal {
   F(IsAttachedGlobal, 1, 1) \
   \
   F(AddProperty, 4, 1) \
+  F(AddPropertyForTemplate, 4, 1) \
   F(SetProperty, 4, 1) \
   F(DefineDataPropertyUnchecked, 4, 1) \
   F(DefineAccessorPropertyUnchecked, 5, 1) \

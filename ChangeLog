@@ -1,3 +1,14 @@
+2014-07-01: Version 3.28.8
+
+        Remove static initializer from isolate.
+
+        ES6: Add missing Set.prototype.keys function (issue 3411).
+
+        Introduce debug events for promises (issue 3093).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-06-30: Version 3.28.7
 
         Performance and stability improvements on all platforms.

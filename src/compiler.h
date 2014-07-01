@@ -584,9 +584,9 @@ class OptimizedCompileJob: public ZoneObject {
   HOptimizedGraphBuilder* graph_builder_;
   HGraph* graph_;
   LChunk* chunk_;
-  TimeDelta time_taken_to_create_graph_;
-  TimeDelta time_taken_to_optimize_;
-  TimeDelta time_taken_to_codegen_;
+  base::TimeDelta time_taken_to_create_graph_;
+  base::TimeDelta time_taken_to_optimize_;
+  base::TimeDelta time_taken_to_codegen_;
   Status last_status_;
   bool awaiting_install_;
 
@@ -597,7 +597,7 @@ class OptimizedCompileJob: public ZoneObject {
   void RecordOptimizationStats();
 
   struct Timer {
-    Timer(OptimizedCompileJob* job, TimeDelta* location)
+    Timer(OptimizedCompileJob* job, base::TimeDelta* location)
         : job_(job), location_(location) {
       ASSERT(location_ != NULL);
       timer_.Start();
@@ -608,8 +608,8 @@ class OptimizedCompileJob: public ZoneObject {
     }
 
     OptimizedCompileJob* job_;
-    ElapsedTimer timer_;
-    TimeDelta* location_;
+    base::ElapsedTimer timer_;
+    base::TimeDelta* location_;
   };
 };
 
@@ -702,7 +702,7 @@ class CompilationPhase BASE_EMBEDDED {
   CompilationInfo* info_;
   Zone zone_;
   unsigned info_zone_start_allocation_size_;
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };

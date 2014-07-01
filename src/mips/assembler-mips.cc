@@ -37,6 +37,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include "src/base/cpu.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/serialize.h"
 
@@ -99,7 +100,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= 1u << FPU;
 #else
   // Probe for additional features at runtime.
-  CPU cpu;
+  base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
 #endif
 }
@@ -198,7 +199,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   }
 
   // Indicate that code has changed.
-  CPU::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
+  CpuFeatures::FlushICache(pc_, instruction_count * Assembler::kInstrSize);
 }
 
 
@@ -2156,7 +2157,7 @@ Address Assembler::target_address_at(Address pc) {
 // snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
 // OS::nan_value() returns a qNaN.
 void Assembler::QuietNaN(HeapObject* object) {
-  HeapNumber::cast(object)->set_value(OS::nan_value());
+  HeapNumber::cast(object)->set_value(base::OS::nan_value());
 }
 
 
@@ -2264,7 +2265,7 @@ void Assembler::set_target_address_at(Address pc,
   }
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CPU::FlushICache(pc, (patched_jump ? 3 : 2) * sizeof(int32_t));
+    CpuFeatures::FlushICache(pc, (patched_jump ? 3 : 2) * sizeof(int32_t));
   }
 }
 
@@ -2298,7 +2299,7 @@ void Assembler::JumpLabelToJumpRegister(Address pc) {
   }
 
   if (patched) {
-      CPU::FlushICache(pc+2, sizeof(Address));
+    CpuFeatures::FlushICache(pc+2, sizeof(Address));
   }
 }
 

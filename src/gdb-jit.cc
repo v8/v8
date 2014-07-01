@@ -5,6 +5,7 @@
 #ifdef ENABLE_GDB_JIT_INTERFACE
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/compiler.h"
 #include "src/frames-inl.h"
@@ -13,7 +14,6 @@
 #include "src/global-handles.h"
 #include "src/messages.h"
 #include "src/natives.h"
-#include "src/platform.h"
 #include "src/scopes.h"
 
 namespace v8 {
@@ -2032,7 +2032,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
 }
 
 
-static LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
+static base::LazyMutex mutex = LAZY_MUTEX_INITIALIZER;
 
 
 void GDBJITInterface::AddCode(const char* name,
@@ -2042,7 +2042,7 @@ void GDBJITInterface::AddCode(const char* name,
                               CompilationInfo* info) {
   if (!FLAG_gdbjit) return;
 
-  LockGuard<Mutex> lock_guard(mutex.Pointer());
+  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   DisallowHeapAllocation no_gc;
 
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
@@ -2128,7 +2128,7 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
 void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
 
-  LockGuard<Mutex> lock_guard(mutex.Pointer());
+  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   HashMap::Entry* e = GetEntries()->Lookup(code,
                                            HashForCodeObject(code),
                                            false);
@@ -2166,7 +2166,7 @@ void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
 
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
-  LockGuard<Mutex> lock_guard(mutex.Pointer());
+  base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   ASSERT(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);

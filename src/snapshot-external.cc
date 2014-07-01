@@ -50,7 +50,7 @@ bool Snapshot::Initialize() {
   if (!HaveASnapshotToStartFrom())
     return false;
 
-  ElapsedTimer timer;
+  base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) {
     timer.Start();
   }

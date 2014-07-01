@@ -15,7 +15,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/cpu.h"
+#include "src/assembler.h"
 #include "src/macro-assembler.h"
 
 #include "src/simulator.h"  // For cache flushing.
@@ -24,7 +24,7 @@ namespace v8 {
 namespace internal {
 
 
-void CPU::FlushICache(void* start, size_t size) {
+void CpuFeatures::FlushICache(void* start, size_t size) {
   // Nothing to do, flushing no instructions.
   if (size == 0) {
     return;

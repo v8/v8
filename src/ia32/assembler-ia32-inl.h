@@ -39,7 +39,7 @@
 
 #include "src/ia32/assembler-ia32.h"
 
-#include "src/cpu.h"
+#include "src/assembler.h"
 #include "src/debug.h"
 
 namespace v8 {
@@ -58,30 +58,30 @@ void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
   if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // Relocate entry.
-    if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
+    if (flush_icache) CpuFeatures::FlushICache(p, sizeof(uint32_t));
   } else if (rmode_ == CODE_AGE_SEQUENCE) {
     if (*pc_ == kCallOpcode) {
       int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
       *p -= delta;  // Relocate entry.
-    if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
+    if (flush_icache) CpuFeatures::FlushICache(p, sizeof(uint32_t));
     }
   } else if (rmode_ == JS_RETURN && IsPatchedReturnSequence()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
     *p -= delta;  // Relocate entry.
-    if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
+    if (flush_icache) CpuFeatures::FlushICache(p, sizeof(uint32_t));
   } else if (rmode_ == DEBUG_BREAK_SLOT && IsPatchedDebugBreakSlotSequence()) {
     // Special handling of a debug break slot when a break point is set (call
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
     *p -= delta;  // Relocate entry.
-    if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
+    if (flush_icache) CpuFeatures::FlushICache(p, sizeof(uint32_t));
   } else if (IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p += delta;  // Relocate entry.
-    if (flush_icache) CPU::FlushICache(p, sizeof(uint32_t));
+    if (flush_icache) CpuFeatures::FlushICache(p, sizeof(uint32_t));
   }
 }
 
@@ -144,7 +144,7 @@ void RelocInfo::set_target_object(Object* target,
   ASSERT(!target->IsConsString());
   Memory::Object_at(pc_) = target;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
@@ -197,7 +197,7 @@ void RelocInfo::set_target_cell(Cell* cell,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
     // TODO(1550) We are passing NULL as a slot because cell can never be on
@@ -294,14 +294,14 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(this);
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     visitor->VisitCodeTarget(this);
   } else if (mode == RelocInfo::CELL) {
     visitor->VisitCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     visitor->VisitCodeAgeSequence(this);
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -321,14 +321,14 @@ void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     StaticVisitor::VisitEmbeddedPointer(heap, this);
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::CELL) {
     StaticVisitor::VisitCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
-    CPU::FlushICache(pc_, sizeof(Address));
+    CpuFeatures::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeAgeSequence(mode)) {
     StaticVisitor::VisitCodeAgeSequence(heap, this);
   } else if (heap->isolate()->debug()->has_break_points() &&
@@ -473,7 +473,7 @@ void Assembler::set_target_address_at(Address pc,
   int32_t* p = reinterpret_cast<int32_t*>(pc);
   *p = target - (pc + sizeof(int32_t));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CPU::FlushICache(p, sizeof(int32_t));
+    CpuFeatures::FlushICache(p, sizeof(int32_t));
   }
 }
 

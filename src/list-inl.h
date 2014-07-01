@@ -6,7 +6,8 @@
 #define V8_LIST_INL_H_
 
 #include "src/list.h"
-#include "src/platform.h"
+
+#include "src/base/platform/platform.h"
 
 namespace v8 {
 namespace internal {

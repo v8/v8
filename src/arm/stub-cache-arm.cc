@@ -1265,16 +1265,16 @@ Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
   Register receiver = LoadIC::ReceiverRegister();
   Register name = LoadIC::NameRegister();
-  static Register registers[] = { receiver, name, r3, r1, r4, r5 };
+  static Register registers[] = { receiver, name, r3, r0, r4, r5 };
   return registers;
 }
 
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = KeyedLoadIC::ReceiverRegister();
-  Register name = KeyedLoadIC::NameRegister();
-  static Register registers[] = { receiver, name, r2, r3, r4, r5 };
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  static Register registers[] = { receiver, name, r3, r0, r4, r5 };
   return registers;
 }
 
@@ -1474,21 +1474,17 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
 void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
     MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- r0     : key
-  //  -- r1     : receiver
-  // -----------------------------------
-  ASSERT(r1.is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(r0.is(KeyedLoadIC::NameRegister()));
+  // The return address is in lr.
   Label slow, miss;
 
-  Register key = r0;
-  Register receiver = r1;
+  Register key = LoadIC::NameRegister();
+  Register receiver = LoadIC::ReceiverRegister();
+  ASSERT(receiver.is(r1));
+  ASSERT(key.is(r2));
 
-  __ UntagAndJumpIfNotSmi(r2, key, &miss);
+  __ UntagAndJumpIfNotSmi(r6, key, &miss);
   __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ LoadFromNumberDictionary(&slow, r4, key, r0, r2, r3, r5);
+  __ LoadFromNumberDictionary(&slow, r4, key, r0, r6, r3, r5);
   __ Ret();
 
   __ bind(&slow);
@@ -1496,21 +1492,11 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
       masm->isolate()->counters()->keyed_load_external_array_slow(),
       1, r2, r3);
 
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- r0     : key
-  //  -- r1     : receiver
-  // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
   __ bind(&miss);
 
-  // ---------- S t a t e --------------
-  //  -- lr     : return address
-  //  -- r0     : key
-  //  -- r1     : receiver
-  // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 

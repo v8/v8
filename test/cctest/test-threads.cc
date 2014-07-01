@@ -28,8 +28,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "src/base/platform/platform.h"
 #include "src/isolate.h"
-#include "src/platform.h"
 
 
 enum Turn {
@@ -42,7 +42,7 @@ enum Turn {
 static Turn turn = FILL_CACHE;
 
 
-class ThreadA : public v8::internal::Thread {
+class ThreadA : public v8::base::Thread {
  public:
   ThreadA() : Thread("ThreadA") { }
   void Run() {
@@ -82,7 +82,7 @@ class ThreadA : public v8::internal::Thread {
 };
 
 
-class ThreadB : public v8::internal::Thread {
+class ThreadB : public v8::base::Thread {
  public:
   ThreadB() : Thread("ThreadB") { }
   void Run() {
@@ -122,12 +122,12 @@ TEST(JSFunctionResultCachesInTwoThreads) {
   CHECK_EQ(DONE, turn);
 }
 
-class ThreadIdValidationThread : public v8::internal::Thread {
+class ThreadIdValidationThread : public v8::base::Thread {
  public:
-  ThreadIdValidationThread(i::Thread* thread_to_start,
+  ThreadIdValidationThread(v8::base::Thread* thread_to_start,
                            i::List<i::ThreadId>* refs,
                            unsigned int thread_no,
-                           i::Semaphore* semaphore)
+                           v8::base::Semaphore* semaphore)
     : Thread("ThreadRefValidationThread"),
       refs_(refs), thread_no_(thread_no), thread_to_start_(thread_to_start),
       semaphore_(semaphore) {
@@ -149,8 +149,8 @@ class ThreadIdValidationThread : public v8::internal::Thread {
  private:
   i::List<i::ThreadId>* refs_;
   int thread_no_;
-  i::Thread* thread_to_start_;
-  i::Semaphore* semaphore_;
+  v8::base::Thread* thread_to_start_;
+  v8::base::Semaphore* semaphore_;
 };
 
 
@@ -158,7 +158,7 @@ TEST(ThreadIdValidation) {
   const int kNThreads = 100;
   i::List<ThreadIdValidationThread*> threads(kNThreads);
   i::List<i::ThreadId> refs(kNThreads);
-  i::Semaphore semaphore(0);
+  v8::base::Semaphore semaphore(0);
   ThreadIdValidationThread* prev = NULL;
   for (int i = kNThreads - 1; i >= 0; i--) {
     ThreadIdValidationThread* newThread =
@@ -177,7 +177,7 @@ TEST(ThreadIdValidation) {
 }
 
 
-class ThreadC : public v8::internal::Thread {
+class ThreadC : public v8::base::Thread {
  public:
   ThreadC() : Thread("ThreadC") { }
   void Run() {

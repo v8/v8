@@ -12,9 +12,9 @@
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
 #include <limits.h>        // Required for INT_MAX etc.
 #include <cmath>
-#include "src/win32-math.h"
+#include "src/base/win32-math.h"
 
-#include "src/checks.h"
+#include "src/base/logging.h"
 
 
 namespace std {

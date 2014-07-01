@@ -9,11 +9,11 @@
 
 #include "include/v8-platform.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/libplatform/task-queue.h"
-#include "src/platform/mutex.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 class TaskQueue;
 class Thread;
@@ -37,7 +37,7 @@ class DefaultPlatform : public Platform {
  private:
   static const int kMaxThreadPoolSize;
 
-  Mutex lock_;
+  base::Mutex lock_;
   bool initialized_;
   int thread_pool_size_;
   std::vector<WorkerThread*> thread_pool_;
@@ -47,7 +47,7 @@ class DefaultPlatform : public Platform {
 };
 
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_DEFAULT_PLATFORM_H_

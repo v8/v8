@@ -28,10 +28,10 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 
 
-v8::internal::Semaphore* semaphore = NULL;
+v8::base::Semaphore* semaphore = NULL;
 
 
 void Signal(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -159,7 +159,7 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 }
 
 
-class TerminatorThread : public v8::internal::Thread {
+class TerminatorThread : public v8::base::Thread {
  public:
   explicit TerminatorThread(i::Isolate* isolate)
       : Thread("TerminatorThread"),
@@ -178,7 +178,7 @@ class TerminatorThread : public v8::internal::Thread {
 // Test that a single thread of JavaScript execution can be terminated
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
-  semaphore = new v8::internal::Semaphore(0);
+  semaphore = new v8::base::Semaphore(0);
   TerminatorThread thread(CcTest::i_isolate());
   thread.Start();
 
@@ -378,7 +378,7 @@ void MicrotaskLoopForever(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 
 TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
-  semaphore = new v8::internal::Semaphore(0);
+  semaphore = new v8::base::Semaphore(0);
   TerminatorThread thread(CcTest::i_isolate());
   thread.Start();
 

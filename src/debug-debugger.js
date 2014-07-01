@@ -19,7 +19,8 @@ Debug.DebugEvent = { Break: 1,
                      NewFunction: 3,
                      BeforeCompile: 4,
                      AfterCompile: 5,
-                     CompileError: 6 };
+                     CompileError: 6,
+                     PromiseEvent: 7 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1196,6 +1197,32 @@ function MakeScriptObject_(script, include_source) {
     o.source = script.source();
   }
   return o;
+}
+
+
+function MakePromiseEvent(event_data) {
+  if (event_data.type = "new Promise") {
+    return new NewPromiseEvent(event_data);
+  }
+}
+
+
+function PromiseGetter() {
+  return MakeMirror(this.promise_);
+}
+
+
+function NewPromiseEvent(event_data) {
+  this.resolver_ = event_data.resolver;
+  this.promise_ = event_data.promise;
+}
+
+
+NewPromiseEvent.prototype.promise = PromiseGetter;
+
+
+NewPromiseEvent.prototype.resolver = function() {
+  return MakeMirror(this.resolver_);
 }
 
 

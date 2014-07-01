@@ -231,7 +231,7 @@ class IncrementalMarking {
   State state_;
   bool is_compacting_;
 
-  VirtualMemory* marking_deque_memory_;
+  base::VirtualMemory* marking_deque_memory_;
   bool marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
 

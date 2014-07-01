@@ -26,6 +26,7 @@ var kMessages = {
   newline_after_throw:           ["Illegal newline after throw"],
   label_redeclaration:           ["Label '", "%0", "' has already been declared"],
   var_redeclaration:             ["Identifier '", "%0", "' has already been declared"],
+  duplicate_template_property:   ["Object template has duplicate property '", "%0", "'"],
   no_catch_or_finally:           ["Missing catch or finally after try"],
   unknown_label:                 ["Undefined label '", "%0", "'"],
   uncaught_exception:            ["Uncaught ", "%0"],

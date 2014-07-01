@@ -67,7 +67,7 @@ TestInvalidCalls(new WeakMap);
 // Test expected behavior for Sets and WeakSets
 function TestSet(set, key) {
   assertFalse(set.has(key));
-  assertSame(undefined, set.add(key));
+  assertSame(set, set.add(key));
   assertTrue(set.has(key));
   assertTrue(set.delete(key));
   assertFalse(set.has(key));
@@ -92,7 +92,7 @@ TestSet(new WeakSet, new Object);
 
 // Test expected mapping behavior for Maps and WeakMaps
 function TestMapping(map, key, value) {
-  assertSame(undefined, map.set(key, value));
+  assertSame(map, map.set(key, value));
   assertSame(value, map.get(key));
 }
 function TestMapBehavior1(m) {

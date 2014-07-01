@@ -8,11 +8,16 @@
 #include <string>
 
 #include "src/allocation.h"
+#include "src/base/platform/elapsed-timer.h"
+#include "src/base/platform/platform.h"
 #include "src/objects.h"
-#include "src/platform.h"
-#include "src/platform/elapsed-timer.h"
 
 namespace v8 {
+
+namespace base {
+class Semaphore;
+}
+
 namespace internal {
 
 // Logger is used for collecting logging information from V8 during
@@ -57,7 +62,6 @@ class Isolate;
 class Log;
 class PositionsRecorder;
 class Profiler;
-class Semaphore;
 class Ticker;
 struct TickSample;
 
@@ -436,7 +440,7 @@ class Logger {
   // 'true' between SetUp() and TearDown().
   bool is_initialized_;
 
-  ElapsedTimer timer_;
+  base::ElapsedTimer timer_;
 
   friend class CpuProfiler;
 };

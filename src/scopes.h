@@ -474,7 +474,6 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_sloppy_eval_;
   bool inner_scope_calls_eval_;
-  bool inner_scope_contains_with_;
   bool force_eager_compilation_;
   bool force_context_allocation_;
 

@@ -47,11 +47,11 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 415
-EXPECTED_FUZZABLE_COUNT = 330
+EXPECTED_FUNCTION_COUNT = 417
+EXPECTED_FUZZABLE_COUNT = 332
 EXPECTED_CCTEST_COUNT = 6
 EXPECTED_UNKNOWN_COUNT = 4
-EXPECTED_BUILTINS_COUNT = 806
+EXPECTED_BUILTINS_COUNT = 809
 
 
 # Don't call these at all.
@@ -212,6 +212,7 @@ _NUMBER_FORMAT = (
 # None means "fall back to autodetected value".
 CUSTOM_KNOWN_GOOD_INPUT = {
   "AddProperty": [None, 10, None, None, None],
+  "AddPropertyForTemplate": [None, 10, None, None, None],
   "Apply": ["function() {}", None, None, None, None, None],
   "ArrayBufferSliceImpl": [None, None, 0, None],
   "ArrayConcat": ["[1, 'a']", None],

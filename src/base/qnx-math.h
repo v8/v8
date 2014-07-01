@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_QNX_MATH_H_
-#define V8_QNX_MATH_H_
+#ifndef V8_BASE_QNX_MATH_H_
+#define V8_QBASE_NX_MATH_H_
 
 #include <cmath>
 
@@ -16,4 +16,4 @@
 
 using std::lrint;
 
-#endif  // V8_QNX_MATH_H_
+#endif  // V8_BASE_QNX_MATH_H_

@@ -2954,7 +2954,7 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
     res = handle->BooleanValue() ?
       new(zone) HConstant(1) : new(zone) HConstant(0);
   } else if (handle->IsUndefined()) {
-    res = new(zone) HConstant(OS::nan_value());
+    res = new(zone) HConstant(base::OS::nan_value());
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
   }
@@ -4222,7 +4222,7 @@ HInstruction* HUnaryMathOperation::New(
     if (!constant->HasNumberValue()) break;
     double d = constant->DoubleValue();
     if (std::isnan(d)) {  // NaN poisons everything.
-      return H_CONSTANT_DOUBLE(OS::nan_value());
+      return H_CONSTANT_DOUBLE(base::OS::nan_value());
     }
     if (std::isinf(d)) {  // +Infinity and -Infinity.
       switch (op) {
@@ -4230,7 +4230,7 @@ HInstruction* HUnaryMathOperation::New(
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : 0.0);
         case kMathLog:
         case kMathSqrt:
-          return H_CONSTANT_DOUBLE((d > 0.0) ? d : OS::nan_value());
+          return H_CONSTANT_DOUBLE((d > 0.0) ? d : base::OS::nan_value());
         case kMathPowHalf:
         case kMathAbs:
           return H_CONSTANT_DOUBLE((d > 0.0) ? d : -d);
@@ -4325,7 +4325,8 @@ HInstruction* HPower::New(Zone* zone,
     if (c_left->HasNumberValue() && c_right->HasNumberValue()) {
       double result = power_helper(c_left->DoubleValue(),
                                    c_right->DoubleValue());
-      return H_CONSTANT_DOUBLE(std::isnan(result) ?  OS::nan_value() : result);
+      return H_CONSTANT_DOUBLE(std::isnan(result) ? base::OS::nan_value()
+                                                  : result);
     }
   }
   return new(zone) HPower(left, right);
@@ -4358,7 +4359,7 @@ HInstruction* HMathMinMax::New(
         }
       }
       // All comparisons failed, must be NaN.
-      return H_CONSTANT_DOUBLE(OS::nan_value());
+      return H_CONSTANT_DOUBLE(base::OS::nan_value());
     }
   }
   return new(zone) HMathMinMax(context, left, right, op);

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/v8stdint.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/utils.h"
 
 #include "src/fast-dtoa.h"

@@ -11,7 +11,6 @@
 
 #include "src/arm64/instructions-arm64.h"
 #include "src/assembler.h"
-#include "src/cpu.h"
 #include "src/globals.h"
 #include "src/serialize.h"
 #include "src/utils.h"
@@ -2284,7 +2283,7 @@ class PatchingAssembler : public Assembler {
     ASSERT(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    CPU::FlushICache(buffer_, length);
+    CpuFeatures::FlushICache(buffer_, length);
   }
 
   static const int kMovInt64NInstrs = 4;

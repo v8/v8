@@ -170,7 +170,6 @@ void Scope::SetDefaults(ScopeType scope_type,
   strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
-  inner_scope_contains_with_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
       ? outer_scope->has_forced_context_allocation() : false;
@@ -195,7 +194,6 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
-  bool inner_contains_with = false;
   while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new(zone) Scope(current_scope,
@@ -245,11 +243,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
           global_scope->ast_value_factory_->GetString(Handle<String>(name)),
           global_scope->ast_value_factory_, zone);
     }
-    if (inner_contains_with) current_scope->inner_scope_contains_with_ = true;
-    if (contains_with) {
-      current_scope->RecordWithStatement();
-      inner_contains_with = true;
-    }
+    if (contains_with) current_scope->RecordWithStatement();
     if (innermost_scope == NULL) innermost_scope = current_scope;
 
     // Forget about a with when we move to a context for a different function.
@@ -887,9 +881,6 @@ void Scope::Print(int n) {
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");
-  if (inner_scope_contains_with_) {
-    Indent(n1, "// inner scope contains 'with'\n");
-  }
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (outer_scope_calls_sloppy_eval_) {
     Indent(n1, "// outer scope calls 'eval' in sloppy context\n");
@@ -1169,9 +1160,6 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
     inner->PropagateScopeInfo(calls_sloppy_eval);
     if (inner->scope_calls_eval_ || inner->inner_scope_calls_eval_) {
       inner_scope_calls_eval_ = true;
-    }
-    if (inner->scope_contains_with_ || inner->inner_scope_contains_with_) {
-      inner_scope_contains_with_ = true;
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;

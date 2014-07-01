@@ -5,8 +5,8 @@
 #include "src/allocation.h"
 
 #include <stdlib.h>  // For free, malloc.
-#include "src/checks.h"
-#include "src/platform.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/utils.h"
 
 #if V8_LIBC_BIONIC

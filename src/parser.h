@@ -798,6 +798,8 @@ class Parser : public ParserBase<ParserTraits> {
 
   void ThrowPendingError();
 
+  void InternalizeUseCounts();
+
   Isolate* isolate_;
 
   Handle<Script> script_;
@@ -818,6 +820,8 @@ class Parser : public ParserBase<ParserTraits> {
   const AstRawString* pending_error_arg_;
   const char* pending_error_char_arg_;
   bool pending_error_is_reference_error_;
+
+  int use_counts_[v8::Isolate::kUseCounterFeatureCount];
 };
 
 

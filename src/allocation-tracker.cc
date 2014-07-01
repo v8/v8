@@ -54,15 +54,15 @@ void AllocationTraceNode::AddAllocation(unsigned size) {
 
 
 void AllocationTraceNode::Print(int indent, AllocationTracker* tracker) {
-  OS::Print("%10u %10u %*c", total_size_, allocation_count_, indent, ' ');
+  base::OS::Print("%10u %10u %*c", total_size_, allocation_count_, indent, ' ');
   if (tracker != NULL) {
     AllocationTracker::FunctionInfo* info =
         tracker->function_info_list()[function_info_index_];
-    OS::Print("%s #%u", info->name, id_);
+    base::OS::Print("%s #%u", info->name, id_);
   } else {
-    OS::Print("%u #%u", function_info_index_, id_);
+    base::OS::Print("%u #%u", function_info_index_, id_);
   }
-  OS::Print("\n");
+  base::OS::Print("\n");
   indent += 2;
   for (int i = 0; i < children_.length(); i++) {
     children_[i]->Print(indent, tracker);
@@ -93,8 +93,8 @@ AllocationTraceNode* AllocationTraceTree::AddPathFromEnd(
 
 
 void AllocationTraceTree::Print(AllocationTracker* tracker) {
-  OS::Print("[AllocationTraceTree:]\n");
-  OS::Print("Total size | Allocation count | Function id | id\n");
+  base::OS::Print("[AllocationTraceTree:]\n");
+  base::OS::Print("Total size | Allocation count | Function id | id\n");
   root()->Print(0, tracker);
 }
 

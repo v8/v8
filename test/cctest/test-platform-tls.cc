@@ -29,11 +29,11 @@
 
 #include "src/v8.h"
 
-#include "src/checks.h"
-#include "src/platform.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-using v8::internal::Thread;
+using v8::base::Thread;
 
 static const int kValueCount = 128;
 

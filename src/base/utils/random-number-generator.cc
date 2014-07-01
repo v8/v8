@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/utils/random-number-generator.h"
+#include "src/base/utils/random-number-generator.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,11 +10,11 @@
 #include <new>
 
 #include "src/base/macros.h"
-#include "src/platform/mutex.h"
-#include "src/platform/time.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 static LazyMutex entropy_mutex = LAZY_MUTEX_INITIALIZER;
 static RandomNumberGenerator::EntropySource entropy_source = NULL;
@@ -128,4 +128,4 @@ void RandomNumberGenerator::SetSeed(int64_t seed) {
   seed_ = (seed ^ kMultiplier) & kMask;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

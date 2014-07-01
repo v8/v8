@@ -9954,7 +9954,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStringCharCodeAt(
       int32_t i = c_index->NumberValueAsInteger32();
       Handle<String> s = c_string->StringValue();
       if (i < 0 || i >= s->length()) {
-        return New<HConstant>(OS::nan_value());
+        return New<HConstant>(base::OS::nan_value());
       }
       return New<HConstant>(s->Get(i));
     }
@@ -12056,7 +12056,8 @@ void HTracer::TraceCompilation(CompilationInfo* info) {
     PrintStringProperty("name", CodeStub::MajorName(major_key, false));
     PrintStringProperty("method", "stub");
   }
-  PrintLongProperty("date", static_cast<int64_t>(OS::TimeCurrentMillis()));
+  PrintLongProperty("date",
+                    static_cast<int64_t>(base::OS::TimeCurrentMillis()));
 }
 
 
@@ -12303,7 +12304,7 @@ void HStatistics::Initialize(CompilationInfo* info) {
 
 void HStatistics::Print() {
   PrintF("Timing results:\n");
-  TimeDelta sum;
+  base::TimeDelta sum;
   for (int i = 0; i < times_.length(); ++i) {
     sum += times_[i];
   }
@@ -12321,7 +12322,7 @@ void HStatistics::Print() {
 
   PrintF("----------------------------------------"
          "---------------------------------------\n");
-  TimeDelta total = create_graph_ + optimize_graph_ + generate_code_;
+  base::TimeDelta total = create_graph_ + optimize_graph_ + generate_code_;
   PrintF("%32s %8.3f ms / %4.1f %% \n",
          "Create graph",
          create_graph_.InMillisecondsF(),
@@ -12354,7 +12355,8 @@ void HStatistics::Print() {
 }
 
 
-void HStatistics::SaveTiming(const char* name, TimeDelta time, unsigned size) {
+void HStatistics::SaveTiming(const char* name, base::TimeDelta time,
+                             unsigned size) {
   total_size_ += size;
   for (int i = 0; i < names_.length(); ++i) {
     if (strcmp(names_[i], name) == 0) {

@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/extensions/free-buffer-extension.h"
-#include "src/platform.h"
+
+#include "src/base/platform/platform.h"
 #include "src/v8.h"
 
 namespace v8 {

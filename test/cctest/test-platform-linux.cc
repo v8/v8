@@ -33,14 +33,14 @@
 
 #include "src/v8.h"
 
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 
 
 TEST(VirtualMemory) {
-  VirtualMemory* vm = new VirtualMemory(1 * MB);
+  v8::base::VirtualMemory* vm = new v8::base::VirtualMemory(1 * MB);
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();
   size_t block_size = 4 * KB;
@@ -54,5 +54,5 @@ TEST(VirtualMemory) {
 
 
 TEST(GetCurrentProcessId) {
-  CHECK_EQ(static_cast<int>(getpid()), OS::GetCurrentProcessId());
+  CHECK_EQ(static_cast<int>(getpid()), v8::base::OS::GetCurrentProcessId());
 }

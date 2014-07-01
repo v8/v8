@@ -29,54 +29,60 @@
 
 #include "src/v8.h"
 
-#include "src/platform/mutex.h"
+#include "src/base/platform/mutex.h"
 #include "test/cctest/cctest.h"
 
 using namespace ::v8::internal;
 
 
 TEST(LockGuardMutex) {
-  Mutex mutex;
-  { LockGuard<Mutex> lock_guard(&mutex);
+  v8::base::Mutex mutex;
+  { v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
   }
-  { LockGuard<Mutex> lock_guard(&mutex);
+  { v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex);
   }
 }
 
 
 TEST(LockGuardRecursiveMutex) {
-  RecursiveMutex recursive_mutex;
-  { LockGuard<RecursiveMutex> lock_guard(&recursive_mutex);
+  v8::base::RecursiveMutex recursive_mutex;
+  { v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard(&recursive_mutex);
   }
-  { LockGuard<RecursiveMutex> lock_guard1(&recursive_mutex);
-    LockGuard<RecursiveMutex> lock_guard2(&recursive_mutex);
+  { v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard1(&recursive_mutex);
+    v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard2(&recursive_mutex);
   }
 }
 
 
 TEST(LockGuardLazyMutex) {
-  LazyMutex lazy_mutex = LAZY_MUTEX_INITIALIZER;
-  { LockGuard<Mutex> lock_guard(lazy_mutex.Pointer());
+  v8::base::LazyMutex lazy_mutex = LAZY_MUTEX_INITIALIZER;
+  { v8::base::LockGuard<v8::base::Mutex> lock_guard(lazy_mutex.Pointer());
   }
-  { LockGuard<Mutex> lock_guard(lazy_mutex.Pointer());
+  { v8::base::LockGuard<v8::base::Mutex> lock_guard(lazy_mutex.Pointer());
   }
 }
 
 
 TEST(LockGuardLazyRecursiveMutex) {
-  LazyRecursiveMutex lazy_recursive_mutex = LAZY_RECURSIVE_MUTEX_INITIALIZER;
-  { LockGuard<RecursiveMutex> lock_guard(lazy_recursive_mutex.Pointer());
+  v8::base::LazyRecursiveMutex lazy_recursive_mutex =
+      LAZY_RECURSIVE_MUTEX_INITIALIZER;
+  {
+    v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard(
+        lazy_recursive_mutex.Pointer());
   }
-  { LockGuard<RecursiveMutex> lock_guard1(lazy_recursive_mutex.Pointer());
-    LockGuard<RecursiveMutex> lock_guard2(lazy_recursive_mutex.Pointer());
+  {
+    v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard1(
+        lazy_recursive_mutex.Pointer());
+    v8::base::LockGuard<v8::base::RecursiveMutex> lock_guard2(
+        lazy_recursive_mutex.Pointer());
   }
 }
 
 
 TEST(MultipleMutexes) {
-  Mutex mutex1;
-  Mutex mutex2;
-  Mutex mutex3;
+  v8::base::Mutex mutex1;
+  v8::base::Mutex mutex2;
+  v8::base::Mutex mutex3;
   // Order 1
   mutex1.Lock();
   mutex2.Lock();
@@ -95,8 +101,8 @@ TEST(MultipleMutexes) {
 
 
 TEST(MultipleRecursiveMutexes) {
-  RecursiveMutex recursive_mutex1;
-  RecursiveMutex recursive_mutex2;
+  v8::base::RecursiveMutex recursive_mutex1;
+  v8::base::RecursiveMutex recursive_mutex2;
   // Order 1
   recursive_mutex1.Lock();
   recursive_mutex2.Lock();

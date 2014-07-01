@@ -67,7 +67,7 @@ void SweeperThread::WaitForSweeperThread() {
 
 
 bool SweeperThread::SweepingCompleted() {
-  bool value = end_sweeping_semaphore_.WaitFor(TimeDelta::FromSeconds(0));
+  bool value = end_sweeping_semaphore_.WaitFor(base::TimeDelta::FromSeconds(0));
   if (value) {
     end_sweeping_semaphore_.Signal();
   }

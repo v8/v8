@@ -103,12 +103,12 @@ namespace {
 typedef v8::base::AtomicWord Record;
 typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
 
-class ProducerThread: public i::Thread {
+class ProducerThread: public v8::base::Thread {
  public:
   ProducerThread(TestSampleQueue* scq,
                  int records_per_chunk,
                  Record value,
-                 i::Semaphore* finished)
+                 v8::base::Semaphore* finished)
       : Thread("producer"),
         scq_(scq),
         records_per_chunk_(records_per_chunk),
@@ -130,7 +130,7 @@ class ProducerThread: public i::Thread {
   TestSampleQueue* scq_;
   const int records_per_chunk_;
   Record value_;
-  i::Semaphore* finished_;
+  v8::base::Semaphore* finished_;
 };
 
 }  // namespace
@@ -143,7 +143,7 @@ TEST(SamplingCircularQueueMultithreading) {
 
   const int kRecordsPerChunk = 4;
   TestSampleQueue scq;
-  i::Semaphore semaphore(0);
+  v8::base::Semaphore semaphore(0);
 
   ProducerThread producer1(&scq, kRecordsPerChunk, 1, &semaphore);
   ProducerThread producer2(&scq, kRecordsPerChunk, 10, &semaphore);

@@ -841,7 +841,7 @@ void LCodeGen::DeoptimizeIf(Condition condition,
     __ mov(scratch, Operand(count));
     __ ldr(r1, MemOperand(scratch));
     __ sub(r1, r1, Operand(1), SetCC);
-    __ movw(r1, FLAG_deopt_every_n_times, eq);
+    __ mov(r1, Operand(FLAG_deopt_every_n_times), LeaveCC, eq);
     __ str(r1, MemOperand(scratch));
     __ pop(r1);
 
@@ -3375,8 +3375,8 @@ MemOperand LCodeGen::PrepareKeyedOperand(Register key,
 
 void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
-  ASSERT(ToRegister(instr->object()).is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(ToRegister(instr->key()).is(KeyedLoadIC::NameRegister()));
+  ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->key()).is(LoadIC::NameRegister()));
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr, NEVER_INLINE_TARGET_ADDRESS);

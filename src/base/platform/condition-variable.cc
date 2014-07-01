@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/platform/condition-variable.h"
+#include "src/base/platform/condition-variable.h"
 
 #include <errno.h>
 #include <time.h>
 
-#include "src/platform/time.h"
+#include "src/base/platform/time.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 #if V8_OS_POSIX
 
@@ -319,4 +319,4 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 #endif  // V8_OS_POSIX
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

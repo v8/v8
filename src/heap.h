@@ -2146,7 +2146,7 @@ class Heap {
 
   MemoryChunk* chunks_queued_for_free_;
 
-  Mutex relocation_mutex_;
+  base::Mutex relocation_mutex_;
 
   int gc_callbacks_depth_;
 
@@ -2526,12 +2526,12 @@ class GCTracer BASE_EMBEDDED {
     Scope(GCTracer* tracer, ScopeId scope)
         : tracer_(tracer),
         scope_(scope) {
-      start_time_ = OS::TimeCurrentMillis();
+      start_time_ = base::OS::TimeCurrentMillis();
     }
 
     ~Scope() {
       ASSERT(scope_ < kNumberOfScopes);  // scope_ is unsigned.
-      tracer_->scopes_[scope_] += OS::TimeCurrentMillis() - start_time_;
+      tracer_->scopes_[scope_] += base::OS::TimeCurrentMillis() - start_time_;
     }
 
    private:

@@ -25,6 +25,11 @@
 #include "src/zone.h"
 
 namespace v8 {
+
+namespace base {
+class RandomNumberGenerator;
+}
+
 namespace internal {
 
 class Bootstrapper;
@@ -55,7 +60,6 @@ class InnerPointerToCodeCache;
 class MaterializedObjectStore;
 class NoAllocationStringAllocator;
 class CodeAgingHelper;
-class RandomNumberGenerator;
 class RegExpStack;
 class SaveContext;
 class StringTracker;
@@ -445,19 +449,20 @@ class Isolate {
   // not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
     return reinterpret_cast<PerIsolateThreadData*>(
-        Thread::GetThreadLocal(per_isolate_thread_data_key_));
+        base::Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
     Isolate* isolate = reinterpret_cast<Isolate*>(
-        Thread::GetExistingThreadLocal(isolate_key_));
+        base::Thread::GetExistingThreadLocal(isolate_key_));
     ASSERT(isolate != NULL);
     return isolate;
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
-    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
+    return reinterpret_cast<Isolate*>(
+        base::Thread::GetThreadLocal(isolate_key_));
   }
 
   // Usually called by Init(), but can be called early e.g. to allow
@@ -499,19 +504,19 @@ class Isolate {
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
-  static Thread::LocalStorageKey isolate_key() {
+  static base::Thread::LocalStorageKey isolate_key() {
     return isolate_key_;
   }
 
   // Returns the key used to store process-wide thread IDs.
-  static Thread::LocalStorageKey thread_id_key() {
+  static base::Thread::LocalStorageKey thread_id_key() {
     return thread_id_key_;
   }
 
-  static Thread::LocalStorageKey per_isolate_thread_data_key();
+  static base::Thread::LocalStorageKey per_isolate_thread_data_key();
 
   // Mutex for serializing access to break control structures.
-  RecursiveMutex* break_access() { return &break_access_; }
+  base::RecursiveMutex* break_access() { return &break_access_; }
 
   Address get_address_from_id(AddressId id);
 
@@ -979,7 +984,7 @@ class Isolate {
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   double time_millis_since_init() {
-    return OS::TimeCurrentMillis() - time_millis_at_init_;
+    return base::OS::TimeCurrentMillis() - time_millis_at_init_;
   }
 
   DateCache* date_cache() {
@@ -1058,7 +1063,7 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  inline RandomNumberGenerator* random_number_generator();
+  inline base::RandomNumberGenerator* random_number_generator();
 
   // Given an address occupied by a live code object, return that object.
   Object* FindCodeObject(Address a);
@@ -1144,11 +1149,11 @@ class Isolate {
   };
 
   // This mutex protects highest_thread_id_ and thread_data_table_.
-  static Mutex process_wide_mutex_;
+  static base::Mutex process_wide_mutex_;
 
-  static Thread::LocalStorageKey per_isolate_thread_data_key_;
-  static Thread::LocalStorageKey isolate_key_;
-  static Thread::LocalStorageKey thread_id_key_;
+  static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
+  static base::Thread::LocalStorageKey isolate_key_;
+  static base::Thread::LocalStorageKey thread_id_key_;
   static ThreadDataTable* thread_data_table_;
 
   // A global counter for all generated Isolates, might overflow.
@@ -1202,7 +1207,7 @@ class Isolate {
   CompilationCache* compilation_cache_;
   Counters* counters_;
   CodeRange* code_range_;
-  RecursiveMutex break_access_;
+  base::RecursiveMutex break_access_;
   base::Atomic32 debugger_initialized_;
   Logger* logger_;
   StackGuard stack_guard_;
@@ -1244,7 +1249,7 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
   CallInterfaceDescriptor* call_descriptors_;
-  RandomNumberGenerator* random_number_generator_;
+  base::RandomNumberGenerator* random_number_generator_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1452,7 +1457,7 @@ class CodeTracer V8_FINAL : public Malloced {
     if (FLAG_redirect_code_traces_to == NULL) {
       SNPrintF(filename_,
                "code-%d-%d.asm",
-               OS::GetCurrentProcessId(),
+               base::OS::GetCurrentProcessId(),
                isolate_id);
     } else {
       StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
@@ -1478,7 +1483,7 @@ class CodeTracer V8_FINAL : public Malloced {
     }
 
     if (file_ == NULL) {
-      file_ = OS::FOpen(filename_.start(), "a");
+      file_ = base::OS::FOpen(filename_.start(), "a");
     }
 
     scope_depth_++;

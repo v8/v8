@@ -379,8 +379,7 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   } else {
     attributes = DONT_ENUM;
   }
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      target, internalized_name, function, attributes).Check();
+  JSObject::AddProperty(target, internalized_name, function, attributes);
   if (target->IsJSGlobalObject()) {
     function->shared()->set_instance_class_name(*internalized_name);
   }
@@ -889,9 +888,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   Heap* heap = isolate->heap();
 
   Handle<String> object_name = factory->Object_string();
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      inner_global, object_name,
-      isolate->object_function(), DONT_ENUM).Check();
+  JSObject::AddProperty(
+      inner_global, object_name, isolate->object_function(), DONT_ENUM);
 
   Handle<JSObject> global(native_context()->global_object());
 
@@ -1090,8 +1088,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
     ASSERT(json_object->IsJSObject());
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        global, name, json_object, DONT_ENUM).Check();
+    JSObject::AddProperty(global, name, json_object, DONT_ENUM);
     native_context()->set_json_object(*json_object);
   }
 
@@ -1156,14 +1153,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     native_context()->set_sloppy_arguments_boilerplate(*result);
     // Note: length must be added as the first property and
     //       callee must be added as the second property.
-    JSObject::SetOwnPropertyIgnoreAttributes(
+    JSObject::AddProperty(
         result, factory->length_string(),
         factory->undefined_value(), DONT_ENUM,
-        Object::FORCE_TAGGED, FORCE_FIELD).Check();
-    JSObject::SetOwnPropertyIgnoreAttributes(
+        Object::FORCE_TAGGED, FORCE_FIELD);
+    JSObject::AddProperty(
         result, factory->callee_string(),
         factory->undefined_value(), DONT_ENUM,
-        Object::FORCE_TAGGED, FORCE_FIELD).Check();
+        Object::FORCE_TAGGED, FORCE_FIELD);
 
 #ifdef DEBUG
     LookupResult lookup(isolate);
@@ -1262,17 +1259,16 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     Handle<JSObject> result = factory->NewJSObjectFromMap(map);
     native_context()->set_strict_arguments_boilerplate(*result);
 
-    // Add length property only for strict mode boilerplate.
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        result, factory->length_string(),
-        factory->undefined_value(), DONT_ENUM).Check();
-
 #ifdef DEBUG
     LookupResult lookup(isolate);
     result->LookupOwn(factory->length_string(), &lookup);
     ASSERT(lookup.IsField());
     ASSERT(lookup.GetFieldIndex().property_index() ==
            Heap::kArgumentsLengthIndex);
+
+    Handle<Object> length_value = Object::GetProperty(
+        result, factory->length_string()).ToHandleChecked();
+    ASSERT_EQ(heap->undefined_value(), *length_value);
 
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
 
@@ -1736,12 +1732,10 @@ bool Genesis::InstallNatives() {
   Handle<String> global_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("global"));
   Handle<Object> global_obj(native_context()->global_object(), isolate());
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      builtins, global_string, global_obj, attributes).Check();
+  JSObject::AddProperty(builtins, global_string, global_obj, attributes);
   Handle<String> builtins_string =
       factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      builtins, builtins_string, builtins, attributes).Check();
+  JSObject::AddProperty(builtins, builtins_string, builtins, attributes);
 
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(native_context()->global_object())->
@@ -2361,8 +2355,8 @@ bool Genesis::InstallExtension(Isolate* isolate,
     // When an error is thrown during bootstrapping we automatically print
     // the line number at which this happened to the console in the isolate
     // error throwing functionality.
-    OS::PrintError("Error installing extension '%s'.\n",
-                   current->extension()->name());
+    base::OS::PrintError("Error installing extension '%s'.\n",
+                         current->extension()->name());
     isolate->clear_pending_exception();
   }
   extension_states->set_state(current, INSTALLED);
@@ -2454,16 +2448,14 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           ASSERT(!descs->GetDetails(i).representation().IsDouble());
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
-          JSObject::SetOwnPropertyIgnoreAttributes(
-              to, key, value, details.attributes()).Check();
+          JSObject::AddProperty(to, key, value, details.attributes());
           break;
         }
         case CONSTANT: {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
-          JSObject::SetOwnPropertyIgnoreAttributes(
-              to, key, constant, details.attributes()).Check();
+          JSObject::AddProperty(to, key, constant, details.attributes());
           break;
         }
         case CALLBACKS: {
@@ -2513,8 +2505,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                  isolate());
         }
         PropertyDetails details = properties->DetailsAt(i);
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            to, key, value, details.attributes()).Check();
+        JSObject::AddProperty(to, key, value, details.attributes());
       }
     }
   }

@@ -1066,10 +1066,12 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    __ movp(rax, Operand(rbp, kIndexOffset));
+    Register receiver = LoadIC::ReceiverRegister();
+    Register key = LoadIC::NameRegister();
+    __ movp(key, Operand(rbp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
-    __ movp(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
+    __ movp(receiver, Operand(rbp, kArgumentsOffset));  // load arguments
 
     // Use inline caching to speed up access to arguments.
     Handle<Code> ic =
@@ -1083,19 +1085,19 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Push the nth argument.
     __ Push(rax);
 
-    // Update the index on the stack and in register rax.
-    __ movp(rax, Operand(rbp, kIndexOffset));
-    __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-    __ movp(Operand(rbp, kIndexOffset), rax);
+    // Update the index on the stack and in register key.
+    __ movp(key, Operand(rbp, kIndexOffset));
+    __ SmiAddConstant(key, key, Smi::FromInt(1));
+    __ movp(Operand(rbp, kIndexOffset), key);
 
     __ bind(&entry);
-    __ cmpp(rax, Operand(rbp, kLimitOffset));
+    __ cmpp(key, Operand(rbp, kLimitOffset));
     __ j(not_equal, &loop);
 
     // Call the function.
     Label call_proxy;
     ParameterCount actual(rax);
-    __ SmiToInteger32(rax, rax);
+    __ SmiToInteger32(rax, key);
     __ movp(rdi, Operand(rbp, kFunctionOffset));
     __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &call_proxy);

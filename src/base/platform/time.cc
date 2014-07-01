@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/platform/time.h"
+#include "src/base/platform/time.h"
 
 #if V8_OS_POSIX
 #include <sys/time.h>
@@ -17,12 +17,12 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/win32-headers.h"
 #endif
-#include "src/checks.h"
-#include "src/cpu.h"
-#include "src/platform.h"
+#include "src/base/cpu.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 TimeDelta TimeDelta::FromDays(int days) {
   return TimeDelta(days * Time::kMicrosecondsPerDay);
@@ -194,8 +194,8 @@ class Clock V8_FINAL {
 };
 
 
-static base::LazyStaticInstance<Clock, base::DefaultConstructTrait<Clock>,
-                                base::ThreadSafeInitOnceTrait>::type clock =
+static LazyStaticInstance<Clock, DefaultConstructTrait<Clock>,
+                          ThreadSafeInitOnceTrait>::type clock =
     LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
@@ -463,10 +463,9 @@ class RolloverProtectedTickClock V8_FINAL : public TickClock {
 };
 
 
-static base::LazyStaticInstance<
-    RolloverProtectedTickClock,
-    base::DefaultConstructTrait<RolloverProtectedTickClock>,
-    base::ThreadSafeInitOnceTrait>::type tick_clock =
+static LazyStaticInstance<RolloverProtectedTickClock,
+                          DefaultConstructTrait<RolloverProtectedTickClock>,
+                          ThreadSafeInitOnceTrait>::type tick_clock =
     LAZY_STATIC_INSTANCE_INITIALIZER;
 
 
@@ -491,10 +490,9 @@ struct CreateHighResTickClockTrait {
 };
 
 
-static base::LazyDynamicInstance<TickClock,
-    CreateHighResTickClockTrait,
-    base::ThreadSafeInitOnceTrait>::type high_res_tick_clock =
-        LAZY_DYNAMIC_INSTANCE_INITIALIZER;
+static LazyDynamicInstance<TickClock, CreateHighResTickClockTrait,
+                           ThreadSafeInitOnceTrait>::type high_res_tick_clock =
+    LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
 
 TimeTicks TimeTicks::Now() {
@@ -567,4 +565,4 @@ bool TimeTicks::IsHighResolutionClockWorking() {
 
 #endif  // V8_OS_WIN
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

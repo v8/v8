@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PLATFORM_CONDITION_VARIABLE_H_
-#define V8_PLATFORM_CONDITION_VARIABLE_H_
+#ifndef V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
+#define V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 
 #include "src/base/lazy-instance.h"
-#include "src/platform/mutex.h"
+#include "src/base/platform/mutex.h"
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // Forward declarations.
 class ConditionVariableEvent;
@@ -107,12 +107,12 @@ class ConditionVariable V8_FINAL {
 //     LockGuard<Mutex> lock_guard(&my_mutex);
 //     my_condvar.Pointer()->Wait(&my_mutex);
 //   }
-typedef base::LazyStaticInstance<
-    ConditionVariable, base::DefaultConstructTrait<ConditionVariable>,
-    base::ThreadSafeInitOnceTrait>::type LazyConditionVariable;
+typedef LazyStaticInstance<
+    ConditionVariable, DefaultConstructTrait<ConditionVariable>,
+    ThreadSafeInitOnceTrait>::type LazyConditionVariable;
 
 #define LAZY_CONDITION_VARIABLE_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_CONDITION_VARIABLE_H_
+#endif  // V8_BASE_PLATFORM_CONDITION_VARIABLE_H_

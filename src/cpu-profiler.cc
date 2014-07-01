@@ -23,7 +23,7 @@ static const int kProfilerStackSize = 64 * KB;
 ProfilerEventsProcessor::ProfilerEventsProcessor(
     ProfileGenerator* generator,
     Sampler* sampler,
-    TimeDelta period)
+    base::TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       sampler_(sampler),
@@ -108,7 +108,7 @@ ProfilerEventsProcessor::SampleProcessingResult
 
 void ProfilerEventsProcessor::Run() {
   while (running_) {
-    ElapsedTimer timer;
+    base::ElapsedTimer timer;
     timer.Start();
     // Keep processing existing events until we need to do next sample.
     do {
@@ -373,7 +373,7 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
 
 CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),
-      sampling_interval_(TimeDelta::FromMicroseconds(
+      sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(new CpuProfilesCollection(isolate->heap())),
       generator_(NULL),
@@ -387,7 +387,7 @@ CpuProfiler::CpuProfiler(Isolate* isolate,
                          ProfileGenerator* test_generator,
                          ProfilerEventsProcessor* test_processor)
     : isolate_(isolate),
-      sampling_interval_(TimeDelta::FromMicroseconds(
+      sampling_interval_(base::TimeDelta::FromMicroseconds(
           FLAG_cpu_profiler_sampling_interval)),
       profiles_(test_profiles),
       generator_(test_generator),
@@ -402,7 +402,7 @@ CpuProfiler::~CpuProfiler() {
 }
 
 
-void CpuProfiler::set_sampling_interval(TimeDelta value) {
+void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
   ASSERT(!is_profiling_);
   sampling_interval_ = value;
 }

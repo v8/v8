@@ -1,6 +1,5 @@
 include_rules = [
-  # TODO(jochen): Enable this.
-  #"-src",
+  "-src",
   "+src/base",
   "+src/libplatform",
 ]

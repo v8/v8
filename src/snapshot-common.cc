@@ -7,7 +7,7 @@
 #include "src/v8.h"
 
 #include "src/api.h"
-#include "src/platform.h"
+#include "src/base/platform/platform.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
 
@@ -28,7 +28,7 @@ void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
 
 bool Snapshot::Initialize() {
   if (size_ > 0) {
-    ElapsedTimer timer;
+    base::ElapsedTimer timer;
     if (FLAG_profile_deserialization) {
       timer.Start();
     }

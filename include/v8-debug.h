@@ -20,7 +20,8 @@ enum DebugEvent {
   BeforeCompile = 4,
   AfterCompile  = 5,
   CompileError = 6,
-  BreakForCommand = 7
+  PromiseEvent = 7,
+  BreakForCommand = 8
 };
 
 

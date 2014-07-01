@@ -208,17 +208,12 @@ ProfileNode* ProfileNode::FindOrAddChild(CodeEntry* entry) {
 
 
 void ProfileNode::Print(int indent) {
-  OS::Print("%5u %*s %s%s %d #%d %s",
-            self_ticks_,
-            indent, "",
-            entry_->name_prefix(),
-            entry_->name(),
-            entry_->script_id(),
-            id(),
-            entry_->bailout_reason());
+  base::OS::Print("%5u %*s %s%s %d #%d %s", self_ticks_, indent, "",
+                  entry_->name_prefix(), entry_->name(), entry_->script_id(),
+                  id(), entry_->bailout_reason());
   if (entry_->resource_name()[0] != '\0')
-    OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
-  OS::Print("\n");
+    base::OS::Print(" %s:%d", entry_->resource_name(), entry_->line_number());
+  base::OS::Print("\n");
   for (HashMap::Entry* p = children_.Start();
        p != NULL;
        p = children_.Next(p)) {
@@ -332,11 +327,12 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 CpuProfile::CpuProfile(const char* title, bool record_samples)
     : title_(title),
       record_samples_(record_samples),
-      start_time_(TimeTicks::HighResolutionNow()) {
+      start_time_(base::TimeTicks::HighResolutionNow()) {
 }
 
 
-void CpuProfile::AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path) {
+void CpuProfile::AddPath(base::TimeTicks timestamp,
+                         const Vector<CodeEntry*>& path) {
   ProfileNode* top_frame_node = top_down_.AddPathFromEnd(path);
   if (record_samples_) {
     timestamps_.Add(timestamp);
@@ -346,12 +342,12 @@ void CpuProfile::AddPath(TimeTicks timestamp, const Vector<CodeEntry*>& path) {
 
 
 void CpuProfile::CalculateTotalTicksAndSamplingRate() {
-  end_time_ = TimeTicks::HighResolutionNow();
+  end_time_ = base::TimeTicks::HighResolutionNow();
 }
 
 
 void CpuProfile::Print() {
-  OS::Print("[Top down]:\n");
+  base::OS::Print("[Top down]:\n");
   top_down_.Print();
 }
 
@@ -428,9 +424,9 @@ void CodeMap::CodeTreePrinter::Call(
     const Address& key, const CodeMap::CodeEntryInfo& value) {
   // For shared function entries, 'size' field is used to store their IDs.
   if (value.entry == kSharedFunctionCodeEntry) {
-    OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
+    base::OS::Print("%p SharedFunctionInfo %d\n", key, value.size);
   } else {
-    OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
+    base::OS::Print("%p %5d %s\n", key, value.size, value.entry->name());
   }
 }
 
@@ -525,7 +521,7 @@ void CpuProfilesCollection::RemoveProfile(CpuProfile* profile) {
 
 
 void CpuProfilesCollection::AddPathToCurrentProfiles(
-    TimeTicks timestamp, const Vector<CodeEntry*>& path) {
+    base::TimeTicks timestamp, const Vector<CodeEntry*>& path) {
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.

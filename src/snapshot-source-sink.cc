@@ -4,8 +4,8 @@
 
 
 #include "src/snapshot-source-sink.h"
-#include "src/checks.h"
 
+#include "src/base/logging.h"
 #include "src/handles-inl.h"
 #include "src/serialize.h"  // for SerializerDeserializer::nop() in AtEOF()
 

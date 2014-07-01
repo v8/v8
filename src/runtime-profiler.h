@@ -8,12 +8,16 @@
 #include "src/allocation.h"
 
 namespace v8 {
+
+namespace base {
+class Semaphore;
+}
+
 namespace internal {
 
 class Isolate;
 class JSFunction;
 class Object;
-class Semaphore;
 
 class RuntimeProfiler {
  public:

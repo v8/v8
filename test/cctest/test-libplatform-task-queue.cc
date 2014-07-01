@@ -32,6 +32,7 @@
 #include "test/cctest/test-libplatform.h"
 
 using namespace v8::internal;
+using namespace v8::platform;
 
 
 TEST(TaskQueueBasic) {

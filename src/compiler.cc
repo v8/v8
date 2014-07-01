@@ -353,7 +353,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // performance of the hydrogen-based compiler.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
-    ElapsedTimer timer;
+    base::ElapsedTimer timer;
     if (FLAG_hydrogen_stats) {
       timer.Start();
     }
@@ -1313,7 +1313,7 @@ bool CompilationPhase::ShouldProduceTraceOutput() const {
       : (FLAG_trace_hydrogen &&
          info()->closure()->PassesFilter(FLAG_trace_hydrogen_filter));
   return (tracing_on &&
-      OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
+      base::OS::StrChr(const_cast<char*>(FLAG_trace_phase), name_[0]) != NULL);
 }
 
 } }  // namespace v8::internal

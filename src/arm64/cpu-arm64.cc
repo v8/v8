@@ -9,7 +9,7 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/arm64/utils-arm64.h"
-#include "src/cpu.h"
+#include "src/assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +40,7 @@ class CacheLineSizes {
 };
 
 
-void CPU::FlushICache(void* address, size_t length) {
+void CpuFeatures::FlushICache(void* address, size_t length) {
   if (length == 0) return;
 
 #ifdef USE_SIMULATOR

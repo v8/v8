@@ -7,6 +7,7 @@
 #include "src/accessors.h"
 #include "src/api.h"
 #include "src/base/once.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -27,7 +28,6 @@
 #include "src/snapshot.h"
 #include "src/store-buffer.h"
 #include "src/utils.h"
-#include "src/utils/random-number-generator.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
@@ -2775,7 +2775,7 @@ void Heap::CreateInitialObjects() {
   set_minus_zero_value(*factory->NewHeapNumber(-0.0, TENURED));
   ASSERT(std::signbit(minus_zero_value()->Number()) != 0);
 
-  set_nan_value(*factory->NewHeapNumber(OS::nan_value(), TENURED));
+  set_nan_value(*factory->NewHeapNumber(base::OS::nan_value(), TENURED));
   set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, TENURED));
 
   // The hole has not been created yet, but we want to put something
@@ -5026,7 +5026,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->memory_allocator_capacity =
       isolate()->memory_allocator()->Size() +
       isolate()->memory_allocator()->Available();
-  *stats->os_error = OS::GetLastError();
+  *stats->os_error = base::OS::GetLastError();
       isolate()->memory_allocator()->Available();
   if (take_snapshot) {
     HeapIterator iterator(this);
@@ -6006,7 +6006,7 @@ GCTracer::GCTracer(Heap* heap,
       gc_reason_(gc_reason),
       collector_reason_(collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
-  start_time_ = OS::TimeCurrentMillis();
+  start_time_ = base::OS::TimeCurrentMillis();
   start_object_size_ = heap_->SizeOfObjects();
   start_memory_size_ = heap_->isolate()->memory_allocator()->Size();
 
@@ -6040,7 +6040,7 @@ GCTracer::~GCTracer() {
   bool first_gc = (heap_->last_gc_end_timestamp_ == 0);
 
   heap_->alive_after_last_gc_ = heap_->SizeOfObjects();
-  heap_->last_gc_end_timestamp_ = OS::TimeCurrentMillis();
+  heap_->last_gc_end_timestamp_ = base::OS::TimeCurrentMillis();
 
   double time = heap_->last_gc_end_timestamp_ - start_time_;
 
@@ -6387,11 +6387,12 @@ void Heap::ClearObjectStats(bool clear_last_time_stats) {
 }
 
 
-static LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
+static base::LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
 
 
 void Heap::CheckpointObjectStats() {
-  LockGuard<Mutex> lock_guard(checkpoint_object_stats_mutex.Pointer());
+  base::LockGuard<base::Mutex> lock_guard(
+      checkpoint_object_stats_mutex.Pointer());
   Counters* counters = isolate()->counters();
 #define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                    \
   counters->count_of_##name()->Increment(                                      \

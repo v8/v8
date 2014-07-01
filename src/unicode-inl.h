@@ -6,7 +6,7 @@
 #define V8_UNICODE_INL_H_
 
 #include "src/unicode.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/utils.h"
 
 namespace unibrow {

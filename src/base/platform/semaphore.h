@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PLATFORM_SEMAPHORE_H_
-#define V8_PLATFORM_SEMAPHORE_H_
+#ifndef V8_BASE_PLATFORM_SEMAPHORE_H_
+#define V8_BASE_PLATFORM_SEMAPHORE_H_
 
 #include "src/base/lazy-instance.h"
 #if V8_OS_WIN
@@ -17,7 +17,7 @@
 #endif
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 // Forward declarations.
 class TimeDelta;
@@ -90,14 +90,12 @@ struct CreateSemaphoreTrait {
 
 template <int N>
 struct LazySemaphore {
-  typedef typename v8::base::LazyDynamicInstance<
-      Semaphore,
-      CreateSemaphoreTrait<N>,
-      v8::base::ThreadSafeInitOnceTrait>::type type;
+  typedef typename LazyDynamicInstance<Semaphore, CreateSemaphoreTrait<N>,
+                                       ThreadSafeInitOnceTrait>::type type;
 };
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
 
-} }  // namespace v8::internal
+} }  // namespace v8::base
 
-#endif  // V8_PLATFORM_SEMAPHORE_H_
+#endif  // V8_BASE_PLATFORM_SEMAPHORE_H_

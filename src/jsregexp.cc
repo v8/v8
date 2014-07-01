@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
+#include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/execution.h"
@@ -12,7 +13,6 @@
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
 #include "src/parser.h"
-#include "src/platform.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-macro-assembler-irregexp.h"
 #include "src/regexp-macro-assembler-tracer.h"
@@ -4655,7 +4655,7 @@ void DispatchTable::Dump() {
   StringStream stream(&alloc);
   DispatchTableDumper dumper(&stream);
   tree()->ForEach(&dumper);
-  OS::PrintError("%s", stream.ToCString().get());
+  base::OS::PrintError("%s", stream.ToCString().get());
 }
 
 

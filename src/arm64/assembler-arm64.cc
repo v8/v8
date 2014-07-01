@@ -33,6 +33,7 @@
 #define ARM64_DEFINE_REG_STATICS
 
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/base/cpu.h"
 
 namespace v8 {
 namespace internal {
@@ -47,9 +48,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     // csp will always be aligned if it is enabled by probing at runtime.
     if (FLAG_enable_always_align_csp) supported_ |= 1u << ALWAYS_ALIGN_CSP;
   } else {
-    CPU cpu;
-    if (FLAG_enable_always_align_csp && (cpu.implementer() == CPU::NVIDIA ||
-                                         FLAG_debug_code)) {
+    base::CPU cpu;
+    if (FLAG_enable_always_align_csp &&
+        (cpu.implementer() == base::CPU::NVIDIA || FLAG_debug_code)) {
       supported_ |= 1u << ALWAYS_ALIGN_CSP;
     }
   }
@@ -190,7 +191,7 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   }
 
   // Indicate that code has changed.
-  CPU::FlushICache(pc_, instruction_count * kInstructionSize);
+  CpuFeatures::FlushICache(pc_, instruction_count * kInstructionSize);
 }
 
 

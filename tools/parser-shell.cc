@@ -56,7 +56,7 @@ class StringResource8 : public v8::String::ExternalAsciiStringResource {
   int length_;
 };
 
-std::pair<TimeDelta, TimeDelta> RunBaselineParser(
+std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
     const char* fname, Encoding encoding, int repeat, v8::Isolate* isolate,
     v8::Handle<v8::Context> context) {
   int length = 0;
@@ -81,7 +81,7 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
       break;
     }
   }
-  TimeDelta parse_time1, parse_time2;
+  v8::base::TimeDelta parse_time1, parse_time2;
   Handle<Script> script = Isolate::Current()->factory()->NewScript(
       v8::Utils::OpenHandle(*source_handle));
   i::ScriptData* cached_data_impl = NULL;
@@ -90,14 +90,14 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
     info.SetCachedData(&cached_data_impl, i::PRODUCE_CACHED_DATA);
-    ElapsedTimer timer;
+    v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise we won't produce cached data.
     bool success = Parser::Parse(&info, true);
     parse_time1 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
-      return std::make_pair(TimeDelta(), TimeDelta());
+      return std::make_pair(v8::base::TimeDelta(), v8::base::TimeDelta());
     }
   }
   // Second round of parsing (consume cached data).
@@ -105,14 +105,14 @@ std::pair<TimeDelta, TimeDelta> RunBaselineParser(
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
     info.SetCachedData(&cached_data_impl, i::CONSUME_CACHED_DATA);
-    ElapsedTimer timer;
+    v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise cached data won't help.
     bool success = Parser::Parse(&info, true);
     parse_time2 = timer.Elapsed();
     if (!success) {
       fprintf(stderr, "Parsing failed\n");
-      return std::make_pair(TimeDelta(), TimeDelta());
+      return std::make_pair(v8::base::TimeDelta(), v8::base::TimeDelta());
     }
   }
   return std::make_pair(parse_time1, parse_time2);
@@ -154,8 +154,9 @@ int main(int argc, char* argv[]) {
       double first_parse_total = 0;
       double second_parse_total = 0;
       for (size_t i = 0; i < fnames.size(); i++) {
-        std::pair<TimeDelta, TimeDelta> time = RunBaselineParser(
-            fnames[i].c_str(), encoding, repeat, isolate, context);
+        std::pair<v8::base::TimeDelta, v8::base::TimeDelta> time =
+            RunBaselineParser(fnames[i].c_str(), encoding, repeat, isolate,
+                              context);
         first_parse_total += time.first.InMillisecondsF();
         second_parse_total += time.second.InMillisecondsF();
       }

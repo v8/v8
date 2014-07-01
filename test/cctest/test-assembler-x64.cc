@@ -29,9 +29,9 @@
 
 #include "src/v8.h"
 
+#include "src/base/platform/platform.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
-#include "src/platform.h"
 #include "src/serialize.h"
 #include "test/cctest/cctest.h"
 
@@ -69,9 +69,8 @@ TEST(AssemblerX64ReturnOperation) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -92,9 +91,8 @@ TEST(AssemblerX64StackOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -125,9 +123,8 @@ TEST(AssemblerX64ArithmeticOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -148,9 +145,8 @@ TEST(AssemblerX64CmpbOperation) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -180,9 +176,8 @@ TEST(AssemblerX64ImulOperation) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -209,9 +204,8 @@ TEST(AssemblerX64XchglOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -238,9 +232,8 @@ TEST(AssemblerX64OrlOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -263,9 +256,8 @@ TEST(AssemblerX64RollOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -286,9 +278,8 @@ TEST(AssemblerX64SublOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -311,9 +302,8 @@ TEST(AssemblerX64TestlOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -341,9 +331,8 @@ TEST(AssemblerX64XorlOperations) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -366,9 +355,8 @@ TEST(AssemblerX64MemoryOperands) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -401,9 +389,8 @@ TEST(AssemblerX64ControlFlow) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
 
@@ -431,9 +418,8 @@ TEST(AssemblerX64LoopImmediates) {
   CcTest::InitializeVM();
   // Allocate an executable page of memory.
   size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(Assembler::kMinimalBufferSize,
-                                                 &actual_size,
-                                                 true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
   // Assemble two loops using rax as counter, and verify the ending counts.
@@ -649,7 +635,7 @@ void DoSSE2(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 TEST(StackAlignmentForSSE2) {
   CcTest::InitializeVM();
-  CHECK_EQ(0, OS::ActivationFrameAlignment() % 16);
+  CHECK_EQ(0, v8::base::OS::ActivationFrameAlignment() % 16);
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

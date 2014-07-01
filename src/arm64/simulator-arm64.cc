@@ -61,7 +61,7 @@ void Simulator::TraceSim(const char* format, ...) {
   if (FLAG_trace_sim) {
     va_list arguments;
     va_start(arguments, format);
-    OS::VFPrint(stream_, format, arguments);
+    base::OS::VFPrint(stream_, format, arguments);
     va_end(arguments);
   }
 }
@@ -143,8 +143,8 @@ void Simulator::CallVoid(byte* entry, CallArgument* args) {
   uintptr_t original_stack = sp();
   uintptr_t entry_stack = original_stack -
                           stack_args.size() * sizeof(stack_args[0]);
-  if (OS::ActivationFrameAlignment() != 0) {
-    entry_stack &= -OS::ActivationFrameAlignment();
+  if (base::OS::ActivationFrameAlignment() != 0) {
+    entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   char * stack = reinterpret_cast<char*>(entry_stack);
   std::vector<int64_t>::const_iterator it;
@@ -3444,7 +3444,7 @@ void Simulator::Debug() {
       // gdb -------------------------------------------------------------------
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("Relinquishing control to gdb.\n");
-        OS::DebugBreak();
+        base::OS::DebugBreak();
         PrintF("Regaining control from gdb.\n");
 
       // sysregs ---------------------------------------------------------------
@@ -3592,7 +3592,7 @@ void Simulator::VisitException(Instruction* instr) {
         abort();
 
       } else {
-        OS::DebugBreak();
+        base::OS::DebugBreak();
       }
       break;
     }

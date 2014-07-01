@@ -2,72 +2,53 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Platform-specific code for Solaris 10 goes here. For the POSIX-compatible
+// Platform-specific code for MacOS goes here. For the POSIX-compatible
 // parts, the implementation is in platform-posix.cc.
 
-#ifdef __sparc
-# error "V8 does not support the SPARC CPU architecture."
-#endif
+#include <dlfcn.h>
+#include <mach/mach_init.h>
+#include <mach-o/dyld.h>
+#include <mach-o/getsect.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-#include <dlfcn.h>  // dladdr
+#include <AvailabilityMacros.h>
+
 #include <errno.h>
-#include <ieeefp.h>  // finite()
+#include <libkern/OSAtomic.h>
+#include <mach/mach.h>
+#include <mach/semaphore.h>
+#include <mach/task.h>
+#include <mach/vm_statistics.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>  // sigemptyset(), etc
-#include <sys/mman.h>  // mmap()
-#include <sys/regset.h>
-#include <sys/stack.h>  // for stack alignment
-#include <sys/time.h>  // gettimeofday(), timeradd()
-#include <time.h>
-#include <ucontext.h>  // walkstack(), getcontext()
-#include <unistd.h>  // getpagesize(), usleep()
+#include <signal.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
 #include <cmath>
 
 #undef MAP_TYPE
 
-#include "src/platform.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
-
-// It seems there is a bug in some Solaris distributions (experienced in
-// SunOS 5.10 Generic_141445-09) which make it difficult or impossible to
-// access signbit() despite the availability of other C99 math functions.
-#ifndef signbit
-namespace std {
-// Test sign - usually defined in math.h
-int signbit(double x) {
-  // We need to take care of the special case of both positive and negative
-  // versions of zero.
-  if (x == 0) {
-    return fpclass(x) & FP_NZERO;
-  } else {
-    // This won't detect negative NaN but that should be okay since we don't
-    // assume that behavior.
-    return x < 0;
-  }
-}
-}  // namespace std
-#endif  // signbit
 
 namespace v8 {
-namespace internal {
+namespace base {
 
 
-const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
-  if (std::isnan(time)) return "";
-  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
-  struct tm* t = localtime(&tv);
-  if (NULL == t) return "";
-  return tzname[0];  // The location of the timezone string on Solaris.
-}
-
-
-double OS::LocalTimeOffset(TimezoneCache* cache) {
-  tzset();
-  return -static_cast<double>(timezone * msPerSecond);
-}
+// Constants used for mmap.
+// kMmapFd is used to pass vm_alloc flags to tag the region with the user
+// defined tag 255 This helps identify V8-allocated regions in memory analysis
+// tools like vmmap(1).
+static const int kMmapFd = VM_MAKE_TAG(255);
+static const off_t kMmapFdOffset = 0;
 
 
 void* OS::Allocate(const size_t requested,
@@ -75,8 +56,12 @@ void* OS::Allocate(const size_t requested,
                    bool is_executable) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
-
+  void* mbase = mmap(OS::GetRandomMmapAddr(),
+                     msize,
+                     prot,
+                     MAP_PRIVATE | MAP_ANON,
+                     kMmapFd,
+                     kMmapFdOffset);
   if (mbase == MAP_FAILED) return NULL;
   *allocated = msize;
   return mbase;
@@ -105,7 +90,12 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   int size = ftell(file);
 
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+           size,
+           PROT_READ | PROT_WRITE,
+           MAP_SHARED,
+           fileno(file),
+           0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
@@ -120,19 +110,46 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     return NULL;
   }
   void* memory =
-      mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+      mmap(OS::GetRandomMmapAddr(),
+          size,
+          PROT_READ | PROT_WRITE,
+          MAP_SHARED,
+          fileno(file),
+          0);
   return new PosixMemoryMappedFile(file, memory, size);
 }
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
+  if (memory_) OS::Free(memory_, size_);
   fclose(file_);
 }
 
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  return std::vector<SharedLibraryAddress>();
+  std::vector<SharedLibraryAddress> result;
+  unsigned int images_count = _dyld_image_count();
+  for (unsigned int i = 0; i < images_count; ++i) {
+    const mach_header* header = _dyld_get_image_header(i);
+    if (header == NULL) continue;
+#if V8_HOST_ARCH_X64
+    uint64_t size;
+    char* code_ptr = getsectdatafromheader_64(
+        reinterpret_cast<const mach_header_64*>(header),
+        SEG_TEXT,
+        SECT_TEXT,
+        &size);
+#else
+    unsigned int size;
+    char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
+#endif
+    if (code_ptr == NULL) continue;
+    const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
+    const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
+    result.push_back(
+        SharedLibraryAddress(_dyld_get_image_name(i), start, start + size));
+  }
+  return result;
 }
 
 
@@ -140,9 +157,22 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-// Constants used for mmap.
-static const int kMmapFd = -1;
-static const int kMmapFdOffset = 0;
+const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
+  if (std::isnan(time)) return "";
+  time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
+  struct tm* t = localtime(&tv);
+  if (NULL == t) return "";
+  return t->tm_zone;
+}
+
+
+double OS::LocalTimeOffset(TimezoneCache* cache) {
+  time_t tv = time(NULL);
+  struct tm* t = localtime(&tv);
+  // tm_gmtoff includes any daylight savings offset, so subtract it.
+  return static_cast<double>(t->tm_gmtoff * msPerSecond -
+                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
+}
 
 
 VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
@@ -160,7 +190,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   void* reservation = mmap(OS::GetRandomMmapAddr(),
                            request_size,
                            PROT_NONE,
-                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                            kMmapFd,
                            kMmapFdOffset);
   if (reservation == MAP_FAILED) return;
@@ -232,7 +262,7 @@ void* VirtualMemory::ReserveRegion(size_t size) {
   void* result = mmap(OS::GetRandomMmapAddr(),
                       size,
                       PROT_NONE,
-                      MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                       kMmapFd,
                       kMmapFdOffset);
 
@@ -242,12 +272,14 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 }
 
 
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+bool VirtualMemory::CommitRegion(void* address,
+                                 size_t size,
+                                 bool is_executable) {
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(base,
+  if (MAP_FAILED == mmap(address,
                          size,
                          prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
                          kMmapFd,
                          kMmapFdOffset)) {
     return false;
@@ -256,24 +288,23 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
 }
 
 
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mmap(base,
+bool VirtualMemory::UncommitRegion(void* address, size_t size) {
+  return mmap(address,
               size,
               PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
+              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
               kMmapFd,
               kMmapFdOffset) != MAP_FAILED;
 }
 
 
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return munmap(base, size) == 0;
+bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
+  return munmap(address, size) == 0;
 }
 
 
 bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
   return false;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::base

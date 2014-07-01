@@ -7,13 +7,12 @@
 #include <algorithm>
 #include <queue>
 
-// TODO(jochen): We should have our own version of checks.h.
-#include "src/checks.h"
+#include "src/base/logging.h"
+#include "src/base/platform/platform.h"
 #include "src/libplatform/worker-thread.h"
-#include "src/platform.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 
 const int DefaultPlatform::kMaxThreadPoolSize = 4;
@@ -24,7 +23,7 @@ DefaultPlatform::DefaultPlatform()
 
 
 DefaultPlatform::~DefaultPlatform() {
-  LockGuard<Mutex> guard(&lock_);
+  base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
     for (std::vector<WorkerThread*>::iterator i = thread_pool_.begin();
@@ -36,17 +35,17 @@ DefaultPlatform::~DefaultPlatform() {
 
 
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
-  LockGuard<Mutex> guard(&lock_);
+  base::LockGuard<base::Mutex> guard(&lock_);
   ASSERT(thread_pool_size >= 0);
   if (thread_pool_size < 1)
-    thread_pool_size = OS::NumberOfProcessorsOnline();
+    thread_pool_size = base::OS::NumberOfProcessorsOnline();
   thread_pool_size_ =
       std::max(std::min(thread_pool_size, kMaxThreadPoolSize), 1);
 }
 
 
 void DefaultPlatform::EnsureInitialized() {
-  LockGuard<Mutex> guard(&lock_);
+  base::LockGuard<base::Mutex> guard(&lock_);
   if (initialized_) return;
   initialized_ = true;
 
@@ -67,4 +66,4 @@ void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   delete task;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform

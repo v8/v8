@@ -31,7 +31,7 @@ OptimizingCompilerThread::~OptimizingCompilerThread() {
 
 void OptimizingCompilerThread::Run() {
 #ifdef DEBUG
-  { LockGuard<Mutex> lock_guard(&thread_id_mutex_);
+  { base::LockGuard<base::Mutex> lock_guard(&thread_id_mutex_);
     thread_id_ = ThreadId::Current().ToInteger();
   }
 #endif
@@ -40,7 +40,7 @@ void OptimizingCompilerThread::Run() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  ElapsedTimer total_timer;
+  base::ElapsedTimer total_timer;
   if (FLAG_trace_concurrent_recompilation) total_timer.Start();
 
   while (true) {
@@ -49,7 +49,7 @@ void OptimizingCompilerThread::Run() {
         isolate_, Logger::TimerEventScope::v8_recompile_concurrent);
 
     if (FLAG_concurrent_recompilation_delay != 0) {
-      OS::Sleep(FLAG_concurrent_recompilation_delay);
+      base::OS::Sleep(FLAG_concurrent_recompilation_delay);
     }
 
     switch (static_cast<StopFlag>(base::Acquire_Load(&stop_thread_))) {
@@ -73,7 +73,7 @@ void OptimizingCompilerThread::Run() {
         continue;
     }
 
-    ElapsedTimer compiling_timer;
+    base::ElapsedTimer compiling_timer;
     if (FLAG_trace_concurrent_recompilation) compiling_timer.Start();
 
     CompileNext();
@@ -86,7 +86,7 @@ void OptimizingCompilerThread::Run() {
 
 
 OptimizedCompileJob* OptimizingCompilerThread::NextInput() {
-  LockGuard<Mutex> access_input_queue_(&input_queue_mutex_);
+  base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
   if (input_queue_length_ == 0) return NULL;
   OptimizedCompileJob* job = input_queue_[InputQueueIndex(0)];
   ASSERT_NE(NULL, job);
@@ -257,7 +257,7 @@ void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
     osr_attempts_++;
     AddToOsrBuffer(job);
     // Add job to the front of the input queue.
-    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
     ASSERT_LT(input_queue_length_, input_queue_capacity_);
     // Move shift_ back by one.
     input_queue_shift_ = InputQueueIndex(input_queue_capacity_ - 1);
@@ -265,7 +265,7 @@ void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
     input_queue_length_++;
   } else {
     // Add job to the back of the input queue.
-    LockGuard<Mutex> access_input_queue(&input_queue_mutex_);
+    base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
     ASSERT_LT(input_queue_length_, input_queue_capacity_);
     input_queue_[InputQueueIndex(input_queue_length_)] = job;
     input_queue_length_++;
@@ -364,7 +364,7 @@ bool OptimizingCompilerThread::IsOptimizerThread(Isolate* isolate) {
 
 
 bool OptimizingCompilerThread::IsOptimizerThread() {
-  LockGuard<Mutex> lock_guard(&thread_id_mutex_);
+  base::LockGuard<base::Mutex> lock_guard(&thread_id_mutex_);
   return ThreadId::Current().ToInteger() == thread_id_;
 }
 #endif

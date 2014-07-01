@@ -28,7 +28,7 @@
 // Basic includes
 #include "include/v8.h"
 #include "include/v8-platform.h"
-#include "src/v8checks.h"  // NOLINT
+#include "src/checks.h"  // NOLINT
 #include "src/allocation.h"  // NOLINT
 #include "src/assert-scope.h"  // NOLINT
 #include "src/utils.h"  // NOLINT

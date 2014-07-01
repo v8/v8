@@ -5,7 +5,7 @@
 #include <cmath>
 
 #include "include/v8stdint.h"
-#include "src/checks.h"
+#include "src/base/logging.h"
 #include "src/utils.h"
 
 #include "src/double.h"
