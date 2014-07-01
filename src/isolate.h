@@ -486,13 +486,6 @@ class Isolate {
 
   static void GlobalTearDown();
 
-  static void SetCrashIfDefaultIsolateInitialized();
-  // Ensures that process-wide resources and the default isolate have been
-  // allocated. It is only necessary to call this method in rare cases, for
-  // example if you are using V8 from within the body of a static initializer.
-  // Safe to call multiple times.
-  static void EnsureDefaultIsolate();
-
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
@@ -1090,6 +1083,8 @@ class Isolate {
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
  private:
+  static void EnsureInitialized();
+
   Isolate();
 
   friend struct GlobalState;
@@ -1149,7 +1144,7 @@ class Isolate {
   };
 
   // This mutex protects highest_thread_id_ and thread_data_table_.
-  static base::Mutex process_wide_mutex_;
+  static base::LazyMutex process_wide_mutex_;
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
