@@ -42,7 +42,8 @@ bool V8::Initialize(Deserializer* des) {
   if (isolate->IsInitialized()) return true;
 
 #ifdef V8_USE_DEFAULT_PLATFORM
-  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
+  platform::DefaultPlatform* platform =
+      static_cast<platform::DefaultPlatform*>(platform_);
   platform->SetThreadPoolSize(isolate->max_available_threads());
   // We currently only start the threads early, if we know that we'll use them.
   if (FLAG_job_based_sweeping) platform->EnsureInitialized();
@@ -63,7 +64,8 @@ void V8::TearDown() {
   Sampler::TearDown();
 
 #ifdef V8_USE_DEFAULT_PLATFORM
-  DefaultPlatform* platform = static_cast<DefaultPlatform*>(platform_);
+  platform::DefaultPlatform* platform =
+      static_cast<platform::DefaultPlatform*>(platform_);
   platform_ = NULL;
   delete platform;
 #endif
@@ -93,7 +95,7 @@ void V8::InitializeOncePerProcessImpl() {
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
 #ifdef V8_USE_DEFAULT_PLATFORM
-  platform_ = new DefaultPlatform;
+  platform_ = new platform::DefaultPlatform;
 #endif
   Sampler::SetUp();
   CpuFeatures::Probe(false);

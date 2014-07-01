@@ -12,7 +12,7 @@
 
 namespace v8 {
 
-namespace internal {
+namespace platform {
 
 class TaskQueue;
 
@@ -32,7 +32,7 @@ class WorkerThread : public base::Thread {
   DISALLOW_COPY_AND_ASSIGN(WorkerThread);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_WORKER_THREAD_H_

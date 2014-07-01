@@ -12,7 +12,7 @@
 #include "src/libplatform/worker-thread.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 
 const int DefaultPlatform::kMaxThreadPoolSize = 4;
@@ -66,4 +66,4 @@ void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
   delete task;
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform

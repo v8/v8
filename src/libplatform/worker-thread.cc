@@ -8,7 +8,7 @@
 #include "src/libplatform/task-queue.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 WorkerThread::WorkerThread(TaskQueue* queue)
     : Thread("V8 WorkerThread"), queue_(queue) {
@@ -28,4 +28,4 @@ void WorkerThread::Run() {
   }
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform

@@ -33,6 +33,7 @@
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
+using namespace v8::platform;
 
 class TaskCounter {
  public:

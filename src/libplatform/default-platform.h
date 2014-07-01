@@ -13,7 +13,7 @@
 #include "src/libplatform/task-queue.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 class TaskQueue;
 class Thread;
@@ -47,7 +47,7 @@ class DefaultPlatform : public Platform {
 };
 
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_DEFAULT_PLATFORM_H_

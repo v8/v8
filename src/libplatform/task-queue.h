@@ -15,7 +15,7 @@ namespace v8 {
 
 class Task;
 
-namespace internal {
+namespace platform {
 
 class TaskQueue {
  public:
@@ -41,7 +41,7 @@ class TaskQueue {
   DISALLOW_COPY_AND_ASSIGN(TaskQueue);
 };
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
 
 
 #endif  // V8_LIBPLATFORM_TASK_QUEUE_H_

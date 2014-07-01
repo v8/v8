@@ -7,7 +7,7 @@
 #include "src/base/logging.h"
 
 namespace v8 {
-namespace internal {
+namespace platform {
 
 TaskQueue::TaskQueue() : process_queue_semaphore_(0), terminated_(false) {}
 
@@ -53,4 +53,4 @@ void TaskQueue::Terminate() {
   process_queue_semaphore_.Signal();
 }
 
-} }  // namespace v8::internal
+} }  // namespace v8::platform
