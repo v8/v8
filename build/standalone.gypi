@@ -35,6 +35,7 @@
     'component%': 'static_library',
     'clang%': 0,
     'asan%': 0,
+    'msan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -182,6 +183,22 @@
         ],
         'ldflags': [
           '-fsanitize=address',
+        ],
+      },
+    }],
+    ['msan==1', {
+      'target_defaults': {
+        'cflags_cc+': [
+          '-fno-omit-frame-pointer',
+          '-fsanitize-memory-track-origins=2',
+          '-fsanitize=memory',
+          '-w',  # http://crbug.com/162783
+        ],
+        'cflags_cc!': [
+          '-fomit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=memory',
         ],
       },
     }],
