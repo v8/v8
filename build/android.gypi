@@ -280,6 +280,9 @@
           '-Wl,-O1',
           '-Wl,--as-needed',
         ],
+        'libraries': [
+          '-lrt',
+        ],
       }],
     ],  # target_conditions
   },  # target_defaults
