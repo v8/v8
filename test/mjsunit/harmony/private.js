@@ -342,3 +342,18 @@ function TestGetOwnPropertySymbols() {
   assertEquals(syms, [publicSymbol, publicSymbol2])
 }
 TestGetOwnPropertySymbols()
+
+
+function TestSealAndFreeze(freeze) {
+  var sym = %CreatePrivateSymbol("private")
+  var obj = {}
+  obj[sym] = 1
+  freeze(obj)
+  obj[sym] = 2
+  assertEquals(2, obj[sym])
+  assertTrue(delete obj[sym])
+  assertEquals(undefined, obj[sym])
+}
+TestSealAndFreeze(Object.seal)
+TestSealAndFreeze(Object.freeze)
+TestSealAndFreeze(Object.preventExtensions)

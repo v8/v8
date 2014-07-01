@@ -5679,7 +5679,8 @@ static void FreezeDictionary(Dictionary* dictionary) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(k)) {
+    if (dictionary->IsKey(k) &&
+        !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
       PropertyDetails details = dictionary->DetailsAt(i);
       int attrs = DONT_DELETE;
       // READ_ONLY is an invalid attribute for JS setters/getters.
@@ -7453,17 +7454,20 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
       Object* value = desc->GetValue(i);
+      Name* key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
-      int mask = DONT_DELETE | DONT_ENUM;
-      // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
-        mask |= READ_ONLY;
+      // Bulk attribute changes never affect private properties.
+      if (!key->IsSymbol() || !Symbol::cast(key)->is_private()) {
+        int mask = DONT_DELETE | DONT_ENUM;
+        // READ_ONLY is an invalid attribute for JS setters/getters.
+        if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
+          mask |= READ_ONLY;
+        }
+        details = details.CopyAddAttributes(
+            static_cast<PropertyAttributes>(attributes & mask));
       }
-      details = details.CopyAddAttributes(
-          static_cast<PropertyAttributes>(attributes & mask));
-      Descriptor inner_desc(handle(desc->GetKey(i)),
-                            handle(value, desc->GetIsolate()),
-                            details);
+      Descriptor inner_desc(
+          handle(key), handle(value, desc->GetIsolate()), details);
       descriptors->Set(i, &inner_desc, witness);
     }
   } else {
