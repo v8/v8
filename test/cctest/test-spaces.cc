@@ -27,8 +27,10 @@
 
 #include <stdlib.h>
 
+#include "src/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
+
 
 using namespace v8::internal;
 
@@ -405,6 +407,8 @@ TEST(LargeObjectSpace) {
 
 TEST(SizeOfFirstPageIsLargeEnough) {
   if (i::FLAG_always_opt) return;
+  // Bootstrapping without a snapshot causes more allocations.
+  if (!i::Snapshot::HaveASnapshotToStartFrom()) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
 
