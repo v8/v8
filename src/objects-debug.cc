@@ -54,6 +54,7 @@ void HeapObject::HeapObjectVerify() {
       Map::cast(this)->MapVerify();
       break;
     case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
     case FIXED_ARRAY_TYPE:
@@ -205,7 +206,7 @@ void Symbol::SymbolVerify() {
 
 
 void HeapNumber::HeapNumberVerify() {
-  CHECK(IsHeapNumber());
+  CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
 
 
@@ -263,7 +264,7 @@ void JSObject::JSObjectVerify() {
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         Object* value = RawFastPropertyAt(index);
-        if (r.IsDouble()) ASSERT(value->IsHeapNumber());
+        if (r.IsDouble()) ASSERT(value->IsMutableHeapNumber());
         if (value->IsUninitialized()) continue;
         if (r.IsSmi()) ASSERT(value->IsSmi());
         if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
