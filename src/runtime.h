@@ -225,6 +225,7 @@ namespace internal {
   F(IsAttachedGlobal, 1, 1) \
   \
   F(AddProperty, 4, 1) \
+  F(AddPropertyForTemplate, 4, 1) \
   F(SetProperty, 4, 1) \
   F(DefineDataPropertyUnchecked, 4, 1) \
   F(DefineAccessorPropertyUnchecked, 5, 1) \

@@ -99,7 +99,7 @@ function ConfigureTemplateInstance(obj, data) {
         var prop_data = properties[i + 2];
         var attributes = properties[i + 3];
         var value = Instantiate(prop_data, name);
-        %AddProperty(obj, name, value, attributes);
+        %AddPropertyForTemplate(obj, name, value, attributes);
       } else if (length == 4 || length == 5) {
         // TODO(verwaest): The 5th value used to be access_control. Remove once
         // the bindings are updated.
