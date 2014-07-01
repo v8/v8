@@ -130,7 +130,7 @@ void FullCodeGenerator::Generate() {
     __ JumpIfNotRoot(x10, Heap::kUndefinedValueRootIndex, &ok);
 
     __ Ldr(x10, GlobalObjectMemOperand());
-    __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kGlobalReceiverOffset));
+    __ Ldr(x10, FieldMemOperand(x10, GlobalObject::kGlobalProxyOffset));
     __ Poke(x10, receiver_offset);
 
     __ Bind(&ok);

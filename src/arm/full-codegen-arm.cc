@@ -133,7 +133,7 @@ void FullCodeGenerator::Generate() {
     __ b(ne, &ok);
 
     __ ldr(r2, GlobalObjectOperand());
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalProxyOffset));
 
     __ str(r2, MemOperand(sp, receiver_offset));
 

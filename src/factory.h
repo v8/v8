@@ -559,15 +559,15 @@ class Factory V8_FINAL {
   }
 
   enum ApiInstanceType {
-    JavaScriptObject,
-    InnerGlobalObject,
-    OuterGlobalObject
+    JavaScriptObjectType,
+    GlobalObjectType,
+    GlobalProxyType
   };
 
   Handle<JSFunction> CreateApiFunction(
       Handle<FunctionTemplateInfo> data,
       Handle<Object> prototype,
-      ApiInstanceType type = JavaScriptObject);
+      ApiInstanceType type = JavaScriptObjectType);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
 

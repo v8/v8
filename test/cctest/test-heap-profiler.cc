@@ -1641,9 +1641,9 @@ TEST(GlobalObjectFields) {
   const v8::HeapGraphNode* global_context =
       GetProperty(global, v8::HeapGraphEdge::kInternal, "global_context");
   CHECK_NE(NULL, global_context);
-  const v8::HeapGraphNode* global_receiver =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_receiver");
-  CHECK_NE(NULL, global_receiver);
+  const v8::HeapGraphNode* global_proxy =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_proxy");
+  CHECK_NE(NULL, global_proxy);
 }
 
 

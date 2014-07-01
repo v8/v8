@@ -8441,9 +8441,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     // as it maybe dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
     ASSERT_EQ(0, receiver_maps->length());
-    receiver_maps->Add(handle(
-        function->context()->global_object()->global_receiver()->map()),
-        zone());
+    receiver_maps->Add(handle(function->global_proxy()->map()), zone());
   }
   CallOptimization::HolderLookup holder_lookup =
       CallOptimization::kHolderNotFound;
@@ -8628,9 +8626,8 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
-    Handle<JSObject> global_receiver(
-        target->context()->global_object()->global_receiver());
-    return Add<HConstant>(global_receiver);
+    Handle<JSObject> global_proxy(target->context()->global_proxy());
+    return Add<HConstant>(global_proxy);
   }
   return graph()->GetConstantUndefined();
 }

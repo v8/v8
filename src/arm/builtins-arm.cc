@@ -1071,7 +1071,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // r1: function
   Label shift_arguments;
   __ mov(r4, Operand::Zero());  // indicate regular JS_FUNCTION
-  { Label convert_to_object, use_global_receiver, patch_receiver;
+  { Label convert_to_object, use_global_proxy, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
@@ -1096,10 +1096,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
     __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
     __ cmp(r2, r3);
-    __ b(eq, &use_global_receiver);
+    __ b(eq, &use_global_proxy);
     __ LoadRoot(r3, Heap::kNullValueRootIndex);
     __ cmp(r2, r3);
-    __ b(eq, &use_global_receiver);
+    __ b(eq, &use_global_proxy);
 
     STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
     __ CompareObjectType(r2, r3, r3, FIRST_SPEC_OBJECT_TYPE);
@@ -1128,9 +1128,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ mov(r4, Operand::Zero());
     __ jmp(&patch_receiver);
 
-    __ bind(&use_global_receiver);
+    __ bind(&use_global_proxy);
   __ ldr(r2, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalProxyOffset));
 
     __ bind(&patch_receiver);
     __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -1284,7 +1284,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Compute the receiver.
     // Do not transform the receiver for strict mode functions.
-    Label call_to_object, use_global_receiver;
+    Label call_to_object, use_global_proxy;
     __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCompilerHintsOffset));
     __ tst(r2, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
                              kSmiTagSize)));
@@ -1298,10 +1298,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ JumpIfSmi(r0, &call_to_object);
     __ LoadRoot(r1, Heap::kNullValueRootIndex);
     __ cmp(r0, r1);
-    __ b(eq, &use_global_receiver);
+    __ b(eq, &use_global_proxy);
     __ LoadRoot(r1, Heap::kUndefinedValueRootIndex);
     __ cmp(r0, r1);
-    __ b(eq, &use_global_receiver);
+    __ b(eq, &use_global_proxy);
 
     // Check if the receiver is already a JavaScript object.
     // r0: receiver
@@ -1316,9 +1316,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ b(&push_receiver);
 
-    __ bind(&use_global_receiver);
+    __ bind(&use_global_proxy);
     __ ldr(r0, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+    __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalProxyOffset));
 
     // Push the receiver.
     // r0: receiver
