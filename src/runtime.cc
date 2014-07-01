@@ -1547,7 +1547,7 @@ RUNTIME_FUNCTION(Runtime_SetAdd) {
   Handle<OrderedHashSet> table(OrderedHashSet::cast(holder->table()));
   table = OrderedHashSet::Add(table, key);
   holder->set_table(*table);
-  return isolate->heap()->undefined_value();
+  return *holder;
 }
 
 
@@ -1685,7 +1685,7 @@ RUNTIME_FUNCTION(Runtime_MapSet) {
   Handle<OrderedHashMap> table(OrderedHashMap::cast(holder->table()));
   Handle<OrderedHashMap> new_table = OrderedHashMap::Put(table, key, value);
   holder->set_table(*new_table);
-  return isolate->heap()->undefined_value();
+  return *holder;
 }
 
 
@@ -1799,7 +1799,7 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   RUNTIME_ASSERT(table->IsKey(*key));
   Handle<ObjectHashTable> new_table = ObjectHashTable::Put(table, key, value);
   weak_collection->set_table(*new_table);
-  return isolate->heap()->undefined_value();
+  return *weak_collection;
 }
 
 
