@@ -54,10 +54,10 @@ ifeq ($(ARCH), android_arm)
   TOOLCHAIN_VER = 4.6
 else
   ifeq ($(ARCH), android_arm64)
-    DEFINES  = target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=20
+    DEFINES  = target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=L
     TOOLCHAIN_ARCH = aarch64-linux-android
     TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
-    TOOLCHAIN_VER = 4.8
+    TOOLCHAIN_VER = 4.9
   else
     ifeq ($(ARCH), android_mipsel)
       DEFINES  = target_arch=mipsel v8_target_arch=mipsel android_target_platform=14
