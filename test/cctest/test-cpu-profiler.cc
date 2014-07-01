@@ -1490,6 +1490,7 @@ TEST(JsNativeJsRuntimeJsSample) {
 
 
 static void CallJsFunction2(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::base::OS::Print("In CallJsFunction2\n");
   CallJsFunction(info);
 }
 
