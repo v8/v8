@@ -307,8 +307,6 @@ class OS {
 
   static int GetCurrentProcessId();
 
-  static int GetCurrentThreadId();
-
  private:
   static const int msPerSecond = 1000;
 
