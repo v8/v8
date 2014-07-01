@@ -818,6 +818,17 @@ void MacroAssembler::Pop(const CPURegister& dst0, const CPURegister& dst1,
 }
 
 
+void MacroAssembler::Push(const Register& src0, const FPRegister& src1) {
+  int size = src0.SizeInBytes() + src1.SizeInBytes();
+
+  PushPreamble(size);
+  // Reserve room for src0 and push src1.
+  str(src1, MemOperand(StackPointer(), -size, PreIndex));
+  // Fill the gap with src0.
+  str(src0, MemOperand(StackPointer(), src1.SizeInBytes()));
+}
+
+
 void MacroAssembler::PushPopQueue::PushQueued(
     PreambleDirective preamble_directive) {
   if (queued_.empty()) return;
@@ -2921,8 +2932,7 @@ void MacroAssembler::TruncateDoubleToI(Register result,
   TryConvertDoubleToInt64(result, double_input, &done);
 
   // If we fell through then inline version didn't succeed - call stub instead.
-  Push(lr);
-  Push(double_input);  // Put input on stack.
+  Push(lr, double_input);
 
   DoubleToIStub stub(isolate(),
                      jssp,
