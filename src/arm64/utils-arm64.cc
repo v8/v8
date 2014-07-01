@@ -78,11 +78,6 @@ int CountSetBits(uint64_t value, int width) {
 }
 
 
-uint64_t LargestPowerOf2Divisor(uint64_t value) {
-  return value & -value;
-}
-
-
 int MaskToBit(uint64_t mask) {
   ASSERT(CountSetBits(mask, 64) == 1);
   return CountTrailingZeros(mask, 64);

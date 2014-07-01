@@ -57,7 +57,6 @@ int CountLeadingZeros(uint64_t value, int width);
 int CountLeadingSignBits(int64_t value, int width);
 int CountTrailingZeros(uint64_t value, int width);
 int CountSetBits(uint64_t value, int width);
-uint64_t LargestPowerOf2Divisor(uint64_t value);
 int MaskToBit(uint64_t mask);
 
 
