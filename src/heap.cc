@@ -1950,6 +1950,19 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    HeapObject* source,
                                    HeapObject* target,
                                    int size)) {
+    // If we migrate into to-space, then the to-space top pointer should be
+    // right after the target object. Incorporate double alignment
+    // over-allocation.
+    ASSERT(!heap->InToSpace(target) ||
+        target->address() + size == heap->new_space()->top() ||
+        target->address() + size + kPointerSize == heap->new_space()->top());
+
+    // Make sure that we do not overwrite the promotion queue which is at
+    // the end of to-space.
+    ASSERT(!heap->InToSpace(target) ||
+        heap->promotion_queue()->IsBelowPromotionQueue(
+            heap->new_space()->top()));
+
     // Copy the content of source to target.
     heap->CopyBlock(target->address(), source->address(), size);
 

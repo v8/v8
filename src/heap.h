@@ -427,6 +427,18 @@ class PromotionQueue {
     RelocateQueueHead();
   }
 
+  bool IsBelowPromotionQueue(Address to_space_top) {
+    // If the given to-space top pointer and the head of the promotion queue
+    // are not on the same page, then the to-space objects are below the
+    // promotion queue.
+    if (GetHeadPage() != Page::FromAddress(to_space_top)) {
+      return true;
+    }
+    // If the to space top pointer is smaller or equal than the promotion
+    // queue head, then the to-space objects are below the promotion queue.
+    return reinterpret_cast<intptr_t*>(to_space_top) <= rear_;
+  }
+
   bool is_empty() {
     return (front_ == rear_) &&
         (emergency_stack_ == NULL || emergency_stack_->length() == 0);

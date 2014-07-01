@@ -4329,6 +4329,81 @@ TEST(ArrayShiftSweeping) {
 }
 
 
+TEST(PromotionQueue) {
+  i::FLAG_expose_gc = true;
+  i::FLAG_max_semi_space_size = 2;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  NewSpace* new_space = heap->new_space();
+
+  // In this test we will try to overwrite the promotion queue which is at the
+  // end of to-space. To actually make that possible, we need at least two
+  // semi-space pages and take advantage of fragementation.
+  // (1) Grow semi-space to two pages.
+  // (2) Create a few small long living objects and call the scavenger to
+  // move them to the other semi-space.
+  // (3) Create a huge object, i.e., remainder of first semi-space page and
+  // create another huge object which should be of maximum allocatable memory
+  // size of the second semi-space page.
+  // (4) Call the scavenger again.
+  // What will happen is: the scavenger will promote the objects created in (2)
+  // and will create promotion queue entries at the end of the second
+  // semi-space page during the next scavenge when it promotes the objects to
+  // the old generation. The first allocation of (3) will fill up the first
+  // semi-space page. The second allocation in (3) will not fit into the first
+  // semi-space page, but it will overwrite the promotion queue which are in
+  // the second semi-space page. If the right guards are in place, the promotion
+  // queue will be evacuated in that case.
+
+  // Grow the semi-space to two pages to make semi-space copy overwrite the
+  // promotion queue, which will be at the end of the second page.
+  intptr_t old_capacity = new_space->Capacity();
+  new_space->Grow();
+  CHECK(new_space->IsAtMaximumCapacity());
+  CHECK(2 * old_capacity == new_space->Capacity());
+
+  // Call the scavenger two times to get an empty new space
+  heap->CollectGarbage(NEW_SPACE);
+  heap->CollectGarbage(NEW_SPACE);
+
+  // First create a few objects which will survive a scavenge, and will get
+  // promoted to the old generation later on. These objects will create
+  // promotion queue entries at the end of the second semi-space page.
+  const int number_handles = 12;
+  Handle<FixedArray> handles[number_handles];
+  for (int i = 0; i < number_handles; i++) {
+    handles[i] = isolate->factory()->NewFixedArray(1, NOT_TENURED);
+  }
+  heap->CollectGarbage(NEW_SPACE);
+
+  // Create the first huge object which will exactly fit the first semi-space
+  // page.
+  int new_linear_size = static_cast<int>(
+      *heap->new_space()->allocation_limit_address() -
+          *heap->new_space()->allocation_top_address());
+  int length = new_linear_size / kPointerSize - FixedArray::kHeaderSize;
+  Handle<FixedArray> first =
+    isolate->factory()->NewFixedArray(length, NOT_TENURED);
+  CHECK(heap->InNewSpace(*first));
+
+  // Create the second huge object of maximum allocatable second semi-space
+  // page size.
+  new_linear_size = static_cast<int>(
+      *heap->new_space()->allocation_limit_address() -
+          *heap->new_space()->allocation_top_address());
+  length = Page::kMaxRegularHeapObjectSize / kPointerSize -
+      FixedArray::kHeaderSize;
+  Handle<FixedArray> second =
+      isolate->factory()->NewFixedArray(length, NOT_TENURED);
+  CHECK(heap->InNewSpace(*second));
+
+  // This scavenge will corrupt memory if the promotion queue is not evacuated.
+  heap->CollectGarbage(NEW_SPACE);
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
