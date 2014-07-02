@@ -1856,6 +1856,10 @@ TEST(NoErrorsGenerator) {
     "yield 3; yield 4;",
     "yield * 3; yield * 4;",
     "(function (yield) { })",
+    "yield { yield: 12 }",
+    "yield /* comment */ { yield: 12 }",
+    "yield * \n { yield: 12 }",
+    "yield /* comment */ * \n { yield: 12 }",
     // You can return in a generator.
     "yield 1; return",
     "yield * 1; return",
@@ -1866,8 +1870,21 @@ TEST(NoErrorsGenerator) {
     // Yield is still a valid key in object literals.
     "({ yield: 1 })",
     "({ get yield() { } })",
-    // TODO(348893007): Invalid (no newline allowed between yield and *).
-    "yield\n*3",
+    // Yield without RHS.
+    "yield;",
+    "yield",
+    "yield\n",
+    "yield /* comment */"
+    "yield // comment\n"
+    "(yield)",
+    "[yield]",
+    "{yield}",
+    "yield, yield",
+    "yield; yield",
+    "(yield) ? yield : yield",
+    "(yield) \n ? yield : yield",
+    // If there is a newline before the next token, we don't look for RHS.
+    "yield\nfor (;;) {}",
     NULL
   };
 
@@ -1913,19 +1930,15 @@ TEST(ErrorsYieldGenerator) {
     "yield ? 1 : 2",
     // Parses as yield (/ yield): invalid.
     "yield / yield",
-    // TODO(348893007): The rest of these should be valid.
-    "yield;",
-    "yield",
-    "yield\n",
-    "(yield)",
-    "[yield]",
-    "{yield}",
-    "yield, yield",
-    "yield; yield",
-    "(yield) ? yield : yield",
-    "(yield) \n ? yield : yield",
-    // Parses as yield (+ yield).
-    "yield + yield",
+    "+ yield",
+    "+ yield 3",
+    // Invalid (no newline allowed between yield and *).
+    "yield\n*3",
+    // Invalid (we see a newline, so we parse {yield:42} as a statement, not an
+    // object literal, and yield is not a valid label).
+    "yield\n{yield: 42}",
+    "yield /* comment */\n {yield: 42}",
+    "yield //comment\n {yield: 42}",
     NULL
   };
 

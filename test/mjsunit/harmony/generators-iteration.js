@@ -337,6 +337,24 @@ TestGenerator(
     "foo",
     [2, "1foo3", 5, "4foo6", "foofoo"]);
 
+// Yield with no arguments yields undefined.
+TestGenerator(
+    function* g26() { return yield yield },
+    [undefined, undefined, undefined],
+    "foo",
+    [undefined, "foo", "foo"]);
+
+// A newline causes the parser to stop looking for an argument to yield.
+TestGenerator(
+    function* g27() {
+      yield
+      3
+      return
+    },
+    [undefined, undefined],
+    "foo",
+    [undefined, undefined]);
+
 // Generator function instances.
 TestGenerator(GeneratorFunction(),
               [undefined],
