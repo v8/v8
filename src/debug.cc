@@ -759,7 +759,7 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   Handle<Object> exception;
   MaybeHandle<Object> result =
       Execution::TryCall(function,
-                         Handle<Object>(context->global_object(), isolate),
+                         handle(context->global_proxy()),
                          0,
                          NULL,
                          &exception);
@@ -807,7 +807,7 @@ bool Debug::Load() {
   ExtensionConfiguration no_extensions;
   Handle<Context> context =
       isolate_->bootstrapper()->CreateEnvironment(
-          Handle<Object>::null(),
+          MaybeHandle<JSGlobalProxy>(),
           v8::Handle<ObjectTemplate>(),
           &no_extensions);
 
@@ -2446,12 +2446,13 @@ void Debug::ClearMirrorCache() {
   HandleScope scope(isolate_);
   AssertDebugContext();
   Factory* factory = isolate_->factory();
-  JSObject::SetProperty(isolate_->global_object(),
+  Handle<GlobalObject> global(isolate_->global_object());
+  JSObject::SetProperty(global,
       factory->NewStringFromAsciiChecked("next_handle_"),
       handle(Smi::FromInt(0), isolate_),
       NONE,
       SLOPPY).Check();
-  JSObject::SetProperty(isolate_->global_object(),
+  JSObject::SetProperty(global,
       factory->NewStringFromAsciiChecked("mirror_cache_"),
       factory->NewJSArray(0, FAST_ELEMENTS),
       NONE,
@@ -2494,14 +2495,15 @@ MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
                                         Handle<Object> argv[]) {
   AssertDebugContext();
   // Create the execution state object.
+  Handle<GlobalObject> global(isolate_->global_object());
   Handle<Object> constructor = Object::GetProperty(
-      isolate_, isolate_->global_object(), constructor_name).ToHandleChecked();
+      isolate_, global, constructor_name).ToHandleChecked();
   ASSERT(constructor->IsJSFunction());
   if (!constructor->IsJSFunction()) return MaybeHandle<Object>();
   // We do not handle interrupts here.  In particular, termination interrupts.
   PostponeInterruptsScope no_interrupts(isolate_);
   return Execution::TryCall(Handle<JSFunction>::cast(constructor),
-                            Handle<JSObject>(debug_context()->global_object()),
+                            handle(debug_context()->global_proxy()),
                             argc,
                             argv);
 }
@@ -2777,10 +2779,9 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               exec_state,
                               event_data,
                               event_listener_data_ };
+    Handle<JSReceiver> global(isolate_->global_proxy());
     Execution::TryCall(Handle<JSFunction>::cast(event_listener_),
-                       isolate_->global_object(),
-                       ARRAY_SIZE(argv),
-                       argv);
+                       global, ARRAY_SIZE(argv), argv);
   }
 }
 

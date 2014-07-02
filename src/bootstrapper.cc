@@ -148,8 +148,8 @@ void Bootstrapper::TearDown() {
 class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate,
-          Handle<Object> global_object,
-          v8::Handle<v8::ObjectTemplate> global_template,
+          MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+          v8::Handle<v8::ObjectTemplate> global_proxy_template,
           v8::ExtensionConfiguration* extensions);
   ~Genesis() { }
 
@@ -183,20 +183,20 @@ class Genesis BASE_EMBEDDED {
   // we have to used the deserialized ones that are linked together with the
   // rest of the context snapshot.
   Handle<JSGlobalProxy> CreateNewGlobals(
-      v8::Handle<v8::ObjectTemplate> global_template,
-      Handle<Object> global_object,
-      Handle<GlobalObject>* global_proxy_out);
+      v8::Handle<v8::ObjectTemplate> global_proxy_template,
+      MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+      Handle<GlobalObject>* global_object_out);
   // Hooks the given global proxy into the context.  If the context was created
   // by deserialization then this will unhook the global proxy that was
   // deserialized, leaving the GC to pick it up.
-  void HookUpGlobalProxy(Handle<GlobalObject> inner_global,
+  void HookUpGlobalProxy(Handle<GlobalObject> global_object,
                          Handle<JSGlobalProxy> global_proxy);
-  // Similarly, we want to use the inner global that has been created by the
-  // templates passed through the API.  The inner global from the snapshot is
-  // detached from the other objects in the snapshot.
-  void HookUpInnerGlobal(Handle<GlobalObject> inner_global);
+  // Similarly, we want to use the global that has been created by the templates
+  // passed through the API.  The global from the snapshot is detached from the
+  // other objects in the snapshot.
+  void HookUpGlobalObject(Handle<GlobalObject> global_object);
   // New context initialization.  Used for creating a context from scratch.
-  void InitializeGlobal(Handle<GlobalObject> inner_global,
+  void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
@@ -253,7 +253,8 @@ class Genesis BASE_EMBEDDED {
   bool InstallJSBuiltins(Handle<JSBuiltinsObject> builtins);
   bool ConfigureApiObject(Handle<JSObject> object,
                           Handle<ObjectTemplateInfo> object_template);
-  bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
+  bool ConfigureGlobalObjects(
+      v8::Handle<v8::ObjectTemplate> global_proxy_template);
 
   // Migrates all properties from the 'from' object to the 'to'
   // object and overrides the prototype in 'to' with the one from
@@ -327,11 +328,12 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
 
 
 Handle<Context> Bootstrapper::CreateEnvironment(
-    Handle<Object> global_object,
-    v8::Handle<v8::ObjectTemplate> global_template,
+    MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+    v8::Handle<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions) {
   HandleScope scope(isolate_);
-  Genesis genesis(isolate_, global_object, global_template, extensions);
+  Genesis genesis(
+      isolate_, maybe_global_proxy, global_proxy_template, extensions);
   Handle<Context> env = genesis.result();
   if (env.is_null() || !InstallExtensions(env, extensions)) {
     return Handle<Context>();
@@ -729,73 +731,74 @@ void Genesis::CreateRoots() {
 
 
 Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
-    v8::Handle<v8::ObjectTemplate> global_template,
-    Handle<Object> global_object,
-    Handle<GlobalObject>* inner_global_out) {
-  // The argument global_template aka data is an ObjectTemplateInfo.
+    v8::Handle<v8::ObjectTemplate> global_proxy_template,
+    MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+    Handle<GlobalObject>* global_object_out) {
+  // The argument global_proxy_template aka data is an ObjectTemplateInfo.
   // It has a constructor pointer that points at global_constructor which is a
   // FunctionTemplateInfo.
-  // The global_constructor is used to create or reinitialize the global_proxy.
-  // The global_constructor also has a prototype_template pointer that points at
-  // js_global_template which is an ObjectTemplateInfo.
+  // The global_proxy_constructor is used to create or reinitialize the
+  // global_proxy. The global_proxy_constructor also has a prototype_template
+  // pointer that points at js_global_object_template which is an
+  // ObjectTemplateInfo.
   // That in turn has a constructor pointer that points at
-  // js_global_constructor which is a FunctionTemplateInfo.
-  // js_global_constructor is used to make js_global_function
-  // js_global_function is used to make the new inner_global.
+  // js_global_object_constructor which is a FunctionTemplateInfo.
+  // js_global_object_constructor is used to make js_global_object_function
+  // js_global_object_function is used to make the new global_object.
   //
   // --- G l o b a l ---
-  // Step 1: Create a fresh inner JSGlobalObject.
-  Handle<JSFunction> js_global_function;
-  Handle<ObjectTemplateInfo> js_global_template;
-  if (!global_template.IsEmpty()) {
-    // Get prototype template of the global_template.
+  // Step 1: Create a fresh JSGlobalObject.
+  Handle<JSFunction> js_global_object_function;
+  Handle<ObjectTemplateInfo> js_global_object_template;
+  if (!global_proxy_template.IsEmpty()) {
+    // Get prototype template of the global_proxy_template.
     Handle<ObjectTemplateInfo> data =
-        v8::Utils::OpenHandle(*global_template);
+        v8::Utils::OpenHandle(*global_proxy_template);
     Handle<FunctionTemplateInfo> global_constructor =
         Handle<FunctionTemplateInfo>(
             FunctionTemplateInfo::cast(data->constructor()));
     Handle<Object> proto_template(global_constructor->prototype_template(),
                                   isolate());
     if (!proto_template->IsUndefined()) {
-      js_global_template =
+      js_global_object_template =
           Handle<ObjectTemplateInfo>::cast(proto_template);
     }
   }
 
-  if (js_global_template.is_null()) {
+  if (js_global_object_template.is_null()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
         Builtins::kIllegal));
-    js_global_function = factory()->NewFunction(
+    js_global_object_function = factory()->NewFunction(
         name, code, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
     // Change the constructor property of the prototype of the
     // hidden global function to refer to the Object function.
     Handle<JSObject> prototype =
         Handle<JSObject>(
-            JSObject::cast(js_global_function->instance_prototype()));
+            JSObject::cast(js_global_object_function->instance_prototype()));
     JSObject::SetOwnPropertyIgnoreAttributes(
         prototype, factory()->constructor_string(),
         isolate()->object_function(), NONE).Check();
   } else {
-    Handle<FunctionTemplateInfo> js_global_constructor(
-        FunctionTemplateInfo::cast(js_global_template->constructor()));
-    js_global_function =
-        factory()->CreateApiFunction(js_global_constructor,
+    Handle<FunctionTemplateInfo> js_global_object_constructor(
+        FunctionTemplateInfo::cast(js_global_object_template->constructor()));
+    js_global_object_function =
+        factory()->CreateApiFunction(js_global_object_constructor,
                                      factory()->the_hole_value(),
-                                     factory()->InnerGlobalObject);
+                                     factory()->GlobalObjectType);
   }
 
-  js_global_function->initial_map()->set_is_hidden_prototype();
-  js_global_function->initial_map()->set_dictionary_map(true);
-  Handle<GlobalObject> inner_global =
-      factory()->NewGlobalObject(js_global_function);
-  if (inner_global_out != NULL) {
-    *inner_global_out = inner_global;
+  js_global_object_function->initial_map()->set_is_hidden_prototype();
+  js_global_object_function->initial_map()->set_dictionary_map(true);
+  Handle<GlobalObject> global_object =
+      factory()->NewGlobalObject(js_global_object_function);
+  if (global_object_out != NULL) {
+    *global_object_out = global_object;
   }
 
   // Step 2: create or re-initialize the global proxy object.
   Handle<JSFunction> global_proxy_function;
-  if (global_template.IsEmpty()) {
+  if (global_proxy_template.IsEmpty()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
         Builtins::kIllegal));
@@ -803,13 +806,13 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         name, code, JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
   } else {
     Handle<ObjectTemplateInfo> data =
-        v8::Utils::OpenHandle(*global_template);
+        v8::Utils::OpenHandle(*global_proxy_template);
     Handle<FunctionTemplateInfo> global_constructor(
             FunctionTemplateInfo::cast(data->constructor()));
     global_proxy_function =
         factory()->CreateApiFunction(global_constructor,
                                      factory()->the_hole_value(),
-                                     factory()->OuterGlobalObject);
+                                     factory()->GlobalProxyType);
   }
 
   Handle<String> global_name = factory()->InternalizeOneByteString(
@@ -821,9 +824,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
   // Return the global proxy.
 
   Handle<JSGlobalProxy> global_proxy;
-  if (global_object.location() != NULL) {
-    ASSERT(global_object->IsJSGlobalProxy());
-    global_proxy = Handle<JSGlobalProxy>::cast(global_object);
+  if (maybe_global_proxy.ToHandle(&global_proxy)) {
     factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
   } else {
     global_proxy = Handle<JSGlobalProxy>::cast(
@@ -834,62 +835,61 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
 }
 
 
-void Genesis::HookUpGlobalProxy(Handle<GlobalObject> inner_global,
+void Genesis::HookUpGlobalProxy(Handle<GlobalObject> global_object,
                                 Handle<JSGlobalProxy> global_proxy) {
   // Set the native context for the global object.
-  inner_global->set_native_context(*native_context());
-  inner_global->set_global_context(*native_context());
-  inner_global->set_global_receiver(*global_proxy);
+  global_object->set_native_context(*native_context());
+  global_object->set_global_context(*native_context());
+  global_object->set_global_proxy(*global_proxy);
   global_proxy->set_native_context(*native_context());
   native_context()->set_global_proxy(*global_proxy);
 }
 
 
-void Genesis::HookUpInnerGlobal(Handle<GlobalObject> inner_global) {
-  Handle<GlobalObject> inner_global_from_snapshot(
+void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object) {
+  Handle<GlobalObject> global_object_from_snapshot(
       GlobalObject::cast(native_context()->extension()));
   Handle<JSBuiltinsObject> builtins_global(native_context()->builtins());
-  native_context()->set_extension(*inner_global);
-  native_context()->set_global_object(*inner_global);
-  native_context()->set_security_token(*inner_global);
+  native_context()->set_extension(*global_object);
+  native_context()->set_global_object(*global_object);
+  native_context()->set_security_token(*global_object);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Runtime::DefineObjectProperty(builtins_global,
                                 factory()->InternalizeOneByteString(
                                     STATIC_ASCII_VECTOR("global")),
-                                inner_global,
+                                global_object,
                                 attributes).Assert();
   // Set up the reference from the global object to the builtins object.
-  JSGlobalObject::cast(*inner_global)->set_builtins(*builtins_global);
-  TransferNamedProperties(inner_global_from_snapshot, inner_global);
-  TransferIndexedProperties(inner_global_from_snapshot, inner_global);
+  JSGlobalObject::cast(*global_object)->set_builtins(*builtins_global);
+  TransferNamedProperties(global_object_from_snapshot, global_object);
+  TransferIndexedProperties(global_object_from_snapshot, global_object);
 }
 
 
 // This is only called if we are not using snapshots.  The equivalent
-// work in the snapshot case is done in HookUpInnerGlobal.
-void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
+// work in the snapshot case is done in HookUpGlobalObject.
+void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                                Handle<JSFunction> empty_function) {
   // --- N a t i v e   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   native_context()->set_closure(*empty_function);
   native_context()->set_previous(NULL);
   // Set extension and global object.
-  native_context()->set_extension(*inner_global);
-  native_context()->set_global_object(*inner_global);
-  // Security setup: Set the security token of the global object to
-  // its the inner global. This makes the security check between two
-  // different contexts fail by default even in case of global
-  // object reinitialization.
-  native_context()->set_security_token(*inner_global);
+  native_context()->set_extension(*global_object);
+  native_context()->set_global_object(*global_object);
+  // Security setup: Set the security token of the native context to the global
+  // object. This makes the security check between two different contexts fail
+  // by default even in case of global object reinitialization.
+  native_context()->set_security_token(*global_object);
 
-  Isolate* isolate = inner_global->GetIsolate();
+  Isolate* isolate = global_object->GetIsolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
-      inner_global, object_name, isolate->object_function(), DONT_ENUM);
+      global_object, object_name, isolate->object_function(), DONT_ENUM);
 
   Handle<JSObject> global(native_context()->global_object());
 
@@ -1719,8 +1719,7 @@ bool Genesis::InstallNatives() {
   builtins->set_builtins(*builtins);
   builtins->set_native_context(*native_context());
   builtins->set_global_context(*native_context());
-  builtins->set_global_receiver(*builtins);
-  builtins->set_global_receiver(native_context()->global_proxy());
+  builtins->set_global_proxy(native_context()->global_proxy());
 
 
   // Set up the 'global' properties of the builtins object. The
@@ -1933,7 +1932,7 @@ bool Genesis::InstallNatives() {
   { Handle<String> key = factory()->function_class_string();
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(Object::GetProperty(
-            isolate()->global_object(), key).ToHandleChecked());
+            handle(native_context()->global_object()), key).ToHandleChecked());
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
@@ -2386,26 +2385,26 @@ bool Genesis::ConfigureGlobalObjects(
     v8::Handle<v8::ObjectTemplate> global_proxy_template) {
   Handle<JSObject> global_proxy(
       JSObject::cast(native_context()->global_proxy()));
-  Handle<JSObject> inner_global(
+  Handle<JSObject> global_object(
       JSObject::cast(native_context()->global_object()));
 
   if (!global_proxy_template.IsEmpty()) {
     // Configure the global proxy object.
-    Handle<ObjectTemplateInfo> proxy_data =
+    Handle<ObjectTemplateInfo> global_proxy_data =
         v8::Utils::OpenHandle(*global_proxy_template);
-    if (!ConfigureApiObject(global_proxy, proxy_data)) return false;
+    if (!ConfigureApiObject(global_proxy, global_proxy_data)) return false;
 
-    // Configure the inner global object.
+    // Configure the global object.
     Handle<FunctionTemplateInfo> proxy_constructor(
-        FunctionTemplateInfo::cast(proxy_data->constructor()));
+        FunctionTemplateInfo::cast(global_proxy_data->constructor()));
     if (!proxy_constructor->prototype_template()->IsUndefined()) {
-      Handle<ObjectTemplateInfo> inner_data(
+      Handle<ObjectTemplateInfo> global_object_data(
           ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
-      if (!ConfigureApiObject(inner_global, inner_data)) return false;
+      if (!ConfigureApiObject(global_object, global_object_data)) return false;
     }
   }
 
-  SetObjectPrototype(global_proxy, inner_global);
+  SetObjectPrototype(global_proxy, global_object);
 
   native_context()->set_initial_array_prototype(
       JSArray::cast(native_context()->array_function()->prototype()));
@@ -2415,7 +2414,7 @@ bool Genesis::ConfigureGlobalObjects(
 
 
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
-    Handle<ObjectTemplateInfo> object_template) {
+                                 Handle<ObjectTemplateInfo> object_template) {
   ASSERT(!object_template.is_null());
   ASSERT(FunctionTemplateInfo::cast(object_template->constructor())
              ->IsTemplateFor(object->map()));;
@@ -2573,8 +2572,8 @@ class NoTrackDoubleFieldsForSerializerScope {
 
 
 Genesis::Genesis(Isolate* isolate,
-                 Handle<Object> global_object,
-                 v8::Handle<v8::ObjectTemplate> global_template,
+                 MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+                 v8::Handle<v8::ObjectTemplate> global_proxy_template,
                  v8::ExtensionConfiguration* extensions)
     : isolate_(isolate),
       active_(isolate->bootstrapper()) {
@@ -2605,35 +2604,33 @@ Genesis::Genesis(Isolate* isolate,
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
-    Handle<GlobalObject> inner_global;
-    Handle<JSGlobalProxy> global_proxy =
-        CreateNewGlobals(global_template,
-                         global_object,
-                         &inner_global);
+    Handle<GlobalObject> global_object;
+    Handle<JSGlobalProxy> global_proxy = CreateNewGlobals(
+        global_proxy_template, maybe_global_proxy, &global_object);
 
-    HookUpGlobalProxy(inner_global, global_proxy);
-    HookUpInnerGlobal(inner_global);
-    native_context()->builtins()->set_global_receiver(
+    HookUpGlobalProxy(global_object, global_proxy);
+    HookUpGlobalObject(global_object);
+    native_context()->builtins()->set_global_proxy(
         native_context()->global_proxy());
 
-    if (!ConfigureGlobalObjects(global_template)) return;
+    if (!ConfigureGlobalObjects(global_proxy_template)) return;
   } else {
     // We get here if there was no context snapshot.
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
-    Handle<GlobalObject> inner_global;
-    Handle<JSGlobalProxy> global_proxy =
-        CreateNewGlobals(global_template, global_object, &inner_global);
-    HookUpGlobalProxy(inner_global, global_proxy);
-    InitializeGlobal(inner_global, empty_function);
+    Handle<GlobalObject> global_object;
+    Handle<JSGlobalProxy> global_proxy = CreateNewGlobals(
+        global_proxy_template, maybe_global_proxy, &global_object);
+    HookUpGlobalProxy(global_object, global_proxy);
+    InitializeGlobal(global_object, empty_function);
     InstallJSFunctionResultCaches();
     InitializeNormalizedMapCaches();
     if (!InstallNatives()) return;
 
     MakeFunctionInstancePrototypeWritable();
 
-    if (!ConfigureGlobalObjects(global_template)) return;
+    if (!ConfigureGlobalObjects(global_proxy_template)) return;
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 

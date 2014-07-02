@@ -352,8 +352,8 @@ class Factory V8_FINAL {
     return NewNumber(static_cast<double>(value), pretenure);
   }
   Handle<HeapNumber> NewHeapNumber(double value,
+                                   MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
-
 
   // These objects are used by the api to create env-independent data
   // structures in the heap.
@@ -559,15 +559,15 @@ class Factory V8_FINAL {
   }
 
   enum ApiInstanceType {
-    JavaScriptObject,
-    InnerGlobalObject,
-    OuterGlobalObject
+    JavaScriptObjectType,
+    GlobalObjectType,
+    GlobalProxyType
   };
 
   Handle<JSFunction> CreateApiFunction(
       Handle<FunctionTemplateInfo> data,
       Handle<Object> prototype,
-      ApiInstanceType type = JavaScriptObject);
+      ApiInstanceType type = JavaScriptObjectType);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
 

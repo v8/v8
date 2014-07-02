@@ -414,6 +414,11 @@ if (support_smi_only_arrays) {
    assertKind(elements_kind.fast, obj[1][0]);
   })();
 
+  // Perform a gc because without it the test below can experience an
+  // allocation failure at an inconvenient point. Allocation mementos get
+  // cleared on gc, and they can't deliver elements kind feedback when that
+  // happens.
+  gc();
 
   // Make sure object literals with array fields benefit from the type feedback
   // that allocation mementos provide.

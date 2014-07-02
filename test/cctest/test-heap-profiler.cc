@@ -1641,9 +1641,9 @@ TEST(GlobalObjectFields) {
   const v8::HeapGraphNode* global_context =
       GetProperty(global, v8::HeapGraphEdge::kInternal, "global_context");
   CHECK_NE(NULL, global_context);
-  const v8::HeapGraphNode* global_receiver =
-      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_receiver");
-  CHECK_NE(NULL, global_receiver);
+  const v8::HeapGraphNode* global_proxy =
+      GetProperty(global, v8::HeapGraphEdge::kInternal, "global_proxy");
+  CHECK_NE(NULL, global_proxy);
 }
 
 
@@ -1688,7 +1688,7 @@ TEST(GetHeapValueForNode) {
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
-  CompileRun("a = { s_prop: \'value\', n_prop: 0.1 };");
+  CompileRun("a = { s_prop: \'value\', n_prop: \'value2\' };");
   const v8::HeapSnapshot* snapshot =
       heap_profiler->TakeHeapSnapshot(v8_str("value"));
   CHECK(ValidateSnapshot(snapshot));
@@ -1709,10 +1709,9 @@ TEST(GetHeapValueForNode) {
   CHECK(js_s_prop == heap_profiler->FindObjectById(s_prop->GetId()));
   const v8::HeapGraphNode* n_prop =
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "n_prop");
-  v8::Local<v8::Number> js_n_prop =
-      js_obj->Get(v8_str("n_prop")).As<v8::Number>();
-  CHECK(js_n_prop->NumberValue() ==
-        heap_profiler->FindObjectById(n_prop->GetId())->NumberValue());
+  v8::Local<v8::String> js_n_prop =
+      js_obj->Get(v8_str("n_prop")).As<v8::String>();
+  CHECK(js_n_prop == heap_profiler->FindObjectById(n_prop->GetId()));
 }
 
 

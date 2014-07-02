@@ -42,6 +42,7 @@ namespace internal {
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, heap_number_map, HeapNumberMap)                                       \
+  V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
   V(Map, code_map, CodeMap)                                                    \
@@ -230,6 +231,7 @@ namespace internal {
   V(shared_function_info_map)             \
   V(meta_map)                             \
   V(heap_number_map)                      \
+  V(mutable_heap_number_map)              \
   V(native_context_map)                   \
   V(fixed_array_map)                      \
   V(code_map)                             \
@@ -423,6 +425,18 @@ class PromotionQueue {
     }
 
     RelocateQueueHead();
+  }
+
+  bool IsBelowPromotionQueue(Address to_space_top) {
+    // If the given to-space top pointer and the head of the promotion queue
+    // are not on the same page, then the to-space objects are below the
+    // promotion queue.
+    if (GetHeadPage() != Page::FromAddress(to_space_top)) {
+      return true;
+    }
+    // If the to space top pointer is smaller or equal than the promotion
+    // queue head, then the to-space objects are below the promotion queue.
+    return reinterpret_cast<intptr_t*>(to_space_top) <= rear_;
   }
 
   bool is_empty() {
@@ -1460,7 +1474,9 @@ class Heap {
 
   // Allocated a HeapNumber from value.
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
-      double value, PretenureFlag pretenure = NOT_TENURED);
+      double value,
+      MutableMode mode = IMMUTABLE,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate a byte array of the specified length
   MUST_USE_RESULT AllocationResult AllocateByteArray(

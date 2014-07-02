@@ -153,10 +153,9 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
                                         Handle<Object> value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
-  ASSERT(wrapper->GetIsolate()->context()->native_context()->number_function()->
+  ASSERT(wrapper->GetIsolate()->native_context()->number_function()->
       has_initial_map());
-  if (wrapper->map() ==
-      isolate->context()->native_context()->number_function()->initial_map()) {
+  if (wrapper->map() == isolate->number_function()->initial_map()) {
     return handle(wrapper->value(), isolate);
   }
 

@@ -399,7 +399,8 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     __ Ldr(temp_double, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
     __ Bind(&do_store);
-    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2, temp_double);
+    __ AllocateHeapNumber(storage_reg, slow, scratch1, scratch2, temp_double,
+                          NoReg, MUTABLE);
   }
 
   // Stub never generated for non-global objects that require access checks.
@@ -1175,8 +1176,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ Ldr(receiver,
-               FieldMemOperand(
-                   receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ Push(receiver, value());
       ParameterCount actual(1);
@@ -1295,8 +1295,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ Ldr(receiver,
-                FieldMemOperand(
-                    receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ Push(receiver);
       ParameterCount actual(0);

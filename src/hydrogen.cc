@@ -2683,7 +2683,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  HValue* new_capacity) {
   Add<HBoundsCheck>(new_capacity, Add<HConstant>(
           (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
-          ElementsKindToShiftSize(kind)));
+          ElementsKindToShiftSize(new_kind)));
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);
@@ -5781,8 +5781,9 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
       HInstruction* heap_number = Add<HAllocate>(heap_number_size,
           HType::HeapObject(),
           NOT_TENURED,
-          HEAP_NUMBER_TYPE);
-      AddStoreMapConstant(heap_number, isolate()->factory()->heap_number_map());
+          MUTABLE_HEAP_NUMBER_TYPE);
+      AddStoreMapConstant(
+          heap_number, isolate()->factory()->mutable_heap_number_map());
       Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
                             value);
       instr = New<HStoreNamedField>(checked_object->ActualValue(),
@@ -8441,9 +8442,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     // as it maybe dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
     ASSERT_EQ(0, receiver_maps->length());
-    receiver_maps->Add(handle(
-        function->context()->global_object()->global_receiver()->map()),
-        zone());
+    receiver_maps->Add(handle(function->global_proxy()->map()), zone());
   }
   CallOptimization::HolderLookup holder_lookup =
       CallOptimization::kHolderNotFound;
@@ -8628,9 +8627,8 @@ HValue* HOptimizedGraphBuilder::ImplicitReceiverFor(HValue* function,
     // Cannot embed a direct reference to the global proxy
     // as is it dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
-    Handle<JSObject> global_receiver(
-        target->context()->global_object()->global_receiver());
-    return Add<HConstant>(global_receiver);
+    Handle<JSObject> global_proxy(target->context()->global_proxy());
+    return Add<HConstant>(global_proxy);
   }
   return graph()->GetConstantUndefined();
 }
@@ -10953,11 +10951,14 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
         // 2) we can just use the mode of the parent object for pretenuring
         HInstruction* double_box =
             Add<HAllocate>(heap_number_constant, HType::HeapObject(),
-                pretenure_flag, HEAP_NUMBER_TYPE);
+                pretenure_flag, MUTABLE_HEAP_NUMBER_TYPE);
         AddStoreMapConstant(double_box,
-            isolate()->factory()->heap_number_map());
-        Add<HStoreNamedField>(double_box, HObjectAccess::ForHeapNumberValue(),
-                              Add<HConstant>(value));
+            isolate()->factory()->mutable_heap_number_map());
+        // Unwrap the mutable heap number from the boilerplate.
+        HValue* double_value =
+            Add<HConstant>(Handle<HeapNumber>::cast(value)->value());
+        Add<HStoreNamedField>(
+            double_box, HObjectAccess::ForHeapNumberValue(), double_value);
         value_instruction = double_box;
       } else if (representation.IsSmi()) {
         value_instruction = value->IsUninitialized()

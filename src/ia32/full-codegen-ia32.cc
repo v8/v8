@@ -123,7 +123,7 @@ void FullCodeGenerator::Generate() {
     __ j(not_equal, &ok, Label::kNear);
 
     __ mov(ecx, GlobalObjectOperand());
-    __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalProxyOffset));
 
     __ mov(Operand(esp, receiver_offset), ecx);
 

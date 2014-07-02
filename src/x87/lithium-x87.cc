@@ -2185,8 +2185,8 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* object = UseFixed(instr->object(), KeyedLoadIC::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), KeyedLoadIC::NameRegister());
+  LOperand* object = UseFixed(instr->object(), LoadIC::ReceiverRegister());
+  LOperand* key = UseFixed(instr->key(), LoadIC::NameRegister());
 
   LLoadKeyedGeneric* result =
       new(zone()) LLoadKeyedGeneric(context, object, key);

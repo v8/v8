@@ -1166,9 +1166,7 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
   if (shared->strict_mode() == SLOPPY && !shared->native()) {
     Object* recv = args[0];
     ASSERT(!recv->IsNull());
-    if (recv->IsUndefined()) {
-      args[0] = function->context()->global_object()->global_receiver();
-    }
+    if (recv->IsUndefined()) args[0] = function->global_proxy();
   }
 
   Object* raw_holder = TypeCheck(heap, args.length(), &args[0], *fun_data);

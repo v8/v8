@@ -172,12 +172,12 @@ function GlobalEval(x) {
                          'be the global object from which eval originated');
   }
 
-  var global_receiver = %GlobalReceiver(global);
+  var global_proxy = %GlobalProxy(global);
 
   var f = %CompileString(x, false);
   if (!IS_FUNCTION(f)) return f;
 
-  return %_CallFunction(global_receiver, f);
+  return %_CallFunction(global_proxy, f);
 }
 
 
@@ -274,7 +274,7 @@ function ObjectPropertyIsEnumerable(V) {
 function ObjectDefineGetter(name, fun) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalReceiver(global);
+    receiver = %GlobalProxy(global);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
     throw new $TypeError(
@@ -291,7 +291,7 @@ function ObjectDefineGetter(name, fun) {
 function ObjectLookupGetter(name) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalReceiver(global);
+    receiver = %GlobalProxy(global);
   }
   return %LookupAccessor(ToObject(receiver), ToName(name), GETTER);
 }
@@ -300,7 +300,7 @@ function ObjectLookupGetter(name) {
 function ObjectDefineSetter(name, fun) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalReceiver(global);
+    receiver = %GlobalProxy(global);
   }
   if (!IS_SPEC_FUNCTION(fun)) {
     throw new $TypeError(
@@ -317,7 +317,7 @@ function ObjectDefineSetter(name, fun) {
 function ObjectLookupSetter(name) {
   var receiver = this;
   if (receiver == null && !IS_UNDETECTABLE(receiver)) {
-    receiver = %GlobalReceiver(global);
+    receiver = %GlobalProxy(global);
   }
   return %LookupAccessor(ToObject(receiver), ToName(name), SETTER);
 }
@@ -1831,12 +1831,12 @@ function NewFunctionString(arguments, function_token) {
 
 function FunctionConstructor(arg1) {  // length == 1
   var source = NewFunctionString(arguments, 'function');
-  var global_receiver = %GlobalReceiver(global);
+  var global_proxy = %GlobalProxy(global);
   // Compile the string in the constructor and not a helper so that errors
   // appear to come from here.
   var f = %CompileString(source, true);
   if (!IS_FUNCTION(f)) return f;
-  f = %_CallFunction(global_receiver, f);
+  f = %_CallFunction(global_proxy, f);
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return f;
 }

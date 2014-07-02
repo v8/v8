@@ -1008,7 +1008,7 @@ Handle<Object> Factory::NewNumber(double value,
   // We need to distinguish the minus zero value and this cannot be
   // done after conversion to int. Doing this by comparing bit
   // patterns is faster than using fpclassify() et al.
-  if (IsMinusZero(value)) return NewHeapNumber(-0.0, pretenure);
+  if (IsMinusZero(value)) return NewHeapNumber(-0.0, IMMUTABLE, pretenure);
 
   int int_value = FastD2I(value);
   if (value == int_value && Smi::IsValid(int_value)) {
@@ -1016,15 +1016,15 @@ Handle<Object> Factory::NewNumber(double value,
   }
 
   // Materialize the value in the heap.
-  return NewHeapNumber(value, pretenure);
+  return NewHeapNumber(value, IMMUTABLE, pretenure);
 }
 
 
 Handle<Object> Factory::NewNumberFromInt(int32_t value,
                                          PretenureFlag pretenure) {
   if (Smi::IsValid(value)) return handle(Smi::FromInt(value), isolate());
-  // Bypass NumberFromDouble to avoid various redundant checks.
-  return NewHeapNumber(FastI2D(value), pretenure);
+  // Bypass NewNumber to avoid various redundant checks.
+  return NewHeapNumber(FastI2D(value), IMMUTABLE, pretenure);
 }
 
 
@@ -1034,15 +1034,17 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
   if (int32v >= 0 && Smi::IsValid(int32v)) {
     return handle(Smi::FromInt(int32v), isolate());
   }
-  return NewHeapNumber(FastUI2D(value), pretenure);
+  return NewHeapNumber(FastUI2D(value), IMMUTABLE, pretenure);
 }
 
 
 Handle<HeapNumber> Factory::NewHeapNumber(double value,
+                                          MutableMode mode,
                                           PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateHeapNumber(value, pretenure), HeapNumber);
+      isolate()->heap()->AllocateHeapNumber(value, mode, pretenure),
+      HeapNumber);
 }
 
 
@@ -1244,7 +1246,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
 Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         Handle<String> name,
                                         MaybeHandle<Code> code) {
-  Handle<Context> context(isolate()->context()->native_context());
+  Handle<Context> context(isolate()->native_context());
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name, code);
   ASSERT((info->strict_mode() == SLOPPY) &&
          (map.is_identical_to(isolate()->sloppy_function_map()) ||
@@ -1687,7 +1689,7 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
   Handle<JSFunction> array_buffer_fun(
-      isolate()->context()->native_context()->array_buffer_fun());
+      isolate()->native_context()->array_buffer_fun());
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*array_buffer_fun),
@@ -1697,7 +1699,7 @@ Handle<JSArrayBuffer> Factory::NewJSArrayBuffer() {
 
 Handle<JSDataView> Factory::NewJSDataView() {
   Handle<JSFunction> data_view_fun(
-      isolate()->context()->native_context()->data_view_fun());
+      isolate()->native_context()->data_view_fun());
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObject(*data_view_fun),
@@ -1821,7 +1823,7 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
   if (type == JS_FUNCTION_TYPE) {
     map->set_function_with_prototype(true);
     Handle<JSFunction> js_function = Handle<JSFunction>::cast(object);
-    Handle<Context> context(isolate()->context()->native_context());
+    Handle<Context> context(isolate()->native_context());
     InitializeFunction(js_function, shared.ToHandleChecked(), context);
   }
 }
@@ -2117,15 +2119,15 @@ Handle<JSFunction> Factory::CreateApiFunction(
     int instance_size = kPointerSize * internal_field_count;
     InstanceType type;
     switch (instance_type) {
-      case JavaScriptObject:
+      case JavaScriptObjectType:
         type = JS_OBJECT_TYPE;
         instance_size += JSObject::kHeaderSize;
         break;
-      case InnerGlobalObject:
+      case GlobalObjectType:
         type = JS_GLOBAL_OBJECT_TYPE;
         instance_size += JSGlobalObject::kSize;
         break;
-      case OuterGlobalObject:
+      case GlobalProxyType:
         type = JS_GLOBAL_PROXY_TYPE;
         instance_size += JSGlobalProxy::kSize;
         break;

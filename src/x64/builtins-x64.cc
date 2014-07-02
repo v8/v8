@@ -828,7 +828,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   // 3a. Patch the first argument if necessary when calling a function.
   Label shift_arguments;
   __ Set(rdx, 0);  // indicate regular JS_FUNCTION
-  { Label convert_to_object, use_global_receiver, patch_receiver;
+  { Label convert_to_object, use_global_proxy, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
@@ -849,9 +849,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ JumpIfSmi(rbx, &convert_to_object, Label::kNear);
 
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
-    __ j(equal, &use_global_receiver);
+    __ j(equal, &use_global_proxy);
     __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
-    __ j(equal, &use_global_receiver);
+    __ j(equal, &use_global_proxy);
 
     STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
     __ CmpObjectType(rbx, FIRST_SPEC_OBJECT_TYPE, rcx);
@@ -877,10 +877,10 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ movp(rdi, args.GetReceiverOperand());
     __ jmp(&patch_receiver, Label::kNear);
 
-    __ bind(&use_global_receiver);
+    __ bind(&use_global_proxy);
     __ movp(rbx,
             Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalProxyOffset));
 
     __ bind(&patch_receiver);
     __ movp(args.GetArgumentOperand(1), rbx);
@@ -1024,7 +1024,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
     // Do not transform the receiver for strict mode functions.
-    Label call_to_object, use_global_receiver;
+    Label call_to_object, use_global_proxy;
     __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
              Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
@@ -1038,9 +1038,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Compute the receiver in sloppy mode.
     __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
     __ CompareRoot(rbx, Heap::kNullValueRootIndex);
-    __ j(equal, &use_global_receiver);
+    __ j(equal, &use_global_proxy);
     __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
-    __ j(equal, &use_global_receiver);
+    __ j(equal, &use_global_proxy);
 
     // If given receiver is already a JavaScript object then there's no
     // reason for converting it.
@@ -1055,10 +1055,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movp(rbx, rax);
     __ jmp(&push_receiver, Label::kNear);
 
-    __ bind(&use_global_receiver);
+    __ bind(&use_global_proxy);
     __ movp(rbx,
             Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+    __ movp(rbx, FieldOperand(rbx, GlobalObject::kGlobalProxyOffset));
 
     // Push the receiver.
     __ bind(&push_receiver);

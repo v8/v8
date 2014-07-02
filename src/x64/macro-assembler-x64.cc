@@ -4593,12 +4593,17 @@ void MacroAssembler::UndoAllocationInNewSpace(Register object) {
 
 void MacroAssembler::AllocateHeapNumber(Register result,
                                         Register scratch,
-                                        Label* gc_required) {
+                                        Label* gc_required,
+                                        MutableMode mode) {
   // Allocate heap number in new space.
   Allocate(HeapNumber::kSize, result, scratch, no_reg, gc_required, TAG_OBJECT);
 
+  Heap::RootListIndex map_index = mode == MUTABLE
+      ? Heap::kMutableHeapNumberMapRootIndex
+      : Heap::kHeapNumberMapRootIndex;
+
   // Set the map.
-  LoadRoot(kScratchRegister, Heap::kHeapNumberMapRootIndex);
+  LoadRoot(kScratchRegister, map_index);
   movp(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 

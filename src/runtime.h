@@ -221,7 +221,7 @@ namespace internal {
   F(CompileString, 2, 1) \
   \
   /* Eval */ \
-  F(GlobalReceiver, 1, 1) \
+  F(GlobalProxy, 1, 1) \
   F(IsAttachedGlobal, 1, 1) \
   \
   F(AddProperty, 4, 1) \

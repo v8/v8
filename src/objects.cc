@@ -1540,6 +1540,11 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       HeapNumber::cast(this)->HeapNumberPrint(accumulator);
       accumulator->Put('>');
       break;
+    case MUTABLE_HEAP_NUMBER_TYPE:
+      accumulator->Add("<MutableNumber: ");
+      HeapNumber::cast(this)->HeapNumberPrint(accumulator);
+      accumulator->Put('>');
+      break;
     case JS_PROXY_TYPE:
       accumulator->Add("<JSProxy>");
       break;
@@ -1665,6 +1670,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
 
     case HEAP_NUMBER_TYPE:
+    case MUTABLE_HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
@@ -1706,7 +1712,7 @@ bool HeapNumber::HeapNumberBooleanValue() {
 
 
 void HeapNumber::HeapNumberPrint(FILE* out) {
-  PrintF(out, "%.16g", Number());
+  PrintF(out, "%.16g", value());
 }
 
 
@@ -1718,7 +1724,7 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
   // print that using vsnprintf (which may truncate but never allocate if
   // there is no more space in the buffer).
   EmbeddedVector<char, 100> buffer;
-  SNPrintF(buffer, "%.16g", Number());
+  SNPrintF(buffer, "%.16g", value());
   accumulator->Add("%s", buffer.start());
 }
 
@@ -2070,8 +2076,8 @@ bool Map::InstancesNeedRewriting(Map* target,
   DescriptorArray* new_desc = target->instance_descriptors();
   int limit = NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
-    if (new_desc->GetDetails(i).representation().IsDouble() &&
-        !old_desc->GetDetails(i).representation().IsDouble()) {
+    if (new_desc->GetDetails(i).representation().IsDouble() !=
+        old_desc->GetDetails(i).representation().IsDouble()) {
       return true;
     }
   }
@@ -2168,7 +2174,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     PropertyDetails details = new_map->GetLastDescriptorDetails();
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0);
+      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -2216,6 +2222,9 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         value = handle(Smi::FromInt(0), isolate);
       }
       value = Object::NewStorageFor(isolate, value, details.representation());
+    } else if (old_details.representation().IsDouble() &&
+               !details.representation().IsDouble()) {
+      value = Object::WrapForRead(isolate, value, old_details.representation());
     }
     ASSERT(!(details.representation().IsDouble() && value->IsSmi()));
     int target_index = new_descriptors->GetFieldIndex(i) - inobject;
@@ -2228,7 +2237,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     if (details.type() != FIELD) continue;
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0);
+      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3975,6 +3984,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
     // Nothing more to be done.
     if (value->IsUninitialized()) return;
     HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
+    ASSERT(box->IsMutableHeapNumber());
     box->set_value(value->Number());
   } else {
     FastPropertyAtPut(index, value);
@@ -4644,6 +4654,11 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         FieldIndex index = FieldIndex::ForDescriptor(*map, i);
         Handle<Object> value(
             object->RawFastPropertyAt(index), isolate);
+        if (details.representation().IsDouble()) {
+          ASSERT(value->IsMutableHeapNumber());
+          Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
+          value = isolate->factory()->NewHeapNumber(old->value());
+        }
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, i + 1);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
@@ -5664,7 +5679,8 @@ static void FreezeDictionary(Dictionary* dictionary) {
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(k)) {
+    if (dictionary->IsKey(k) &&
+        !(k->IsSymbol() && Symbol::cast(k)->is_private())) {
       PropertyDetails details = dictionary->DetailsAt(i);
       int attrs = DONT_DELETE;
       // READ_ONLY is an invalid attribute for JS setters/getters.
@@ -5811,7 +5827,7 @@ Handle<Object> JSObject::FastPropertyAt(Handle<JSObject> object,
                                         FieldIndex index) {
   Isolate* isolate = object->GetIsolate();
   Handle<Object> raw_value(object->RawFastPropertyAt(index), isolate);
-  return Object::NewStorageFor(isolate, raw_value, representation);
+  return Object::WrapForRead(isolate, raw_value, representation);
 }
 
 
@@ -7002,7 +7018,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
         Object* property =
             RawFastPropertyAt(FieldIndex::ForDescriptor(map(), i));
         if (descs->GetDetails(i).representation().IsDouble()) {
-          ASSERT(property->IsHeapNumber());
+          ASSERT(property->IsMutableHeapNumber());
           if (value->IsNumber() && property->Number() == value->Number()) {
             return descs->GetKey(i);
           }
@@ -7438,17 +7454,20 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
       Object* value = desc->GetValue(i);
+      Name* key = desc->GetKey(i);
       PropertyDetails details = desc->GetDetails(i);
-      int mask = DONT_DELETE | DONT_ENUM;
-      // READ_ONLY is an invalid attribute for JS setters/getters.
-      if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
-        mask |= READ_ONLY;
+      // Bulk attribute changes never affect private properties.
+      if (!key->IsSymbol() || !Symbol::cast(key)->is_private()) {
+        int mask = DONT_DELETE | DONT_ENUM;
+        // READ_ONLY is an invalid attribute for JS setters/getters.
+        if (details.type() != CALLBACKS || !value->IsAccessorPair()) {
+          mask |= READ_ONLY;
+        }
+        details = details.CopyAddAttributes(
+            static_cast<PropertyAttributes>(attributes & mask));
       }
-      details = details.CopyAddAttributes(
-          static_cast<PropertyAttributes>(attributes & mask));
-      Descriptor inner_desc(handle(desc->GetKey(i)),
-                            handle(value, desc->GetIsolate()),
-                            details);
+      Descriptor inner_desc(
+          handle(key), handle(value, desc->GetIsolate()), details);
       descriptors->Set(i, &inner_desc, witness);
     }
   } else {

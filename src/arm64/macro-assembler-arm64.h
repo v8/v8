@@ -531,6 +531,7 @@ class MacroAssembler : public Assembler {
             const CPURegister& src6 = NoReg, const CPURegister& src7 = NoReg);
   void Pop(const CPURegister& dst0, const CPURegister& dst1 = NoReg,
            const CPURegister& dst2 = NoReg, const CPURegister& dst3 = NoReg);
+  void Push(const Register& src0, const FPRegister& src1);
 
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
@@ -1371,7 +1372,8 @@ class MacroAssembler : public Assembler {
                           Register scratch1,
                           Register scratch2,
                           CPURegister value = NoFPReg,
-                          CPURegister heap_number_map = NoReg);
+                          CPURegister heap_number_map = NoReg,
+                          MutableMode mode = IMMUTABLE);
 
   // ---------------------------------------------------------------------------
   // Support functions.

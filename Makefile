@@ -145,13 +145,7 @@ ifneq ($(strip $(asan)),)
   export LINK=$(asan)
   export ASAN_SYMBOLIZER_PATH="$(dir $(asan))llvm-symbolizer"
 endif
-# msan=/path/to/clang++
-ifneq ($(strip $(msan)),)
-  GYPFLAGS += -Dmsan=1 -Dmsan_track_origins=2
-  export CXX=$(msan)
-  export CXX_host=$(msan)
-  export LINK=$(msan)
-endif
+
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)
@@ -208,7 +202,8 @@ ifeq ($(arm_test_noprobe), on)
 endif
 
 # ----------------- available targets: --------------------
-# - "dependencies": pulls in external dependencies (currently: GYP)
+# - "builddeps": pulls in external dependencies for building
+# - "dependencies": pulls in all external dependencies
 # - "grokdump": rebuilds heap constants lists used by grokdump
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
@@ -256,7 +251,7 @@ NACL_CHECKS = $(addsuffix .check,$(NACL_BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean dependencies $(ENVFILE).new native \
+.PHONY: all check clean builddeps dependencies $(ENVFILE).new native \
         qc quickcheck $(QUICKCHECKS) \
         $(addsuffix .quickcheck,$(MODES)) $(addsuffix .quickcheck,$(ARCHES)) \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
@@ -467,13 +462,16 @@ GPATH GRTAGS GSYMS GTAGS: gtags.files $(shell cat gtags.files 2> /dev/null)
 gtags.clean:
 	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
 
-# Dependencies.
+# Dependencies. "builddeps" are dependencies required solely for building,
+# "dependencies" includes also dependencies required for development.
 # Remember to keep these in sync with the DEPS file.
-dependencies:
+builddeps:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
 	    --revision 1831
 	svn checkout --force \
 	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
 	    third_party/icu --revision 258359
+
+dependencies: builddeps
 	# The spec is a copy of the hooks in v8's DEPS file.
 	gclient sync -r fb782d4369d5ae04f17a2fceef7de5a63e50f07b --spec="solutions = [{u'managed': False, u'name': u'buildtools', u'url': u'https://chromium.googlesource.com/chromium/buildtools.git', u'custom_deps': {}, u'custom_hooks': [{u'name': u'clang_format_win',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=win32',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/win/clang-format.exe.sha1']},{u'name': u'clang_format_mac',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=darwin',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/mac/clang-format.sha1']},{u'name': u'clang_format_linux',u'pattern': u'.',u'action': [u'download_from_google_storage',u'--no_resume',u'--platform=linux*',u'--no_auth',u'--bucket',u'chromium-clang-format',u'-s',u'buildtools/linux64/clang-format.sha1']}],u'deps_file': u'.DEPS.git', u'safesync_url': u''}]"

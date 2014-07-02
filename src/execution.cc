@@ -70,8 +70,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
   // receiver instead to avoid having a 'this' pointer which refers
   // directly to a global object.
   if (receiver->IsGlobalObject()) {
-    Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-    receiver = Handle<JSObject>(global->global_receiver());
+    receiver = handle(Handle<GlobalObject>::cast(receiver)->global_proxy());
   }
 
   // Make sure that the global object of the context we're about to
@@ -133,13 +132,8 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate,
       !func->shared()->native() &&
       func->shared()->strict_mode() == SLOPPY) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
-      Object* global = func->context()->global_object()->global_receiver();
-      // Under some circumstances, 'global' can be the JSBuiltinsObject
-      // In that case, don't rewrite.  (FWIW, the same holds for
-      // GetIsolate()->global_object()->global_receiver().)
-      if (!global->IsJSBuiltinsObject()) {
-        receiver = Handle<Object>(global, func->GetIsolate());
-      }
+      receiver = handle(func->global_proxy());
+      ASSERT(!receiver->IsJSBuiltinsObject());
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, receiver, ToObject(isolate, receiver), Object);
@@ -153,7 +147,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate,
 MaybeHandle<Object> Execution::New(Handle<JSFunction> func,
                                    int argc,
                                    Handle<Object> argv[]) {
-  return Invoke(true, func, func->GetIsolate()->global_object(), argc, argv);
+  return Invoke(true, func, handle(func->global_proxy()), argc, argv);
 }
 
 

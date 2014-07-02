@@ -1950,6 +1950,19 @@ class ScavengingVisitor : public StaticVisitorBase {
                                    HeapObject* source,
                                    HeapObject* target,
                                    int size)) {
+    // If we migrate into to-space, then the to-space top pointer should be
+    // right after the target object. Incorporate double alignment
+    // over-allocation.
+    ASSERT(!heap->InToSpace(target) ||
+        target->address() + size == heap->new_space()->top() ||
+        target->address() + size + kPointerSize == heap->new_space()->top());
+
+    // Make sure that we do not overwrite the promotion queue which is at
+    // the end of to-space.
+    ASSERT(!heap->InToSpace(target) ||
+        heap->promotion_queue()->IsBelowPromotionQueue(
+            heap->new_space()->top()));
+
     // Copy the content of source to target.
     heap->CopyBlock(target->address(), source->address(), size);
 
@@ -2528,6 +2541,8 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number)
+    ALLOCATE_MAP(
+        MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize, mutable_heap_number)
     ALLOCATE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol)
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
@@ -2652,6 +2667,7 @@ bool Heap::CreateInitialMaps() {
 
 
 AllocationResult Heap::AllocateHeapNumber(double value,
+                                          MutableMode mode,
                                           PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
@@ -2665,7 +2681,8 @@ AllocationResult Heap::AllocateHeapNumber(double value,
     if (!allocation.To(&result)) return allocation;
   }
 
-  result->set_map_no_write_barrier(heap_number_map());
+  Map* map = mode == MUTABLE ? mutable_heap_number_map() : heap_number_map();
+  HeapObject::cast(result)->set_map_no_write_barrier(map);
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -2771,12 +2788,13 @@ void Heap::CreateInitialObjects() {
   HandleScope scope(isolate());
   Factory* factory = isolate()->factory();
 
-  // The -0 value must be set before NumberFromDouble works.
-  set_minus_zero_value(*factory->NewHeapNumber(-0.0, TENURED));
+  // The -0 value must be set before NewNumber works.
+  set_minus_zero_value(*factory->NewHeapNumber(-0.0, IMMUTABLE, TENURED));
   ASSERT(std::signbit(minus_zero_value()->Number()) != 0);
 
-  set_nan_value(*factory->NewHeapNumber(base::OS::nan_value(), TENURED));
-  set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, TENURED));
+  set_nan_value(
+      *factory->NewHeapNumber(base::OS::nan_value(), IMMUTABLE, TENURED));
+  set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED));
 
   // The hole has not been created yet, but we want to put something
   // predictable in the gaps in the string table, so lets make that Smi zero.

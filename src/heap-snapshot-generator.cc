@@ -1216,8 +1216,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
                          "global_context", global_obj->global_context(),
                          GlobalObject::kGlobalContextOffset);
     SetInternalReference(global_obj, entry,
-                         "global_receiver", global_obj->global_receiver(),
-                         GlobalObject::kGlobalReceiverOffset);
+                         "global_proxy", global_obj->global_proxy(),
+                         GlobalObject::kGlobalProxyOffset);
     STATIC_ASSERT(GlobalObject::kHeaderSize - JSObject::kHeaderSize ==
                  4 * kPointerSize);
   } else if (obj->IsJSArrayBufferView()) {
@@ -1641,6 +1641,8 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
     for (int i = 0; i < real_size; i++) {
       switch (descs->GetType(i)) {
         case FIELD: {
+          Representation r = descs->GetDetails(i).representation();
+          if (r.IsSmi() || r.IsDouble()) break;
           int index = descs->GetFieldIndex(i);
 
           Name* k = descs->GetKey(i);

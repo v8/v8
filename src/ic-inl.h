@@ -153,7 +153,7 @@ Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
                                    HeapType* type,
                                    Isolate* isolate) {
   if (flag == PROTOTYPE_MAP) {
-    Context* context = isolate->context()->native_context();
+    Context* context = *isolate->native_context();
     JSFunction* constructor;
     if (type->Is(HeapType::Boolean())) {
       constructor = context->boolean_function();

@@ -426,8 +426,9 @@ void StoreStubCompiler::GenerateStoreTransition(MacroAssembler* masm,
     }
   } else if (representation.IsDouble()) {
     Label do_store, heap_number;
-    __ LoadRoot(scratch3, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow);
+    __ LoadRoot(scratch3, Heap::kMutableHeapNumberMapRootIndex);
+    __ AllocateHeapNumber(storage_reg, scratch1, scratch2, scratch3, slow,
+                          TAG_RESULT, MUTABLE);
 
     __ JumpIfNotSmi(value_reg, &heap_number);
     __ SmiUntag(scratch1, value_reg);
@@ -1203,8 +1204,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ ldr(receiver,
-               FieldMemOperand(
-                   receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ Push(receiver, value());
       ParameterCount actual(1);
@@ -1319,8 +1319,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ ldr(receiver,
-                FieldMemOperand(
-                    receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ push(receiver);
       ParameterCount actual(0);

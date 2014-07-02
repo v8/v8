@@ -2116,8 +2116,7 @@ static Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name) {
 RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
-  Handle<GlobalObject> global = Handle<GlobalObject>(
-      isolate->context()->global_object());
+  Handle<GlobalObject> global(isolate->global_object());
 
   CONVERT_ARG_HANDLE_CHECKED(Context, context, 0);
   CONVERT_ARG_HANDLE_CHECKED(FixedArray, pairs, 1);
@@ -2739,9 +2738,7 @@ RUNTIME_FUNCTION(Runtime_GetDefaultReceiver) {
   // Returns undefined for strict or native functions, or
   // the associated global receiver for "normal" functions.
 
-  Context* native_context =
-      function->context()->global_object()->native_context();
-  return native_context->global_object()->global_receiver();
+  return function->global_proxy();
 }
 
 
@@ -8278,7 +8275,7 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
       // instead of a new JSFunction object. This way, errors are
       // reported the same way whether or not 'Function' is called
       // using 'new'.
-      return isolate->context()->global_proxy();
+      return isolate->global_proxy();
     }
   }
 
@@ -8952,7 +8949,7 @@ RUNTIME_FUNCTION(Runtime_PushWithContext) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = handle(isolate->context()->native_context()->closure());
+    function = handle(isolate->native_context()->closure());
   } else {
     function = args.at<JSFunction>(1);
   }
@@ -8975,7 +8972,7 @@ RUNTIME_FUNCTION(Runtime_PushCatchContext) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = handle(isolate->context()->native_context()->closure());
+    function = handle(isolate->native_context()->closure());
   } else {
     function = args.at<JSFunction>(2);
   }
@@ -8996,7 +8993,7 @@ RUNTIME_FUNCTION(Runtime_PushBlockContext) {
     // A smi sentinel indicates a context nested inside global code rather
     // than some function.  There is a canonical empty function that can be
     // gotten from the native context.
-    function = handle(isolate->context()->native_context()->closure());
+    function = handle(isolate->native_context()->closure());
   } else {
     function = args.at<JSFunction>(1);
   }
@@ -9682,12 +9679,12 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GlobalReceiver) {
+RUNTIME_FUNCTION(Runtime_GlobalProxy) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, global, 0);
   if (!global->IsJSGlobalObject()) return isolate->heap()->null_value();
-  return JSGlobalObject::cast(global)->global_receiver();
+  return JSGlobalObject::cast(global)->global_proxy();
 }
 
 
@@ -9794,7 +9791,7 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
   CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
 
   // Extract native context.
-  Handle<Context> context(isolate->context()->native_context());
+  Handle<Context> context(isolate->native_context());
 
   // Filter cross security context calls.
   if (!TokensMatchForCompileString(isolate)) {
@@ -11397,8 +11394,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // native context.
     it.Advance();
     if (receiver->IsUndefined()) {
-      Context* context = function->context();
-      receiver = handle(context->global_object()->global_receiver());
+      receiver = handle(function->global_proxy());
     } else {
       ASSERT(!receiver->IsNull());
       Context* context = Context::cast(it.frame()->context());
@@ -12969,7 +12965,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
   // Get the native context now set to the top context from before the
   // debugger was invoked.
   Handle<Context> context = isolate->native_context();
-  Handle<Object> receiver = isolate->global_object();
+  Handle<JSObject> receiver(context->global_proxy());
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -13095,7 +13091,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 
   // Get the constructor function for context extension and arguments array.
   Handle<JSObject> arguments_boilerplate(
-      isolate->context()->native_context()->sloppy_arguments_boilerplate());
+      isolate->sloppy_arguments_boilerplate());
   Handle<JSFunction> arguments_function(
       JSFunction::cast(arguments_boilerplate->map()->constructor()));
 
@@ -13124,8 +13120,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   }
 
   // Return result as JS array.
-  Handle<JSFunction> constructor(
-      isolate->context()->native_context()->array_function());
+  Handle<JSFunction> constructor = isolate->array_function();
 
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
   JSArray::SetContent(Handle<JSArray>::cast(result), instances);
@@ -13207,8 +13202,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   }
 
   // Return result as JS array.
-  Handle<JSFunction> array_function(
-      isolate->context()->native_context()->array_function());
+  Handle<JSFunction> array_function = isolate->array_function();
   Handle<JSObject> result = isolate->factory()->NewJSObject(array_function);
   JSArray::SetContent(Handle<JSArray>::cast(result), instances);
   return *result;
@@ -13621,14 +13615,14 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
   if (without_debugger) {
     maybe_result = Execution::Call(isolate,
                                    function,
-                                   isolate->global_object(),
+                                   handle(function->global_proxy()),
                                    0,
                                    NULL);
   } else {
     DebugScope debug_scope(isolate->debug());
     maybe_result = Execution::Call(isolate,
                                    function,
-                                   isolate->global_object(),
+                                   handle(function->global_proxy()),
                                    0,
                                    NULL);
   }
@@ -14548,8 +14542,8 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
                    object->properties()->length());
   }
   Handle<Object> raw_value(object->RawFastPropertyAt(field_index), isolate);
-  RUNTIME_ASSERT(raw_value->IsNumber() || raw_value->IsUninitialized());
-  return *Object::NewStorageFor(isolate, raw_value, Representation::Double());
+  RUNTIME_ASSERT(raw_value->IsMutableHeapNumber());
+  return *Object::WrapForRead(isolate, raw_value, Representation::Double());
 }
 
 
@@ -14617,8 +14611,7 @@ RUNTIME_FUNCTION(Runtime_GetFromCache) {
     Handle<JSFunction> factory(JSFunction::cast(
           cache_handle->get(JSFunctionResultCache::kFactoryIndex)));
     // TODO(antonm): consider passing a receiver when constructing a cache.
-    Handle<Object> receiver(isolate->native_context()->global_object(),
-                            isolate);
+    Handle<JSObject> receiver(isolate->global_proxy());
     // This handle is nor shared, nor used later, so it's safe.
     Handle<Object> argv[] = { key_handle };
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -14869,8 +14862,7 @@ RUNTIME_FUNCTION(Runtime_ObserverObjectAndRecordHaveSameOrigin) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, record, 2);
 
-  Handle<Context> observer_context(observer->context()->native_context(),
-      isolate);
+  Handle<Context> observer_context(observer->context()->native_context());
   Handle<Context> object_context(object->GetCreationContext());
   Handle<Context> record_context(record->GetCreationContext());
 

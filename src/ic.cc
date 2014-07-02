@@ -1852,7 +1852,7 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
 
   // Are we the array function?
   Handle<JSFunction> array_function = Handle<JSFunction>(
-      isolate()->context()->native_context()->array_function(), isolate());
+      isolate()->native_context()->array_function());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
     Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();

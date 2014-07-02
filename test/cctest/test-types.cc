@@ -180,7 +180,7 @@ class Types {
     NumberFunction2 = Type::Function(Number, Number, Number, region);
     MethodFunction = Type::Function(String, Object, 0, region);
 
-    for (int i = 0; i < 50; ++i) {
+    for (int i = 0; i < 40; ++i) {
       types.push_back(Fuzz());
     }
   }

@@ -648,7 +648,7 @@ class Isolate {
   }
 
   // Returns the global proxy object of the current context.
-  Object* global_proxy() {
+  JSObject* global_proxy() {
     return context()->global_proxy();
   }
 
@@ -815,10 +815,10 @@ class Isolate {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
   Handle<type> name() {                                             \
-    return Handle<type>(context()->native_context()->name(), this); \
+    return Handle<type>(native_context()->name(), this);            \
   }                                                                 \
   bool is_##name(type* value) {                                     \
-    return context()->native_context()->is_##name(value);           \
+    return native_context()->is_##name(value);                      \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR

@@ -1,3 +1,12 @@
+2014-07-02: Version 3.28.9
+
+        Make freeze & friends ignore private properties (issue 3419).
+
+        Introduce a builddeps make target (issue 3418).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-01: Version 3.28.8
 
         Remove static initializer from isolate.
