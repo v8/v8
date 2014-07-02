@@ -3887,12 +3887,13 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
 
 void Parser::HandleSourceURLComments() {
   if (scanner_.source_url()->length() > 0) {
-    info_->script()->set_source_url(
-        *scanner_.source_url()->Internalize(isolate()));
+    Handle<String> source_url = scanner_.source_url()->Internalize(isolate());
+    info_->script()->set_source_url(*source_url);
   }
   if (scanner_.source_mapping_url()->length() > 0) {
-    info_->script()->set_source_mapping_url(
-        *scanner_.source_mapping_url()->Internalize(isolate()));
+    Handle<String> source_mapping_url =
+        scanner_.source_mapping_url()->Internalize(isolate());
+    info_->script()->set_source_mapping_url(*source_mapping_url);
   }
 }
 
