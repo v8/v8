@@ -138,6 +138,7 @@ static void SuggestTestHarness(int tests) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  i::Isolate::SetCrashIfDefaultIsolateInitialized();
 
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
 
