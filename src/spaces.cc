@@ -67,7 +67,7 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
                                     HeapObjectIterator::PageMode mode,
                                     HeapObjectCallback size_f) {
   // Check that we actually can iterate this space.
-  ASSERT(!space->was_swept_conservatively());
+  ASSERT(space->is_iterable());
 
   space_ = space;
   cur_addr_ = cur;
@@ -935,7 +935,8 @@ PagedSpace::PagedSpace(Heap* heap,
                        Executability executable)
     : Space(heap, id, executable),
       free_list_(this),
-      was_swept_conservatively_(false),
+      is_iterable_(true),
+      is_swept_concurrently_(false),
       unswept_free_bytes_(0),
       end_of_unswept_pages_(NULL) {
   if (id == CODE_SPACE) {
@@ -1157,7 +1158,7 @@ void PagedSpace::Print() { }
 #ifdef VERIFY_HEAP
 void PagedSpace::Verify(ObjectVisitor* visitor) {
   // We can only iterate over the pages if they were swept precisely.
-  if (was_swept_conservatively_) return;
+  if (!is_iterable_) return;
 
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
@@ -2546,8 +2547,8 @@ void PagedSpace::PrepareForMarkCompact() {
 
 
 intptr_t PagedSpace::SizeOfObjects() {
-  ASSERT(heap()->mark_compact_collector()->IsConcurrentSweepingInProgress() ||
-         (unswept_free_bytes_ == 0));
+  ASSERT(heap()->mark_compact_collector()->
+      IsConcurrentSweepingInProgress(this) || (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
 }
 
@@ -2582,7 +2583,7 @@ HeapObject* PagedSpace::WaitForSweeperThreadsAndRetryAllocation(
   MarkCompactCollector* collector = heap()->mark_compact_collector();
 
   // If sweeper threads are still running, wait for them.
-  if (collector->IsConcurrentSweepingInProgress()) {
+  if (collector->IsConcurrentSweepingInProgress(this)) {
     collector->WaitUntilSweepingCompleted();
 
     // After waiting for the sweeper threads, there may be new free-list
@@ -2598,7 +2599,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // If sweeper threads are active, try to re-fill the free-lists.
   MarkCompactCollector* collector = heap()->mark_compact_collector();
-  if (collector->IsConcurrentSweepingInProgress()) {
+  if (collector->IsConcurrentSweepingInProgress(this)) {
     collector->RefillFreeList(this);
 
     // Retry the free list allocation.
@@ -2762,7 +2763,7 @@ void PagedSpace::ReportStatistics() {
              ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
-  if (was_swept_conservatively_) return;
+  if (!is_iterable_) return;
   ClearHistograms(heap()->isolate());
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())
