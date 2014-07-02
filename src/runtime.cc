@@ -5092,12 +5092,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
-            js_object, name, obj_value, attr,
-            Object::OPTIMAL_REPRESENTATION,
-            ALLOW_AS_CONSTANT,
-            JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-            JSReceiver::MAY_BE_STORE_FROM_KEYED,
-            JSObject::DONT_FORCE_FIELD));
+            js_object, name, obj_value, attr));
     return *result;
   }
 

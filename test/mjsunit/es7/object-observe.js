@@ -1136,7 +1136,8 @@ var objects = [
 //  createProxy(Proxy.create, null),
 //  createProxy(Proxy.createFunction, function(){}),
 ];
-var properties = ["a", "1", 1, "length", "setPrototype", "name", "caller"];
+var properties = ["a", "1", 1, "length", "setPrototype",
+                  "name", "caller", "prototype"];
 
 // Cases that yield non-standard results.
 function blacklisted(obj, prop) {
