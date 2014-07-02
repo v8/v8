@@ -1256,16 +1256,16 @@ Register* LoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
   Register receiver = LoadIC::ReceiverRegister();
   Register name = LoadIC::NameRegister();
-  static Register registers[] = { receiver, name, a3, a1, t0, t1 };
+  static Register registers[] = { receiver, name, a3, a0, t0, t1 };
   return registers;
 }
 
 
 Register* KeyedLoadStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = KeyedLoadIC::ReceiverRegister();
-  Register name = KeyedLoadIC::NameRegister();
-  static Register registers[] = { receiver, name, a2, a3, t0, t1 };
+  Register receiver = LoadIC::ReceiverRegister();
+  Register name = LoadIC::NameRegister();
+  static Register registers[] = { receiver, name, a3, a0, t0, t1 };
   return registers;
 }
 
@@ -1466,45 +1466,30 @@ Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
 
 void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
     MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- ra     : return address
-  //  -- a0     : key
-  //  -- a1     : receiver
-  // -----------------------------------
-  ASSERT(a1.is(KeyedLoadIC::ReceiverRegister()));
-  ASSERT(a0.is(KeyedLoadIC::NameRegister()));
+  // The return address is in ra.
   Label slow, miss;
 
-  Register key = a0;
-  Register receiver = a1;
+  Register key = LoadIC::NameRegister();
+  Register receiver = LoadIC::ReceiverRegister();
+  ASSERT(receiver.is(a1));
+  ASSERT(key.is(a2));
 
-  __ JumpIfNotSmi(key, &miss);
+  __ UntagAndJumpIfNotSmi(t2, key, &miss);
   __ lw(t0, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ sra(a2, a0, kSmiTagSize);
-  __ LoadFromNumberDictionary(&slow, t0, a0, v0, a2, a3, t1);
+  __ LoadFromNumberDictionary(&slow, t0, key, v0, t2, a3, t1);
   __ Ret();
 
-  // Slow case, key and receiver still in a0 and a1.
+  // Slow case, key and receiver still unmodified.
   __ bind(&slow);
   __ IncrementCounter(
       masm->isolate()->counters()->keyed_load_external_array_slow(),
       1, a2, a3);
-  // Entry registers are intact.
-  // ---------- S t a t e --------------
-  //  -- ra     : return address
-  //  -- a0     : key
-  //  -- a1     : receiver
-  // -----------------------------------
+
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
 
   // Miss case, call the runtime.
   __ bind(&miss);
 
-  // ---------- S t a t e --------------
-  //  -- ra     : return address
-  //  -- a0     : key
-  //  -- a1     : receiver
-  // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
