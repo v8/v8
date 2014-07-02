@@ -560,44 +560,16 @@ function ScriptNameOrSourceURL() {
   if (this.line_offset > 0 || this.column_offset > 0) {
     return this.name;
   }
-
-  // The result is cached as on long scripts it takes noticable time to search
-  // for the sourceURL.
-  if (this.hasCachedNameOrSourceURL) {
-    return this.cachedNameOrSourceURL;
+  if (this.source_url) {
+    return this.source_url;
   }
-  this.hasCachedNameOrSourceURL = true;
-
-  // TODO(608): the spaces in a regexp below had to be escaped as \040
-  // because this file is being processed by js2c whose handling of spaces
-  // in regexps is broken. Also, ['"] are excluded from allowed URLs to
-  // avoid matches against sources that invoke evals with sourceURL.
-  // A better solution would be to detect these special comments in
-  // the scanner/parser.
-  var source = ToString(this.source);
-  var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
-  this.cachedNameOrSourceURL = this.name;
-  if (sourceUrlPos > 4) {
-    var sourceUrlPattern =
-        /\/\/[#@][\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
-    // Don't reuse lastMatchInfo here, so we create a new array with room
-    // for four captures (array with length one longer than the index
-    // of the fourth capture, where the numbering is zero-based).
-    var matchInfo = new InternalArray(CAPTURE(3) + 1);
-    var match =
-        %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
-    if (match) {
-      this.cachedNameOrSourceURL =
-          %_SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
-    }
-  }
-  return this.cachedNameOrSourceURL;
+  return this.name;
 }
 
 
 SetUpLockedPrototype(Script,
-  $Array("source", "name", "line_ends", "line_offset", "column_offset",
-         "cachedNameOrSourceURL", "hasCachedNameOrSourceURL" ),
+  $Array("source", "name", "source_url", "source_mapping_url", "line_ends",
+         "line_offset", "column_offset"),
   $Array(
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,

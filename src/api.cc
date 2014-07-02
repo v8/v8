@@ -1633,6 +1633,38 @@ Handle<Value> UnboundScript::GetScriptName() {
 }
 
 
+Handle<Value> UnboundScript::GetSourceURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
+  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceURL()",
+             return Handle<String>());
+  LOG_API(isolate, "UnboundScript::GetSourceURL");
+  if (obj->script()->IsScript()) {
+    i::Object* url = i::Script::cast(obj->script())->source_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Handle<String>();
+  }
+}
+
+
+Handle<Value> UnboundScript::GetSourceMappingURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
+  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceMappingURL()",
+             return Handle<String>());
+  LOG_API(isolate, "UnboundScript::GetSourceMappingURL");
+  if (obj->script()->IsScript()) {
+    i::Object* url = i::Script::cast(obj->script())->source_mapping_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Handle<String>();
+  }
+}
+
+
 Local<Value> Script::Run() {
   i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
   // If execution is terminating, Compile(..)->Run() requires this

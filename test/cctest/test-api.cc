@@ -22761,3 +22761,85 @@ TEST(CrossActivationEval) {
   Local<Value> result = CompileRun("CallEval();");
   CHECK_EQ(result, v8::Integer::New(isolate, 1));
 }
+
+
+void SourceURLHelper(const char* source, const char* expected_source_url,
+                     const char* expected_source_mapping_url) {
+  Local<Script> script = v8_compile(source);
+  if (expected_source_url != NULL) {
+    v8::String::Utf8Value url(script->GetUnboundScript()->GetSourceURL());
+    CHECK_EQ(expected_source_url, *url);
+  } else {
+    CHECK(script->GetUnboundScript()->GetSourceURL()->IsUndefined());
+  }
+  if (expected_source_mapping_url != NULL) {
+    v8::String::Utf8Value url(
+        script->GetUnboundScript()->GetSourceMappingURL());
+    CHECK_EQ(expected_source_mapping_url, *url);
+  } else {
+    CHECK(script->GetUnboundScript()->GetSourceMappingURL()->IsUndefined());
+  }
+}
+
+
+TEST(ScriptSourceURLAndSourceMappingURL) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar1.js\n", "bar1.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=bar2.js\n", NULL, "bar2.js");
+
+  // Both sourceURL and sourceMappingURL.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar3.js\n"
+                  "//# sourceMappingURL=bar4.js\n", "bar3.js", "bar4.js");
+
+  // Two source URLs; the first one is ignored.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=ignoreme.js\n"
+                  "//# sourceURL=bar5.js\n", "bar5.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=ignoreme.js\n"
+                  "//# sourceMappingURL=bar6.js\n", NULL, "bar6.js");
+
+  // SourceURL or sourceMappingURL in the middle of the script.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar7.js\n"
+                  "function baz() {}\n", "bar7.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=bar8.js\n"
+                  "function baz() {}\n", NULL, "bar8.js");
+
+  // Too much whitespace.
+  SourceURLHelper("function foo() {}\n"
+                  "//#  sourceURL=bar9.js\n"
+                  "//#  sourceMappingURL=bar10.js\n", NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL =bar11.js\n"
+                  "//# sourceMappingURL =bar12.js\n", NULL, NULL);
+
+  // Disallowed characters in value.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar13 .js   \n"
+                  "//# sourceMappingURL=bar14 .js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar15\t.js   \n"
+                  "//# sourceMappingURL=bar16\t.js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar17'.js   \n"
+                  "//# sourceMappingURL=bar18'.js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar19\".js   \n"
+                  "//# sourceMappingURL=bar20\".js \n",
+                  NULL, NULL);
+
+  // Not too much whitespace.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=  bar21.js   \n"
+                  "//# sourceMappingURL=  bar22.js \n", "bar21.js", "bar22.js");
+}

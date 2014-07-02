@@ -5263,6 +5263,8 @@ ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
 ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
 BOOL_ACCESSORS(Script, flags, is_shared_cross_origin, kIsSharedCrossOriginBit)
+ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
+ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 
 Script::CompilationType Script::compilation_type() {
   return BooleanBit::get(flags(), kCompilationTypeBit) ?

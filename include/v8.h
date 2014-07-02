@@ -947,6 +947,15 @@ class V8_EXPORT UnboundScript {
   Handle<Value> GetScriptName();
 
   /**
+   * Data read from magic sourceURL comments.
+   */
+  Handle<Value> GetSourceURL();
+  /**
+   * Data read from magic sourceMappingURL comments.
+   */
+  Handle<Value> GetSourceMappingURL();
+
+  /**
    * Returns zero based line number of the code_pos location in the script.
    * -1 will be returned if no information available.
    */

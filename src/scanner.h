@@ -216,14 +216,14 @@ class LiteralBuffer {
     position_ += kUC16Size;
   }
 
-  bool is_one_byte() { return is_one_byte_; }
+  bool is_one_byte() const { return is_one_byte_; }
 
-  bool is_contextual_keyword(Vector<const char> keyword) {
+  bool is_contextual_keyword(Vector<const char> keyword) const {
     return is_one_byte() && keyword.length() == position_ &&
         (memcmp(keyword.start(), backing_store_.start(), position_) == 0);
   }
 
-  Vector<const uint16_t> two_byte_literal() {
+  Vector<const uint16_t> two_byte_literal() const {
     ASSERT(!is_one_byte_);
     ASSERT((position_ & 0x1) == 0);
     return Vector<const uint16_t>(
@@ -231,14 +231,14 @@ class LiteralBuffer {
         position_ >> 1);
   }
 
-  Vector<const uint8_t> one_byte_literal() {
+  Vector<const uint8_t> one_byte_literal() const {
     ASSERT(is_one_byte_);
     return Vector<const uint8_t>(
         reinterpret_cast<const uint8_t*>(backing_store_.start()),
         position_);
   }
 
-  int length() {
+  int length() const {
     return is_one_byte_ ? position_ : (position_ >> 1);
   }
 
@@ -246,6 +246,8 @@ class LiteralBuffer {
     position_ = 0;
     is_one_byte_ = true;
   }
+
+  Handle<String> Internalize(Isolate* isolate) const;
 
  private:
   static const int kInitialCapacity = 16;
@@ -451,6 +453,11 @@ class Scanner {
   // be empty).
   bool ScanRegExpFlags();
 
+  const LiteralBuffer* source_url() const { return &source_url_; }
+  const LiteralBuffer* source_mapping_url() const {
+    return &source_mapping_url_;
+  }
+
  private:
   // The current and look-ahead token.
   struct TokenDesc {
@@ -572,6 +579,8 @@ class Scanner {
 
   bool SkipWhiteSpace();
   Token::Value SkipSingleLineComment();
+  Token::Value SkipSourceURLComment();
+  void TryToParseSourceURLComment();
   Token::Value SkipMultiLineComment();
   // Scans a possible HTML comment -- begins with '<!'.
   Token::Value ScanHtmlComment();
@@ -605,6 +614,10 @@ class Scanner {
   // Buffers collecting literal strings, numbers, etc.
   LiteralBuffer literal_buffer1_;
   LiteralBuffer literal_buffer2_;
+
+  // Values parsed from magic comments.
+  LiteralBuffer source_url_;
+  LiteralBuffer source_mapping_url_;
 
   TokenDesc current_;  // desc for current token (as returned by Next())
   TokenDesc next_;     // desc for next token (one token look-ahead)

@@ -1762,7 +1762,7 @@ bool Genesis::InstallNatives() {
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
-    Map::EnsureDescriptorSlack(script_map, 13);
+    Map::EnsureDescriptorSlack(script_map, 14);
 
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1866,6 +1866,23 @@ bool Genesis::InstallNatives() {
       CallbacksDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_function_name->name())),
           script_eval_from_function_name, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source_url =
+        Accessors::ScriptSourceUrlInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source_url->name())),
+                            script_source_url, attribs);
+      script_map->AppendDescriptor(&d);
+    }
+
+    Handle<AccessorInfo> script_source_mapping_url =
+        Accessors::ScriptSourceMappingUrlInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(
+          Handle<Name>(Name::cast(script_source_mapping_url->name())),
+          script_source_mapping_url, attribs);
       script_map->AppendDescriptor(&d);
     }
 
