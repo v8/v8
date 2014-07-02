@@ -5657,12 +5657,19 @@ bool JSFunction::IsBuiltin() {
 }
 
 
-bool JSFunction::IsNative() {
+bool JSFunction::IsFromNativeScript() {
   Object* script = shared()->script();
   bool native = script->IsScript() &&
                 Script::cast(script)->type()->value() == Script::TYPE_NATIVE;
   ASSERT(!IsBuiltin() || native);  // All builtins are also native.
   return native;
+}
+
+
+bool JSFunction::IsFromExtensionScript() {
+  Object* script = shared()->script();
+  return script->IsScript() &&
+         Script::cast(script)->type()->value() == Script::TYPE_EXTENSION;
 }
 
 

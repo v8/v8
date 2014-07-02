@@ -6694,6 +6694,33 @@ TEST(SimpleExtensions) {
 }
 
 
+static const char* kStackTraceFromExtensionSource =
+  "function foo() {"
+  "  throw new Error();"
+  "}"
+  "function bar() {"
+  "  foo();"
+  "}";
+
+
+TEST(StackTraceInExtension) {
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::RegisterExtension(new Extension("stacktracetest",
+                        kStackTraceFromExtensionSource));
+  const char* extension_names[] = { "stacktracetest" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context =
+      Context::New(CcTest::isolate(), &extensions);
+  Context::Scope lock(context);
+  CompileRun("function user() { bar(); }"
+             "var error;"
+             "try{ user(); } catch (e) { error = e; }");
+  CHECK_EQ(-1, CompileRun("error.stack.indexOf('foo')")->Int32Value());
+  CHECK_EQ(-1, CompileRun("error.stack.indexOf('bar')")->Int32Value());
+  CHECK_NE(-1, CompileRun("error.stack.indexOf('user')")->Int32Value());
+}
+
+
 TEST(NullExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("nulltest", NULL));

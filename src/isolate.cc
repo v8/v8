@@ -325,13 +325,10 @@ void Isolate::PushStackTraceAndDie(unsigned int magic,
 // call to this function is encountered it is skipped.  The seen_caller
 // in/out parameter is used to remember if the caller has been seen
 // yet.
-static bool IsVisibleInStackTrace(StackFrame* raw_frame,
+static bool IsVisibleInStackTrace(JSFunction* fun,
                                   Object* caller,
+                                  Object* receiver,
                                   bool* seen_caller) {
-  // Only display JS frames.
-  if (!raw_frame->is_java_script()) return false;
-  JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-  JSFunction* fun = frame->function();
   if ((fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
@@ -344,8 +341,10 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
   if (!FLAG_builtins_in_stack_traces) {
-    if (frame->receiver()->IsJSBuiltinsObject() ||
-        (fun->IsBuiltin() && !fun->shared()->native())) {
+    if (receiver->IsJSBuiltinsObject()) return false;
+    if (fun->IsBuiltin()) {
+      return fun->shared()->native();
+    } else if (fun->IsFromNativeScript() || fun->IsFromExtensionScript()) {
       return false;
     }
   }
@@ -369,50 +368,50 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   int frames_seen = 0;
   int sloppy_frames = 0;
   bool encountered_strict_function = false;
-  for (StackFrameIterator iter(this);
+  for (JavaScriptFrameIterator iter(this);
        !iter.done() && frames_seen < limit;
        iter.Advance()) {
-    StackFrame* raw_frame = iter.frame();
-    if (IsVisibleInStackTrace(raw_frame, *caller, &seen_caller)) {
-      JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      // Set initial size to the maximum inlining level + 1 for the outermost
-      // function.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      frame->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0; i--) {
-        Handle<JSFunction> fun = frames[i].function();
-        // Filter out frames from other security contexts.
-        if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-        if (cursor + 4 > elements->length()) {
-          int new_capacity = JSObject::NewElementsCapacity(elements->length());
-          Handle<FixedArray> new_elements =
-              factory()->NewFixedArrayWithHoles(new_capacity);
-          for (int i = 0; i < cursor; i++) {
-            new_elements->set(i, elements->get(i));
-          }
-          elements = new_elements;
+    JavaScriptFrame* frame = iter.frame();
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      Handle<JSFunction> fun = frames[i].function();
+      Handle<Object> recv = frames[i].receiver();
+      // Filter out internal frames that we do not want to show.
+      if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) continue;
+      // Filter out frames from other security contexts.
+      if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
+      if (cursor + 4 > elements->length()) {
+        int new_capacity = JSObject::NewElementsCapacity(elements->length());
+        Handle<FixedArray> new_elements =
+            factory()->NewFixedArrayWithHoles(new_capacity);
+        for (int i = 0; i < cursor; i++) {
+          new_elements->set(i, elements->get(i));
         }
-        ASSERT(cursor + 4 <= elements->length());
-
-        Handle<Object> recv = frames[i].receiver();
-        Handle<Code> code = frames[i].code();
-        Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
-        // The stack trace API should not expose receivers and function
-        // objects on frames deeper than the top-most one with a strict
-        // mode function.  The number of sloppy frames is stored as
-        // first element in the result array.
-        if (!encountered_strict_function) {
-          if (fun->shared()->strict_mode() == STRICT) {
-            encountered_strict_function = true;
-          } else {
-            sloppy_frames++;
-          }
-        }
-        elements->set(cursor++, *recv);
-        elements->set(cursor++, *fun);
-        elements->set(cursor++, *code);
-        elements->set(cursor++, *offset);
+        elements = new_elements;
       }
+      ASSERT(cursor + 4 <= elements->length());
+
+
+      Handle<Code> code = frames[i].code();
+      Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
+      // The stack trace API should not expose receivers and function
+      // objects on frames deeper than the top-most one with a strict
+      // mode function.  The number of sloppy frames is stored as
+      // first element in the result array.
+      if (!encountered_strict_function) {
+        if (fun->shared()->strict_mode() == STRICT) {
+          encountered_strict_function = true;
+        } else {
+          sloppy_frames++;
+        }
+      }
+      elements->set(cursor++, *recv);
+      elements->set(cursor++, *fun);
+      elements->set(cursor++, *code);
+      elements->set(cursor++, *offset);
       frames_seen++;
     }
   }

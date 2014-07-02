@@ -7634,7 +7634,10 @@ class JSFunction: public JSObject {
   inline bool IsBuiltin();
 
   // Tells whether this function is defined in a native script.
-  inline bool IsNative();
+  inline bool IsFromNativeScript();
+
+  // Tells whether this function is defined in an extension script.
+  inline bool IsFromExtensionScript();
 
   // Tells whether or not the function needs arguments adaption.
   inline bool NeedsArgumentsAdaption();
