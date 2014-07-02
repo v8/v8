@@ -1195,8 +1195,7 @@ void StoreStubCompiler::GenerateStoreViaSetter(
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ lw(receiver,
-               FieldMemOperand(
-                   receiver, JSGlobalObject::kGlobalReceiverOffset));
+               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ Push(receiver, value());
       ParameterCount actual(1);
@@ -1310,8 +1309,7 @@ void LoadStubCompiler::GenerateLoadViaGetter(MacroAssembler* masm,
       if (IC::TypeToMap(*type, masm->isolate())->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
         __ lw(receiver,
-                FieldMemOperand(
-                    receiver, JSGlobalObject::kGlobalReceiverOffset));
+                FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
       }
       __ push(receiver);
       ParameterCount actual(0);
