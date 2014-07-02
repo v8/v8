@@ -552,21 +552,8 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
             FindPointersToNewSpaceInMapsRegion(
                 start, end, slot_callback, clear_maps);
           } else {
-            ASSERT(page->WasSweptPrecisely());
-            HeapObjectIterator iterator(page, NULL);
-            for (HeapObject* heap_object = iterator.Next();
-                 heap_object != NULL;
-                 heap_object = iterator.Next()) {
-              // We skip filler, free space, and constant pool objects.
-              if (!heap_object->IsFiller() &&
-                  !heap_object->IsConstantPoolArray()) {
-                FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(),
-                    slot_callback,
-                    clear_maps);
-              }
-            }
+            FindPointersToNewSpaceInRegion(
+                start, end, slot_callback, clear_maps);
           }
         }
       }
