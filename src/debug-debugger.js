@@ -20,7 +20,8 @@ Debug.DebugEvent = { Break: 1,
                      BeforeCompile: 4,
                      AfterCompile: 5,
                      CompileError: 6,
-                     PromiseEvent: 7 };
+                     PromiseEvent: 7,
+                     AsyncTaskEvent: 8 };
 
 // Types of exceptions that can be broken upon.
 Debug.ExceptionBreak = { Caught : 0,
@@ -1223,6 +1224,33 @@ NewPromiseEvent.prototype.promise = PromiseGetter;
 
 NewPromiseEvent.prototype.resolver = function() {
   return MakeMirror(this.resolver_);
+}
+
+
+function MakeAsyncTaskEvent(event_data) {
+  return new AsyncTaskEvent(event_data);
+}
+
+
+function AsyncTaskEvent(event_data) {
+  this.type_ = event_data.type;
+  this.name_ = event_data.name;
+  this.id_ = event_data.id;
+}
+
+
+AsyncTaskEvent.prototype.type = function() {
+  return this.type_;
+}
+
+
+AsyncTaskEvent.prototype.name = function() {
+  return this.name_;
+}
+
+
+AsyncTaskEvent.prototype.id = function() {
+  return this.id_;
 }
 
 

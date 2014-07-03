@@ -2554,6 +2554,13 @@ MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
 }
 
 
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
+  // Create the async task event object.
+  Handle<Object> argv[] = { task_event };
+  return MakeJSObject("MakeAsyncTaskEvent", ARRAY_SIZE(argv), argv);
+}
+
+
 void Debug::OnException(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
 
@@ -2713,6 +2720,25 @@ void Debug::OnPromiseEvent(Handle<JSObject> data) {
 
   // Process debug event.
   ProcessDebugEvent(v8::PromiseEvent,
+                    Handle<JSObject>::cast(event_data),
+                    true);
+}
+
+
+void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the script collected state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakeAsyncTaskEvent(data).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::AsyncTaskEvent,
                     Handle<JSObject>::cast(event_data),
                     true);
 }
