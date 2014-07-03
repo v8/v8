@@ -21,6 +21,17 @@ namespace platform {
 v8::Platform* CreateDefaultPlatform(int thread_pool_size = 0);
 
 
+/**
+ * Pumps the message loop for the given isolate.
+ *
+ * The caller has to make sure that this is called from the right thread.
+ * Returns true if a task was executed, and false otherwise. This call does
+ * not block if no task is pending. The |platform| has to be created using
+ * |CreateDefaultPlatform|.
+ */
+bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate);
+
+
 }  // namespace platform
 }  // namespace v8
 

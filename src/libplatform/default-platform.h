@@ -5,6 +5,8 @@
 #ifndef V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 #define V8_LIBPLATFORM_DEFAULT_PLATFORM_H_
 
+#include <map>
+#include <queue>
 #include <vector>
 
 #include "include/v8-platform.h"
@@ -28,11 +30,13 @@ class DefaultPlatform : public Platform {
 
   void EnsureInitialized();
 
+  bool PumpMessageLoop(v8::Isolate* isolate);
+
   // v8::Platform implementation.
   virtual void CallOnBackgroundThread(
-      Task *task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
-  virtual void CallOnForegroundThread(v8::Isolate *isolate,
-                                      Task *task) V8_OVERRIDE;
+      Task* task, ExpectedRuntime expected_runtime) V8_OVERRIDE;
+  virtual void CallOnForegroundThread(v8::Isolate* isolate,
+                                      Task* task) V8_OVERRIDE;
 
  private:
   static const int kMaxThreadPoolSize;
@@ -42,6 +46,7 @@ class DefaultPlatform : public Platform {
   int thread_pool_size_;
   std::vector<WorkerThread*> thread_pool_;
   TaskQueue queue_;
+  std::map<v8::Isolate*, std::queue<Task*> > main_thread_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };
