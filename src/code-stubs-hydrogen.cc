@@ -1632,6 +1632,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
           Add<HLoadNamedField>(key, static_cast<HValue*>(NULL),
           HObjectAccess::ForNameHashField());
 
+      hash = AddUncasted<HShr>(hash, Add<HConstant>(Name::kHashShift));
+
       HValue* value = BuildUncheckedDictionaryElementLoad(receiver,
                                                           properties,
                                                           key,
