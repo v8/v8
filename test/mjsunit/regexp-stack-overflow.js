@@ -5,7 +5,6 @@
 // Flags: --stack-size=100
 
 var result = null;
-var type = true;
 var re = /\w/;
 re.test("a");  // Trigger regexp compile.
 
@@ -13,10 +12,8 @@ function rec() {
   try {
     return rec();
   } catch (e) {
-    if (!(e instanceof RangeError)) type = false;
     return re.test("b");
   }
 }
 
 assertTrue(rec());
-assertTrue(type);
