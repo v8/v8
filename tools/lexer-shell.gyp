@@ -37,6 +37,7 @@
       'type': 'executable',
       'dependencies': [
         '../tools/gyp/v8.gyp:v8',
+        '../tools/gyp/v8.gyp:v8_libplatform',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
@@ -59,6 +60,7 @@
       'type': 'executable',
       'dependencies': [
         '../tools/gyp/v8.gyp:v8',
+        '../tools/gyp/v8.gyp:v8_libplatform',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {

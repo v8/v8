@@ -37,6 +37,7 @@
       'type': 'executable',
       'dependencies': [
         'resources',
+        '../../tools/gyp/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',

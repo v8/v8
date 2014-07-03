@@ -15,6 +15,14 @@ namespace v8 {
 namespace platform {
 
 
+v8::Platform* CreateDefaultPlatform(int thread_pool_size) {
+  DefaultPlatform* platform = new DefaultPlatform();
+  platform->SetThreadPoolSize(thread_pool_size);
+  platform->EnsureInitialized();
+  return platform;
+}
+
+
 const int DefaultPlatform::kMaxThreadPoolSize = 4;
 
 

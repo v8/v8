@@ -15,9 +15,6 @@
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/isolate.h"
-#ifdef V8_USE_DEFAULT_PLATFORM
-#include "src/libplatform/default-platform.h"
-#endif
 #include "src/lithium-allocator.h"
 #include "src/objects.h"
 #include "src/runtime-profiler.h"
@@ -41,14 +38,6 @@ bool V8::Initialize(Deserializer* des) {
   if (isolate->IsDead()) return false;
   if (isolate->IsInitialized()) return true;
 
-#ifdef V8_USE_DEFAULT_PLATFORM
-  platform::DefaultPlatform* platform =
-      static_cast<platform::DefaultPlatform*>(platform_);
-  platform->SetThreadPoolSize(isolate->max_available_threads());
-  // We currently only start the threads early, if we know that we'll use them.
-  if (FLAG_job_based_sweeping) platform->EnsureInitialized();
-#endif
-
   return isolate->Init(des);
 }
 
@@ -62,13 +51,6 @@ void V8::TearDown() {
   Isolate::GlobalTearDown();
 
   Sampler::TearDown();
-
-#ifdef V8_USE_DEFAULT_PLATFORM
-  platform::DefaultPlatform* platform =
-      static_cast<platform::DefaultPlatform*>(platform_);
-  platform_ = NULL;
-  delete platform;
-#endif
 }
 
 
@@ -94,9 +76,6 @@ void V8::InitializeOncePerProcessImpl() {
 
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
 
-#ifdef V8_USE_DEFAULT_PLATFORM
-  platform_ = new platform::DefaultPlatform;
-#endif
   Sampler::SetUp();
   CpuFeatures::Probe(false);
   init_memcopy_functions();
