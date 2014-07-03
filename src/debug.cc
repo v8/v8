@@ -2360,24 +2360,27 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Continue just after the slot.
     after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
-  } else if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
-    // We now know that there is still a debug break call at the target address,
-    // so the break point is still there and the original code will hold the
-    // address to jump to in order to complete the call which is replaced by a
-    // call to DebugBreakXXX.
-
-    // Find the corresponding address in the original code.
-    addr += original_code->instruction_start() - code->instruction_start();
-
-    // Install jump to the call address in the original code. This will be the
-    // call which was overwritten by the call to DebugBreakXXX.
-    after_break_target_ = Assembler::target_address_at(addr, *original_code);
   } else {
-    // There is no longer a break point present. Don't try to look in the
-    // original code as the running code will have the right address. This takes
-    // care of the case where the last break point is removed from the function
-    // and therefore no "original code" is available.
-    after_break_target_ = Assembler::target_address_at(addr, *code);
+    addr = Assembler::target_address_from_return_address(frame->pc());
+    if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
+      // We now know that there is still a debug break call at the target
+      // address, so the break point is still there and the original code will
+      // hold the address to jump to in order to complete the call which is
+      // replaced by a call to DebugBreakXXX.
+
+      // Find the corresponding address in the original code.
+      addr += original_code->instruction_start() - code->instruction_start();
+
+      // Install jump to the call address in the original code. This will be the
+      // call which was overwritten by the call to DebugBreakXXX.
+      after_break_target_ = Assembler::target_address_at(addr, *original_code);
+    } else {
+      // There is no longer a break point present. Don't try to look in the
+      // original code as the running code will have the right address. This
+      // takes care of the case where the last break point is removed from the
+      // function and therefore no "original code" is available.
+      after_break_target_ = Assembler::target_address_at(addr, *code);
+    }
   }
 }
 

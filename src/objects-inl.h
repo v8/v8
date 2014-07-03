@@ -2269,6 +2269,84 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
+void ConstantPoolArray::NumberOfEntries::increment(Type type) {
+  ASSERT(type < NUMBER_OF_TYPES);
+  element_counts_[type]++;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::equals(
+    const ConstantPoolArray::NumberOfEntries& other) const {
+  for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+    if (element_counts_[i] != other.element_counts_[i]) return false;
+  }
+  return true;
+}
+
+
+bool ConstantPoolArray::NumberOfEntries::is_empty() const {
+  return total_count() == 0;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::count_of(Type type) const {
+  ASSERT(type < NUMBER_OF_TYPES);
+  return element_counts_[type];
+}
+
+
+int ConstantPoolArray::NumberOfEntries::base_of(Type type) const {
+  int base = 0;
+  ASSERT(type < NUMBER_OF_TYPES);
+  for (int i = 0; i < type; i++) {
+    base += element_counts_[i];
+  }
+  return base;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::total_count() const {
+  int count = 0;
+  for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+    count += element_counts_[i];
+  }
+  return count;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::are_in_range(int min, int max) const {
+  for (int i = FIRST_TYPE; i < NUMBER_OF_TYPES; i++) {
+    if (element_counts_[i] < min || element_counts_[i] > max) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+int ConstantPoolArray::Iterator::next_index() {
+  ASSERT(!is_finished());
+  int ret = next_index_++;
+  update_section();
+  return ret;
+}
+
+
+bool ConstantPoolArray::Iterator::is_finished() {
+  return next_index_ > array_->last_index(type_, final_section_);
+}
+
+
+void ConstantPoolArray::Iterator::update_section() {
+  if (next_index_ > array_->last_index(type_, current_section_) &&
+      current_section_ != final_section_) {
+    ASSERT(final_section_ == EXTENDED_SECTION);
+    current_section_ = EXTENDED_SECTION;
+    next_index_ = array_->first_index(type_, EXTENDED_SECTION);
+  }
+}
+
+
 bool ConstantPoolArray::is_extended_layout() {
   uint32_t small_layout_1 = READ_UINT32_FIELD(this, kSmallLayout1Offset);
   return IsExtendedField::decode(small_layout_1);
@@ -2521,29 +2599,6 @@ int ConstantPoolArray::length() {
               number_of_entries(INT32, EXTENDED_SECTION);
   }
   return length;
-}
-
-
-int ConstantPoolArray::Iterator::next_index() {
-  ASSERT(!is_finished());
-  int ret = next_index_++;
-  update_section();
-  return ret;
-}
-
-
-bool ConstantPoolArray::Iterator::is_finished() {
-  return next_index_ > array_->last_index(type_, final_section_);
-}
-
-
-void ConstantPoolArray::Iterator::update_section() {
-  if (next_index_ > array_->last_index(type_, current_section_) &&
-      current_section_ != final_section_) {
-    ASSERT(final_section_ == EXTENDED_SECTION);
-    current_section_ = EXTENDED_SECTION;
-    next_index_ = array_->first_index(type_, EXTENDED_SECTION);
-  }
 }
 
 

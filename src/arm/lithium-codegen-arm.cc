@@ -2764,13 +2764,17 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
                                   LInstanceOfKnownGlobal* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() V8_OVERRIDE {
-      codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
+      codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_,
+                                                 &load_bool_);
     }
     virtual LInstruction* instr() V8_OVERRIDE { return instr_; }
     Label* map_check() { return &map_check_; }
+    Label* load_bool() { return &load_bool_; }
+
    private:
     LInstanceOfKnownGlobal* instr_;
     Label map_check_;
+    Label load_bool_;
   };
 
   DeferredInstanceOfKnownGlobal* deferred;
@@ -2798,12 +2802,12 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
     // We use Factory::the_hole_value() on purpose instead of loading from the
     // root array to force relocation to be able to later patch with
     // the cached map.
-    PredictableCodeSizeScope predictable(masm_, 5 * Assembler::kInstrSize);
     Handle<Cell> cell = factory()->NewCell(factory()->the_hole_value());
     __ mov(ip, Operand(Handle<Object>(cell)));
     __ ldr(ip, FieldMemOperand(ip, PropertyCell::kValueOffset));
     __ cmp(map, Operand(ip));
     __ b(ne, &cache_miss);
+    __ bind(deferred->load_bool());  // Label for calculating code patching.
     // We use Factory::the_hole_value() on purpose instead of loading from the
     // root array to force relocation to be able to later patch
     // with true or false.
@@ -2837,7 +2841,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 
 
 void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                               Label* map_check) {
+                                               Label* map_check,
+                                               Label* bool_load) {
   InstanceofStub::Flags flags = InstanceofStub::kNoFlags;
   flags = static_cast<InstanceofStub::Flags>(
       flags | InstanceofStub::kArgsInRegisters);
@@ -2851,21 +2856,35 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   LoadContextFromDeferred(instr->context());
 
   __ Move(InstanceofStub::right(), instr->function());
-  static const int kAdditionalDelta = 4;
+
+  int call_size = CallCodeSize(stub.GetCode(), RelocInfo::CODE_TARGET);
+  int additional_delta = (call_size / Assembler::kInstrSize) + 4;
   // Make sure that code size is predicable, since we use specific constants
   // offsets in the code to find embedded values..
-  PredictableCodeSizeScope predictable(masm_, 5 * Assembler::kInstrSize);
-  int delta = masm_->InstructionsGeneratedSince(map_check) + kAdditionalDelta;
-  Label before_push_delta;
-  __ bind(&before_push_delta);
-  __ BlockConstPoolFor(kAdditionalDelta);
-  // r5 is used to communicate the offset to the location of the map check.
-  __ mov(r5, Operand(delta * kPointerSize));
-  // The mov above can generate one or two instructions. The delta was computed
-  // for two instructions, so we need to pad here in case of one instruction.
-  if (masm_->InstructionsGeneratedSince(&before_push_delta) != 2) {
-    ASSERT_EQ(1, masm_->InstructionsGeneratedSince(&before_push_delta));
-    __ nop();
+  PredictableCodeSizeScope predictable(
+      masm_, (additional_delta + 1) * Assembler::kInstrSize);
+  // Make sure we don't emit any additional entries in the constant pool before
+  // the call to ensure that the CallCodeSize() calculated the correct number of
+  // instructions for the constant pool load.
+  {
+    ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+    int map_check_delta =
+        masm_->InstructionsGeneratedSince(map_check) + additional_delta;
+    int bool_load_delta =
+        masm_->InstructionsGeneratedSince(bool_load) + additional_delta;
+    Label before_push_delta;
+    __ bind(&before_push_delta);
+    __ BlockConstPoolFor(additional_delta);
+    // r5 is used to communicate the offset to the location of the map check.
+    __ mov(r5, Operand(map_check_delta * kPointerSize));
+    // r6 is used to communicate the offset to the location of the bool load.
+    __ mov(r6, Operand(bool_load_delta * kPointerSize));
+    // The mov above can generate one or two instructions. The delta was
+    // computed for two instructions, so we need to pad here in case of one
+    // instruction.
+    while (masm_->InstructionsGeneratedSince(&before_push_delta) != 4) {
+      __ nop();
+    }
   }
   CallCodeGeneric(stub.GetCode(),
                   RelocInfo::CODE_TARGET,
@@ -3928,7 +3947,13 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     ASSERT(instr->target()->IsRegister());
     Register target = ToRegister(instr->target());
     generator.BeforeCall(__ CallSize(target));
-    __ add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Make sure we don't emit any additional entries in the constant pool
+    // before the call to ensure that the CallCodeSize() calculated the correct
+    // number of instructions for the constant pool load.
+    {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+      __ add(target, target, Operand(Code::kHeaderSize - kHeapObjectTag));
+    }
     __ Call(target);
   }
   generator.AfterCall();

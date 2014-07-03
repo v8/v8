@@ -9710,15 +9710,23 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
-  while (!code_iter.is_finished()) {
-    v->VisitCodeEntry(reinterpret_cast<Address>(
-        RawFieldOfElementAt(code_iter.next_index())));
-  }
+  // Unfortunately the serializer relies on pointers within an object being
+  // visited in-order, so we have to iterate both the code and heap pointers in
+  // the small section before doing so in the extended section.
+  for (int s = 0; s <= final_section(); ++s) {
+    LayoutSection section = static_cast<LayoutSection>(s);
+    ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR,
+                                          section);
+    while (!code_iter.is_finished()) {
+      v->VisitCodeEntry(reinterpret_cast<Address>(
+          RawFieldOfElementAt(code_iter.next_index())));
+    }
 
-  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
-  while (!heap_iter.is_finished()) {
-    v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+    ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR,
+                                          section);
+    while (!heap_iter.is_finished()) {
+      v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+    }
   }
 }
 

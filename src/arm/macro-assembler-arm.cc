@@ -74,13 +74,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
 
 int MacroAssembler::CallSize(
     Address target, RelocInfo::Mode rmode, Condition cond) {
-  int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
-  intptr_t immediate = reinterpret_cast<intptr_t>(target);
-  if (!Operand(immediate, rmode).is_single_instruction(this, mov_instr)) {
-    size += kInstrSize;
-  }
-  return size;
+  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
+  return kInstrSize +
+         mov_operand.instructions_required(this, mov_instr) * kInstrSize;
 }
 
 
@@ -94,13 +91,10 @@ int MacroAssembler::CallSizeNotPredictableCodeSize(Isolate* isolate,
                                                    Address target,
                                                    RelocInfo::Mode rmode,
                                                    Condition cond) {
-  int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
-  intptr_t immediate = reinterpret_cast<intptr_t>(target);
-  if (!Operand(immediate, rmode).is_single_instruction(NULL, mov_instr)) {
-    size += kInstrSize;
-  }
-  return size;
+  Operand mov_operand = Operand(reinterpret_cast<intptr_t>(target), rmode);
+  return kInstrSize +
+         mov_operand.instructions_required(NULL, mov_instr) * kInstrSize;
 }
 
 
@@ -273,7 +267,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
       !src2.must_output_reloc_info(this) &&
       src2.immediate() == 0) {
     mov(dst, Operand::Zero(), LeaveCC, cond);
-  } else if (!src2.is_single_instruction(this) &&
+  } else if (!(src2.instructions_required(this) == 1) &&
              !src2.must_output_reloc_info(this) &&
              CpuFeatures::IsSupported(ARMv7) &&
              IsPowerOf2(src2.immediate() + 1)) {
@@ -1851,7 +1845,7 @@ void MacroAssembler::Allocate(int object_size,
       object_size -= bits;
       shift += 8;
       Operand bits_operand(bits);
-      ASSERT(bits_operand.is_single_instruction(this));
+      ASSERT(bits_operand.instructions_required(this) == 1);
       add(scratch2, source, bits_operand, SetCC, cond);
       source = scratch2;
       cond = cc;
@@ -3630,9 +3624,50 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
 
 void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
-                                               Register result) {
-  const uint32_t kLdrOffsetMask = (1 << 12) - 1;
+                                               Register result,
+                                               Register scratch) {
+  Label small_constant_pool_load, load_result;
   ldr(result, MemOperand(ldr_location));
+
+  if (FLAG_enable_ool_constant_pool) {
+    // Check if this is an extended constant pool load.
+    and_(scratch, result, Operand(GetConsantPoolLoadMask()));
+    teq(scratch, Operand(GetConsantPoolLoadPattern()));
+    b(eq, &small_constant_pool_load);
+    if (emit_debug_code()) {
+      // Check that the instruction sequence is:
+      //   movw reg, #offset_low
+      //   movt reg, #offset_high
+      //   ldr reg, [pp, reg]
+      Instr patterns[] = {GetMovWPattern(), GetMovTPattern(),
+                          GetLdrPpRegOffsetPattern()};
+      for (int i = 0; i < 3; i++) {
+        ldr(result, MemOperand(ldr_location, i * kInstrSize));
+        and_(result, result, Operand(patterns[i]));
+        cmp(result, Operand(patterns[i]));
+        Check(eq, kTheInstructionToPatchShouldBeALoadFromConstantPool);
+      }
+      // Result was clobbered. Restore it.
+      ldr(result, MemOperand(ldr_location));
+    }
+
+    // Get the offset into the constant pool.  First extract movw immediate into
+    // result.
+    and_(scratch, result, Operand(0xfff));
+    mov(ip, Operand(result, LSR, 4));
+    and_(ip, ip, Operand(0xf000));
+    orr(result, scratch, Operand(ip));
+    // Then extract movt immediate and or into result.
+    ldr(scratch, MemOperand(ldr_location, kInstrSize));
+    and_(ip, scratch, Operand(0xf0000));
+    orr(result, result, Operand(ip, LSL, 12));
+    and_(scratch, scratch, Operand(0xfff));
+    orr(result, result, Operand(scratch, LSL, 16));
+
+    b(&load_result);
+  }
+
+  bind(&small_constant_pool_load);
   if (emit_debug_code()) {
     // Check that the instruction is a ldr reg, [<pc or pp> + offset] .
     and_(result, result, Operand(GetConsantPoolLoadPattern()));
@@ -3641,8 +3676,13 @@ void MacroAssembler::GetRelocatedValueLocation(Register ldr_location,
     // Result was clobbered. Restore it.
     ldr(result, MemOperand(ldr_location));
   }
-  // Get the address of the constant.
+
+  // Get the offset into the constant pool.
+  const uint32_t kLdrOffsetMask = (1 << 12) - 1;
   and_(result, result, Operand(kLdrOffsetMask));
+
+  bind(&load_result);
+  // Get the address of the constant.
   if (FLAG_enable_ool_constant_pool) {
     add(result, pp, Operand(result));
   } else {

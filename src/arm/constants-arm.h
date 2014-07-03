@@ -568,6 +568,7 @@ class Instruction {
   inline int Immed4Value() const { return Bits(19, 16); }
   inline int ImmedMovwMovtValue() const {
       return Immed4Value() << 12 | Offset12Value(); }
+  DECLARE_STATIC_ACCESSOR(ImmedMovwMovtValue);
 
   // Fields used in Load/Store instructions
   inline int PUValue() const { return Bits(24, 23); }
