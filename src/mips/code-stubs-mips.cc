@@ -2670,16 +2670,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Branch(&failure, eq, v0, Operand(NativeRegExpMacroAssembler::FAILURE));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ Branch(&runtime, ne, v0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
-  // Result must now be exception. If there is no pending exception already a
-  // stack overflow (on the backtrack stack) was detected in RegExp code but
-  // haven't created the exception yet. Handle that in the runtime system.
-  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
+
+  // Result must now be exception.
   __ li(a1, Operand(isolate()->factory()->the_hole_value()));
   __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate())));
   __ lw(v0, MemOperand(a2, 0));
-  __ Branch(&runtime, eq, v0, Operand(a1));
-
   __ sw(a1, MemOperand(a2, 0));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.
