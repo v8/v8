@@ -613,10 +613,6 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
   }
 
   ASSERT(hint == kAdrFar);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireX();
-  ASSERT(!AreAliased(rd, scratch));
-
   if (label->is_bound()) {
     int label_offset = label->pos() - pc_offset();
     if (Instruction::IsValidPCRelOffset(label_offset)) {
@@ -628,6 +624,9 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
       Add(rd, rd, label_offset - min_adr_offset);
     }
   } else {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
+
     InstructionAccurateScope scope(
         this, PatchingAssembler::kAdrFarPatchableNInstrs);
     adr(rd, label);
@@ -635,7 +634,6 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
       nop(ADR_FAR_NOP);
     }
     movz(scratch, 0);
-    add(rd, rd, scratch);
   }
 }
 

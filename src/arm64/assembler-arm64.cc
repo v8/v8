@@ -3088,31 +3088,12 @@ void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
 }
 
 
-void PatchingAssembler::MovInt64(const Register& rd, int64_t imm) {
-  Label start;
-  bind(&start);
-
-  ASSERT(rd.Is64Bits());
-  ASSERT(!rd.IsSP());
-
-  for (unsigned i = 0; i < (rd.SizeInBits() / 16); i++) {
-    uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
-    movk(rd, imm16, 16 * i);
-  }
-
-  ASSERT(SizeOfCodeGeneratedSince(&start) ==
-         kMovInt64NInstrs * kInstructionSize);
-}
-
-
-void PatchingAssembler::PatchAdrFar(Instruction* target) {
+void PatchingAssembler::PatchAdrFar(ptrdiff_t target_offset) {
   // The code at the current instruction should be:
   //   adr  rd, 0
   //   nop  (adr_far)
   //   nop  (adr_far)
-  //   nop  (adr_far)
   //   movz scratch, 0
-  //   add  rd, rd, scratch
 
   // Verify the expected code.
   Instruction* expected_adr = InstructionAt(0);
@@ -3122,39 +3103,21 @@ void PatchingAssembler::PatchAdrFar(Instruction* target) {
     CHECK(InstructionAt((i + 1) * kInstructionSize)->IsNop(ADR_FAR_NOP));
   }
   Instruction* expected_movz =
-      InstructionAt((kAdrFarPatchableNInstrs - 2) * kInstructionSize);
+      InstructionAt((kAdrFarPatchableNInstrs - 1) * kInstructionSize);
   CHECK(expected_movz->IsMovz() &&
         (expected_movz->ImmMoveWide() == 0) &&
         (expected_movz->ShiftMoveWide() == 0));
   int scratch_code = expected_movz->Rd();
-  Instruction* expected_add =
-      InstructionAt((kAdrFarPatchableNInstrs - 1) * kInstructionSize);
-  CHECK(expected_add->IsAddSubShifted() &&
-        (expected_add->Mask(AddSubOpMask) == ADD) &&
-        expected_add->SixtyFourBits() &&
-        (expected_add->Rd() == rd_code) && (expected_add->Rn() == rd_code) &&
-        (expected_add->Rm() == scratch_code) &&
-        (static_cast<Shift>(expected_add->ShiftDP()) == LSL) &&
-        (expected_add->ImmDPShift() == 0));
 
   // Patch to load the correct address.
-  Label start;
-  bind(&start);
   Register rd = Register::XRegFromCode(rd_code);
-  // If the target is in range, we only patch the adr. Otherwise we patch the
-  // nops with fixup instructions.
-  int target_offset = expected_adr->DistanceTo(target);
-  if (Instruction::IsValidPCRelOffset(target_offset)) {
-    adr(rd, target_offset);
-    for (int i = 0; i < kAdrFarPatchableNInstrs - 2; ++i) {
-      nop(ADR_FAR_NOP);
-    }
-  } else {
-    Register scratch = Register::XRegFromCode(scratch_code);
-    adr(rd, 0);
-    MovInt64(scratch, target_offset);
-    add(rd, rd, scratch);
-  }
+  Register scratch = Register::XRegFromCode(scratch_code);
+  // Addresses are only 48 bits.
+  adr(rd, target_offset & 0xFFFF);
+  movz(scratch, (target_offset >> 16) & 0xFFFF, 16);
+  movk(scratch, (target_offset >> 32) & 0xFFFF, 32);
+  ASSERT((target_offset >> 48) == 0);
+  add(rd, rd, scratch);
 }
 
 
