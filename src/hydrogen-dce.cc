@@ -32,16 +32,14 @@ void HDeadCodeEliminationPhase::MarkLive(
 
 
 void HDeadCodeEliminationPhase::PrintLive(HValue* ref, HValue* instr) {
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
+  OFStream os(stdout);
+  os << "[MarkLive ";
   if (ref != NULL) {
-    ref->PrintTo(&stream);
+    os << *ref;
   } else {
-    stream.Add("root ");
+    os << "root ";
   }
-  stream.Add(" -> ");
-  instr->PrintTo(&stream);
-  PrintF("[MarkLive %s]\n", stream.ToCString().get());
+  os << " -> " << *instr << "]" << endl;
 }
 
 

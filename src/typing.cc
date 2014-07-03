@@ -50,12 +50,14 @@ void AstTyper::Run(CompilationInfo* info) {
 
 #ifdef OBJECT_PRINT
   static void PrintObserved(Variable* var, Object* value, Type* type) {
-    PrintF("  observed %s ", var->IsParameter() ? "param" : "local");
+    OFStream os(stdout);
+    os << "  observed " << (var->IsParameter() ? "param" : "local") << "  ";
     var->name()->Print();
-    PrintF(" : ");
+    os << " : ";
     value->ShortPrint();
-    PrintF(" -> ");
-    type->TypePrint();
+    os << " -> ";
+    type->PrintTo(os);
+    os << endl;
   }
 #endif  // OBJECT_PRINT
 

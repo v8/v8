@@ -58,7 +58,6 @@ class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class MaterializedObjectStore;
-class NoAllocationStringAllocator;
 class CodeAgingHelper;
 class RegExpStack;
 class SaveContext;

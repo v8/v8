@@ -1371,37 +1371,35 @@ void Map::PrintGeneralization(FILE* file,
                               Representation new_representation,
                               HeapType* old_field_type,
                               HeapType* new_field_type) {
-  PrintF(file, "[generalizing ");
+  OFStream os(file);
+  os << "[generalizing ";
   constructor_name()->PrintOn(file);
-  PrintF(file, "] ");
+  os << "] ";
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
   } else {
-    PrintF(file, "{symbol %p}", static_cast<void*>(name));
+    os << "{symbol " << static_cast<void*>(name) << "}";
   }
-  PrintF(file, ":");
+  os << ":";
   if (constant_to_field) {
-    PrintF(file, "c");
+    os << "c";
   } else {
-    PrintF(file, "%s", old_representation.Mnemonic());
-    PrintF(file, "{");
-    old_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-    PrintF(file, "}");
+    os << old_representation.Mnemonic() << "{";
+    old_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+    os << "}";
   }
-  PrintF(file, "->%s", new_representation.Mnemonic());
-  PrintF(file, "{");
-  new_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-  PrintF(file, "}");
-  PrintF(file, " (");
+  os << "->" << new_representation.Mnemonic() << "{";
+  new_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+  os << "} (";
   if (strlen(reason) > 0) {
-    PrintF(file, "%s", reason);
+    os << reason;
   } else {
-    PrintF(file, "+%i maps", descriptors - split);
+    os << "+" << (descriptors - split) << " maps";
   }
-  PrintF(file, ") [");
+  os << ") [";
   JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
-  PrintF(file, "]\n");
+  os << "]\n";
 }
 
 

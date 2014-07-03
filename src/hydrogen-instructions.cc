@@ -525,6 +525,15 @@ void HValue::SetBlock(HBasicBlock* block) {
 }
 
 
+OStream& operator<<(OStream& os, const HValue& v) {
+  // TODO(svenpanne) Temporary impedance matching, to be removed later.
+  HeapStringAllocator allocator;
+  StringStream stream(&allocator);
+  const_cast<HValue*>(&v)->PrintTo(&stream);
+  return os << stream.ToCString().get();
+}
+
+
 void HValue::PrintTypeTo(StringStream* stream) {
   if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
   stream->Add(" type:%s", type().ToString());
@@ -1214,8 +1223,9 @@ bool HBranch::KnownSuccessorBlock(HBasicBlock** block) {
 
 void HBranch::PrintDataTo(StringStream* stream) {
   HUnaryControlInstruction::PrintDataTo(stream);
-  stream->Add(" ");
-  expected_input_types().Print(stream);
+  OStringStream os;
+  os << " " << expected_input_types();
+  stream->Add(os.c_str());
 }
 
 

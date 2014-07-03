@@ -927,6 +927,9 @@ class HValue : public ZoneObject {
 };
 
 
+OStream& operator<<(OStream& os, const HValue& v);
+
+
 #define DECLARE_INSTRUCTION_FACTORY_P0(I)                                      \
   static I* New(Zone* zone, HValue* context) {                                 \
     return new(zone) I();                                                      \

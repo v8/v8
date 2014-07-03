@@ -1345,11 +1345,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
 }
 
 
-void CallIC::State::Print(StringStream* stream) const {
-  stream->Add("(args(%d), ",
-              argc_);
-  stream->Add("%s, ",
-              call_type_ == CallIC::METHOD ? "METHOD" : "FUNCTION");
+OStream& operator<<(OStream& os, const CallIC::State& s) {
+  return os << "(args(" << s.arg_count() << "), "
+            << (s.call_type() == CallIC::METHOD ? "METHOD" : "FUNCTION")
+            << ", ";
 }
 
 
@@ -2463,18 +2462,20 @@ Type* BinaryOpIC::State::GetResultType(Zone* zone) const {
 }
 
 
-void BinaryOpIC::State::Print(StringStream* stream) const {
-  stream->Add("(%s", Token::Name(op_));
-  if (mode_ == OVERWRITE_LEFT) stream->Add("_ReuseLeft");
-  else if (mode_ == OVERWRITE_RIGHT) stream->Add("_ReuseRight");
-  if (CouldCreateAllocationMementos()) stream->Add("_CreateAllocationMementos");
-  stream->Add(":%s*", KindToString(left_kind_));
-  if (fixed_right_arg_.has_value) {
-    stream->Add("%d", fixed_right_arg_.value);
+OStream& operator<<(OStream& os, const BinaryOpIC::State& s) {
+  os << "(" << Token::Name(s.op_);
+  if (s.mode_ == OVERWRITE_LEFT)
+    os << "_ReuseLeft";
+  else if (s.mode_ == OVERWRITE_RIGHT)
+    os << "_ReuseRight";
+  if (s.CouldCreateAllocationMementos()) os << "_CreateAllocationMementos";
+  os << ":" << BinaryOpIC::State::KindToString(s.left_kind_) << "*";
+  if (s.fixed_right_arg_.has_value) {
+    os << s.fixed_right_arg_.value;
   } else {
-    stream->Add("%s", KindToString(right_kind_));
+    os << BinaryOpIC::State::KindToString(s.right_kind_);
   }
-  stream->Add("->%s)", KindToString(result_kind_));
+  return os << "->" << BinaryOpIC::State::KindToString(s.result_kind_) << ")";
 }
 
 
@@ -2648,21 +2649,14 @@ MaybeHandle<Object> BinaryOpIC::Transition(
   set_target(*target);
 
   if (FLAG_trace_ic) {
-    char buffer[150];
-    NoAllocationStringAllocator allocator(
-        buffer, static_cast<unsigned>(sizeof(buffer)));
-    StringStream stream(&allocator);
-    stream.Add("[BinaryOpIC");
-    old_state.Print(&stream);
-    stream.Add(" => ");
-    state.Print(&stream);
-    stream.Add(" @ %p <- ", static_cast<void*>(*target));
-    stream.OutputToStdOut();
+    OFStream os(stdout);
+    os << "[BinaryOpIC" << old_state << " => " << state << " @ "
+       << static_cast<void*>(*target) << " <- ";
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
     if (!allocation_site.is_null()) {
-      PrintF(" using allocation site %p", static_cast<void*>(*allocation_site));
+      os << " using allocation site " << static_cast<void*>(*allocation_site);
     }
-    PrintF("]\n");
+    os << "]" << endl;
   }
 
   // Patch the inlined smi code as necessary.
