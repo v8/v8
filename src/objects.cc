@@ -11163,7 +11163,9 @@ void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
       if ((bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
           (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT)) ||
+          (bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
         PrintF(out, "            %s\n", last_comment);
         return;

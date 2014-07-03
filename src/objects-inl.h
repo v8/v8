@@ -4571,6 +4571,11 @@ inline bool Code::is_crankshafted() {
 }
 
 
+inline bool Code::is_hydrogen_stub() {
+  return is_crankshafted() && kind() != OPTIMIZED_FUNCTION;
+}
+
+
 inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);
