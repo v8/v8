@@ -5,9 +5,9 @@
 #ifndef V8_V8_PLATFORM_H_
 #define V8_V8_PLATFORM_H_
 
-#include "v8.h"
-
 namespace v8 {
+
+class Isolate;
 
 /**
  * A Task represents a unit of work.

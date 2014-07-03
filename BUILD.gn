@@ -37,6 +37,12 @@ config("internal_config") {
   }
 }
 
+config("internal_config_base") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
+  include_dirs = [ "." ]
+}
+
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
@@ -1014,7 +1020,7 @@ source_set("v8_libbase") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [ ":internal_config_base", ":features", ":toolchain" ]
 
   defines = []
 
@@ -1077,7 +1083,7 @@ source_set("v8_libplatform") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [ ":internal_config_base", ":features", ":toolchain" ]
 
   deps = [
     ":v8_libbase",

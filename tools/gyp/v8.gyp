@@ -996,12 +996,6 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
-          ],
-        }],
         ['OS=="linux"', {
             'link_settings': {
               'libraries': [
@@ -1193,12 +1187,6 @@
             }],
           ],
         }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
-          ],
-        }],
       ],
     },
     {
@@ -1227,12 +1215,6 @@
           'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
-        }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
-          ],
         }],
       ],
     },
