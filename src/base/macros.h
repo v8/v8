@@ -246,4 +246,14 @@ inline uint32_t RoundDownToPowerOf2(uint32_t x) {
   return rounded_up;
 }
 
+
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
+inline uintptr_t GetCurrentStackPosition() {
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
+}
+
 #endif   // V8_BASE_MACROS_H_

@@ -104,9 +104,9 @@ class Runner(object):
     return Job(command, dep_command, test.id, timeout, self.context.verbose)
 
   def _MaybeRerun(self, pool, test):
-    if test.run <= self.context.rerun_failures_count:
+    if test.run <= self.context.rerun_failures_count + 1:
       # Possibly rerun this test if its run count is below the maximum per
-      # test.
+      # test. +1 as the flag controls reruns not including the first run.
       if test.run == 1:
         # Count the overall number of reran tests on the first rerun.
         if self.reran_tests < self.context.rerun_failures_max:
@@ -115,7 +115,7 @@ class Runner(object):
           # Don't rerun this if the overall number of rerun tests has been
           # reached.
           return
-      if test.run >= 2 and test.duration > self.context.timeout / 20:
+      if test.run >= 2 and test.duration > self.context.timeout / 20.0:
         # Rerun slow tests at most once.
         return
 

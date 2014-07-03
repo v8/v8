@@ -443,11 +443,9 @@ void StackGuard::ThreadLocal::Clear() {
 bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
-    // Takes the address of the limit variable in order to find out where
-    // the top of stack is right now.
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
-    ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
+    ASSERT(GetCurrentStackPosition() > kLimitSize);
+    uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     real_climit_ = limit;

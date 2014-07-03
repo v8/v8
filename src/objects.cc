@@ -1371,37 +1371,35 @@ void Map::PrintGeneralization(FILE* file,
                               Representation new_representation,
                               HeapType* old_field_type,
                               HeapType* new_field_type) {
-  PrintF(file, "[generalizing ");
+  OFStream os(file);
+  os << "[generalizing ";
   constructor_name()->PrintOn(file);
-  PrintF(file, "] ");
+  os << "] ";
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
   } else {
-    PrintF(file, "{symbol %p}", static_cast<void*>(name));
+    os << "{symbol " << static_cast<void*>(name) << "}";
   }
-  PrintF(file, ":");
+  os << ":";
   if (constant_to_field) {
-    PrintF(file, "c");
+    os << "c";
   } else {
-    PrintF(file, "%s", old_representation.Mnemonic());
-    PrintF(file, "{");
-    old_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-    PrintF(file, "}");
+    os << old_representation.Mnemonic() << "{";
+    old_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+    os << "}";
   }
-  PrintF(file, "->%s", new_representation.Mnemonic());
-  PrintF(file, "{");
-  new_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-  PrintF(file, "}");
-  PrintF(file, " (");
+  os << "->" << new_representation.Mnemonic() << "{";
+  new_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+  os << "} (";
   if (strlen(reason) > 0) {
-    PrintF(file, "%s", reason);
+    os << reason;
   } else {
-    PrintF(file, "+%i maps", descriptors - split);
+    os << "+" << (descriptors - split) << " maps";
   }
-  PrintF(file, ") [");
+  os << ") [";
   JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
-  PrintF(file, "]\n");
+  os << "]\n";
 }
 
 
@@ -2062,14 +2060,13 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 }
 
 
-bool Map::InstancesNeedRewriting(Map* target,
-                                 int target_number_of_fields,
-                                 int target_inobject,
-                                 int target_unused) {
+bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
+                                 int target_inobject, int target_unused,
+                                 int* old_number_of_fields) {
   // If fields were added (or removed), rewrite the instance.
-  int number_of_fields = NumberOfFields();
-  ASSERT(target_number_of_fields >= number_of_fields);
-  if (target_number_of_fields != number_of_fields) return true;
+  *old_number_of_fields = NumberOfFields();
+  ASSERT(target_number_of_fields >= *old_number_of_fields);
+  if (target_number_of_fields != *old_number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
   DescriptorArray* old_desc = instance_descriptors();
@@ -2147,14 +2144,15 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
+  int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->inobject_properties();
   int unused = new_map->unused_property_fields();
 
   // Nothing to do if no functions were converted to fields and no smis were
   // converted to doubles.
-  if (!old_map->InstancesNeedRewriting(
-          *new_map, number_of_fields, inobject, unused)) {
+  if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
+                                       unused, &old_number_of_fields)) {
     object->synchronized_set_map(*new_map);
     return;
   }
@@ -2163,7 +2161,9 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int external = total_size - inobject;
 
   if ((old_map->unused_property_fields() == 0) &&
+      (number_of_fields != old_number_of_fields) &&
       (new_map->GetBackPointer() == *old_map)) {
+    ASSERT(number_of_fields == old_number_of_fields + 1);
     // This migration is a transition from a map that has run out out property
     // space. Therefore it could be done by extending the backing store.
     Handle<FixedArray> old_storage = handle(object->properties(), isolate);
@@ -11173,7 +11173,9 @@ void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
       if ((bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
           (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT)) ||
+          (bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
         PrintF(out, "            %s\n", last_comment);
         return;

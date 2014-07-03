@@ -13503,6 +13503,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 1);
   RUNTIME_ASSERT(shared_array->length()->IsSmi());
+  RUNTIME_ASSERT(shared_array->HasFastElements())
   int array_length = Smi::cast(shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =

@@ -15,6 +15,19 @@ namespace v8 {
 namespace platform {
 
 
+v8::Platform* CreateDefaultPlatform(int thread_pool_size) {
+  DefaultPlatform* platform = new DefaultPlatform();
+  platform->SetThreadPoolSize(thread_pool_size);
+  platform->EnsureInitialized();
+  return platform;
+}
+
+
+bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate) {
+  return reinterpret_cast<DefaultPlatform*>(platform)->PumpMessageLoop(isolate);
+}
+
+
 const int DefaultPlatform::kMaxThreadPoolSize = 4;
 
 
@@ -29,6 +42,14 @@ DefaultPlatform::~DefaultPlatform() {
     for (std::vector<WorkerThread*>::iterator i = thread_pool_.begin();
          i != thread_pool_.end(); ++i) {
       delete *i;
+    }
+  }
+  for (std::map<v8::Isolate*, std::queue<Task*> >::iterator i =
+           main_thread_queue_.begin();
+       i != main_thread_queue_.end(); ++i) {
+    while (!i->second.empty()) {
+      delete i->second.front();
+      i->second.pop();
     }
   }
 }
@@ -53,6 +74,24 @@ void DefaultPlatform::EnsureInitialized() {
     thread_pool_.push_back(new WorkerThread(&queue_));
 }
 
+
+bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate) {
+  Task* task = NULL;
+  {
+    base::LockGuard<base::Mutex> guard(&lock_);
+    std::map<v8::Isolate*, std::queue<Task*> >::iterator it =
+        main_thread_queue_.find(isolate);
+    if (it == main_thread_queue_.end() || it->second.empty()) {
+      return false;
+    }
+    task = it->second.front();
+    it->second.pop();
+  }
+  task->Run();
+  delete task;
+  return true;
+}
+
 void DefaultPlatform::CallOnBackgroundThread(Task *task,
                                              ExpectedRuntime expected_runtime) {
   EnsureInitialized();
@@ -61,9 +100,8 @@ void DefaultPlatform::CallOnBackgroundThread(Task *task,
 
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
-  // TODO(jochen): implement.
-  task->Run();
-  delete task;
+  base::LockGuard<base::Mutex> guard(&lock_);
+  main_thread_queue_[isolate].push(task);
 }
 
 } }  // namespace v8::platform

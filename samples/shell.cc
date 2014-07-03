@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <v8.h>
+#include <include/v8.h>
+
+#include <include/libplatform/libplatform.h>
 
 #include <assert.h>
 #include <fcntl.h>
@@ -79,6 +81,8 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   ShellArrayBufferAllocator array_buffer_allocator;
   v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
@@ -98,6 +102,8 @@ int main(int argc, char* argv[]) {
     if (run_shell) RunShell(context);
   }
   v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return result;
 }
 

@@ -261,11 +261,6 @@ class StackGuard V8_FINAL {
     int interrupt_flags_;
   };
 
-  class StackPointer {
-   public:
-    inline uintptr_t address() { return reinterpret_cast<uintptr_t>(this); }
-  };
-
   // TODO(isolates): Technically this could be calculated directly from a
   //                 pointer to StackGuard.
   Isolate* isolate_;

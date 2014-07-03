@@ -46,7 +46,6 @@ int ThreadId::AllocateThreadId() {
 
 
 int ThreadId::GetCurrentThreadId() {
-  Isolate::EnsureInitialized();
   int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
@@ -105,17 +104,24 @@ base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
 base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-base::LazyMutex Isolate::process_wide_mutex_ = LAZY_MUTEX_INITIALIZER;
+base::Mutex Isolate::process_wide_mutex_;
+// TODO(dcarney): Remove with default isolate.
+enum DefaultIsolateStatus {
+  kDefaultIsolateUninitialized,
+  kDefaultIsolateInitialized,
+  kDefaultIsolateCrashIfInitialized
+};
+static DefaultIsolateStatus default_isolate_status_ =
+    kDefaultIsolateUninitialized;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
-  EnsureInitialized();
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = new PerIsolateThreadData(this, thread_id);
@@ -135,18 +141,25 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
-  EnsureInitialized();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
 }
 
 
-void Isolate::EnsureInitialized() {
-  base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+void Isolate::SetCrashIfDefaultIsolateInitialized() {
+  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateInitialized);
+  default_isolate_status_ = kDefaultIsolateCrashIfInitialized;
+}
+
+
+void Isolate::EnsureDefaultIsolate() {
+  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
+  CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
   if (thread_data_table_ == NULL) {
     isolate_key_ = base::Thread::CreateThreadLocalKey();
     thread_id_key_ = base::Thread::CreateThreadLocalKey();
@@ -158,6 +171,10 @@ void Isolate::EnsureInitialized() {
     thread_data_table_ = new Isolate::ThreadDataTable();
   }
 }
+
+struct StaticInitializer {
+  StaticInitializer() { Isolate::EnsureDefaultIsolate(); }
+} static_initializer;
 
 
 Address Isolate::get_address_from_id(Isolate::AddressId id) {
@@ -1516,7 +1533,7 @@ void Isolate::TearDown() {
   Deinit();
 
   {
-    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
+    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -1617,7 +1634,6 @@ void Isolate::PushToPartialSnapshotCache(Object* obj) {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  EnsureInitialized();
   base::Thread::SetThreadLocal(isolate_key_, isolate);
   base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
 }
@@ -2354,7 +2370,7 @@ bool StackLimitCheck::JsHasOverflowed() const {
   uintptr_t jssp = reinterpret_cast<uintptr_t>(jssp_address);
   if (jssp < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
-  return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();
+  return GetCurrentStackPosition() < stack_guard->real_climit();
 }
 
 

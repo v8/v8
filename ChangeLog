@@ -1,3 +1,10 @@
+2014-07-03: Version 3.28.11
+
+        Split out libplatform into a separate libary.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-03: Version 3.28.10
 
         Add clang-format to presubmit checks.

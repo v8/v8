@@ -331,7 +331,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
 #else
   USE(info);
   if (signal != SIGPROF) return;
-  Isolate* isolate = Isolate::UncheckedReentrantCurrent();
+  Isolate* isolate = Isolate::UncheckedCurrent();
   if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
     // We require a fully initialized and entered isolate.
     return;

@@ -22870,3 +22870,31 @@ TEST(ScriptSourceURLAndSourceMappingURL) {
                   "//# sourceURL=  bar21.js   \n"
                   "//# sourceMappingURL=  bar22.js \n", "bar21.js", "bar22.js");
 }
+
+
+TEST(GetOwnPropertyDescriptor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+    "var x = { value : 13};"
+    "Object.defineProperty(x, 'p0', {value : 12});"
+    "Object.defineProperty(x, 'p1', {"
+    "  set : function(value) { this.value = value; },"
+    "  get : function() { return this.value; },"
+    "});");
+  Local<Object> x = Local<Object>::Cast(env->Global()->Get(v8_str("x")));
+  Local<Value> desc = x->GetOwnPropertyDescriptor(v8_str("no_prop"));
+  CHECK(desc->IsUndefined());
+  desc = x->GetOwnPropertyDescriptor(v8_str("p0"));
+  CHECK_EQ(v8_num(12), Local<Object>::Cast(desc)->Get(v8_str("value")));
+  desc = x->GetOwnPropertyDescriptor(v8_str("p1"));
+  Local<Function> set =
+    Local<Function>::Cast(Local<Object>::Cast(desc)->Get(v8_str("set")));
+  Local<Function> get =
+    Local<Function>::Cast(Local<Object>::Cast(desc)->Get(v8_str("get")));
+  CHECK_EQ(v8_num(13), get->Call(x, 0, NULL));
+  Handle<Value> args[] = { v8_num(14) };
+  set->Call(x, 1, args);
+  CHECK_EQ(v8_num(14), get->Call(x, 0, NULL));
+}
