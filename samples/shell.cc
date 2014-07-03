@@ -81,7 +81,7 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform(0);
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   ShellArrayBufferAllocator array_buffer_allocator;

@@ -1550,8 +1550,7 @@ class StartupDataHandler {
 int Shell::Main(int argc, char* argv[]) {
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
-  v8::Platform* platform =
-      v8::platform::CreateDefaultPlatform(base::OS::NumberOfProcessorsOnline());
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   StartupDataHandler startup_data(options.natives_blob, options.snapshot_blob);

@@ -318,8 +318,7 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
-  v8::Platform* platform =
-      v8::platform::CreateDefaultPlatform(base::OS::NumberOfProcessorsOnline());
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   i::CpuFeatures::Probe(true);
 

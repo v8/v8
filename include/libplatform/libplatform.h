@@ -18,7 +18,7 @@ namespace platform {
  * of zero is passed, a suitable default based on the current number of
  * processors online will be chosen.
  */
-v8::Platform* CreateDefaultPlatform(int thread_pool_size);
+v8::Platform* CreateDefaultPlatform(int thread_pool_size = 0);
 
 
 }  // namespace platform

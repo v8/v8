@@ -646,7 +646,7 @@ void PrintMap(map<string, string>* m) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform(0);
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   map<string, string> options;
   string file;
