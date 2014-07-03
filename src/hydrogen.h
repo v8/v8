@@ -1311,10 +1311,11 @@ class HGraphBuilder {
 
   template <class BitFieldClass>
   HValue* BuildDecodeField(HValue* encoded_field) {
-    HValue* shifted_field = AddUncasted<HShr>(encoded_field,
-        Add<HConstant>(static_cast<int>(BitFieldClass::kShift)));
     HValue* mask_value = Add<HConstant>(static_cast<int>(BitFieldClass::kMask));
-    return AddUncasted<HBitwise>(Token::BIT_AND, shifted_field, mask_value);
+    HValue* masked_field =
+        AddUncasted<HBitwise>(Token::BIT_AND, encoded_field, mask_value);
+    return AddUncasted<HShr>(masked_field,
+        Add<HConstant>(static_cast<int>(BitFieldClass::kShift)));
   }
 
   HValue* BuildGetElementsKind(HValue* object);
