@@ -6911,6 +6911,12 @@ class Script: public Struct {
   // [flags]: Holds an exciting bitfield.
   DECL_ACCESSORS(flags, Smi)
 
+  // [source_url]: sourceURL from magic comment
+  DECL_ACCESSORS(source_url, Object)
+
+  // [source_url]: sourceMappingURL magic comment
+  DECL_ACCESSORS(source_mapping_url, Object)
+
   // [compilation_type]: how the the script was compiled. Encoded in the
   // 'flags' field.
   inline CompilationType compilation_type();
@@ -6967,7 +6973,9 @@ class Script: public Struct {
       kEvalFromSharedOffset + kPointerSize;
   static const int kFlagsOffset =
       kEvalFrominstructionsOffsetOffset + kPointerSize;
-  static const int kSize = kFlagsOffset + kPointerSize;
+  static const int kSourceUrlOffset = kFlagsOffset + kPointerSize;
+  static const int kSourceMappingUrlOffset = kSourceUrlOffset + kPointerSize;
+  static const int kSize = kSourceMappingUrlOffset + kPointerSize;
 
  private:
   int GetLineNumberWithArray(int code_pos);
@@ -7626,7 +7634,10 @@ class JSFunction: public JSObject {
   inline bool IsBuiltin();
 
   // Tells whether this function is defined in a native script.
-  inline bool IsNative();
+  inline bool IsFromNativeScript();
+
+  // Tells whether this function is defined in an extension script.
+  inline bool IsFromExtensionScript();
 
   // Tells whether or not the function needs arguments adaption.
   inline bool NeedsArgumentsAdaption();

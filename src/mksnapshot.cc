@@ -317,7 +317,6 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
-  i::Isolate::SetCrashIfDefaultIsolateInitialized();
   i::CpuFeatures::Probe(true);
 
   // By default, log code create information in the snapshot.

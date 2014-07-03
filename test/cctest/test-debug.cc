@@ -6431,19 +6431,12 @@ static void BreakMessageHandler(const v8::Debug::Message& message) {
   } else if (message.IsEvent() && message.GetEvent() == v8::AfterCompile) {
     i::HandleScope scope(isolate);
 
-    bool is_debug_break = isolate->stack_guard()->CheckDebugBreak();
-    // Force DebugBreak flag while serializer is working.
-    isolate->stack_guard()->RequestDebugBreak();
+    int current_count = break_point_hit_count;
 
     // Force serialization to trigger some internal JS execution.
     message.GetJSON();
 
-    // Restore previous state.
-    if (is_debug_break) {
-      isolate->stack_guard()->RequestDebugBreak();
-    } else {
-      isolate->stack_guard()->ClearDebugBreak();
-    }
+    CHECK_EQ(current_count, break_point_hit_count);
   }
 }
 

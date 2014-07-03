@@ -10,6 +10,7 @@
 
 #include <limits>
 
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -98,9 +99,8 @@ enum RangeConstraint {
 
 // Helper function for coercing an int back to a RangeContraint.
 inline RangeConstraint GetRangeConstraint(int integer_range_constraint) {
-  // TODO(jochen/jkummerow): Re-enable this when checks.h is available in base.
-  // ASSERT(integer_range_constraint >= RANGE_VALID &&
-  //        integer_range_constraint <= RANGE_INVALID);
+  ASSERT(integer_range_constraint >= RANGE_VALID &&
+         integer_range_constraint <= RANGE_INVALID);
   return static_cast<RangeConstraint>(integer_range_constraint);
 }
 

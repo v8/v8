@@ -1971,15 +1971,25 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-
-  ASSERT(kind() == Code::LOAD_IC ||
-         kind() == Code::KEYED_LOAD_IC);
-
+  Register receiver;
   if (kind() == Code::KEYED_LOAD_IC) {
-    __ Branch(&miss, ne, name,
+    // ----------- S t a t e -------------
+    //  -- ra    : return address
+    //  -- a0    : key
+    //  -- a1    : receiver
+    // -----------------------------------
+    __ Branch(&miss, ne, a0,
         Operand(isolate()->factory()->prototype_string()));
+    receiver = a1;
+  } else {
+    ASSERT(kind() == Code::LOAD_IC);
+    // ----------- S t a t e -------------
+    //  -- a2    : name
+    //  -- ra    : return address
+    //  -- a0    : receiver
+    //  -- sp[0] : receiver
+    // -----------------------------------
+    receiver = a0;
   }
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, a3, t0, &miss);

@@ -1658,6 +1658,7 @@ TEST(ErrorsFutureStrictReservedWords) {
     "var foo = interface = 1;",
     "++interface;",
     "interface++;",
+    "var yield = 13;",
     NULL
   };
 
@@ -1683,6 +1684,7 @@ TEST(NoErrorsFutureStrictReservedWords) {
     "var foo = interface = 1;",
     "++interface;",
     "interface++;",
+    "var yield = 13;",
     NULL
   };
 
@@ -1721,12 +1723,13 @@ TEST(ErrorsReservedWords) {
 }
 
 
-TEST(NoErrorsYieldSloppy) {
+TEST(NoErrorsYieldSloppyAllModes) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see next test).
   const char* context_data[][2] = {
     { "", "" },
-    { "function is_not_gen() {", "}" },
+    { "function not_gen() {", "}" },
+    { "(function not_gen() {", "})" },
     { NULL, NULL }
   };
 
@@ -1735,12 +1738,18 @@ TEST(NoErrorsYieldSloppy) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
+    "(function yield() { })",
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
     "yield = 1;",
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
+    "yield: 34",
+    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "({ yield: 1 })",
+    "({ get yield() { 1 } })",
+    "yield (100)",
     NULL
   };
 
@@ -1748,9 +1757,15 @@ TEST(NoErrorsYieldSloppy) {
 }
 
 
-TEST(ErrorsYieldSloppyGenerator) {
+TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
+  // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
+  // generator (see next test).
   const char* context_data[][2] = {
-    { "function * is_gen() {", "}" },
+    { "", "" },
+    { "function not_gen() {", "}" },
+    { "function * gen() { function not_gen() {", "} }" },
+    { "(function not_gen() {", "})" },
+    { "(function * gen() { (function not_gen() {", "}) })" },
     { NULL, NULL }
   };
 
@@ -1759,58 +1774,20 @@ TEST(ErrorsYieldSloppyGenerator) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
-    // BUG: These should not be allowed, but they are (if kAllowGenerators is
-    // set)
-    // "function foo(yield) { }",
-    // "function foo(bar, yield) { }",
-    "yield = 1;",
-    "var foo = yield = 1;",
-    "++yield;",
-    "yield++;",
-    NULL
-  };
-
-  // If generators are not allowed, the error will be produced at the '*' token,
-  // so this test works both with and without the kAllowGenerators flag.
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-
-TEST(ErrorsYieldStrict) {
-  const char* context_data[][2] = {
-    { "\"use strict\";", "" },
-    { "\"use strict\"; function is_not_gen() {", "}" },
-    { "function test_func() {\"use strict\"; ", "}"},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "var yield;",
-    "var foo, yield;",
-    "try { } catch (yield) { }",
-    "function yield() { }",
+    "(function yield() { })",
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
+    "function * yield() { }",
+    "(function * yield() { })",
     "yield = 1;",
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
-
-TEST(NoErrorsYield) {
-  const char* context_data[][2] = {
-    { "function * is_gen() {", "}" },
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "yield 2;",  // this is legal inside generator
-    "yield * 2;",  // this is legal inside generator
+    "yield: 34",
+    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "({ yield: 1 })",
+    "({ get yield() { 1 } })",
+    "yield (100)",
     NULL
   };
 
@@ -1823,20 +1800,168 @@ TEST(NoErrorsYield) {
 }
 
 
-TEST(ErrorsNameOfStrictFunction) {
-  // Tests that illegal tokens as names of a strict function produce the correct
-  // errors.
+TEST(ErrorsYieldStrict) {
   const char* context_data[][2] = {
-    { "", ""},
-    { "\"use strict\";", ""},
+    { "\"use strict\";", "" },
+    { "\"use strict\"; function not_gen() {", "}" },
+    { "function test_func() {\"use strict\"; ", "}"},
+    { "\"use strict\"; function * gen() { function not_gen() {", "} }" },
+    { "\"use strict\"; (function not_gen() {", "})" },
+    { "\"use strict\"; (function * gen() { (function not_gen() {", "}) })" },
     { NULL, NULL }
   };
 
   const char* statement_data[] = {
-    "function eval() {\"use strict\";}",
-    "function arguments() {\"use strict\";}",
-    "function interface() {\"use strict\";}",
-    "function yield() {\"use strict\";}",
+    "var yield;",
+    "var foo, yield;",
+    "try { } catch (yield) { }",
+    "function yield() { }",
+    "(function yield() { })",
+    "function foo(yield) { }",
+    "function foo(bar, yield) { }",
+    "function * yield() { }",
+    "(function * yield() { })",
+    "yield = 1;",
+    "var foo = yield = 1;",
+    "++yield;",
+    "yield++;",
+    "yield: 34;",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsGenerator) {
+  const char* context_data[][2] = {
+    { "function * gen() {", "}" },
+    { "(function * gen() {", "})" },
+    { "(function * () {", "})" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    // A generator without a body is valid.
+    ""
+    // Valid yield expressions inside generators.
+    "yield 2;",
+    "yield * 2;",
+    "yield * \n 2;",
+    "yield yield 1;",
+    "yield * yield * 1;",
+    "yield 3 + (yield 4);",
+    "yield * 3 + (yield * 4);",
+    "(yield * 3) + (yield * 4);",
+    "yield 3; yield 4;",
+    "yield * 3; yield * 4;",
+    "(function (yield) { })",
+    "yield { yield: 12 }",
+    "yield /* comment */ { yield: 12 }",
+    "yield * \n { yield: 12 }",
+    "yield /* comment */ * \n { yield: 12 }",
+    // You can return in a generator.
+    "yield 1; return",
+    "yield * 1; return",
+    "yield 1; return 37",
+    "yield * 1; return 37",
+    "yield 1; return 37; yield 'dead';",
+    "yield * 1; return 37; yield * 'dead';",
+    // Yield is still a valid key in object literals.
+    "({ yield: 1 })",
+    "({ get yield() { } })",
+    // Yield without RHS.
+    "yield;",
+    "yield",
+    "yield\n",
+    "yield /* comment */"
+    "yield // comment\n"
+    "(yield)",
+    "[yield]",
+    "{yield}",
+    "yield, yield",
+    "yield; yield",
+    "(yield) ? yield : yield",
+    "(yield) \n ? yield : yield",
+    // If there is a newline before the next token, we don't look for RHS.
+    "yield\nfor (;;) {}",
+    NULL
+  };
+
+  // This test requires kAllowGenerators to succeed.
+  static const ParserFlag always_true_flags[] = {
+    kAllowGenerators
+  };
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_true_flags, 1);
+}
+
+
+TEST(ErrorsYieldGenerator) {
+  const char* context_data[][2] = {
+    { "function * gen() {", "}" },
+    { "\"use strict\"; function * gen() {", "}" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    // Invalid yield expressions inside generators.
+    "var yield;",
+    "var foo, yield;",
+    "try { } catch (yield) { }",
+    "function yield() { }",
+    // The name of the NFE is let-bound in the generator, which does not permit
+    // yield to be an identifier.
+    "(function yield() { })",
+    "(function * yield() { })",
+    // Yield isn't valid as a formal parameter for generators.
+    "function * foo(yield) { }",
+    "(function * foo(yield) { })",
+    "yield = 1;",
+    "var foo = yield = 1;",
+    "++yield;",
+    "yield++;",
+    "yield *",
+    "(yield *)",
+    // Yield binds very loosely, so this parses as "yield (3 + yield 4)", which
+    // is invalid.
+    "yield 3 + yield 4;",
+    "yield: 34",
+    "yield ? 1 : 2",
+    // Parses as yield (/ yield): invalid.
+    "yield / yield",
+    "+ yield",
+    "+ yield 3",
+    // Invalid (no newline allowed between yield and *).
+    "yield\n*3",
+    // Invalid (we see a newline, so we parse {yield:42} as a statement, not an
+    // object literal, and yield is not a valid label).
+    "yield\n{yield: 42}",
+    "yield /* comment */\n {yield: 42}",
+    "yield //comment\n {yield: 42}",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(ErrorsNameOfStrictFunction) {
+  // Tests that illegal tokens as names of a strict function produce the correct
+  // errors.
+  const char* context_data[][2] = {
+    { "function ", ""},
+    { "\"use strict\"; function", ""},
+    { "function * ", ""},
+    { "\"use strict\"; function * ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "eval() {\"use strict\";}",
+    "arguments() {\"use strict\";}",
+    "interface() {\"use strict\";}",
+    "yield() {\"use strict\";}",
     // Future reserved words are always illegal
     "function super() { }",
     "function super() {\"use strict\";}",
@@ -1849,21 +1974,43 @@ TEST(ErrorsNameOfStrictFunction) {
 
 TEST(NoErrorsNameOfStrictFunction) {
   const char* context_data[][2] = {
-    { "", ""},
+    { "function ", ""},
     { NULL, NULL }
   };
 
   const char* statement_data[] = {
-    "function eval() { }",
-    "function arguments() { }",
-    "function interface() { }",
-    "function yield() { }",
+    "eval() { }",
+    "arguments() { }",
+    "interface() { }",
+    "yield() { }",
     NULL
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
+
+TEST(NoErrorsNameOfStrictGenerator) {
+  const char* context_data[][2] = {
+    { "function * ", ""},
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "eval() { }",
+    "arguments() { }",
+    "interface() { }",
+    "yield() { }",
+    NULL
+  };
+
+  // This test requires kAllowGenerators to succeed.
+  static const ParserFlag always_true_flags[] = {
+    kAllowGenerators
+  };
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_true_flags, 1);
+}
 
 
 TEST(ErrorsIllegalWordsAsLabelsSloppy) {

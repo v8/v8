@@ -448,12 +448,14 @@ class Isolate {
   // Returns the PerIsolateThreadData for the current thread (or NULL if one is
   // not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
+    EnsureInitialized();
     return reinterpret_cast<PerIsolateThreadData*>(
         base::Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
+    EnsureInitialized();
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
     ASSERT(isolate != NULL);
@@ -461,6 +463,17 @@ class Isolate {
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
+    EnsureInitialized();
+    return reinterpret_cast<Isolate*>(
+        base::Thread::GetThreadLocal(isolate_key_));
+  }
+
+  // Like UncheckCurrent, but returns NULL if called reentrantly during
+  // initialization.
+  INLINE(static Isolate* UncheckedReentrantCurrent()) {
+    if (!process_wide_mutex_.Pointer()->TryLock()) return NULL;
+    process_wide_mutex_.Pointer()->Unlock();
+    EnsureInitialized();
     return reinterpret_cast<Isolate*>(
         base::Thread::GetThreadLocal(isolate_key_));
   }
@@ -486,13 +499,6 @@ class Isolate {
 
   static void GlobalTearDown();
 
-  static void SetCrashIfDefaultIsolateInitialized();
-  // Ensures that process-wide resources and the default isolate have been
-  // allocated. It is only necessary to call this method in rare cases, for
-  // example if you are using V8 from within the body of a static initializer.
-  // Safe to call multiple times.
-  static void EnsureDefaultIsolate();
-
   // Find the PerThread for this particular (isolate, thread) combination
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThisThread();
@@ -505,11 +511,13 @@ class Isolate {
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
   static base::Thread::LocalStorageKey isolate_key() {
+    EnsureInitialized();
     return isolate_key_;
   }
 
   // Returns the key used to store process-wide thread IDs.
   static base::Thread::LocalStorageKey thread_id_key() {
+    EnsureInitialized();
     return thread_id_key_;
   }
 
@@ -702,11 +710,11 @@ class Isolate {
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
-
-  Handle<JSArray> CaptureSimpleStackTrace(Handle<JSObject> error_object,
-                                          Handle<Object> caller,
-                                          int limit);
+  Handle<Object> CaptureSimpleStackTrace(Handle<JSObject> error_object,
+                                         Handle<Object> caller);
   void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
+  void CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
+                                     Handle<Object> caller);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -1090,6 +1098,8 @@ class Isolate {
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
  private:
+  static void EnsureInitialized();
+
   Isolate();
 
   friend struct GlobalState;
@@ -1149,7 +1159,7 @@ class Isolate {
   };
 
   // This mutex protects highest_thread_id_ and thread_data_table_.
-  static base::Mutex process_wide_mutex_;
+  static base::LazyMutex process_wide_mutex_;
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
@@ -1425,22 +1435,29 @@ class StackLimitCheck BASE_EMBEDDED {
 // account.
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
-  explicit PostponeInterruptsScope(Isolate* isolate)
-      : stack_guard_(isolate->stack_guard()), isolate_(isolate) {
-    ExecutionAccess access(isolate_);
-    stack_guard_->thread_local_.postpone_interrupts_nesting_++;
-    stack_guard_->DisableInterrupts();
+  PostponeInterruptsScope(Isolate* isolate,
+                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
+      : stack_guard_(isolate->stack_guard()),
+        intercept_mask_(intercept_mask),
+        intercepted_flags_(0) {
+    stack_guard_->PushPostponeInterruptsScope(this);
   }
 
   ~PostponeInterruptsScope() {
-    ExecutionAccess access(isolate_);
-    if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
-      stack_guard_->EnableInterrupts();
-    }
+    stack_guard_->PopPostponeInterruptsScope();
   }
+
+  // Find the bottom-most scope that intercepts this interrupt.
+  // Return whether the interrupt has been intercepted.
+  bool Intercept(StackGuard::InterruptFlag flag);
+
  private:
   StackGuard* stack_guard_;
-  Isolate* isolate_;
+  int intercept_mask_;
+  int intercepted_flags_;
+  PostponeInterruptsScope* prev_;
+
+  friend class StackGuard;
 };
 
 

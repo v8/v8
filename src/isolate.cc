@@ -46,6 +46,7 @@ int ThreadId::AllocateThreadId() {
 
 
 int ThreadId::GetCurrentThreadId() {
+  Isolate::EnsureInitialized();
   int thread_id = base::Thread::GetThreadLocalInt(Isolate::thread_id_key_);
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
@@ -104,24 +105,17 @@ base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 #ifdef DEBUG
 base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
 #endif  // DEBUG
-base::Mutex Isolate::process_wide_mutex_;
-// TODO(dcarney): Remove with default isolate.
-enum DefaultIsolateStatus {
-  kDefaultIsolateUninitialized,
-  kDefaultIsolateInitialized,
-  kDefaultIsolateCrashIfInitialized
-};
-static DefaultIsolateStatus default_isolate_status_
-    = kDefaultIsolateUninitialized;
+base::LazyMutex Isolate::process_wide_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
+  EnsureInitialized();
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = new PerIsolateThreadData(this, thread_id);
@@ -141,25 +135,18 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
+  EnsureInitialized();
   PerIsolateThreadData* per_thread = NULL;
   {
-    base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
+    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
   }
   return per_thread;
 }
 
 
-void Isolate::SetCrashIfDefaultIsolateInitialized() {
-  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
-  CHECK(default_isolate_status_ != kDefaultIsolateInitialized);
-  default_isolate_status_ = kDefaultIsolateCrashIfInitialized;
-}
-
-
-void Isolate::EnsureDefaultIsolate() {
-  base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
-  CHECK(default_isolate_status_ != kDefaultIsolateCrashIfInitialized);
+void Isolate::EnsureInitialized() {
+  base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
   if (thread_data_table_ == NULL) {
     isolate_key_ = base::Thread::CreateThreadLocalKey();
     thread_id_key_ = base::Thread::CreateThreadLocalKey();
@@ -171,12 +158,6 @@ void Isolate::EnsureDefaultIsolate() {
     thread_data_table_ = new Isolate::ThreadDataTable();
   }
 }
-
-struct StaticInitializer {
-  StaticInitializer() {
-    Isolate::EnsureDefaultIsolate();
-  }
-} static_initializer;
 
 
 Address Isolate::get_address_from_id(Isolate::AddressId id) {
@@ -325,13 +306,10 @@ void Isolate::PushStackTraceAndDie(unsigned int magic,
 // call to this function is encountered it is skipped.  The seen_caller
 // in/out parameter is used to remember if the caller has been seen
 // yet.
-static bool IsVisibleInStackTrace(StackFrame* raw_frame,
+static bool IsVisibleInStackTrace(JSFunction* fun,
                                   Object* caller,
+                                  Object* receiver,
                                   bool* seen_caller) {
-  // Only display JS frames.
-  if (!raw_frame->is_java_script()) return false;
-  JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-  JSFunction* fun = frame->function();
   if ((fun == caller) && !(*seen_caller)) {
     *seen_caller = true;
     return false;
@@ -344,8 +322,10 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
   // The --builtins-in-stack-traces command line flag allows including
   // internal call sites in the stack trace for debugging purposes.
   if (!FLAG_builtins_in_stack_traces) {
-    if (frame->receiver()->IsJSBuiltinsObject() ||
-        (fun->IsBuiltin() && !fun->shared()->native())) {
+    if (receiver->IsJSBuiltinsObject()) return false;
+    if (fun->IsBuiltin()) {
+      return fun->shared()->native();
+    } else if (fun->IsFromNativeScript() || fun->IsFromExtensionScript()) {
       return false;
     }
   }
@@ -353,10 +333,23 @@ static bool IsVisibleInStackTrace(StackFrame* raw_frame,
 }
 
 
-Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
-                                                 Handle<Object> caller,
-                                                 int limit) {
+Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
+                                                Handle<Object> caller) {
+  // Get stack trace limit.
+  Handle<Object> error = Object::GetProperty(
+      this, js_builtins_object(), "$Error").ToHandleChecked();
+  if (!error->IsJSObject()) return factory()->undefined_value();
+
+  Handle<String> stackTraceLimit =
+      factory()->InternalizeUtf8String("stackTraceLimit");
+  ASSERT(!stackTraceLimit.is_null());
+  Handle<Object> stack_trace_limit =
+      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
+                                stackTraceLimit);
+  if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
+  int limit = FastD2IChecked(stack_trace_limit->Number());
   limit = Max(limit, 0);  // Ensure that limit is not negative.
+
   int initial_size = Min(limit, 10);
   Handle<FixedArray> elements =
       factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
@@ -369,50 +362,50 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   int frames_seen = 0;
   int sloppy_frames = 0;
   bool encountered_strict_function = false;
-  for (StackFrameIterator iter(this);
+  for (JavaScriptFrameIterator iter(this);
        !iter.done() && frames_seen < limit;
        iter.Advance()) {
-    StackFrame* raw_frame = iter.frame();
-    if (IsVisibleInStackTrace(raw_frame, *caller, &seen_caller)) {
-      JavaScriptFrame* frame = JavaScriptFrame::cast(raw_frame);
-      // Set initial size to the maximum inlining level + 1 for the outermost
-      // function.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      frame->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0; i--) {
-        Handle<JSFunction> fun = frames[i].function();
-        // Filter out frames from other security contexts.
-        if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-        if (cursor + 4 > elements->length()) {
-          int new_capacity = JSObject::NewElementsCapacity(elements->length());
-          Handle<FixedArray> new_elements =
-              factory()->NewFixedArrayWithHoles(new_capacity);
-          for (int i = 0; i < cursor; i++) {
-            new_elements->set(i, elements->get(i));
-          }
-          elements = new_elements;
+    JavaScriptFrame* frame = iter.frame();
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      Handle<JSFunction> fun = frames[i].function();
+      Handle<Object> recv = frames[i].receiver();
+      // Filter out internal frames that we do not want to show.
+      if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) continue;
+      // Filter out frames from other security contexts.
+      if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
+      if (cursor + 4 > elements->length()) {
+        int new_capacity = JSObject::NewElementsCapacity(elements->length());
+        Handle<FixedArray> new_elements =
+            factory()->NewFixedArrayWithHoles(new_capacity);
+        for (int i = 0; i < cursor; i++) {
+          new_elements->set(i, elements->get(i));
         }
-        ASSERT(cursor + 4 <= elements->length());
-
-        Handle<Object> recv = frames[i].receiver();
-        Handle<Code> code = frames[i].code();
-        Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
-        // The stack trace API should not expose receivers and function
-        // objects on frames deeper than the top-most one with a strict
-        // mode function.  The number of sloppy frames is stored as
-        // first element in the result array.
-        if (!encountered_strict_function) {
-          if (fun->shared()->strict_mode() == STRICT) {
-            encountered_strict_function = true;
-          } else {
-            sloppy_frames++;
-          }
-        }
-        elements->set(cursor++, *recv);
-        elements->set(cursor++, *fun);
-        elements->set(cursor++, *code);
-        elements->set(cursor++, *offset);
+        elements = new_elements;
       }
+      ASSERT(cursor + 4 <= elements->length());
+
+
+      Handle<Code> code = frames[i].code();
+      Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
+      // The stack trace API should not expose receivers and function
+      // objects on frames deeper than the top-most one with a strict
+      // mode function.  The number of sloppy frames is stored as
+      // first element in the result array.
+      if (!encountered_strict_function) {
+        if (fun->shared()->strict_mode() == STRICT) {
+          encountered_strict_function = true;
+        } else {
+          sloppy_frames++;
+        }
+      }
+      elements->set(cursor++, *recv);
+      elements->set(cursor++, *fun);
+      elements->set(cursor++, *code);
+      elements->set(cursor++, *offset);
       frames_seen++;
     }
   }
@@ -426,12 +419,22 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
 void Isolate::CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object) {
   if (capture_stack_trace_for_uncaught_exceptions_) {
     // Capture stack trace for a detailed exception message.
-    Handle<String> key = factory()->hidden_stack_trace_string();
+    Handle<Name> key = factory()->detailed_stack_trace_symbol();
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    JSObject::SetHiddenProperty(error_object, key, stack_trace);
+    JSObject::SetProperty(
+        error_object, key, stack_trace, NONE, STRICT).Assert();
   }
+}
+
+
+void Isolate::CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
+                                            Handle<Object> caller) {
+  // Capture stack trace for simple stack trace string formatting.
+  Handle<Name> key = factory()->stack_trace_symbol();
+  Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
+  JSObject::SetProperty(error_object, key, stack_trace, NONE, STRICT).Assert();
 }
 
 
@@ -776,25 +779,7 @@ Object* Isolate::StackOverflow() {
   Handle<JSObject> exception = factory()->CopyJSObject(boilerplate);
   DoThrow(*exception, NULL);
 
-  // Get stack trace limit.
-  Handle<Object> error = Object::GetProperty(
-      this, js_builtins_object(), "$Error").ToHandleChecked();
-  if (!error->IsJSObject()) return heap()->exception();
-
-  Handle<String> stackTraceLimit =
-      factory()->InternalizeUtf8String("stackTraceLimit");
-  ASSERT(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit =
-      JSObject::GetDataProperty(Handle<JSObject>::cast(error),
-                                stackTraceLimit);
-  if (!stack_trace_limit->IsNumber()) return heap()->exception();
-  int limit = FastD2IChecked(stack_trace_limit->Number());
-  if (limit < 0) limit = 0;
-  Handle<JSArray> stack_trace = CaptureSimpleStackTrace(
-      exception, factory()->undefined_value(), limit);
-  JSObject::SetHiddenProperty(exception,
-                              factory()->hidden_stack_trace_string(),
-                              stack_trace);
+  CaptureAndSetSimpleStackTrace(exception, factory()->undefined_value());
   return heap()->exception();
 }
 
@@ -1050,13 +1035,16 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       if (capture_stack_trace_for_uncaught_exceptions_) {
         if (IsErrorObject(exception_handle)) {
           // We fetch the stack trace that corresponds to this error object.
-          Handle<String> key = factory()->hidden_stack_trace_string();
-          Object* stack_property =
-              JSObject::cast(*exception_handle)->GetHiddenProperty(key);
-          // Property lookup may have failed.  In this case it's probably not
-          // a valid Error object.
-          if (stack_property->IsJSArray()) {
-            stack_trace_object = Handle<JSArray>(JSArray::cast(stack_property));
+          Handle<Name> key = factory()->detailed_stack_trace_symbol();
+          // Look up as own property.  If the lookup fails, the exception is
+          // probably not a valid Error object.  In that case, we fall through
+          // and capture the stack trace at this throw site.
+          LookupIterator lookup(
+              exception_handle, key, LookupIterator::CHECK_OWN_REAL);
+          Handle<Object> stack_trace_property;
+          if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
+              stack_trace_property->IsJSArray()) {
+            stack_trace_object = Handle<JSArray>::cast(stack_trace_property);
           }
         }
         if (stack_trace_object.is_null()) {
@@ -1527,7 +1515,8 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { base::LockGuard<base::Mutex> lock_guard(&process_wide_mutex_);
+  {
+    base::LockGuard<base::Mutex> lock_guard(process_wide_mutex_.Pointer());
     thread_data_table_->RemoveAllThreads(this);
   }
 
@@ -1628,6 +1617,7 @@ void Isolate::PushToPartialSnapshotCache(Object* obj) {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
+  EnsureInitialized();
   base::Thread::SetThreadLocal(isolate_key_, isolate);
   base::Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
 }
@@ -2367,5 +2357,16 @@ bool StackLimitCheck::JsHasOverflowed() const {
   return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();
 }
 
+
+bool PostponeInterruptsScope::Intercept(StackGuard::InterruptFlag flag) {
+  // First check whether the previous scope intercepts.
+  if (prev_ && prev_->Intercept(flag)) return true;
+  // Then check whether this scope intercepts.
+  if ((flag & intercept_mask_)) {
+    intercepted_flags_ |= flag;
+    return true;
+  }
+  return false;
+}
 
 } }  // namespace v8::internal

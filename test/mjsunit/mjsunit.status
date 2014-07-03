@@ -87,7 +87,7 @@
   ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
-  'migrations': [PASS, ['mode == debug', SKIP]],
+  'migrations': [PASS, ['mode == debug', TIMEOUT]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be

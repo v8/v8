@@ -796,6 +796,8 @@ class Parser : public ParserBase<ParserTraits> {
       const AstRawString* function_name, int pos, Variable* fvar,
       Token::Value fvar_init_op, bool is_generator, bool* ok);
 
+  void HandleSourceURLComments();
+
   void ThrowPendingError();
 
   void InternalizeUseCounts();

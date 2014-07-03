@@ -369,9 +369,11 @@ def Execute(arch, mode, args, options, suites, workspace):
                         timeout, options.isolates,
                         options.command_prefix,
                         options.extra_flags,
-                        False,
+                        False,  # Keep i18n on by default.
                         options.random_seed,
-                        True)
+                        True,  # No sorting of test cases.
+                        0,  # Don't rerun failing tests.
+                        0)  # No use of a rerun-failing-tests maximum.
 
   # Find available test suites and read test cases from them.
   variables = {

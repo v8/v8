@@ -207,7 +207,9 @@ void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // Calling convention for keyed IC load (from ic-arm.cc).
-  GenerateLoadICDebugBreak(masm);
+  Register receiver = KeyedLoadIC::ReceiverRegister();
+  Register name = KeyedLoadIC::NameRegister();
+  Generate_DebugBreakCallHelper(masm, receiver.bit() | name.bit(), 0);
 }
 
 
