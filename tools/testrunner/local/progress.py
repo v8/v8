@@ -322,6 +322,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       # Omit tests that pass on the first run, but collect output of tests
       # that pass when rerun.
       return
+
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
@@ -331,7 +332,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,
       "exit_code": test.output.exit_code,
-      "result": "CRASH" if test.output.HasCrashed() else "FAIL",
+      "result": test.suite.GetOutcome(test),
     })
 
 
