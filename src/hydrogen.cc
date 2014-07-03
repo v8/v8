@@ -1431,7 +1431,8 @@ void HGraphBuilder::BuildJSObjectCheck(HValue* receiver,
                                              mask);
   HValue* sub_result = AddUncasted<HSub>(and_result,
                                          Add<HConstant>(JS_OBJECT_TYPE));
-  Add<HBoundsCheck>(sub_result, Add<HConstant>(0x100 - JS_OBJECT_TYPE));
+  Add<HBoundsCheck>(sub_result,
+                    Add<HConstant>(LAST_JS_OBJECT_TYPE + 1 - JS_OBJECT_TYPE));
 }
 
 
