@@ -1848,19 +1848,10 @@ v8::TryCatch::TryCatch()
       rethrow_(false),
       has_terminated_(false) {
   Reset();
-  js_stack_comparable_address_ = this;
-#ifdef V8_USE_ADDRESS_SANITIZER
-  void* asan_fake_stack_handle = __asan_get_current_fake_stack();
-  if (asan_fake_stack_handle != NULL) {
-    js_stack_comparable_address_ = __asan_addr_is_in_fake_stack(
-        asan_fake_stack_handle, js_stack_comparable_address_, NULL, NULL);
-    CHECK(js_stack_comparable_address_ != NULL);
-  }
-#endif
   // Special handling for simulators which have a separate JS stack.
-  js_stack_comparable_address_ = reinterpret_cast<void*>(
-      v8::internal::SimulatorStack::RegisterCTryCatch(
-          reinterpret_cast<uintptr_t>(js_stack_comparable_address_)));
+  js_stack_comparable_address_ =
+      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
+          GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 

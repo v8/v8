@@ -246,8 +246,7 @@ class ParserBase : public Traits {
   INLINE(Token::Value Next()) {
     if (stack_overflow_) return Token::ILLEGAL;
     {
-      int marker;
-      if (reinterpret_cast<uintptr_t>(&marker) < stack_limit_) {
+      if (GetCurrentStackPosition() < stack_limit_) {
         // Any further calls to Next or peek will return the illegal token.
         // The current call must return the next token, which might already
         // have been peek'ed.

@@ -2354,7 +2354,7 @@ bool StackLimitCheck::JsHasOverflowed() const {
   uintptr_t jssp = reinterpret_cast<uintptr_t>(jssp_address);
   if (jssp < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
-  return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();
+  return GetCurrentStackPosition() < stack_guard->real_climit();
 }
 
 
