@@ -570,6 +570,8 @@
         '../../src/ostreams.h',
         '../../src/parser.cc',
         '../../src/parser.h',
+        '../../src/perf-jit.cc',
+        '../../src/perf-jit.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',

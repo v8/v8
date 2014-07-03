@@ -1960,12 +1960,6 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCompiledFunctions());
   }
 
-  // If we are profiling with the Linux perf tool, we need to disable
-  // code relocation.
-  if (FLAG_perf_jit_prof || FLAG_perf_basic_prof) {
-    FLAG_compact_code_space = false;
-  }
-
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
