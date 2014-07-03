@@ -2115,6 +2115,11 @@ class V8_EXPORT Object : public Value {
    */
   PropertyAttribute GetPropertyAttributes(Handle<Value> key);
 
+  /**
+   * Returns Object.getOwnPropertyDescriptor as per ES5 section 15.2.3.3.
+   */
+  Local<Value> GetOwnPropertyDescriptor(Local<String> key);
+
   bool Has(Handle<Value> key);
 
   bool Delete(Handle<Value> key);
