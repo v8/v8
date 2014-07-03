@@ -167,18 +167,6 @@ class StoreBuffer {
       RegionCallback region_callback,
       ObjectSlotCallback slot_callback);
 
-  void FindPointersToNewSpaceInMaps(
-    Address start,
-    Address end,
-    ObjectSlotCallback slot_callback,
-    bool clear_maps);
-
-  void FindPointersToNewSpaceInMapsRegion(
-    Address start,
-    Address end,
-    ObjectSlotCallback slot_callback,
-    bool clear_maps);
-
   void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
                                     bool clear_maps);
 
