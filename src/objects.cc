@@ -2062,14 +2062,13 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 }
 
 
-bool Map::InstancesNeedRewriting(Map* target,
-                                 int target_number_of_fields,
-                                 int target_inobject,
-                                 int target_unused) {
+bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
+                                 int target_inobject, int target_unused,
+                                 int* old_number_of_fields) {
   // If fields were added (or removed), rewrite the instance.
-  int number_of_fields = NumberOfFields();
-  ASSERT(target_number_of_fields >= number_of_fields);
-  if (target_number_of_fields != number_of_fields) return true;
+  *old_number_of_fields = NumberOfFields();
+  ASSERT(target_number_of_fields >= *old_number_of_fields);
+  if (target_number_of_fields != *old_number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
   DescriptorArray* old_desc = instance_descriptors();
@@ -2147,14 +2146,15 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
+  int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->inobject_properties();
   int unused = new_map->unused_property_fields();
 
   // Nothing to do if no functions were converted to fields and no smis were
   // converted to doubles.
-  if (!old_map->InstancesNeedRewriting(
-          *new_map, number_of_fields, inobject, unused)) {
+  if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
+                                       unused, &old_number_of_fields)) {
     object->synchronized_set_map(*new_map);
     return;
   }
@@ -2163,7 +2163,9 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int external = total_size - inobject;
 
   if ((old_map->unused_property_fields() == 0) &&
+      (number_of_fields != old_number_of_fields) &&
       (new_map->GetBackPointer() == *old_map)) {
+    ASSERT(number_of_fields == old_number_of_fields + 1);
     // This migration is a transition from a map that has run out out property
     // space. Therefore it could be done by extending the backing store.
     Handle<FixedArray> old_storage = handle(object->properties(), isolate);
