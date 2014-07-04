@@ -2104,15 +2104,6 @@ void Assembler::MoveWide(const Register& rd,
                          uint64_t imm,
                          int shift,
                          MoveWideImmediateOp mov_op) {
-  // Ignore the top 32 bits of an immediate if we're moving to a W register.
-  if (rd.Is32Bits()) {
-    // Check that the top 32 bits are zero (a positive 32-bit number) or top
-    // 33 bits are one (a negative 32-bit number, sign extended to 64 bits).
-    ASSERT(((imm >> kWRegSizeInBits) == 0) ||
-           ((imm >> (kWRegSizeInBits - 1)) == 0x1ffffffff));
-    imm &= kWRegMask;
-  }
-
   if (shift >= 0) {
     // Explicit shift specified.
     ASSERT((shift == 0) || (shift == 16) || (shift == 32) || (shift == 48));
@@ -2518,198 +2509,91 @@ bool Assembler::IsImmLogical(uint64_t value,
   ASSERT((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
   ASSERT((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
-  bool negate = false;
-
   // Logical immediates are encoded using parameters n, imm_s and imm_r using
   // the following table:
   //
-  //    N   imms    immr    size        S             R
-  //    1  ssssss  rrrrrr    64    UInt(ssssss)  UInt(rrrrrr)
-  //    0  0sssss  xrrrrr    32    UInt(sssss)   UInt(rrrrr)
-  //    0  10ssss  xxrrrr    16    UInt(ssss)    UInt(rrrr)
-  //    0  110sss  xxxrrr     8    UInt(sss)     UInt(rrr)
-  //    0  1110ss  xxxxrr     4    UInt(ss)      UInt(rr)
-  //    0  11110s  xxxxxr     2    UInt(s)       UInt(r)
+  //  N   imms    immr    size        S             R
+  //  1  ssssss  rrrrrr    64    UInt(ssssss)  UInt(rrrrrr)
+  //  0  0sssss  xrrrrr    32    UInt(sssss)   UInt(rrrrr)
+  //  0  10ssss  xxrrrr    16    UInt(ssss)    UInt(rrrr)
+  //  0  110sss  xxxrrr     8    UInt(sss)     UInt(rrr)
+  //  0  1110ss  xxxxrr     4    UInt(ss)      UInt(rr)
+  //  0  11110s  xxxxxr     2    UInt(s)       UInt(r)
   // (s bits must not be all set)
   //
-  // A pattern is constructed of size bits, where the least significant S+1 bits
-  // are set. The pattern is rotated right by R, and repeated across a 32 or
-  // 64-bit value, depending on destination register width.
+  // A pattern is constructed of size bits, where the least significant S+1
+  // bits are set. The pattern is rotated right by R, and repeated across a
+  // 32 or 64-bit value, depending on destination register width.
   //
-  // Put another way: the basic format of a logical immediate is a single
-  // contiguous stretch of 1 bits, repeated across the whole word at intervals
-  // given by a power of 2. To identify them quickly, we first locate the
-  // lowest stretch of 1 bits, then the next 1 bit above that; that combination
-  // is different for every logical immediate, so it gives us all the
-  // information we need to identify the only logical immediate that our input
-  // could be, and then we simply check if that's the value we actually have.
+  // To test if an arbitary immediate can be encoded using this scheme, an
+  // iterative algorithm is used.
   //
-  // (The rotation parameter does give the possibility of the stretch of 1 bits
-  // going 'round the end' of the word. To deal with that, we observe that in
-  // any situation where that happens the bitwise NOT of the value is also a
-  // valid logical immediate. So we simply invert the input whenever its low bit
-  // is set, and then we know that the rotated case can't arise.)
+  // TODO(mcapewel) This code does not consider using X/W register overlap to
+  // support 64-bit immediates where the top 32-bits are zero, and the bottom
+  // 32-bits are an encodable logical immediate.
 
-  if (value & 1) {
-    // If the low bit is 1, negate the value, and set a flag to remember that we
-    // did (so that we can adjust the return values appropriately).
-    negate = true;
-    value = ~value;
+  // 1. If the value has all set or all clear bits, it can't be encoded.
+  if ((value == 0) || (value == 0xffffffffffffffffUL) ||
+      ((width == kWRegSizeInBits) && (value == 0xffffffff))) {
+    return false;
   }
 
-  if (width == kWRegSizeInBits) {
-    // To handle 32-bit logical immediates, the very easiest thing is to repeat
-    // the input value twice to make a 64-bit word. The correct encoding of that
-    // as a logical immediate will also be the correct encoding of the 32-bit
-    // value.
+  unsigned lead_zero = CountLeadingZeros(value, width);
+  unsigned lead_one = CountLeadingZeros(~value, width);
+  unsigned trail_zero = CountTrailingZeros(value, width);
+  unsigned trail_one = CountTrailingZeros(~value, width);
+  unsigned set_bits = CountSetBits(value, width);
 
-    // The most-significant 32 bits may not be zero (ie. negate is true) so
-    // shift the value left before duplicating it.
-    value <<= kWRegSizeInBits;
-    value |= value >> kWRegSizeInBits;
-  }
+  // The fixed bits in the immediate s field.
+  // If width == 64 (X reg), start at 0xFFFFFF80.
+  // If width == 32 (W reg), start at 0xFFFFFFC0, as the iteration for 64-bit
+  // widths won't be executed.
+  int imm_s_fixed = (width == kXRegSizeInBits) ? -128 : -64;
+  int imm_s_mask = 0x3F;
 
-  // The basic analysis idea: imagine our input word looks like this.
-  //
-  //    0011111000111110001111100011111000111110001111100011111000111110
-  //                                                          c  b    a
-  //                                                          |<--d-->|
-  //
-  // We find the lowest set bit (as an actual power-of-2 value, not its index)
-  // and call it a. Then we add a to our original number, which wipes out the
-  // bottommost stretch of set bits and replaces it with a 1 carried into the
-  // next zero bit. Then we look for the new lowest set bit, which is in
-  // position b, and subtract it, so now our number is just like the original
-  // but with the lowest stretch of set bits completely gone. Now we find the
-  // lowest set bit again, which is position c in the diagram above. Then we'll
-  // measure the distance d between bit positions a and c (using CLZ), and that
-  // tells us that the only valid logical immediate that could possibly be equal
-  // to this number is the one in which a stretch of bits running from a to just
-  // below b is replicated every d bits.
-  uint64_t a = LargestPowerOf2Divisor(value);
-  uint64_t value_plus_a = value + a;
-  uint64_t b = LargestPowerOf2Divisor(value_plus_a);
-  uint64_t value_plus_a_minus_b = value_plus_a - b;
-  uint64_t c = LargestPowerOf2Divisor(value_plus_a_minus_b);
-
-  int d, clz_a, out_n;
-  uint64_t mask;
-
-  if (c != 0) {
-    // The general case, in which there is more than one stretch of set bits.
-    // Compute the repeat distance d, and set up a bitmask covering the basic
-    // unit of repetition (i.e. a word with the bottom d bits set). Also, in all
-    // of these cases the N bit of the output will be zero.
-    clz_a = CountLeadingZeros(a, kXRegSizeInBits);
-    int clz_c = CountLeadingZeros(c, kXRegSizeInBits);
-    d = clz_a - clz_c;
-    mask = ((V8_UINT64_C(1) << d) - 1);
-    out_n = 0;
-  } else {
-    // Handle degenerate cases.
-    //
-    // If any of those 'find lowest set bit' operations didn't find a set bit at
-    // all, then the word will have been zero thereafter, so in particular the
-    // last lowest_set_bit operation will have returned zero. So we can test for
-    // all the special case conditions in one go by seeing if c is zero.
-    if (a == 0) {
-      // The input was zero (or all 1 bits, which will come to here too after we
-      // inverted it at the start of the function), for which we just return
-      // false.
-      return false;
-    } else {
-      // Otherwise, if c was zero but a was not, then there's just one stretch
-      // of set bits in our word, meaning that we have the trivial case of
-      // d == 64 and only one 'repetition'. Set up all the same variables as in
-      // the general case above, and set the N bit in the output.
-      clz_a = CountLeadingZeros(a, kXRegSizeInBits);
-      d = 64;
-      mask = ~V8_UINT64_C(0);
-      out_n = 1;
+  for (;;) {
+    // 2. If the value is two bits wide, it can be encoded.
+    if (width == 2) {
+      *n = 0;
+      *imm_s = 0x3C;
+      *imm_r = (value & 3) - 1;
+      return true;
     }
-  }
 
-  // If the repeat period d is not a power of two, it can't be encoded.
-  if (!IS_POWER_OF_TWO(d)) {
+    *n = (width == 64) ? 1 : 0;
+    *imm_s = ((imm_s_fixed | (set_bits - 1)) & imm_s_mask);
+    if ((lead_zero + set_bits) == width) {
+      *imm_r = 0;
+    } else {
+      *imm_r = (lead_zero > 0) ? (width - trail_zero) : lead_one;
+    }
+
+    // 3. If the sum of leading zeros, trailing zeros and set bits is equal to
+    //    the bit width of the value, it can be encoded.
+    if (lead_zero + trail_zero + set_bits == width) {
+      return true;
+    }
+
+    // 4. If the sum of leading ones, trailing ones and unset bits in the
+    //    value is equal to the bit width of the value, it can be encoded.
+    if (lead_one + trail_one + (width - set_bits) == width) {
+      return true;
+    }
+
+    // 5. If the most-significant half of the bitwise value is equal to the
+    //    least-significant half, return to step 2 using the least-significant
+    //    half of the value.
+    uint64_t mask = (1UL << (width >> 1)) - 1;
+    if ((value & mask) == ((value >> (width >> 1)) & mask)) {
+      width >>= 1;
+      set_bits >>= 1;
+      imm_s_fixed >>= 1;
+      continue;
+    }
+
+    // 6. Otherwise, the value can't be encoded.
     return false;
   }
-
-  if (((b - a) & ~mask) != 0) {
-    // If the bit stretch (b - a) does not fit within the mask derived from the
-    // repeat period, then fail.
-    return false;
-  }
-
-  // The only possible option is b - a repeated every d bits. Now we're going to
-  // actually construct the valid logical immediate derived from that
-  // specification, and see if it equals our original input.
-  //
-  // To repeat a value every d bits, we multiply it by a number of the form
-  // (1 + 2^d + 2^(2d) + ...), i.e. 0x0001000100010001 or similar. These can
-  // be derived using a table lookup on CLZ(d).
-  static const uint64_t multipliers[] = {
-    0x0000000000000001UL,
-    0x0000000100000001UL,
-    0x0001000100010001UL,
-    0x0101010101010101UL,
-    0x1111111111111111UL,
-    0x5555555555555555UL,
-  };
-  int multiplier_idx = CountLeadingZeros(d, kXRegSizeInBits) - 57;
-  // Ensure that the index to the multipliers array is within bounds.
-  ASSERT((multiplier_idx >= 0) &&
-         (static_cast<size_t>(multiplier_idx) <
-          (sizeof(multipliers) / sizeof(multipliers[0]))));
-  uint64_t multiplier = multipliers[multiplier_idx];
-  uint64_t candidate = (b - a) * multiplier;
-
-  if (value != candidate) {
-    // The candidate pattern doesn't match our input value, so fail.
-    return false;
-  }
-
-  // We have a match! This is a valid logical immediate, so now we have to
-  // construct the bits and pieces of the instruction encoding that generates
-  // it.
-
-  // Count the set bits in our basic stretch. The special case of clz(0) == -1
-  // makes the answer come out right for stretches that reach the very top of
-  // the word (e.g. numbers like 0xffffc00000000000).
-  int clz_b = (b == 0) ? -1 : CountLeadingZeros(b, kXRegSizeInBits);
-  int s = clz_a - clz_b;
-
-  // Decide how many bits to rotate right by, to put the low bit of that basic
-  // stretch in position a.
-  int r;
-  if (negate) {
-    // If we inverted the input right at the start of this function, here's
-    // where we compensate: the number of set bits becomes the number of clear
-    // bits, and the rotation count is based on position b rather than position
-    // a (since b is the location of the 'lowest' 1 bit after inversion).
-    s = d - s;
-    r = (clz_b + 1) & (d - 1);
-  } else {
-    r = (clz_a + 1) & (d - 1);
-  }
-
-  // Now we're done, except for having to encode the S output in such a way that
-  // it gives both the number of set bits and the length of the repeated
-  // segment. The s field is encoded like this:
-  //
-  //     imms    size        S
-  //    ssssss    64    UInt(ssssss)
-  //    0sssss    32    UInt(sssss)
-  //    10ssss    16    UInt(ssss)
-  //    110sss     8    UInt(sss)
-  //    1110ss     4    UInt(ss)
-  //    11110s     2    UInt(s)
-  //
-  // So we 'or' (-d << 1) with our computed s to form imms.
-  *n = out_n;
-  *imm_s = ((-d << 1) | (s - 1)) & 0x3f;
-  *imm_r = r;
-
-  return true;
 }
 
 
@@ -3088,12 +2972,31 @@ void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
 }
 
 
-void PatchingAssembler::PatchAdrFar(ptrdiff_t target_offset) {
+void PatchingAssembler::MovInt64(const Register& rd, int64_t imm) {
+  Label start;
+  bind(&start);
+
+  ASSERT(rd.Is64Bits());
+  ASSERT(!rd.IsSP());
+
+  for (unsigned i = 0; i < (rd.SizeInBits() / 16); i++) {
+    uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
+    movk(rd, imm16, 16 * i);
+  }
+
+  ASSERT(SizeOfCodeGeneratedSince(&start) ==
+         kMovInt64NInstrs * kInstructionSize);
+}
+
+
+void PatchingAssembler::PatchAdrFar(Instruction* target) {
   // The code at the current instruction should be:
   //   adr  rd, 0
   //   nop  (adr_far)
   //   nop  (adr_far)
+  //   nop  (adr_far)
   //   movz scratch, 0
+  //   add  rd, rd, scratch
 
   // Verify the expected code.
   Instruction* expected_adr = InstructionAt(0);
@@ -3103,21 +3006,39 @@ void PatchingAssembler::PatchAdrFar(ptrdiff_t target_offset) {
     CHECK(InstructionAt((i + 1) * kInstructionSize)->IsNop(ADR_FAR_NOP));
   }
   Instruction* expected_movz =
-      InstructionAt((kAdrFarPatchableNInstrs - 1) * kInstructionSize);
+      InstructionAt((kAdrFarPatchableNInstrs - 2) * kInstructionSize);
   CHECK(expected_movz->IsMovz() &&
         (expected_movz->ImmMoveWide() == 0) &&
         (expected_movz->ShiftMoveWide() == 0));
   int scratch_code = expected_movz->Rd();
+  Instruction* expected_add =
+      InstructionAt((kAdrFarPatchableNInstrs - 1) * kInstructionSize);
+  CHECK(expected_add->IsAddSubShifted() &&
+        (expected_add->Mask(AddSubOpMask) == ADD) &&
+        expected_add->SixtyFourBits() &&
+        (expected_add->Rd() == rd_code) && (expected_add->Rn() == rd_code) &&
+        (expected_add->Rm() == scratch_code) &&
+        (static_cast<Shift>(expected_add->ShiftDP()) == LSL) &&
+        (expected_add->ImmDPShift() == 0));
 
   // Patch to load the correct address.
+  Label start;
+  bind(&start);
   Register rd = Register::XRegFromCode(rd_code);
-  Register scratch = Register::XRegFromCode(scratch_code);
-  // Addresses are only 48 bits.
-  adr(rd, target_offset & 0xFFFF);
-  movz(scratch, (target_offset >> 16) & 0xFFFF, 16);
-  movk(scratch, (target_offset >> 32) & 0xFFFF, 32);
-  ASSERT((target_offset >> 48) == 0);
-  add(rd, rd, scratch);
+  // If the target is in range, we only patch the adr. Otherwise we patch the
+  // nops with fixup instructions.
+  int target_offset = expected_adr->DistanceTo(target);
+  if (Instruction::IsValidPCRelOffset(target_offset)) {
+    adr(rd, target_offset);
+    for (int i = 0; i < kAdrFarPatchableNInstrs - 2; ++i) {
+      nop(ADR_FAR_NOP);
+    }
+  } else {
+    Register scratch = Register::XRegFromCode(scratch_code);
+    adr(rd, 0);
+    MovInt64(scratch, target_offset);
+    add(rd, rd, scratch);
+  }
 }
 
 

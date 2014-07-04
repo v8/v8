@@ -1371,35 +1371,37 @@ void Map::PrintGeneralization(FILE* file,
                               Representation new_representation,
                               HeapType* old_field_type,
                               HeapType* new_field_type) {
-  OFStream os(file);
-  os << "[generalizing ";
+  PrintF(file, "[generalizing ");
   constructor_name()->PrintOn(file);
-  os << "] ";
+  PrintF(file, "] ");
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
   } else {
-    os << "{symbol " << static_cast<void*>(name) << "}";
+    PrintF(file, "{symbol %p}", static_cast<void*>(name));
   }
-  os << ":";
+  PrintF(file, ":");
   if (constant_to_field) {
-    os << "c";
+    PrintF(file, "c");
   } else {
-    os << old_representation.Mnemonic() << "{";
-    old_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
-    os << "}";
+    PrintF(file, "%s", old_representation.Mnemonic());
+    PrintF(file, "{");
+    old_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
+    PrintF(file, "}");
   }
-  os << "->" << new_representation.Mnemonic() << "{";
-  new_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
-  os << "} (";
+  PrintF(file, "->%s", new_representation.Mnemonic());
+  PrintF(file, "{");
+  new_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
+  PrintF(file, "}");
+  PrintF(file, " (");
   if (strlen(reason) > 0) {
-    os << reason;
+    PrintF(file, "%s", reason);
   } else {
-    os << "+" << (descriptors - split) << " maps";
+    PrintF(file, "+%i maps", descriptors - split);
   }
-  os << ") [";
+  PrintF(file, ") [");
   JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
-  os << "]\n";
+  PrintF(file, "]\n");
 }
 
 
@@ -2060,13 +2062,14 @@ static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
 }
 
 
-bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
-                                 int target_inobject, int target_unused,
-                                 int* old_number_of_fields) {
+bool Map::InstancesNeedRewriting(Map* target,
+                                 int target_number_of_fields,
+                                 int target_inobject,
+                                 int target_unused) {
   // If fields were added (or removed), rewrite the instance.
-  *old_number_of_fields = NumberOfFields();
-  ASSERT(target_number_of_fields >= *old_number_of_fields);
-  if (target_number_of_fields != *old_number_of_fields) return true;
+  int number_of_fields = NumberOfFields();
+  ASSERT(target_number_of_fields >= number_of_fields);
+  if (target_number_of_fields != number_of_fields) return true;
 
   // If smi descriptors were replaced by double descriptors, rewrite.
   DescriptorArray* old_desc = instance_descriptors();
@@ -2144,15 +2147,14 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
 void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
-  int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->inobject_properties();
   int unused = new_map->unused_property_fields();
 
   // Nothing to do if no functions were converted to fields and no smis were
   // converted to doubles.
-  if (!old_map->InstancesNeedRewriting(*new_map, number_of_fields, inobject,
-                                       unused, &old_number_of_fields)) {
+  if (!old_map->InstancesNeedRewriting(
+          *new_map, number_of_fields, inobject, unused)) {
     object->synchronized_set_map(*new_map);
     return;
   }
@@ -2161,9 +2163,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int external = total_size - inobject;
 
   if ((old_map->unused_property_fields() == 0) &&
-      (number_of_fields != old_number_of_fields) &&
       (new_map->GetBackPointer() == *old_map)) {
-    ASSERT(number_of_fields == old_number_of_fields + 1);
     // This migration is a transition from a map that has run out out property
     // space. Therefore it could be done by extending the backing store.
     Handle<FixedArray> old_storage = handle(object->properties(), isolate);
@@ -9710,23 +9710,15 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  // Unfortunately the serializer relies on pointers within an object being
-  // visited in-order, so we have to iterate both the code and heap pointers in
-  // the small section before doing so in the extended section.
-  for (int s = 0; s <= final_section(); ++s) {
-    LayoutSection section = static_cast<LayoutSection>(s);
-    ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR,
-                                          section);
-    while (!code_iter.is_finished()) {
-      v->VisitCodeEntry(reinterpret_cast<Address>(
-          RawFieldOfElementAt(code_iter.next_index())));
-    }
+  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
+  while (!code_iter.is_finished()) {
+    v->VisitCodeEntry(reinterpret_cast<Address>(
+        RawFieldOfElementAt(code_iter.next_index())));
+  }
 
-    ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR,
-                                          section);
-    while (!heap_iter.is_finished()) {
-      v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
-    }
+  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
+  while (!heap_iter.is_finished()) {
+    v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
   }
 }
 
@@ -11181,9 +11173,7 @@ void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
       if ((bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
           (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::SOFT)) ||
-          (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
         PrintF(out, "            %s\n", last_comment);
         return;

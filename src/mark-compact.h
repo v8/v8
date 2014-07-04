@@ -670,10 +670,7 @@ class MarkCompactCollector {
 
   bool AreSweeperThreadsActivated();
 
-  // If a paged space is passed in, this method checks if the given space is
-  // swept concurrently. Otherwise, this method checks if concurrent sweeping
-  // is in progress right now on any space.
-  bool IsConcurrentSweepingInProgress(PagedSpace* space = NULL);
+  bool IsConcurrentSweepingInProgress();
 
   void set_sequential_sweeping(bool sequential_sweeping) {
     sequential_sweeping_ = sequential_sweeping;

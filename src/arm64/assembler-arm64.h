@@ -2286,10 +2286,13 @@ class PatchingAssembler : public Assembler {
     CpuFeatures::FlushICache(buffer_, length);
   }
 
+  static const int kMovInt64NInstrs = 4;
+  void MovInt64(const Register& rd, int64_t imm);
+
   // See definition of PatchAdrFar() for details.
-  static const int kAdrFarPatchableNNops = 2;
-  static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
-  void PatchAdrFar(ptrdiff_t target_offset);
+  static const int kAdrFarPatchableNNops = kMovInt64NInstrs - 1;
+  static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 3;
+  void PatchAdrFar(Instruction* target);
 };
 
 

@@ -758,8 +758,7 @@ void Deoptimizer::DoComputeOutputFrames() {
            input_data->OptimizationId()->value(),
            bailout_id_,
            fp_to_sp_delta_);
-    if (bailout_type_ == EAGER || bailout_type_ == SOFT ||
-        (compiled_code_->is_hydrogen_stub())) {
+    if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
       compiled_code_->PrintDeoptLocation(trace_scope_->file(), bailout_id_);
     }
   }
@@ -1549,7 +1548,8 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   //                                         reg = JSFunction context
   //
 
-  CHECK(compiled_code_->is_hydrogen_stub());
+  CHECK(compiled_code_->is_crankshafted() &&
+        compiled_code_->kind() != Code::OPTIMIZED_FUNCTION);
   int major_key = compiled_code_->major_key();
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);

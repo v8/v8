@@ -3368,7 +3368,6 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
                   Expression* expression,
                   Yield::Kind yield_kind,
                   int pos) {
-    if (!expression) expression = NewUndefinedLiteral(pos);
     Yield* yield = new(zone_) Yield(
         zone_, generator_object, expression, yield_kind, pos);
     VISIT_AND_RETURN(Yield, yield)

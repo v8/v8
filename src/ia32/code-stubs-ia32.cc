@@ -1596,14 +1596,19 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmp(eax, NativeRegExpMacroAssembler::EXCEPTION);
   // If not exception it can only be retry. Handle that in the runtime system.
   __ j(not_equal, &runtime);
-
-  // Result must now be exception.
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                       isolate());
   __ mov(edx, Immediate(isolate()->factory()->the_hole_value()));
   __ mov(eax, Operand::StaticVariable(pending_exception));
+  __ cmp(edx, eax);
+  __ j(equal, &runtime);
+  // For exception, throw the exception again.
 
-  // Clear pending exception.
+  // Clear the pending exception variable.
   __ mov(Operand::StaticVariable(pending_exception), edx);
 
   // Special handling of termination exceptions which are uncatchable
@@ -2259,7 +2264,7 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
     // Load the receiver from the stack.
     __ mov(eax, Operand(esp, (argc + 1) * kPointerSize));
 
-    if (needs_checks) {
+    if (call_as_method) {
       __ JumpIfSmi(eax, &wrap);
 
       __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);

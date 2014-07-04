@@ -449,9 +449,11 @@ bool SideEffectsTracker::ComputeGlobalVar(Unique<Cell> cell, int* index) {
   }
   if (num_global_vars_ < kNumberOfGlobalVars) {
     if (FLAG_trace_gvn) {
-      OFStream os(stdout);
-      os << "Tracking global var [" << *cell.handle() << "] "
-         << "(mapped to index " << num_global_vars_ << ")" << endl;
+      HeapStringAllocator allocator;
+      StringStream stream(&allocator);
+      stream.Add("Tracking global var [%p] (mapped to index %d)\n",
+                 *cell.handle(), num_global_vars_);
+      stream.OutputToStdOut();
     }
     *index = num_global_vars_;
     global_vars_[num_global_vars_++] = cell;

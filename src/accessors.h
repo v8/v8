@@ -32,8 +32,6 @@ namespace internal {
   V(ScriptName)                     \
   V(ScriptSource)                   \
   V(ScriptType)                     \
-  V(ScriptSourceUrl)                \
-  V(ScriptSourceMappingUrl)         \
   V(StringLength)
 
 // Accessors contains all predefined proxy accessors.

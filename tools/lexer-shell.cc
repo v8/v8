@@ -33,7 +33,6 @@
 #include <vector>
 #include "src/v8.h"
 
-#include "include/libplatform/libplatform.h"
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/messages.h"
@@ -181,8 +180,6 @@ v8::base::TimeDelta ProcessFile(
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
   bool print_tokens = false;
@@ -229,7 +226,5 @@ int main(int argc, char* argv[]) {
     }
   }
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
-  delete platform;
   return 0;
 }

@@ -1,3 +1,8 @@
+2014-07-04: Version 3.28.13
+
+        Rollback to r22134.
+
+
 2014-07-04: Version 3.28.12
 
         Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue

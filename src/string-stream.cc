@@ -17,6 +17,13 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
 }
 
 
+NoAllocationStringAllocator::NoAllocationStringAllocator(char* memory,
+                                                         unsigned size) {
+  size_ = size;
+  space_ = memory;
+}
+
+
 bool StringStream::Put(char c) {
   if (full()) return false;
   ASSERT(length_ < capacity_);
@@ -545,6 +552,14 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
   DeleteArray(space_);
   space_ = new_space;
   return new_space;
+}
+
+
+// Only grow once to the maximum allowable size.
+char* NoAllocationStringAllocator::grow(unsigned* bytes) {
+  ASSERT(size_ >= *bytes);
+  *bytes = size_;
+  return space_;
 }
 
 

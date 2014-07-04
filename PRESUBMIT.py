@@ -114,8 +114,6 @@ def _CommonChecks(input_api, output_api):
   results = []
   results.extend(input_api.canned_checks.CheckOwners(
       input_api, output_api, source_file_filter=None))
-  results.extend(input_api.canned_checks.CheckPatchFormatted(
-      input_api, output_api))
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   return results

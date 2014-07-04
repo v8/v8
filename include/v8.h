@@ -947,15 +947,6 @@ class V8_EXPORT UnboundScript {
   Handle<Value> GetScriptName();
 
   /**
-   * Data read from magic sourceURL comments.
-   */
-  Handle<Value> GetSourceURL();
-  /**
-   * Data read from magic sourceMappingURL comments.
-   */
-  Handle<Value> GetSourceMappingURL();
-
-  /**
    * Returns zero based line number of the code_pos location in the script.
    * -1 will be returned if no information available.
    */
@@ -2114,11 +2105,6 @@ class V8_EXPORT Object : public Value {
    * None when the property doesn't exist.
    */
   PropertyAttribute GetPropertyAttributes(Handle<Value> key);
-
-  /**
-   * Returns Object.getOwnPropertyDescriptor as per ES5 section 15.2.3.3.
-   */
-  Local<Value> GetOwnPropertyDescriptor(Local<String> key);
 
   bool Has(Handle<Value> key);
 
@@ -5263,6 +5249,14 @@ class V8_EXPORT Context {
    */
   void Exit();
 
+  /**
+   * Returns true if the context has experienced an out of memory situation.
+   * Since V8 always treats OOM as fatal error, this can no longer return true.
+   * Therefore this is now deprecated.
+   * */
+  V8_DEPRECATED("This can no longer happen. OOM is a fatal error.",
+                bool HasOutOfMemoryException()) { return false; }
+
   /** Returns an isolate associated with a current context. */
   v8::Isolate* GetIsolate();
 
@@ -5593,7 +5587,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 163;
+  static const int kEmptyStringRootIndex = 161;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

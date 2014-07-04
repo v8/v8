@@ -318,21 +318,17 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, has_unexpected_output):
     self.progress_indicator.HasRun(test, has_unexpected_output)
-    if test.run == 1 and not has_unexpected_output:
-      # Omit tests that pass on the first run, but collect output of tests
-      # that pass when rerun.
+    if not has_unexpected_output:
       return
-
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
       "command": EscapeCommand(self.runner.GetCommand(test)).replace(
           ABS_PATH_PREFIX, ""),
-      "run": test.run,
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,
       "exit_code": test.output.exit_code,
-      "result": test.suite.GetOutcome(test),
+      "result": "CRASH" if test.output.HasCrashed() else "FAIL",
     })
 
 

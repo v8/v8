@@ -81,7 +81,6 @@ class Runner(object):
     self.remaining = num_tests
     self.failed = []
     self.crashed = 0
-    self.reran_tests = 0
 
   def _RunPerfSafe(self, fun):
     try:
@@ -89,42 +88,6 @@ class Runner(object):
     except Exception, e:
       print("PerfData exception: %s" % e)
       self.perf_failures = True
-
-  def _GetJob(self, test):
-    command = self.GetCommand(test)
-    timeout = self.context.timeout
-    if ("--stress-opt" in test.flags or
-        "--stress-opt" in self.context.mode_flags or
-        "--stress-opt" in self.context.extra_flags):
-      timeout *= 4
-    if test.dependency is not None:
-      dep_command = [ c.replace(test.path, test.dependency) for c in command ]
-    else:
-      dep_command = None
-    return Job(command, dep_command, test.id, timeout, self.context.verbose)
-
-  def _MaybeRerun(self, pool, test):
-    if test.run <= self.context.rerun_failures_count + 1:
-      # Possibly rerun this test if its run count is below the maximum per
-      # test. +1 as the flag controls reruns not including the first run.
-      if test.run == 1:
-        # Count the overall number of reran tests on the first rerun.
-        if self.reran_tests < self.context.rerun_failures_max:
-          self.reran_tests += 1
-        else:
-          # Don't rerun this if the overall number of rerun tests has been
-          # reached.
-          return
-      if test.run >= 2 and test.duration > self.context.timeout / 20.0:
-        # Rerun slow tests at most once.
-        return
-
-      # Rerun this test.
-      test.duration = None
-      test.output = None
-      test.run += 1
-      pool.add([self._GetJob(test)])
-      self.remaining += 1
 
   def Run(self, jobs):
     self.indicator.Starting()
@@ -146,12 +109,23 @@ class Runner(object):
       assert test.id >= 0
       test_map[test.id] = test
       try:
-        queue.append([self._GetJob(test)])
+        command = self.GetCommand(test)
       except Exception, e:
         # If this failed, save the exception and re-raise it later (after
         # all other tests have had a chance to run).
         queued_exception = e
         continue
+      timeout = self.context.timeout
+      if ("--stress-opt" in test.flags or
+          "--stress-opt" in self.context.mode_flags or
+          "--stress-opt" in self.context.extra_flags):
+        timeout *= 4
+      if test.dependency is not None:
+        dep_command = [ c.replace(test.path, test.dependency) for c in command ]
+      else:
+        dep_command = None
+      job = Job(command, dep_command, test.id, timeout, self.context.verbose)
+      queue.append([job])
     try:
       it = pool.imap_unordered(RunTest, queue)
       for result in it:
@@ -169,9 +143,6 @@ class Runner(object):
           self.succeeded += 1
         self.remaining -= 1
         self.indicator.HasRun(test, has_unexpected_output)
-        if has_unexpected_output:
-          # Rerun test failures after the indicator has processed the results.
-          self._MaybeRerun(pool, test)
     finally:
       pool.terminate()
       self._RunPerfSafe(lambda: self.perf_data_manager.close())

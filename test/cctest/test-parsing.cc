@@ -143,8 +143,9 @@ TEST(ScanHTMLEndComments) {
   };
 
   // Parser/Scanner needs a stack limit.
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
     const i::byte* source =
@@ -198,8 +199,9 @@ TEST(UsingCachedData) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   // Source containing functions that might be lazily compiled  and all types
   // of symbols (string, propertyName, regexp).
@@ -245,8 +247,9 @@ TEST(PreparseFunctionDataIsUsed) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* good_code =
       "function this_is_lazy() { var a; } function foo() { return 25; } foo();";
@@ -279,8 +282,9 @@ TEST(PreparseFunctionDataIsUsed) {
 TEST(StandAlonePreParser) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* programs[] = {
       "{label: 42}",
@@ -315,8 +319,9 @@ TEST(StandAlonePreParser) {
 TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* programs[] = {
       "%ArgleBargle(glop);",
@@ -353,8 +358,9 @@ TEST(PreparsingObjectLiterals) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   {
     const char* source = "var myo = {if: \"foo\"}; myo.if;";
@@ -386,7 +392,9 @@ TEST(RegressChromium62639) {
   v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
 
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  int marker;
+  isolate->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program = "var x = 'something';\n"
                         "escape: function() {}";
@@ -421,7 +429,9 @@ TEST(Regress928) {
   // as with-content, which made it assume that a function inside
   // the block could be lazily compiled, and an extra, unexpected,
   // entry was added to the data.
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  int marker;
+  isolate->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program =
       "try { } catch (e) { var foo = function () { /* first */ } }"
@@ -463,8 +473,9 @@ TEST(Regress928) {
 TEST(PreParseOverflow) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
   i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
@@ -1086,7 +1097,9 @@ TEST(ScopePositions) {
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  int marker;
+  isolate->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   for (int i = 0; source_data[i].outer_prefix; i++) {
     int kPrefixLen = Utf8LengthHelper(source_data[i].outer_prefix);
@@ -1387,8 +1400,9 @@ TEST(ParserSync) {
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   static const ParserFlag flags1[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
@@ -1464,8 +1478,9 @@ void RunParserSyncTest(const char* context_data[][2],
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   static const ParserFlag default_flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
@@ -1643,7 +1658,6 @@ TEST(ErrorsFutureStrictReservedWords) {
     "var foo = interface = 1;",
     "++interface;",
     "interface++;",
-    "var yield = 13;",
     NULL
   };
 
@@ -1669,7 +1683,6 @@ TEST(NoErrorsFutureStrictReservedWords) {
     "var foo = interface = 1;",
     "++interface;",
     "interface++;",
-    "var yield = 13;",
     NULL
   };
 
@@ -1708,13 +1721,12 @@ TEST(ErrorsReservedWords) {
 }
 
 
-TEST(NoErrorsYieldSloppyAllModes) {
+TEST(NoErrorsYieldSloppy) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see next test).
   const char* context_data[][2] = {
     { "", "" },
-    { "function not_gen() {", "}" },
-    { "(function not_gen() {", "})" },
+    { "function is_not_gen() {", "}" },
     { NULL, NULL }
   };
 
@@ -1723,18 +1735,12 @@ TEST(NoErrorsYieldSloppyAllModes) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
-    "(function yield() { })",
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
     "yield = 1;",
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
-    "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
-    "({ yield: 1 })",
-    "({ get yield() { 1 } })",
-    "yield (100)",
     NULL
   };
 
@@ -1742,15 +1748,9 @@ TEST(NoErrorsYieldSloppyAllModes) {
 }
 
 
-TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
-  // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
-  // generator (see next test).
+TEST(ErrorsYieldSloppyGenerator) {
   const char* context_data[][2] = {
-    { "", "" },
-    { "function not_gen() {", "}" },
-    { "function * gen() { function not_gen() {", "} }" },
-    { "(function not_gen() {", "})" },
-    { "(function * gen() { (function not_gen() {", "}) })" },
+    { "function * is_gen() {", "}" },
     { NULL, NULL }
   };
 
@@ -1759,40 +1759,28 @@ TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
-    "(function yield() { })",
-    "function foo(yield) { }",
-    "function foo(bar, yield) { }",
-    "function * yield() { }",
-    "(function * yield() { })",
+    // BUG: These should not be allowed, but they are (if kAllowGenerators is
+    // set)
+    // "function foo(yield) { }",
+    // "function foo(bar, yield) { }",
     "yield = 1;",
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
-    "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
-    "({ yield: 1 })",
-    "({ get yield() { 1 } })",
-    "yield (100)",
     NULL
   };
 
-  // This test requires kAllowGenerators to succeed.
-  static const ParserFlag always_true_flags[] = {
-    kAllowGenerators
-  };
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_true_flags, 1);
+  // If generators are not allowed, the error will be produced at the '*' token,
+  // so this test works both with and without the kAllowGenerators flag.
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(ErrorsYieldStrict) {
   const char* context_data[][2] = {
     { "\"use strict\";", "" },
-    { "\"use strict\"; function not_gen() {", "}" },
+    { "\"use strict\"; function is_not_gen() {", "}" },
     { "function test_func() {\"use strict\"; ", "}"},
-    { "\"use strict\"; function * gen() { function not_gen() {", "} }" },
-    { "\"use strict\"; (function not_gen() {", "})" },
-    { "\"use strict\"; (function * gen() { (function not_gen() {", "}) })" },
     { NULL, NULL }
   };
 
@@ -1801,16 +1789,12 @@ TEST(ErrorsYieldStrict) {
     "var foo, yield;",
     "try { } catch (yield) { }",
     "function yield() { }",
-    "(function yield() { })",
     "function foo(yield) { }",
     "function foo(bar, yield) { }",
-    "function * yield() { }",
-    "(function * yield() { })",
     "yield = 1;",
     "var foo = yield = 1;",
     "++yield;",
     "yield++;",
-    "yield: 34;",
     NULL
   };
 
@@ -1818,58 +1802,15 @@ TEST(ErrorsYieldStrict) {
 }
 
 
-TEST(NoErrorsGenerator) {
+TEST(NoErrorsYield) {
   const char* context_data[][2] = {
-    { "function * gen() {", "}" },
-    { "(function * gen() {", "})" },
-    { "(function * () {", "})" },
+    { "function * is_gen() {", "}" },
     { NULL, NULL }
   };
 
   const char* statement_data[] = {
-    // A generator without a body is valid.
-    ""
-    // Valid yield expressions inside generators.
-    "yield 2;",
-    "yield * 2;",
-    "yield * \n 2;",
-    "yield yield 1;",
-    "yield * yield * 1;",
-    "yield 3 + (yield 4);",
-    "yield * 3 + (yield * 4);",
-    "(yield * 3) + (yield * 4);",
-    "yield 3; yield 4;",
-    "yield * 3; yield * 4;",
-    "(function (yield) { })",
-    "yield { yield: 12 }",
-    "yield /* comment */ { yield: 12 }",
-    "yield * \n { yield: 12 }",
-    "yield /* comment */ * \n { yield: 12 }",
-    // You can return in a generator.
-    "yield 1; return",
-    "yield * 1; return",
-    "yield 1; return 37",
-    "yield * 1; return 37",
-    "yield 1; return 37; yield 'dead';",
-    "yield * 1; return 37; yield * 'dead';",
-    // Yield is still a valid key in object literals.
-    "({ yield: 1 })",
-    "({ get yield() { } })",
-    // Yield without RHS.
-    "yield;",
-    "yield",
-    "yield\n",
-    "yield /* comment */"
-    "yield // comment\n"
-    "(yield)",
-    "[yield]",
-    "{yield}",
-    "yield, yield",
-    "yield; yield",
-    "(yield) ? yield : yield",
-    "(yield) \n ? yield : yield",
-    // If there is a newline before the next token, we don't look for RHS.
-    "yield\nfor (;;) {}",
+    "yield 2;",  // this is legal inside generator
+    "yield * 2;",  // this is legal inside generator
     NULL
   };
 
@@ -1879,55 +1820,6 @@ TEST(NoErrorsGenerator) {
   };
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_true_flags, 1);
-}
-
-
-TEST(ErrorsYieldGenerator) {
-  const char* context_data[][2] = {
-    { "function * gen() {", "}" },
-    { "\"use strict\"; function * gen() {", "}" },
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    // Invalid yield expressions inside generators.
-    "var yield;",
-    "var foo, yield;",
-    "try { } catch (yield) { }",
-    "function yield() { }",
-    // The name of the NFE is let-bound in the generator, which does not permit
-    // yield to be an identifier.
-    "(function yield() { })",
-    "(function * yield() { })",
-    // Yield isn't valid as a formal parameter for generators.
-    "function * foo(yield) { }",
-    "(function * foo(yield) { })",
-    "yield = 1;",
-    "var foo = yield = 1;",
-    "++yield;",
-    "yield++;",
-    "yield *",
-    "(yield *)",
-    // Yield binds very loosely, so this parses as "yield (3 + yield 4)", which
-    // is invalid.
-    "yield 3 + yield 4;",
-    "yield: 34",
-    "yield ? 1 : 2",
-    // Parses as yield (/ yield): invalid.
-    "yield / yield",
-    "+ yield",
-    "+ yield 3",
-    // Invalid (no newline allowed between yield and *).
-    "yield\n*3",
-    // Invalid (we see a newline, so we parse {yield:42} as a statement, not an
-    // object literal, and yield is not a valid label).
-    "yield\n{yield: 42}",
-    "yield /* comment */\n {yield: 42}",
-    "yield //comment\n {yield: 42}",
-    NULL
-  };
-
-  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
@@ -1935,18 +1827,16 @@ TEST(ErrorsNameOfStrictFunction) {
   // Tests that illegal tokens as names of a strict function produce the correct
   // errors.
   const char* context_data[][2] = {
-    { "function ", ""},
-    { "\"use strict\"; function", ""},
-    { "function * ", ""},
-    { "\"use strict\"; function * ", ""},
+    { "", ""},
+    { "\"use strict\";", ""},
     { NULL, NULL }
   };
 
   const char* statement_data[] = {
-    "eval() {\"use strict\";}",
-    "arguments() {\"use strict\";}",
-    "interface() {\"use strict\";}",
-    "yield() {\"use strict\";}",
+    "function eval() {\"use strict\";}",
+    "function arguments() {\"use strict\";}",
+    "function interface() {\"use strict\";}",
+    "function yield() {\"use strict\";}",
     // Future reserved words are always illegal
     "function super() { }",
     "function super() {\"use strict\";}",
@@ -1959,43 +1849,21 @@ TEST(ErrorsNameOfStrictFunction) {
 
 TEST(NoErrorsNameOfStrictFunction) {
   const char* context_data[][2] = {
-    { "function ", ""},
+    { "", ""},
     { NULL, NULL }
   };
 
   const char* statement_data[] = {
-    "eval() { }",
-    "arguments() { }",
-    "interface() { }",
-    "yield() { }",
+    "function eval() { }",
+    "function arguments() { }",
+    "function interface() { }",
+    "function yield() { }",
     NULL
   };
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
-
-TEST(NoErrorsNameOfStrictGenerator) {
-  const char* context_data[][2] = {
-    { "function * ", ""},
-    { NULL, NULL }
-  };
-
-  const char* statement_data[] = {
-    "eval() { }",
-    "arguments() { }",
-    "interface() { }",
-    "yield() { }",
-    NULL
-  };
-
-  // This test requires kAllowGenerators to succeed.
-  static const ParserFlag always_true_flags[] = {
-    kAllowGenerators
-  };
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_true_flags, 1);
-}
 
 
 TEST(ErrorsIllegalWordsAsLabelsSloppy) {
@@ -2138,8 +2006,9 @@ TEST(DontRegressPreParserDataSizes) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  int marker;
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   struct TestCase {
     const char* program;

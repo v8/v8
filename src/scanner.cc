@@ -19,15 +19,6 @@
 namespace v8 {
 namespace internal {
 
-
-Handle<String> LiteralBuffer::Internalize(Isolate* isolate) const {
-  if (is_one_byte()) {
-    return isolate->factory()->InternalizeOneByteString(one_byte_literal());
-  }
-  return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
-}
-
-
 // ----------------------------------------------------------------------------
 // Scanner
 
@@ -304,68 +295,6 @@ Token::Value Scanner::SkipSingleLineComment() {
 }
 
 
-Token::Value Scanner::SkipSourceURLComment() {
-  TryToParseSourceURLComment();
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
-    Advance();
-  }
-
-  return Token::WHITESPACE;
-}
-
-
-void Scanner::TryToParseSourceURLComment() {
-  // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
-  // function will just return if it cannot parse a magic comment.
-  if (!unicode_cache_->IsWhiteSpace(c0_))
-    return;
-  Advance();
-  LiteralBuffer name;
-  while (c0_ >= 0 && !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) &&
-         c0_ != '=') {
-    name.AddChar(c0_);
-    Advance();
-  }
-  if (!name.is_one_byte()) return;
-  Vector<const uint8_t> name_literal = name.one_byte_literal();
-  LiteralBuffer* value;
-  if (name_literal == STATIC_ASCII_VECTOR("sourceURL")) {
-    value = &source_url_;
-  } else if (name_literal == STATIC_ASCII_VECTOR("sourceMappingURL")) {
-    value = &source_mapping_url_;
-  } else {
-    return;
-  }
-  if (c0_ != '=')
-    return;
-  Advance();
-  value->Reset();
-  while (c0_ >= 0 && unicode_cache_->IsWhiteSpace(c0_)) {
-    Advance();
-  }
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
-    // Disallowed characters.
-    if (c0_ == '"' || c0_ == '\'') {
-      value->Reset();
-      return;
-    }
-    if (unicode_cache_->IsWhiteSpace(c0_)) {
-      break;
-    }
-    value->AddChar(c0_);
-    Advance();
-  }
-  // Allow whitespace at the end.
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
-    if (!unicode_cache_->IsWhiteSpace(c0_)) {
-      value->Reset();
-      break;
-    }
-    Advance();
-  }
-}
-
-
 Token::Value Scanner::SkipMultiLineComment() {
   ASSERT(c0_ == '*');
   Advance();
@@ -530,14 +459,7 @@ void Scanner::Scan() {
         // /  // /* /=
         Advance();
         if (c0_ == '/') {
-          Advance();
-          if (c0_ == '@' || c0_ == '#') {
-            Advance();
-            token = SkipSourceURLComment();
-          } else {
-            PushBack(c0_);
-            token = SkipSingleLineComment();
-          }
+          token = SkipSingleLineComment();
         } else if (c0_ == '*') {
           token = SkipMultiLineComment();
         } else if (c0_ == '=') {

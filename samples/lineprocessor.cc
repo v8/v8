@@ -25,10 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <include/v8.h>
+#include <v8.h>
 
-#include <include/libplatform/libplatform.h>
-#include <include/v8-debug.h>
+#include <v8-debug.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -255,12 +254,8 @@ bool RunCppCycle(v8::Handle<v8::Script> script,
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
   int result = RunMain(argc, argv);
   v8::V8::Dispose();
-  v8::V8::ShutdownPlatform();
-  delete platform;
   return result;
 }
 

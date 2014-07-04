@@ -20,6 +20,8 @@ StackGuard::StackGuard()
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   ASSERT(isolate_ != NULL);
+  // Ignore attempts to interrupt when interrupts are postponed.
+  if (should_postpone_interrupts(lock)) return;
   thread_local_.jslimit_ = kInterruptLimit;
   thread_local_.climit_ = kInterruptLimit;
   isolate_->heap()->SetStackLimits();
@@ -329,71 +331,36 @@ void StackGuard::DisableInterrupts() {
 }
 
 
-void StackGuard::PushPostponeInterruptsScope(PostponeInterruptsScope* scope) {
+bool StackGuard::CheckInterrupt(int flagbit) {
   ExecutionAccess access(isolate_);
-  // Intercept already requested interrupts.
-  int intercepted = thread_local_.interrupt_flags_ & scope->intercept_mask_;
-  scope->intercepted_flags_ = intercepted;
-  thread_local_.interrupt_flags_ &= ~intercepted;
-  if (!has_pending_interrupts(access)) reset_limits(access);
-  // Add scope to the chain.
-  scope->prev_ = thread_local_.postpone_interrupts_;
-  thread_local_.postpone_interrupts_ = scope;
+  return thread_local_.interrupt_flags_ & flagbit;
 }
 
 
-void StackGuard::PopPostponeInterruptsScope() {
+void StackGuard::RequestInterrupt(int flagbit) {
   ExecutionAccess access(isolate_);
-  PostponeInterruptsScope* top = thread_local_.postpone_interrupts_;
-  // Make intercepted interrupts active.
-  ASSERT((thread_local_.interrupt_flags_ & top->intercept_mask_) == 0);
-  thread_local_.interrupt_flags_ |= top->intercepted_flags_;
-  if (has_pending_interrupts(access)) set_interrupt_limits(access);
-  // Remove scope from chain.
-  thread_local_.postpone_interrupts_ = top->prev_;
-}
-
-
-bool StackGuard::CheckInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  return thread_local_.interrupt_flags_ & flag;
-}
-
-
-void StackGuard::RequestInterrupt(InterruptFlag flag) {
-  ExecutionAccess access(isolate_);
-  // Check the chain of PostponeInterruptsScopes for interception.
-  if (thread_local_.postpone_interrupts_ &&
-      thread_local_.postpone_interrupts_->Intercept(flag)) {
-    return;
-  }
-
-  // Not intercepted.  Set as active interrupt flag.
-  thread_local_.interrupt_flags_ |= flag;
+  thread_local_.interrupt_flags_ |= flagbit;
   set_interrupt_limits(access);
 }
 
 
-void StackGuard::ClearInterrupt(InterruptFlag flag) {
+void StackGuard::ClearInterrupt(int flagbit) {
   ExecutionAccess access(isolate_);
-  // Clear the interrupt flag from the chain of PostponeInterruptsScopes.
-  for (PostponeInterruptsScope* current = thread_local_.postpone_interrupts_;
-       current != NULL;
-       current = current->prev_) {
-    current->intercepted_flags_ &= ~flag;
+  thread_local_.interrupt_flags_ &= ~flagbit;
+  if (!should_postpone_interrupts(access) && !has_pending_interrupts(access)) {
+    reset_limits(access);
   }
-
-  // Clear the interrupt flag from the active interrupt flags.
-  thread_local_.interrupt_flags_ &= ~flag;
-  if (!has_pending_interrupts(access)) reset_limits(access);
 }
 
 
 bool StackGuard::CheckAndClearInterrupt(InterruptFlag flag) {
   ExecutionAccess access(isolate_);
-  bool result = (thread_local_.interrupt_flags_ & flag);
-  thread_local_.interrupt_flags_ &= ~flag;
-  if (!has_pending_interrupts(access)) reset_limits(access);
+  int flagbit = 1 << flag;
+  bool result = (thread_local_.interrupt_flags_ & flagbit);
+  thread_local_.interrupt_flags_ &= ~flagbit;
+  if (!should_postpone_interrupts(access) && !has_pending_interrupts(access)) {
+    reset_limits(access);
+  }
   return result;
 }
 
@@ -435,7 +402,8 @@ void StackGuard::ThreadLocal::Clear() {
   jslimit_ = kIllegalLimit;
   real_climit_ = kIllegalLimit;
   climit_ = kIllegalLimit;
-  postpone_interrupts_ = NULL;
+  nesting_ = 0;
+  postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
 }
 
@@ -443,16 +411,19 @@ void StackGuard::ThreadLocal::Clear() {
 bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
+    // Takes the address of the limit variable in order to find out where
+    // the top of stack is right now.
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    ASSERT(GetCurrentStackPosition() > kLimitSize);
-    uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
+    uintptr_t limit = reinterpret_cast<uintptr_t>(&limit) - kLimitSize;
+    ASSERT(reinterpret_cast<uintptr_t>(&limit) > kLimitSize);
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     real_climit_ = limit;
     climit_ = limit;
     should_set_stack_limits = true;
   }
-  postpone_interrupts_ = NULL;
+  nesting_ = 0;
+  postpone_interrupts_nesting_ = 0;
   interrupt_flags_ = 0;
   return should_set_stack_limits;
 }
@@ -671,6 +642,13 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
 
 
 Object* StackGuard::HandleInterrupts() {
+  {
+    ExecutionAccess access(isolate_);
+    if (should_postpone_interrupts(access)) {
+      return isolate_->heap()->undefined_value();
+    }
+  }
+
   if (CheckAndClearInterrupt(GC_REQUEST)) {
     isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags, "GC interrupt");
   }

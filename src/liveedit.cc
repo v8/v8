@@ -1957,7 +1957,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
 
-  ASSERT(shared_info_array->HasFastElements());
+  CHECK(shared_info_array->HasFastElements());
   Handle<FixedArray> shared_info_array_elements(
       FixedArray::cast(shared_info_array->elements()));
 

@@ -418,8 +418,8 @@ class ConvertToDoubleStub : public PlatformCodeStub {
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 14> {};
 
-  Major MajorKey() const { return ConvertToDouble; }
-  int MinorKey() const {
+  Major MajorKey() { return ConvertToDouble; }
+  int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
     return  result1_.code() +
            (result2_.code() << 4) +
@@ -1971,15 +1971,25 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-
-  ASSERT(kind() == Code::LOAD_IC ||
-         kind() == Code::KEYED_LOAD_IC);
-
+  Register receiver;
   if (kind() == Code::KEYED_LOAD_IC) {
-    __ Branch(&miss, ne, name,
+    // ----------- S t a t e -------------
+    //  -- ra    : return address
+    //  -- a0    : key
+    //  -- a1    : receiver
+    // -----------------------------------
+    __ Branch(&miss, ne, a0,
         Operand(isolate()->factory()->prototype_string()));
+    receiver = a1;
+  } else {
+    ASSERT(kind() == Code::LOAD_IC);
+    // ----------- S t a t e -------------
+    //  -- a2    : name
+    //  -- ra    : return address
+    //  -- a0    : receiver
+    //  -- sp[0] : receiver
+    // -----------------------------------
+    receiver = a0;
   }
 
   StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, a3, t0, &miss);
@@ -2670,12 +2680,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Branch(&failure, eq, v0, Operand(NativeRegExpMacroAssembler::FAILURE));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ Branch(&runtime, ne, v0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
-
-  // Result must now be exception.
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   __ li(a1, Operand(isolate()->factory()->the_hole_value()));
   __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       isolate())));
   __ lw(v0, MemOperand(a2, 0));
+  __ Branch(&runtime, eq, v0, Operand(a1));
+
   __ sw(a1, MemOperand(a2, 0));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.

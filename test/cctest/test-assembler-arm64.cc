@@ -426,9 +426,6 @@ TEST(mov_imm_w) {
   __ Mov(w4, 0x00001234L);
   __ Mov(w5, 0x12340000L);
   __ Mov(w6, 0x12345678L);
-  __ Mov(w7, (int32_t)0x80000000);
-  __ Mov(w8, (int32_t)0xffff0000);
-  __ Mov(w9, kWMinInt);
   END();
 
   RUN();
@@ -440,9 +437,6 @@ TEST(mov_imm_w) {
   ASSERT_EQUAL_64(0x00001234L, x4);
   ASSERT_EQUAL_64(0x12340000L, x5);
   ASSERT_EQUAL_64(0x12345678L, x6);
-  ASSERT_EQUAL_64(0x80000000L, x7);
-  ASSERT_EQUAL_64(0xffff0000L, x8);
-  ASSERT_EQUAL_32(kWMinInt, w9);
 
   TEARDOWN();
 }
@@ -594,9 +588,6 @@ TEST(bitwise_wide_imm) {
 
   __ Orr(x10, x0, Operand(0x1234567890abcdefUL));
   __ Orr(w11, w1, Operand(0x90abcdef));
-
-  __ Orr(w12, w0, kWMinInt);
-  __ Eor(w13, w0, kWMinInt);
   END();
 
   RUN();
@@ -605,8 +596,6 @@ TEST(bitwise_wide_imm) {
   ASSERT_EQUAL_64(0xf0f0f0f0f0f0f0f0UL, x1);
   ASSERT_EQUAL_64(0x1234567890abcdefUL, x10);
   ASSERT_EQUAL_64(0xf0fbfdffUL, x11);
-  ASSERT_EQUAL_32(kWMinInt, w12);
-  ASSERT_EQUAL_32(kWMinInt, w13);
 
   TEARDOWN();
 }
@@ -3373,10 +3362,8 @@ TEST(add_sub_wide_imm) {
   __ Add(w12, w0, Operand(0x12345678));
   __ Add(w13, w1, Operand(0xffffffff));
 
-  __ Add(w18, w0, Operand(kWMinInt));
-  __ Sub(w19, w0, Operand(kWMinInt));
-
   __ Sub(x20, x0, Operand(0x1234567890abcdefUL));
+
   __ Sub(w21, w0, Operand(0x12345678));
   END();
 
@@ -3388,10 +3375,8 @@ TEST(add_sub_wide_imm) {
   ASSERT_EQUAL_32(0x12345678, w12);
   ASSERT_EQUAL_64(0x0, x13);
 
-  ASSERT_EQUAL_32(kWMinInt, w18);
-  ASSERT_EQUAL_32(kWMinInt, w19);
-
   ASSERT_EQUAL_64(-0x1234567890abcdefUL, x20);
+
   ASSERT_EQUAL_32(-0x12345678, w21);
 
   TEARDOWN();

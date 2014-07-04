@@ -76,11 +76,12 @@ class MacroAssembler: public Assembler {
   // macro assembler.
   MacroAssembler(Isolate* isolate, void* buffer, int size);
 
-
-  // Returns the size of a call in instructions. Note, the value returned is
-  // only valid as long as no entries are added to the constant pool between
-  // checking the call size and emitting the actual call.
+  // Jump, Call, and Ret pseudo instructions implementing inter-working.
+  void Jump(Register target, Condition cond = al);
+  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSize(Register target, Condition cond = al);
+  void Call(Register target, Condition cond = al);
   int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
   int CallStubSize(CodeStub* stub,
                    TypeFeedbackId ast_id = TypeFeedbackId::None(),
@@ -89,12 +90,6 @@ class MacroAssembler: public Assembler {
                                             Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
-
-  // Jump, Call, and Ret pseudo instructions implementing inter-working.
-  void Jump(Register target, Condition cond = al);
-  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(Register target, Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode,
             Condition cond = al,
             TargetAddressStorageMode mode = CAN_INLINE_TARGET_ADDRESS);
@@ -1359,8 +1354,8 @@ class MacroAssembler: public Assembler {
 
   // Get the location of a relocated constant (its address in the constant pool)
   // from its load site.
-  void GetRelocatedValueLocation(Register ldr_location, Register result,
-                                 Register scratch);
+  void GetRelocatedValueLocation(Register ldr_location,
+                                 Register result);
 
 
   void ClampUint8(Register output_reg, Register input_reg);

@@ -2855,12 +2855,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ Bind(&exception);
   Register exception_value = x0;
-  // Result must now be exception.
+  // A stack overflow (on the backtrack stack) may have occured
+  // in the RegExp code but no exception has been created yet.
+  // If there is no pending exception, handle that in the runtime system.
   __ Mov(x10, Operand(isolate()->factory()->the_hole_value()));
   __ Mov(x11,
          Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                    isolate())));
   __ Ldr(exception_value, MemOperand(x11));
+  __ Cmp(x10, exception_value);
+  __ B(eq, &runtime);
+
   __ Str(x10, MemOperand(x11));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.

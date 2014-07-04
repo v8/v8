@@ -122,7 +122,6 @@ class Execution V8_FINAL : public AllStatic {
 
 
 class ExecutionAccess;
-class PostponeInterruptsScope;
 
 
 // StackGuard contains the handling of the limits that are used to limit the
@@ -146,31 +145,21 @@ class StackGuard V8_FINAL {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-#define INTERRUPT_LIST(V)                                          \
-  V(DEBUGBREAK, DebugBreak, 0)                                     \
-  V(DEBUGCOMMAND, DebugCommand, 1)                                 \
-  V(TERMINATE_EXECUTION, TerminateExecution, 2)                    \
-  V(GC_REQUEST, GC, 3)                                             \
-  V(INSTALL_CODE, InstallCode, 4)                                  \
-  V(API_INTERRUPT, ApiInterrupt, 5)                                \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 6)
+#define INTERRUPT_LIST(V)                                       \
+  V(DEBUGBREAK, DebugBreak)                                     \
+  V(DEBUGCOMMAND, DebugCommand)                                 \
+  V(TERMINATE_EXECUTION, TerminateExecution)                    \
+  V(GC_REQUEST, GC)                                             \
+  V(INSTALL_CODE, InstallCode)                                  \
+  V(API_INTERRUPT, ApiInterrupt)                                \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites)
 
-#define V(NAME, Name, id)                                          \
-  inline bool Check##Name() { return CheckInterrupt(NAME); }  \
-  inline void Request##Name() { RequestInterrupt(NAME); }     \
-  inline void Clear##Name() { ClearInterrupt(NAME); }
+#define V(NAME, Name)                                              \
+  inline bool Check##Name() { return CheckInterrupt(1 << NAME); }  \
+  inline void Request##Name() { RequestInterrupt(1 << NAME); }     \
+  inline void Clear##Name() { ClearInterrupt(1 << NAME); }
   INTERRUPT_LIST(V)
 #undef V
-
-  // Flag used to set the interrupt causes.
-  enum InterruptFlag {
-  #define V(NAME, Name, id) NAME = (1 << id),
-    INTERRUPT_LIST(V)
-  #undef V
-  #define V(NAME, Name, id) NAME |
-    ALL_INTERRUPTS = INTERRUPT_LIST(V) 0
-  #undef V
-  };
 
   // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
@@ -201,14 +190,30 @@ class StackGuard V8_FINAL {
  private:
   StackGuard();
 
-  bool CheckInterrupt(InterruptFlag flag);
-  void RequestInterrupt(InterruptFlag flag);
-  void ClearInterrupt(InterruptFlag flag);
+// Flag used to set the interrupt causes.
+enum InterruptFlag {
+#define V(NAME, Name) NAME,
+  INTERRUPT_LIST(V)
+#undef V
+  NUMBER_OF_INTERRUPTS
+};
+
+  bool CheckInterrupt(int flagbit);
+  void RequestInterrupt(int flagbit);
+  void ClearInterrupt(int flagbit);
   bool CheckAndClearInterrupt(InterruptFlag flag);
 
   // You should hold the ExecutionAccess lock when calling this method.
   bool has_pending_interrupts(const ExecutionAccess& lock) {
+    // Sanity check: We shouldn't be asking about pending interrupts
+    // unless we're not postponing them anymore.
+    ASSERT(!should_postpone_interrupts(lock));
     return thread_local_.interrupt_flags_ != 0;
+  }
+
+  // You should hold the ExecutionAccess lock when calling this method.
+  bool should_postpone_interrupts(const ExecutionAccess& lock) {
+    return thread_local_.postpone_interrupts_nesting_ > 0;
   }
 
   // You should hold the ExecutionAccess lock when calling this method.
@@ -229,9 +234,6 @@ class StackGuard V8_FINAL {
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xfffffff8;
 #endif
-
-  void PushPostponeInterruptsScope(PostponeInterruptsScope* scope);
-  void PopPostponeInterruptsScope();
 
   class ThreadLocal V8_FINAL {
    public:
@@ -257,8 +259,14 @@ class StackGuard V8_FINAL {
     uintptr_t real_climit_;  // Actual C++ stack limit set for the VM.
     uintptr_t climit_;
 
-    PostponeInterruptsScope* postpone_interrupts_;
+    int nesting_;
+    int postpone_interrupts_nesting_;
     int interrupt_flags_;
+  };
+
+  class StackPointer {
+   public:
+    inline uintptr_t address() { return reinterpret_cast<uintptr_t>(this); }
   };
 
   // TODO(isolates): Technically this could be calculated directly from a

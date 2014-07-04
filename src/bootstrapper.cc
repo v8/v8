@@ -1762,7 +1762,7 @@ bool Genesis::InstallNatives() {
     native_context()->set_script_function(*script_fun);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());
-    Map::EnsureDescriptorSlack(script_map, 14);
+    Map::EnsureDescriptorSlack(script_map, 13);
 
     PropertyAttributes attribs =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1866,23 +1866,6 @@ bool Genesis::InstallNatives() {
       CallbacksDescriptor d(
           Handle<Name>(Name::cast(script_eval_from_function_name->name())),
           script_eval_from_function_name, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_source_url =
-        Accessors::ScriptSourceUrlInfo(isolate(), attribs);
-    {
-      CallbacksDescriptor d(Handle<Name>(Name::cast(script_source_url->name())),
-                            script_source_url, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_source_mapping_url =
-        Accessors::ScriptSourceMappingUrlInfo(isolate(), attribs);
-    {
-      CallbacksDescriptor d(
-          Handle<Name>(Name::cast(script_source_mapping_url->name())),
-          script_source_mapping_url, attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -2220,17 +2203,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
             Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE),
         false);
   }
-
-  // Expose the stack trace symbol to native JS.
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          handle(native_context->builtins(), isolate),
-          factory->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("stack_trace_symbol")),
-          factory->stack_trace_symbol(),
-          NONE),
-      false);
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {

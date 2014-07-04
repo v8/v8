@@ -27,8 +27,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
  private:
   SaveFPRegsMode save_doubles_;
 
-  Major MajorKey() const { return StoreBufferOverflow; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() { return StoreBufferOverflow; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 
 
@@ -62,8 +62,8 @@ class StoreRegistersStateStub: public PlatformCodeStub {
   static Register to_be_pushed_lr() { return ip0; }
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() const { return StoreRegistersState; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() { return StoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
   SaveFPRegsMode save_doubles_;
 
   void Generate(MacroAssembler* masm);
@@ -77,8 +77,8 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() const { return RestoreRegistersState; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() { return RestoreRegistersState; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
   SaveFPRegsMode save_doubles_;
 
   void Generate(MacroAssembler* masm);
@@ -303,9 +303,9 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() const { return RecordWrite; }
+  Major MajorKey() { return RecordWrite; }
 
-  int MinorKey() const {
+  int MinorKey() {
     return MinorKeyFor(object_, value_, address_, remembered_set_action_,
                        save_fp_regs_mode_);
   }
@@ -354,8 +354,8 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() const { return DirectCEntry; }
-  int MinorKey() const { return 0; }
+  Major MajorKey() { return DirectCEntry; }
+  int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
 };
@@ -400,9 +400,11 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() const { return NameDictionaryLookup; }
+  Major MajorKey() { return NameDictionaryLookup; }
 
-  int MinorKey() const { return LookupModeBits::encode(mode_); }
+  int MinorKey() {
+    return LookupModeBits::encode(mode_);
+  }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
@@ -415,8 +417,8 @@ class SubStringStub: public PlatformCodeStub {
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Major MajorKey() const { return SubString; }
-  int MinorKey() const { return 0; }
+  Major MajorKey() { return SubString; }
+  int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -445,8 +447,8 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch3);
 
  private:
-  virtual Major MajorKey() const { return StringCompare; }
-  virtual int MinorKey() const { return 0; }
+  virtual Major MajorKey() { return StringCompare; }
+  virtual int MinorKey() { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,

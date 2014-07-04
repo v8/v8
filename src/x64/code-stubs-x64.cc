@@ -1574,14 +1574,19 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ret(REG_EXP_EXEC_ARGUMENT_COUNT * kPointerSize);
 
   __ bind(&exception);
-  // Result must now be exception.
+  // Result must now be exception. If there is no pending exception already a
+  // stack overflow (on the backtrack stack) was detected in RegExp code but
+  // haven't created the exception yet. Handle that in the runtime system.
+  // TODO(592): Rerunning the RegExp to get the stack overflow exception.
   ExternalReference pending_exception_address(
       Isolate::kPendingExceptionAddress, isolate());
   Operand pending_exception_operand =
       masm->ExternalOperand(pending_exception_address, rbx);
-  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
   __ movp(rax, pending_exception_operand);
-  __ movp(pending_exception_operand, rdx);  // Clear pending exception.
+  __ LoadRoot(rdx, Heap::kTheHoleValueRootIndex);
+  __ cmpp(rax, rdx);
+  __ j(equal, &runtime);
+  __ movp(pending_exception_operand, rdx);
 
   __ CompareRoot(rax, Heap::kTerminationExceptionRootIndex);
   Label termination_exception;

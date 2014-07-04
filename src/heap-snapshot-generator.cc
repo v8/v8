@@ -2588,12 +2588,13 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
-  CHECK(debug_heap->old_data_space()->is_iterable());
-  CHECK(debug_heap->old_pointer_space()->is_iterable());
-  CHECK(debug_heap->code_space()->is_iterable());
-  CHECK(debug_heap->cell_space()->is_iterable());
-  CHECK(debug_heap->property_cell_space()->is_iterable());
-  CHECK(debug_heap->map_space()->is_iterable());
+  CHECK(!debug_heap->old_data_space()->was_swept_conservatively());
+  CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
+  CHECK(!debug_heap->code_space()->was_swept_conservatively());
+  CHECK(!debug_heap->cell_space()->was_swept_conservatively());
+  CHECK(!debug_heap->property_cell_space()->
+        was_swept_conservatively());
+  CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
 
 #ifdef VERIFY_HEAP

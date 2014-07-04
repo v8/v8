@@ -429,15 +429,8 @@ Address Assembler::target_address_from_return_address(Address pc) {
   //  movt  ip, #... @ call address high 16
   //  blx   ip
   //                      @ return address
-  // Or pre-V7 or cases that need frequent patching, the address is in the
-  // constant pool.  It could be a small constant pool load:
-  //  ldr   ip, [pc / pp, #...] @ call address
-  //  blx   ip
-  //                      @ return address
-  // Or an extended constant pool load:
-  //  movw  ip, #...
-  //  movt  ip, #...
-  //  ldr   ip, [pc, ip]  @ call address
+  // Or pre-V7 or cases that need frequent patching:
+  //  ldr   ip, [pc, #...] @ call address
   //  blx   ip
   //                      @ return address
   Address candidate = pc - 2 * Assembler::kInstrSize;
@@ -445,35 +438,22 @@ Address Assembler::target_address_from_return_address(Address pc) {
   if (IsLdrPcImmediateOffset(candidate_instr) |
       IsLdrPpImmediateOffset(candidate_instr)) {
     return candidate;
-  } else if (IsLdrPpRegOffset(candidate_instr)) {
-    candidate = pc - 4 * Assembler::kInstrSize;
-    ASSERT(IsMovW(Memory::int32_at(candidate)) &&
-           IsMovT(Memory::int32_at(candidate + Assembler::kInstrSize)));
-    return candidate;
-  } else {
-    candidate = pc - 3 * Assembler::kInstrSize;
-    ASSERT(IsMovW(Memory::int32_at(candidate)) &&
-           IsMovT(Memory::int32_at(candidate + kInstrSize)));
-    return candidate;
   }
+  candidate = pc - 3 * Assembler::kInstrSize;
+  ASSERT(IsMovW(Memory::int32_at(candidate)) &&
+         IsMovT(Memory::int32_at(candidate + kInstrSize)));
+  return candidate;
 }
 
 
 Address Assembler::return_address_from_call_start(Address pc) {
   if (IsLdrPcImmediateOffset(Memory::int32_at(pc)) |
       IsLdrPpImmediateOffset(Memory::int32_at(pc))) {
-    // Load from constant pool, small section.
     return pc + kInstrSize * 2;
   } else {
     ASSERT(IsMovW(Memory::int32_at(pc)));
     ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
-    if (IsLdrPpRegOffset(Memory::int32_at(pc + kInstrSize))) {
-      // Load from constant pool, extended section.
-      return pc + kInstrSize * 4;
-    } else {
-      // A movw / movt load immediate.
-      return pc + kInstrSize * 3;
-    }
+    return pc + kInstrSize * 3;
   }
 }
 
@@ -488,11 +468,20 @@ void Assembler::deserialization_set_special_target_at(
 }
 
 
-bool Assembler::is_constant_pool_load(Address pc) {
-  return !Assembler::IsMovW(Memory::int32_at(pc)) ||
-         (FLAG_enable_ool_constant_pool &&
-          Assembler::IsLdrPpRegOffset(
-              Memory::int32_at(pc + 2 * Assembler::kInstrSize)));
+static Instr EncodeMovwImmediate(uint32_t immediate) {
+  ASSERT(immediate < 0x10000);
+  return ((immediate & 0xf000) << 4) | (immediate & 0xfff);
+}
+
+
+static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate) {
+  instruction &= ~EncodeMovwImmediate(0xffff);
+  return instruction | EncodeMovwImmediate(immediate);
+}
+
+
+static bool IsConstantPoolLoad(Address pc) {
+  return !Assembler::IsMovW(Memory::int32_at(pc));
 }
 
 
@@ -500,21 +489,9 @@ Address Assembler::constant_pool_entry_address(
     Address pc, ConstantPoolArray* constant_pool) {
   if (FLAG_enable_ool_constant_pool) {
     ASSERT(constant_pool != NULL);
-    int cp_offset;
-    if (IsMovW(Memory::int32_at(pc))) {
-      ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)) &&
-             IsLdrPpRegOffset(Memory::int32_at(pc + 2 * kInstrSize)));
-      // This is an extended constant pool lookup.
-      Instruction* movw_instr = Instruction::At(pc);
-      Instruction* movt_instr = Instruction::At(pc + kInstrSize);
-      cp_offset = (movt_instr->ImmedMovwMovtValue() << 16) |
-                  movw_instr->ImmedMovwMovtValue();
-    } else {
-      // This is a small constant pool lookup.
-      ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc)));
-      cp_offset = GetLdrRegisterImmediateOffset(Memory::int32_at(pc));
-    }
-    return reinterpret_cast<Address>(constant_pool) + cp_offset;
+    ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(pc)));
+    return reinterpret_cast<Address>(constant_pool) +
+        GetLdrRegisterImmediateOffset(Memory::int32_at(pc));
   } else {
     ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(pc)));
     Instr instr = Memory::int32_at(pc);
@@ -525,7 +502,7 @@ Address Assembler::constant_pool_entry_address(
 
 Address Assembler::target_address_at(Address pc,
                                      ConstantPoolArray* constant_pool) {
-  if (is_constant_pool_load(pc)) {
+  if (IsConstantPoolLoad(pc)) {
     // This is a constant pool lookup. Return the value in the constant pool.
     return Memory::Address_at(constant_pool_entry_address(pc, constant_pool));
   } else {
@@ -545,7 +522,7 @@ void Assembler::set_target_address_at(Address pc,
                                       ConstantPoolArray* constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  if (is_constant_pool_load(pc)) {
+  if (IsConstantPoolLoad(pc)) {
     // This is a constant pool lookup. Update the entry in the constant pool.
     Memory::Address_at(constant_pool_entry_address(pc, constant_pool)) = target;
     // Intuitively, we would think it is necessary to always flush the

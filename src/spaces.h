@@ -1902,11 +1902,8 @@ class PagedSpace : public Space {
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  bool is_iterable() { return is_iterable_; }
-  void set_is_iterable(bool b) { is_iterable_ = b; }
-
-  bool is_swept_concurrently() { return is_swept_concurrently_; }
-  void set_is_swept_concurrently(bool b) { is_swept_concurrently_ = b; }
+  bool was_swept_conservatively() { return was_swept_conservatively_; }
+  void set_was_swept_conservatively(bool b) { was_swept_conservatively_ = b; }
 
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
@@ -1989,11 +1986,7 @@ class PagedSpace : public Space {
   // Normal allocation information.
   AllocationInfo allocation_info_;
 
-  // This space was swept precisely, hence it is iterable.
-  bool is_iterable_;
-
-  // This space is currently swept by sweeper threads.
-  bool is_swept_concurrently_;
+  bool was_swept_conservatively_;
 
   // The number of free bytes which could be reclaimed by advancing the
   // concurrent sweeper threads.  This is only an estimation because concurrent

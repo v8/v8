@@ -517,11 +517,6 @@ int OS::GetCurrentProcessId() {
 }
 
 
-int OS::GetCurrentThreadId() {
-  return static_cast<int>(::GetCurrentThreadId());
-}
-
-
 // ----------------------------------------------------------------------------
 // Win32 console output.
 //

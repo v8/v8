@@ -26,7 +26,6 @@ var q = p.chain(
   });
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.AsyncTaskEvent) return;
   try {
     // Ignore exceptions during startup in stress runs.
     if (step >= 1) return;

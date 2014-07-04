@@ -120,7 +120,7 @@ bool LCodeGen::GeneratePrologue() {
       __ j(not_equal, &ok, Label::kNear);
 
       __ mov(ecx, GlobalObjectOperand());
-      __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalProxyOffset));
+      __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalReceiverOffset));
 
       __ mov(Operand(esp, receiver_offset), ecx);
 
@@ -3439,8 +3439,8 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ mov(receiver, FieldOperand(function, JSFunction::kContextOffset));
   const int global_offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
   __ mov(receiver, Operand(receiver, global_offset));
-  const int proxy_offset = GlobalObject::kGlobalProxyOffset;
-  __ mov(receiver, FieldOperand(receiver, proxy_offset));
+  const int receiver_offset = GlobalObject::kGlobalReceiverOffset;
+  __ mov(receiver, FieldOperand(receiver, receiver_offset));
   __ bind(&receiver_ok);
 }
 

@@ -64,22 +64,16 @@ void MacroAssembler::LogicalMacro(const Register& rd,
   } else if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
+    ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
     // If the operation is NOT, invert the operation and immediate.
     if ((op & NOT) == NOT) {
       op = static_cast<LogicalOp>(op & ~NOT);
       immediate = ~immediate;
+      if (rd.Is32Bits()) {
+        immediate &= kWRegMask;
+      }
     }
-
-    // Ignore the top 32 bits of an immediate if we're moving to a W register.
-    if (rd.Is32Bits()) {
-      // Check that the top 32 bits are consistent.
-      ASSERT(((immediate >> kWRegSizeInBits) == 0) ||
-             ((immediate >> kWRegSizeInBits) == -1));
-      immediate &= kWRegMask;
-    }
-
-    ASSERT(rd.Is64Bits() || is_uint32(immediate));
 
     // Special cases for all set or all clear immediates.
     if (immediate == 0) {
@@ -613,6 +607,10 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
   }
 
   ASSERT(hint == kAdrFar);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  ASSERT(!AreAliased(rd, scratch));
+
   if (label->is_bound()) {
     int label_offset = label->pos() - pc_offset();
     if (Instruction::IsValidPCRelOffset(label_offset)) {
@@ -624,9 +622,6 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
       Add(rd, rd, label_offset - min_adr_offset);
     }
   } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.AcquireX();
-
     InstructionAccurateScope scope(
         this, PatchingAssembler::kAdrFarPatchableNInstrs);
     adr(rd, label);
@@ -634,6 +629,7 @@ void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
       nop(ADR_FAR_NOP);
     }
     movz(scratch, 0);
+    add(rd, rd, scratch);
   }
 }
 
