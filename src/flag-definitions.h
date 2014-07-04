@@ -782,8 +782,10 @@ DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
 DEFINE_BOOL(perf_basic_prof, false,
             "Enable perf linux profiler (basic support).")
+DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
 DEFINE_BOOL(perf_jit_prof, false,
             "Enable perf linux profiler (experimental annotate support).")
+DEFINE_NEG_IMPLICATION(perf_jit_prof, compact_code_space)
 DEFINE_STRING(gc_fake_mmap, "/tmp/__v8_gc__",
               "Specify the name of the file for fake gc mmap used in ll_prof")
 DEFINE_BOOL(log_internal_timer_events, false, "Time internal events.")

@@ -5576,6 +5576,15 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseEvent) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
+  ASSERT(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
+  isolate->debug()->OnAsyncTaskEvent(data);
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);

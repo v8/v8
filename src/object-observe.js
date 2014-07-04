@@ -45,6 +45,7 @@ function GetObservationStateJS() {
     observationState.notifierObjectInfoMap = %ObservationWeakMapCreate();
     observationState.pendingObservers = null;
     observationState.nextCallbackPriority = 0;
+    observationState.lastMicrotaskId = 0;
   }
 
   return observationState;
@@ -421,7 +422,18 @@ function ObserverEnqueueIfActive(observer, objectInfo, changeRecord) {
   var callbackInfo = CallbackInfoNormalize(callback);
   if (IS_NULL(GetPendingObservers())) {
     SetPendingObservers(nullProtoObject());
-    %EnqueueMicrotask(ObserveMicrotaskRunner);
+    if (DEBUG_IS_ACTIVE) {
+      var id = ++GetObservationStateJS().lastMicrotaskId;
+      var name = "Object.observe";
+      %EnqueueMicrotask(function() {
+        %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
+        ObserveMicrotaskRunner();
+        %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
+      });
+      %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+    } else {
+      %EnqueueMicrotask(ObserveMicrotaskRunner);
+    }
   }
   GetPendingObservers()[callbackInfo.priority] = callback;
   callbackInfo.push(changeRecord);

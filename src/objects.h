@@ -3135,6 +3135,12 @@ class ConstantPoolArray: public HeapObject {
 
   class NumberOfEntries BASE_EMBEDDED {
    public:
+    inline NumberOfEntries() {
+      for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+        element_counts_[i] = 0;
+      }
+    }
+
     inline NumberOfEntries(int int64_count, int code_ptr_count,
                            int heap_ptr_count, int int32_count) {
       element_counts_[INT64] = int64_count;
@@ -3150,27 +3156,13 @@ class ConstantPoolArray: public HeapObject {
       element_counts_[INT32] = array->number_of_entries(INT32, section);
     }
 
-    inline int count_of(Type type) const {
-      ASSERT(type < NUMBER_OF_TYPES);
-      return element_counts_[type];
-    }
-
-    inline int total_count() const {
-      int count = 0;
-      for (int i = 0; i < NUMBER_OF_TYPES; i++) {
-        count += element_counts_[i];
-      }
-      return count;
-    }
-
-    inline int are_in_range(int min, int max) const {
-      for (int i = FIRST_TYPE; i < NUMBER_OF_TYPES; i++) {
-        if (element_counts_[i] < min || element_counts_[i] > max) {
-          return false;
-        }
-      }
-      return true;
-    }
+    inline void increment(Type type);
+    inline int equals(const NumberOfEntries& other) const;
+    inline bool is_empty() const;
+    inline int count_of(Type type) const;
+    inline int base_of(Type type) const;
+    inline int total_count() const;
+    inline int are_in_range(int min, int max) const;
 
    private:
     int element_counts_[NUMBER_OF_TYPES];
@@ -3179,14 +3171,26 @@ class ConstantPoolArray: public HeapObject {
   class Iterator BASE_EMBEDDED {
    public:
     inline Iterator(ConstantPoolArray* array, Type type)
-        : array_(array), type_(type), final_section_(array->final_section()) {
-      current_section_ = SMALL_SECTION;
-      next_index_ = array->first_index(type, SMALL_SECTION);
+        : array_(array),
+          type_(type),
+          final_section_(array->final_section()),
+          current_section_(SMALL_SECTION),
+          next_index_(array->first_index(type, SMALL_SECTION)) {
+      update_section();
+    }
+
+    inline Iterator(ConstantPoolArray* array, Type type, LayoutSection section)
+        : array_(array),
+          type_(type),
+          final_section_(section),
+          current_section_(section),
+          next_index_(array->first_index(type, section)) {
       update_section();
     }
 
     inline int next_index();
     inline bool is_finished();
+
    private:
     inline void update_section();
     ConstantPoolArray* array_;
@@ -3245,6 +3249,11 @@ class ConstantPoolArray: public HeapObject {
 
   // Garbage collection support.
   inline int size();
+
+
+  inline static int MaxInt64Offset(int number_of_int64) {
+    return kFirstEntryOffset + (number_of_int64 * kInt64Size);
+  }
 
   inline static int SizeFor(const NumberOfEntries& small) {
     int size = kFirstEntryOffset +

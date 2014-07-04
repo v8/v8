@@ -1,3 +1,13 @@
+2014-07-04: Version 3.28.12
+
+        Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue
+        390732).
+
+        Introduce debug events for Microtask queue (Chromium issue 272416).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-03: Version 3.28.11
 
         Split out libplatform into a separate libary.
