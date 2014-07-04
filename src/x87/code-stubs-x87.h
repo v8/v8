@@ -28,8 +28,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
   virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
-  Major MajorKey() { return StoreBufferOverflow; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return StoreBufferOverflow; }
+  int MinorKey() const { return 0; }
 };
 
 
@@ -68,8 +68,8 @@ class SubStringStub: public PlatformCodeStub {
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Major MajorKey() { return SubString; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return SubString; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -96,8 +96,8 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch2);
 
  private:
-  virtual Major MajorKey() { return StringCompare; }
-  virtual int MinorKey() { return 0; }
+  virtual Major MajorKey() const { return StringCompare; }
+  virtual int MinorKey() const { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(
@@ -154,9 +154,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return NameDictionaryLookup; }
+  Major MajorKey() const { return NameDictionaryLookup; }
 
-  int MinorKey() {
+  int MinorKey() const {
     return DictionaryBits::encode(dictionary_.code()) |
         ResultBits::encode(result_.code()) |
         IndexBits::encode(index_.code()) |
@@ -382,9 +382,9 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() { return RecordWrite; }
+  Major MajorKey() const { return RecordWrite; }
 
-  int MinorKey() {
+  int MinorKey() const {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
         AddressBits::encode(address_.code()) |
