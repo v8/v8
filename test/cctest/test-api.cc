@@ -1924,7 +1924,7 @@ void AddAccessor(Handle<FunctionTemplate> templ,
                  Handle<String> name,
                  v8::AccessorGetterCallback getter,
                  v8::AccessorSetterCallback setter) {
-  templ->InstanceTemplate()->SetAccessor(name, getter, setter);
+  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
 }
 
 void AddInterceptor(Handle<FunctionTemplate> templ,
@@ -1937,7 +1937,6 @@ void AddInterceptor(Handle<FunctionTemplate> templ,
 THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   v8::HandleScope scope(CcTest::isolate());
   Handle<FunctionTemplate> parent = FunctionTemplate::New(CcTest::isolate());
-  parent->SetHiddenPrototype(true);
   Handle<FunctionTemplate> child = FunctionTemplate::New(CcTest::isolate());
   child->Inherit(parent);
   AddAccessor(parent, v8_str("age"),
@@ -1947,7 +1946,7 @@ THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
   env->Global()->Set(v8_str("Child"), child->GetFunction());
   CompileRun("var child = new Child;"
              "child.age = 10;");
-  ExpectBoolean("child.hasOwnProperty('age')", true);
+  ExpectBoolean("child.hasOwnProperty('age')", false);
   ExpectInt32("child.age", 10);
   ExpectInt32("child.accessor_age", 10);
 }
@@ -9986,13 +9985,10 @@ THREADED_TEST(ShadowObject) {
   LocalContext context(NULL, global_template);
 
   Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate);
-  t->SetHiddenPrototype(true);
-  Local<v8::FunctionTemplate> pt = v8::FunctionTemplate::New(isolate);
-  t->Inherit(pt);
-  Local<ObjectTemplate> proto = pt->PrototypeTemplate();
+  t->InstanceTemplate()->SetNamedPropertyHandler(ShadowNamedGet);
+  t->InstanceTemplate()->SetIndexedPropertyHandler(ShadowIndexedGet);
+  Local<ObjectTemplate> proto = t->PrototypeTemplate();
   Local<ObjectTemplate> instance = t->InstanceTemplate();
-  instance->SetNamedPropertyHandler(ShadowNamedGet);
-  instance->SetIndexedPropertyHandler(ShadowIndexedGet);
 
   proto->Set(v8_str("f"),
              v8::FunctionTemplate::New(isolate,
@@ -18539,12 +18535,11 @@ void FooSetInterceptor(Local<String> name,
 TEST(SetterOnConstructorPrototype) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
-  templ->SetHiddenPrototype(true);
-  templ->InstanceTemplate()->SetAccessor(v8_str("x"), GetterWhichReturns42,
-                                         SetterWhichSetsYOnThisTo23);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetAccessor(v8_str("x"), GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
   LocalContext context;
-  context->Global()->Set(v8_str("P"), templ->InstanceTemplate()->NewInstance());
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
   CompileRun("function C1() {"
              "  this.x = 23;"
              "};"
@@ -18566,7 +18561,8 @@ TEST(SetterOnConstructorPrototype) {
 script = v8_compile("new C2();");
   for (int i = 0; i < 10; i++) {
     v8::Handle<v8::Object> c2 = v8::Handle<v8::Object>::Cast(script->Run());
-    CHECK_EQ(23, c2->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(42, c2->Get(v8_str("x"))->Int32Value());
+    CHECK_EQ(23, c2->Get(v8_str("y"))->Int32Value());
   }
 }
 
@@ -18652,11 +18648,10 @@ TEST(Regress618) {
   }
 
   // Use an API object with accessors as prototype.
-  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate);
-  templ->SetHiddenPrototype(true);
-  templ->InstanceTemplate()->SetAccessor(v8_str("x"), GetterWhichReturns42,
-                                         SetterWhichSetsYOnThisTo23);
-  context->Global()->Set(v8_str("P"), templ->InstanceTemplate()->NewInstance());
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetAccessor(v8_str("x"), GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("P"), templ->NewInstance());
 
   // This compile will get the code from the compilation cache.
   CompileRun(source);
@@ -21071,15 +21066,14 @@ static void InstanceCheckedSetter(Local<String> name,
 
 
 static void CheckInstanceCheckedResult(int getters, int setters,
-                                       bool expects_callbacks, bool is_setter,
+                                       bool expects_callbacks,
                                        TryCatch* try_catch) {
   if (expects_callbacks) {
     CHECK(!try_catch->HasCaught());
     CHECK_EQ(getters, instance_checked_getter_count);
     CHECK_EQ(setters, instance_checked_setter_count);
   } else {
-    CHECK((is_setter && !try_catch->HasCaught()) ||
-          (!is_setter && try_catch->HasCaught()));
+    CHECK(try_catch->HasCaught());
     CHECK_EQ(0, instance_checked_getter_count);
     CHECK_EQ(0, instance_checked_setter_count);
   }
@@ -21094,38 +21088,33 @@ static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
 
   // Test path through generic runtime code.
   CompileRun("obj.foo");
-  CheckInstanceCheckedResult(1, 0, expects_callbacks, false, &try_catch);
+  CheckInstanceCheckedResult(1, 0, expects_callbacks, &try_catch);
   CompileRun("obj.foo = 23");
-  CheckInstanceCheckedResult(1, 1, expects_callbacks, true, &try_catch);
-  if (!expects_callbacks) CompileRun("delete obj.foo");
+  CheckInstanceCheckedResult(1, 1, expects_callbacks, &try_catch);
 
   // Test path through generated LoadIC and StoredIC.
   CompileRun("function test_get(o) { o.foo; }"
              "test_get(obj);");
-  CheckInstanceCheckedResult(2, 1, expects_callbacks, false, &try_catch);
+  CheckInstanceCheckedResult(2, 1, expects_callbacks, &try_catch);
   CompileRun("test_get(obj);");
-  CheckInstanceCheckedResult(3, 1, expects_callbacks, false, &try_catch);
+  CheckInstanceCheckedResult(3, 1, expects_callbacks, &try_catch);
   CompileRun("test_get(obj);");
-  CheckInstanceCheckedResult(4, 1, expects_callbacks, false, &try_catch);
+  CheckInstanceCheckedResult(4, 1, expects_callbacks, &try_catch);
   CompileRun("function test_set(o) { o.foo = 23; }"
              "test_set(obj);");
-  CheckInstanceCheckedResult(4, 2, expects_callbacks, true, &try_catch);
-  if (!expects_callbacks) CompileRun("delete obj.foo");
+  CheckInstanceCheckedResult(4, 2, expects_callbacks, &try_catch);
   CompileRun("test_set(obj);");
-  CheckInstanceCheckedResult(4, 3, expects_callbacks, true, &try_catch);
-  if (!expects_callbacks) CompileRun("delete obj.foo");
+  CheckInstanceCheckedResult(4, 3, expects_callbacks, &try_catch);
   CompileRun("test_set(obj);");
-  CheckInstanceCheckedResult(4, 4, expects_callbacks, true, &try_catch);
-  if (!expects_callbacks) CompileRun("delete obj.foo");
+  CheckInstanceCheckedResult(4, 4, expects_callbacks, &try_catch);
 
   // Test path through optimized code.
   CompileRun("%OptimizeFunctionOnNextCall(test_get);"
              "test_get(obj);");
-  CheckInstanceCheckedResult(5, 4, expects_callbacks, false, &try_catch);
+  CheckInstanceCheckedResult(5, 4, expects_callbacks, &try_catch);
   CompileRun("%OptimizeFunctionOnNextCall(test_set);"
              "test_set(obj);");
-  if (!expects_callbacks) CompileRun("delete obj.foo");
-  CheckInstanceCheckedResult(5, 5, expects_callbacks, true, &try_catch);
+  CheckInstanceCheckedResult(5, 5, expects_callbacks, &try_catch);
 
   // Cleanup so that closures start out fresh in next check.
   CompileRun("%DeoptimizeFunction(test_get);"
@@ -21197,16 +21186,12 @@ THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
 
-  Local<FunctionTemplate> proto_templ =
-      FunctionTemplate::New(context->GetIsolate());
-  proto_templ->SetHiddenPrototype(true);
-  Local<ObjectTemplate> proto = proto_templ->InstanceTemplate();
-  proto->SetAccessor(
-      v8_str("foo"), InstanceCheckedGetter, InstanceCheckedSetter,
-      Handle<Value>(), v8::DEFAULT, v8::None,
-      v8::AccessorSignature::New(context->GetIsolate(), proto_templ));
   Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
-  templ->Inherit(proto_templ);
+  Local<ObjectTemplate> proto = templ->PrototypeTemplate();
+  proto->SetAccessor(v8_str("foo"), InstanceCheckedGetter,
+                     InstanceCheckedSetter, Handle<Value>(), v8::DEFAULT,
+                     v8::None,
+                     v8::AccessorSignature::New(context->GetIsolate(), templ));
   context->Global()->Set(v8_str("f"), templ->GetFunction());
 
   printf("Testing positive ...\n");

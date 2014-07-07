@@ -1685,9 +1685,7 @@ var obj = { __proto__: fun };
 Object.observe(obj, observer.callback);
 obj.prototype = 7;
 Object.deliverChangeRecords(observer.callback);
-observer.assertCallbackRecords([
-    { object: obj, name: 'prototype', type: 'add'},
-]);
+observer.assertNotCalled();
 
 
 // Check that changes in observation status are detected in all IC states and

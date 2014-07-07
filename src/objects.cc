@@ -3094,25 +3094,6 @@ MaybeHandle<Object> JSObject::SetPropertyViaPrototypes(
         *done = true;
         if (!result.IsReadOnly()) {
           Handle<Object> callback_object(result.GetCallbackObject(), isolate);
-          // Only store via executable access info setters if the holder is the
-          // receiver or on its hidden prototype chain.
-          if (callback_object->IsExecutableAccessorInfo()) {
-            Handle<JSObject> current = object;
-            while (*current != result.holder()) {
-              // There is a callbacks holder, so we are guaranteed that all
-              // objects in between are JSObjects.
-              Handle<JSObject> prototype(
-                  JSObject::cast(current->GetPrototype()));
-              if (!current->IsJSGlobalProxy() &&
-                  !prototype->map()->is_hidden_prototype()) {
-                *done = false;
-                break;
-              }
-              current = prototype;
-            }
-            // Break out of the switch after breaking out of the loop above.
-            if (*current != result.holder()) break;
-          }
           return SetPropertyWithCallback(object, name, value,
                                          handle(result.holder()),
                                          callback_object, strict_mode);

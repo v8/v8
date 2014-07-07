@@ -191,7 +191,15 @@ void Accessors::ArrayLengthSetter(
   Handle<JSObject> object = Handle<JSObject>::cast(
       Utils::OpenHandle(*info.This()));
   Handle<Object> value = Utils::OpenHandle(*val);
-  ASSERT(object->IsJSArray());
+  // This means one of the object's prototypes is a JSArray and the
+  // object does not have a 'length' property.  Calling SetProperty
+  // causes an infinite loop.
+  if (!object->IsJSArray()) {
+    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
+        object, isolate->factory()->length_string(), value, NONE);
+    maybe_result.Check();
+    return;
+  }
 
   value = FlattenNumber(isolate, value);
 
@@ -862,7 +870,12 @@ static Handle<Object> SetFunctionPrototype(Isolate* isolate,
     function = Handle<JSFunction>(function_raw, isolate);
   }
 
-  ASSERT(function->should_have_prototype());
+  if (!function->should_have_prototype()) {
+    // Since we hit this accessor, object will have no prototype property.
+    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
+        receiver, isolate->factory()->prototype_string(), value, NONE);
+    return maybe_result.ToHandleChecked();
+  }
 
   Handle<Object> old_value;
   bool is_observed = *function == *receiver && function->map()->is_observed();
