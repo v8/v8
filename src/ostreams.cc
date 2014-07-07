@@ -6,7 +6,7 @@
 
 #include "src/ostreams.h"
 
-#if V8_CC_MSVC
+#if V8_OS_WIN
 #define snprintf sprintf_s
 #endif
 
