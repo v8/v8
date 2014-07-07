@@ -19495,15 +19495,15 @@ class InitDefaultIsolateThread : public v8::base::Thread {
         break;
 
       case SetCounterFunction:
-        v8::V8::SetCounterFunction(NULL);
+        CcTest::isolate()->SetCounterFunction(NULL);
         break;
 
       case SetCreateHistogramFunction:
-        v8::V8::SetCreateHistogramFunction(NULL);
+        CcTest::isolate()->SetCreateHistogramFunction(NULL);
         break;
 
       case SetAddHistogramSampleFunction:
-        v8::V8::SetAddHistogramSampleFunction(NULL);
+        CcTest::isolate()->SetAddHistogramSampleFunction(NULL);
         break;
     }
     isolate->Exit();
@@ -20886,6 +20886,7 @@ TEST(Regress385349) {
 }
 
 
+#ifdef DEBUG
 static int probes_counter = 0;
 static int misses_counter = 0;
 static int updates_counter = 0;
@@ -20915,11 +20916,10 @@ static const char* kMegamorphicTestProgram =
     "  fooify(a);"
     "  fooify(b);"
     "}";
+#endif
 
 
 static void StubCacheHelper(bool primary) {
-  V8::SetCounterFunction(LookupCounter);
-  USE(kMegamorphicTestProgram);
 #ifdef DEBUG
   i::FLAG_native_code_counters = true;
   if (primary) {
@@ -20929,6 +20929,7 @@ static void StubCacheHelper(bool primary) {
   }
   i::FLAG_crankshaft = false;
   LocalContext env;
+  env->GetIsolate()->SetCounterFunction(LookupCounter);
   v8::HandleScope scope(env->GetIsolate());
   int initial_probes = probes_counter;
   int initial_misses = misses_counter;
@@ -20958,6 +20959,7 @@ TEST(PrimaryStubCache) {
 }
 
 
+#ifdef DEBUG
 static int cow_arrays_created_runtime = 0;
 
 
@@ -20967,13 +20969,14 @@ static int* LookupCounterCOWArrays(const char* name) {
   }
   return NULL;
 }
+#endif
 
 
 TEST(CheckCOWArraysCreatedRuntimeCounter) {
-  V8::SetCounterFunction(LookupCounterCOWArrays);
 #ifdef DEBUG
   i::FLAG_native_code_counters = true;
   LocalContext env;
+  env->GetIsolate()->SetCounterFunction(LookupCounterCOWArrays);
   v8::HandleScope scope(env->GetIsolate());
   int initial_cow_arrays = cow_arrays_created_runtime;
   CompileRun("var o = [1, 2, 3];");

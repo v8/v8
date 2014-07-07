@@ -4430,6 +4430,21 @@ class V8_EXPORT Isolate {
    */
   void SetUseCounterCallback(UseCounterCallback callback);
 
+  /**
+   * Enables the host application to provide a mechanism for recording
+   * statistics counters.
+   */
+  void SetCounterFunction(CounterLookupCallback);
+
+  /**
+   * Enables the host application to provide a mechanism for recording
+   * histograms. The CreateHistogram function returns a
+   * histogram which will later be passed to the AddHistogramSample
+   * function.
+   */
+  void SetCreateHistogramFunction(CreateHistogramCallback);
+  void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
+
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
 
@@ -4744,6 +4759,8 @@ class V8_EXPORT V8 {
   /**
    * Enables the host application to provide a mechanism for recording
    * statistics counters.
+   *
+   * Deprecated, use Isolate::SetCounterFunction instead.
    */
   static void SetCounterFunction(CounterLookupCallback);
 
@@ -4752,8 +4769,13 @@ class V8_EXPORT V8 {
    * histograms. The CreateHistogram function returns a
    * histogram which will later be passed to the AddHistogramSample
    * function.
+   *
+   * Deprecated, use Isolate::SetCreateHistogramFunction instead.
+   * Isolate::SetAddHistogramSampleFunction instead.
    */
   static void SetCreateHistogramFunction(CreateHistogramCallback);
+
+  /** Deprecated, use Isolate::SetAddHistogramSampleFunction instead. */
   static void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
 
   /** Callback function for reporting failed access checks.*/

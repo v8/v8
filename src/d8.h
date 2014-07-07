@@ -269,7 +269,7 @@ class Shell : public i::AllStatic {
                                int max,
                                size_t buckets);
   static void AddHistogramSample(void* histogram, int sample);
-  static void MapCounters(const char* name);
+  static void MapCounters(v8::Isolate* isolate, const char* name);
 
   static Local<Object> DebugMessageDetails(Isolate* isolate,
                                            Handle<String> message);
