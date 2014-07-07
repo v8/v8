@@ -83,7 +83,6 @@ typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
 // Use this to expose protected methods in i::Heap.
 class TestHeap : public i::Heap {
  public:
-  using i::Heap::AllocateArgumentsObject;
   using i::Heap::AllocateByteArray;
   using i::Heap::AllocateFixedArray;
   using i::Heap::AllocateHeapNumber;

@@ -251,9 +251,6 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     JSObject::NormalizeProperties(
         boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
   }
-  Object::ValueType value_type = should_normalize
-      ? Object::FORCE_TAGGED : Object::OPTIMAL_REPRESENTATION;
-
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index +=2) {
     Handle<Object> key(constant_properties->get(index+0), isolate);
@@ -283,8 +280,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE,
-            value_type, mode);
+            boilerplate, name, value, NONE, mode);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -303,7 +299,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
       maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE, value_type, mode);
+          boilerplate, name, value, NONE, mode);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -572,8 +568,8 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
   AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
   usage_context.EnterNewScope();
   JSObject::DeepCopyHints hints = (flags & ArrayLiteral::kShallowElements) == 0
-      ? JSObject::kNoHints
-      : JSObject::kObjectIsShallowArray;
+                                      ? JSObject::kNoHints
+                                      : JSObject::kObjectIsShallow;
   MaybeHandle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
                                                   hints);
   usage_context.ExitScope(site, boilerplate);
@@ -5093,7 +5089,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            Object::OPTIMAL_REPRESENTATION,
             ALLOW_AS_CONSTANT,
             JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
             JSReceiver::MAY_BE_STORE_FROM_KEYED,
@@ -5249,9 +5244,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
-          ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-          store_from_keyed);
+          js_object, name, value, attr, ALLOW_AS_CONSTANT,
+          JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
     }
   }
 
@@ -5266,9 +5260,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
-        ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-        store_from_keyed);
+        js_object, name, value, attr, ALLOW_AS_CONSTANT,
+        JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
   }
 }
 
@@ -13100,10 +13093,8 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 
 
   // Get the constructor function for context extension and arguments array.
-  Handle<JSObject> arguments_boilerplate(
-      isolate->sloppy_arguments_boilerplate());
   Handle<JSFunction> arguments_function(
-      JSFunction::cast(arguments_boilerplate->map()->constructor()));
+      JSFunction::cast(isolate->sloppy_arguments_map()->constructor()));
 
   // Get the number of referencing objects.
   int count;

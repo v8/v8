@@ -50,7 +50,6 @@ static AllocationResult AllocateAfterFailures() {
   // for specific kinds.
   heap->AllocateFixedArray(100).ToObjectChecked();
   heap->AllocateHeapNumber(0.42).ToObjectChecked();
-  heap->AllocateArgumentsObject(Smi::FromInt(87), 10).ToObjectChecked();
   Object* object = heap->AllocateJSObject(
       *CcTest::i_isolate()->object_function()).ToObjectChecked();
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
