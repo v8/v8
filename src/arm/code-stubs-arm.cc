@@ -2019,12 +2019,12 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ Allocate(r9, r0, r3, r4, &runtime, TAG_OBJECT);
 
   // r0 = address of new object(s) (tagged)
-  // r2 = argument count (tagged)
+  // r2 = argument count (smi-tagged)
   // Get the arguments boilerplate from the current native context into r4.
   const int kNormalOffset =
-      Context::SlotOffset(Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX);
+      Context::SlotOffset(Context::SLOPPY_ARGUMENTS_MAP_INDEX);
   const int kAliasedOffset =
-      Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX);
+      Context::SlotOffset(Context::ALIASED_ARGUMENTS_MAP_INDEX);
 
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
@@ -2034,22 +2034,23 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // r0 = address of new object (tagged)
   // r1 = mapped parameter count (tagged)
-  // r2 = argument count (tagged)
-  // r4 = address of boilerplate object (tagged)
-  // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ ldr(r3, FieldMemOperand(r4, i));
-    __ str(r3, FieldMemOperand(r0, i));
-  }
+  // r2 = argument count (smi-tagged)
+  // r4 = address of arguments map (tagged)
+  __ str(r4, FieldMemOperand(r0, JSObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kEmptyFixedArrayRootIndex);
+  __ str(r3, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ ldr(r3, MemOperand(sp, 2 * kPointerSize));
+  __ AssertNotSmi(r3);
   const int kCalleeOffset = JSObject::kHeaderSize +
       Heap::kArgumentsCalleeIndex * kPointerSize;
   __ str(r3, FieldMemOperand(r0, kCalleeOffset));
 
   // Use the length (smi tagged) and set that as an in-object property too.
+  __ AssertSmi(r2);
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   const int kLengthOffset = JSObject::kHeaderSize +
       Heap::kArgumentsLengthIndex * kPointerSize;
@@ -2203,15 +2204,18 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the arguments boilerplate from the current native context.
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ ldr(r4, FieldMemOperand(r4, GlobalObject::kNativeContextOffset));
-  __ ldr(r4, MemOperand(r4, Context::SlotOffset(
-      Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX)));
+  __ ldr(r4, MemOperand(
+                 r4, Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX)));
 
-  // Copy the JS object part.
-  __ CopyFields(r0, r4, d0, JSObject::kHeaderSize / kPointerSize);
+  __ str(r4, FieldMemOperand(r0, JSObject::kMapOffset));
+  __ LoadRoot(r3, Heap::kEmptyFixedArrayRootIndex);
+  __ str(r3, FieldMemOperand(r0, JSObject::kPropertiesOffset));
+  __ str(r3, FieldMemOperand(r0, JSObject::kElementsOffset));
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
+  __ AssertSmi(r1);
   __ str(r1, FieldMemOperand(r0, JSObject::kHeaderSize +
       Heap::kArgumentsLengthIndex * kPointerSize));
 

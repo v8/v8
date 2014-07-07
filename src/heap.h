@@ -1486,10 +1486,6 @@ class Heap {
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates an arguments object - optionally with an elements array.
-  MUST_USE_RESULT AllocationResult AllocateArgumentsObject(
-      Object* callee, int length);
-
   // Copy the code and scope info part of the code object, but insert
   // the provided data as the relocation information.
   MUST_USE_RESULT AllocationResult CopyCode(Code* code,

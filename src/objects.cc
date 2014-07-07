@@ -1834,7 +1834,6 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
                                Handle<Object> value,
                                PropertyAttributes attributes,
                                StoreFromKeyed store_mode,
-                               ValueType value_type,
                                TransitionFlag flag) {
   ASSERT(!object->IsJSGlobalProxy());
 
@@ -1844,7 +1843,7 @@ void JSObject::AddFastProperty(Handle<JSObject> object,
         handle(object->map()), name, value, attributes, flag);
   } else if (!object->TooManyFastProperties(store_mode)) {
     Isolate* isolate = object->GetIsolate();
-    Representation representation = value->OptimalRepresentation(value_type);
+    Representation representation = value->OptimalRepresentation();
     maybe_map = Map::CopyWithField(
         handle(object->map(), isolate), name,
         value->OptimalType(isolate, representation),
@@ -1901,7 +1900,6 @@ MaybeHandle<Object> JSObject::AddPropertyInternal(
     StrictMode strict_mode,
     JSReceiver::StoreFromKeyed store_mode,
     ExtensibilityCheck extensibility_check,
-    ValueType value_type,
     StoreMode mode,
     TransitionFlag transition_flag) {
   ASSERT(!object->IsJSGlobalProxy());
@@ -1926,7 +1924,7 @@ MaybeHandle<Object> JSObject::AddPropertyInternal(
 
   if (object->HasFastProperties()) {
     AddFastProperty(object, name, value, attributes, store_mode,
-                    value_type, transition_flag);
+                    transition_flag);
   }
 
   if (!object->HasFastProperties()) {
@@ -3976,8 +3974,7 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
     return JSObject::AddPropertyInternal(
         object, name, value, attributes, SLOPPY,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
-        JSReceiver::OMIT_EXTENSIBILITY_CHECK,
-        JSObject::FORCE_TAGGED, FORCE_FIELD, OMIT_TRANSITION);
+        JSReceiver::OMIT_EXTENSIBILITY_CHECK, FORCE_FIELD, OMIT_TRANSITION);
   }
 
   // Keep the target CONSTANT if the same value is stored.
@@ -4223,7 +4220,6 @@ void JSObject::AddProperty(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    ValueType value_type,
     StoreMode store_mode) {
 #ifdef DEBUG
   uint32_t index;
@@ -4234,9 +4230,8 @@ void JSObject::AddProperty(
   ASSERT(!it.IsFound());
   ASSERT(object->map()->is_extensible());
 #endif
-  SetOwnPropertyIgnoreAttributes(
-      object, name, value, attributes, value_type, store_mode,
-      OMIT_EXTENSIBILITY_CHECK).Check();
+  SetOwnPropertyIgnoreAttributes(object, name, value, attributes, store_mode,
+                                 OMIT_EXTENSIBILITY_CHECK).Check();
 }
 
 
@@ -4251,7 +4246,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    ValueType value_type,
     StoreMode mode,
     ExtensibilityCheck extensibility_check,
     StoreFromKeyed store_from_keyed,
@@ -4280,8 +4274,9 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<Object> proto(object->GetPrototype(), isolate);
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return SetOwnPropertyIgnoreAttributes(Handle<JSObject>::cast(proto),
-        name, value, attributes, value_type, mode, extensibility_check);
+    return SetOwnPropertyIgnoreAttributes(Handle<JSObject>::cast(proto), name,
+                                          value, attributes, mode,
+                                          extensibility_check);
   }
 
   if (lookup.IsInterceptor() ||
@@ -4296,7 +4291,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
     return AddPropertyInternal(object, name, value, attributes, SLOPPY,
-        store_from_keyed, extensibility_check, value_type, mode, flag);
+                               store_from_keyed, extensibility_check, mode,
+                               flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
@@ -5260,12 +5256,8 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
     }
   }
 
-  SetOwnPropertyIgnoreAttributes(object,
-                                 isolate->factory()->hidden_string(),
-                                 value,
-                                 DONT_ENUM,
-                                 OPTIMAL_REPRESENTATION,
-                                 ALLOW_AS_CONSTANT,
+  SetOwnPropertyIgnoreAttributes(object, isolate->factory()->hidden_string(),
+                                 value, DONT_ENUM, ALLOW_AS_CONSTANT,
                                  OMIT_EXTENSIBILITY_CHECK).Assert();
   return object;
 }
@@ -5610,11 +5602,10 @@ bool JSObject::ReferencesObject(Object* obj) {
   // For functions check the context.
   if (IsJSFunction()) {
     // Get the constructor function for arguments array.
-    JSObject* arguments_boilerplate =
-        heap->isolate()->context()->native_context()->
-            sloppy_arguments_boilerplate();
+    Map* arguments_map =
+        heap->isolate()->context()->native_context()->sloppy_arguments_map();
     JSFunction* arguments_function =
-        JSFunction::cast(arguments_boilerplate->map()->constructor());
+        JSFunction::cast(arguments_map->constructor());
 
     // Get the context and don't check if it is the native context.
     JSFunction* f = JSFunction::cast(this);
@@ -5906,7 +5897,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     Handle<JSObject> object) {
   Isolate* isolate = this->isolate();
   bool copying = this->copying();
-  bool shallow = hints_ == JSObject::kObjectIsShallowArray;
+  bool shallow = hints_ == JSObject::kObjectIsShallow;
 
   if (!shallow) {
     StackLimitCheck check(isolate);
@@ -6393,12 +6384,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
-  Handle<JSObject> arguments_boilerplate = Handle<JSObject>(
-      isolate->context()->native_context()->sloppy_arguments_boilerplate(),
-      isolate);
-  Handle<JSFunction> arguments_function = Handle<JSFunction>(
-      JSFunction::cast(arguments_boilerplate->map()->constructor()),
-      isolate);
+  Handle<JSFunction> arguments_function(
+      JSFunction::cast(isolate->sloppy_arguments_map()->constructor()));
 
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;

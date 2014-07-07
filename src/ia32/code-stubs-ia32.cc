@@ -1036,7 +1036,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ mov(Operand(esp, 2 * kPointerSize), edx);
 
   // ebx = parameter count (tagged)
-  // ecx = argument count (tagged)
+  // ecx = argument count (smi-tagged)
   // esp[4] = parameter count (tagged)
   // esp[8] = address of receiver argument
   // Compute the mapped parameter count = min(ebx, ecx) in ebx.
@@ -1069,47 +1069,52 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ Allocate(ebx, eax, edx, edi, &runtime, TAG_OBJECT);
 
   // eax = address of new object(s) (tagged)
-  // ecx = argument count (tagged)
+  // ecx = argument count (smi-tagged)
   // esp[0] = mapped parameter count (tagged)
   // esp[8] = parameter count (tagged)
   // esp[12] = address of receiver argument
-  // Get the arguments boilerplate from the current native context into edi.
-  Label has_mapped_parameters, copy;
+  // Get the arguments map from the current native context into edi.
+  Label has_mapped_parameters, instantiate;
   __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   __ mov(ebx, Operand(esp, 0 * kPointerSize));
   __ test(ebx, ebx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
-  __ mov(edi, Operand(edi,
-         Context::SlotOffset(Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX)));
-  __ jmp(&copy, Label::kNear);
+  __ mov(
+      edi,
+      Operand(edi, Context::SlotOffset(Context::SLOPPY_ARGUMENTS_MAP_INDEX)));
+  __ jmp(&instantiate, Label::kNear);
 
   __ bind(&has_mapped_parameters);
-  __ mov(edi, Operand(edi,
-            Context::SlotOffset(Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX)));
-  __ bind(&copy);
+  __ mov(
+      edi,
+      Operand(edi, Context::SlotOffset(Context::ALIASED_ARGUMENTS_MAP_INDEX)));
+  __ bind(&instantiate);
 
   // eax = address of new object (tagged)
   // ebx = mapped parameter count (tagged)
-  // ecx = argument count (tagged)
-  // edi = address of boilerplate object (tagged)
+  // ecx = argument count (smi-tagged)
+  // edi = address of arguments map (tagged)
   // esp[0] = mapped parameter count (tagged)
   // esp[8] = parameter count (tagged)
   // esp[12] = address of receiver argument
   // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ mov(edx, FieldOperand(edi, i));
-    __ mov(FieldOperand(eax, i), edx);
-  }
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
+         masm->isolate()->factory()->empty_fixed_array());
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ mov(edx, Operand(esp, 4 * kPointerSize));
+  __ AssertNotSmi(edx);
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
                       Heap::kArgumentsCalleeIndex * kPointerSize),
          edx);
 
   // Use the length (smi tagged) and set that as an in-object property too.
+  __ AssertSmi(ecx);
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
                       Heap::kArgumentsLengthIndex * kPointerSize),
@@ -1266,22 +1271,22 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the allocation of both objects in one go.
   __ Allocate(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
 
-  // Get the arguments boilerplate from the current native context.
+  // Get the arguments map from the current native context.
   __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
-  const int offset =
-      Context::SlotOffset(Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX);
+  const int offset = Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX);
   __ mov(edi, Operand(edi, offset));
 
-  // Copy the JS object part.
-  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
-    __ mov(ebx, FieldOperand(edi, i));
-    __ mov(FieldOperand(eax, i), ebx);
-  }
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
+         masm->isolate()->factory()->empty_fixed_array());
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
+  __ AssertSmi(ecx);
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
                       Heap::kArgumentsLengthIndex * kPointerSize),
          ecx);
