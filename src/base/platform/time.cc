@@ -7,6 +7,7 @@
 #if V8_OS_POSIX
 #include <fcntl.h>  // for O_RDONLY
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 #if V8_OS_MACOSX
 #include <mach/mach_time.h>
