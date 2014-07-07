@@ -1308,7 +1308,6 @@ void MacroAssembler::InitializeRootRegister() {
 
 
 void MacroAssembler::SmiTag(Register dst, Register src) {
-  STATIC_ASSERT(kSmiValueSize + kSmiShift == kXRegSizeInBits);
   ASSERT(dst.Is64Bits() && src.Is64Bits());
   Lsl(dst, src, kSmiShift);
 }
@@ -1318,7 +1317,6 @@ void MacroAssembler::SmiTag(Register smi) { SmiTag(smi, smi); }
 
 
 void MacroAssembler::SmiUntag(Register dst, Register src) {
-  STATIC_ASSERT(kSmiValueSize + kSmiShift == kXRegSizeInBits);
   ASSERT(dst.Is64Bits() && src.Is64Bits());
   if (FLAG_enable_slow_asserts) {
     AssertSmi(src);
@@ -1353,17 +1351,13 @@ void MacroAssembler::SmiUntagToFloat(FPRegister dst,
 
 
 void MacroAssembler::SmiTagAndPush(Register src) {
-  STATIC_ASSERT((kSmiShift == kWRegSizeInBits) &&
-                (kSmiValueSize == kWRegSizeInBits) &&
-                (kSmiTag == 0));
+  STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
   Push(src.W(), wzr);
 }
 
 
 void MacroAssembler::SmiTagAndPush(Register src1, Register src2) {
-  STATIC_ASSERT((kSmiShift == kWRegSizeInBits) &&
-                (kSmiValueSize == kWRegSizeInBits) &&
-                (kSmiTag == 0));
+  STATIC_ASSERT((kSmiShift == 32) && (kSmiTag == 0));
   Push(src1.W(), wzr, src2.W(), wzr);
 }
 
