@@ -1189,7 +1189,7 @@ function SetUpError() {
         if (!IS_UNDEFINED(m)) {
           %AddProperty(this, 'message', ToString(m), DONT_ENUM);
         }
-        captureStackTrace(this, f);
+        try { captureStackTrace(this, f); } catch (e) { }
       } else {
         return new f(m);
       }
