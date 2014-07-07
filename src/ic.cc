@@ -1206,7 +1206,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
 
     if (lookup->IsReadOnly() || !lookup->IsCacheable()) return false;
     if (lookup->holder() == *receiver) return lookup->CanHoldValue(value);
-    if (lookup->IsPropertyCallbacks()) return true;
+    if (lookup->IsPropertyCallbacks() &&
+        !lookup->GetCallbackObject()->IsExecutableAccessorInfo())
+      return true;
     // JSGlobalProxy either stores on the global object in the prototype, or
     // goes into the runtime if access checks are needed, so this is always
     // safe.
