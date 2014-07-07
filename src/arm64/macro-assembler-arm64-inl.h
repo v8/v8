@@ -151,7 +151,8 @@ void MacroAssembler::Add(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
     AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
@@ -162,7 +163,8 @@ void MacroAssembler::Adds(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
     AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, SUB);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, ADD);
@@ -174,7 +176,8 @@ void MacroAssembler::Sub(const Register& rd,
                          const Register& rn,
                          const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
     AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
@@ -186,7 +189,8 @@ void MacroAssembler::Subs(const Register& rd,
                           const Register& rn,
                           const Operand& operand) {
   ASSERT(allow_macro_instructions_);
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
+  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
+      IsImmAddSub(-operand.ImmediateValue())) {
     AddSubMacro(rd, rn, -operand.ImmediateValue(), SetFlags, ADD);
   } else {
     AddSubMacro(rd, rn, operand, SetFlags, SUB);
