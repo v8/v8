@@ -1475,6 +1475,9 @@ class HGraphBuilder {
 
   class IfBuilder V8_FINAL {
    public:
+    // If using this constructor, Initialize() must be called explicitly!
+    IfBuilder();
+
     explicit IfBuilder(HGraphBuilder* builder);
     IfBuilder(HGraphBuilder* builder,
               HIfContinuation* continuation);
@@ -1482,6 +1485,8 @@ class HGraphBuilder {
     ~IfBuilder() {
       if (!finished_) End();
     }
+
+    void Initialize(HGraphBuilder* builder);
 
     template<class Condition>
     Condition* If(HValue *p) {
@@ -1625,9 +1630,14 @@ class HGraphBuilder {
     void Return(HValue* value);
 
    private:
+    void InitializeDontCreateBlocks(HGraphBuilder* builder);
+
     HControlInstruction* AddCompare(HControlInstruction* compare);
 
-    HGraphBuilder* builder() const { return builder_; }
+    HGraphBuilder* builder() const {
+      ASSERT(builder_ != NULL);  // Have you called "Initialize"?
+      return builder_;
+    }
 
     void AddMergeAtJoinBlock(bool deopt);
 
