@@ -41,6 +41,7 @@
       'type': 'executable',
       'dependencies': [
         '../tools/gyp/v8.gyp:v8',
+        '../tools/gyp/v8.gyp:v8_libplatform',
       ],
       # Generated source files need this explicitly:
       'include_dirs+': [

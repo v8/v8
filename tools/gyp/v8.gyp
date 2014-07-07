@@ -532,13 +532,6 @@
         '../../src/jsregexp-inl.h',
         '../../src/jsregexp.cc',
         '../../src/jsregexp.h',
-        # TODO(jochen): move libplatform/ files to their own target.
-        '../../src/libplatform/default-platform.cc',
-        '../../src/libplatform/default-platform.h',
-        '../../src/libplatform/task-queue.cc',
-        '../../src/libplatform/task-queue.h',
-        '../../src/libplatform/worker-thread.cc',
-        '../../src/libplatform/worker-thread.h',
         '../../src/list-inl.h',
         '../../src/list.h',
         '../../src/lithium-allocator-inl.h',
@@ -577,6 +570,8 @@
         '../../src/ostreams.h',
         '../../src/parser.cc',
         '../../src/parser.h',
+        '../../src/perf-jit.cc',
+        '../../src/perf-jit.h',
         '../../src/preparse-data-format.h',
         '../../src/preparse-data.cc',
         '../../src/preparse-data.h',
@@ -1003,12 +998,6 @@
         }, {
           'toolsets': ['target'],
         }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
-          ],
-        }],
         ['OS=="linux"', {
             'link_settings': {
               'libraries': [
@@ -1200,11 +1189,34 @@
             }],
           ],
         }],
-        ['component=="shared_library"', {
-          'defines': [
-            'BUILDING_V8_SHARED',
-            'V8_SHARED',
-          ],
+      ],
+    },
+    {
+      'target_name': 'v8_libplatform',
+      'type': 'static_library',
+      'variables': {
+        'optimize': 'max',
+      },
+      'dependencies': [
+        'v8_libbase',
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        '../../include/libplatform/libplatform.h',
+        '../../src/libplatform/default-platform.cc',
+        '../../src/libplatform/default-platform.h',
+        '../../src/libplatform/task-queue.cc',
+        '../../src/libplatform/task-queue.h',
+        '../../src/libplatform/worker-thread.cc',
+        '../../src/libplatform/worker-thread.h',
+      ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
         }],
       ],
     },
@@ -1382,7 +1394,7 @@
     {
       'target_name': 'mksnapshot',
       'type': 'executable',
-      'dependencies': ['v8_base', 'v8_nosnapshot'],
+      'dependencies': ['v8_base', 'v8_nosnapshot', 'v8_libplatform'],
       'include_dirs+': [
         '../..',
       ],

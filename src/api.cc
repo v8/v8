@@ -1633,6 +1633,38 @@ Handle<Value> UnboundScript::GetScriptName() {
 }
 
 
+Handle<Value> UnboundScript::GetSourceURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
+  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceURL()",
+             return Handle<String>());
+  LOG_API(isolate, "UnboundScript::GetSourceURL");
+  if (obj->script()->IsScript()) {
+    i::Object* url = i::Script::cast(obj->script())->source_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Handle<String>();
+  }
+}
+
+
+Handle<Value> UnboundScript::GetSourceMappingURL() {
+  i::Handle<i::SharedFunctionInfo> obj =
+      i::Handle<i::SharedFunctionInfo>::cast(Utils::OpenHandle(this));
+  i::Isolate* isolate = obj->GetIsolate();
+  ON_BAILOUT(isolate, "v8::UnboundScript::GetSourceMappingURL()",
+             return Handle<String>());
+  LOG_API(isolate, "UnboundScript::GetSourceMappingURL");
+  if (obj->script()->IsScript()) {
+    i::Object* url = i::Script::cast(obj->script())->source_mapping_url();
+    return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
+  } else {
+    return Handle<String>();
+  }
+}
+
+
 Local<Value> Script::Run() {
   i::Handle<i::Object> obj = Utils::OpenHandle(this, true);
   // If execution is terminating, Compile(..)->Run() requires this
@@ -1816,19 +1848,10 @@ v8::TryCatch::TryCatch()
       rethrow_(false),
       has_terminated_(false) {
   Reset();
-  js_stack_comparable_address_ = this;
-#ifdef V8_USE_ADDRESS_SANITIZER
-  void* asan_fake_stack_handle = __asan_get_current_fake_stack();
-  if (asan_fake_stack_handle != NULL) {
-    js_stack_comparable_address_ = __asan_addr_is_in_fake_stack(
-        asan_fake_stack_handle, js_stack_comparable_address_, NULL, NULL);
-    CHECK(js_stack_comparable_address_ != NULL);
-  }
-#endif
   // Special handling for simulators which have a separate JS stack.
-  js_stack_comparable_address_ = reinterpret_cast<void*>(
-      v8::internal::SimulatorStack::RegisterCTryCatch(
-          reinterpret_cast<uintptr_t>(js_stack_comparable_address_)));
+  js_stack_comparable_address_ =
+      reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
+          GetCurrentStackPosition()));
   isolate_->RegisterTryCatchHandler(this);
 }
 
@@ -3170,6 +3193,26 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
       i::JSReceiver::GetPropertyAttributes(self, key_name);
   if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
   return static_cast<PropertyAttribute>(result);
+}
+
+
+Local<Value> v8::Object::GetOwnPropertyDescriptor(Local<String> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetOwnPropertyDescriptor()",
+             return Local<Value>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_name = Utils::OpenHandle(*key);
+  i::Handle<i::Object> args[] = { obj, key_name };
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result;
+  has_pending_exception = !CallV8HeapFunction(
+      "ObjectGetOwnPropertyDescriptor",
+      isolate->factory()->undefined_value(),
+      ARRAY_SIZE(args),
+      args).ToHandle(&result);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  return Utils::ToLocal(result);
 }
 
 
@@ -4931,20 +4974,12 @@ static void* ExternalValue(i::Object* obj) {
 
 
 void v8::V8::InitializePlatform(Platform* platform) {
-#ifdef V8_USE_DEFAULT_PLATFORM
-  FATAL("Can't override v8::Platform when using default implementation");
-#else
   i::V8::InitializePlatform(platform);
-#endif
 }
 
 
 void v8::V8::ShutdownPlatform() {
-#ifdef V8_USE_DEFAULT_PLATFORM
-  FATAL("Can't override v8::Platform when using default implementation");
-#else
   i::V8::ShutdownPlatform();
-#endif
 }
 
 

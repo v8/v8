@@ -116,7 +116,7 @@ class LCodeGen: public LCodeGenBase {
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredAllocate(LAllocate* instr);
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                       Label* map_check);
+                                       Label* map_check, Label* bool_load);
   void DoDeferredInstanceMigration(LCheckMaps* instr, Register object);
   void DoDeferredLoadMutableDouble(LLoadFieldByIndex* instr,
                                    Register result,

@@ -1,3 +1,23 @@
+2014-07-07: Version 3.28.14
+
+        Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue
+        390732).
+
+        Introduce debug events for Microtask queue (Chromium issue 272416).
+
+        Split out libplatform into a separate libary.
+
+        Add clang-format to presubmit checks.
+
+        Stack traces exposed to Javascript should omit extensions (issue 311).
+
+        Remove deprecated v8::Context::HasOutOfMemoryException.
+
+        Postpone termination exceptions in debug scope (issue 3408).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-04: Version 3.28.13
 
         Rollback to r22134.

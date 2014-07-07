@@ -29,6 +29,7 @@ var promiseValue = GLOBAL_PRIVATE("Promise#value");
 var promiseOnResolve = GLOBAL_PRIVATE("Promise#onResolve");
 var promiseOnReject = GLOBAL_PRIVATE("Promise#onReject");
 var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
+var lastMicrotaskId = 0;
 
 (function() {
 
@@ -71,7 +72,7 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
 
   function PromiseDone(promise, status, value, promiseQueue) {
     if (GET_PRIVATE(promise, promiseStatus) === 0) {
-      PromiseEnqueue(value, GET_PRIVATE(promise, promiseQueue));
+      PromiseEnqueue(value, GET_PRIVATE(promise, promiseQueue), status);
       PromiseSet(promise, status, value);
     }
   }
@@ -123,12 +124,24 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
     }
   }
 
-  function PromiseEnqueue(value, tasks) {
+  function PromiseEnqueue(value, tasks, status) {
+    var id, name, instrumenting = DEBUG_IS_ACTIVE;
     %EnqueueMicrotask(function() {
+      if (instrumenting) {
+        %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
+      }
       for (var i = 0; i < tasks.length; i += 2) {
         PromiseHandle(value, tasks[i], tasks[i + 1])
       }
+      if (instrumenting) {
+        %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
+      }
     });
+    if (instrumenting) {
+      id = ++lastMicrotaskId;
+      name = status > 0 ? "Promise.Resolved" : "Promise.Rejected";
+      %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+    }
   }
 
   function PromiseIdResolveHandler(x) { return x }
@@ -199,7 +212,7 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
   // Simple chaining.
 
   PromiseChain = function PromiseChain(onResolve, onReject) {  // a.k.a.
-                                                                // flatMap
+                                                               // flatMap
     onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
     onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
     var deferred = %_CallFunction(this.constructor, PromiseDeferred);
@@ -211,10 +224,14 @@ var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
         GET_PRIVATE(this, promiseOnReject).push(onReject, deferred);
         break;
       case +1:  // Resolved
-        PromiseEnqueue(GET_PRIVATE(this, promiseValue), [onResolve, deferred]);
+        PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+                       [onResolve, deferred],
+                       +1);
         break;
       case -1:  // Rejected
-        PromiseEnqueue(GET_PRIVATE(this, promiseValue), [onReject, deferred]);
+        PromiseEnqueue(GET_PRIVATE(this, promiseValue),
+                       [onReject, deferred],
+                       -1);
         break;
     }
     return deferred.promise;

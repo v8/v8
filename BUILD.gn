@@ -14,7 +14,6 @@ v8_enable_verify_heap = false
 v8_interpreted_regexp = false
 v8_object_print = false
 v8_postmortem_support = false
-v8_use_default_platform = true
 v8_use_snapshot = true
 v8_use_external_startup_data = false
 v8_enable_extra_checks = is_debug
@@ -36,6 +35,12 @@ config("internal_config") {
       "BUILDING_V8_SHARED",
     ]
   }
+}
+
+config("internal_config_base") {
+  visibility = ":*"  # Only targets in this file can depend on this.
+
+  include_dirs = [ "." ]
 }
 
 # This config should only be applied to code using V8 and not any V8 code
@@ -88,11 +93,6 @@ config("features") {
   if (v8_enable_i18n_support == true) {
     defines += [
       "V8_I18N_SUPPORT",
-    ]
-  }
-  if (v8_use_default_platform == true) {
-    defines += [
-      "V8_USE_DEFAULT_PLATFORM",
     ]
   }
   if (v8_compress_startup_data == "bz2") {
@@ -633,13 +633,6 @@ source_set("v8_base") {
     "src/jsregexp-inl.h",
     "src/jsregexp.cc",
     "src/jsregexp.h",
-    # TODO(jochen): move libplatform/ files to their own target.
-    "src/libplatform/default-platform.cc",
-    "src/libplatform/default-platform.h",
-    "src/libplatform/task-queue.cc",
-    "src/libplatform/task-queue.h",
-    "src/libplatform/worker-thread.cc",
-    "src/libplatform/worker-thread.h",
     "src/list-inl.h",
     "src/list.h",
     "src/lithium-allocator-inl.h",
@@ -678,6 +671,8 @@ source_set("v8_base") {
     "src/ostreams.h",
     "src/parser.cc",
     "src/parser.h",
+    "src/perf-jit.cc",
+    "src/perf-jit.h",
     "src/preparse-data-format.h",
     "src/preparse-data.cc",
     "src/preparse-data.h",
@@ -1027,7 +1022,7 @@ source_set("v8_libbase") {
 
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
-  configs += [ ":internal_config", ":features", ":toolchain" ]
+  configs += [ ":internal_config_base", ":features", ":toolchain" ]
 
   defines = []
 
@@ -1077,6 +1072,26 @@ source_set("v8_libbase") {
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
 }
 
+source_set("v8_libplatform") {
+  sources = [
+    "include/libplatform/libplatform.h",
+    "src/libplatform/default-platform.cc",
+    "src/libplatform/default-platform.h",
+    "src/libplatform/task-queue.cc",
+    "src/libplatform/task-queue.h",
+    "src/libplatform/worker-thread.cc",
+    "src/libplatform/worker-thread.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [ ":internal_config_base", ":features", ":toolchain" ]
+
+  deps = [
+    ":v8_libbase",
+  ]
+}
+
 ###############################################################################
 # Executables
 #
@@ -1095,6 +1110,7 @@ if (current_toolchain == host_toolchain) {
 
     deps = [
       ":v8_base",
+      ":v8_libplatform",
       ":v8_nosnapshot",
     ]
 

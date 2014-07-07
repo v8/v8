@@ -518,13 +518,18 @@ class Operand BASE_EMBEDDED {
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  // Return true if this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary. If
+  // Return the number of actual instructions required to implement the given
+  // instruction for this particular operand. This can be a single instruction,
+  // if no load into the ip register is necessary, or anything between 2 and 4
+  // instructions when we need to load from the constant pool (depending upon
+  // whether the constant pool entry is in the small or extended section). If
   // the instruction this operand is used for is a MOV or MVN instruction the
   // actual instruction to use is required for this calculation. For other
   // instructions instr is ignored.
-  bool is_single_instruction(const Assembler* assembler,
-                             Instr instr = 0) const;
+  //
+  // The value returned is only valid as long as no entries are added to the
+  // constant pool between this call and the actual instruction being emitted.
+  int instructions_required(const Assembler* assembler, Instr instr = 0) const;
   bool must_output_reloc_info(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
@@ -645,31 +650,46 @@ class NeonListOperand BASE_EMBEDDED {
 class ConstantPoolBuilder BASE_EMBEDDED {
  public:
   explicit ConstantPoolBuilder();
-  void AddEntry(Assembler* assm, const RelocInfo& rinfo);
+  ConstantPoolArray::LayoutSection AddEntry(Assembler* assm,
+                                            const RelocInfo& rinfo);
   void Relocate(int pc_delta);
   bool IsEmpty();
   Handle<ConstantPoolArray> New(Isolate* isolate);
   void Populate(Assembler* assm, ConstantPoolArray* constant_pool);
 
-  inline int count_of_64bit() const { return count_of_64bit_; }
-  inline int count_of_code_ptr() const { return count_of_code_ptr_; }
-  inline int count_of_heap_ptr() const { return count_of_heap_ptr_; }
-  inline int count_of_32bit() const { return count_of_32bit_; }
+  inline ConstantPoolArray::LayoutSection current_section() const {
+    return current_section_;
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* number_of_entries(
+      ConstantPoolArray::LayoutSection section) {
+    return &number_of_entries_[section];
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* small_entries() {
+    return number_of_entries(ConstantPoolArray::SMALL_SECTION);
+  }
+
+  inline ConstantPoolArray::NumberOfEntries* extended_entries() {
+    return number_of_entries(ConstantPoolArray::EXTENDED_SECTION);
+  }
 
  private:
-  bool Is64BitEntry(RelocInfo::Mode rmode);
-  bool Is32BitEntry(RelocInfo::Mode rmode);
-  bool IsCodePtrEntry(RelocInfo::Mode rmode);
-  bool IsHeapPtrEntry(RelocInfo::Mode rmode);
+  struct ConstantPoolEntry {
+    ConstantPoolEntry(RelocInfo rinfo, ConstantPoolArray::LayoutSection section,
+                      int merged_index)
+        : rinfo_(rinfo), section_(section), merged_index_(merged_index) {}
 
-  // TODO(rmcilroy): This should ideally be a ZoneList, however that would mean
-  // RelocInfo would need to subclass ZoneObject which it currently doesn't.
-  std::vector<RelocInfo> entries_;
-  std::vector<int> merged_indexes_;
-  int count_of_64bit_;
-  int count_of_code_ptr_;
-  int count_of_heap_ptr_;
-  int count_of_32bit_;
+    RelocInfo rinfo_;
+    ConstantPoolArray::LayoutSection section_;
+    int merged_index_;
+  };
+
+  ConstantPoolArray::Type GetConstantPoolType(RelocInfo::Mode rmode);
+
+  std::vector<ConstantPoolEntry> entries_;
+  ConstantPoolArray::LayoutSection current_section_;
+  ConstantPoolArray::NumberOfEntries number_of_entries_[2];
 };
 
 struct VmovIndex {
@@ -722,6 +742,10 @@ class Assembler : public AssemblerBase {
   // Links the label to the current position if it is still unbound
   // Manages the jump elimination optimization if the second parameter is true.
   int branch_offset(Label* L, bool jump_elimination_allowed);
+
+  // Returns true if the given pc address is the start of a constant pool load
+  // instruction sequence.
+  INLINE(static bool is_constant_pool_load(Address pc));
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc, or the object in a mov.
@@ -1359,6 +1383,9 @@ class Assembler : public AssemblerBase {
   static bool IsLdrRegisterImmediate(Instr instr);
   static bool IsVldrDRegisterImmediate(Instr instr);
   static Instr GetConsantPoolLoadPattern();
+  static Instr GetConsantPoolLoadMask();
+  static bool IsLdrPpRegOffset(Instr instr);
+  static Instr GetLdrPpRegOffsetPattern();
   static bool IsLdrPpImmediateOffset(Instr instr);
   static bool IsVldrDPpImmediateOffset(Instr instr);
   static int GetLdrRegisterImmediateOffset(Instr instr);
@@ -1389,7 +1416,11 @@ class Assembler : public AssemblerBase {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
   static bool IsMovT(Instr instr);
+  static Instr GetMovTPattern();
   static bool IsMovW(Instr instr);
+  static Instr GetMovWPattern();
+  static Instr EncodeMovwImmediate(uint32_t immediate);
+  static Instr PatchMovwImmediate(Instr instruction, uint32_t immediate);
 
   // Constants in pools are accessed via pc relative addressing, which can
   // reach +/-4KB for integer PC-relative loads and +/-1KB for floating-point
@@ -1414,13 +1445,13 @@ class Assembler : public AssemblerBase {
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
-  bool can_use_constant_pool() const {
-    return is_constant_pool_available() && !constant_pool_full_;
+  bool is_constant_pool_available() const { return constant_pool_available_; }
+
+  bool use_extended_constant_pool() const {
+    return constant_pool_builder_.current_section() ==
+           ConstantPoolArray::EXTENDED_SECTION;
   }
 
-  void set_constant_pool_full() {
-    constant_pool_full_ = true;
-  }
 
  protected:
   // Relocation for a type-recording IC has the AST id added to it.  This
@@ -1473,10 +1504,6 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
-  }
-
-  bool is_constant_pool_available() const {
-    return constant_pool_available_;
   }
 
   void set_constant_pool_available(bool available) {
@@ -1548,9 +1575,6 @@ class Assembler : public AssemblerBase {
   // Indicates whether the constant pool can be accessed, which is only possible
   // if the pp register points to the current code object's constant pool.
   bool constant_pool_available_;
-  // Indicates whether the constant pool is too full to accept new entries due
-  // to the ldr instruction's limitted immediate offset range.
-  bool constant_pool_full_;
 
   // Code emission
   inline void CheckBuffer();
@@ -1582,7 +1606,7 @@ class Assembler : public AssemblerBase {
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void RecordRelocInfo(const RelocInfo& rinfo);
-  void ConstantPoolAddEntry(const RelocInfo& rinfo);
+  ConstantPoolArray::LayoutSection ConstantPoolAddEntry(const RelocInfo& rinfo);
 
   friend class RelocInfo;
   friend class CodePatcher;

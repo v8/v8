@@ -1371,37 +1371,35 @@ void Map::PrintGeneralization(FILE* file,
                               Representation new_representation,
                               HeapType* old_field_type,
                               HeapType* new_field_type) {
-  PrintF(file, "[generalizing ");
+  OFStream os(file);
+  os << "[generalizing ";
   constructor_name()->PrintOn(file);
-  PrintF(file, "] ");
+  os << "] ";
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
   } else {
-    PrintF(file, "{symbol %p}", static_cast<void*>(name));
+    os << "{symbol " << static_cast<void*>(name) << "}";
   }
-  PrintF(file, ":");
+  os << ":";
   if (constant_to_field) {
-    PrintF(file, "c");
+    os << "c";
   } else {
-    PrintF(file, "%s", old_representation.Mnemonic());
-    PrintF(file, "{");
-    old_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-    PrintF(file, "}");
+    os << old_representation.Mnemonic() << "{";
+    old_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+    os << "}";
   }
-  PrintF(file, "->%s", new_representation.Mnemonic());
-  PrintF(file, "{");
-  new_field_type->TypePrint(file, HeapType::SEMANTIC_DIM);
-  PrintF(file, "}");
-  PrintF(file, " (");
+  os << "->" << new_representation.Mnemonic() << "{";
+  new_field_type->PrintTo(os, HeapType::SEMANTIC_DIM);
+  os << "} (";
   if (strlen(reason) > 0) {
-    PrintF(file, "%s", reason);
+    os << reason;
   } else {
-    PrintF(file, "+%i maps", descriptors - split);
+    os << "+" << (descriptors - split) << " maps";
   }
-  PrintF(file, ") [");
+  os << ") [";
   JavaScriptFrame::PrintTop(GetIsolate(), file, false, true);
-  PrintF(file, "]\n");
+  os << "]\n";
 }
 
 
@@ -9712,15 +9710,23 @@ bool Map::EquivalentToForNormalization(Map* other,
 
 
 void ConstantPoolArray::ConstantPoolIterateBody(ObjectVisitor* v) {
-  ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR);
-  while (!code_iter.is_finished()) {
-    v->VisitCodeEntry(reinterpret_cast<Address>(
-        RawFieldOfElementAt(code_iter.next_index())));
-  }
+  // Unfortunately the serializer relies on pointers within an object being
+  // visited in-order, so we have to iterate both the code and heap pointers in
+  // the small section before doing so in the extended section.
+  for (int s = 0; s <= final_section(); ++s) {
+    LayoutSection section = static_cast<LayoutSection>(s);
+    ConstantPoolArray::Iterator code_iter(this, ConstantPoolArray::CODE_PTR,
+                                          section);
+    while (!code_iter.is_finished()) {
+      v->VisitCodeEntry(reinterpret_cast<Address>(
+          RawFieldOfElementAt(code_iter.next_index())));
+    }
 
-  ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR);
-  while (!heap_iter.is_finished()) {
-    v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+    ConstantPoolArray::Iterator heap_iter(this, ConstantPoolArray::HEAP_PTR,
+                                          section);
+    while (!heap_iter.is_finished()) {
+      v->VisitPointer(RawFieldOfElementAt(heap_iter.next_index()));
+    }
   }
 }
 
@@ -11175,7 +11181,9 @@ void Code::PrintDeoptLocation(FILE* out, int bailout_id) {
       if ((bailout_id == Deoptimizer::GetDeoptimizationId(
               GetIsolate(), info->target_address(), Deoptimizer::EAGER)) ||
           (bailout_id == Deoptimizer::GetDeoptimizationId(
-              GetIsolate(), info->target_address(), Deoptimizer::SOFT))) {
+              GetIsolate(), info->target_address(), Deoptimizer::SOFT)) ||
+          (bailout_id == Deoptimizer::GetDeoptimizationId(
+              GetIsolate(), info->target_address(), Deoptimizer::LAZY))) {
         CHECK(RelocInfo::IsRuntimeEntry(info->rmode()));
         PrintF(out, "            %s\n", last_comment);
         return;

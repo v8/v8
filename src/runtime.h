@@ -78,6 +78,7 @@ namespace internal {
   F(DebugPromiseHandlePrologue, 1, 1) \
   F(DebugPromiseHandleEpilogue, 0, 1) \
   F(DebugPromiseEvent, 1, 1) \
+  F(DebugAsyncTaskEvent, 1, 1) \
   F(FlattenString, 1, 1) \
   F(LoadMutableDouble, 2, 1) \
   F(TryMigrateInstance, 1, 1) \
@@ -196,8 +197,7 @@ namespace internal {
   F(FunctionIsAPIFunction, 1, 1) \
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
-  F(CollectStackTrace, 3, 1) \
-  F(GetAndClearOverflowedStackTrace, 1, 1) \
+  F(CollectStackTrace, 2, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(SetCode, 2, 1) \

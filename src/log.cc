@@ -15,6 +15,7 @@
 #include "src/log.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
+#include "src/perf-jit.h"
 #include "src/runtime-profiler.h"
 #include "src/serialize.h"
 #include "src/string-stream.h"
@@ -286,172 +287,6 @@ void PerfBasicLogger::LogRecordedBuffer(Code* code,
   base::OS::FPrint(perf_output_handle_, "%llx %x %.*s\n",
                    reinterpret_cast<uint64_t>(code->instruction_start()),
                    code->instruction_size(), length, name);
-}
-
-
-// Linux perf tool logging support
-class PerfJitLogger : public CodeEventLogger {
- public:
-  PerfJitLogger();
-  virtual ~PerfJitLogger();
-
-  virtual void CodeMoveEvent(Address from, Address to) { }
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) { }
-  virtual void CodeDeleteEvent(Address from) { }
-
- private:
-  virtual void LogRecordedBuffer(Code* code,
-                                 SharedFunctionInfo* shared,
-                                 const char* name,
-                                 int length);
-
-  // Extension added to V8 log file name to get the low-level log name.
-  static const char kFilenameFormatString[];
-  static const int kFilenameBufferPadding;
-
-  // File buffer size of the low-level log. We don't use the default to
-  // minimize the associated overhead.
-  static const int kLogBufferSize = 2 * MB;
-
-  void LogWriteBytes(const char* bytes, int size);
-  void LogWriteHeader();
-
-  static const uint32_t kJitHeaderMagic = 0x4F74496A;
-  static const uint32_t kJitHeaderVersion = 0x2;
-  static const uint32_t kElfMachIA32 = 3;
-  static const uint32_t kElfMachX64 = 62;
-  static const uint32_t kElfMachARM = 40;
-  static const uint32_t kElfMachMIPS = 10;
-  static const uint32_t kElfMachX87 = 3;
-
-  struct jitheader {
-    uint32_t magic;
-    uint32_t version;
-    uint32_t total_size;
-    uint32_t elf_mach;
-    uint32_t pad1;
-    uint32_t pid;
-    uint64_t timestamp;
-  };
-
-  enum jit_record_type {
-    JIT_CODE_LOAD = 0
-    // JIT_CODE_UNLOAD = 1,
-    // JIT_CODE_CLOSE = 2,
-    // JIT_CODE_DEBUG_INFO = 3,
-    // JIT_CODE_PAGE_MAP = 4,
-    // JIT_CODE_MAX = 5
-  };
-
-  struct jr_code_load {
-    uint32_t id;
-    uint32_t total_size;
-    uint64_t timestamp;
-    uint64_t vma;
-    uint64_t code_addr;
-    uint32_t code_size;
-    uint32_t align;
-  };
-
-  uint32_t GetElfMach() {
-#if V8_TARGET_ARCH_IA32
-    return kElfMachIA32;
-#elif V8_TARGET_ARCH_X64
-    return kElfMachX64;
-#elif V8_TARGET_ARCH_ARM
-    return kElfMachARM;
-#elif V8_TARGET_ARCH_MIPS
-    return kElfMachMIPS;
-#elif V8_TARGET_ARCH_X87
-    return kElfMachX87;
-#else
-    UNIMPLEMENTED();
-    return 0;
-#endif
-  }
-
-  FILE* perf_output_handle_;
-};
-
-const char PerfJitLogger::kFilenameFormatString[] = "/tmp/jit-%d.dump";
-
-// Extra padding for the PID in the filename
-const int PerfJitLogger::kFilenameBufferPadding = 16;
-
-PerfJitLogger::PerfJitLogger()
-    : perf_output_handle_(NULL) {
-  // Open the perf JIT dump file.
-  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
-  ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(
-      perf_dump_name,
-      kFilenameFormatString,
-      base::OS::GetCurrentProcessId());
-  CHECK_NE(size, -1);
-  perf_output_handle_ =
-      base::OS::FOpen(perf_dump_name.start(), base::OS::LogFileOpenMode);
-  CHECK_NE(perf_output_handle_, NULL);
-  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
-
-  LogWriteHeader();
-}
-
-
-PerfJitLogger::~PerfJitLogger() {
-  fclose(perf_output_handle_);
-  perf_output_handle_ = NULL;
-}
-
-
-void PerfJitLogger::LogRecordedBuffer(Code* code,
-                                      SharedFunctionInfo*,
-                                      const char* name,
-                                      int length) {
-  ASSERT(code->instruction_start() == code->address() + Code::kHeaderSize);
-  ASSERT(perf_output_handle_ != NULL);
-
-  const char* code_name = name;
-  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
-  uint32_t code_size = code->instruction_size();
-
-  static const char string_terminator[] = "\0";
-
-  jr_code_load code_load;
-  code_load.id = JIT_CODE_LOAD;
-  code_load.total_size = sizeof(code_load) + length + 1 + code_size;
-  code_load.timestamp =
-      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
-  code_load.vma = 0x0;  //  Our addresses are absolute.
-  code_load.code_addr = reinterpret_cast<uint64_t>(code->instruction_start());
-  code_load.code_size = code_size;
-  code_load.align = 0;
-
-  LogWriteBytes(reinterpret_cast<const char*>(&code_load), sizeof(code_load));
-  LogWriteBytes(code_name, length);
-  LogWriteBytes(string_terminator, 1);
-  LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
-}
-
-
-void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
-  size_t rv = fwrite(bytes, 1, size, perf_output_handle_);
-  ASSERT(static_cast<size_t>(size) == rv);
-  USE(rv);
-}
-
-
-void PerfJitLogger::LogWriteHeader() {
-  ASSERT(perf_output_handle_ != NULL);
-  jitheader header;
-  header.magic = kJitHeaderMagic;
-  header.version = kJitHeaderVersion;
-  header.total_size = sizeof(jitheader);
-  header.pad1 = 0xdeadbeef;
-  header.elf_mach = GetElfMach();
-  header.pid = base::OS::GetCurrentProcessId();
-  header.timestamp =
-      static_cast<uint64_t>(base::OS::TimeCurrentMillis() * 1000.0);
-  LogWriteBytes(reinterpret_cast<const char*>(&header), sizeof(header));
 }
 
 
@@ -1972,16 +1807,15 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-static void AddIsolateIdIfNeeded(Isolate* isolate, StringStream* stream) {
-  if (FLAG_logfile_per_isolate) stream->Add("isolate-%p-", isolate);
+static void AddIsolateIdIfNeeded(OStream& os,  // NOLINT
+                                 Isolate* isolate) {
+  if (FLAG_logfile_per_isolate) os << "isolate-" << isolate << "-";
 }
 
 
-static SmartArrayPointer<const char> PrepareLogFileName(
-    Isolate* isolate, const char* file_name) {
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
-  AddIsolateIdIfNeeded(isolate, &stream);
+static void PrepareLogFileName(OStream& os,  // NOLINT
+                               Isolate* isolate, const char* file_name) {
+  AddIsolateIdIfNeeded(os, isolate);
   for (const char* p = file_name; *p; p++) {
     if (*p == '%') {
       p++;
@@ -1992,29 +1826,25 @@ static SmartArrayPointer<const char> PrepareLogFileName(
           p--;
           break;
         case 'p':
-          stream.Add("%d", base::OS::GetCurrentProcessId());
+          os << base::OS::GetCurrentProcessId();
           break;
-        case 't': {
+        case 't':
           // %t expands to the current time in milliseconds.
-          double time = base::OS::TimeCurrentMillis();
-          stream.Add("%.0f", FmtElm(time));
+          os << static_cast<int64_t>(base::OS::TimeCurrentMillis());
           break;
-        }
         case '%':
           // %% expands (contracts really) to %.
-          stream.Put('%');
+          os << '%';
           break;
         default:
           // All other %'s expand to themselves.
-          stream.Put('%');
-          stream.Put(*p);
+          os << '%' << *p;
           break;
       }
     } else {
-      stream.Put(*p);
+      os << *p;
     }
   }
-  return SmartArrayPointer<const char>(stream.ToCString());
 }
 
 
@@ -2028,9 +1858,9 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_log_snapshot_positions = true;
   }
 
-  SmartArrayPointer<const char> log_file_name =
-      PrepareLogFileName(isolate, FLAG_logfile);
-  log_->Initialize(log_file_name.get());
+  OStringStream log_file_name;
+  PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
+  log_->Initialize(log_file_name.c_str());
 
 
   if (FLAG_perf_basic_prof) {
@@ -2044,7 +1874,7 @@ bool Logger::SetUp(Isolate* isolate) {
   }
 
   if (FLAG_ll_prof) {
-    ll_logger_ = new LowLevelLogger(log_file_name.get());
+    ll_logger_ = new LowLevelLogger(log_file_name.c_str());
     addCodeEventListener(ll_logger_);
   }
 

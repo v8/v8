@@ -346,13 +346,27 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 }
 
 
+static const int kProfileCounterResetSequenceLength = 5 * Assembler::kInstrSize;
+
+
 void FullCodeGenerator::EmitProfilingCounterReset() {
+  Assembler::BlockConstPoolScope block_const_pool(masm_);
+  PredictableCodeSizeScope predictable_code_size_scope(
+      masm_, kProfileCounterResetSequenceLength);
+  Label start;
+  __ bind(&start);
   int reset_value = FLAG_interrupt_budget;
   if (info_->is_debug()) {
     // Detect debug break requests as soon as possible.
     reset_value = FLAG_interrupt_budget >> 4;
   }
   __ mov(r2, Operand(profiling_counter_));
+  // The mov instruction above can be either 1, 2 or 3 instructions depending
+  // upon whether it is an extended constant pool - insert nop to compensate.
+  ASSERT(masm_->InstructionsGeneratedSince(&start) <= 3);
+  while (masm_->InstructionsGeneratedSince(&start) != 3) {
+    __ nop();
+  }
   __ mov(r3, Operand(Smi::FromInt(reset_value)));
   __ str(r3, FieldMemOperand(r2, Cell::kValueOffset));
 }
@@ -4747,10 +4761,18 @@ static Address GetInterruptImmediateLoadAddress(Address pc) {
   Address load_address = pc - 2 * Assembler::kInstrSize;
   if (!FLAG_enable_ool_constant_pool) {
     ASSERT(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
+  } else if (Assembler::IsLdrPpRegOffset(Memory::int32_at(load_address))) {
+    // This is an extended constant pool lookup.
+    load_address -= 2 * Assembler::kInstrSize;
+    ASSERT(Assembler::IsMovW(Memory::int32_at(load_address)));
+    ASSERT(Assembler::IsMovT(
+        Memory::int32_at(load_address + Assembler::kInstrSize)));
   } else if (Assembler::IsMovT(Memory::int32_at(load_address))) {
+    // This is a movw_movt immediate load.
     load_address -= Assembler::kInstrSize;
     ASSERT(Assembler::IsMovW(Memory::int32_at(load_address)));
   } else {
+    // This is a small constant pool lookup.
     ASSERT(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
   }
   return load_address;
@@ -4770,14 +4792,19 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  <decrement profiling counter>
       //   bpl ok
       //   ; load interrupt stub address into ip - either of:
-      //   ldr ip, [pc/pp, <constant pool offset>]  |   movw ip, <immed low>
-      //                                            |   movt ip, <immed high>
+      //   ; <small cp load>      |  <extended cp load> |  <immediate load>
+      //   ldr ip, [pc/pp, #imm]  |   movw ip, #imm     |   movw ip, #imm
+      //                          |   movt ip, #imm>    |   movw ip, #imm
+      //                          |   ldr  ip, [pp, ip]
       //   blx ip
+      //  <reset profiling counter>
       //  ok-label
 
-      // Calculate branch offet to the ok-label - this is the difference between
-      // the branch address and |pc| (which points at <blx ip>) plus one instr.
-      int branch_offset = pc + Assembler::kInstrSize - branch_address;
+      // Calculate branch offset to the ok-label - this is the difference
+      // between the branch address and |pc| (which points at <blx ip>) plus
+      // kProfileCounterResetSequence instructions
+      int branch_offset = pc - Instruction::kPCReadOffset - branch_address +
+                          kProfileCounterResetSequenceLength;
       patcher.masm()->b(branch_offset, pl);
       break;
     }
@@ -4786,9 +4813,12 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       //  <decrement profiling counter>
       //   mov r0, r0 (NOP)
       //   ; load on-stack replacement address into ip - either of:
-      //   ldr ip, [pc/pp, <constant pool offset>]  |   movw ip, <immed low>
-      //                                            |   movt ip, <immed high>
+      //   ; <small cp load>      |  <extended cp load> |  <immediate load>
+      //   ldr ip, [pc/pp, #imm]  |   movw ip, #imm     |   movw ip, #imm
+      //                          |   movt ip, #imm>    |   movw ip, #imm
+      //                          |   ldr  ip, [pp, ip]
       //   blx ip
+      //  <reset profiling counter>
       //  ok-label
       patcher.masm()->nop();
       break;

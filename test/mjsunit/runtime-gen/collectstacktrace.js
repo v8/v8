@@ -3,5 +3,4 @@
 // Flags: --allow-natives-syntax --harmony
 var _error_object = new Object();
 var _caller = new Object();
-var _limit = 32;
-%CollectStackTrace(_error_object, _caller, _limit);
+%CollectStackTrace(_error_object, _caller);

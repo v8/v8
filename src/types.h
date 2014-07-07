@@ -6,6 +6,7 @@
 #define V8_TYPES_H_
 
 #include "src/handles.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -415,9 +416,7 @@ class TypeImpl : public Config::Base {
 
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
 
-  void PrintTo(StringStream* stream, PrintDimension = BOTH_DIMS);
-  void TypePrint(PrintDimension = BOTH_DIMS);
-  void TypePrint(FILE* out, PrintDimension = BOTH_DIMS);
+  void PrintTo(OStream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
 
  protected:
   // Friends.
@@ -502,7 +501,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static int InherentLub(TypeImpl* type);
 
   static const char* Name(int bitset);
-  static void PrintTo(StringStream* stream, int bitset);
+  static void Print(OStream& os, int bitset);  // NOLINT
   using TypeImpl::PrintTo;
 };
 

@@ -21,7 +21,8 @@ enum DebugEvent {
   AfterCompile  = 5,
   CompileError = 6,
   PromiseEvent = 7,
-  BreakForCommand = 8
+  AsyncTaskEvent = 8,
+  BreakForCommand = 9
 };
 
 

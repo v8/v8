@@ -6694,6 +6694,33 @@ TEST(SimpleExtensions) {
 }
 
 
+static const char* kStackTraceFromExtensionSource =
+  "function foo() {"
+  "  throw new Error();"
+  "}"
+  "function bar() {"
+  "  foo();"
+  "}";
+
+
+TEST(StackTraceInExtension) {
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::RegisterExtension(new Extension("stacktracetest",
+                        kStackTraceFromExtensionSource));
+  const char* extension_names[] = { "stacktracetest" };
+  v8::ExtensionConfiguration extensions(1, extension_names);
+  v8::Handle<Context> context =
+      Context::New(CcTest::isolate(), &extensions);
+  Context::Scope lock(context);
+  CompileRun("function user() { bar(); }"
+             "var error;"
+             "try{ user(); } catch (e) { error = e; }");
+  CHECK_EQ(-1, CompileRun("error.stack.indexOf('foo')")->Int32Value());
+  CHECK_EQ(-1, CompileRun("error.stack.indexOf('bar')")->Int32Value());
+  CHECK_NE(-1, CompileRun("error.stack.indexOf('user')")->Int32Value());
+}
+
+
 TEST(NullExtensions) {
   v8::HandleScope handle_scope(CcTest::isolate());
   v8::RegisterExtension(new Extension("nulltest", NULL));
@@ -22760,4 +22787,114 @@ TEST(CrossActivationEval) {
       v8::FunctionTemplate::New(isolate, CallEval)->GetFunction());
   Local<Value> result = CompileRun("CallEval();");
   CHECK_EQ(result, v8::Integer::New(isolate, 1));
+}
+
+
+void SourceURLHelper(const char* source, const char* expected_source_url,
+                     const char* expected_source_mapping_url) {
+  Local<Script> script = v8_compile(source);
+  if (expected_source_url != NULL) {
+    v8::String::Utf8Value url(script->GetUnboundScript()->GetSourceURL());
+    CHECK_EQ(expected_source_url, *url);
+  } else {
+    CHECK(script->GetUnboundScript()->GetSourceURL()->IsUndefined());
+  }
+  if (expected_source_mapping_url != NULL) {
+    v8::String::Utf8Value url(
+        script->GetUnboundScript()->GetSourceMappingURL());
+    CHECK_EQ(expected_source_mapping_url, *url);
+  } else {
+    CHECK(script->GetUnboundScript()->GetSourceMappingURL()->IsUndefined());
+  }
+}
+
+
+TEST(ScriptSourceURLAndSourceMappingURL) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar1.js\n", "bar1.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=bar2.js\n", NULL, "bar2.js");
+
+  // Both sourceURL and sourceMappingURL.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar3.js\n"
+                  "//# sourceMappingURL=bar4.js\n", "bar3.js", "bar4.js");
+
+  // Two source URLs; the first one is ignored.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=ignoreme.js\n"
+                  "//# sourceURL=bar5.js\n", "bar5.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=ignoreme.js\n"
+                  "//# sourceMappingURL=bar6.js\n", NULL, "bar6.js");
+
+  // SourceURL or sourceMappingURL in the middle of the script.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar7.js\n"
+                  "function baz() {}\n", "bar7.js", NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceMappingURL=bar8.js\n"
+                  "function baz() {}\n", NULL, "bar8.js");
+
+  // Too much whitespace.
+  SourceURLHelper("function foo() {}\n"
+                  "//#  sourceURL=bar9.js\n"
+                  "//#  sourceMappingURL=bar10.js\n", NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL =bar11.js\n"
+                  "//# sourceMappingURL =bar12.js\n", NULL, NULL);
+
+  // Disallowed characters in value.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar13 .js   \n"
+                  "//# sourceMappingURL=bar14 .js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar15\t.js   \n"
+                  "//# sourceMappingURL=bar16\t.js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar17'.js   \n"
+                  "//# sourceMappingURL=bar18'.js \n",
+                  NULL, NULL);
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=bar19\".js   \n"
+                  "//# sourceMappingURL=bar20\".js \n",
+                  NULL, NULL);
+
+  // Not too much whitespace.
+  SourceURLHelper("function foo() {}\n"
+                  "//# sourceURL=  bar21.js   \n"
+                  "//# sourceMappingURL=  bar22.js \n", "bar21.js", "bar22.js");
+}
+
+
+TEST(GetOwnPropertyDescriptor) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  CompileRun(
+    "var x = { value : 13};"
+    "Object.defineProperty(x, 'p0', {value : 12});"
+    "Object.defineProperty(x, 'p1', {"
+    "  set : function(value) { this.value = value; },"
+    "  get : function() { return this.value; },"
+    "});");
+  Local<Object> x = Local<Object>::Cast(env->Global()->Get(v8_str("x")));
+  Local<Value> desc = x->GetOwnPropertyDescriptor(v8_str("no_prop"));
+  CHECK(desc->IsUndefined());
+  desc = x->GetOwnPropertyDescriptor(v8_str("p0"));
+  CHECK_EQ(v8_num(12), Local<Object>::Cast(desc)->Get(v8_str("value")));
+  desc = x->GetOwnPropertyDescriptor(v8_str("p1"));
+  Local<Function> set =
+    Local<Function>::Cast(Local<Object>::Cast(desc)->Get(v8_str("set")));
+  Local<Function> get =
+    Local<Function>::Cast(Local<Object>::Cast(desc)->Get(v8_str("get")));
+  CHECK_EQ(v8_num(13), get->Call(x, 0, NULL));
+  Handle<Value> args[] = { v8_num(14) };
+  set->Call(x, 1, args);
+  CHECK_EQ(v8_num(14), get->Call(x, 0, NULL));
 }

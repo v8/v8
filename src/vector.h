@@ -100,6 +100,17 @@ class Vector {
                      input.length() * sizeof(S) / sizeof(T));
   }
 
+  bool operator==(const Vector<T>& other) const {
+    if (length_ != other.length_) return false;
+    if (start_ == other.start_) return true;
+    for (int i = 0; i < length_; ++i) {
+      if (start_[i] != other.start_[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
  protected:
   void set_start(T* start) { start_ = start; }
 

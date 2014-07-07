@@ -1226,7 +1226,7 @@ void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
                         isolate_);
 
   if (!bindee.is_null() && bindee->IsJSFunction() &&
-      !JSFunction::cast(*bindee)->IsNative()) {
+      !JSFunction::cast(*bindee)->IsFromNativeScript()) {
     Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
     Debug::FloodWithOneShot(bindee_function);
   }
@@ -1447,7 +1447,8 @@ void Debug::PrepareStep(StepAction step_action,
       frames_it.Advance();
     }
     // Skip builtin functions on the stack.
-    while (!frames_it.done() && frames_it.frame()->function()->IsNative()) {
+    while (!frames_it.done() &&
+           frames_it.frame()->function()->IsFromNativeScript()) {
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
@@ -1534,7 +1535,7 @@ void Debug::PrepareStep(StepAction step_action,
         Handle<JSFunction> js_function(JSFunction::cast(fun));
         if (js_function->shared()->bound()) {
           Debug::FloodBoundFunctionWithOneShot(js_function);
-        } else if (!js_function->IsNative()) {
+        } else if (!js_function->IsFromNativeScript()) {
           // Don't step into builtins.
           // It will also compile target function if it's not compiled yet.
           FloodWithOneShot(js_function);
@@ -1676,7 +1677,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
     if (function->shared()->bound()) {
       // Handle Function.prototype.bind
       Debug::FloodBoundFunctionWithOneShot(function);
-    } else if (!function->IsNative()) {
+    } else if (!function->IsFromNativeScript()) {
       // Don't allow step into functions in the native context.
       if (function->shared()->code() ==
           isolate->builtins()->builtin(Builtins::kFunctionApply) ||
@@ -1688,7 +1689,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
         // function.
         if (!holder.is_null() && holder->IsJSFunction()) {
           Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
-          if (!js_function->IsNative()) {
+          if (!js_function->IsFromNativeScript()) {
             Debug::FloodWithOneShot(js_function);
           } else if (js_function->shared()->bound()) {
             // Handle Function.prototype.bind
@@ -2030,7 +2031,7 @@ void Debug::PrepareForBreakPoints() {
 
           if (!shared->allows_lazy_compilation()) continue;
           if (!shared->script()->IsScript()) continue;
-          if (function->IsNative()) continue;
+          if (function->IsFromNativeScript()) continue;
           if (shared->code()->gc_metadata() == active_code_marker) continue;
 
           if (shared->is_generator()) {
@@ -2359,24 +2360,27 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 
     // Continue just after the slot.
     after_break_target_ = addr + Assembler::kDebugBreakSlotLength;
-  } else if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
-    // We now know that there is still a debug break call at the target address,
-    // so the break point is still there and the original code will hold the
-    // address to jump to in order to complete the call which is replaced by a
-    // call to DebugBreakXXX.
-
-    // Find the corresponding address in the original code.
-    addr += original_code->instruction_start() - code->instruction_start();
-
-    // Install jump to the call address in the original code. This will be the
-    // call which was overwritten by the call to DebugBreakXXX.
-    after_break_target_ = Assembler::target_address_at(addr, *original_code);
   } else {
-    // There is no longer a break point present. Don't try to look in the
-    // original code as the running code will have the right address. This takes
-    // care of the case where the last break point is removed from the function
-    // and therefore no "original code" is available.
-    after_break_target_ = Assembler::target_address_at(addr, *code);
+    addr = Assembler::target_address_from_return_address(frame->pc());
+    if (IsDebugBreak(Assembler::target_address_at(addr, *code))) {
+      // We now know that there is still a debug break call at the target
+      // address, so the break point is still there and the original code will
+      // hold the address to jump to in order to complete the call which is
+      // replaced by a call to DebugBreakXXX.
+
+      // Find the corresponding address in the original code.
+      addr += original_code->instruction_start() - code->instruction_start();
+
+      // Install jump to the call address in the original code. This will be the
+      // call which was overwritten by the call to DebugBreakXXX.
+      after_break_target_ = Assembler::target_address_at(addr, *original_code);
+    } else {
+      // There is no longer a break point present. Don't try to look in the
+      // original code as the running code will have the right address. This
+      // takes care of the case where the last break point is removed from the
+      // function and therefore no "original code" is available.
+      after_break_target_ = Assembler::target_address_at(addr, *code);
+    }
   }
 }
 
@@ -2553,6 +2557,13 @@ MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
 }
 
 
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
+  // Create the async task event object.
+  Handle<Object> argv[] = { task_event };
+  return MakeJSObject("MakeAsyncTaskEvent", ARRAY_SIZE(argv), argv);
+}
+
+
 void Debug::OnException(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
 
@@ -2712,6 +2723,25 @@ void Debug::OnPromiseEvent(Handle<JSObject> data) {
 
   // Process debug event.
   ProcessDebugEvent(v8::PromiseEvent,
+                    Handle<JSObject>::cast(event_data),
+                    true);
+}
+
+
+void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
+  if (in_debug_scope() || ignore_events()) return;
+
+  HandleScope scope(isolate_);
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return;
+
+  // Create the script collected state object.
+  Handle<Object> event_data;
+  // Bail out and don't call debugger if exception.
+  if (!MakeAsyncTaskEvent(data).ToHandle(&event_data)) return;
+
+  // Process debug event.
+  ProcessDebugEvent(v8::AsyncTaskEvent,
                     Handle<JSObject>::cast(event_data),
                     true);
 }

@@ -27,8 +27,8 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
  private:
   SaveFPRegsMode save_doubles_;
 
-  Major MajorKey() { return StoreBufferOverflow; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  Major MajorKey() const { return StoreBufferOverflow; }
+  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 
 
@@ -68,8 +68,8 @@ class SubStringStub: public PlatformCodeStub {
   explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
  private:
-  Major MajorKey() { return SubString; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return SubString; }
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -99,8 +99,8 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch3);
 
  private:
-  virtual Major MajorKey() { return StringCompare; }
-  virtual int MinorKey() { return 0; }
+  virtual Major MajorKey() const { return StringCompare; }
+  virtual int MinorKey() const { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,
@@ -139,8 +139,8 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
 
-  Major MajorKey() { return WriteInt32ToHeapNumber; }
-  int MinorKey() {
+  Major MajorKey() const { return WriteInt32ToHeapNumber; }
+  int MinorKey() const {
     // Encode the parameters in a unique 16 bit value.
     return IntRegisterBits::encode(the_int_.code())
            | HeapNumberRegisterBits::encode(the_heap_number_.code())
@@ -305,9 +305,9 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() { return RecordWrite; }
+  Major MajorKey() const { return RecordWrite; }
 
-  int MinorKey() {
+  int MinorKey() const {
     return ObjectBits::encode(object_.code()) |
         ValueBits::encode(value_.code()) |
         AddressBits::encode(address_.code()) |
@@ -347,8 +347,8 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() { return DirectCEntry; }
-  int MinorKey() { return 0; }
+  Major MajorKey() const { return DirectCEntry; }
+  int MinorKey() const { return 0; }
 
   bool NeedsImmovableCode() { return true; }
 };
@@ -393,11 +393,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return NameDictionaryLookup; }
+  Major MajorKey() const { return NameDictionaryLookup; }
 
-  int MinorKey() {
-    return LookupModeBits::encode(mode_);
-  }
+  int MinorKey() const { return LookupModeBits::encode(mode_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 

@@ -11,6 +11,7 @@
 
 #include "src/v8.h"
 
+#include "include/libplatform/libplatform.h"
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
@@ -317,7 +318,8 @@ void DumpException(Handle<Message> message) {
 
 int main(int argc, char** argv) {
   V8::InitializeICU();
-  i::Isolate::SetCrashIfDefaultIsolateInitialized();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
   i::CpuFeatures::Probe(true);
 
   // By default, log code create information in the snapshot.
@@ -441,5 +443,7 @@ int main(int argc, char** argv) {
 
   isolate->Dispose();
   V8::Dispose();
+  V8::ShutdownPlatform();
+  delete platform;
   return 0;
 }

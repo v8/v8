@@ -58,7 +58,6 @@ class HTracer;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
 class MaterializedObjectStore;
-class NoAllocationStringAllocator;
 class CodeAgingHelper;
 class RegExpStack;
 class SaveContext;
@@ -702,11 +701,11 @@ class Isolate {
   Handle<JSArray> CaptureCurrentStackTrace(
       int frame_limit,
       StackTrace::StackTraceOptions options);
-
-  Handle<JSArray> CaptureSimpleStackTrace(Handle<JSObject> error_object,
-                                          Handle<Object> caller,
-                                          int limit);
+  Handle<Object> CaptureSimpleStackTrace(Handle<JSObject> error_object,
+                                         Handle<Object> caller);
   void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
+  void CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
+                                     Handle<Object> caller);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -1408,7 +1407,7 @@ class StackLimitCheck BASE_EMBEDDED {
   // Use this to check for stack-overflows in C++ code.
   inline bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit();
+    return GetCurrentStackPosition() < stack_guard->real_climit();
   }
 
   // Use this to check for stack-overflow when entering runtime from JS code.
@@ -1425,22 +1424,29 @@ class StackLimitCheck BASE_EMBEDDED {
 // account.
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:
-  explicit PostponeInterruptsScope(Isolate* isolate)
-      : stack_guard_(isolate->stack_guard()), isolate_(isolate) {
-    ExecutionAccess access(isolate_);
-    stack_guard_->thread_local_.postpone_interrupts_nesting_++;
-    stack_guard_->DisableInterrupts();
+  PostponeInterruptsScope(Isolate* isolate,
+                          int intercept_mask = StackGuard::ALL_INTERRUPTS)
+      : stack_guard_(isolate->stack_guard()),
+        intercept_mask_(intercept_mask),
+        intercepted_flags_(0) {
+    stack_guard_->PushPostponeInterruptsScope(this);
   }
 
   ~PostponeInterruptsScope() {
-    ExecutionAccess access(isolate_);
-    if (--stack_guard_->thread_local_.postpone_interrupts_nesting_ == 0) {
-      stack_guard_->EnableInterrupts();
-    }
+    stack_guard_->PopPostponeInterruptsScope();
   }
+
+  // Find the bottom-most scope that intercepts this interrupt.
+  // Return whether the interrupt has been intercepted.
+  bool Intercept(StackGuard::InterruptFlag flag);
+
  private:
   StackGuard* stack_guard_;
-  Isolate* isolate_;
+  int intercept_mask_;
+  int intercepted_flags_;
+  PostponeInterruptsScope* prev_;
+
+  friend class StackGuard;
 };
 
 

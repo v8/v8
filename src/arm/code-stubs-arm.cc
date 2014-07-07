@@ -426,8 +426,8 @@ class ConvertToDoubleStub : public PlatformCodeStub {
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
   class OpBits: public BitField<Token::Value, 2, 14> {};
 
-  Major MajorKey() { return ConvertToDouble; }
-  int MinorKey() {
+  Major MajorKey() const { return ConvertToDouble; }
+  int MinorKey() const {
     // Encode the parameters in a unique 16 bit value.
     return  result1_.code() +
            (result2_.code() << 4) +
@@ -1683,7 +1683,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 // * function: r1 or at sp.
 //
 // An inlined call site may have been generated before calling this stub.
-// In this case the offset to the inline site to patch is passed in r5.
+// In this case the offset to the inline sites to patch are passed in r5 and r6.
 // (See LCodeGen::DoInstanceOfKnownGlobal)
 void InstanceofStub::Generate(MacroAssembler* masm) {
   // Call site inlining and patching implies arguments in registers.
@@ -1696,10 +1696,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   Register map = r3;  // Map of the object.
   const Register function = r1;  // Function (rhs).
   const Register prototype = r4;  // Prototype of the function.
-  const Register inline_site = r9;
   const Register scratch = r2;
-
-  const int32_t kDeltaToLoadBoolResult = 4 * kPointerSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -1742,14 +1739,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     ASSERT(HasArgsInRegisters());
     // Patch the (relocated) inlined map check.
 
-    // The offset was stored in r5
+    // The map_load_offset was stored in r5
     //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
-    const Register offset = r5;
-    __ sub(inline_site, lr, offset);
+    const Register map_load_offset = r5;
+    __ sub(r9, lr, map_load_offset);
     // Get the map location in r5 and patch it.
-    __ GetRelocatedValueLocation(inline_site, offset);
-    __ ldr(offset, MemOperand(offset));
-    __ str(map, FieldMemOperand(offset, Cell::kValueOffset));
+    __ GetRelocatedValueLocation(r9, map_load_offset, scratch);
+    __ ldr(map_load_offset, MemOperand(map_load_offset));
+    __ str(map, FieldMemOperand(map_load_offset, Cell::kValueOffset));
   }
 
   // Register mapping: r3 is object map and r4 is function prototype.
@@ -1778,9 +1775,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   } else {
     // Patch the call site to return true.
     __ LoadRoot(r0, Heap::kTrueValueRootIndex);
-    __ add(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    // The bool_load_offset was stored in r6
+    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
+    const Register bool_load_offset = r6;
+    __ sub(r9, lr, bool_load_offset);
     // Get the boolean result location in scratch and patch it.
-    __ GetRelocatedValueLocation(inline_site, scratch);
+    __ GetRelocatedValueLocation(r9, scratch, scratch2);
     __ str(r0, MemOperand(scratch));
 
     if (!ReturnTrueFalseObject()) {
@@ -1796,9 +1796,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   } else {
     // Patch the call site to return false.
     __ LoadRoot(r0, Heap::kFalseValueRootIndex);
-    __ add(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    // The bool_load_offset was stored in r6
+    //   (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
+    const Register bool_load_offset = r6;
+    __ sub(r9, lr, bool_load_offset);
+    ;
     // Get the boolean result location in scratch and patch it.
-    __ GetRelocatedValueLocation(inline_site, scratch);
+    __ GetRelocatedValueLocation(r9, scratch, scratch2);
     __ str(r0, MemOperand(scratch));
 
     if (!ReturnTrueFalseObject()) {

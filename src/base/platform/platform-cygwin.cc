@@ -179,41 +179,13 @@ void OS::SignalCodeMovingGC() {
 // This causes VirtualMemory::Commit to not always commit the memory region
 // specified.
 
-static void* GetRandomAddr() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-    // The address range used to randomize RWX allocations in OS::Allocate
-    // Try not to map pages into the default range that windows loads DLLs
-    // Use a multiple of 64k to prevent committing unused memory.
-    // Note: This does not guarantee RWX regions will be within the
-    // range kAllocationRandomAddressMin to kAllocationRandomAddressMax
-#ifdef V8_HOST_ARCH_64_BIT
-    static const intptr_t kAllocationRandomAddressMin = 0x0000000080000000;
-    static const intptr_t kAllocationRandomAddressMax = 0x000003FFFFFF0000;
-#else
-    static const intptr_t kAllocationRandomAddressMin = 0x04000000;
-    static const intptr_t kAllocationRandomAddressMax = 0x3FFF0000;
-#endif
-    uintptr_t address =
-        (isolate->random_number_generator()->NextInt() << kPageSizeBits) |
-        kAllocationRandomAddressMin;
-    address &= kAllocationRandomAddressMax;
-    return reinterpret_cast<void *>(address);
-  }
-  return NULL;
-}
-
-
 static void* RandomizedVirtualAlloc(size_t size, int action, int protection) {
   LPVOID base = NULL;
 
   if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
     for (size_t attempts = 0; base == NULL && attempts < 3; ++attempts) {
-      base = VirtualAlloc(GetRandomAddr(), size, action, protection);
+      base = VirtualAlloc(OS::GetRandomMmapAddr(), size, action, protection);
     }
   }
 

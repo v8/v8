@@ -2269,6 +2269,84 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 }
 
 
+void ConstantPoolArray::NumberOfEntries::increment(Type type) {
+  ASSERT(type < NUMBER_OF_TYPES);
+  element_counts_[type]++;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::equals(
+    const ConstantPoolArray::NumberOfEntries& other) const {
+  for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+    if (element_counts_[i] != other.element_counts_[i]) return false;
+  }
+  return true;
+}
+
+
+bool ConstantPoolArray::NumberOfEntries::is_empty() const {
+  return total_count() == 0;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::count_of(Type type) const {
+  ASSERT(type < NUMBER_OF_TYPES);
+  return element_counts_[type];
+}
+
+
+int ConstantPoolArray::NumberOfEntries::base_of(Type type) const {
+  int base = 0;
+  ASSERT(type < NUMBER_OF_TYPES);
+  for (int i = 0; i < type; i++) {
+    base += element_counts_[i];
+  }
+  return base;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::total_count() const {
+  int count = 0;
+  for (int i = 0; i < NUMBER_OF_TYPES; i++) {
+    count += element_counts_[i];
+  }
+  return count;
+}
+
+
+int ConstantPoolArray::NumberOfEntries::are_in_range(int min, int max) const {
+  for (int i = FIRST_TYPE; i < NUMBER_OF_TYPES; i++) {
+    if (element_counts_[i] < min || element_counts_[i] > max) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+int ConstantPoolArray::Iterator::next_index() {
+  ASSERT(!is_finished());
+  int ret = next_index_++;
+  update_section();
+  return ret;
+}
+
+
+bool ConstantPoolArray::Iterator::is_finished() {
+  return next_index_ > array_->last_index(type_, final_section_);
+}
+
+
+void ConstantPoolArray::Iterator::update_section() {
+  if (next_index_ > array_->last_index(type_, current_section_) &&
+      current_section_ != final_section_) {
+    ASSERT(final_section_ == EXTENDED_SECTION);
+    current_section_ = EXTENDED_SECTION;
+    next_index_ = array_->first_index(type_, EXTENDED_SECTION);
+  }
+}
+
+
 bool ConstantPoolArray::is_extended_layout() {
   uint32_t small_layout_1 = READ_UINT32_FIELD(this, kSmallLayout1Offset);
   return IsExtendedField::decode(small_layout_1);
@@ -2521,29 +2599,6 @@ int ConstantPoolArray::length() {
               number_of_entries(INT32, EXTENDED_SECTION);
   }
   return length;
-}
-
-
-int ConstantPoolArray::Iterator::next_index() {
-  ASSERT(!is_finished());
-  int ret = next_index_++;
-  update_section();
-  return ret;
-}
-
-
-bool ConstantPoolArray::Iterator::is_finished() {
-  return next_index_ > array_->last_index(type_, final_section_);
-}
-
-
-void ConstantPoolArray::Iterator::update_section() {
-  if (next_index_ > array_->last_index(type_, current_section_) &&
-      current_section_ != final_section_) {
-    ASSERT(final_section_ == EXTENDED_SECTION);
-    current_section_ = EXTENDED_SECTION;
-    next_index_ = array_->first_index(type_, EXTENDED_SECTION);
-  }
 }
 
 
@@ -4571,6 +4626,11 @@ inline bool Code::is_crankshafted() {
 }
 
 
+inline bool Code::is_hydrogen_stub() {
+  return is_crankshafted() && kind() != OPTIMIZED_FUNCTION;
+}
+
+
 inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);
@@ -5263,6 +5323,8 @@ ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
                  kEvalFrominstructionsOffsetOffset)
 ACCESSORS_TO_SMI(Script, flags, kFlagsOffset)
 BOOL_ACCESSORS(Script, flags, is_shared_cross_origin, kIsSharedCrossOriginBit)
+ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
+ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
 
 Script::CompilationType Script::compilation_type() {
   return BooleanBit::get(flags(), kCompilationTypeBit) ?
@@ -5655,12 +5717,19 @@ bool JSFunction::IsBuiltin() {
 }
 
 
-bool JSFunction::IsNative() {
+bool JSFunction::IsFromNativeScript() {
   Object* script = shared()->script();
   bool native = script->IsScript() &&
                 Script::cast(script)->type()->value() == Script::TYPE_NATIVE;
   ASSERT(!IsBuiltin() || native);  // All builtins are also native.
   return native;
+}
+
+
+bool JSFunction::IsFromExtensionScript() {
+  Object* script = shared()->script();
+  return script->IsScript() &&
+         Script::cast(script)->type()->value() == Script::TYPE_EXTENSION;
 }
 
 

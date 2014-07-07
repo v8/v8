@@ -895,6 +895,9 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
+
+    HandleSourceURLComments();
+
     if (ok && strict_mode() == STRICT) {
       CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
@@ -3878,6 +3881,19 @@ void Parser::RegisterTargetUse(Label* target, Target* stop) {
   for (Target* t = target_stack_; t != stop; t = t->previous()) {
     TargetCollector* collector = t->node()->AsTargetCollector();
     if (collector != NULL) collector->AddTarget(target, zone());
+  }
+}
+
+
+void Parser::HandleSourceURLComments() {
+  if (scanner_.source_url()->length() > 0) {
+    Handle<String> source_url = scanner_.source_url()->Internalize(isolate());
+    info_->script()->set_source_url(*source_url);
+  }
+  if (scanner_.source_mapping_url()->length() > 0) {
+    Handle<String> source_mapping_url =
+        scanner_.source_mapping_url()->Internalize(isolate());
+    info_->script()->set_source_mapping_url(*source_mapping_url);
   }
 }
 

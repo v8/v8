@@ -28,6 +28,7 @@
 #include "include/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "include/libplatform/libplatform.h"
 #include "src/debug.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
@@ -138,7 +139,8 @@ static void SuggestTestHarness(int tests) {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICU();
-  i::Isolate::SetCrashIfDefaultIsolateInitialized();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
 
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
 
@@ -206,6 +208,8 @@ int main(int argc, char* argv[]) {
   CcTest::TearDown();
   // TODO(svenpanne) See comment above.
   // if (!disable_automatic_dispose_) v8::V8::Dispose();
+  v8::V8::ShutdownPlatform();
+  delete platform;
   return 0;
 }
 

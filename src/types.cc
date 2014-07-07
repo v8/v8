@@ -860,114 +860,94 @@ const char* TypeImpl<Config>::BitsetType::Name(int bitset) {
 }
 
 
-template<class Config>
-void TypeImpl<Config>::BitsetType::PrintTo(StringStream* stream, int bitset) {
+template <class Config>
+void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
+                                         int bitset) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bitset);
   if (name != NULL) {
-    stream->Add("%s", name);
-  } else {
-    static const int named_bitsets[] = {
-      #define BITSET_CONSTANT(type, value) REPRESENTATION(k##type),
-      REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
-      #undef BITSET_CONSTANT
-
-      #define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
-      SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
-      #undef BITSET_CONSTANT
-    };
-
-    bool is_first = true;
-    stream->Add("(");
-    for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
-      int subset = named_bitsets[i];
-      if ((bitset & subset) == subset) {
-        if (!is_first) stream->Add(" | ");
-        is_first = false;
-        stream->Add("%s", Name(subset));
-        bitset -= subset;
-      }
-    }
-    ASSERT(bitset == 0);
-    stream->Add(")");
+    os << name;
+    return;
   }
+
+  static const int named_bitsets[] = {
+#define BITSET_CONSTANT(type, value) REPRESENTATION(k##type),
+      REPRESENTATION_BITSET_TYPE_LIST(BITSET_CONSTANT)
+#undef BITSET_CONSTANT
+
+#define BITSET_CONSTANT(type, value) SEMANTIC(k##type),
+      SEMANTIC_BITSET_TYPE_LIST(BITSET_CONSTANT)
+#undef BITSET_CONSTANT
+  };
+
+  bool is_first = true;
+  os << "(";
+  for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
+    int subset = named_bitsets[i];
+    if ((bitset & subset) == subset) {
+      if (!is_first) os << " | ";
+      is_first = false;
+      os << Name(subset);
+      bitset -= subset;
+    }
+  }
+  ASSERT(bitset == 0);
+  os << ")";
 }
 
 
-template<class Config>
-void TypeImpl<Config>::PrintTo(StringStream* stream, PrintDimension dim) {
+template <class Config>
+void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
   DisallowHeapAllocation no_allocation;
   if (dim != REPRESENTATION_DIM) {
     if (this->IsBitset()) {
-      BitsetType::PrintTo(stream, SEMANTIC(this->AsBitset()));
+      BitsetType::Print(os, SEMANTIC(this->AsBitset()));
     } else if (this->IsClass()) {
-      stream->Add("Class(%p < ", static_cast<void*>(*this->AsClass()->Map()));
-      BitsetType::New(BitsetType::Lub(this))->PrintTo(stream, dim);
-      stream->Add(")");
-      return;
+      os << "Class(" << static_cast<void*>(*this->AsClass()->Map()) << " < ";
+      return BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
+      os << ")";
     } else if (this->IsConstant()) {
-      stream->Add("Constant(%p : ",
-             static_cast<void*>(*this->AsConstant()->Value()));
-      BitsetType::New(BitsetType::Lub(this))->PrintTo(stream, dim);
-      stream->Add(")");
-      return;
+      os << "Constant(" << static_cast<void*>(*this->AsConstant()->Value())
+         << " : ";
+      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
+      os << ")";
     } else if (this->IsContext()) {
-      stream->Add("Context(");
-      this->AsContext()->Outer()->PrintTo(stream, dim);
-      stream->Add(")");
+      os << "Context(";
+      this->AsContext()->Outer()->PrintTo(os, dim);
+      os << ")";
     } else if (this->IsUnion()) {
-      stream->Add("(");
+      os << "(";
       UnionHandle unioned = handle(this->AsUnion());
       for (int i = 0; i < unioned->Length(); ++i) {
         TypeHandle type_i = unioned->Get(i);
-        if (i > 0) stream->Add(" | ");
-        type_i->PrintTo(stream, dim);
+        if (i > 0) os << " | ";
+        type_i->PrintTo(os, dim);
       }
-      stream->Add(")");
-      return;
+      os << ")";
     } else if (this->IsArray()) {
-      stream->Add("Array(");
-      AsArray()->Element()->PrintTo(stream, dim);
-      stream->Add(")");
+      os << "Array(";
+      AsArray()->Element()->PrintTo(os, dim);
+      os << ")";
     } else if (this->IsFunction()) {
       if (!this->AsFunction()->Receiver()->IsAny()) {
-        this->AsFunction()->Receiver()->PrintTo(stream, dim);
-        stream->Add(".");
+        this->AsFunction()->Receiver()->PrintTo(os, dim);
+        os << ".";
       }
-      stream->Add("(");
+      os << "(";
       for (int i = 0; i < this->AsFunction()->Arity(); ++i) {
-        if (i > 0) stream->Add(", ");
-        this->AsFunction()->Parameter(i)->PrintTo(stream, dim);
+        if (i > 0) os << ", ";
+        this->AsFunction()->Parameter(i)->PrintTo(os, dim);
       }
-      stream->Add(")->");
-      this->AsFunction()->Result()->PrintTo(stream, dim);
+      os << ")->";
+      this->AsFunction()->Result()->PrintTo(os, dim);
     } else {
       UNREACHABLE();
     }
   }
-  if (dim == BOTH_DIMS) {
-    stream->Add("/");
-  }
+  if (dim == BOTH_DIMS) os << "/";
   if (dim != SEMANTIC_DIM) {
-    BitsetType::PrintTo(stream, REPRESENTATION(this->BitsetLub()));
+    BitsetType::Print(os, REPRESENTATION(this->BitsetLub()));
   }
-}
-
-
-template<class Config>
-void TypeImpl<Config>::TypePrint(FILE* out, PrintDimension dim) {
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
-  PrintTo(&stream, dim);
-  stream.OutputToFile(out);
-}
-
-
-template<class Config>
-void TypeImpl<Config>::TypePrint(PrintDimension dim) {
-  TypePrint(stdout, dim);
-  PrintF(stdout, "\n");
-  Flush(stdout);
 }
 
 

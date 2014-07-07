@@ -21,47 +21,48 @@ void LookupResult::Iterate(ObjectVisitor* visitor) {
 
 #ifdef OBJECT_PRINT
 void LookupResult::Print(FILE* out) {
+  OFStream os(out);
   if (!IsFound()) {
-    PrintF(out, "Not Found\n");
+    os << "Not Found\n";
     return;
   }
 
-  PrintF(out, "LookupResult:\n");
-  PrintF(out, " -cacheable = %s\n", IsCacheable() ? "true" : "false");
-  PrintF(out, " -attributes = %x\n", GetAttributes());
+  os << "LookupResult:\n";
+  os << " -cacheable = " << (IsCacheable() ? "true" : "false") << "\n";
+  os << " -attributes = " << hex << GetAttributes() << dec << "\n";
   if (IsTransition()) {
-    PrintF(out, " -transition target:\n");
+    os << " -transition target:\n";
     GetTransitionTarget()->Print(out);
-    PrintF(out, "\n");
+    os << "\n";
   }
   switch (type()) {
     case NORMAL:
-      PrintF(out, " -type = normal\n");
-      PrintF(out, " -entry = %d", GetDictionaryEntry());
+      os << " -type = normal\n"
+         << " -entry = " << GetDictionaryEntry() << "\n";
       break;
     case CONSTANT:
-      PrintF(out, " -type = constant\n");
-      PrintF(out, " -value:\n");
+      os << " -type = constant\n"
+         << " -value:\n";
       GetConstant()->Print(out);
-      PrintF(out, "\n");
+      os << "\n";
       break;
     case FIELD:
-      PrintF(out, " -type = field\n");
-      PrintF(out, " -index = %d\n",
-             GetFieldIndex().property_index());
-      PrintF(out, " -field type:\n");
-      GetFieldType()->TypePrint(out);
+      os << " -type = field\n"
+         << " -index = " << GetFieldIndex().property_index() << "\n"
+         << " -field type:";
+      GetFieldType()->PrintTo(os);
+      os << "\n";
       break;
     case CALLBACKS:
-      PrintF(out, " -type = call backs\n");
-      PrintF(out, " -callback object:\n");
+      os << " -type = call backs\n"
+         << " -callback object:\n";
       GetCallbackObject()->Print(out);
       break;
     case HANDLER:
-      PrintF(out, " -type = lookup proxy\n");
+      os << " -type = lookup proxy\n";
       break;
     case INTERCEPTOR:
-      PrintF(out, " -type = lookup interceptor\n");
+      os << " -type = lookup interceptor\n";
       break;
     case NONEXISTENT:
       UNREACHABLE();

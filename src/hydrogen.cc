@@ -1037,34 +1037,39 @@ void HGraphBuilder::IfBuilder::End() {
 }
 
 
-HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder,
-                                        HValue* context,
-                                        LoopBuilder::Direction direction)
-    : builder_(builder),
-      context_(context),
-      direction_(direction),
-      finished_(false) {
-  header_block_ = builder->CreateLoopHeaderBlock();
-  body_block_ = NULL;
-  exit_block_ = NULL;
-  exit_trampoline_block_ = NULL;
-  increment_amount_ = builder_->graph()->GetConstant1();
+HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder) {
+  Initialize(builder, NULL, kWhileTrue, NULL);
 }
 
 
-HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder,
-                                        HValue* context,
+HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder, HValue* context,
+                                        LoopBuilder::Direction direction) {
+  Initialize(builder, context, direction, builder->graph()->GetConstant1());
+}
+
+
+HGraphBuilder::LoopBuilder::LoopBuilder(HGraphBuilder* builder, HValue* context,
                                         LoopBuilder::Direction direction,
-                                        HValue* increment_amount)
-    : builder_(builder),
-      context_(context),
-      direction_(direction),
-      finished_(false) {
+                                        HValue* increment_amount) {
+  Initialize(builder, context, direction, increment_amount);
+  increment_amount_ = increment_amount;
+}
+
+
+void HGraphBuilder::LoopBuilder::Initialize(HGraphBuilder* builder,
+                                            HValue* context,
+                                            Direction direction,
+                                            HValue* increment_amount) {
+  builder_ = builder;
+  context_ = context;
+  direction_ = direction;
+  increment_amount_ = increment_amount;
+
+  finished_ = false;
   header_block_ = builder->CreateLoopHeaderBlock();
   body_block_ = NULL;
   exit_block_ = NULL;
   exit_trampoline_block_ = NULL;
-  increment_amount_ = increment_amount;
 }
 
 
@@ -1072,6 +1077,7 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
     HValue* initial,
     HValue* terminating,
     Token::Value token) {
+  ASSERT(direction_ != kWhileTrue);
   HEnvironment* env = builder_->environment();
   phi_ = header_block_->AddNewPhi(env->values()->length());
   phi_->AddInput(initial);
@@ -1108,12 +1114,26 @@ HValue* HGraphBuilder::LoopBuilder::BeginBody(
 }
 
 
+void HGraphBuilder::LoopBuilder::BeginBody(int drop_count) {
+  ASSERT(direction_ == kWhileTrue);
+  HEnvironment* env = builder_->environment();
+  builder_->GotoNoSimulate(header_block_);
+  builder_->set_current_block(header_block_);
+  env->Drop(drop_count);
+}
+
+
 void HGraphBuilder::LoopBuilder::Break() {
   if (exit_trampoline_block_ == NULL) {
     // Its the first time we saw a break.
-    HEnvironment* env = exit_block_->last_environment()->Copy();
-    exit_trampoline_block_ = builder_->CreateBasicBlock(env);
-    builder_->GotoNoSimulate(exit_block_, exit_trampoline_block_);
+    if (direction_ == kWhileTrue) {
+      HEnvironment* env = builder_->environment()->Copy();
+      exit_trampoline_block_ = builder_->CreateBasicBlock(env);
+    } else {
+      HEnvironment* env = exit_block_->last_environment()->Copy();
+      exit_trampoline_block_ = builder_->CreateBasicBlock(env);
+      builder_->GotoNoSimulate(exit_block_, exit_trampoline_block_);
+    }
   }
 
   builder_->GotoNoSimulate(exit_trampoline_block_);
@@ -1134,8 +1154,11 @@ void HGraphBuilder::LoopBuilder::EndBody() {
     builder_->AddInstruction(increment_);
   }
 
-  // Push the new increment value on the expression stack to merge into the phi.
-  builder_->environment()->Push(increment_);
+  if (direction_ != kWhileTrue) {
+    // Push the new increment value on the expression stack to merge into
+    // the phi.
+    builder_->environment()->Push(increment_);
+  }
   HBasicBlock* last_block = builder_->current_block();
   builder_->GotoNoSimulate(last_block, header_block_);
   header_block_->loop_information()->RegisterBackEdge(last_block);
@@ -1431,7 +1454,8 @@ void HGraphBuilder::BuildJSObjectCheck(HValue* receiver,
                                              mask);
   HValue* sub_result = AddUncasted<HSub>(and_result,
                                          Add<HConstant>(JS_OBJECT_TYPE));
-  Add<HBoundsCheck>(sub_result, Add<HConstant>(0x100 - JS_OBJECT_TYPE));
+  Add<HBoundsCheck>(sub_result,
+                    Add<HConstant>(LAST_JS_OBJECT_TYPE + 1 - JS_OBJECT_TYPE));
 }
 
 
