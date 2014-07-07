@@ -55,7 +55,7 @@ class SideEffects V8_FINAL {
 };
 
 
-class TrackedEffects;
+struct TrackedEffects;
 
 // Tracks global variable and inobject field loads/stores in a fine grained
 // fashion, and represents them using the "special" dynamic side effects of the

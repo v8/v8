@@ -3458,7 +3458,7 @@ int HGraph::TraceInlinedFunction(
               shared->end_position() - shared->start_position() + 1;
           for (int i = 0; i < source_len; i++) {
             if (stream.HasMore()) {
-              os.put(stream.GetNext());
+              os << AsUC16(stream.GetNext());
             }
           }
         }

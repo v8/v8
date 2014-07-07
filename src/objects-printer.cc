@@ -591,7 +591,7 @@ void String::StringPrint(OStream& os) {  // NOLINT
     }
   }
   for (int i = 0; i < len; i++) {
-    os.put(Get(i));
+    os << AsUC16(Get(i));
   }
   if (len != length()) {
     os << truncated_epilogue;
