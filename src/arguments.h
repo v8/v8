@@ -6,6 +6,7 @@
 #define V8_ARGUMENTS_H_
 
 #include "src/allocation.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
