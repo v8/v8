@@ -1697,9 +1697,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Push(x0);
           VisitForStackValue(key);
           VisitForStackValue(value);
-          __ Mov(x0, Smi::FromInt(NONE));  // PropertyAttributes
+          __ Mov(x0, Smi::FromInt(SLOPPY));  // Strict mode
           __ Push(x0);
-          __ CallRuntime(Runtime::kAddProperty, 4);
+          __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           VisitForEffect(key);
           VisitForEffect(value);

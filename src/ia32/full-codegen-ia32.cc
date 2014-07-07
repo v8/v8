@@ -1646,8 +1646,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(key);
         VisitForStackValue(value);
         if (property->emit_store()) {
-          __ push(Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
-          __ CallRuntime(Runtime::kAddProperty, 4);
+          __ push(Immediate(Smi::FromInt(SLOPPY)));  // Strict mode
+          __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           __ Drop(3);
         }

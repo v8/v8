@@ -270,12 +270,9 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
-        if (value->IsUninitialized()) {
-          maybe_result = value;
-        } else {
-          maybe_result = JSObject::SetOwnElement(
-              boilerplate, element_index, value, SLOPPY);
-        }
+        if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
+        maybe_result =
+            JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
       } else {
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
@@ -284,12 +281,9 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
-      if (value->IsUninitialized()) {
-        maybe_result = value;
-      } else {
-        maybe_result = JSObject::SetOwnElement(
-            boilerplate, element_index, value, SLOPPY);
-      }
+      if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
+      maybe_result =
+          JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
     } else {
       // Non-uint32 number.
       ASSERT(key->IsNumber());
@@ -5330,14 +5324,17 @@ RUNTIME_FUNCTION(Runtime_AddProperty) {
 
 #ifdef DEBUG
   bool duplicate;
-  if (key->IsName()) {
+  uint32_t index = 0;
+  if (key->IsName() || !key->ToArrayIndex(&index)) {
+    if (key->IsNumber()) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                         Execution::ToString(isolate, key));
+    }
     LookupIterator it(object, Handle<Name>::cast(key),
                       LookupIterator::CHECK_OWN_REAL);
     JSReceiver::GetPropertyAttributes(&it);
     duplicate = it.IsFound();
   } else {
-    uint32_t index = 0;
-    RUNTIME_ASSERT(key->ToArrayIndex(&index));
     duplicate = JSReceiver::HasOwnElement(object, index);
   }
   RUNTIME_ASSERT(!duplicate);
