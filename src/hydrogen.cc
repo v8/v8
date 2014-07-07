@@ -1531,8 +1531,8 @@ void HGraphBuilder::BuildKeyedIndexCheck(HValue* key,
         }
         string_index_if.Else();
         {
-          // Key is a non-index String, check for uniqueness/internalization. If
-          // it's not, deopt.
+          // Key is a non-index String, check for uniqueness/internalization.
+          // If it's not internalized yet, internalize it now.
           HValue* not_internalized_bit = AddUncasted<HBitwise>(
               Token::BIT_AND,
               instance_type,
@@ -1632,84 +1632,6 @@ HValue* HGraphBuilder::BuildKeyedLookupCacheHash(HValue* object,
 }
 
 
-HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoadHelper(
-    HValue* elements,
-    HValue* key,
-    HValue* hash,
-    HValue* mask,
-    int current_probe) {
-  if (current_probe == kNumberDictionaryProbes) {
-    return NULL;
-  }
-
-  int32_t offset = SeededNumberDictionary::GetProbeOffset(current_probe);
-  HValue* raw_index = (current_probe == 0)
-      ? hash
-      : AddUncasted<HAdd>(hash, Add<HConstant>(offset));
-  raw_index = AddUncasted<HBitwise>(Token::BIT_AND, raw_index, mask);
-  int32_t entry_size = SeededNumberDictionary::kEntrySize;
-  raw_index = AddUncasted<HMul>(raw_index, Add<HConstant>(entry_size));
-  raw_index->ClearFlag(HValue::kCanOverflow);
-
-  int32_t base_offset = SeededNumberDictionary::kElementsStartIndex;
-  HValue* key_index = AddUncasted<HAdd>(raw_index, Add<HConstant>(base_offset));
-  key_index->ClearFlag(HValue::kCanOverflow);
-
-  HValue* candidate_key = Add<HLoadKeyed>(elements, key_index,
-                                          static_cast<HValue*>(NULL),
-                                          FAST_ELEMENTS);
-
-  IfBuilder key_compare(this);
-  key_compare.IfNot<HCompareObjectEqAndBranch>(key, candidate_key);
-  key_compare.Then();
-  {
-    // Key at the current probe doesn't match, try at the next probe.
-    HValue* result = BuildUncheckedDictionaryElementLoadHelper(
-        elements, key, hash, mask, current_probe + 1);
-    if (result == NULL) {
-      key_compare.Deopt("probes exhausted in keyed load dictionary lookup");
-      result = graph()->GetConstantUndefined();
-    } else {
-      Push(result);
-    }
-  }
-  key_compare.Else();
-  {
-    // Key at current probe matches. Details must be zero, otherwise the
-    // dictionary element requires special handling.
-    HValue* details_index = AddUncasted<HAdd>(
-        raw_index, Add<HConstant>(base_offset + 2));
-    details_index->ClearFlag(HValue::kCanOverflow);
-
-    HValue* details = Add<HLoadKeyed>(elements, details_index,
-                                      static_cast<HValue*>(NULL),
-                                      FAST_ELEMENTS);
-    IfBuilder details_compare(this);
-    details_compare.If<HCompareNumericAndBranch>(details,
-                                                 graph()->GetConstant0(),
-                                                 Token::NE);
-    details_compare.ThenDeopt("keyed load dictionary element not fast case");
-
-    details_compare.Else();
-    {
-      // Key matches and details are zero --> fast case. Load and return the
-      // value.
-      HValue* result_index = AddUncasted<HAdd>(
-          raw_index, Add<HConstant>(base_offset + 1));
-      result_index->ClearFlag(HValue::kCanOverflow);
-
-      Push(Add<HLoadKeyed>(elements, result_index,
-                           static_cast<HValue*>(NULL),
-                           FAST_ELEMENTS));
-    }
-    details_compare.End();
-  }
-  key_compare.End();
-
-  return Pop();
-}
-
-
 HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
   int32_t seed_value = static_cast<uint32_t>(isolate()->heap()->HashSeed());
   HValue* seed = Add<HConstant>(seed_value);
@@ -1757,8 +1679,129 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
   mask->ChangeRepresentation(Representation::Integer32());
   mask->ClearFlag(HValue::kCanOverflow);
 
-  return BuildUncheckedDictionaryElementLoadHelper(elements, key,
-                                                   hash, mask, 0);
+  HValue* entry = hash;
+  HValue* count = graph()->GetConstant1();
+  Push(entry);
+  Push(count);
+
+  HIfContinuation return_or_loop_continuation(graph()->CreateBasicBlock(),
+                                              graph()->CreateBasicBlock());
+  HIfContinuation found_key_match_continuation(graph()->CreateBasicBlock(),
+                                               graph()->CreateBasicBlock());
+  LoopBuilder probe_loop(this);
+  probe_loop.BeginBody(2);  // Drop entry, count from last environment to
+                            // appease live range building without simulates.
+
+  count = Pop();
+  entry = Pop();
+  entry = AddUncasted<HBitwise>(Token::BIT_AND, entry, mask);
+  int entry_size = SeededNumberDictionary::kEntrySize;
+  HValue* base_index = AddUncasted<HMul>(entry, Add<HConstant>(entry_size));
+  base_index->ClearFlag(HValue::kCanOverflow);
+  int start_offset = SeededNumberDictionary::kElementsStartIndex;
+  HValue* key_index =
+      AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset));
+  key_index->ClearFlag(HValue::kCanOverflow);
+
+  HValue* candidate_key = Add<HLoadKeyed>(
+      elements, key_index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+  IfBuilder if_undefined(this);
+  if_undefined.If<HCompareObjectEqAndBranch>(candidate_key,
+                                             graph()->GetConstantUndefined());
+  if_undefined.Then();
+  {
+    // element == undefined means "not found". Call the runtime.
+    // TODO(jkummerow): walk the prototype chain instead.
+    Add<HPushArguments>(receiver, key);
+    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                           Runtime::FunctionForId(Runtime::kKeyedGetProperty),
+                           2));
+  }
+  if_undefined.Else();
+  {
+    IfBuilder if_match(this);
+    if_match.If<HCompareObjectEqAndBranch>(candidate_key, key);
+    if_match.Then();
+    if_match.Else();
+
+    // Update non-internalized string in the dictionary with internalized key?
+    IfBuilder if_update_with_internalized(this);
+    HValue* smi_check =
+        if_update_with_internalized.IfNot<HIsSmiAndBranch>(candidate_key);
+    if_update_with_internalized.And();
+    HValue* map = AddLoadMap(candidate_key, smi_check);
+    HValue* instance_type = Add<HLoadNamedField>(
+        map, static_cast<HValue*>(NULL), HObjectAccess::ForMapInstanceType());
+    HValue* not_internalized_bit = AddUncasted<HBitwise>(
+        Token::BIT_AND, instance_type,
+        Add<HConstant>(static_cast<int>(kIsNotInternalizedMask)));
+    if_update_with_internalized.If<HCompareNumericAndBranch>(
+        not_internalized_bit, graph()->GetConstant0(), Token::NE);
+    if_update_with_internalized.And();
+    if_update_with_internalized.IfNot<HCompareObjectEqAndBranch>(
+        candidate_key, graph()->GetConstantHole());
+    if_update_with_internalized.AndIf<HStringCompareAndBranch>(candidate_key,
+                                                               key, Token::EQ);
+    if_update_with_internalized.Then();
+    // Replace a key that is a non-internalized string by the equivalent
+    // internalized string for faster further lookups.
+    Add<HStoreKeyed>(elements, key_index, key, FAST_ELEMENTS);
+    if_update_with_internalized.Else();
+
+    if_update_with_internalized.JoinContinuation(&found_key_match_continuation);
+    if_match.JoinContinuation(&found_key_match_continuation);
+
+    IfBuilder found_key_match(this, &found_key_match_continuation);
+    found_key_match.Then();
+    // Key at current probe matches. Relevant bits in the |details| field must
+    // be zero, otherwise the dictionary element requires special handling.
+    HValue* details_index =
+        AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset + 2));
+    details_index->ClearFlag(HValue::kCanOverflow);
+    HValue* details = Add<HLoadKeyed>(
+        elements, details_index, static_cast<HValue*>(NULL), FAST_ELEMENTS);
+    int details_mask = PropertyDetails::TypeField::kMask |
+                       PropertyDetails::DeletedField::kMask;
+    details = AddUncasted<HBitwise>(Token::BIT_AND, details,
+                                    Add<HConstant>(details_mask));
+    IfBuilder details_compare(this);
+    details_compare.If<HCompareNumericAndBranch>(
+        details, graph()->GetConstant0(), Token::EQ);
+    details_compare.Then();
+    HValue* result_index =
+        AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset + 1));
+    result_index->ClearFlag(HValue::kCanOverflow);
+    Push(Add<HLoadKeyed>(elements, result_index, static_cast<HValue*>(NULL),
+                         FAST_ELEMENTS));
+    details_compare.Else();
+    Add<HPushArguments>(receiver, key);
+    Push(Add<HCallRuntime>(isolate()->factory()->empty_string(),
+                           Runtime::FunctionForId(Runtime::kKeyedGetProperty),
+                           2));
+    details_compare.End();
+
+    found_key_match.Else();
+    found_key_match.JoinContinuation(&return_or_loop_continuation);
+  }
+  if_undefined.JoinContinuation(&return_or_loop_continuation);
+
+  IfBuilder return_or_loop(this, &return_or_loop_continuation);
+  return_or_loop.Then();
+  probe_loop.Break();
+
+  return_or_loop.Else();
+  entry = AddUncasted<HAdd>(entry, count);
+  entry->ClearFlag(HValue::kCanOverflow);
+  count = AddUncasted<HAdd>(count, graph()->GetConstant1());
+  count->ClearFlag(HValue::kCanOverflow);
+  Push(entry);
+  Push(count);
+
+  probe_loop.EndBody();
+
+  return_or_loop.End();
+
+  return Pop();
 }
 
 

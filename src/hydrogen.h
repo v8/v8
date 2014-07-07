@@ -1924,13 +1924,6 @@ class HGraphBuilder {
  private:
   HGraphBuilder();
 
-  HValue* BuildUncheckedDictionaryElementLoadHelper(
-      HValue* elements,
-      HValue* key,
-      HValue* hash,
-      HValue* mask,
-      int current_probe);
-
   template <class I>
   I* AddInstructionTyped(I* instr) {
     return I::cast(AddInstruction(instr));
