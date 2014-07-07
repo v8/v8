@@ -922,35 +922,35 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // rax = address of new object(s) (tagged)
   // rcx = argument count (untagged)
-  // Get the arguments map from the current native context into rdi.
-  Label has_mapped_parameters, instantiate;
+  // Get the arguments boilerplate from the current native context into rdi.
+  Label has_mapped_parameters, copy;
   __ movp(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movp(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
   __ testp(rbx, rbx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
 
-  const int kIndex = Context::SLOPPY_ARGUMENTS_MAP_INDEX;
+  const int kIndex = Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX;
   __ movp(rdi, Operand(rdi, Context::SlotOffset(kIndex)));
-  __ jmp(&instantiate, Label::kNear);
+  __ jmp(&copy, Label::kNear);
 
-  const int kAliasedIndex = Context::ALIASED_ARGUMENTS_MAP_INDEX;
+  const int kAliasedIndex = Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX;
   __ bind(&has_mapped_parameters);
   __ movp(rdi, Operand(rdi, Context::SlotOffset(kAliasedIndex)));
-  __ bind(&instantiate);
+  __ bind(&copy);
 
   // rax = address of new object (tagged)
   // rbx = mapped parameter count (untagged)
   // rcx = argument count (untagged)
-  // rdi = address of arguments map (tagged)
-  __ movp(FieldOperand(rax, JSObject::kMapOffset), rdi);
-  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), kScratchRegister);
+  // rdi = address of boilerplate object (tagged)
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ movp(rdx, FieldOperand(rdi, i));
+    __ movp(FieldOperand(rax, i), rdx);
+  }
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ movp(rdx, args.GetArgumentOperand(0));
-  __ AssertNotSmi(rdx);
   __ movp(FieldOperand(rax, JSObject::kHeaderSize +
                        Heap::kArgumentsCalleeIndex * kPointerSize),
           rdx);
@@ -1140,16 +1140,18 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the allocation of both objects in one go.
   __ Allocate(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
 
-  // Get the arguments map from the current native context.
+  // Get the arguments boilerplate from the current native context.
   __ movp(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   __ movp(rdi, FieldOperand(rdi, GlobalObject::kNativeContextOffset));
-  const int offset = Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX);
+  const int offset =
+      Context::SlotOffset(Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX);
   __ movp(rdi, Operand(rdi, offset));
 
-  __ movp(FieldOperand(rax, JSObject::kMapOffset), rdi);
-  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), kScratchRegister);
+  // Copy the JS object part.
+  for (int i = 0; i < JSObject::kHeaderSize; i += kPointerSize) {
+    __ movp(rbx, FieldOperand(rdi, i));
+    __ movp(FieldOperand(rax, i), rbx);
+  }
 
   // Get the length (smi tagged) and set that as an in-object property too.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);

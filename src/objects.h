@@ -1406,8 +1406,17 @@ class Object {
   bool ToInt32(int32_t* value);
   bool ToUint32(uint32_t* value);
 
-  inline Representation OptimalRepresentation() {
+  // Indicates whether OptimalRepresentation can do its work, or whether it
+  // always has to return Representation::Tagged().
+  enum ValueType {
+    OPTIMAL_REPRESENTATION,
+    FORCE_TAGGED
+  };
+
+  inline Representation OptimalRepresentation(
+      ValueType type = OPTIMAL_REPRESENTATION) {
     if (!FLAG_track_fields) return Representation::Tagged();
+    if (type == FORCE_TAGGED) return Representation::Tagged();
     if (IsSmi()) {
       return Representation::Smi();
     } else if (FLAG_track_double_fields && IsHeapNumber()) {
@@ -2158,6 +2167,7 @@ class JSObject: public JSReceiver {
       Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
       StoreMode mode = ALLOW_AS_CONSTANT,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
@@ -2167,6 +2177,7 @@ class JSObject: public JSReceiver {
                           Handle<Name> key,
                           Handle<Object> value,
                           PropertyAttributes attributes,
+                          ValueType value_type = OPTIMAL_REPRESENTATION,
                           StoreMode mode = ALLOW_AS_CONSTANT);
 
   // Extend the receiver with a single fast property appeared first in the
@@ -2506,7 +2517,10 @@ class JSObject: public JSReceiver {
   static void SetObserved(Handle<JSObject> object);
 
   // Copy object.
-  enum DeepCopyHints { kNoHints = 0, kObjectIsShallow = 1 };
+  enum DeepCopyHints {
+    kNoHints = 0,
+    kObjectIsShallowArray = 1
+  };
 
   static Handle<JSObject> Copy(Handle<JSObject> object);
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
@@ -2771,6 +2785,7 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
+      ValueType value_type = OPTIMAL_REPRESENTATION,
       StoreMode mode = ALLOW_AS_CONSTANT,
       TransitionFlag flag = INSERT_TRANSITION);
 
@@ -2780,6 +2795,7 @@ class JSObject: public JSReceiver {
                               Handle<Object> value,
                               PropertyAttributes attributes,
                               StoreFromKeyed store_mode,
+                              ValueType value_type,
                               TransitionFlag flag);
 
   // Add a property to a slow-case object.

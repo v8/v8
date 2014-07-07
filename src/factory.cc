@@ -4,7 +4,6 @@
 
 #include "src/factory.h"
 
-#include "src/allocation-site-scopes.h"
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -2087,24 +2086,11 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
 }
 
 
-Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
+Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
                                              int length) {
-  bool strict_mode_callee = callee->shared()->strict_mode() == STRICT;
-  Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
-                                       : isolate()->sloppy_arguments_map();
-
-  AllocationSiteUsageContext context(isolate(), Handle<AllocationSite>(),
-                                     false);
-  ASSERT(!isolate()->has_pending_exception());
-  Handle<JSObject> result = NewJSObjectFromMap(map);
-  Handle<Smi> value(Smi::FromInt(length), isolate());
-  JSReceiver::SetProperty(result, length_string(), value, NONE, STRICT)
-      .Assert();
-  if (!strict_mode_callee) {
-    JSReceiver::SetProperty(result, callee_string(), callee, NONE, STRICT)
-        .Assert();
-  }
-  return result;
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateArgumentsObject(*callee, length), JSObject);
 }
 
 

@@ -643,8 +643,8 @@ BUILTIN(ArraySlice) {
     } else {
       // Array.slice(arguments, ...) is quite a common idiom (notably more
       // than 50% of invocations in Web apps).  Treat it in C++ as well.
-      Map* arguments_map =
-          isolate->context()->native_context()->sloppy_arguments_map();
+      Map* arguments_map = isolate->context()->native_context()->
+          sloppy_arguments_boilerplate()->map();
 
       bool is_arguments_object_with_fast_elements =
           receiver->IsJSObject() &&
