@@ -3364,6 +3364,11 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction,
 }
 
 
+OStream& operator<<(OStream& os, const HBasicBlock& b) {
+  return os << "B" << b.block_id();
+}
+
+
 HGraph::HGraph(CompilationInfo* info)
     : isolate_(info->isolate()),
       next_block_id_(0),
@@ -3438,13 +3443,10 @@ int HGraph::TraceInlinedFunction(
     if (!shared->script()->IsUndefined()) {
       Handle<Script> script(Script::cast(shared->script()));
       if (!script->source()->IsUndefined()) {
-        CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-        PrintF(tracing_scope.file(),
-               "--- FUNCTION SOURCE (%s) id{%d,%d} ---\n",
-               shared->DebugName()->ToCString().get(),
-               info()->optimization_id(),
-               id);
-
+        CodeTracer::Scope tracing_scopex(isolate()->GetCodeTracer());
+        OFStream os(tracing_scopex.file());
+        os << "--- FUNCTION SOURCE (" << shared->DebugName()->ToCString().get()
+           << ") id{" << info()->optimization_id() << "," << id << "} ---\n";
         {
           ConsStringIteratorOp op;
           StringCharacterStream stream(String::cast(script->source()),
@@ -3456,12 +3458,12 @@ int HGraph::TraceInlinedFunction(
               shared->end_position() - shared->start_position() + 1;
           for (int i = 0; i < source_len; i++) {
             if (stream.HasMore()) {
-              PrintF(tracing_scope.file(), "%c", stream.GetNext());
+              os.put(stream.GetNext());
             }
           }
         }
 
-        PrintF(tracing_scope.file(), "\n--- END ---\n");
+        os << "\n--- END ---\n";
       }
     }
   }
@@ -3470,13 +3472,10 @@ int HGraph::TraceInlinedFunction(
 
   if (inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    PrintF(tracing_scope.file(), "INLINE (%s) id{%d,%d} AS %d AT ",
-           shared->DebugName()->ToCString().get(),
-           info()->optimization_id(),
-           id,
-           inline_id);
-    position.PrintTo(tracing_scope.file());
-    PrintF(tracing_scope.file(), "\n");
+    OFStream os(tracing_scope.file());
+    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
+       << info()->optimization_id() << "," << id << "} AS " << inline_id
+       << " AT " << position << endl;
   }
 
   return inline_id;
@@ -12038,32 +12037,24 @@ HEnvironment* HEnvironment::CopyForInlining(
 }
 
 
-void HEnvironment::PrintTo(StringStream* stream) {
-  for (int i = 0; i < length(); i++) {
-    if (i == 0) stream->Add("parameters\n");
-    if (i == parameter_count()) stream->Add("specials\n");
-    if (i == parameter_count() + specials_count()) stream->Add("locals\n");
-    if (i == parameter_count() + specials_count() + local_count()) {
-      stream->Add("expressions\n");
+OStream& operator<<(OStream& os, const HEnvironment& env) {
+  for (int i = 0; i < env.length(); i++) {
+    if (i == 0) os << "parameters\n";
+    if (i == env.parameter_count()) os << "specials\n";
+    if (i == env.parameter_count() + env.specials_count()) os << "locals\n";
+    if (i == env.parameter_count() + env.specials_count() + env.local_count()) {
+      os << "expressions\n";
     }
-    HValue* val = values_.at(i);
-    stream->Add("%d: ", i);
+    HValue* val = env.values()->at(i);
+    os << i << ": ";
     if (val != NULL) {
-      val->PrintNameTo(stream);
+      os << val;
     } else {
-      stream->Add("NULL");
+      os << "NULL";
     }
-    stream->Add("\n");
+    os << "\n";
   }
-  PrintF("\n");
-}
-
-
-void HEnvironment::PrintToStd() {
-  HeapStringAllocator string_allocator;
-  StringStream trace(&string_allocator);
-  PrintTo(&trace);
-  PrintF("%s", trace.ToCString().get());
+  return os << "\n";
 }
 
 
@@ -12178,11 +12169,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       for (int j = 0; j < total; ++j) {
         HPhi* phi = current->phis()->at(j);
         PrintIndent();
-        trace_.Add("%d ", phi->merged_index());
-        phi->PrintNameTo(&trace_);
-        trace_.Add(" ");
-        phi->PrintTo(&trace_);
-        trace_.Add("\n");
+        OStringStream os;
+        os << phi->merged_index() << " " << NameOf(phi) << " " << *phi << "\n";
+        trace_.Add(os.c_str());
       }
     }
 
@@ -12192,21 +12181,18 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         HInstruction* instruction = it.Current();
         int uses = instruction->UseCount();
         PrintIndent();
-        trace_.Add("0 %d ", uses);
-        instruction->PrintNameTo(&trace_);
-        trace_.Add(" ");
-        instruction->PrintTo(&trace_);
+        OStringStream os;
+        os << "0 " << uses << " " << NameOf(instruction) << " " << *instruction;
         if (FLAG_hydrogen_track_positions &&
             instruction->has_position() &&
             instruction->position().raw() != 0) {
           const HSourcePosition pos = instruction->position();
-          trace_.Add(" pos:");
-          if (pos.inlining_id() != 0) {
-            trace_.Add("%d_", pos.inlining_id());
-          }
-          trace_.Add("%d", pos.position());
+          os << " pos:";
+          if (pos.inlining_id() != 0) os << pos.inlining_id() << "_";
+          os << pos.position();
         }
-        trace_.Add(" <|@\n");
+        os << " <|@\n";
+        trace_.Add(os.c_str());
       }
     }
 
@@ -12224,10 +12210,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
-            trace_.Add(" [hir:");
-            linstr->hydrogen_value()->PrintNameTo(&trace_);
-            trace_.Add("]");
-            trace_.Add(" <|@\n");
+            OStringStream os;
+            os << " [hir:" << NameOf(linstr->hydrogen_value()) << "] <|@\n";
+            trace_.Add(os.c_str());
           }
         }
       }

@@ -9,6 +9,7 @@
 #include "src/field-index.h"
 #include "src/field-index-inl.h"
 #include "src/isolate.h"
+#include "src/ostreams.h"
 #include "src/types.h"
 
 namespace v8 {
@@ -28,13 +29,9 @@ class Descriptor BASE_EMBEDDED {
     }
   }
 
-  Handle<Name> GetKey() { return key_; }
-  Handle<Object> GetValue() { return value_; }
-  PropertyDetails GetDetails() { return details_; }
-
-#ifdef OBJECT_PRINT
-  void Print(FILE* out);
-#endif
+  Handle<Name> GetKey() const { return key_; }
+  Handle<Object> GetValue() const { return value_; }
+  PropertyDetails GetDetails() const { return details_; }
 
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
@@ -70,6 +67,9 @@ class Descriptor BASE_EMBEDDED {
   friend class DescriptorArray;
   friend class Map;
 };
+
+
+OStream& operator<<(OStream& os, const Descriptor& d);
 
 
 class FieldDescriptor V8_FINAL : public Descriptor {
@@ -408,10 +408,6 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
     return GetValue();
   }
 
-#ifdef OBJECT_PRINT
-  void Print(FILE* out);
-#endif
-
   Object* GetValue() const {
     if (lookup_type_ == DESCRIPTOR_TYPE) {
       return GetValueFromMap(holder()->map());
@@ -487,6 +483,8 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   PropertyDetails details_;
 };
 
+
+OStream& operator<<(OStream& os, const LookupResult& r);
 } }  // namespace v8::internal
 
 #endif  // V8_PROPERTY_H_

@@ -1640,9 +1640,10 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
         CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
-        PrintF(trace_scope.file(), "Builtin: %s\n", functions[i].s_name);
-        code->Disassemble(functions[i].s_name, trace_scope.file());
-        PrintF(trace_scope.file(), "\n");
+        OFStream os(trace_scope.file());
+        os << "Builtin: " << functions[i].s_name << "\n";
+        code->Disassemble(functions[i].s_name, os);
+        os << "\n";
       }
 #endif
     } else {

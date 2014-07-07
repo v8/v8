@@ -574,7 +574,7 @@ class RelocInfo {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(Mode rmode);
-  void Print(Isolate* isolate, FILE* out);
+  void Print(Isolate* isolate, OStream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate);

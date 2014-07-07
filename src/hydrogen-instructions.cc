@@ -525,45 +525,36 @@ void HValue::SetBlock(HBasicBlock* block) {
 }
 
 
-OStream& operator<<(OStream& os, const HValue& v) {
-  // TODO(svenpanne) Temporary impedance matching, to be removed later.
-  HeapStringAllocator allocator;
-  StringStream stream(&allocator);
-  const_cast<HValue*>(&v)->PrintTo(&stream);
-  return os << stream.ToCString().get();
+OStream& operator<<(OStream& os, const HValue& v) { return v.PrintTo(os); }
+
+
+OStream& operator<<(OStream& os, const TypeOf& t) {
+  if (t.value->representation().IsTagged() &&
+      !t.value->type().Equals(HType::Tagged()))
+    return os;
+  return os << " type:" << t.value->type();
 }
 
 
-void HValue::PrintTypeTo(StringStream* stream) {
-  if (!representation().IsTagged() || type().Equals(HType::Tagged())) return;
-  stream->Add(" type:%s", type().ToString());
-}
-
-
-void HValue::PrintChangesTo(StringStream* stream) {
-  GVNFlagSet changes_flags = ChangesFlags();
-  if (changes_flags.IsEmpty()) return;
-  stream->Add(" changes[");
-  if (changes_flags == AllSideEffectsFlagSet()) {
-    stream->Add("*");
+OStream& operator<<(OStream& os, const ChangesOf& c) {
+  GVNFlagSet changes_flags = c.value->ChangesFlags();
+  if (changes_flags.IsEmpty()) return os;
+  os << " changes[";
+  if (changes_flags == c.value->AllSideEffectsFlagSet()) {
+    os << "*";
   } else {
     bool add_comma = false;
-#define PRINT_DO(Type)                      \
-    if (changes_flags.Contains(k##Type)) {  \
-      if (add_comma) stream->Add(",");      \
-      add_comma = true;                     \
-      stream->Add(#Type);                   \
-    }
+#define PRINT_DO(Type)                   \
+  if (changes_flags.Contains(k##Type)) { \
+    if (add_comma) os << ",";            \
+    add_comma = true;                    \
+    os << #Type;                         \
+  }
     GVN_TRACKED_FLAG_LIST(PRINT_DO);
     GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
 #undef PRINT_DO
   }
-  stream->Add("]");
-}
-
-
-void HValue::PrintNameTo(StringStream* stream) {
-  stream->Add("%s%d", representation_.Mnemonic(), id());
+  return os << "]";
 }
 
 
@@ -624,43 +615,32 @@ void HValue::ComputeInitialRange(Zone* zone) {
 }
 
 
-void HSourcePosition::PrintTo(FILE* out) {
-  if (IsUnknown()) {
-    PrintF(out, "<?>");
+OStream& operator<<(OStream& os, const HSourcePosition& p) {
+  if (p.IsUnknown()) {
+    return os << "<?>";
+  } else if (FLAG_hydrogen_track_positions) {
+    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
   } else {
-    if (FLAG_hydrogen_track_positions) {
-      PrintF(out, "<%d:%d>", inlining_id(), position());
-    } else {
-      PrintF(out, "<0:%d>", raw());
-    }
+    return os << "<0:" << p.raw() << ">";
   }
 }
 
 
-void HInstruction::PrintTo(StringStream* stream) {
-  PrintMnemonicTo(stream);
-  PrintDataTo(stream);
-  PrintChangesTo(stream);
-  PrintTypeTo(stream);
-  if (CheckFlag(HValue::kHasNoObservableSideEffects)) {
-    stream->Add(" [noOSE]");
-  }
-  if (CheckFlag(HValue::kIsDead)) {
-    stream->Add(" [dead]");
-  }
+OStream& HInstruction::PrintTo(OStream& os) const {  // NOLINT
+  os << Mnemonic() << " ";
+  PrintDataTo(os) << ChangesOf(this) << TypeOf(this);
+  if (CheckFlag(HValue::kHasNoObservableSideEffects)) os << " [noOSE]";
+  if (CheckFlag(HValue::kIsDead)) os << " [dead]";
+  return os;
 }
 
 
-void HInstruction::PrintDataTo(StringStream *stream) {
+OStream& HInstruction::PrintDataTo(OStream& os) const {  // NOLINT
   for (int i = 0; i < OperandCount(); ++i) {
-    if (i > 0) stream->Add(" ");
-    OperandAt(i)->PrintNameTo(stream);
+    if (i > 0) os << " ";
+    os << NameOf(OperandAt(i));
   }
-}
-
-
-void HInstruction::PrintMnemonicTo(StringStream* stream) {
-  stream->Add("%s ", Mnemonic());
+  return os;
 }
 
 
@@ -928,27 +908,28 @@ bool HInstruction::CanDeoptimize() {
 }
 
 
-void HDummyUse::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
+OStream& operator<<(OStream& os, const NameOf& v) {
+  return os << v.value->representation().Mnemonic() << v.value->id();
+}
+
+OStream& HDummyUse::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value());
 }
 
 
-void HEnvironmentMarker::PrintDataTo(StringStream* stream) {
-  stream->Add("%s var[%d]", kind() == BIND ? "bind" : "lookup", index());
+OStream& HEnvironmentMarker::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << (kind() == BIND ? "bind" : "lookup") << " var[" << index()
+            << "]";
 }
 
 
-void HUnaryCall::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" ");
-  stream->Add("#%d", argument_count());
+OStream& HUnaryCall::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value()) << " #" << argument_count();
 }
 
 
-void HCallJSFunction::PrintDataTo(StringStream* stream) {
-  function()->PrintNameTo(stream);
-  stream->Add(" ");
-  stream->Add("#%d", argument_count());
+OStream& HCallJSFunction::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(function()) << " #" << argument_count();
 }
 
 
@@ -974,14 +955,9 @@ HCallJSFunction* HCallJSFunction::New(
 }
 
 
-
-
-void HBinaryCall::PrintDataTo(StringStream* stream) {
-  first()->PrintNameTo(stream);
-  stream->Add(" ");
-  second()->PrintNameTo(stream);
-  stream->Add(" ");
-  stream->Add("#%d", argument_count());
+OStream& HBinaryCall::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(first()) << " " << NameOf(second()) << " #"
+            << argument_count();
 }
 
 
@@ -1035,22 +1011,19 @@ void HBoundsCheck::ApplyIndexChange() {
 }
 
 
-void HBoundsCheck::PrintDataTo(StringStream* stream) {
-  index()->PrintNameTo(stream);
-  stream->Add(" ");
-  length()->PrintNameTo(stream);
+OStream& HBoundsCheck::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(index()) << " " << NameOf(length());
   if (base() != NULL && (offset() != 0 || scale() != 0)) {
-    stream->Add(" base: ((");
+    os << " base: ((";
     if (base() != index()) {
-      index()->PrintNameTo(stream);
+      os << NameOf(index());
     } else {
-      stream->Add("index");
+      os << "index";
     }
-    stream->Add(" + %d) >> %d)", offset(), scale());
+    os << " + " << offset() << ") >> " << scale() << ")";
   }
-  if (skip_check()) {
-    stream->Add(" [DISABLED]");
-  }
+  if (skip_check()) os << " [DISABLED]";
+  return os;
 }
 
 
@@ -1093,91 +1066,78 @@ Range* HBoundsCheck::InferRange(Zone* zone) {
 }
 
 
-void HBoundsCheckBaseIndexInformation::PrintDataTo(StringStream* stream) {
-  stream->Add("base: ");
-  base_index()->PrintNameTo(stream);
-  stream->Add(", check: ");
-  base_index()->PrintNameTo(stream);
+OStream& HBoundsCheckBaseIndexInformation::PrintDataTo(
+    OStream& os) const {  // NOLINT
+  // TODO(svenpanne) This 2nd base_index() looks wrong...
+  return os << "base: " << NameOf(base_index())
+            << ", check: " << NameOf(base_index());
 }
 
 
-void HCallWithDescriptor::PrintDataTo(StringStream* stream) {
+OStream& HCallWithDescriptor::PrintDataTo(OStream& os) const {  // NOLINT
   for (int i = 0; i < OperandCount(); i++) {
-    OperandAt(i)->PrintNameTo(stream);
-    stream->Add(" ");
+    os << NameOf(OperandAt(i)) << " ";
   }
-  stream->Add("#%d", argument_count());
+  return os << "#" << argument_count();
 }
 
 
-void HCallNewArray::PrintDataTo(StringStream* stream) {
-  stream->Add(ElementsKindToString(elements_kind()));
-  stream->Add(" ");
-  HBinaryCall::PrintDataTo(stream);
+OStream& HCallNewArray::PrintDataTo(OStream& os) const {  // NOLINT
+  os << ElementsKindToString(elements_kind()) << " ";
+  return HBinaryCall::PrintDataTo(os);
 }
 
 
-void HCallRuntime::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
-  if (save_doubles() == kSaveFPRegs) {
-    stream->Add("[save doubles] ");
-  }
-  stream->Add("#%d", argument_count());
+OStream& HCallRuntime::PrintDataTo(OStream& os) const {  // NOLINT
+  os << name()->ToCString().get() << " ";
+  if (save_doubles() == kSaveFPRegs) os << "[save doubles] ";
+  return os << "#" << argument_count();
 }
 
 
-void HClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("class_of_test(");
-  value()->PrintNameTo(stream);
-  stream->Add(", \"%o\")", *class_name());
+OStream& HClassOfTestAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << "class_of_test(" << NameOf(value()) << ", \""
+            << class_name()->ToCString().get() << "\")";
 }
 
 
-void HWrapReceiver::PrintDataTo(StringStream* stream) {
-  receiver()->PrintNameTo(stream);
-  stream->Add(" ");
-  function()->PrintNameTo(stream);
+OStream& HWrapReceiver::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(receiver()) << " " << NameOf(function());
 }
 
 
-void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
-  arguments()->PrintNameTo(stream);
-  stream->Add("[");
-  index()->PrintNameTo(stream);
-  stream->Add("], length ");
-  length()->PrintNameTo(stream);
+OStream& HAccessArgumentsAt::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(arguments()) << "[" << NameOf(index()) << "], length "
+            << NameOf(length());
 }
 
 
-void HAllocateBlockContext::PrintDataTo(StringStream* stream) {
-  context()->PrintNameTo(stream);
-  stream->Add(" ");
-  function()->PrintNameTo(stream);
+OStream& HAllocateBlockContext::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(context()) << " " << NameOf(function());
 }
 
 
-void HControlInstruction::PrintDataTo(StringStream* stream) {
-  stream->Add(" goto (");
+OStream& HControlInstruction::PrintDataTo(OStream& os) const {  // NOLINT
+  os << " goto (";
   bool first_block = true;
   for (HSuccessorIterator it(this); !it.Done(); it.Advance()) {
-    stream->Add(first_block ? "B%d" : ", B%d", it.Current()->block_id());
+    if (!first_block) os << ", ";
+    os << *it.Current();
     first_block = false;
   }
-  stream->Add(")");
+  return os << ")";
 }
 
 
-void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
+OStream& HUnaryControlInstruction::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(value());
+  return HControlInstruction::PrintDataTo(os);
 }
 
 
-void HReturn::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" (pop ");
-  parameter_count()->PrintNameTo(stream);
-  stream->Add(" values)");
+OStream& HReturn::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value()) << " (pop " << NameOf(parameter_count())
+            << " values)";
 }
 
 
@@ -1221,23 +1181,21 @@ bool HBranch::KnownSuccessorBlock(HBasicBlock** block) {
 }
 
 
-void HBranch::PrintDataTo(StringStream* stream) {
-  HUnaryControlInstruction::PrintDataTo(stream);
-  OStringStream os;
-  os << " " << expected_input_types();
-  stream->Add(os.c_str());
+OStream& HBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  return HUnaryControlInstruction::PrintDataTo(os) << " "
+                                                   << expected_input_types();
 }
 
 
-void HCompareMap::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" (%p)", *map().handle());
-  HControlInstruction::PrintDataTo(stream);
+OStream& HCompareMap::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(value()) << " (" << *map().handle() << ")";
+  HControlInstruction::PrintDataTo(os);
   if (known_successor_index() == 0) {
-    stream->Add(" [true]");
+    os << " [true]";
   } else if (known_successor_index() == 1) {
-    stream->Add(" [false]");
+    os << " [false]";
   }
+  return os;
 }
 
 
@@ -1283,43 +1241,41 @@ Range* HUnaryMathOperation::InferRange(Zone* zone) {
 }
 
 
-void HUnaryMathOperation::PrintDataTo(StringStream* stream) {
-  const char* name = OpName();
-  stream->Add("%s ", name);
-  value()->PrintNameTo(stream);
+OStream& HUnaryMathOperation::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << OpName() << " " << NameOf(value());
 }
 
 
-void HUnaryOperation::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
+OStream& HUnaryOperation::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value());
 }
 
 
-void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
+OStream& HHasInstanceTypeAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(value());
   switch (from_) {
     case FIRST_JS_RECEIVER_TYPE:
-      if (to_ == LAST_TYPE) stream->Add(" spec_object");
+      if (to_ == LAST_TYPE) os << " spec_object";
       break;
     case JS_REGEXP_TYPE:
-      if (to_ == JS_REGEXP_TYPE) stream->Add(" reg_exp");
+      if (to_ == JS_REGEXP_TYPE) os << " reg_exp";
       break;
     case JS_ARRAY_TYPE:
-      if (to_ == JS_ARRAY_TYPE) stream->Add(" array");
+      if (to_ == JS_ARRAY_TYPE) os << " array";
       break;
     case JS_FUNCTION_TYPE:
-      if (to_ == JS_FUNCTION_TYPE) stream->Add(" function");
+      if (to_ == JS_FUNCTION_TYPE) os << " function";
       break;
     default:
       break;
   }
+  return os;
 }
 
 
-void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" == %o", *type_literal_.handle());
-  HControlInstruction::PrintDataTo(stream);
+OStream& HTypeofIsAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(value()) << " == " << type_literal()->ToCString().get();
+  return HControlInstruction::PrintDataTo(os);
 }
 
 
@@ -1371,10 +1327,8 @@ bool HTypeofIsAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
 }
 
 
-void HCheckMapValue::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" ");
-  map()->PrintNameTo(stream);
+OStream& HCheckMapValue::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value()) << " " << NameOf(map());
 }
 
 
@@ -1389,23 +1343,19 @@ HValue* HCheckMapValue::Canonicalize() {
 }
 
 
-void HForInPrepareMap::PrintDataTo(StringStream* stream) {
-  enumerable()->PrintNameTo(stream);
+OStream& HForInPrepareMap::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(enumerable());
 }
 
 
-void HForInCacheArray::PrintDataTo(StringStream* stream) {
-  enumerable()->PrintNameTo(stream);
-  stream->Add(" ");
-  map()->PrintNameTo(stream);
-  stream->Add("[%d]", idx_);
+OStream& HForInCacheArray::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(enumerable()) << " " << NameOf(map()) << "[" << idx_
+            << "]";
 }
 
 
-void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(" ");
-  index()->PrintNameTo(stream);
+OStream& HLoadFieldByIndex::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(object()) << " " << NameOf(index());
 }
 
 
@@ -1541,8 +1491,8 @@ HValue* HWrapReceiver::Canonicalize() {
 }
 
 
-void HTypeof::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
+OStream& HTypeof::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value());
 }
 
 
@@ -1566,20 +1516,20 @@ HInstruction* HForceRepresentation::New(Zone* zone, HValue* context,
 }
 
 
-void HForceRepresentation::PrintDataTo(StringStream* stream) {
-  stream->Add("%s ", representation().Mnemonic());
-  value()->PrintNameTo(stream);
+OStream& HForceRepresentation::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << representation().Mnemonic() << " " << NameOf(value());
 }
 
 
-void HChange::PrintDataTo(StringStream* stream) {
-  HUnaryOperation::PrintDataTo(stream);
-  stream->Add(" %s to %s", from().Mnemonic(), to().Mnemonic());
+OStream& HChange::PrintDataTo(OStream& os) const {  // NOLINT
+  HUnaryOperation::PrintDataTo(os);
+  os << " " << from().Mnemonic() << " to " << to().Mnemonic();
 
-  if (CanTruncateToSmi()) stream->Add(" truncating-smi");
-  if (CanTruncateToInt32()) stream->Add(" truncating-int32");
-  if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
-  if (CheckFlag(kAllowUndefinedAsNaN)) stream->Add(" allow-undefined-as-nan");
+  if (CanTruncateToSmi()) os << " truncating-smi";
+  if (CanTruncateToInt32()) os << " truncating-int32";
+  if (CheckFlag(kBailoutOnMinusZero)) os << " -0?";
+  if (CheckFlag(kAllowUndefinedAsNaN)) os << " allow-undefined-as-nan";
+  return os;
 }
 
 
@@ -1683,13 +1633,14 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMaps::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" [%p", *maps()->at(0).handle());
+OStream& HCheckMaps::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(value()) << " [" << *maps()->at(0).handle();
   for (int i = 1; i < maps()->size(); ++i) {
-    stream->Add(",%p", *maps()->at(i).handle());
+    os << "," << *maps()->at(i).handle();
   }
-  stream->Add("]%s", IsStabilityCheck() ? "(stability-check)" : "");
+  os << "]";
+  if (IsStabilityCheck()) os << "(stability-check)";
+  return os;
 }
 
 
@@ -1713,10 +1664,8 @@ HValue* HCheckMaps::Canonicalize() {
 }
 
 
-void HCheckValue::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(" ");
-  object().handle()->ShortPrint(stream);
+OStream& HCheckValue::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value()) << " " << Brief(*object().handle());
 }
 
 
@@ -1726,7 +1675,7 @@ HValue* HCheckValue::Canonicalize() {
 }
 
 
-const char* HCheckInstanceType::GetCheckName() {
+const char* HCheckInstanceType::GetCheckName() const {
   switch (check_) {
     case IS_SPEC_OBJECT: return "object";
     case IS_JS_ARRAY: return "array";
@@ -1738,34 +1687,30 @@ const char* HCheckInstanceType::GetCheckName() {
 }
 
 
-void HCheckInstanceType::PrintDataTo(StringStream* stream) {
-  stream->Add("%s ", GetCheckName());
-  HUnaryOperation::PrintDataTo(stream);
+OStream& HCheckInstanceType::PrintDataTo(OStream& os) const {  // NOLINT
+  os << GetCheckName() << " ";
+  return HUnaryOperation::PrintDataTo(os);
 }
 
 
-void HCallStub::PrintDataTo(StringStream* stream) {
-  stream->Add("%s ",
-              CodeStub::MajorName(major_key_, false));
-  HUnaryCall::PrintDataTo(stream);
+OStream& HCallStub::PrintDataTo(OStream& os) const {  // NOLINT
+  os << CodeStub::MajorName(major_key_, false) << " ";
+  return HUnaryCall::PrintDataTo(os);
 }
 
 
-void HUnknownOSRValue::PrintDataTo(StringStream *stream) {
+OStream& HUnknownOSRValue::PrintDataTo(OStream& os) const {  // NOLINT
   const char* type = "expression";
   if (environment_->is_local_index(index_)) type = "local";
   if (environment_->is_special_index(index_)) type = "special";
   if (environment_->is_parameter_index(index_)) type = "parameter";
-  stream->Add("%s @ %d", type, index_);
+  return os << type << " @ " << index_;
 }
 
 
-void HInstanceOf::PrintDataTo(StringStream* stream) {
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  stream->Add(" ");
-  context()->PrintNameTo(stream);
+OStream& HInstanceOf::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(left()) << " " << NameOf(right()) << " "
+            << NameOf(context());
 }
 
 
@@ -2478,22 +2423,17 @@ void HPushArguments::AddInput(HValue* value) {
 }
 
 
-void HPhi::PrintTo(StringStream* stream) {
-  stream->Add("[");
+OStream& HPhi::PrintTo(OStream& os) const {  // NOLINT
+  os << "[";
   for (int i = 0; i < OperandCount(); ++i) {
-    HValue* value = OperandAt(i);
-    stream->Add(" ");
-    value->PrintNameTo(stream);
-    stream->Add(" ");
+    os << " " << NameOf(OperandAt(i)) << " ";
   }
-  stream->Add(" uses:%d_%ds_%di_%dd_%dt",
-              UseCount(),
-              smi_non_phi_uses() + smi_indirect_uses(),
-              int32_non_phi_uses() + int32_indirect_uses(),
-              double_non_phi_uses() + double_indirect_uses(),
-              tagged_non_phi_uses() + tagged_indirect_uses());
-  PrintTypeTo(stream);
-  stream->Add("]");
+  return os << " uses:" << UseCount() << "_"
+            << smi_non_phi_uses() + smi_indirect_uses() << "s_"
+            << int32_non_phi_uses() + int32_indirect_uses() << "i_"
+            << double_non_phi_uses() + double_indirect_uses() << "d_"
+            << tagged_non_phi_uses() + tagged_indirect_uses() << "t"
+            << TypeOf(this) << "]";
 }
 
 
@@ -2615,21 +2555,22 @@ void HSimulate::MergeWith(ZoneList<HSimulate*>* list) {
 }
 
 
-void HSimulate::PrintDataTo(StringStream* stream) {
-  stream->Add("id=%d", ast_id().ToInt());
-  if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
+OStream& HSimulate::PrintDataTo(OStream& os) const {  // NOLINT
+  os << "id=" << ast_id().ToInt();
+  if (pop_count_ > 0) os << " pop " << pop_count_;
   if (values_.length() > 0) {
-    if (pop_count_ > 0) stream->Add(" /");
+    if (pop_count_ > 0) os << " /";
     for (int i = values_.length() - 1; i >= 0; --i) {
       if (HasAssignedIndexAt(i)) {
-        stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
+        os << " var[" << GetAssignedIndexAt(i) << "] = ";
       } else {
-        stream->Add(" push ");
+        os << " push ";
       }
-      values_[i]->PrintNameTo(stream);
-      if (i > 0) stream->Add(",");
+      os << NameOf(values_[i]);
+      if (i > 0) os << ",";
     }
   }
+  return os;
 }
 
 
@@ -2676,9 +2617,9 @@ void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
 }
 
 
-void HCapturedObject::PrintDataTo(StringStream* stream) {
-  stream->Add("#%d ", capture_id());
-  HDematerializedObject::PrintDataTo(stream);
+OStream& HCapturedObject::PrintDataTo(OStream& os) const {  // NOLINT
+  os << "#" << capture_id() << " ";
+  return HDematerializedObject::PrintDataTo(os);
 }
 
 
@@ -2689,9 +2630,9 @@ void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
 }
 
 
-void HEnterInlined::PrintDataTo(StringStream* stream) {
-  SmartArrayPointer<char> name = function()->debug_name()->ToCString();
-  stream->Add("%s, id=%d", name.get(), function()->id().ToInt());
+OStream& HEnterInlined::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << function()->debug_name()->ToCString().get()
+            << ", id=" << function()->id().ToInt();
 }
 
 
@@ -2972,36 +2913,30 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Zone* zone) {
 }
 
 
-void HConstant::PrintDataTo(StringStream* stream) {
+OStream& HConstant::PrintDataTo(OStream& os) const {  // NOLINT
   if (has_int32_value_) {
-    stream->Add("%d ", int32_value_);
+    os << int32_value_ << " ";
   } else if (has_double_value_) {
-    stream->Add("%f ", FmtElm(double_value_));
+    os << double_value_ << " ";
   } else if (has_external_reference_value_) {
-    stream->Add("%p ", reinterpret_cast<void*>(
-            external_reference_value_.address()));
+    os << reinterpret_cast<void*>(external_reference_value_.address()) << " ";
   } else {
-    handle(Isolate::Current())->ShortPrint(stream);
-    stream->Add(" ");
-    if (HasStableMapValue()) {
-      stream->Add("[stable-map] ");
-    }
-    if (HasObjectMap()) {
-      stream->Add("[map %p] ", *ObjectMap().handle());
-    }
+    // The handle() method is silently and lazily mutating the object.
+    Handle<Object> h = const_cast<HConstant*>(this)->handle(Isolate::Current());
+    os << Brief(*h) << " ";
+    if (HasStableMapValue()) os << "[stable-map] ";
+    if (HasObjectMap()) os << "[map " << *ObjectMap().handle() << "] ";
   }
-  if (!is_not_in_new_space_) {
-    stream->Add("[new space] ");
-  }
+  if (!is_not_in_new_space_) os << "[new space] ";
+  return os;
 }
 
 
-void HBinaryOperation::PrintDataTo(StringStream* stream) {
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  if (CheckFlag(kCanOverflow)) stream->Add(" !");
-  if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
+OStream& HBinaryOperation::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(left()) << " " << NameOf(right());
+  if (CheckFlag(kCanOverflow)) os << " !";
+  if (CheckFlag(kBailoutOnMinusZero)) os << " -0?";
+  return os;
 }
 
 
@@ -3224,35 +3159,27 @@ Range* HLoadKeyed::InferRange(Zone* zone) {
 }
 
 
-void HCompareGeneric::PrintDataTo(StringStream* stream) {
-  stream->Add(Token::Name(token()));
-  stream->Add(" ");
-  HBinaryOperation::PrintDataTo(stream);
+OStream& HCompareGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  os << Token::Name(token()) << " ";
+  return HBinaryOperation::PrintDataTo(os);
 }
 
 
-void HStringCompareAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add(Token::Name(token()));
-  stream->Add(" ");
-  HControlInstruction::PrintDataTo(stream);
+OStream& HStringCompareAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  os << Token::Name(token()) << " ";
+  return HControlInstruction::PrintDataTo(os);
 }
 
 
-void HCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add(Token::Name(token()));
-  stream->Add(" ");
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
+OStream& HCompareNumericAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  os << Token::Name(token()) << " " << NameOf(left()) << " " << NameOf(right());
+  return HControlInstruction::PrintDataTo(os);
 }
 
 
-void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
+OStream& HCompareObjectEqAndBranch::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(left()) << " " << NameOf(right());
+  return HControlInstruction::PrintDataTo(os);
 }
 
 
@@ -3390,9 +3317,8 @@ void HCompareMinusZeroAndBranch::InferRepresentation(
 }
 
 
-
-void HGoto::PrintDataTo(StringStream* stream) {
-  stream->Add("B%d", SuccessorAt(0)->block_id());
+OStream& HGoto::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << *SuccessorAt(0);
 }
 
 
@@ -3435,64 +3361,49 @@ void HCompareNumericAndBranch::InferRepresentation(
 }
 
 
-void HParameter::PrintDataTo(StringStream* stream) {
-  stream->Add("%u", index());
+OStream& HParameter::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << index();
 }
 
 
-void HLoadNamedField::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  access_.PrintTo(stream);
+OStream& HLoadNamedField::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(object()) << access_;
 
   if (maps() != NULL) {
-    stream->Add(" [%p", *maps()->at(0).handle());
+    os << " [" << *maps()->at(0).handle();
     for (int i = 1; i < maps()->size(); ++i) {
-      stream->Add(",%p", *maps()->at(i).handle());
+      os << "," << *maps()->at(i).handle();
     }
-    stream->Add("]");
+    os << "]";
   }
 
-  if (HasDependency()) {
-    stream->Add(" ");
-    dependency()->PrintNameTo(stream);
-  }
+  if (HasDependency()) os << " " << NameOf(dependency());
+  return os;
 }
 
 
-void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(".");
-  stream->Add(String::cast(*name())->ToCString().get());
+OStream& HLoadNamedGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  Handle<String> n = Handle<String>::cast(name());
+  return os << NameOf(object()) << "." << n->ToCString().get();
 }
 
 
-void HLoadKeyed::PrintDataTo(StringStream* stream) {
+OStream& HLoadKeyed::PrintDataTo(OStream& os) const {  // NOLINT
   if (!is_external()) {
-    elements()->PrintNameTo(stream);
+    os << NameOf(elements());
   } else {
     ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
            elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-    elements()->PrintNameTo(stream);
-    stream->Add(".");
-    stream->Add(ElementsKindToString(elements_kind()));
+    os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
 
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  if (IsDehoisted()) {
-    stream->Add(" + %d]", base_offset());
-  } else {
-    stream->Add("]");
-  }
+  os << "[" << NameOf(key());
+  if (IsDehoisted()) os << " + " << base_offset();
+  os << "]";
 
-  if (HasDependency()) {
-    stream->Add(" ");
-    dependency()->PrintNameTo(stream);
-  }
-
-  if (RequiresHoleCheck()) {
-    stream->Add(" check_hole");
-  }
+  if (HasDependency()) os << " " << NameOf(dependency());
+  if (RequiresHoleCheck()) os << " check_hole";
+  return os;
 }
 
 
@@ -3565,11 +3476,8 @@ bool HLoadKeyed::RequiresHoleCheck() const {
 }
 
 
-void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("]");
+OStream& HLoadKeyedGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(object()) << "[" << NameOf(key()) << "]";
 }
 
 
@@ -3610,79 +3518,60 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
 }
 
 
-void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add(".");
-  ASSERT(name()->IsString());
-  stream->Add(String::cast(*name())->ToCString().get());
-  stream->Add(" = ");
-  value()->PrintNameTo(stream);
+OStream& HStoreNamedGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  Handle<String> n = Handle<String>::cast(name());
+  return os << NameOf(object()) << "." << n->ToCString().get() << " = "
+            << NameOf(value());
 }
 
 
-void HStoreNamedField::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  access_.PrintTo(stream);
-  stream->Add(" = ");
-  value()->PrintNameTo(stream);
-  if (NeedsWriteBarrier()) {
-    stream->Add(" (write-barrier)");
-  }
-  if (has_transition()) {
-    stream->Add(" (transition map %p)", *transition_map());
-  }
+OStream& HStoreNamedField::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(object()) << access_ << " = " << NameOf(value());
+  if (NeedsWriteBarrier()) os << " (write-barrier)";
+  if (has_transition()) os << " (transition map " << *transition_map() << ")";
+  return os;
 }
 
 
-void HStoreKeyed::PrintDataTo(StringStream* stream) {
+OStream& HStoreKeyed::PrintDataTo(OStream& os) const {  // NOLINT
   if (!is_external()) {
-    elements()->PrintNameTo(stream);
+    os << NameOf(elements());
   } else {
-    elements()->PrintNameTo(stream);
-    stream->Add(".");
-    stream->Add(ElementsKindToString(elements_kind()));
     ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
            elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+    os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
 
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  if (IsDehoisted()) {
-    stream->Add(" + %d] = ", base_offset());
-  } else {
-    stream->Add("] = ");
-  }
-
-  value()->PrintNameTo(stream);
+  os << "[" << NameOf(key());
+  if (IsDehoisted()) os << " + " << base_offset();
+  return os << "] = " << NameOf(value());
 }
 
 
-void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
-  stream->Add("[");
-  key()->PrintNameTo(stream);
-  stream->Add("] = ");
-  value()->PrintNameTo(stream);
+OStream& HStoreKeyedGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(object()) << "[" << NameOf(key())
+            << "] = " << NameOf(value());
 }
 
 
-void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
-  object()->PrintNameTo(stream);
+OStream& HTransitionElementsKind::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(object());
   ElementsKind from_kind = original_map().handle()->elements_kind();
   ElementsKind to_kind = transitioned_map().handle()->elements_kind();
-  stream->Add(" %p [%s] -> %p [%s]",
-              *original_map().handle(),
-              ElementsAccessor::ForKind(from_kind)->name(),
-              *transitioned_map().handle(),
-              ElementsAccessor::ForKind(to_kind)->name());
-  if (IsSimpleMapChangeTransition(from_kind, to_kind)) stream->Add(" (simple)");
+  os << " " << *original_map().handle() << " ["
+     << ElementsAccessor::ForKind(from_kind)->name() << "] -> "
+     << *transitioned_map().handle() << " ["
+     << ElementsAccessor::ForKind(to_kind)->name() << "]";
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) os << " (simple)";
+  return os;
 }
 
 
-void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p]", *cell().handle());
-  if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
-  if (details_.IsReadOnly()) stream->Add(" (read-only)");
+OStream& HLoadGlobalCell::PrintDataTo(OStream& os) const {  // NOLINT
+  os << "[" << *cell().handle() << "]";
+  if (!details_.IsDontDelete()) os << " (deleteable)";
+  if (details_.IsReadOnly()) os << " (read-only)";
+  return os;
 }
 
 
@@ -3696,36 +3585,33 @@ bool HLoadGlobalCell::RequiresHoleCheck() const {
 }
 
 
-void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
-  stream->Add("%o ", *name());
+OStream& HLoadGlobalGeneric::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << name()->ToCString().get() << " ";
 }
 
 
-void HInnerAllocatedObject::PrintDataTo(StringStream* stream) {
-  base_object()->PrintNameTo(stream);
-  stream->Add(" offset ");
-  offset()->PrintTo(stream);
+OStream& HInnerAllocatedObject::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(base_object()) << " offset ";
+  return offset()->PrintTo(os);
 }
 
 
-void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
-  stream->Add("[%p] = ", *cell().handle());
-  value()->PrintNameTo(stream);
-  if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
-  if (details_.IsReadOnly()) stream->Add(" (read-only)");
+OStream& HStoreGlobalCell::PrintDataTo(OStream& os) const {  // NOLINT
+  os << "[" << *cell().handle() << "] = " << NameOf(value());
+  if (!details_.IsDontDelete()) os << " (deleteable)";
+  if (details_.IsReadOnly()) os << " (read-only)";
+  return os;
 }
 
 
-void HLoadContextSlot::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add("[%d]", slot_index());
+OStream& HLoadContextSlot::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(value()) << "[" << slot_index() << "]";
 }
 
 
-void HStoreContextSlot::PrintDataTo(StringStream* stream) {
-  context()->PrintNameTo(stream);
-  stream->Add("[%d] = ", slot_index());
-  value()->PrintNameTo(stream);
+OStream& HStoreContextSlot::PrintDataTo(OStream& os) const {  // NOLINT
+  return os << NameOf(context()) << "[" << slot_index()
+            << "] = " << NameOf(value());
 }
 
 
@@ -4078,15 +3964,14 @@ void HAllocate::ClearNextMapWord(int offset) {
 }
 
 
-void HAllocate::PrintDataTo(StringStream* stream) {
-  size()->PrintNameTo(stream);
-  stream->Add(" (");
-  if (IsNewSpaceAllocation()) stream->Add("N");
-  if (IsOldPointerSpaceAllocation()) stream->Add("P");
-  if (IsOldDataSpaceAllocation()) stream->Add("D");
-  if (MustAllocateDoubleAligned()) stream->Add("A");
-  if (MustPrefillWithFiller()) stream->Add("F");
-  stream->Add(")");
+OStream& HAllocate::PrintDataTo(OStream& os) const {  // NOLINT
+  os << NameOf(size()) << " (";
+  if (IsNewSpaceAllocation()) os << "N";
+  if (IsOldPointerSpaceAllocation()) os << "P";
+  if (IsOldDataSpaceAllocation()) os << "D";
+  if (MustAllocateDoubleAligned()) os << "A";
+  if (MustPrefillWithFiller()) os << "F";
+  return os << ")";
 }
 
 
@@ -4189,19 +4074,21 @@ HInstruction* HStringAdd::New(Zone* zone,
 }
 
 
-void HStringAdd::PrintDataTo(StringStream* stream) {
+OStream& HStringAdd::PrintDataTo(OStream& os) const {  // NOLINT
   if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
-    stream->Add("_CheckBoth");
+    os << "_CheckBoth";
   } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_LEFT) {
-    stream->Add("_CheckLeft");
+    os << "_CheckLeft";
   } else if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_RIGHT) {
-    stream->Add("_CheckRight");
+    os << "_CheckRight";
   }
-  HBinaryOperation::PrintDataTo(stream);
-  stream->Add(" (");
-  if (pretenure_flag() == NOT_TENURED) stream->Add("N");
-  else if (pretenure_flag() == TENURED) stream->Add("D");
-  stream->Add(")");
+  HBinaryOperation::PrintDataTo(os);
+  os << " (";
+  if (pretenure_flag() == NOT_TENURED)
+    os << "N";
+  else if (pretenure_flag() == TENURED)
+    os << "D";
+  return os << ")";
 }
 
 
@@ -4520,10 +4407,9 @@ HInstruction* HSeqStringGetChar::New(Zone* zone,
 #undef H_CONSTANT_DOUBLE
 
 
-void HBitwise::PrintDataTo(StringStream* stream) {
-  stream->Add(Token::Name(op_));
-  stream->Add(" ");
-  HBitwiseBinaryOperation::PrintDataTo(stream);
+OStream& HBitwise::PrintDataTo(OStream& os) const {  // NOLINT
+  os << Token::Name(op_) << " ";
+  return HBitwiseBinaryOperation::PrintDataTo(os);
 }
 
 
@@ -4852,39 +4738,39 @@ void HObjectAccess::SetGVNFlags(HValue *instr, PropertyAccessType access_type) {
 }
 
 
-void HObjectAccess::PrintTo(StringStream* stream) const {
-  stream->Add(".");
+OStream& operator<<(OStream& os, const HObjectAccess& access) {
+  os << ".";
 
-  switch (portion()) {
-    case kArrayLengths:
-    case kStringLengths:
-      stream->Add("%length");
+  switch (access.portion()) {
+    case HObjectAccess::kArrayLengths:
+    case HObjectAccess::kStringLengths:
+      os << "%length";
       break;
-    case kElementsPointer:
-      stream->Add("%elements");
+    case HObjectAccess::kElementsPointer:
+      os << "%elements";
       break;
-    case kMaps:
-      stream->Add("%map");
+    case HObjectAccess::kMaps:
+      os << "%map";
       break;
-    case kDouble:  // fall through
-    case kInobject:
-      if (!name_.is_null()) {
-        stream->Add(String::cast(*name_)->ToCString().get());
+    case HObjectAccess::kDouble:  // fall through
+    case HObjectAccess::kInobject:
+      if (!access.name().is_null()) {
+        os << Handle<String>::cast(access.name())->ToCString().get();
       }
-      stream->Add("[in-object]");
+      os << "[in-object]";
       break;
-    case kBackingStore:
-      if (!name_.is_null()) {
-        stream->Add(String::cast(*name_)->ToCString().get());
+    case HObjectAccess::kBackingStore:
+      if (!access.name().is_null()) {
+        os << Handle<String>::cast(access.name())->ToCString().get();
       }
-      stream->Add("[backing-store]");
+      os << "[backing-store]";
       break;
-    case kExternalMemory:
-      stream->Add("[external-memory]");
+    case HObjectAccess::kExternalMemory:
+      os << "[external-memory]";
       break;
   }
 
-  stream->Add("@%d", offset());
+  return os << "@" << access.offset();
 }
 
 } }  // namespace v8::internal

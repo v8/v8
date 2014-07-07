@@ -5555,7 +5555,7 @@ void SharedFunctionInfo::DontAdaptArguments() {
 }
 
 
-int SharedFunctionInfo::start_position() {
+int SharedFunctionInfo::start_position() const {
   return start_position_and_type() >> kStartPositionShift;
 }
 

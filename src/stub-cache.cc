@@ -687,7 +687,10 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
     code->set_major_key(CodeStub::NoCache);
   }
 #ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs) code->Disassemble(name);
+  if (FLAG_print_code_stubs) {
+    OFStream os(stdout);
+    code->Disassemble(name, os);
+  }
 #endif
   return code;
 }

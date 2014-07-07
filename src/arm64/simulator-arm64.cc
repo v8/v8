@@ -3344,17 +3344,18 @@ void Simulator::Debug() {
                  (strcmp(cmd, "po") == 0)) {
         if (argc == 2) {
           int64_t value;
+          OFStream os(stdout);
           if (GetValue(arg1, &value)) {
             Object* obj = reinterpret_cast<Object*>(value);
-            PrintF("%s: \n", arg1);
+            os << arg1 << ": \n";
 #ifdef DEBUG
-            obj->PrintLn();
+            obj->Print(os);
+            os << "\n";
 #else
-            obj->ShortPrint();
-            PrintF("\n");
+            os << Brief(obj) << "\n";
 #endif
           } else {
-            PrintF("%s unrecognized\n", arg1);
+            os << arg1 << " unrecognized\n";
           }
         } else {
           PrintF("printobject <value>\n"

@@ -1140,13 +1140,15 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      PrintDescriptors();
+      OFStream os(stdout);
+      PrintDescriptors(os);
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      PrintDescriptors();
+      OFStream os(stdout);
+      PrintDescriptors(os);
       return false;
     }
     current = hash;
@@ -1162,13 +1164,15 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   for (int i = 0; i < number_of_transitions(); i++) {
     Name* key = GetSortedKey(i);
     if (key == current_key) {
-      PrintTransitions();
+      OFStream os(stdout);
+      PrintTransitions(os);
       return false;
     }
     current_key = key;
     uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
-      PrintTransitions();
+      OFStream os(stdout);
+      PrintTransitions(os);
       return false;
     }
     current = hash;

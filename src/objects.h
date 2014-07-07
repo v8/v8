@@ -13,6 +13,7 @@
 #include "src/field-index.h"
 #include "src/flags.h"
 #include "src/list.h"
+#include "src/ostreams.h"
 #include "src/property-details.h"
 #include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
@@ -895,7 +896,7 @@ template <class C> inline bool Is(Object* obj);
 #endif
 
 #ifdef OBJECT_PRINT
-#define DECLARE_PRINTER(Name) void Name##Print(FILE* out = stdout);
+#define DECLARE_PRINTER(Name) void Name##Print(OStream& os);  // NOLINT
 #else
 #define DECLARE_PRINTER(Name)
 #endif
@@ -1565,6 +1566,9 @@ class Object {
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
 
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   DECLARE_CAST(Object)
 
   // Layout description.
@@ -1572,15 +1576,21 @@ class Object {
 
 #ifdef OBJECT_PRINT
   // Prints this object with details.
-  void Print();
-  void Print(FILE* out);
-  void PrintLn();
-  void PrintLn(FILE* out);
+  void Print(OStream& os);  // NOLINT
 #endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
+
+
+struct Brief {
+  explicit Brief(const Object* const v) : value(v) {}
+  const Object* value;
+};
+
+
+OStream& operator<<(OStream& os, const Brief& v);
 
 
 // Smi represents integer Numbers that can be stored in 31 bits.
@@ -1605,9 +1615,7 @@ class Smi: public Object {
   DECLARE_CAST(Smi)
 
   // Dispatched behavior.
-  void SmiPrint(FILE* out = stdout);
-  void SmiPrint(StringStream* accumulator);
-
+  void SmiPrint(OStream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
   static const int kMinValue =
@@ -1746,9 +1754,9 @@ class HeapObject: public Object {
       const DisallowHeapAllocation& promise);
 
   // Dispatched behavior.
-  void HeapObjectShortPrint(StringStream* accumulator);
+  void HeapObjectShortPrint(OStream& os);  // NOLINT
 #ifdef OBJECT_PRINT
-  void PrintHeader(FILE* out, const char* id);
+  void PrintHeader(OStream& os, const char* id);  // NOLINT
 #endif
   DECLARE_PRINTER(HeapObject)
   DECLARE_VERIFIER(HeapObject)
@@ -1835,8 +1843,7 @@ class HeapNumber: public HeapObject {
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
-  void HeapNumberPrint(FILE* out = stdout);
-  void HeapNumberPrint(StringStream* accumulator);
+  void HeapNumberPrint(OStream& os);  // NOLINT
   DECLARE_VERIFIER(HeapNumber)
 
   inline int get_exponent();
@@ -2534,9 +2541,9 @@ class JSObject: public JSReceiver {
   DECLARE_PRINTER(JSObject)
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  void PrintProperties(FILE* out = stdout);
-  void PrintElements(FILE* out = stdout);
-  void PrintTransitions(FILE* out = stdout);
+  void PrintProperties(OStream& os);   // NOLINT
+  void PrintElements(OStream& os);     // NOLINT
+  void PrintTransitions(OStream& os);  // NOLINT
 #endif
 
   static void PrintElementsTransition(
@@ -3539,7 +3546,7 @@ class DescriptorArray: public FixedArray {
 
 #ifdef OBJECT_PRINT
   // Print all the descriptors.
-  void PrintDescriptors(FILE* out = stdout);
+  void PrintDescriptors(OStream& os);  // NOLINT
 #endif
 
 #ifdef DEBUG
@@ -4064,7 +4071,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
 
 #ifdef OBJECT_PRINT
-  void Print(FILE* out = stdout);
+  void Print(OStream& os);  // NOLINT
 #endif
   // Returns the key (slow).
   Object* SlowReverseLookup(Object* value);
@@ -5351,7 +5358,7 @@ class DeoptimizationInputData: public FixedArray {
   DECLARE_CAST(DeoptimizationInputData)
 
 #ifdef ENABLE_DISASSEMBLER
-  void DeoptimizationInputDataPrint(FILE* out);
+  void DeoptimizationInputDataPrint(OStream& os);  // NOLINT
 #endif
 
  private:
@@ -5397,7 +5404,7 @@ class DeoptimizationOutputData: public FixedArray {
   DECLARE_CAST(DeoptimizationOutputData)
 
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-  void DeoptimizationOutputDataPrint(FILE* out);
+  void DeoptimizationOutputDataPrint(OStream& os);  // NOLINT
 #endif
 };
 
@@ -5463,8 +5470,9 @@ class Code: public HeapObject {
   // Printing
   static const char* ICState2String(InlineCacheState state);
   static const char* StubType2String(StubType type);
-  static void PrintExtraICState(FILE* out, Kind kind, ExtraICState extra);
-  void Disassemble(const char* name, FILE* out = stdout);
+  static void PrintExtraICState(OStream& os,  // NOLINT
+                                Kind kind, ExtraICState extra);
+  void Disassemble(const char* name, OStream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -7178,7 +7186,7 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_function_token_position(int function_token_position);
 
   // Position of this function in the script source.
-  inline int start_position();
+  inline int start_position() const;
   inline void set_start_position(int start_position);
 
   // End position of this function in the script source.
@@ -7288,7 +7296,7 @@ class SharedFunctionInfo: public HeapObject {
   bool VerifyBailoutId(BailoutId id);
 
   // [source code]: Source code for the function.
-  bool HasSourceCode();
+  bool HasSourceCode() const;
   Handle<Object> GetSourceCode();
 
   // Number of times the function was optimized.
@@ -7334,8 +7342,6 @@ class SharedFunctionInfo: public HeapObject {
   int CalculateInObjectProperties();
 
   // Dispatched behavior.
-  // Set max_length to -1 for unlimited length.
-  void SourceCodePrint(StringStream* accumulator, int max_length);
   DECLARE_PRINTER(SharedFunctionInfo)
   DECLARE_VERIFIER(SharedFunctionInfo)
 
@@ -7519,6 +7525,18 @@ class SharedFunctionInfo: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
+
+
+// Printing support.
+struct SourceCodeOf {
+  SourceCodeOf(SharedFunctionInfo* v, int max = -1)
+      : value(v), max_length(max) {}
+  const SharedFunctionInfo* value;
+  int max_length;
+};
+
+
+OStream& operator<<(OStream& os, const SourceCodeOf& v);
 
 
 class JSGeneratorObject: public JSObject {
@@ -9210,6 +9228,7 @@ class String: public Name {
 
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
+  void PrintUC16(OStream& os, int start = 0, int end = -1);  // NOLINT
 #ifdef OBJECT_PRINT
   char* ToAsciiArray();
 #endif
@@ -10122,7 +10141,7 @@ class OrderedHashTableIterator: public JSObject {
   DECL_ACCESSORS(kind, Smi)
 
 #ifdef OBJECT_PRINT
-  void OrderedHashTableIteratorPrint(FILE* out);
+  void OrderedHashTableIteratorPrint(OStream& os);  // NOLINT
 #endif
 
   static const int kTableOffset = JSObject::kHeaderSize;

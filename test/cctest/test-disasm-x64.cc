@@ -433,7 +433,8 @@ TEST(DisasmX64) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
   byte* begin = code->instruction_start();
   byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);

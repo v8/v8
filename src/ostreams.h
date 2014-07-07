@@ -116,6 +116,15 @@ class OFStream: public OStream {
   DISALLOW_COPY_AND_ASSIGN(OFStream);
 };
 
+
+// A wrapper to disambiguate uint16_t and uc16.
+struct AsUC16 {
+  explicit AsUC16(uint16_t v) : value(v) {}
+  uint16_t value;
+};
+
+
+OStream& operator<<(OStream& os, const AsUC16& c);
 } }  // namespace v8::internal
 
 #endif  // V8_OSTREAMS_H_

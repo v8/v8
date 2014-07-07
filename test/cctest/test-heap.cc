@@ -3054,8 +3054,9 @@ TEST(PrintSharedFunctionInfo) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("g"))));
 
-  DisallowHeapAllocation no_allocation;
-  g->shared()->PrintLn();
+  OFStream os(stdout);
+  g->shared()->Print(os);
+  os << endl;
 }
 #endif  // OBJECT_PRINT
 

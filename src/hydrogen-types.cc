@@ -52,16 +52,18 @@ HType HType::FromValue(Handle<Object> value) {
 }
 
 
-const char* HType::ToString() const {
+OStream& operator<<(OStream& os, const HType& t) {
   // Note: The c1visualizer syntax for locals allows only a sequence of the
   // following characters: A-Za-z0-9_-|:
-  switch (kind_) {
-    #define DEFINE_CASE(Name, mask) case k##Name: return #Name;
+  switch (t.kind_) {
+#define DEFINE_CASE(Name, mask) \
+  case HType::k##Name:          \
+    return os << #Name;
     HTYPE_LIST(DEFINE_CASE)
-    #undef DEFINE_CASE
+#undef DEFINE_CASE
   }
   UNREACHABLE();
-  return NULL;
+  return os;
 }
 
 } }  // namespace v8::internal

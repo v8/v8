@@ -214,6 +214,9 @@ class HBasicBlock V8_FINAL : public ZoneObject {
 };
 
 
+OStream& operator<<(OStream& os, const HBasicBlock& b);
+
+
 class HPredecessorIterator V8_FINAL BASE_EMBEDDED {
  public:
   explicit HPredecessorIterator(HBasicBlock* block)
@@ -698,9 +701,6 @@ class HEnvironment V8_FINAL : public ZoneObject {
     return i >= parameter_count() && i < parameter_count() + specials_count();
   }
 
-  void PrintTo(StringStream* stream);
-  void PrintToStd();
-
   Zone* zone() const { return zone_; }
 
  private:
@@ -740,6 +740,9 @@ class HEnvironment V8_FINAL : public ZoneObject {
   BailoutId ast_id_;
   Zone* zone_;
 };
+
+
+OStream& operator<<(OStream& os, const HEnvironment& env);
 
 
 class HOptimizedGraphBuilder;

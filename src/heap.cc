@@ -5953,17 +5953,17 @@ void PathTracer::UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor) {
 
 void PathTracer::ProcessResults() {
   if (found_target_) {
-    PrintF("=====================================\n");
-    PrintF("====        Path to object       ====\n");
-    PrintF("=====================================\n\n");
+    OFStream os(stdout);
+    os << "=====================================\n"
+       << "====        Path to object       ====\n"
+       << "=====================================\n\n";
 
     ASSERT(!object_stack_.is_empty());
     for (int i = 0; i < object_stack_.length(); i++) {
-      if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
-      Object* obj = object_stack_[i];
-      obj->Print();
+      if (i > 0) os << "\n     |\n     |\n     V\n\n";
+      object_stack_[i]->Print(os);
     }
-    PrintF("=====================================\n");
+    os << "=====================================\n";
   }
 }
 

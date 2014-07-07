@@ -65,11 +65,6 @@ const char* ElementsKindToString(ElementsKind kind) {
 }
 
 
-void PrintElementsKind(FILE* out, ElementsKind kind) {
-  PrintF(out, "%s", ElementsKindToString(kind));
-}
-
-
 ElementsKind GetInitialFastElementsKind() {
   if (FLAG_packed_arrays) {
     return FAST_SMI_ELEMENTS;
