@@ -4857,20 +4857,7 @@ bool Parser::Parse() {
     }
   } else {
     SetCachedData(info()->cached_data(), info()->cached_data_mode());
-    if (info()->cached_data_mode() == CONSUME_CACHED_DATA &&
-        (*info()->cached_data())->has_error()) {
-      ScriptData* cached_data = *(info()->cached_data());
-      Scanner::Location loc = cached_data->MessageLocation();
-      const char* message = cached_data->BuildMessage();
-      const char* arg = cached_data->BuildArg();
-      ParserTraits::ReportMessageAt(loc, message, arg,
-                                    cached_data->IsReferenceError());
-      DeleteArray(message);
-      DeleteArray(arg);
-      ASSERT(info()->isolate()->has_pending_exception());
-    } else {
-      result = ParseProgram();
-    }
+    result = ParseProgram();
   }
   info()->SetFunction(result);
   ASSERT(ast_value_factory_->IsInternalized());
