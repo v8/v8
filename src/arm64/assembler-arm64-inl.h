@@ -430,12 +430,14 @@ unsigned Operand::shift_amount() const {
 
 
 Operand Operand::UntagSmi(Register smi) {
+  STATIC_ASSERT((kSmiShift + kSmiValueSize) == kXRegSizeInBits);
   ASSERT(smi.Is64Bits());
   return Operand(smi, ASR, kSmiShift);
 }
 
 
 Operand Operand::UntagSmiAndScale(Register smi, int scale) {
+  STATIC_ASSERT((kSmiShift + kSmiValueSize) == kXRegSizeInBits);
   ASSERT(smi.Is64Bits());
   ASSERT((scale >= 0) && (scale <= (64 - kSmiValueSize)));
   if (scale > kSmiShift) {
