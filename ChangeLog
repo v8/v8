@@ -1,3 +1,10 @@
+2014-07-07: Version 3.28.15
+
+        Remove a bunch of Isolate::UncheckedCurrent calls.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-07: Version 3.28.14
 
         Use the HeapObjectIterator to scan-on-scavenge map pages (Chromium issue

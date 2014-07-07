@@ -2047,16 +2047,6 @@ void Isolate::Enter() {
     }
   }
 
-  // Threads can have default isolate set into TLS as Current but not yet have
-  // PerIsolateThreadData for it, as it requires more advanced phase of the
-  // initialization. For example, a thread might be the one that system used for
-  // static initializers - in this case the default isolate is set in TLS but
-  // the thread did not yet Enter the isolate. If PerisolateThreadData is not
-  // there, use the isolate set in TLS.
-  if (current_isolate == NULL) {
-    current_isolate = Isolate::UncheckedCurrent();
-  }
-
   PerIsolateThreadData* data = FindOrAllocatePerThreadDataForThisThread();
   ASSERT(data != NULL);
   ASSERT(data->isolate_ == this);
