@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class ChangesOf;
+struct ChangesOf;
 class HBasicBlock;
 class HDiv;
 class HEnvironment;
