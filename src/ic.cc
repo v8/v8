@@ -607,9 +607,11 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
       } else if (state() == PREMONOMORPHIC) {
         FunctionPrototypeStub function_prototype_stub(isolate(), kind());
         stub = function_prototype_stub.GetCode();
-      } else if (state() != MEGAMORPHIC) {
+      } else if (!FLAG_compiled_keyed_generic_loads && state() != MEGAMORPHIC) {
         ASSERT(state() != GENERIC);
         stub = megamorphic_stub();
+      } else if (FLAG_compiled_keyed_generic_loads && state() != GENERIC) {
+        stub = generic_stub();
       }
       if (!stub.is_null()) {
         set_target(*stub);
@@ -834,6 +836,10 @@ void IC::PatchCache(Handle<HeapType> type,
         if (UpdatePolymorphicIC(type, name, code)) break;
         CopyICToMegamorphicCache(name);
       }
+      if (FLAG_compiled_keyed_generic_loads && (kind() == Code::LOAD_IC)) {
+        set_target(*generic_stub());
+        break;
+      }
       set_target(*megamorphic_stub());
       // Fall through.
     case MEGAMORPHIC:
@@ -862,6 +868,11 @@ Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
 
 Handle<Code> LoadIC::megamorphic_stub() {
   return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
+}
+
+
+Handle<Code> LoadIC::generic_stub() const {
+  return KeyedLoadGenericElementStub(isolate()).GetCode();
 }
 
 

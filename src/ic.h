@@ -464,6 +464,7 @@ class LoadIC: public IC {
   }
 
   virtual Handle<Code> megamorphic_stub();
+  virtual Handle<Code> generic_stub() const;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
