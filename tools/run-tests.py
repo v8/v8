@@ -171,6 +171,9 @@ def BuildOptions():
                     help="Comma-separated list of testing variants")
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
+  result.add_option("--predictable",
+                    help="Compare output of several reruns of each test",
+                    default=False, action="store_true")
   result.add_option("-p", "--progress",
                     help=("The style of progress indicator"
                           " (verbose, dots, color, mono)"),
@@ -301,6 +304,11 @@ def ProcessOptions(options):
     options.flaky_tests = "skip"
     options.slow_tests = "skip"
     options.pass_fail_tests = "skip"
+  if options.predictable:
+    VARIANTS = ["default"]
+    options.extra_flags.append("--predictable")
+    options.extra_flags.append("--verify_predictable")
+    options.extra_flags.append("--no-inline-new")
 
   if not options.shell_dir:
     if options.shell:
@@ -416,6 +424,11 @@ def Execute(arch, mode, args, options, suites, workspace):
       timeout = TIMEOUT_DEFAULT;
 
   timeout *= TIMEOUT_SCALEFACTOR[mode]
+
+  if options.predictable:
+    # Predictable mode is slower.
+    timeout *= 2
+
   ctx = context.Context(arch, mode, shell_dir,
                         mode_flags, options.verbose,
                         timeout, options.isolates,
@@ -425,7 +438,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.random_seed,
                         options.no_sorting,
                         options.rerun_failures_count,
-                        options.rerun_failures_max)
+                        options.rerun_failures_max,
+                        options.predictable)
 
   # TODO(all): Combine "simulator" and "simulator_run".
   simulator_run = not options.dont_skip_simulator_slow_tests and \
