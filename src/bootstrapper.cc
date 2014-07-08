@@ -769,16 +769,17 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = Handle<Code>(isolate()->builtins()->builtin(
         Builtins::kIllegal));
-    js_global_object_function = factory()->NewFunction(
-        name, code, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
-    // Change the constructor property of the prototype of the
-    // hidden global function to refer to the Object function.
     Handle<JSObject> prototype =
-        Handle<JSObject>(
-            JSObject::cast(js_global_object_function->instance_prototype()));
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        prototype, factory()->constructor_string(),
-        isolate()->object_function(), NONE).Check();
+        factory()->NewFunctionPrototype(isolate()->object_function());
+    js_global_object_function = factory()->NewFunction(
+        name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
+#ifdef DEBUG
+    LookupIterator it(prototype, factory()->constructor_string(),
+                      LookupIterator::CHECK_OWN_REAL);
+    Handle<Object> value = JSReceiver::GetProperty(&it).ToHandleChecked();
+    ASSERT(it.IsFound());
+    ASSERT_EQ(*isolate()->object_function(), *value);
+#endif
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
         FunctionTemplateInfo::cast(js_global_object_template->constructor()));
@@ -1133,80 +1134,57 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
                   isolate->initial_object_prototype(), Builtins::kIllegal);
 
-  {  // --- arguments_boilerplate_
+  {  // --- sloppy arguments map
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("Arguments"));
     Handle<Code> code(isolate->builtins()->builtin(Builtins::kIllegal));
-
     Handle<JSFunction> function = factory->NewFunctionWithoutPrototype(
         arguments_string, code);
-    ASSERT(!function->has_initial_map());
     function->shared()->set_instance_class_name(*arguments_string);
-    function->shared()->set_expected_nof_properties(2);
-    function->set_prototype_or_initial_map(
-        native_context()->object_function()->prototype());
-    Handle<JSObject> result = factory->NewJSObject(function);
 
-    native_context()->set_sloppy_arguments_boilerplate(*result);
-    // Note: length must be added as the first property and
-    //       callee must be added as the second property.
-    JSObject::AddProperty(
-        result, factory->length_string(),
-        factory->undefined_value(), DONT_ENUM,
-        Object::FORCE_TAGGED, FORCE_FIELD);
-    JSObject::AddProperty(
-        result, factory->callee_string(),
-        factory->undefined_value(), DONT_ENUM,
-        Object::FORCE_TAGGED, FORCE_FIELD);
+    Handle<Map> map =
+        factory->NewMap(JS_OBJECT_TYPE, Heap::kSloppyArgumentsObjectSize);
+    // Create the descriptor array for the arguments object.
+    Map::EnsureDescriptorSlack(map, 2);
 
-#ifdef DEBUG
-    LookupResult lookup(isolate);
-    result->LookupOwn(factory->callee_string(), &lookup);
-    ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().property_index() ==
-           Heap::kArgumentsCalleeIndex);
+    {  // length
+      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                        DONT_ENUM, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+    {  // callee
+      FieldDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
+                        DONT_ENUM, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
 
-    result->LookupOwn(factory->length_string(), &lookup);
-    ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().property_index() ==
-           Heap::kArgumentsLengthIndex);
+    map->set_function_with_prototype(true);
+    map->set_prototype(native_context()->object_function()->prototype());
+    map->set_pre_allocated_property_fields(2);
+    map->set_inobject_properties(2);
+    native_context()->set_sloppy_arguments_map(*map);
 
-    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsCalleeIndex);
-    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
+    ASSERT(!function->has_initial_map());
+    function->set_initial_map(*map);
+    map->set_constructor(*function);
 
-    // Check the state of the object.
-    ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastObjectElements());
-#endif
+    ASSERT(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
+    ASSERT(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    ASSERT(!map->is_dictionary_map());
+    ASSERT(IsFastObjectElementsKind(map->elements_kind()));
   }
 
-  {  // --- aliased_arguments_boilerplate_
-    // Set up a well-formed parameter map to make assertions happy.
-    Handle<FixedArray> elements = factory->NewFixedArray(2);
-    elements->set_map(heap->sloppy_arguments_elements_map());
-    Handle<FixedArray> array;
-    array = factory->NewFixedArray(0);
-    elements->set(0, *array);
-    array = factory->NewFixedArray(0);
-    elements->set(1, *array);
-
-    Handle<Map> old_map(
-        native_context()->sloppy_arguments_boilerplate()->map());
-    Handle<Map> new_map = Map::Copy(old_map);
-    new_map->set_pre_allocated_property_fields(2);
-    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
-    // Set elements kind after allocating the object because
-    // NewJSObjectFromMap assumes a fast elements map.
-    new_map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
-    result->set_elements(*elements);
-    ASSERT(result->HasSloppyArgumentsElements());
-    native_context()->set_aliased_arguments_boilerplate(*result);
+  {  // --- aliased arguments map
+    Handle<Map> map = Map::Copy(isolate->sloppy_arguments_map());
+    map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
+    ASSERT_EQ(2, map->pre_allocated_property_fields());
+    native_context()->set_aliased_arguments_map(*map);
   }
 
-  {  // --- strict mode arguments boilerplate
+  {  // --- strict mode arguments map
     const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
@@ -1229,20 +1207,16 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 3);
 
     {  // length
-      FieldDescriptor d(
-          factory->length_string(), 0, DONT_ENUM, Representation::Tagged());
+      FieldDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
+                        DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      CallbacksDescriptor d(factory->callee_string(),
-                            callee,
-                            attributes);
+      CallbacksDescriptor d(factory->callee_string(), callee, attributes);
       map->AppendDescriptor(&d);
     }
     {  // caller
-      CallbacksDescriptor d(factory->caller_string(),
-                            caller,
-                            attributes);
+      CallbacksDescriptor d(factory->caller_string(), caller, attributes);
       map->AppendDescriptor(&d);
     }
 
@@ -1253,29 +1227,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     // Copy constructor from the sloppy arguments boilerplate.
     map->set_constructor(
-      native_context()->sloppy_arguments_boilerplate()->map()->constructor());
+        native_context()->sloppy_arguments_map()->constructor());
 
-    // Allocate the arguments boilerplate object.
-    Handle<JSObject> result = factory->NewJSObjectFromMap(map);
-    native_context()->set_strict_arguments_boilerplate(*result);
+    native_context()->set_strict_arguments_map(*map);
 
-#ifdef DEBUG
-    LookupResult lookup(isolate);
-    result->LookupOwn(factory->length_string(), &lookup);
-    ASSERT(lookup.IsField());
-    ASSERT(lookup.GetFieldIndex().property_index() ==
-           Heap::kArgumentsLengthIndex);
-
-    Handle<Object> length_value = Object::GetProperty(
-        result, factory->length_string()).ToHandleChecked();
-    ASSERT_EQ(heap->undefined_value(), *length_value);
-
-    ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);
-
-    // Check the state of the object.
-    ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastObjectElements());
-#endif
+    ASSERT(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    ASSERT(!map->is_dictionary_map());
+    ASSERT(IsFastObjectElementsKind(map->elements_kind()));
   }
 
   {  // --- context extension
@@ -2192,33 +2150,27 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
 
 bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Isolate* isolate = native_context->GetIsolate();
+  // Don't install extensions into the snapshot.
+  if (isolate->serializer_enabled()) return true;
+
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context->global_object()));
+
+  Handle<JSObject> Error = Handle<JSObject>::cast(
+      Object::GetProperty(isolate, global, "Error").ToHandleChecked());
+  Handle<String> name =
+      factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("stackTraceLimit"));
+  Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
+  JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
+
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives =
         factory->InternalizeUtf8String(FLAG_expose_natives_as);
-    RETURN_ON_EXCEPTION_VALUE(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            global, natives, Handle<JSObject>(global->builtins()), DONT_ENUM),
-        false);
-  }
-
-  Handle<Object> Error = Object::GetProperty(
-      isolate, global, "Error").ToHandleChecked();
-  if (Error->IsJSObject()) {
-    Handle<String> name = factory->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("stackTraceLimit"));
-    Handle<Smi> stack_trace_limit(
-        Smi::FromInt(FLAG_stack_trace_limit), isolate);
-    RETURN_ON_EXCEPTION_VALUE(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            Handle<JSObject>::cast(Error), name, stack_trace_limit, NONE),
-        false);
+    JSObject::AddProperty(global, natives, handle(global->builtins()),
+                          DONT_ENUM);
   }
 
   // Expose the stack trace symbol to native JS.
@@ -2246,11 +2198,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     Handle<String> debug_string =
         factory->InternalizeUtf8String(FLAG_expose_debug_as);
     Handle<Object> global_proxy(debug_context->global_proxy(), isolate);
-    RETURN_ON_EXCEPTION_VALUE(
-        isolate,
-        JSObject::SetOwnPropertyIgnoreAttributes(
-            global, debug_string, global_proxy, DONT_ENUM),
-        false);
+    JSObject::AddProperty(global, debug_string, global_proxy, DONT_ENUM);
   }
   return true;
 }

@@ -19,64 +19,46 @@ void LookupResult::Iterate(ObjectVisitor* visitor) {
 }
 
 
-#ifdef OBJECT_PRINT
-void LookupResult::Print(FILE* out) {
-  OFStream os(out);
-  if (!IsFound()) {
-    os << "Not Found\n";
-    return;
-  }
+OStream& operator<<(OStream& os, const LookupResult& r) {
+  if (!r.IsFound()) return os << "Not Found\n";
 
   os << "LookupResult:\n";
-  os << " -cacheable = " << (IsCacheable() ? "true" : "false") << "\n";
-  os << " -attributes = " << hex << GetAttributes() << dec << "\n";
-  if (IsTransition()) {
-    os << " -transition target:\n";
-    GetTransitionTarget()->Print(out);
-    os << "\n";
+  os << " -cacheable = " << (r.IsCacheable() ? "true" : "false") << "\n";
+  os << " -attributes = " << hex << r.GetAttributes() << dec << "\n";
+  if (r.IsTransition()) {
+    os << " -transition target:\n" << Brief(r.GetTransitionTarget()) << "\n";
   }
-  switch (type()) {
+  switch (r.type()) {
     case NORMAL:
-      os << " -type = normal\n"
-         << " -entry = " << GetDictionaryEntry() << "\n";
-      break;
+      return os << " -type = normal\n"
+                << " -entry = " << r.GetDictionaryEntry() << "\n";
     case CONSTANT:
-      os << " -type = constant\n"
-         << " -value:\n";
-      GetConstant()->Print(out);
-      os << "\n";
-      break;
+      return os << " -type = constant\n"
+                << " -value:\n" << Brief(r.GetConstant()) << "\n";
     case FIELD:
       os << " -type = field\n"
-         << " -index = " << GetFieldIndex().property_index() << "\n"
+         << " -index = " << r.GetFieldIndex().property_index() << "\n"
          << " -field type:";
-      GetFieldType()->PrintTo(os);
-      os << "\n";
-      break;
+      r.GetFieldType()->PrintTo(os);
+      return os << "\n";
     case CALLBACKS:
-      os << " -type = call backs\n"
-         << " -callback object:\n";
-      GetCallbackObject()->Print(out);
-      break;
+      return os << " -type = call backs\n"
+                << " -callback object:\n" << Brief(r.GetCallbackObject());
     case HANDLER:
-      os << " -type = lookup proxy\n";
-      break;
+      return os << " -type = lookup proxy\n";
     case INTERCEPTOR:
-      os << " -type = lookup interceptor\n";
-      break;
+      return os << " -type = lookup interceptor\n";
     case NONEXISTENT:
       UNREACHABLE();
       break;
   }
+  return os;
 }
 
 
-void Descriptor::Print(FILE* out) {
-  PrintF(out, "Descriptor ");
-  GetKey()->ShortPrint(out);
-  PrintF(out, " @ ");
-  GetValue()->ShortPrint(out);
+OStream& operator<<(OStream& os, const Descriptor& d) {
+  return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
+            << Brief(*d.GetValue());
 }
-#endif
 
 } }  // namespace v8::internal

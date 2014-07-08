@@ -8,6 +8,7 @@
 #include <climits>
 
 #include "src/base/macros.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -64,7 +65,7 @@ class HType V8_FINAL {
   static HType FromType(typename T::TypeHandle type) V8_WARN_UNUSED_RESULT;
   static HType FromValue(Handle<Object> value) V8_WARN_UNUSED_RESULT;
 
-  const char* ToString() const V8_WARN_UNUSED_RESULT;
+  friend OStream& operator<<(OStream& os, const HType& t);
 
  private:
   enum Kind {
@@ -82,6 +83,8 @@ class HType V8_FINAL {
   int16_t kind_;
 };
 
+
+OStream& operator<<(OStream& os, const HType& t);
 } }  // namespace v8::internal
 
 #endif  // HYDROGEN_TYPES_H_

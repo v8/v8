@@ -5,9 +5,10 @@
 #ifndef V8_HYDROGEN_GVN_H_
 #define V8_HYDROGEN_GVN_H_
 
+#include "src/compiler.h"
 #include "src/hydrogen.h"
 #include "src/hydrogen-instructions.h"
-#include "src/compiler.h"
+#include "src/ostreams.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -38,7 +39,6 @@ class SideEffects V8_FINAL {
   void RemoveFlag(GVNFlag flag) { bits_ &= ~MaskFlag(flag); }
   void RemoveAll() { bits_ = 0; }
   uint64_t ToIntegral() const { return bits_; }
-  void PrintTo(StringStream* stream) const;
 
  private:
   uint64_t MaskFlag(GVNFlag flag) const {
@@ -55,6 +55,8 @@ class SideEffects V8_FINAL {
 };
 
 
+struct TrackedEffects;
+
 // Tracks global variable and inobject field loads/stores in a fine grained
 // fashion, and represents them using the "special" dynamic side effects of the
 // SideEffects class (see above). This way unrelated global variable/inobject
@@ -65,9 +67,9 @@ class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
   SideEffectsTracker() : num_global_vars_(0), num_inobject_fields_(0) {}
   SideEffects ComputeChanges(HInstruction* instr);
   SideEffects ComputeDependsOn(HInstruction* instr);
-  void PrintSideEffectsTo(StringStream* stream, SideEffects side_effects) const;
 
  private:
+  friend OStream& operator<<(OStream& os, const TrackedEffects& f);
   bool ComputeGlobalVar(Unique<Cell> cell, int* index);
   bool ComputeInobjectField(HObjectAccess access, int* index);
 
@@ -95,6 +97,18 @@ class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
 };
 
 
+// Helper class for printing, because the effects don't know their tracker.
+struct TrackedEffects {
+  TrackedEffects(SideEffectsTracker* t, SideEffects e)
+      : tracker(t), effects(e) {}
+  SideEffectsTracker* tracker;
+  SideEffects effects;
+};
+
+
+OStream& operator<<(OStream& os, const TrackedEffects& f);
+
+
 // Perform common subexpression elimination and loop-invariant code motion.
 class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
  public:
@@ -114,6 +128,9 @@ class HGlobalValueNumberingPhase V8_FINAL : public HPhase {
                         SideEffects loop_kills);
   bool AllowCodeMotion();
   bool ShouldMove(HInstruction* instr, HBasicBlock* loop_header);
+  TrackedEffects Print(SideEffects side_effects) {
+    return TrackedEffects(&side_effects_tracker_, side_effects);
+  }
 
   SideEffectsTracker side_effects_tracker_;
   bool removed_side_effects_;

@@ -9,8 +9,7 @@
 
 #include "src/assembler.h"
 #include "src/base/platform/platform.h"
-#include "src/smart-pointers.h"
-#include "src/string-stream.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -182,41 +181,39 @@ static const char* Type2String(Flag::FlagType type) {
 }
 
 
-static SmartArrayPointer<const char> ToString(Flag* flag) {
-  HeapStringAllocator string_allocator;
-  StringStream buffer(&string_allocator);
-  switch (flag->type()) {
+OStream& operator<<(OStream& os, const Flag& flag) {  // NOLINT
+  switch (flag.type()) {
     case Flag::TYPE_BOOL:
-      buffer.Add("%s", (*flag->bool_variable() ? "true" : "false"));
+      os << (*flag.bool_variable() ? "true" : "false");
       break;
     case Flag::TYPE_MAYBE_BOOL:
-      buffer.Add("%s", flag->maybe_bool_variable()->has_value
-                       ? (flag->maybe_bool_variable()->value ? "true" : "false")
-                       : "unset");
+      os << (flag.maybe_bool_variable()->has_value
+                 ? (flag.maybe_bool_variable()->value ? "true" : "false")
+                 : "unset");
       break;
     case Flag::TYPE_INT:
-      buffer.Add("%d", *flag->int_variable());
+      os << *flag.int_variable();
       break;
     case Flag::TYPE_FLOAT:
-      buffer.Add("%f", FmtElm(*flag->float_variable()));
+      os << *flag.float_variable();
       break;
     case Flag::TYPE_STRING: {
-      const char* str = flag->string_value();
-      buffer.Add("%s", str ? str : "NULL");
+      const char* str = flag.string_value();
+      os << (str ? str : "NULL");
       break;
     }
     case Flag::TYPE_ARGS: {
-      JSArguments args = *flag->args_variable();
+      JSArguments args = *flag.args_variable();
       if (args.argc > 0) {
-        buffer.Add("%s",  args[0]);
+        os << args[0];
         for (int i = 1; i < args.argc; i++) {
-          buffer.Add(" %s", args[i]);
+          os << args[i];
         }
       }
       break;
     }
   }
-  return buffer.ToCString();
+  return os;
 }
 
 
@@ -232,24 +229,23 @@ List<const char*>* FlagList::argv() {
         args_flag = f;  // Must be last in arguments.
         continue;
       }
-      HeapStringAllocator string_allocator;
-      StringStream buffer(&string_allocator);
-      if (f->type() != Flag::TYPE_BOOL || *(f->bool_variable())) {
-        buffer.Add("--%s", f->name());
-      } else {
-        buffer.Add("--no%s", f->name());
+      {
+        bool disabled = f->type() == Flag::TYPE_BOOL && !*f->bool_variable();
+        OStringStream os;
+        os << (disabled ? "--no" : "--") << f->name();
+        args->Add(StrDup(os.c_str()));
       }
-      args->Add(buffer.ToCString().Detach());
       if (f->type() != Flag::TYPE_BOOL) {
-        args->Add(ToString(f).Detach());
+        OStringStream os;
+        os << *f;
+        args->Add(StrDup(os.c_str()));
       }
     }
   }
   if (args_flag != NULL) {
-    HeapStringAllocator string_allocator;
-    StringStream buffer(&string_allocator);
-    buffer.Add("--%s", args_flag->name());
-    args->Add(buffer.ToCString().Detach());
+    OStringStream os;
+    os << "--" << args_flag->name();
+    args->Add(StrDup(os.c_str()));
     JSArguments jsargs = *args_flag->args_variable();
     for (int j = 0; j < jsargs.argc; j++) {
       args->Add(StrDup(jsargs[j]));
@@ -521,24 +517,25 @@ void FlagList::PrintHelp() {
   CpuFeatures::PrintTarget();
   CpuFeatures::PrintFeatures();
 
-  printf("Usage:\n");
-  printf("  shell [options] -e string\n");
-  printf("    execute string in V8\n");
-  printf("  shell [options] file1 file2 ... filek\n");
-  printf("    run JavaScript scripts in file1, file2, ..., filek\n");
-  printf("  shell [options]\n");
-  printf("  shell [options] --shell [file1 file2 ... filek]\n");
-  printf("    run an interactive JavaScript shell\n");
-  printf("  d8 [options] file1 file2 ... filek\n");
-  printf("  d8 [options]\n");
-  printf("  d8 [options] --shell [file1 file2 ... filek]\n");
-  printf("    run the new debugging shell\n\n");
-  printf("Options:\n");
+  OFStream os(stdout);
+  os << "Usage:\n"
+     << "  shell [options] -e string\n"
+     << "    execute string in V8\n"
+     << "  shell [options] file1 file2 ... filek\n"
+     << "    run JavaScript scripts in file1, file2, ..., filek\n"
+     << "  shell [options]\n"
+     << "  shell [options] --shell [file1 file2 ... filek]\n"
+     << "    run an interactive JavaScript shell\n"
+     << "  d8 [options] file1 file2 ... filek\n"
+     << "  d8 [options]\n"
+     << "  d8 [options] --shell [file1 file2 ... filek]\n"
+     << "    run the new debugging shell\n\n"
+     << "Options:\n";
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
-    SmartArrayPointer<const char> value = ToString(f);
-    printf("  --%s (%s)\n        type: %s  default: %s\n",
-           f->name(), f->comment(), Type2String(f->type()), value.get());
+    os << "  --" << f->name() << " (" << f->comment() << ")\n"
+       << "        type: " << Type2String(f->type()) << "  default: " << *f
+       << "\n";
   }
 }
 

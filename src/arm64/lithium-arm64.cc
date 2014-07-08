@@ -284,7 +284,9 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  hydrogen()->access().PrintTo(stream);
+  OStringStream os;
+  os << hydrogen()->access();
+  stream->Add(os.c_str());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }

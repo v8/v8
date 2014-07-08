@@ -689,7 +689,8 @@ TEST(AssemblerX64Extractps) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F3 f = FUNCTION_CAST<F3>(code->entry());
@@ -727,7 +728,8 @@ TEST(AssemblerX64SSE) {
       Code::ComputeFlags(Code::STUB),
       Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F6 f = FUNCTION_CAST<F6>(code->entry());

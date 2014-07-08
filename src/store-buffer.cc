@@ -403,20 +403,6 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
 }
 
 
-// Compute start address of the first map following given addr.
-static inline Address MapStartAlign(Address addr) {
-  Address page = Page::FromAddress(addr)->area_start();
-  return page + (((addr - page) + (Map::kSize - 1)) / Map::kSize * Map::kSize);
-}
-
-
-// Compute end address of the first map preceding given addr.
-static inline Address MapEndAlign(Address addr) {
-  Address page = Page::FromAllocationTop(addr)->area_start();
-  return page + ((addr - page) / Map::kSize * Map::kSize);
-}
-
-
 void StoreBuffer::IteratePointersInStoreBuffer(
     ObjectSlotCallback slot_callback,
     bool clear_maps) {

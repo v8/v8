@@ -400,20 +400,20 @@ SideEffects SideEffectsTracker::ComputeDependsOn(HInstruction* instr) {
 }
 
 
-void SideEffectsTracker::PrintSideEffectsTo(StringStream* stream,
-                                          SideEffects side_effects) const {
+OStream& operator<<(OStream& os, const TrackedEffects& te) {
+  SideEffectsTracker* t = te.tracker;
   const char* separator = "";
-  stream->Add("[");
+  os << "[";
   for (int bit = 0; bit < kNumberOfFlags; ++bit) {
     GVNFlag flag = GVNFlagFromInt(bit);
-    if (side_effects.ContainsFlag(flag)) {
-      stream->Add(separator);
+    if (te.effects.ContainsFlag(flag)) {
+      os << separator;
       separator = ", ";
       switch (flag) {
-#define DECLARE_FLAG(Type)      \
-        case k##Type:           \
-          stream->Add(#Type);   \
-          break;
+#define DECLARE_FLAG(Type) \
+  case k##Type:            \
+    os << #Type;           \
+    break;
 GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
 GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
@@ -422,21 +422,20 @@ GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
       }
     }
   }
-  for (int index = 0; index < num_global_vars_; ++index) {
-    if (side_effects.ContainsSpecial(GlobalVar(index))) {
-      stream->Add(separator);
+  for (int index = 0; index < t->num_global_vars_; ++index) {
+    if (te.effects.ContainsSpecial(t->GlobalVar(index))) {
+      os << separator << "[" << *t->global_vars_[index].handle() << "]";
       separator = ", ";
-      stream->Add("[%p]", *global_vars_[index].handle());
     }
   }
-  for (int index = 0; index < num_inobject_fields_; ++index) {
-    if (side_effects.ContainsSpecial(InobjectField(index))) {
-      stream->Add(separator);
+  for (int index = 0; index < t->num_inobject_fields_; ++index) {
+    if (te.effects.ContainsSpecial(t->InobjectField(index))) {
+      os << separator << t->inobject_fields_[index];
       separator = ", ";
-      inobject_fields_[index].PrintTo(stream);
     }
   }
-  stream->Add("]");
+  os << "]";
+  return os;
 }
 
 
@@ -471,12 +470,9 @@ bool SideEffectsTracker::ComputeInobjectField(HObjectAccess access,
   }
   if (num_inobject_fields_ < kNumberOfInobjectFields) {
     if (FLAG_trace_gvn) {
-      HeapStringAllocator allocator;
-      StringStream stream(&allocator);
-      stream.Add("Tracking inobject field access ");
-      access.PrintTo(&stream);
-      stream.Add(" (mapped to index %d)\n", num_inobject_fields_);
-      stream.OutputToStdOut();
+      OFStream os(stdout);
+      os << "Tracking inobject field access " << access << " (mapped to index "
+         << num_inobject_fields_ << ")" << endl;
     }
     *index = num_inobject_fields_;
     inobject_fields_[num_inobject_fields_++] = access;
@@ -569,13 +565,9 @@ void HGlobalValueNumberingPhase::LoopInvariantCodeMotion() {
     if (block->IsLoopHeader()) {
       SideEffects side_effects = loop_side_effects_[block->block_id()];
       if (FLAG_trace_gvn) {
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        stream.Add("Try loop invariant motion for block B%d changes ",
-                   block->block_id());
-        side_effects_tracker_.PrintSideEffectsTo(&stream, side_effects);
-        stream.Add("\n");
-        stream.OutputToStdOut();
+        OFStream os(stdout);
+        os << "Try loop invariant motion for " << *block << " changes "
+           << Print(side_effects) << endl;
       }
       HBasicBlock* last = block->loop_information()->GetLastBackEdge();
       for (int j = block->block_id(); j <= last->block_id(); ++j) {
@@ -592,13 +584,9 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
     SideEffects loop_kills) {
   HBasicBlock* pre_header = loop_header->predecessors()->at(0);
   if (FLAG_trace_gvn) {
-    HeapStringAllocator allocator;
-    StringStream stream(&allocator);
-    stream.Add("Loop invariant code motion for B%d depends on ",
-               block->block_id());
-    side_effects_tracker_.PrintSideEffectsTo(&stream, loop_kills);
-    stream.Add("\n");
-    stream.OutputToStdOut();
+    OFStream os(stdout);
+    os << "Loop invariant code motion for " << *block << " depends on "
+       << Print(loop_kills) << endl;
   }
   HInstruction* instr = block->first();
   while (instr != NULL) {
@@ -607,17 +595,11 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
       SideEffects changes = side_effects_tracker_.ComputeChanges(instr);
       SideEffects depends_on = side_effects_tracker_.ComputeDependsOn(instr);
       if (FLAG_trace_gvn) {
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        stream.Add("Checking instruction i%d (%s) changes ",
-                   instr->id(), instr->Mnemonic());
-        side_effects_tracker_.PrintSideEffectsTo(&stream, changes);
-        stream.Add(", depends on ");
-        side_effects_tracker_.PrintSideEffectsTo(&stream, depends_on);
-        stream.Add(". Loop changes ");
-        side_effects_tracker_.PrintSideEffectsTo(&stream, loop_kills);
-        stream.Add("\n");
-        stream.OutputToStdOut();
+        OFStream os(stdout);
+        os << "Checking instruction i" << instr->id() << " ("
+           << instr->Mnemonic() << ") changes " << Print(changes)
+           << ", depends on " << Print(depends_on) << ". Loop changes "
+           << Print(loop_kills) << endl;
       }
       bool can_hoist = !depends_on.ContainsAnyOf(loop_kills);
       if (can_hoist && !graph()->use_optimistic_licm()) {
@@ -852,12 +834,9 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
         map->Kill(changes);
         dominators->Store(changes, instr);
         if (FLAG_trace_gvn) {
-          HeapStringAllocator allocator;
-          StringStream stream(&allocator);
-          stream.Add("Instruction i%d changes ", instr->id());
-          side_effects_tracker_.PrintSideEffectsTo(&stream, changes);
-          stream.Add("\n");
-          stream.OutputToStdOut();
+          OFStream os(stdout);
+          os << "Instruction i" << instr->id() << " changes " << Print(changes)
+             << endl;
         }
       }
       if (instr->CheckFlag(HValue::kUseGVN) &&

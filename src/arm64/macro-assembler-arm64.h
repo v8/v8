@@ -202,6 +202,18 @@ class MacroAssembler : public Assembler {
   static bool IsImmMovz(uint64_t imm, unsigned reg_size);
   static unsigned CountClearHalfWords(uint64_t imm, unsigned reg_size);
 
+  // Try to move an immediate into the destination register in a single
+  // instruction. Returns true for success, and updates the contents of dst.
+  // Returns false, otherwise.
+  bool TryOneInstrMoveImmediate(const Register& dst, int64_t imm);
+
+  // Move an immediate into register dst, and return an Operand object for use
+  // with a subsequent instruction that accepts a shift. The value moved into
+  // dst is not necessarily equal to imm; it may have had a shifting operation
+  // applied to it that will be subsequently undone by the shift applied in the
+  // Operand.
+  Operand MoveImmediateForShiftedOp(const Register& dst, int64_t imm);
+
   // Conditional macros.
   inline void Ccmp(const Register& rn,
                    const Operand& operand,

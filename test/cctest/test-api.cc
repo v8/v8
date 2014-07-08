@@ -18536,8 +18536,7 @@ TEST(SetterOnConstructorPrototype) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetAccessor(v8_str("x"),
-                     GetterWhichReturns42,
+  templ->SetAccessor(v8_str("x"), GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
   LocalContext context;
   context->Global()->Set(v8_str("P"), templ->NewInstance());
@@ -18650,8 +18649,7 @@ TEST(Regress618) {
 
   // Use an API object with accessors as prototype.
   Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->SetAccessor(v8_str("x"),
-                     GetterWhichReturns42,
+  templ->SetAccessor(v8_str("x"), GetterWhichReturns42,
                      SetterWhichSetsYOnThisTo23);
   context->Global()->Set(v8_str("P"), templ->NewInstance());
 
@@ -21067,8 +21065,7 @@ static void InstanceCheckedSetter(Local<String> name,
 }
 
 
-static void CheckInstanceCheckedResult(int getters,
-                                       int setters,
+static void CheckInstanceCheckedResult(int getters, int setters,
                                        bool expects_callbacks,
                                        TryCatch* try_catch) {
   if (expects_callbacks) {
@@ -21191,10 +21188,8 @@ THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
 
   Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
   Local<ObjectTemplate> proto = templ->PrototypeTemplate();
-  proto->SetAccessor(v8_str("foo"),
-                     InstanceCheckedGetter, InstanceCheckedSetter,
-                     Handle<Value>(),
-                     v8::DEFAULT,
+  proto->SetAccessor(v8_str("foo"), InstanceCheckedGetter,
+                     InstanceCheckedSetter, Handle<Value>(), v8::DEFAULT,
                      v8::None,
                      v8::AccessorSignature::New(context->GetIsolate(), templ));
   context->Global()->Set(v8_str("f"), templ->GetFunction());

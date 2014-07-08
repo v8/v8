@@ -89,7 +89,7 @@ static bool CheckParse(const char* input) {
 }
 
 
-static SmartArrayPointer<const char> Parse(const char* input) {
+static void CheckParseEq(const char* input, const char* expected) {
   V8::Initialize(NULL);
   v8::HandleScope scope(CcTest::isolate());
   Zone zone(CcTest::i_isolate());
@@ -99,8 +99,9 @@ static SmartArrayPointer<const char> Parse(const char* input) {
       &reader, false, &result, &zone));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  SmartArrayPointer<const char> output = result.tree->ToString(&zone);
-  return output;
+  OStringStream os;
+  result.tree->Print(os, &zone);
+  CHECK_EQ(expected, os.c_str());
 }
 
 
@@ -141,7 +142,6 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 
 #define CHECK_PARSE_ERROR(input) CHECK(!CheckParse(input))
-#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, Parse(input).get())
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 #define CHECK_MIN_MAX(input, min, max)                                         \
   { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
@@ -154,126 +154,129 @@ TEST(Parser) {
 
   CHECK_PARSE_ERROR("?");
 
-  CHECK_PARSE_EQ("abc", "'abc'");
-  CHECK_PARSE_EQ("", "%");
-  CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
-  CHECK_PARSE_EQ("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
-  CHECK_PARSE_EQ("^xxx$", "(: @^i 'xxx' @$i)");
-  CHECK_PARSE_EQ("ab\\b\\d\\bcd", "(: 'ab' @b [0-9] @b 'cd')");
-  CHECK_PARSE_EQ("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
-  CHECK_PARSE_EQ("a*", "(# 0 - g 'a')");
-  CHECK_PARSE_EQ("a*?", "(# 0 - n 'a')");
-  CHECK_PARSE_EQ("abc+", "(: 'ab' (# 1 - g 'c'))");
-  CHECK_PARSE_EQ("abc+?", "(: 'ab' (# 1 - n 'c'))");
-  CHECK_PARSE_EQ("xyz?", "(: 'xy' (# 0 1 g 'z'))");
-  CHECK_PARSE_EQ("xyz??", "(: 'xy' (# 0 1 n 'z'))");
-  CHECK_PARSE_EQ("xyz{0,1}", "(: 'xy' (# 0 1 g 'z'))");
-  CHECK_PARSE_EQ("xyz{0,1}?", "(: 'xy' (# 0 1 n 'z'))");
-  CHECK_PARSE_EQ("xyz{93}", "(: 'xy' (# 93 93 g 'z'))");
-  CHECK_PARSE_EQ("xyz{93}?", "(: 'xy' (# 93 93 n 'z'))");
-  CHECK_PARSE_EQ("xyz{1,32}", "(: 'xy' (# 1 32 g 'z'))");
-  CHECK_PARSE_EQ("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
-  CHECK_PARSE_EQ("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
-  CHECK_PARSE_EQ("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
-  CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
-  CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
-  CHECK_PARSE_EQ("(?:foo)", "'foo'");
-  CHECK_PARSE_EQ("(?: foo )", "' foo '");
-  CHECK_PARSE_EQ("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
-  CHECK_PARSE_EQ("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
-  CHECK_PARSE_EQ("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
-  CHECK_PARSE_EQ("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  CHECK_PARSE_EQ("()", "(^ %)");
-  CHECK_PARSE_EQ("(?=)", "(-> + %)");
-  CHECK_PARSE_EQ("[]", "^[\\x00-\\uffff]");   // Doesn't compile on windows
-  CHECK_PARSE_EQ("[^]", "[\\x00-\\uffff]");   // \uffff isn't in codepage 1252
-  CHECK_PARSE_EQ("[x]", "[x]");
-  CHECK_PARSE_EQ("[xyz]", "[x y z]");
-  CHECK_PARSE_EQ("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
-  CHECK_PARSE_EQ("[-123]", "[- 1 2 3]");
-  CHECK_PARSE_EQ("[^123]", "^[1 2 3]");
-  CHECK_PARSE_EQ("]", "']'");
-  CHECK_PARSE_EQ("}", "'}'");
-  CHECK_PARSE_EQ("[a-b-c]", "[a-b - c]");
-  CHECK_PARSE_EQ("[\\d]", "[0-9]");
-  CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
-  CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
-  CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
-  CHECK_PARSE_EQ("[z-\\d]", "[z - 0-9]");
+  CheckParseEq("abc", "'abc'");
+  CheckParseEq("", "%");
+  CheckParseEq("abc|def", "(| 'abc' 'def')");
+  CheckParseEq("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
+  CheckParseEq("^xxx$", "(: @^i 'xxx' @$i)");
+  CheckParseEq("ab\\b\\d\\bcd", "(: 'ab' @b [0-9] @b 'cd')");
+  CheckParseEq("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
+  CheckParseEq("a*", "(# 0 - g 'a')");
+  CheckParseEq("a*?", "(# 0 - n 'a')");
+  CheckParseEq("abc+", "(: 'ab' (# 1 - g 'c'))");
+  CheckParseEq("abc+?", "(: 'ab' (# 1 - n 'c'))");
+  CheckParseEq("xyz?", "(: 'xy' (# 0 1 g 'z'))");
+  CheckParseEq("xyz??", "(: 'xy' (# 0 1 n 'z'))");
+  CheckParseEq("xyz{0,1}", "(: 'xy' (# 0 1 g 'z'))");
+  CheckParseEq("xyz{0,1}?", "(: 'xy' (# 0 1 n 'z'))");
+  CheckParseEq("xyz{93}", "(: 'xy' (# 93 93 g 'z'))");
+  CheckParseEq("xyz{93}?", "(: 'xy' (# 93 93 n 'z'))");
+  CheckParseEq("xyz{1,32}", "(: 'xy' (# 1 32 g 'z'))");
+  CheckParseEq("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
+  CheckParseEq("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
+  CheckParseEq("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
+  CheckParseEq("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
+  CheckParseEq("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
+  CheckParseEq("(?:foo)", "'foo'");
+  CheckParseEq("(?: foo )", "' foo '");
+  CheckParseEq("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
+  CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
+  CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
+  CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
+  CheckParseEq("()", "(^ %)");
+  CheckParseEq("(?=)", "(-> + %)");
+  CheckParseEq("[]", "^[\\x00-\\uffff]");  // Doesn't compile on windows
+  CheckParseEq("[^]", "[\\x00-\\uffff]");  // \uffff isn't in codepage 1252
+  CheckParseEq("[x]", "[x]");
+  CheckParseEq("[xyz]", "[x y z]");
+  CheckParseEq("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
+  CheckParseEq("[-123]", "[- 1 2 3]");
+  CheckParseEq("[^123]", "^[1 2 3]");
+  CheckParseEq("]", "']'");
+  CheckParseEq("}", "'}'");
+  CheckParseEq("[a-b-c]", "[a-b - c]");
+  CheckParseEq("[\\d]", "[0-9]");
+  CheckParseEq("[x\\dz]", "[x 0-9 z]");
+  CheckParseEq("[\\d-z]", "[0-9 - z]");
+  CheckParseEq("[\\d-\\d]", "[0-9 - 0-9]");
+  CheckParseEq("[z-\\d]", "[z - 0-9]");
   // Control character outside character class.
-  CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
-                 "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
-  CHECK_PARSE_EQ("\\c!", "'\\c!'");
-  CHECK_PARSE_EQ("\\c_", "'\\c_'");
-  CHECK_PARSE_EQ("\\c~", "'\\c~'");
-  CHECK_PARSE_EQ("\\c1", "'\\c1'");
+  CheckParseEq("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
+  CheckParseEq("\\c!", "'\\c!'");
+  CheckParseEq("\\c_", "'\\c_'");
+  CheckParseEq("\\c~", "'\\c~'");
+  CheckParseEq("\\c1", "'\\c1'");
   // Control character inside character class.
-  CHECK_PARSE_EQ("[\\c!]", "[\\ c !]");
-  CHECK_PARSE_EQ("[\\c_]", "[\\x1f]");
-  CHECK_PARSE_EQ("[\\c~]", "[\\ c ~]");
-  CHECK_PARSE_EQ("[\\ca]", "[\\x01]");
-  CHECK_PARSE_EQ("[\\cz]", "[\\x1a]");
-  CHECK_PARSE_EQ("[\\cA]", "[\\x01]");
-  CHECK_PARSE_EQ("[\\cZ]", "[\\x1a]");
-  CHECK_PARSE_EQ("[\\c1]", "[\\x11]");
+  CheckParseEq("[\\c!]", "[\\ c !]");
+  CheckParseEq("[\\c_]", "[\\x1f]");
+  CheckParseEq("[\\c~]", "[\\ c ~]");
+  CheckParseEq("[\\ca]", "[\\x01]");
+  CheckParseEq("[\\cz]", "[\\x1a]");
+  CheckParseEq("[\\cA]", "[\\x01]");
+  CheckParseEq("[\\cZ]", "[\\x1a]");
+  CheckParseEq("[\\c1]", "[\\x11]");
 
-  CHECK_PARSE_EQ("[a\\]c]", "[a ] c]");
-  CHECK_PARSE_EQ("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
-  CHECK_PARSE_EQ("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
-  CHECK_PARSE_EQ("\\0", "'\\x00'");
-  CHECK_PARSE_EQ("\\8", "'8'");
-  CHECK_PARSE_EQ("\\9", "'9'");
-  CHECK_PARSE_EQ("\\11", "'\\x09'");
-  CHECK_PARSE_EQ("\\11a", "'\\x09a'");
-  CHECK_PARSE_EQ("\\011", "'\\x09'");
-  CHECK_PARSE_EQ("\\00011", "'\\x0011'");
-  CHECK_PARSE_EQ("\\118", "'\\x098'");
-  CHECK_PARSE_EQ("\\111", "'I'");
-  CHECK_PARSE_EQ("\\1111", "'I1'");
-  CHECK_PARSE_EQ("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\\x04')");
-  CHECK_PARSE_EQ("(x)(x)(x)\\1*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 1)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\2*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 2)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\3*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g (<- 3)))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\4*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g '\\x04'))");
-  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
-              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
-              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
-  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
-              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
-              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\\x09')");
-  CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
-  CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
-  CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?=a)?a", "'a'");
-  CHECK_PARSE_EQ("(?=a){0,10}a", "'a'");
-  CHECK_PARSE_EQ("(?=a){1,10}a", "(: (-> + 'a') 'a')");
-  CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
-  CHECK_PARSE_EQ("(?!a)?a", "'a'");
-  CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
-  CHECK_PARSE_EQ("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
-  CHECK_PARSE_EQ("[\\0]", "[\\x00]");
-  CHECK_PARSE_EQ("[\\11]", "[\\x09]");
-  CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
-  CHECK_PARSE_EQ("[\\011]", "[\\x09]");
-  CHECK_PARSE_EQ("[\\00011]", "[\\x00 1 1]");
-  CHECK_PARSE_EQ("[\\118]", "[\\x09 8]");
-  CHECK_PARSE_EQ("[\\111]", "[I]");
-  CHECK_PARSE_EQ("[\\1111]", "[I 1]");
-  CHECK_PARSE_EQ("\\x34", "'\x34'");
-  CHECK_PARSE_EQ("\\x60", "'\x60'");
-  CHECK_PARSE_EQ("\\x3z", "'x3z'");
-  CHECK_PARSE_EQ("\\c", "'\\c'");
-  CHECK_PARSE_EQ("\\u0034", "'\x34'");
-  CHECK_PARSE_EQ("\\u003z", "'u003z'");
-  CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+  CheckParseEq("[a\\]c]", "[a ] c]");
+  CheckParseEq("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
+  CheckParseEq("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
+  CheckParseEq("\\0", "'\\x00'");
+  CheckParseEq("\\8", "'8'");
+  CheckParseEq("\\9", "'9'");
+  CheckParseEq("\\11", "'\\x09'");
+  CheckParseEq("\\11a", "'\\x09a'");
+  CheckParseEq("\\011", "'\\x09'");
+  CheckParseEq("\\00011", "'\\x0011'");
+  CheckParseEq("\\118", "'\\x098'");
+  CheckParseEq("\\111", "'I'");
+  CheckParseEq("\\1111", "'I1'");
+  CheckParseEq("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
+  CheckParseEq("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
+  CheckParseEq("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
+  CheckParseEq("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\\x04')");
+  CheckParseEq("(x)(x)(x)\\1*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 1)))");
+  CheckParseEq("(x)(x)(x)\\2*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 2)))");
+  CheckParseEq("(x)(x)(x)\\3*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g (<- 3)))");
+  CheckParseEq("(x)(x)(x)\\4*",
+               "(: (^ 'x') (^ 'x') (^ 'x')"
+               " (# 0 - g '\\x04'))");
+  CheckParseEq("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
+               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
+  CheckParseEq("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
+               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\\x09')");
+  CheckParseEq("(a)\\1", "(: (^ 'a') (<- 1))");
+  CheckParseEq("(a\\1)", "(^ 'a')");
+  CheckParseEq("(\\1a)", "(^ 'a')");
+  CheckParseEq("(?=a)?a", "'a'");
+  CheckParseEq("(?=a){0,10}a", "'a'");
+  CheckParseEq("(?=a){1,10}a", "(: (-> + 'a') 'a')");
+  CheckParseEq("(?=a){9,10}a", "(: (-> + 'a') 'a')");
+  CheckParseEq("(?!a)?a", "'a'");
+  CheckParseEq("\\1(a)", "(^ 'a')");
+  CheckParseEq("(?!(a))\\1", "(: (-> - (^ 'a')) (<- 1))");
+  CheckParseEq("(?!\\1(a\\1)\\1)\\1", "(: (-> - (: (^ 'a') (<- 1))) (<- 1))");
+  CheckParseEq("[\\0]", "[\\x00]");
+  CheckParseEq("[\\11]", "[\\x09]");
+  CheckParseEq("[\\11a]", "[\\x09 a]");
+  CheckParseEq("[\\011]", "[\\x09]");
+  CheckParseEq("[\\00011]", "[\\x00 1 1]");
+  CheckParseEq("[\\118]", "[\\x09 8]");
+  CheckParseEq("[\\111]", "[I]");
+  CheckParseEq("[\\1111]", "[I 1]");
+  CheckParseEq("\\x34", "'\x34'");
+  CheckParseEq("\\x60", "'\x60'");
+  CheckParseEq("\\x3z", "'x3z'");
+  CheckParseEq("\\c", "'\\c'");
+  CheckParseEq("\\u0034", "'\x34'");
+  CheckParseEq("\\u003z", "'u003z'");
+  CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
@@ -321,22 +324,22 @@ TEST(Parser) {
   CHECK_SIMPLE("(?!a)?a\\1", false);
   CHECK_SIMPLE("(?:(?=a))a\\1", false);
 
-  CHECK_PARSE_EQ("a{}", "'a{}'");
-  CHECK_PARSE_EQ("a{,}", "'a{,}'");
-  CHECK_PARSE_EQ("a{", "'a{'");
-  CHECK_PARSE_EQ("a{z}", "'a{z}'");
-  CHECK_PARSE_EQ("a{1z}", "'a{1z}'");
-  CHECK_PARSE_EQ("a{12z}", "'a{12z}'");
-  CHECK_PARSE_EQ("a{12,", "'a{12,'");
-  CHECK_PARSE_EQ("a{12,3b", "'a{12,3b'");
-  CHECK_PARSE_EQ("{}", "'{}'");
-  CHECK_PARSE_EQ("{,}", "'{,}'");
-  CHECK_PARSE_EQ("{", "'{'");
-  CHECK_PARSE_EQ("{z}", "'{z}'");
-  CHECK_PARSE_EQ("{1z}", "'{1z}'");
-  CHECK_PARSE_EQ("{12z}", "'{12z}'");
-  CHECK_PARSE_EQ("{12,", "'{12,'");
-  CHECK_PARSE_EQ("{12,3b", "'{12,3b'");
+  CheckParseEq("a{}", "'a{}'");
+  CheckParseEq("a{,}", "'a{,}'");
+  CheckParseEq("a{", "'a{'");
+  CheckParseEq("a{z}", "'a{z}'");
+  CheckParseEq("a{1z}", "'a{1z}'");
+  CheckParseEq("a{12z}", "'a{12z}'");
+  CheckParseEq("a{12,", "'a{12,'");
+  CheckParseEq("a{12,3b", "'a{12,3b'");
+  CheckParseEq("{}", "'{}'");
+  CheckParseEq("{,}", "'{,}'");
+  CheckParseEq("{", "'{'");
+  CheckParseEq("{z}", "'{z}'");
+  CheckParseEq("{1z}", "'{1z}'");
+  CheckParseEq("{12z}", "'{12z}'");
+  CheckParseEq("{12,", "'{12,'");
+  CheckParseEq("{12,3b", "'{12,3b'");
 
   CHECK_MIN_MAX("a", 1, 1);
   CHECK_MIN_MAX("abc", 3, 3);
@@ -390,10 +393,10 @@ TEST(Parser) {
 
 
 TEST(ParserRegression) {
-  CHECK_PARSE_EQ("[A-Z$-][x]", "(! [A-Z $ -] [x])");
-  CHECK_PARSE_EQ("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
-  CHECK_PARSE_EQ("{", "'{'");
-  CHECK_PARSE_EQ("a|", "(| 'a' %)");
+  CheckParseEq("[A-Z$-][x]", "(! [A-Z $ -] [x])");
+  CheckParseEq("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
+  CheckParseEq("{", "'{'");
+  CheckParseEq("a|", "(| 'a' %)");
 }
 
 static void ExpectError(const char* input,
@@ -433,13 +436,11 @@ TEST(Errors) {
   // Check that we don't allow more than kMaxCapture captures
   const int kMaxCaptures = 1 << 16;  // Must match RegExpParser::kMaxCaptures.
   const char* kTooManyCaptures = "Too many captures";
-  HeapStringAllocator allocator;
-  StringStream accumulator(&allocator);
+  OStringStream os;
   for (int i = 0; i <= kMaxCaptures; i++) {
-    accumulator.Add("()");
+    os << "()";
   }
-  SmartArrayPointer<const char> many_captures(accumulator.ToCString());
-  ExpectError(many_captures.get(), kTooManyCaptures);
+  ExpectError(os.c_str(), kTooManyCaptures);
 }
 
 
@@ -667,11 +668,11 @@ TEST(ParsePossessiveRepetition) {
   // Enable possessive quantifier syntax.
   FLAG_regexp_possessive_quantifier = true;
 
-  CHECK_PARSE_EQ("a*+", "(# 0 - p 'a')");
-  CHECK_PARSE_EQ("a++", "(# 1 - p 'a')");
-  CHECK_PARSE_EQ("a?+", "(# 0 1 p 'a')");
-  CHECK_PARSE_EQ("a{10,20}+", "(# 10 20 p 'a')");
-  CHECK_PARSE_EQ("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
+  CheckParseEq("a*+", "(# 0 - p 'a')");
+  CheckParseEq("a++", "(# 1 - p 'a')");
+  CheckParseEq("a?+", "(# 0 1 p 'a')");
+  CheckParseEq("a{10,20}+", "(# 10 20 p 'a')");
+  CheckParseEq("za{10,20}+b", "(: 'z' (# 10 20 p 'a') 'b')");
 
   // Disable possessive quantifier syntax.
   FLAG_regexp_possessive_quantifier = false;

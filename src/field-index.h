@@ -28,6 +28,8 @@ class FieldIndex V8_FINAL {
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
   static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
 
+  int GetLoadByFieldIndex() const;
+
   bool is_inobject() const {
     return IsInObjectBits::decode(bit_field_);
   }
@@ -40,6 +42,7 @@ class FieldIndex V8_FINAL {
     return index() * kPointerSize;
   }
 
+  // Zero-indexed from beginning of the object.
   int index() const {
     return IndexBits::decode(bit_field_);
   }
@@ -49,6 +52,8 @@ class FieldIndex V8_FINAL {
     return index() - first_inobject_property_offset() / kPointerSize;
   }
 
+  // Zero-based from the first inobject property. Overflows to out-of-object
+  // properties.
   int property_index() const {
     ASSERT(!IsHiddenField::decode(bit_field_));
     int result = index() - first_inobject_property_offset() / kPointerSize;
@@ -56,21 +61,6 @@ class FieldIndex V8_FINAL {
       result += InObjectPropertyBits::decode(bit_field_);
     }
     return result;
-  }
-
-  int GetLoadByFieldIndex() const {
-    // For efficiency, the LoadByFieldIndex instruction takes an index that is
-    // optimized for quick access. If the property is inline, the index is
-    // positive. If it's out-of-line, the encoded index is -raw_index - 1 to
-    // disambiguate the zero out-of-line index from the zero inobject case.
-    // The index itself is shifted up by one bit, the lower-most bit
-    // signifying if the field is a mutable double box (1) or not (0).
-    int result = index() - first_inobject_property_offset() / kPointerSize;
-    if (!is_inobject()) {
-      result = -result - 1;
-    }
-    result <<= 1;
-    return is_double() ? (result | 1) : result;
   }
 
   int GetKeyedLookupCacheIndex() const;
@@ -100,11 +90,14 @@ class FieldIndex V8_FINAL {
 
   static const int kIndexBitsSize = kDescriptorIndexBitCount + 1;
 
+  // Index from beginning of object.
   class IndexBits: public BitField<int, 0, kIndexBitsSize> {};
   class IsInObjectBits: public BitField<bool, IndexBits::kNext, 1> {};
   class IsDoubleBits: public BitField<bool, IsInObjectBits::kNext, 1> {};
+  // Number of inobject properties.
   class InObjectPropertyBits: public BitField<int, IsDoubleBits::kNext,
                                               kDescriptorIndexBitCount> {};
+  // Offset of first inobject property from beginning of object.
   class FirstInobjectPropertyOffsetBits:
       public BitField<int, InObjectPropertyBits::kNext, 7> {};
   class IsHiddenField:

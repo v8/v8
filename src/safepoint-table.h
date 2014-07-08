@@ -103,7 +103,7 @@ class SafepointTable BASE_EMBEDDED {
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
 
-  void PrintEntry(unsigned index, FILE* out = stdout) const;
+  void PrintEntry(unsigned index, OStream& os) const;  // NOLINT
 
  private:
   static const uint8_t kNoRegisters = 0xFF;
@@ -126,7 +126,8 @@ class SafepointTable BASE_EMBEDDED {
     return GetPcOffsetLocation(index) + kPcSize;
   }
 
-  static void PrintBits(FILE* out, uint8_t byte, int digits);
+  static void PrintBits(OStream& os,  // NOLINT
+                        uint8_t byte, int digits);
 
   DisallowHeapAllocation no_allocation_;
   Code* code_;

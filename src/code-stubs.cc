@@ -189,10 +189,11 @@ Handle<Code> CodeStub::GetCode() {
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
       CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
-      OStringStream os;
-      os << *this;
-      new_object->Disassemble(os.c_str(), trace_scope.file());
-      PrintF(trace_scope.file(), "\n");
+      OFStream os(trace_scope.file());
+      OStringStream name;
+      name << *this;
+      new_object->Disassemble(name.c_str(), os);
+      os << "\n";
     }
 #endif
 

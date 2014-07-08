@@ -251,9 +251,6 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     JSObject::NormalizeProperties(
         boilerplate, KEEP_INOBJECT_PROPERTIES, length / 2);
   }
-  Object::ValueType value_type = should_normalize
-      ? Object::FORCE_TAGGED : Object::OPTIMAL_REPRESENTATION;
-
   // TODO(verwaest): Support tracking representations in the boilerplate.
   for (int index = 0; index < length; index +=2) {
     Handle<Object> key(constant_properties->get(index+0), isolate);
@@ -273,27 +270,20 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
-        if (value->IsUninitialized()) {
-          maybe_result = value;
-        } else {
-          maybe_result = JSObject::SetOwnElement(
-              boilerplate, element_index, value, SLOPPY);
-        }
+        if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
+        maybe_result =
+            JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
       } else {
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE,
-            value_type, mode);
+            boilerplate, name, value, NONE, mode);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
-      if (value->IsUninitialized()) {
-        maybe_result = value;
-      } else {
-        maybe_result = JSObject::SetOwnElement(
-            boilerplate, element_index, value, SLOPPY);
-      }
+      if (value->IsUninitialized()) value = handle(Smi::FromInt(0), isolate);
+      maybe_result =
+          JSObject::SetOwnElement(boilerplate, element_index, value, SLOPPY);
     } else {
       // Non-uint32 number.
       ASSERT(key->IsNumber());
@@ -303,7 +293,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
       maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE, value_type, mode);
+          boilerplate, name, value, NONE, mode);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -572,8 +562,8 @@ static MaybeHandle<JSObject> CreateArrayLiteralImpl(Isolate* isolate,
   AllocationSiteUsageContext usage_context(isolate, site, enable_mementos);
   usage_context.EnterNewScope();
   JSObject::DeepCopyHints hints = (flags & ArrayLiteral::kShallowElements) == 0
-      ? JSObject::kNoHints
-      : JSObject::kObjectIsShallowArray;
+                                      ? JSObject::kNoHints
+                                      : JSObject::kObjectIsShallow;
   MaybeHandle<JSObject> copy = JSObject::DeepCopy(boilerplate, &usage_context,
                                                   hints);
   usage_context.ExitScope(site, boilerplate);
@@ -5093,7 +5083,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            Object::OPTIMAL_REPRESENTATION,
             ALLOW_AS_CONSTANT,
             JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
             JSReceiver::MAY_BE_STORE_FROM_KEYED,
@@ -5249,9 +5238,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
-          ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-          store_from_keyed);
+          js_object, name, value, attr, ALLOW_AS_CONSTANT,
+          JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
     }
   }
 
@@ -5266,9 +5254,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, Object::OPTIMAL_REPRESENTATION,
-        ALLOW_AS_CONSTANT, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-        store_from_keyed);
+        js_object, name, value, attr, ALLOW_AS_CONSTANT,
+        JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
   }
 }
 
@@ -5337,14 +5324,17 @@ RUNTIME_FUNCTION(Runtime_AddProperty) {
 
 #ifdef DEBUG
   bool duplicate;
-  if (key->IsName()) {
+  uint32_t index = 0;
+  if (key->IsName() || !key->ToArrayIndex(&index)) {
+    if (key->IsNumber()) {
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                         Execution::ToString(isolate, key));
+    }
     LookupIterator it(object, Handle<Name>::cast(key),
                       LookupIterator::CHECK_OWN_REAL);
     JSReceiver::GetPropertyAttributes(&it);
     duplicate = it.IsFound();
   } else {
-    uint32_t index = 0;
-    RUNTIME_ASSERT(key->ToArrayIndex(&index));
     duplicate = JSReceiver::HasOwnElement(object, index);
   }
   RUNTIME_ASSERT(!duplicate);
@@ -9548,28 +9538,28 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
 
+  OFStream os(stdout);
 #ifdef DEBUG
   if (args[0]->IsString()) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
-    PrintF("fp = %p, sp = %p, caller_sp = %p: ",
-           frame->fp(), frame->sp(), frame->caller_sp());
+    os << "fp = " << frame->fp() << ", sp = " << frame->sp()
+       << ", caller_sp = " << frame->caller_sp() << ": ";
   } else {
-    PrintF("DebugPrint: ");
+    os << "DebugPrint: ";
   }
-  args[0]->Print();
+  args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
-    PrintF("\n");
-    HeapObject::cast(args[0])->map()->Print();
+    os << "\n";
+    HeapObject::cast(args[0])->map()->Print(os);
   }
 #else
   // ShortPrint is available in release mode. Print is not.
-  args[0]->ShortPrint();
+  os << Brief(args[0]);
 #endif
-  PrintF("\n");
-  Flush();
+  os << endl;
 
   return args[0];  // return TOS
 }
@@ -12116,22 +12106,23 @@ class ScopeIterator {
 #ifdef DEBUG
   // Debug print of the content of the current scope.
   void DebugPrint() {
+    OFStream os(stdout);
     ASSERT(!failed_);
     switch (Type()) {
       case ScopeIterator::ScopeTypeGlobal:
-        PrintF("Global:\n");
-        CurrentContext()->Print();
+        os << "Global:\n";
+        CurrentContext()->Print(os);
         break;
 
       case ScopeIterator::ScopeTypeLocal: {
-        PrintF("Local:\n");
+        os << "Local:\n";
         function_->shared()->scope_info()->Print();
         if (!CurrentContext().is_null()) {
-          CurrentContext()->Print();
+          CurrentContext()->Print(os);
           if (CurrentContext()->has_extension()) {
             Handle<Object> extension(CurrentContext()->extension(), isolate_);
             if (extension->IsJSContextExtensionObject()) {
-              extension->Print();
+              extension->Print(os);
             }
           }
         }
@@ -12139,23 +12130,23 @@ class ScopeIterator {
       }
 
       case ScopeIterator::ScopeTypeWith:
-        PrintF("With:\n");
-        CurrentContext()->extension()->Print();
+        os << "With:\n";
+        CurrentContext()->extension()->Print(os);
         break;
 
       case ScopeIterator::ScopeTypeCatch:
-        PrintF("Catch:\n");
-        CurrentContext()->extension()->Print();
-        CurrentContext()->get(Context::THROWN_OBJECT_INDEX)->Print();
+        os << "Catch:\n";
+        CurrentContext()->extension()->Print(os);
+        CurrentContext()->get(Context::THROWN_OBJECT_INDEX)->Print(os);
         break;
 
       case ScopeIterator::ScopeTypeClosure:
-        PrintF("Closure:\n");
-        CurrentContext()->Print();
+        os << "Closure:\n";
+        CurrentContext()->Print(os);
         if (CurrentContext()->has_extension()) {
           Handle<Object> extension(CurrentContext()->extension(), isolate_);
           if (extension->IsJSContextExtensionObject()) {
-            extension->Print();
+            extension->Print(os);
           }
         }
         break;
@@ -13099,10 +13090,8 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 
 
   // Get the constructor function for context extension and arguments array.
-  Handle<JSObject> arguments_boilerplate(
-      isolate->sloppy_arguments_boilerplate());
   Handle<JSFunction> arguments_function(
-      JSFunction::cast(arguments_boilerplate->map()->constructor()));
+      JSFunction::cast(isolate->sloppy_arguments_map()->constructor()));
 
   // Get the number of referencing objects.
   int count;
@@ -13264,7 +13253,9 @@ RUNTIME_FUNCTION(Runtime_DebugDisassembleFunction) {
   if (!Compiler::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
-  func->code()->PrintLn();
+  OFStream os(stdout);
+  func->code()->Print(os);
+  os << endl;
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }
@@ -13279,7 +13270,9 @@ RUNTIME_FUNCTION(Runtime_DebugDisassembleConstructor) {
   if (!Compiler::EnsureCompiled(func, KEEP_EXCEPTION)) {
     return isolate->heap()->exception();
   }
-  func->shared()->construct_stub()->PrintLn();
+  OFStream os(stdout);
+  func->shared()->construct_stub()->Print(os);
+  os << endl;
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }

@@ -813,39 +813,36 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print(Isolate* isolate, FILE* out) {
-  PrintF(out, "%p  %s", pc_, RelocModeName(rmode_));
+void RelocInfo::Print(Isolate* isolate, OStream& os) {  // NOLINT
+  os << pc_ << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
-    PrintF(out, "  (%s)", reinterpret_cast<char*>(data_));
+    os << "  (" << reinterpret_cast<char*>(data_) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {
-    PrintF(out, "  (");
-    target_object()->ShortPrint(out);
-    PrintF(out, ")");
+    os << "  (" << Brief(target_object()) << ")";
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
-    PrintF(out, " (%s)  (%p)",
-           ref_encoder.NameOfAddress(target_reference()),
-           target_reference());
+    os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
+       << target_reference() << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
-    PrintF(out, " (%s)  (%p)", Code::Kind2String(code->kind()),
-           target_address());
+    os << " (" << Code::Kind2String(code->kind()) << ")  (" << target_address()
+       << ")";
     if (rmode_ == CODE_TARGET_WITH_ID) {
-      PrintF(out, " (id=%d)", static_cast<int>(data_));
+      os << " (id=" << static_cast<int>(data_) << ")";
     }
   } else if (IsPosition(rmode_)) {
-    PrintF(out, "  (%" V8_PTR_PREFIX "d)", data());
+    os << "  (" << data() << ")";
   } else if (IsRuntimeEntry(rmode_) &&
              isolate->deoptimizer_data() != NULL) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         isolate, target_address(), Deoptimizer::EAGER);
     if (id != Deoptimizer::kNotDeoptimizationEntry) {
-      PrintF(out, "  (deoptimization bailout %d)", id);
+      os << "  (deoptimization bailout " << id << ")";
     }
   }
 
-  PrintF(out, "\n");
+  os << "\n";
 }
 #endif  // ENABLE_DISASSEMBLER
 

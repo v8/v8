@@ -3083,9 +3083,10 @@ void LargeObjectSpace::Verify() {
 
 #ifdef DEBUG
 void LargeObjectSpace::Print() {
+  OFStream os(stdout);
   LargeObjectIterator it(this);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    obj->Print();
+    obj->Print(os);
   }
 }
 

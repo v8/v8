@@ -283,11 +283,15 @@ var lastMicrotaskId = 0;
       } else {
         for (var i = 0; i < values.length; ++i) {
           this.resolve(values[i]).then(
-            function(i, x) {
-              resolutions[i] = x;
-              if (--count === 0) deferred.resolve(resolutions);
-            }.bind(UNDEFINED, i),  // TODO(rossberg): use let loop once
-                                    // available
+            (function() {
+              // Nested scope to get closure over current i (and avoid .bind).
+              // TODO(rossberg): Use for-let instead once available.
+              var i_captured = i;
+              return function(x) {
+                resolutions[i_captured] = x;
+                if (--count === 0) deferred.resolve(resolutions);
+              };
+            })(),
             function(r) { deferred.reject(r) }
           );
         }

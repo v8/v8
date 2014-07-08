@@ -1165,8 +1165,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
          FieldMemOperand(x2, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
   // Set up the four remaining stack slots.
-  __ Push(x0, x2);              // Map, enumeration cache.
-  __ SmiTagAndPush(x1, xzr);    // Enum cache length, zero (both as smis).
+  __ SmiTag(x1);
+  // Map, enumeration cache, enum cache length, zero (both last as smis).
+  __ Push(x0, x2, x1, xzr);
   __ B(&loop);
 
   __ Bind(&no_descriptors);
@@ -1187,9 +1188,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ CompareObjectType(x10, x11, x12, LAST_JS_PROXY_TYPE);
   ASSERT(Smi::FromInt(0) == 0);
   __ CzeroX(x1, le);  // Zero indicates proxy.
-  __ Push(x1, x0);  // Smi and array
-  __ Ldr(x1, FieldMemOperand(x0, FixedArray::kLengthOffset));
-  __ Push(x1, xzr);  // Fixed array length (as smi) and initial index.
+  __ Ldr(x2, FieldMemOperand(x0, FixedArray::kLengthOffset));
+  // Smi and array, fixed array length (as smi) and initial index.
+  __ Push(x1, x0, x2, xzr);
 
   // Generate code for doing the condition check.
   PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
@@ -1696,9 +1697,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Push(x0);
           VisitForStackValue(key);
           VisitForStackValue(value);
-          __ Mov(x0, Smi::FromInt(NONE));  // PropertyAttributes
+          __ Mov(x0, Smi::FromInt(SLOPPY));  // Strict mode
           __ Push(x0);
-          __ CallRuntime(Runtime::kAddProperty, 4);
+          __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           VisitForEffect(key);
           VisitForEffect(value);
@@ -1802,8 +1803,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     if (!result_saved) {
-      __ Push(x0);
-      __ Push(Smi::FromInt(expr->literal_index()));
+      __ Mov(x1, Smi::FromInt(expr->literal_index()));
+      __ Push(x0, x1);
       result_saved = true;
     }
     VisitForAccumulatorValue(subexpr);
@@ -2164,9 +2165,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     // Const initializers need a write barrier.
     ASSERT(!var->IsParameter());  // No const parameters.
     if (var->IsLookupSlot()) {
-      __ Push(x0);
-      __ Mov(x0, Operand(var->name()));
-      __ Push(cp, x0);  // Context and name.
+      __ Mov(x1, Operand(var->name()));
+      __ Push(x0, cp, x1);
       __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
       ASSERT(var->IsStackLocal() || var->IsContextSlot());
@@ -2380,16 +2380,13 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
   int receiver_offset = 2 + info_->scope()->num_parameters();
   __ Ldr(x11, MemOperand(fp, receiver_offset * kPointerSize));
 
-  // Push.
-  __ Push(x10, x11);
-
   // Prepare to push the language mode.
-  __ Mov(x10, Smi::FromInt(strict_mode()));
+  __ Mov(x12, Smi::FromInt(strict_mode()));
   // Prepare to push the start position of the scope the calls resides in.
-  __ Mov(x11, Smi::FromInt(scope()->start_position()));
+  __ Mov(x13, Smi::FromInt(scope()->start_position()));
 
   // Push.
-  __ Push(x10, x11);
+  __ Push(x10, x11, x12, x13);
 
   // Do the runtime call.
   __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
@@ -2466,9 +2463,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ Bind(&slow);
     // Call the runtime to find the function to call (returned in x0)
     // and the object holding it (returned in x1).
-    __ Push(context_register());
     __ Mov(x10, Operand(proxy->name()));
-    __ Push(x10);
+    __ Push(context_register(), x10);
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     __ Push(x0, x1);  // Receiver, function.
 
@@ -2480,11 +2476,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       __ B(&call);
       __ Bind(&done);
       // Push function.
-      __ Push(x0);
       // The receiver is implicitly the global receiver. Indicate this
       // by passing the undefined to the call function stub.
       __ LoadRoot(x1, Heap::kUndefinedValueRootIndex);
-      __ Push(x1);
+      __ Push(x0, x1);
       __ Bind(&call);
     }
 

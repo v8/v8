@@ -799,51 +799,44 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // output formats are alike.
 class RegExpUnparser V8_FINAL : public RegExpVisitor {
  public:
-  explicit RegExpUnparser(Zone* zone);
+  RegExpUnparser(OStream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
-  SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
                                                   void* data) V8_OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
-  StringStream* stream() { return &stream_; }
-  HeapStringAllocator alloc_;
-  StringStream stream_;
+  OStream& os_;
   Zone* zone_;
 };
 
 
-RegExpUnparser::RegExpUnparser(Zone* zone) : stream_(&alloc_), zone_(zone) {
-}
-
-
 void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
-  stream()->Add("(|");
+  os_ << "(|";
   for (int i = 0; i <  that->alternatives()->length(); i++) {
-    stream()->Add(" ");
+    os_ << " ";
     that->alternatives()->at(i)->Accept(this, data);
   }
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
-  stream()->Add("(:");
+  os_ << "(:";
   for (int i = 0; i <  that->nodes()->length(); i++) {
-    stream()->Add(" ");
+    os_ << " ";
     that->nodes()->at(i)->Accept(this, data);
   }
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  stream()->Add("%k", that.from());
+  os_ << AsUC16(that.from());
   if (!that.IsSingleton()) {
-    stream()->Add("-%k", that.to());
+    os_ << "-" << AsUC16(that.to());
   }
 }
 
@@ -851,14 +844,13 @@ void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
 
 void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
                                           void* data) {
-  if (that->is_negated())
-    stream()->Add("^");
-  stream()->Add("[");
+  if (that->is_negated()) os_ << "^";
+  os_ << "[";
   for (int i = 0; i < that->ranges(zone_)->length(); i++) {
-    if (i > 0) stream()->Add(" ");
+    if (i > 0) os_ << " ";
     VisitCharacterRange(that->ranges(zone_)->at(i));
   }
-  stream()->Add("]");
+  os_ << "]";
   return NULL;
 }
 
@@ -866,22 +858,22 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
 void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
   switch (that->assertion_type()) {
     case RegExpAssertion::START_OF_INPUT:
-      stream()->Add("@^i");
+      os_ << "@^i";
       break;
     case RegExpAssertion::END_OF_INPUT:
-      stream()->Add("@$i");
+      os_ << "@$i";
       break;
     case RegExpAssertion::START_OF_LINE:
-      stream()->Add("@^l");
+      os_ << "@^l";
       break;
     case RegExpAssertion::END_OF_LINE:
-      stream()->Add("@$l");
+      os_ << "@$l";
        break;
     case RegExpAssertion::BOUNDARY:
-      stream()->Add("@b");
+      os_ << "@b";
       break;
     case RegExpAssertion::NON_BOUNDARY:
-      stream()->Add("@B");
+      os_ << "@B";
       break;
   }
   return NULL;
@@ -889,12 +881,12 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
 
 
 void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
-  stream()->Add("'");
+  os_ << "'";
   Vector<const uc16> chardata = that->data();
   for (int i = 0; i < chardata.length(); i++) {
-    stream()->Add("%k", chardata[i]);
+    os_ << AsUC16(chardata[i]);
   }
-  stream()->Add("'");
+  os_ << "'";
   return NULL;
 }
 
@@ -903,65 +895,64 @@ void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
   if (that->elements()->length() == 1) {
     that->elements()->at(0).tree()->Accept(this, data);
   } else {
-    stream()->Add("(!");
+    os_ << "(!";
     for (int i = 0; i < that->elements()->length(); i++) {
-      stream()->Add(" ");
+      os_ << " ";
       that->elements()->at(i).tree()->Accept(this, data);
     }
-    stream()->Add(")");
+    os_ << ")";
   }
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
-  stream()->Add("(# %i ", that->min());
+  os_ << "(# " << that->min() << " ";
   if (that->max() == RegExpTree::kInfinity) {
-    stream()->Add("- ");
+    os_ << "- ";
   } else {
-    stream()->Add("%i ", that->max());
+    os_ << that->max() << " ";
   }
-  stream()->Add(that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
+  os_ << (that->is_greedy() ? "g " : that->is_possessive() ? "p " : "n ");
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
-  stream()->Add("(^ ");
+  os_ << "(^ ";
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
-  stream()->Add("(-> ");
-  stream()->Add(that->is_positive() ? "+ " : "- ");
+  os_ << "(-> " << (that->is_positive() ? "+ " : "- ");
   that->body()->Accept(this, data);
-  stream()->Add(")");
+  os_ << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitBackReference(RegExpBackReference* that,
                                          void* data) {
-  stream()->Add("(<- %i)", that->index());
+  os_ << "(<- " << that->index() << ")";
   return NULL;
 }
 
 
 void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
-  stream()->Put('%');
+  os_ << '%';
   return NULL;
 }
 
 
-SmartArrayPointer<const char> RegExpTree::ToString(Zone* zone) {
-  RegExpUnparser unparser(zone);
+OStream& RegExpTree::Print(OStream& os, Zone* zone) {  // NOLINT
+  RegExpUnparser unparser(os, zone);
   Accept(&unparser, NULL);
-  return unparser.ToString();
+  return os;
 }
 
 

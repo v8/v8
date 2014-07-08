@@ -77,7 +77,8 @@ void IC::TraceIC(const char* type,
            TransitionMarkFromState(state()),
            TransitionMarkFromState(new_state),
            modifier);
-    name->Print();
+    OFStream os(stdout);
+    name->Print(os);
     PrintF("]\n");
   }
 }

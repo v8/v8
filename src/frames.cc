@@ -1273,10 +1273,12 @@ void JavaScriptFrame::Print(StringStream* accumulator,
 
   // Print details about the function.
   if (FLAG_max_stack_trace_source_length != 0 && code != NULL) {
+    OStringStream os;
     SharedFunctionInfo* shared = function->shared();
-    accumulator->Add("--------- s o u r c e   c o d e ---------\n");
-    shared->SourceCodePrint(accumulator, FLAG_max_stack_trace_source_length);
-    accumulator->Add("\n-----------------------------------------\n");
+    os << "--------- s o u r c e   c o d e ---------\n"
+       << SourceCodeOf(shared, FLAG_max_stack_trace_source_length)
+       << "\n-----------------------------------------\n";
+    accumulator->Add(os.c_str());
   }
 
   accumulator->Add("}\n\n");

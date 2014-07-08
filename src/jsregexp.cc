@@ -12,6 +12,7 @@
 #include "src/factory.h"
 #include "src/jsregexp-inl.h"
 #include "src/jsregexp.h"
+#include "src/ostreams.h"
 #include "src/parser.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-macro-assembler-irregexp.h"
@@ -19,7 +20,6 @@
 #include "src/regexp-stack.h"
 #include "src/runtime.h"
 #include "src/string-search.h"
-#include "src/string-stream.h"
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -1133,8 +1133,8 @@ RegExpEngine::CompilationResult RegExpCompiler::Assemble(
 #ifdef DEBUG
   if (FLAG_print_code) {
     CodeTracer::Scope trace_scope(heap->isolate()->GetCodeTracer());
-    Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(),
-                                          trace_scope.file());
+    OFStream os(trace_scope.file());
+    Handle<Code>::cast(code)->Disassemble(pattern->ToCString().get(), os);
   }
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
@@ -4323,44 +4323,41 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 class DotPrinter: public NodeVisitor {
  public:
-  explicit DotPrinter(bool ignore_case)
-      : ignore_case_(ignore_case),
-        stream_(&alloc_) { }
+  DotPrinter(OStream& os, bool ignore_case)  // NOLINT
+      : os_(os),
+        ignore_case_(ignore_case) {}
   void PrintNode(const char* label, RegExpNode* node);
   void Visit(RegExpNode* node);
   void PrintAttributes(RegExpNode* from);
-  StringStream* stream() { return &stream_; }
   void PrintOnFailure(RegExpNode* from, RegExpNode* to);
 #define DECLARE_VISIT(Type)                                          \
   virtual void Visit##Type(Type##Node* that);
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
  private:
+  OStream& os_;
   bool ignore_case_;
-  HeapStringAllocator alloc_;
-  StringStream stream_;
 };
 
 
 void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
-  stream()->Add("digraph G {\n  graph [label=\"");
+  os_ << "digraph G {\n  graph [label=\"";
   for (int i = 0; label[i]; i++) {
     switch (label[i]) {
       case '\\':
-        stream()->Add("\\\\");
+        os_ << "\\\\";
         break;
       case '"':
-        stream()->Add("\"");
+        os_ << "\"";
         break;
       default:
-        stream()->Put(label[i]);
+        os_ << label[i];
         break;
     }
   }
-  stream()->Add("\"];\n");
+  os_ << "\"];\n";
   Visit(node);
-  stream()->Add("}\n");
-  printf("%s", stream()->ToCString().get());
+  os_ << "}" << endl;
 }
 
 
@@ -4372,97 +4369,95 @@ void DotPrinter::Visit(RegExpNode* node) {
 
 
 void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
-  stream()->Add("  n%p -> n%p [style=dotted];\n", from, on_failure);
+  os_ << "  n" << from << " -> n" << on_failure << " [style=dotted];\n";
   Visit(on_failure);
 }
 
 
 class TableEntryBodyPrinter {
  public:
-  TableEntryBodyPrinter(StringStream* stream, ChoiceNode* choice)
-      : stream_(stream), choice_(choice) { }
+  TableEntryBodyPrinter(OStream& os, ChoiceNode* choice)  // NOLINT
+      : os_(os),
+        choice_(choice) {}
   void Call(uc16 from, DispatchTable::Entry entry) {
     OutSet* out_set = entry.out_set();
     for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
       if (out_set->Get(i)) {
-        stream()->Add("    n%p:s%io%i -> n%p;\n",
-                      choice(),
-                      from,
-                      i,
-                      choice()->alternatives()->at(i).node());
+        os_ << "    n" << choice() << ":s" << from << "o" << i << " -> n"
+            << choice()->alternatives()->at(i).node() << ";\n";
       }
     }
   }
  private:
-  StringStream* stream() { return stream_; }
   ChoiceNode* choice() { return choice_; }
-  StringStream* stream_;
+  OStream& os_;
   ChoiceNode* choice_;
 };
 
 
 class TableEntryHeaderPrinter {
  public:
-  explicit TableEntryHeaderPrinter(StringStream* stream)
-      : first_(true), stream_(stream) { }
+  explicit TableEntryHeaderPrinter(OStream& os)  // NOLINT
+      : first_(true),
+        os_(os) {}
   void Call(uc16 from, DispatchTable::Entry entry) {
     if (first_) {
       first_ = false;
     } else {
-      stream()->Add("|");
+      os_ << "|";
     }
-    stream()->Add("{\\%k-\\%k|{", from, entry.to());
+    os_ << "{\\" << AsUC16(from) << "-\\" << AsUC16(entry.to()) << "|{";
     OutSet* out_set = entry.out_set();
     int priority = 0;
     for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
       if (out_set->Get(i)) {
-        if (priority > 0) stream()->Add("|");
-        stream()->Add("<s%io%i> %i", from, i, priority);
+        if (priority > 0) os_ << "|";
+        os_ << "<s" << from << "o" << i << "> " << priority;
         priority++;
       }
     }
-    stream()->Add("}}");
+    os_ << "}}";
   }
 
  private:
   bool first_;
-  StringStream* stream() { return stream_; }
-  StringStream* stream_;
+  OStream& os_;
 };
 
 
 class AttributePrinter {
  public:
-  explicit AttributePrinter(DotPrinter* out)
-      : out_(out), first_(true) { }
+  explicit AttributePrinter(OStream& os)  // NOLINT
+      : os_(os),
+        first_(true) {}
   void PrintSeparator() {
     if (first_) {
       first_ = false;
     } else {
-      out_->stream()->Add("|");
+      os_ << "|";
     }
   }
   void PrintBit(const char* name, bool value) {
     if (!value) return;
     PrintSeparator();
-    out_->stream()->Add("{%s}", name);
+    os_ << "{" << name << "}";
   }
   void PrintPositive(const char* name, int value) {
     if (value < 0) return;
     PrintSeparator();
-    out_->stream()->Add("{%s|%x}", name, value);
+    os_ << "{" << name << "|" << value << "}";
   }
+
  private:
-  DotPrinter* out_;
+  OStream& os_;
   bool first_;
 };
 
 
 void DotPrinter::PrintAttributes(RegExpNode* that) {
-  stream()->Add("  a%p [shape=Mrecord, color=grey, fontcolor=grey, "
-                "margin=0.1, fontsize=10, label=\"{",
-                that);
-  AttributePrinter printer(this);
+  os_ << "  a" << that << " [shape=Mrecord, color=grey, fontcolor=grey, "
+      << "margin=0.1, fontsize=10, label=\"{";
+  AttributePrinter printer(os_);
   NodeInfo* info = that->info();
   printer.PrintBit("NI", info->follows_newline_interest);
   printer.PrintBit("WI", info->follows_word_interest);
@@ -4470,27 +4465,27 @@ void DotPrinter::PrintAttributes(RegExpNode* that) {
   Label* label = that->label();
   if (label->is_bound())
     printer.PrintPositive("@", label->pos());
-  stream()->Add("}\"];\n");
-  stream()->Add("  a%p -> n%p [style=dashed, color=grey, "
-                "arrowhead=none];\n", that, that);
+  os_ << "}\"];\n"
+      << "  a" << that << " -> n" << that
+      << " [style=dashed, color=grey, arrowhead=none];\n";
 }
 
 
 static const bool kPrintDispatchTable = false;
 void DotPrinter::VisitChoice(ChoiceNode* that) {
   if (kPrintDispatchTable) {
-    stream()->Add("  n%p [shape=Mrecord, label=\"", that);
-    TableEntryHeaderPrinter header_printer(stream());
+    os_ << "  n" << that << " [shape=Mrecord, label=\"";
+    TableEntryHeaderPrinter header_printer(os_);
     that->GetTable(ignore_case_)->ForEach(&header_printer);
-    stream()->Add("\"]\n", that);
+    os_ << "\"]\n";
     PrintAttributes(that);
-    TableEntryBodyPrinter body_printer(stream(), that);
+    TableEntryBodyPrinter body_printer(os_, that);
     that->GetTable(ignore_case_)->ForEach(&body_printer);
   } else {
-    stream()->Add("  n%p [shape=Mrecord, label=\"?\"];\n", that);
+    os_ << "  n" << that << " [shape=Mrecord, label=\"?\"];\n";
     for (int i = 0; i < that->alternatives()->length(); i++) {
       GuardedAlternative alt = that->alternatives()->at(i);
-      stream()->Add("  n%p -> n%p;\n", that, alt.node());
+      os_ << "  n" << that << " -> n" << alt.node();
     }
   }
   for (int i = 0; i < that->alternatives()->length(); i++) {
@@ -4502,138 +4497,136 @@ void DotPrinter::VisitChoice(ChoiceNode* that) {
 
 void DotPrinter::VisitText(TextNode* that) {
   Zone* zone = that->zone();
-  stream()->Add("  n%p [label=\"", that);
+  os_ << "  n" << that << " [label=\"";
   for (int i = 0; i < that->elements()->length(); i++) {
-    if (i > 0) stream()->Add(" ");
+    if (i > 0) os_ << " ";
     TextElement elm = that->elements()->at(i);
     switch (elm.text_type()) {
       case TextElement::ATOM: {
-        stream()->Add("'%w'", elm.atom()->data());
+        Vector<const uc16> data = elm.atom()->data();
+        for (int i = 0; i < data.length(); i++) {
+          os_ << static_cast<char>(data[i]);
+        }
         break;
       }
       case TextElement::CHAR_CLASS: {
         RegExpCharacterClass* node = elm.char_class();
-        stream()->Add("[");
-        if (node->is_negated())
-          stream()->Add("^");
+        os_ << "[";
+        if (node->is_negated()) os_ << "^";
         for (int j = 0; j < node->ranges(zone)->length(); j++) {
           CharacterRange range = node->ranges(zone)->at(j);
-          stream()->Add("%k-%k", range.from(), range.to());
+          os_ << AsUC16(range.from()) << "-" << AsUC16(range.to());
         }
-        stream()->Add("]");
+        os_ << "]";
         break;
       }
       default:
         UNREACHABLE();
     }
   }
-  stream()->Add("\", shape=box, peripheries=2];\n");
+  os_ << "\", shape=box, peripheries=2];\n";
   PrintAttributes(that);
-  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  os_ << "  n" << that << " -> n" << that->on_success() << ";\n";
   Visit(that->on_success());
 }
 
 
 void DotPrinter::VisitBackReference(BackReferenceNode* that) {
-  stream()->Add("  n%p [label=\"$%i..$%i\", shape=doubleoctagon];\n",
-                that,
-                that->start_register(),
-                that->end_register());
+  os_ << "  n" << that << " [label=\"$" << that->start_register() << "..$"
+      << that->end_register() << "\", shape=doubleoctagon];\n";
   PrintAttributes(that);
-  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  os_ << "  n" << that << " -> n" << that->on_success() << ";\n";
   Visit(that->on_success());
 }
 
 
 void DotPrinter::VisitEnd(EndNode* that) {
-  stream()->Add("  n%p [style=bold, shape=point];\n", that);
+  os_ << "  n" << that << " [style=bold, shape=point];\n";
   PrintAttributes(that);
 }
 
 
 void DotPrinter::VisitAssertion(AssertionNode* that) {
-  stream()->Add("  n%p [", that);
+  os_ << "  n" << that << " [";
   switch (that->assertion_type()) {
     case AssertionNode::AT_END:
-      stream()->Add("label=\"$\", shape=septagon");
+      os_ << "label=\"$\", shape=septagon";
       break;
     case AssertionNode::AT_START:
-      stream()->Add("label=\"^\", shape=septagon");
+      os_ << "label=\"^\", shape=septagon";
       break;
     case AssertionNode::AT_BOUNDARY:
-      stream()->Add("label=\"\\b\", shape=septagon");
+      os_ << "label=\"\\b\", shape=septagon";
       break;
     case AssertionNode::AT_NON_BOUNDARY:
-      stream()->Add("label=\"\\B\", shape=septagon");
+      os_ << "label=\"\\B\", shape=septagon";
       break;
     case AssertionNode::AFTER_NEWLINE:
-      stream()->Add("label=\"(?<=\\n)\", shape=septagon");
+      os_ << "label=\"(?<=\\n)\", shape=septagon";
       break;
   }
-  stream()->Add("];\n");
+  os_ << "];\n";
   PrintAttributes(that);
   RegExpNode* successor = that->on_success();
-  stream()->Add("  n%p -> n%p;\n", that, successor);
+  os_ << "  n" << that << " -> n" << successor << ";\n";
   Visit(successor);
 }
 
 
 void DotPrinter::VisitAction(ActionNode* that) {
-  stream()->Add("  n%p [", that);
+  os_ << "  n" << that << " [";
   switch (that->action_type_) {
     case ActionNode::SET_REGISTER:
-      stream()->Add("label=\"$%i:=%i\", shape=octagon",
-                    that->data_.u_store_register.reg,
-                    that->data_.u_store_register.value);
+      os_ << "label=\"$" << that->data_.u_store_register.reg
+          << ":=" << that->data_.u_store_register.value << "\", shape=octagon";
       break;
     case ActionNode::INCREMENT_REGISTER:
-      stream()->Add("label=\"$%i++\", shape=octagon",
-                    that->data_.u_increment_register.reg);
+      os_ << "label=\"$" << that->data_.u_increment_register.reg
+          << "++\", shape=octagon";
       break;
     case ActionNode::STORE_POSITION:
-      stream()->Add("label=\"$%i:=$pos\", shape=octagon",
-                    that->data_.u_position_register.reg);
+      os_ << "label=\"$" << that->data_.u_position_register.reg
+          << ":=$pos\", shape=octagon";
       break;
     case ActionNode::BEGIN_SUBMATCH:
-      stream()->Add("label=\"$%i:=$pos,begin\", shape=septagon",
-                    that->data_.u_submatch.current_position_register);
+      os_ << "label=\"$" << that->data_.u_submatch.current_position_register
+          << ":=$pos,begin\", shape=septagon";
       break;
     case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
-      stream()->Add("label=\"escape\", shape=septagon");
+      os_ << "label=\"escape\", shape=septagon";
       break;
     case ActionNode::EMPTY_MATCH_CHECK:
-      stream()->Add("label=\"$%i=$pos?,$%i<%i?\", shape=septagon",
-                    that->data_.u_empty_match_check.start_register,
-                    that->data_.u_empty_match_check.repetition_register,
-                    that->data_.u_empty_match_check.repetition_limit);
+      os_ << "label=\"$" << that->data_.u_empty_match_check.start_register
+          << "=$pos?,$" << that->data_.u_empty_match_check.repetition_register
+          << "<" << that->data_.u_empty_match_check.repetition_limit
+          << "?\", shape=septagon";
       break;
     case ActionNode::CLEAR_CAPTURES: {
-      stream()->Add("label=\"clear $%i to $%i\", shape=septagon",
-                    that->data_.u_clear_captures.range_from,
-                    that->data_.u_clear_captures.range_to);
+      os_ << "label=\"clear $" << that->data_.u_clear_captures.range_from
+          << " to $" << that->data_.u_clear_captures.range_to
+          << "\", shape=septagon";
       break;
     }
   }
-  stream()->Add("];\n");
+  os_ << "];\n";
   PrintAttributes(that);
   RegExpNode* successor = that->on_success();
-  stream()->Add("  n%p -> n%p;\n", that, successor);
+  os_ << "  n" << that << " -> n" << successor << ";\n";
   Visit(successor);
 }
 
 
 class DispatchTableDumper {
  public:
-  explicit DispatchTableDumper(StringStream* stream) : stream_(stream) { }
+  explicit DispatchTableDumper(OStream& os) : os_(os) {}
   void Call(uc16 key, DispatchTable::Entry entry);
-  StringStream* stream() { return stream_; }
  private:
-  StringStream* stream_;
+  OStream& os_;
 };
 
 
 void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
-  stream()->Add("[%k-%k]: {", key, entry.to());
+  os_ << "[" << AsUC16(key) << "-" << AsUC16(entry.to()) << "]: {";
   OutSet* set = entry.out_set();
   bool first = true;
   for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
@@ -4641,28 +4634,27 @@ void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
       if (first) {
         first = false;
       } else {
-        stream()->Add(", ");
+        os_ << ", ";
       }
-      stream()->Add("%i", i);
+      os_ << i;
     }
   }
-  stream()->Add("}\n");
+  os_ << "}\n";
 }
 
 
 void DispatchTable::Dump() {
-  HeapStringAllocator alloc;
-  StringStream stream(&alloc);
-  DispatchTableDumper dumper(&stream);
+  OFStream os(stderr);
+  DispatchTableDumper dumper(os);
   tree()->ForEach(&dumper);
-  base::OS::PrintError("%s", stream.ToCString().get());
 }
 
 
 void RegExpEngine::DotPrint(const char* label,
                             RegExpNode* node,
                             bool ignore_case) {
-  DotPrinter printer(ignore_case);
+  OFStream os(stdout);
+  DotPrinter printer(os, ignore_case);
   printer.PrintNode(label, node);
 }
 

@@ -1654,50 +1654,67 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
       HValue* base_index = AddUncasted<HMul>(hash, Add<HConstant>(2));
       base_index->ClearFlag(HValue::kCanOverflow);
 
-      IfBuilder lookup_if(this);
-      for (int probe = 0; probe < KeyedLookupCache::kEntriesPerBucket;
-           ++probe) {
-        int probe_base = probe * KeyedLookupCache::kEntryLength;
-        HValue* map_index = AddUncasted<HAdd>(base_index,
-            Add<HConstant>(probe_base + KeyedLookupCache::kMapIndex));
-        map_index->ClearFlag(HValue::kCanOverflow);
-        HValue* key_index = AddUncasted<HAdd>(base_index,
-            Add<HConstant>(probe_base + KeyedLookupCache::kKeyIndex));
-        key_index->ClearFlag(HValue::kCanOverflow);
-        HValue* map_to_check = Add<HLoadKeyed>(cache_keys,
-                                               map_index,
-                                               static_cast<HValue*>(NULL),
-                                               FAST_ELEMENTS,
-                                               NEVER_RETURN_HOLE, 0);
-        lookup_if.If<HCompareObjectEqAndBranch>(map_to_check, map);
-        lookup_if.And();
-        HValue* key_to_check = Add<HLoadKeyed>(cache_keys,
-                                               key_index,
-                                               static_cast<HValue*>(NULL),
-                                               FAST_ELEMENTS,
-                                               NEVER_RETURN_HOLE, 0);
-        lookup_if.If<HCompareObjectEqAndBranch>(key_to_check, key);
-        lookup_if.Then();
-        {
-          ExternalReference cache_field_offsets_ref =
-              ExternalReference::keyed_lookup_cache_field_offsets(isolate());
-          HValue* cache_field_offsets = Add<HConstant>(cache_field_offsets_ref);
-          HValue* index = AddUncasted<HAdd>(hash,
-                                            Add<HConstant>(probe));
-          index->ClearFlag(HValue::kCanOverflow);
-          HValue* property_index = Add<HLoadKeyed>(cache_field_offsets,
-                                                   index,
-                                                   static_cast<HValue*>(NULL),
-                                                   EXTERNAL_INT32_ELEMENTS,
-                                                   NEVER_RETURN_HOLE, 0);
-          Push(property_index);
+      HIfContinuation inline_or_runtime_continuation(
+          graph()->CreateBasicBlock(), graph()->CreateBasicBlock());
+      {
+        IfBuilder lookup_ifs[KeyedLookupCache::kEntriesPerBucket];
+        for (int probe = 0; probe < KeyedLookupCache::kEntriesPerBucket;
+             ++probe) {
+          IfBuilder* lookup_if = &lookup_ifs[probe];
+          lookup_if->Initialize(this);
+          int probe_base = probe * KeyedLookupCache::kEntryLength;
+          HValue* map_index = AddUncasted<HAdd>(
+              base_index,
+              Add<HConstant>(probe_base + KeyedLookupCache::kMapIndex));
+          map_index->ClearFlag(HValue::kCanOverflow);
+          HValue* key_index = AddUncasted<HAdd>(
+              base_index,
+              Add<HConstant>(probe_base + KeyedLookupCache::kKeyIndex));
+          key_index->ClearFlag(HValue::kCanOverflow);
+          HValue* map_to_check =
+              Add<HLoadKeyed>(cache_keys, map_index, static_cast<HValue*>(NULL),
+                              FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
+          lookup_if->If<HCompareObjectEqAndBranch>(map_to_check, map);
+          lookup_if->And();
+          HValue* key_to_check =
+              Add<HLoadKeyed>(cache_keys, key_index, static_cast<HValue*>(NULL),
+                              FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
+          lookup_if->If<HCompareObjectEqAndBranch>(key_to_check, key);
+          lookup_if->Then();
+          {
+            ExternalReference cache_field_offsets_ref =
+                ExternalReference::keyed_lookup_cache_field_offsets(isolate());
+            HValue* cache_field_offsets =
+                Add<HConstant>(cache_field_offsets_ref);
+            HValue* index = AddUncasted<HAdd>(hash, Add<HConstant>(probe));
+            index->ClearFlag(HValue::kCanOverflow);
+            HValue* property_index = Add<HLoadKeyed>(
+                cache_field_offsets, index, static_cast<HValue*>(NULL),
+                EXTERNAL_INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
+            Push(property_index);
+          }
+          lookup_if->Else();
         }
-        lookup_if.Else();
+        for (int i = 0; i < KeyedLookupCache::kEntriesPerBucket; ++i) {
+          lookup_ifs[i].JoinContinuation(&inline_or_runtime_continuation);
+        }
       }
-      Add<HDeoptimize>("KeyedLoad fall-back", Deoptimizer::EAGER);
-      Push(graph()->GetConstant0());
-      lookup_if.End();
-      Push(Add<HLoadFieldByIndex>(receiver, Pop()));
+
+      IfBuilder inline_or_runtime(this, &inline_or_runtime_continuation);
+      inline_or_runtime.Then();
+      {
+        // Found a cached index, load property inline.
+        Push(Add<HLoadFieldByIndex>(receiver, Pop()));
+      }
+      inline_or_runtime.Else();
+      {
+        // KeyedLookupCache miss; call runtime.
+        Add<HPushArguments>(receiver, key);
+        Push(Add<HCallRuntime>(
+            isolate()->factory()->empty_string(),
+            Runtime::FunctionForId(Runtime::kKeyedGetProperty), 2));
+      }
+      inline_or_runtime.End();
     }
     if_dict_properties.End();
   }

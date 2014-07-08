@@ -2103,41 +2103,42 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
 
   // Get the arguments boilerplate from the current (global) context.
 
-  //   x0   alloc_obj     pointer to allocated objects (param map, backing
-  //                      store, arguments)
-  //   x1   mapped_params number of mapped parameters, min(params, args)
-  //   x2   arg_count     number of function arguments
-  //   x3   arg_count_smi number of function arguments (smi)
-  //   x4   function      function pointer
-  //   x7   param_count   number of function parameters
-  //   x11  args_offset   offset to args (or aliased args) boilerplate (uninit)
-  //   x14  recv_arg      pointer to receiver arguments
+  //   x0   alloc_obj       pointer to allocated objects (param map, backing
+  //                        store, arguments)
+  //   x1   mapped_params   number of mapped parameters, min(params, args)
+  //   x2   arg_count       number of function arguments
+  //   x3   arg_count_smi   number of function arguments (smi)
+  //   x4   function        function pointer
+  //   x7   param_count     number of function parameters
+  //   x11  sloppy_args_map offset to args (or aliased args) map (uninit)
+  //   x14  recv_arg        pointer to receiver arguments
 
   Register global_object = x10;
   Register global_ctx = x10;
-  Register args_offset = x11;
-  Register aliased_args_offset = x10;
+  Register sloppy_args_map = x11;
+  Register aliased_args_map = x10;
   __ Ldr(global_object, GlobalObjectMemOperand());
   __ Ldr(global_ctx, FieldMemOperand(global_object,
                                      GlobalObject::kNativeContextOffset));
 
-  __ Ldr(args_offset,
-         ContextMemOperand(global_ctx,
-                           Context::SLOPPY_ARGUMENTS_BOILERPLATE_INDEX));
-  __ Ldr(aliased_args_offset,
-         ContextMemOperand(global_ctx,
-                           Context::ALIASED_ARGUMENTS_BOILERPLATE_INDEX));
+  __ Ldr(sloppy_args_map,
+         ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+  __ Ldr(aliased_args_map,
+         ContextMemOperand(global_ctx, Context::ALIASED_ARGUMENTS_MAP_INDEX));
   __ Cmp(mapped_params, 0);
-  __ CmovX(args_offset, aliased_args_offset, ne);
+  __ CmovX(sloppy_args_map, aliased_args_map, ne);
 
   // Copy the JS object part.
-  __ CopyFields(alloc_obj, args_offset, CPURegList(x10, x12, x13),
-                JSObject::kHeaderSize / kPointerSize);
+  __ Str(sloppy_args_map, FieldMemOperand(alloc_obj, JSObject::kMapOffset));
+  __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
+  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kPropertiesOffset));
+  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
 
   // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   const int kCalleeOffset = JSObject::kHeaderSize +
                             Heap::kArgumentsCalleeIndex * kPointerSize;
+  __ AssertNotSmi(function);
   __ Str(function, FieldMemOperand(alloc_obj, kCalleeOffset));
 
   // Use the length and set that as an in-object property.
@@ -2338,25 +2339,24 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the arguments boilerplate from the current (native) context.
   Register global_object = x10;
   Register global_ctx = x10;
-  Register args_offset = x4;
+  Register strict_args_map = x4;
   __ Ldr(global_object, GlobalObjectMemOperand());
   __ Ldr(global_ctx, FieldMemOperand(global_object,
                                      GlobalObject::kNativeContextOffset));
-  __ Ldr(args_offset,
-         ContextMemOperand(global_ctx,
-                           Context::STRICT_ARGUMENTS_BOILERPLATE_INDEX));
+  __ Ldr(strict_args_map,
+         ContextMemOperand(global_ctx, Context::STRICT_ARGUMENTS_MAP_INDEX));
 
   //   x0   alloc_obj         pointer to allocated objects: parameter array and
   //                          arguments object
   //   x1   param_count_smi   number of parameters passed to function (smi)
   //   x2   params            pointer to parameters
   //   x3   function          function pointer
-  //   x4   args_offset       offset to arguments boilerplate
+  //   x4   strict_args_map   offset to arguments map
   //   x13  param_count       number of parameters passed to function
-
-  // Copy the JS object part.
-  __ CopyFields(alloc_obj, args_offset, CPURegList(x5, x6, x7),
-                JSObject::kHeaderSize / kPointerSize);
+  __ Str(strict_args_map, FieldMemOperand(alloc_obj, JSObject::kMapOffset));
+  __ LoadRoot(x5, Heap::kEmptyFixedArrayRootIndex);
+  __ Str(x5, FieldMemOperand(alloc_obj, JSObject::kPropertiesOffset));
+  __ Str(x5, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
 
   // Set the smi-tagged length as an in-object property.
   STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);

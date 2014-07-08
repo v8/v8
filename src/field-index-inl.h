@@ -45,6 +45,8 @@ inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
 }
 
 
+// Takes an index as computed by GetLoadFieldByIndex and reconstructs a
+// FieldIndex object from it.
 inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
   int field_index = orig_index;
   int is_inobject = true;
@@ -60,8 +62,32 @@ inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
     first_inobject_offset = map->GetInObjectPropertyOffset(0);
     field_index += JSObject::kHeaderSize / kPointerSize;
   }
-  return FieldIndex(is_inobject, field_index, is_double,
+  FieldIndex result(is_inobject, field_index, is_double,
                     map->inobject_properties(), first_inobject_offset);
+  ASSERT(result.GetLoadByFieldIndex() == orig_index);
+  return result;
+}
+
+
+// Returns the index format accepted by the HLoadFieldByIndex instruction.
+// (In-object: zero-based from (object start + JSObject::kHeaderSize),
+// out-of-object: zero-based from FixedArray::kHeaderSize.)
+inline int FieldIndex::GetLoadByFieldIndex() const {
+  // For efficiency, the LoadByFieldIndex instruction takes an index that is
+  // optimized for quick access. If the property is inline, the index is
+  // positive. If it's out-of-line, the encoded index is -raw_index - 1 to
+  // disambiguate the zero out-of-line index from the zero inobject case.
+  // The index itself is shifted up by one bit, the lower-most bit
+  // signifying if the field is a mutable double box (1) or not (0).
+  int result = index();
+  if (is_inobject()) {
+    result -= JSObject::kHeaderSize / kPointerSize;
+  } else {
+    result -= FixedArray::kHeaderSize / kPointerSize;
+    result = -result - 1;
+  }
+  result <<= 1;
+  return is_double() ? (result | 1) : result;
 }
 
 

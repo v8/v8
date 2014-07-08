@@ -361,7 +361,7 @@ class Factory V8_FINAL {
     return NewJSObjectFromMap(neander_map());
   }
 
-  Handle<JSObject> NewArgumentsObject(Handle<Object> callee, int length);
+  Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
