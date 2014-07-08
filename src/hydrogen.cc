@@ -8563,10 +8563,12 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
   HValue* function = Pop();  // f
   Drop(1);  // apply
 
+  HValue* checked_function = AddCheckMap(function, function_map);
+
   if (function_state()->outer() == NULL) {
     HInstruction* elements = Add<HArgumentsElements>(false);
     HInstruction* length = Add<HArgumentsLength>(elements);
-    HValue* wrapped_receiver = BuildWrapReceiver(receiver, function);
+    HValue* wrapped_receiver = BuildWrapReceiver(receiver, checked_function);
     HInstruction* result = New<HApplyArguments>(function,
                                                 wrapped_receiver,
                                                 length,
@@ -8582,7 +8584,7 @@ bool HOptimizedGraphBuilder::TryCallApply(Call* expr) {
     const ZoneList<HValue*>* arguments_values = args->arguments_values();
     int arguments_count = arguments_values->length();
     Push(function);
-    Push(BuildWrapReceiver(receiver, function));
+    Push(BuildWrapReceiver(receiver, checked_function));
     for (int i = 1; i < arguments_count; i++) {
       Push(arguments_values->at(i));
     }
