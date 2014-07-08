@@ -66,6 +66,7 @@ class AssemblerBase: public Malloced {
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+  void enable_serializer() { serializer_enabled_ = true; }
 
   bool predictable_code_size() const { return predictable_code_size_; }
   void set_predictable_code_size(bool value) { predictable_code_size_ = value; }

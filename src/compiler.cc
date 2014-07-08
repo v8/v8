@@ -933,9 +933,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     cached_data = NULL;
   } else if (cached_data_mode == PRODUCE_CACHED_DATA) {
     ASSERT(cached_data && !*cached_data);
+    ASSERT(extension == NULL);
   } else {
     ASSERT(cached_data_mode == CONSUME_CACHED_DATA);
     ASSERT(cached_data && *cached_data);
+    ASSERT(extension == NULL);
   }
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
@@ -951,6 +953,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     maybe_result = compilation_cache->LookupScript(
         source, script_name, line_offset, column_offset,
         is_shared_cross_origin, context);
+    if (maybe_result.is_null() && FLAG_serialize_toplevel &&
+        cached_data_mode == CONSUME_CACHED_DATA) {
+      Object* des = CodeSerializer::Deserialize(isolate, *cached_data);
+      return handle(SharedFunctionInfo::cast(des), isolate);
+    }
   }
 
   if (!maybe_result.ToHandle(&result)) {
@@ -971,17 +978,21 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     // Compile the function and add it to the cache.
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
-    info.SetExtension(extension);
     info.SetCachedData(cached_data, cached_data_mode);
+    info.SetExtension(extension);
     info.SetContext(context);
     if (FLAG_use_strict) info.SetStrictMode(STRICT);
+
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
+      if (FLAG_serialize_toplevel && cached_data_mode == PRODUCE_CACHED_DATA) {
+        *cached_data = CodeSerializer::Serialize(result);
+      }
     }
     if (result.is_null()) isolate->ReportPendingMessages();
   } else if (result->ic_age() != isolate->heap()->global_ic_age()) {
-      result->ResetForNewContext(isolate->heap()->global_ic_age());
+    result->ResetForNewContext(isolate->heap()->global_ic_age());
   }
   return result;
 }

@@ -423,6 +423,8 @@ DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
+DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
+
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")

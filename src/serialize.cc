@@ -19,6 +19,7 @@
 #include "src/snapshot-source-sink.h"
 #include "src/stub-cache.h"
 #include "src/v8threads.h"
+#include "src/version.h"
 
 namespace v8 {
 namespace internal {
@@ -1796,12 +1797,13 @@ int Serializer::SpaceAreaSize(int space) {
 }
 
 
+void Serializer::PadByte() { sink_->Put(kNop, "Padding"); }
+
+
 void Serializer::Pad() {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
-  for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
-    sink_->Put(kNop, "Padding");
-  }
+  for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) PadByte();
 }
 
 
@@ -1811,4 +1813,101 @@ void Serializer::InitializeCodeAddressMap() {
 }
 
 
+ScriptData* CodeSerializer::Serialize(Handle<SharedFunctionInfo> info) {
+  // Serialize code object.
+  List<char> payload;
+  ListSnapshotSink listsink(&payload);
+  CodeSerializer ser(info->GetIsolate(), &listsink);
+  DisallowHeapAllocation no_gc;
+  Object** location = Handle<Object>::cast(info).location();
+  ser.VisitPointer(location);
+  ser.Pad();
+
+  // Allocate storage.  The payload length may not be aligned.  Round up.
+  // TODO(yangguo) replace ScriptData with a more generic super class.
+  int payload_length = payload.length();
+  int raw_length = payload_length / sizeof(unsigned) + kHeaderSize;
+  if (!IsAligned(payload_length, sizeof(unsigned))) raw_length++;
+  unsigned* raw_data = i::NewArray<unsigned>(raw_length);
+  char* payload_data = reinterpret_cast<char*>(raw_data + kHeaderSize);
+
+  // Write header.
+  raw_data[kVersionHashOffset] = Version::Hash();
+  raw_data[kPayloadLengthOffset] = payload_length;
+  STATIC_ASSERT(NEW_SPACE == 0);
+  for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
+    raw_data[kReservationsOffset + i] = ser.CurrentAllocationAddress(i);
+  }
+
+  CopyBytes(payload_data, payload.begin(), static_cast<size_t>(payload_length));
+
+  return new ScriptData(Vector<unsigned>(raw_data, raw_length), true);
+}
+
+
+void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
+                                     WhereToPoint where_to_point, int skip) {
+  CHECK(o->IsHeapObject());
+  HeapObject* heap_object = HeapObject::cast(o);
+
+  // The code-caches link to context-specific code objects, which
+  // the startup and context serializes cannot currently handle.
+  ASSERT(!heap_object->IsMap() ||
+         Map::cast(heap_object)->code_cache() ==
+             heap_object->GetHeap()->empty_fixed_array());
+
+  int root_index;
+  if ((root_index = RootIndex(heap_object, how_to_code)) != kInvalidRootIndex) {
+    PutRoot(root_index, heap_object, how_to_code, where_to_point, skip);
+    return;
+  }
+
+  // TODO(yangguo) wire up builtins.
+  // TODO(yangguo) wire up stubs from stub cache.
+  // TODO(yangguo) wire up script source.
+  // TODO(yangguo) wire up internalized strings
+  ASSERT(!heap_object->IsInternalizedString());
+  // TODO(yangguo) We cannot deal with different hash seeds yet.
+  ASSERT(!heap_object->IsHashTable());
+
+  if (address_mapper_.IsMapped(heap_object)) {
+    int space = SpaceOfObject(heap_object);
+    int address = address_mapper_.MappedTo(heap_object);
+    SerializeReferenceToPreviousObject(space, address, how_to_code,
+                                       where_to_point, skip);
+    return;
+  }
+
+  if (skip != 0) {
+    sink_->Put(kSkip, "SkipFromSerializeObject");
+    sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
+  }
+  // Object has not yet been serialized.  Serialize it here.
+  ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
+                              where_to_point);
+  serializer.Serialize();
+}
+
+
+Object* CodeSerializer::Deserialize(Isolate* isolate, ScriptData* data) {
+  const unsigned* raw_data = reinterpret_cast<const unsigned*>(data->Data());
+  CHECK_EQ(Version::Hash(), raw_data[kVersionHashOffset]);
+  int payload_length = raw_data[kPayloadLengthOffset];
+  const byte* payload_data =
+      reinterpret_cast<const byte*>(raw_data + kHeaderSize);
+  ASSERT_LE(payload_length, data->Length() - kHeaderSize);
+
+  SnapshotByteSource payload(payload_data, payload_length);
+  Deserializer deserializer(&payload);
+  STATIC_ASSERT(NEW_SPACE == 0);
+  // TODO(yangguo) what happens if remaining new space is too small?
+  for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
+    deserializer.set_reservation(
+        i, raw_data[CodeSerializer::kReservationsOffset + i]);
+  }
+  Object* root;
+  deserializer.DeserializePartial(isolate, &root);
+  ASSERT(root->IsSharedFunctionInfo());
+  return root;
+}
 } }  // namespace v8::internal

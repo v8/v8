@@ -182,7 +182,7 @@ void RegExpBuilder::AddQuantifierToAtom(
 }
 
 
-ScriptData* ScriptData::New(const char* data, int length) {
+ScriptData* ScriptData::New(const char* data, int length, bool owns_store) {
   // The length is obviously invalid.
   if (length % sizeof(unsigned) != 0) {
     return NULL;
@@ -190,7 +190,8 @@ ScriptData* ScriptData::New(const char* data, int length) {
 
   int deserialized_data_length = length / sizeof(unsigned);
   unsigned* deserialized_data;
-  bool owns_store = reinterpret_cast<intptr_t>(data) % sizeof(unsigned) != 0;
+  owns_store =
+      owns_store || reinterpret_cast<intptr_t>(data) % sizeof(unsigned) != 0;
   if (owns_store) {
     // Copy the data to align it.
     deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
