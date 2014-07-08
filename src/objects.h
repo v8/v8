@@ -1557,15 +1557,15 @@ class Object {
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
 
-  // For our gdb macros, we should perhaps change these in the future.
-  void Print();
-
   DECLARE_CAST(Object)
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
 
 #ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   // Prints this object with details.
   void Print(OStream& os);  // NOLINT
 #endif

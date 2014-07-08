@@ -94,8 +94,12 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
            TransitionMarkFromState(state()),
            TransitionMarkFromState(new_state),
            modifier);
+#ifdef OBJECT_PRINT
     OFStream os(stdout);
     name->Print(os);
+#else
+    name->ShortPrint(stdout);
+#endif
     PrintF("]\n");
   }
 }
