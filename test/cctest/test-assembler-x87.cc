@@ -63,7 +63,8 @@ TEST(AssemblerIa320) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
   int res = f(3, 4);
@@ -99,7 +100,8 @@ TEST(AssemblerIa321) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(100);
@@ -139,7 +141,8 @@ TEST(AssemblerIa322) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   int res = f(10);
@@ -217,7 +220,8 @@ TEST(AssemblerIa329) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef OBJECT_PRINT
-  code->Print();
+  OFStream os(stdout);
+  code->Print(os);
 #endif
 
   F7 f = FUNCTION_CAST<F7>(code->entry());
