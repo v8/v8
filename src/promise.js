@@ -139,7 +139,7 @@ var lastMicrotaskId = 0;
     });
     if (instrumenting) {
       id = ++lastMicrotaskId;
-      name = status > 0 ? "Promise.Resolved" : "Promise.Rejected";
+      name = status > 0 ? "Promise.resolve" : "Promise.reject";
       %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
     }
   }
