@@ -75,6 +75,9 @@
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
   'test-cpu-profiler/*': [PASS, FLAKY],
 
+  # TODO(yangguo): Temporarily disable code serializer test
+  'test-compiler/SerializeToplevel': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
