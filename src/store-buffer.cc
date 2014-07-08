@@ -524,7 +524,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
           Page* page = reinterpret_cast<Page*>(chunk);
           ASSERT(page->owner() == heap_->map_space() ||
                  page->owner() == heap_->old_pointer_space());
-          CHECK(page->WasSweptPrecisely());
+          CHECK(!page->WasSweptConservatively());
 
           HeapObjectIterator iterator(page, NULL);
           for (HeapObject* heap_object = iterator.Next();
