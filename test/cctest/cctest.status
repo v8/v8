@@ -135,7 +135,7 @@
 ##############################################################################
 ['no_snap == True', {
   # BUG(3215)
-  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL],
+  'test-lockers/MultithreadedParallelIsolates': [PASS, FAIL, TIMEOUT],
 }],  # 'no_snap == True'
 
 ##############################################################################
