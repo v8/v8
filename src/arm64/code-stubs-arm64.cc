@@ -1988,9 +1988,8 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   Register caller_fp = x10;
   __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   // Load and untag the context.
-  STATIC_ASSERT((kSmiShift / kBitsPerByte) == 4);
-  __ Ldr(w11, MemOperand(caller_fp, StandardFrameConstants::kContextOffset +
-                         (kSmiShift / kBitsPerByte)));
+  __ Ldr(w11, UntagSmiMemOperand(caller_fp,
+                                 StandardFrameConstants::kContextOffset));
   __ Cmp(w11, StackFrame::ARGUMENTS_ADAPTOR);
   __ B(ne, &runtime);
 
@@ -2838,8 +2837,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Store the smi values in the last match info.
   __ SmiTag(x10, current_offset);
   // Clearing the 32 bottom bits gives us a Smi.
-  STATIC_ASSERT(kSmiShift == 32);
-  __ And(x11, current_offset, ~kWRegMask);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ Bic(x11, current_offset, kSmiShiftMask);
   __ Stp(x10,
          x11,
          MemOperand(last_match_offsets, kXRegSize * 2, PostIndex));
@@ -3478,8 +3477,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
 
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged ASCII char code.
-  STATIC_ASSERT(kSmiShift > kPointerSizeLog2);
-  __ Add(result_, result_, Operand(code_, LSR, kSmiShift - kPointerSizeLog2));
+  __ Add(result_, result_, Operand::UntagSmiAndScale(code_, kPointerSizeLog2));
   __ Ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
   __ JumpIfRoot(result_, Heap::kUndefinedValueRootIndex, &slow_case_);
   __ Bind(&exit_);
@@ -3848,7 +3846,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
   // hash = character + (character << 10);
   __ LoadRoot(hash, Heap::kHashSeedRootIndex);
   // Untag smi seed and add the character.
-  __ Add(hash, character, Operand(hash, LSR, kSmiShift));
+  __ Add(hash, character, Operand::UntagSmi(hash));
 
   // Compute hashes modulo 2^32 using a 32-bit W register.
   Register hash_w = hash.W();
