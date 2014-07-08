@@ -3104,9 +3104,12 @@ void Debug::ProcessDebugMessages(bool debug_command_only) {
 }
 
 
-DebugScope::DebugScope(Debug* debug) : debug_(debug),
-                                       prev_(debug->debugger_entry()),
-                                       save_(debug_->isolate_) {
+DebugScope::DebugScope(Debug* debug)
+    : debug_(debug),
+      prev_(debug->debugger_entry()),
+      save_(debug_->isolate_),
+      no_termination_exceptons_(debug_->isolate_,
+                                StackGuard::TERMINATE_EXECUTION) {
   // Link recursive debugger entry.
   debug_->thread_local_.current_debug_scope_ = this;
 

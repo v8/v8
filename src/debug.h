@@ -705,6 +705,7 @@ class DebugScope BASE_EMBEDDED {
   int break_id_;                   // Previous break id.
   bool failed_;                    // Did the debug context fail to load?
   SaveContext save_;               // Saves previous context.
+  PostponeInterruptsScope no_termination_exceptons_;
 };
 
 
