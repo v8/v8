@@ -170,11 +170,8 @@ class IC {
 
   bool is_target_set() { return target_set_; }
 
-#ifdef DEBUG
   char TransitionMarkFromState(IC::State state);
-
   void TraceIC(const char* type, Handle<Object> name);
-#endif
 
   MaybeHandle<Object> TypeError(const char* type,
                                 Handle<Object> object,

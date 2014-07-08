@@ -614,9 +614,11 @@ class JavaScriptFrame: public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
-  static void PrintTop(Isolate* isolate,
-                       FILE* file,
-                       bool print_args,
+  static void PrintFunctionAndOffset(JSFunction* function, Code* code,
+                                     Address pc, FILE* file,
+                                     bool print_line_number);
+
+  static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
  protected:

@@ -777,9 +777,37 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
 }
 
 
-void JavaScriptFrame::PrintTop(Isolate* isolate,
-                               FILE* file,
-                               bool print_args,
+void JavaScriptFrame::PrintFunctionAndOffset(JSFunction* function, Code* code,
+                                             Address pc, FILE* file,
+                                             bool print_line_number) {
+  PrintF(file, "%s", function->IsOptimized() ? "*" : "~");
+  function->PrintName(file);
+  int code_offset = static_cast<int>(pc - code->instruction_start());
+  PrintF(file, "+%d", code_offset);
+  if (print_line_number) {
+    SharedFunctionInfo* shared = function->shared();
+    int source_pos = code->SourcePosition(pc);
+    Object* maybe_script = shared->script();
+    if (maybe_script->IsScript()) {
+      Script* script = Script::cast(maybe_script);
+      int line = script->GetLineNumber(source_pos) + 1;
+      Object* script_name_raw = script->name();
+      if (script_name_raw->IsString()) {
+        String* script_name = String::cast(script->name());
+        SmartArrayPointer<char> c_script_name =
+            script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+        PrintF(file, " at %s:%d", c_script_name.get(), line);
+      } else {
+        PrintF(file, " at <unknown>:%d", line);
+      }
+    } else {
+      PrintF(file, " at <unknown>:<unknown>");
+    }
+  }
+}
+
+
+void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
                                bool print_line_number) {
   // constructor calls
   DisallowHeapAllocation no_allocation;
@@ -788,37 +816,8 @@ void JavaScriptFrame::PrintTop(Isolate* isolate,
     if (it.frame()->is_java_script()) {
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
-      // function name
-      JSFunction* fun = frame->function();
-      fun->PrintName();
-      Code* js_code = frame->unchecked_code();
-      Address pc = frame->pc();
-      int code_offset =
-          static_cast<int>(pc - js_code->instruction_start());
-      PrintF("+%d", code_offset);
-      SharedFunctionInfo* shared = fun->shared();
-      if (print_line_number) {
-        Code* code = Code::cast(isolate->FindCodeObject(pc));
-        int source_pos = code->SourcePosition(pc);
-        Object* maybe_script = shared->script();
-        if (maybe_script->IsScript()) {
-          Script* script = Script::cast(maybe_script);
-          int line = script->GetLineNumber(source_pos) + 1;
-          Object* script_name_raw = script->name();
-          if (script_name_raw->IsString()) {
-            String* script_name = String::cast(script->name());
-            SmartArrayPointer<char> c_script_name =
-                script_name->ToCString(DISALLOW_NULLS,
-                                       ROBUST_STRING_TRAVERSAL);
-            PrintF(file, " at %s:%d", c_script_name.get(), line);
-          } else {
-            PrintF(file, " at <unknown>:%d", line);
-          }
-        } else {
-          PrintF(file, " at <unknown>:<unknown>");
-        }
-      }
-
+      PrintFunctionAndOffset(frame->function(), frame->unchecked_code(),
+                             frame->pc(), file, print_line_number);
       if (print_args) {
         // function arguments
         // (we are intentionally only printing the actually
