@@ -1480,6 +1480,22 @@ int HeapObject::Size() {
 }
 
 
+bool HeapObject::ContainsPointers() {
+  InstanceType type = map()->instance_type();
+  if (type <= LAST_NAME_TYPE) {
+    if (type == SYMBOL_TYPE) {
+      return true;
+    }
+    ASSERT(type < FIRST_NONSTRING_TYPE);
+    // There are four string representations: sequential strings, external
+    // strings, cons strings, and sliced strings.
+    // Only the latter two contain non-map-word pointers to heap objects.
+    return ((type & kIsIndirectStringMask) == kIsIndirectStringTag);
+  }
+  return (type > LAST_DATA_TYPE);
+}
+
+
 void HeapObject::IteratePointers(ObjectVisitor* v, int start, int end) {
   v->VisitPointers(reinterpret_cast<Object**>(FIELD_ADDR(this, start)),
                    reinterpret_cast<Object**>(FIELD_ADDR(this, end)));

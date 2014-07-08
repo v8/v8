@@ -519,25 +519,22 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
           FindPointersToNewSpaceInRegion(start, end, slot_callback, clear_maps);
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
-          PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
-          Address start = page->area_start();
-          Address end = page->area_end();
-          if (owner == heap_->map_space()) {
-            ASSERT(page->WasSweptPrecisely());
-            HeapObjectIterator iterator(page, NULL);
-            for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
-                 heap_object = iterator.Next()) {
-              // We skip free space objects.
-              if (!heap_object->IsFiller()) {
-                FindPointersToNewSpaceInRegion(
-                    heap_object->address() + HeapObject::kHeaderSize,
-                    heap_object->address() + heap_object->Size(), slot_callback,
-                    clear_maps);
-              }
+          ASSERT(page->owner() == heap_->map_space() ||
+                 page->owner() == heap_->old_pointer_space());
+          CHECK(page->WasSweptPrecisely());
+
+          HeapObjectIterator iterator(page, NULL);
+          for (HeapObject* heap_object = iterator.Next();
+               heap_object != NULL;
+               heap_object = iterator.Next()) {
+            // We iterate over objects that contain pointers only.
+            if (heap_object->ContainsPointers()) {
+              FindPointersToNewSpaceInRegion(
+                  heap_object->address() + HeapObject::kHeaderSize,
+                  heap_object->address() + heap_object->Size(),
+                  slot_callback,
+                  clear_maps);
             }
-          } else {
-            FindPointersToNewSpaceInRegion(
-                start, end, slot_callback, clear_maps);
           }
         }
       }
