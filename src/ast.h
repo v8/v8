@@ -344,11 +344,6 @@ class Expression : public AstNode {
   Bounds bounds() const { return bounds_; }
   void set_bounds(Bounds bounds) { bounds_ = bounds; }
 
-  // Whether the expression is parenthesized
-  unsigned parenthesization_level() const { return parenthesization_level_; }
-  bool is_parenthesized() const { return parenthesization_level_ > 0; }
-  void increase_parenthesization_level() { ++parenthesization_level_; }
-
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
     UNREACHABLE();
@@ -375,7 +370,6 @@ class Expression : public AstNode {
       : AstNode(pos),
         zone_(zone),
         bounds_(Bounds::Unbounded(zone)),
-        parenthesization_level_(0),
         id_(GetNextId(zone)),
         test_id_(GetNextId(zone)) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
@@ -385,7 +379,6 @@ class Expression : public AstNode {
  private:
   Bounds bounds_;
   byte to_boolean_types_;
-  unsigned parenthesization_level_;
 
   const BailoutId id_;
   const TypeFeedbackId test_id_;
