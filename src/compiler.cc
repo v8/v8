@@ -981,6 +981,9 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     info.SetCachedData(cached_data, cached_data_mode);
     info.SetExtension(extension);
     info.SetContext(context);
+    if (FLAG_serialize_toplevel && cached_data_mode == PRODUCE_CACHED_DATA) {
+      info.PrepareForSerializing();
+    }
     if (FLAG_use_strict) info.SetStrictMode(STRICT);
 
     result = CompileToplevel(&info);

@@ -126,6 +126,63 @@ class Runner(object):
       pool.add([self._GetJob(test)])
       self.remaining += 1
 
+  def _ProcessTestNormal(self, test, result, pool):
+    self.indicator.AboutToRun(test)
+    test.output = result[1]
+    test.duration = result[2]
+    has_unexpected_output = test.suite.HasUnexpectedOutput(test)
+    if has_unexpected_output:
+      self.failed.append(test)
+      if test.output.HasCrashed():
+        self.crashed += 1
+    else:
+      self.succeeded += 1
+    self.remaining -= 1
+    self.indicator.HasRun(test, has_unexpected_output)
+    if has_unexpected_output:
+      # Rerun test failures after the indicator has processed the results.
+      self._MaybeRerun(pool, test)
+    # Update the perf database if the test succeeded.
+    return not has_unexpected_output
+
+  def _ProcessTestPredictable(self, test, result, pool):
+    # Always pass the test duration for the database update.
+    test.duration = result[2]
+    if test.run == 1 and result[1].HasTimedOut():
+      # If we get a timeout in the first run, we are already in an
+      # unpredictable state. Just report it as a failure and don't rerun.
+      self.indicator.AboutToRun(test)
+      test.output = result[1]
+      self.remaining -= 1
+      self.failed.append(test)
+      self.indicator.HasRun(test, True)
+    if test.run > 1 and test.output != result[1]:
+      # From the second run on, check for differences. If a difference is
+      # found, call the indicator twice to report both tests. All runs of each
+      # test are counted as one for the statistic.
+      self.indicator.AboutToRun(test)
+      self.remaining -= 1
+      self.failed.append(test)
+      self.indicator.HasRun(test, True)
+      self.indicator.AboutToRun(test)
+      test.output = result[1]
+      self.indicator.HasRun(test, True)
+    elif test.run >= 3:
+      # No difference on the third run -> report a success.
+      self.indicator.AboutToRun(test)
+      self.remaining -= 1
+      self.succeeded += 1
+      test.output = result[1]
+      self.indicator.HasRun(test, False)
+    else:
+      # No difference yet and less than three runs -> add another run and
+      # remember the output for comparison.
+      test.run += 1
+      test.output = result[1]
+      pool.add([self._GetJob(test)])
+    # Always update the perf database.
+    return True
+
   def Run(self, jobs):
     self.indicator.Starting()
     self._RunInternal(jobs)
@@ -156,22 +213,12 @@ class Runner(object):
       it = pool.imap_unordered(RunTest, queue)
       for result in it:
         test = test_map[result[0]]
-        self.indicator.AboutToRun(test)
-        test.output = result[1]
-        test.duration = result[2]
-        has_unexpected_output = test.suite.HasUnexpectedOutput(test)
-        if has_unexpected_output:
-          self.failed.append(test)
-          if test.output.HasCrashed():
-            self.crashed += 1
+        if self.context.predictable:
+          update_perf = self._ProcessTestPredictable(test, result, pool)
         else:
+          update_perf = self._ProcessTestNormal(test, result, pool)
+        if update_perf:
           self._RunPerfSafe(lambda: self.perfdata.UpdatePerfData(test))
-          self.succeeded += 1
-        self.remaining -= 1
-        self.indicator.HasRun(test, has_unexpected_output)
-        if has_unexpected_output:
-          # Rerun test failures after the indicator has processed the results.
-          self._MaybeRerun(pool, test)
     finally:
       pool.terminate()
       self._RunPerfSafe(lambda: self.perf_data_manager.close())

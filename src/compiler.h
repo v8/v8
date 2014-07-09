@@ -76,10 +76,12 @@ class CompilationInfo {
     ASSERT(!is_lazy());
     flags_ |= IsEval::encode(true);
   }
+
   void MarkAsGlobal() {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
+
   void set_parameter_count(int parameter_count) {
     ASSERT(IsStub());
     parameter_count_ = parameter_count;
@@ -88,13 +90,16 @@ class CompilationInfo {
   void set_this_has_uses(bool has_no_uses) {
     this_has_uses_ = has_no_uses;
   }
+
   bool this_has_uses() {
     return this_has_uses_;
   }
+
   void SetStrictMode(StrictMode strict_mode) {
     ASSERT(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
     flags_ = StrictModeField::update(flags_, strict_mode);
   }
+
   void MarkAsNative() {
     flags_ |= IsNative::encode(true);
   }
@@ -155,8 +160,16 @@ class CompilationInfo {
     return IsDebug::decode(flags_);
   }
 
+  void PrepareForSerializing() {
+    ASSERT(!is_lazy());
+    flags_ |= PrepareForSerializing::encode(true);
+  }
+
+  bool will_serialize() const { return PrepareForSerializing::decode(flags_); }
+
   bool IsCodePreAgingActive() const {
-    return FLAG_optimize_for_size && FLAG_age_code && !is_debug();
+    return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
+           !is_debug();
   }
 
   void SetParseRestriction(ParseRestriction restriction) {
@@ -393,6 +406,8 @@ class CompilationInfo {
   class RequiresFrame: public BitField<bool, 13, 1> {};
   // If the function cannot build a frame (for unspecified reasons)
   class MustNotHaveEagerFrame: public BitField<bool, 14, 1> {};
+  // If we plan to serialize the compiled code.
+  class PrepareForSerializing : public BitField<bool, 15, 1> {};
 
   unsigned flags_;
 

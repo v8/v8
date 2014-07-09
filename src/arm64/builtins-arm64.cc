@@ -1246,7 +1246,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // TODO(jbramley): Check that the stack usage here is safe.
     __ Sub(x10, jssp, x10);
     // Check if the arguments will overflow the stack.
-    __ Cmp(x10, Operand(argc, LSR, kSmiShift - kPointerSizeLog2));
+    __ Cmp(x10, Operand::UntagSmiAndScale(argc, kPointerSizeLog2));
     __ B(gt, &enough_stack_space);
     // There is not enough stack space, so use a builtin to throw an appropriate
     // error.

@@ -38,6 +38,12 @@ class Output(object):
     self.stdout = stdout
     self.stderr = stderr
 
+  def __ne__(self, other):
+    return (self.exit_code != other.exit_code or
+            self.timed_out != other.timed_out or
+            self.stdout != other.stdout or
+            self.stderr != other.stderr)
+
   def HasCrashed(self):
     if utils.IsWindows():
       return 0x80000000 & self.exit_code and not (0x3FFFFF00 & self.exit_code)

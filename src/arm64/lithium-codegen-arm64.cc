@@ -3525,7 +3525,8 @@ MemOperand LCodeGen::PrepareKeyedArrayOperand(Register base,
                                               ElementsKind elements_kind,
                                               Representation representation,
                                               int base_offset) {
-  STATIC_ASSERT((kSmiValueSize == 32) && (kSmiShift == 32) && (kSmiTag == 0));
+  STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
+  STATIC_ASSERT(kSmiTag == 0);
   int element_size_shift = ElementsKindToShiftSize(elements_kind);
 
   // Even though the HLoad/StoreKeyed instructions force the input
@@ -3536,8 +3537,7 @@ MemOperand LCodeGen::PrepareKeyedArrayOperand(Register base,
     __ Add(base, elements, Operand::UntagSmiAndScale(key, element_size_shift));
     if (representation.IsInteger32()) {
       ASSERT(elements_kind == FAST_SMI_ELEMENTS);
-      // Read or write only the most-significant 32 bits in the case of fast smi
-      // arrays.
+      // Read or write only the smi payload in the case of fast smi arrays.
       return UntagSmiMemOperand(base, base_offset);
     } else {
       return MemOperand(base, base_offset);
@@ -3548,8 +3548,7 @@ MemOperand LCodeGen::PrepareKeyedArrayOperand(Register base,
     ASSERT((element_size_shift >= 0) && (element_size_shift <= 4));
     if (representation.IsInteger32()) {
       ASSERT(elements_kind == FAST_SMI_ELEMENTS);
-      // Read or write only the most-significant 32 bits in the case of fast smi
-      // arrays.
+      // Read or write only the smi payload in the case of fast smi arrays.
       __ Add(base, elements, Operand(key, SXTW, element_size_shift));
       return UntagSmiMemOperand(base, base_offset);
     } else {
@@ -3612,8 +3611,8 @@ void LCodeGen::DoLoadKeyedFixed(LLoadKeyedFixed* instr) {
         ToInteger32(const_operand) * kPointerSize;
     if (representation.IsInteger32()) {
       ASSERT(instr->hydrogen()->elements_kind() == FAST_SMI_ELEMENTS);
-      STATIC_ASSERT((kSmiValueSize == 32) && (kSmiShift == 32) &&
-                    (kSmiTag == 0));
+      STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
+      STATIC_ASSERT(kSmiTag == 0);
       mem_op = UntagSmiMemOperand(elements, offset);
     } else {
       mem_op = MemOperand(elements, offset);
@@ -3683,7 +3682,8 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   if (access.representation().IsSmi() &&
       instr->hydrogen()->representation().IsInteger32()) {
     // Read int value directly from upper half of the smi.
-    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
+    STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
+    STATIC_ASSERT(kSmiTag == 0);
     __ Load(result, UntagSmiFieldMemOperand(source, offset),
             Representation::Integer32());
   } else {
@@ -5286,8 +5286,8 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
     if (representation.IsInteger32()) {
       ASSERT(instr->hydrogen()->store_mode() == STORE_TO_INITIALIZED_ENTRY);
       ASSERT(instr->hydrogen()->elements_kind() == FAST_SMI_ELEMENTS);
-      STATIC_ASSERT((kSmiValueSize == 32) && (kSmiShift == 32) &&
-                    (kSmiTag == 0));
+      STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
+      STATIC_ASSERT(kSmiTag == 0);
       mem_op = UntagSmiMemOperand(store_base, offset);
     } else {
       mem_op = MemOperand(store_base, offset);
@@ -5406,7 +5406,8 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
       __ Ldr(destination, FieldMemOperand(object, JSObject::kPropertiesOffset));
     }
 #endif
-    STATIC_ASSERT(kSmiValueSize == 32 && kSmiShift == 32 && kSmiTag == 0);
+    STATIC_ASSERT(static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits);
+    STATIC_ASSERT(kSmiTag == 0);
     __ Store(value, UntagSmiFieldMemOperand(destination, offset),
              Representation::Integer32());
   } else {

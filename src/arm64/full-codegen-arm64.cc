@@ -2029,11 +2029,12 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     case Token::MUL: {
       Label not_minus_zero, done;
+      STATIC_ASSERT(static_cast<unsigned>(kSmiShift) == (kXRegSizeInBits / 2));
+      STATIC_ASSERT(kSmiTag == 0);
       __ Smulh(x10, left, right);
       __ Cbnz(x10, &not_minus_zero);
       __ Eor(x11, left, right);
       __ Tbnz(x11, kXSignBit, &stub_call);
-      STATIC_ASSERT(kSmiTag == 0);
       __ Mov(result, x10);
       __ B(&done);
       __ Bind(&not_minus_zero);
@@ -2592,9 +2593,10 @@ void FullCodeGenerator::EmitIsNonNegativeSmi(CallRuntime* expr) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
+  uint64_t sign_mask = V8_UINT64_C(1) << (kSmiShift + kSmiValueSize - 1);
+
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ TestAndSplit(x0, kSmiTagMask | (0x80000000UL << kSmiShift), if_true,
-                  if_false, fall_through);
+  __ TestAndSplit(x0, kSmiTagMask | sign_mask, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }

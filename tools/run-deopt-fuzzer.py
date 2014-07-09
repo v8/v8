@@ -373,7 +373,8 @@ def Execute(arch, mode, args, options, suites, workspace):
                         options.random_seed,
                         True,  # No sorting of test cases.
                         0,  # Don't rerun failing tests.
-                        0)  # No use of a rerun-failing-tests maximum.
+                        0,  # No use of a rerun-failing-tests maximum.
+                        False)  # No predictable mode.
 
   # Find available test suites and read test cases from them.
   variables = {

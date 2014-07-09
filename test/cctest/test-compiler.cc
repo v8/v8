@@ -436,6 +436,8 @@ TEST(SerializeToplevel) {
   Handle<Object> result =
       Execution::Call(isolate, fun, global, 0, NULL).ToHandleChecked();
   CHECK_EQ(2, Handle<Smi>::cast(result)->value());
+
+  delete cache;
 }
 
 

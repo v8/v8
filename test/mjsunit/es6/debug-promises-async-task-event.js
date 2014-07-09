@@ -37,7 +37,7 @@ function listener(event, exec_state, event_data, data) {
     if (base_id < 0)
       base_id = event_data.id();
     var id = event_data.id() - base_id + 1;
-    assertEquals("Promise.Resolved", event_data.name());
+    assertEquals("Promise.resolve", event_data.name());
     assertLog(event_data.type() + " #" + id);
   } catch (e) {
     print(e + e.stack)

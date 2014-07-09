@@ -1907,6 +1907,7 @@ Object* CodeSerializer::Deserialize(Isolate* isolate, ScriptData* data) {
   }
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
+  deserializer.FlushICacheForNewCodeObjects();
   ASSERT(root->IsSharedFunctionInfo());
   return root;
 }
