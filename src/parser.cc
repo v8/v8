@@ -3002,7 +3002,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   }
 
   // Make statement: if (flag == 1) { flag = 0; } else { next; }.
-  {
+  if (next) {
     Expression* compare = NULL;
     // Make compare expresion: flag == 1.
     {
@@ -3027,7 +3027,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
 
 
   // Make statement: if (cond) { } else { break; }.
-  {
+  if (cond) {
     Statement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
     BreakableStatement* t = LookupBreakTarget(NULL, CHECK_OK);
     Statement* stop = factory()->NewBreakStatement(t, RelocInfo::kNoPosition);
@@ -3249,11 +3249,31 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     scope_ = saved_scope;
     for_scope->set_end_position(scanner()->location().end_pos);
   } else {
-    loop->Initialize(init, cond, next, body);
-    result = loop;
     scope_ = saved_scope;
     for_scope->set_end_position(scanner()->location().end_pos);
-    for_scope->FinalizeBlockScope();
+    for_scope = for_scope->FinalizeBlockScope();
+    if (for_scope) {
+      // Rewrite a for statement of the form
+      //   for (const x = i; c; n) b
+      //
+      // into
+      //
+      //   {
+      //     const x = i;
+      //     for (; c; n) b
+      //   }
+      ASSERT(init != NULL);
+      Block* block =
+          factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
+      block->AddStatement(init, zone());
+      block->AddStatement(loop, zone());
+      block->set_scope(for_scope);
+      loop->Initialize(NULL, cond, next, body);
+      result = block;
+    } else {
+      loop->Initialize(init, cond, next, body);
+      result = loop;
+    }
   }
   return result;
 }
