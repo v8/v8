@@ -48,6 +48,9 @@ namespace internal {
 #if (V8_TARGET_ARCH_MIPS && !V8_HOST_ARCH_MIPS)
 #define USE_SIMULATOR 1
 #endif
+#if (V8_TARGET_ARCH_MIPS64 && !V8_HOST_ARCH_MIPS64)
+#define USE_SIMULATOR 1
+#endif
 #endif
 
 // Determine whether the architecture uses an out-of-line constant pool.

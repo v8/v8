@@ -71,6 +71,13 @@ const int kInvalidProtoDepth = -1;
 #include "src/mips/assembler-mips-inl.h"
 #include "src/code.h"  // must be after assembler_*.h
 #include "src/mips/macro-assembler-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/constants-mips64.h"
+#include "src/assembler.h"
+#include "src/mips64/assembler-mips64.h"  // NOLINT
+#include "src/mips64/assembler-mips64-inl.h"
+#include "src/code.h"  // must be after assembler_*.h
+#include "src/mips64/macro-assembler-mips64.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/assembler.h"
 #include "src/x87/assembler-x87.h"

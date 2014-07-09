@@ -57,6 +57,11 @@
 #include "src/mips/macro-assembler-mips.h"
 #include "src/mips/regexp-macro-assembler-mips.h"
 #endif
+#if V8_TARGET_ARCH_MIPS64
+#include "src/mips64/assembler-mips64.h"
+#include "src/mips64/macro-assembler-mips64.h"
+#include "src/mips64/regexp-macro-assembler-mips64.h"
+#endif
 #if V8_TARGET_ARCH_X64
 #include "src/x64/assembler-x64.h"
 #include "src/x64/macro-assembler-x64.h"
@@ -702,6 +707,8 @@ typedef RegExpMacroAssemblerARM ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_ARM64
 typedef RegExpMacroAssemblerARM64 ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_MIPS
+typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
+#elif V8_TARGET_ARCH_MIPS64
 typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 #elif V8_TARGET_ARCH_X87
 typedef RegExpMacroAssemblerX87 ArchRegExpMacroAssembler;

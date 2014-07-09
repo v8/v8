@@ -577,7 +577,7 @@ DEFINE_BOOL(debug_sim, false, "Enable debugging the simulator")
 DEFINE_BOOL(check_icache, false,
             "Check icache flushes in ARM and MIPS simulator")
 DEFINE_INT(stop_sim_at, 0, "Simulator stop after x number of instructions")
-#ifdef V8_TARGET_ARCH_ARM64
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_MIPS64)
 DEFINE_INT(sim_stack_alignment, 16,
            "Stack alignment in bytes in simulator. This must be a power of two "
            "and it must be at least 16. 16 is default.")
@@ -586,7 +586,8 @@ DEFINE_INT(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
 #endif
 DEFINE_INT(sim_stack_size, 2 * MB / KB,
-           "Stack size of the ARM64 simulator in kBytes (default is 2 MB)")
+           "Stack size of the ARM64 and MIPS64 simulator "
+           "in kBytes (default is 2 MB)")
 DEFINE_BOOL(log_regs_modified, true,
             "When logging register values, only print modified registers.")
 DEFINE_BOOL(log_colour, true, "When logging, try to use coloured output.")

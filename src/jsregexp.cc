@@ -32,6 +32,8 @@
 #include "src/arm/regexp-macro-assembler-arm.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/regexp-macro-assembler-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/regexp-macro-assembler-x87.h"  // NOLINT
 #else
@@ -6067,6 +6069,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   RegExpMacroAssemblerARM64 macro_assembler(mode, (data->capture_count + 1) * 2,
                                             zone);
 #elif V8_TARGET_ARCH_MIPS
+  RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2,
+                                           zone);
+#elif V8_TARGET_ARCH_MIPS64
   RegExpMacroAssemblerMIPS macro_assembler(mode, (data->capture_count + 1) * 2,
                                            zone);
 #elif V8_TARGET_ARCH_X87

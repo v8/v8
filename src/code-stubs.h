@@ -110,6 +110,12 @@ namespace internal {
   V(DirectCEntry)               \
   V(StoreRegistersState)        \
   V(RestoreRegistersState)
+#elif V8_TARGET_ARCH_MIPS64
+#define CODE_STUB_LIST_MIPS(V)  \
+  V(RegExpCEntry)               \
+  V(DirectCEntry)               \
+  V(StoreRegistersState)        \
+  V(RestoreRegistersState)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif
@@ -496,6 +502,8 @@ class RuntimeCallHelper {
 #include "src/arm/code-stubs-arm.h"
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/code-stubs-mips.h"
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/code-stubs-mips64.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/code-stubs-x87.h"
 #else
