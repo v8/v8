@@ -4362,6 +4362,9 @@ class OrderedHashTable: public FixedArray {
       bool* was_present);
 
   // Returns kNotFound if the key isn't present.
+  int FindEntry(Handle<Object> key, int hash);
+
+  // Like the above, but doesn't require the caller to provide a hash.
   int FindEntry(Handle<Object> key);
 
   int NumberOfElements() {
