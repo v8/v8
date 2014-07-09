@@ -175,9 +175,6 @@
 ##############################################################################
 ['arch == arm', {
 
-  # Temporarily disabled test
-  'test-compiler/SerializeToplevel': [SKIP],
-
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],
 

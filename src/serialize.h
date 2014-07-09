@@ -249,6 +249,8 @@ class Deserializer: public SerializerDeserializer {
     reservations_[space_number] = reservation;
   }
 
+  void FlushICacheForNewCodeObjects();
+
  private:
   virtual void VisitPointers(Object** start, Object** end);
 
@@ -285,8 +287,6 @@ class Deserializer: public SerializerDeserializer {
     offset <<= kObjectAlignmentBits;
     return HeapObject::FromAddress(high_water_[space] - offset);
   }
-
-  void FlushICacheForNewCodeObjects();
 
   // Cached current isolate.
   Isolate* isolate_;
