@@ -1709,15 +1709,14 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), proxy->interface());
-    } else if ((mode != VAR || var->mode() != VAR) &&
-               (!declaration_scope->is_global_scope() ||
-                IsLexicalVariableMode(mode) ||
-                IsLexicalVariableMode(var->mode()))) {
+    } else if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(var->mode())
+               || ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
+                   !declaration_scope->is_global_scope())) {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
       // not a var (in the global scope, we also have to ignore legacy const for
       // compatibility). There is similar code in runtime.cc in the Declare
-      // functions. The function CheckNonConflictingScope checks for conflicting
+      // functions. The function CheckConflictingVarDeclarations checks for
       // var and let bindings from different scopes whereas this is a check for
       // conflicting declarations within the same scope. This check also covers
       // the special case
@@ -1900,11 +1899,12 @@ Statement* Parser::ParseFunctionDeclaration(
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
-  // In extended mode, a function behaves as a lexical binding, except in the
-  // global scope.
+  // In ES6, a function behaves as a lexical binding, except in the
+  // global scope, or the initial scope of eval or another function.
   VariableMode mode =
-      allow_harmony_scoping() &&
-      strict_mode() == STRICT && !scope_->is_global_scope() ? LET : VAR;
+      allow_harmony_scoping() && strict_mode() == STRICT &&
+      !(scope_->is_global_scope() || scope_->is_eval_scope() ||
+          scope_->is_function_scope()) ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
@@ -2213,9 +2213,8 @@ Block* Parser::ParseVariableDeclarations(
     // executed.
     //
     // Executing the variable declaration statement will always
-    // guarantee to give the global object a "local" variable; a
-    // variable defined in the global object and not in any
-    // prototype. This way, global variable declarations can shadow
+    // guarantee to give the global object an own property.
+    // This way, global variable declarations can shadow
     // properties in the prototype chain, but only after the variable
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
@@ -3577,10 +3576,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     ast_properties = *factory()->visitor()->ast_properties();
     dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
-  }
 
-  if (allow_harmony_scoping() && strict_mode() == STRICT) {
-    CheckConflictingVarDeclarations(scope, CHECK_OK);
+    if (allow_harmony_scoping() && strict_mode() == STRICT) {
+      CheckConflictingVarDeclarations(scope, CHECK_OK);
+    }
   }
 
   FunctionLiteral::IsGeneratorFlag generator = is_generator
