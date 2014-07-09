@@ -78,7 +78,7 @@ bool BufferedUtf16CharacterStream::ReadBlock() {
     if (buffer_cursor_ < buffer_end_) return true;
     // Otherwise read a new block.
   }
-  unsigned length = FillBuffer(pos_, kBufferSize);
+  unsigned length = FillBuffer(pos_);
   buffer_end_ = buffer_ + length;
   return length > 0;
 }
@@ -118,9 +118,9 @@ unsigned GenericStringUtf16CharacterStream::BufferSeekForward(unsigned delta) {
 }
 
 
-unsigned GenericStringUtf16CharacterStream::FillBuffer(unsigned from_pos,
-                                                      unsigned length) {
+unsigned GenericStringUtf16CharacterStream::FillBuffer(unsigned from_pos) {
   if (from_pos >= length_) return 0;
+  unsigned length = kBufferSize;
   if (from_pos + length > length_) {
     length = length_ - from_pos;
   }
@@ -155,8 +155,7 @@ unsigned Utf8ToUtf16CharacterStream::BufferSeekForward(unsigned delta) {
 }
 
 
-unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position,
-                                                unsigned length) {
+unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position) {
   static const unibrow::uchar kMaxUtf16Character = 0xffff;
   SetRawPosition(char_position);
   if (raw_character_position_ != char_position) {
@@ -165,7 +164,7 @@ unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position,
     return 0u;
   }
   unsigned i = 0;
-  while (i < length - 1) {
+  while (i < kBufferSize - 1) {
     if (raw_data_pos_ == raw_data_length_) break;
     unibrow::uchar c = raw_data_[raw_data_pos_];
     if (c <= unibrow::Utf8::kMaxOneByteChar) {

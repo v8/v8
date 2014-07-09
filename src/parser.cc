@@ -859,7 +859,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
-    if (!info->context().is_null()) {
+    if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       scope = Scope::DeserializeScopeChain(*info->context(), scope, zone());
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
