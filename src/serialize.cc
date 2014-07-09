@@ -561,8 +561,8 @@ uint32_t ExternalReferenceEncoder::Encode(Address key) const {
 
 const char* ExternalReferenceEncoder::NameOfAddress(Address key) const {
   int index = IndexOf(key);
-  return index >= 0 ?
-      ExternalReferenceTable::instance(isolate_)->name(index) : NULL;
+  return index >= 0 ? ExternalReferenceTable::instance(isolate_)->name(index)
+                    : "<unknown>";
 }
 
 
