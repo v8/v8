@@ -899,9 +899,9 @@ void Shell::Initialize(Isolate* isolate) {
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
   if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
-    V8::SetCounterFunction(LookupCounter);
-    V8::SetCreateHistogramFunction(CreateHistogram);
-    V8::SetAddHistogramSampleFunction(AddHistogramSample);
+    isolate->SetCounterFunction(LookupCounter);
+    isolate->SetCreateHistogramFunction(CreateHistogram);
+    isolate->SetAddHistogramSampleFunction(AddHistogramSample);
   }
 #endif  // !V8_SHARED
 }
