@@ -318,9 +318,9 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, has_unexpected_output):
     self.progress_indicator.HasRun(test, has_unexpected_output)
-    if test.run == 1 and not has_unexpected_output:
-      # Omit tests that pass on the first run, but collect output of tests
-      # that pass when rerun.
+    if not has_unexpected_output:
+      # Omit tests that run as expected. Passing tests of reruns after failures
+      # will have unexpected_output to be reported here has well.
       return
 
     self.results.append({

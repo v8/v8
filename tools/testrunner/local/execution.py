@@ -138,7 +138,10 @@ class Runner(object):
     else:
       self.succeeded += 1
     self.remaining -= 1
-    self.indicator.HasRun(test, has_unexpected_output)
+    # For the indicator, everything that happens after the first run is treated
+    # as unexpected even if it flakily passes in order to include it in the
+    # output.
+    self.indicator.HasRun(test, has_unexpected_output or test.run > 1)
     if has_unexpected_output:
       # Rerun test failures after the indicator has processed the results.
       self._MaybeRerun(pool, test)
