@@ -423,6 +423,8 @@ DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
+DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
+
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
@@ -536,6 +538,7 @@ DEFINE_BOOL(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
 // ic.cc
 DEFINE_BOOL(use_ic, true, "use inline caching")
+DEFINE_BOOL(trace_ic, false, "trace inline cache state transitions")
 
 // macro-assembler-ia32.cc
 DEFINE_BOOL(native_code_counters, false,
@@ -723,9 +726,6 @@ DEFINE_BOOL(verify_native_context_separation, false,
             "verify that code holds on to at most one native context after GC")
 DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
-
-// ic.cc
-DEFINE_BOOL(trace_ic, false, "trace inline cache state transitions")
 
 // interface.cc
 DEFINE_BOOL(print_interfaces, false, "print interfaces")

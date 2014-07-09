@@ -72,7 +72,7 @@ class ScriptData {
   // The created ScriptData won't take ownership of the data. If the alignment
   // is not correct, this will copy the data (and the created ScriptData will
   // take ownership of the copy).
-  static ScriptData* New(const char* data, int length);
+  static ScriptData* New(const char* data, int length, bool owns_store = false);
 
   virtual ~ScriptData();
   virtual int Length();

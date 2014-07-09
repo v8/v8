@@ -7374,9 +7374,6 @@ static void DebugBreakTriggerTerminate(
   // Wait for at most 2 seconds for the terminate request.
   CHECK(terminate_fired_semaphore.WaitFor(v8::base::TimeDelta::FromSeconds(2)));
   terminate_already_fired = true;
-  v8::internal::Isolate* isolate =
-      v8::Utils::OpenHandle(*event_details.GetEventContext())->GetIsolate();
-  CHECK(isolate->stack_guard()->CheckTerminateExecution());
 }
 
 
@@ -7403,6 +7400,8 @@ TEST(DebugBreakOffThreadTerminate) {
   v8::Debug::SetDebugEventListener(DebugBreakTriggerTerminate);
   TerminationThread terminator(isolate);
   terminator.Start();
+  v8::TryCatch try_catch;
   v8::Debug::DebugBreak(isolate);
   CompileRun("while (true);");
+  CHECK(try_catch.HasTerminated());
 }

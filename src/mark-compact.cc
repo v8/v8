@@ -4146,12 +4146,23 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
           pages_swept++;
           parallel_sweeping_active = true;
         } else {
-          if (FLAG_gc_verbose) {
-            PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
-                   reinterpret_cast<intptr_t>(p));
+          if (p->scan_on_scavenge()) {
+            SweepPrecisely<SWEEP_ONLY, IGNORE_SKIP_LIST, IGNORE_FREE_SPACE>(
+                space, p, NULL);
+            pages_swept++;
+            if (FLAG_gc_verbose) {
+              PrintF("Sweeping 0x%" V8PRIxPTR
+                  " scan on scavenge page precisely.\n",
+                  reinterpret_cast<intptr_t>(p));
+            }
+          } else {
+            if (FLAG_gc_verbose) {
+              PrintF("Sweeping 0x%" V8PRIxPTR " conservatively in parallel.\n",
+                  reinterpret_cast<intptr_t>(p));
+            }
+            p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_PENDING);
+            space->IncreaseUnsweptFreeBytes(p);
           }
-          p->set_parallel_sweeping(MemoryChunk::PARALLEL_SWEEPING_PENDING);
-          space->IncreaseUnsweptFreeBytes(p);
         }
         space->set_end_of_unswept_pages(p);
         break;

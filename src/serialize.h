@@ -8,6 +8,7 @@
 #include "src/hashmap.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
+#include "src/parser.h"
 #include "src/snapshot-source-sink.h"
 
 namespace v8 {
@@ -469,6 +470,7 @@ class Serializer : public SerializerDeserializer {
   SerializationAddressMapper address_mapper_;
   intptr_t root_index_wave_front_;
   void Pad();
+  void PadByte();
 
   friend class ObjectSerializer;
   friend class Deserializer;
@@ -551,6 +553,29 @@ class StartupSerializer : public Serializer {
 };
 
 
+class CodeSerializer : public Serializer {
+ public:
+  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink)
+      : Serializer(isolate, sink) {
+    set_root_index_wave_front(Heap::kStrongRootListLength);
+    InitializeCodeAddressMap();
+  }
+
+  static ScriptData* Serialize(Handle<SharedFunctionInfo> info);
+  virtual void SerializeObject(Object* o, HowToCode how_to_code,
+                               WhereToPoint where_to_point, int skip);
+
+  static Object* Deserialize(Isolate* isolate, ScriptData* data);
+
+  // The data header consists of int-sized entries:
+  // [0] version hash
+  // [1] length in bytes
+  // [2..8] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
+  static const int kHeaderSize = 9;
+  static const int kVersionHashOffset = 0;
+  static const int kPayloadLengthOffset = 1;
+  static const int kReservationsOffset = 2;
+};
 } }  // namespace v8::internal
 
 #endif  // V8_SERIALIZE_H_

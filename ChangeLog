@@ -1,3 +1,10 @@
+2014-07-09: Version 3.28.18
+
+        Reland "Postpone termination exceptions in debug scope." (issue 3408).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-08: Version 3.28.17
 
         MIPS: Fix computed properties on object literals with a double as

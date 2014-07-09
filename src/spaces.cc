@@ -18,6 +18,9 @@ namespace internal {
 // HeapObjectIterator
 
 HeapObjectIterator::HeapObjectIterator(PagedSpace* space) {
+  // Check that we actually can iterate this space.
+  ASSERT(space->is_iterable());
+
   // You can't actually iterate over the anchor page.  It is not a real page,
   // just an anchor for the double linked page list.  Initialize as if we have
   // reached the end of the anchor page, then the first iteration will move on
@@ -32,6 +35,9 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space) {
 
 HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
                                        HeapObjectCallback size_func) {
+  // Check that we actually can iterate this space.
+  ASSERT(space->is_iterable());
+
   // You can't actually iterate over the anchor page.  It is not a real page,
   // just an anchor for the double linked page list.  Initialize the current
   // address and end as NULL, then the first iteration will move on
@@ -66,9 +72,6 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
                                     Address cur, Address end,
                                     HeapObjectIterator::PageMode mode,
                                     HeapObjectCallback size_f) {
-  // Check that we actually can iterate this space.
-  ASSERT(space->is_iterable());
-
   space_ = space;
   cur_addr_ = cur;
   cur_end_ = end;

@@ -32,17 +32,6 @@ class Compressor {
 };
 
 
-class ListSnapshotSink : public i::SnapshotByteSink {
- public:
-  explicit ListSnapshotSink(i::List<char>* data) : data_(data) { }
-  virtual ~ListSnapshotSink() {}
-  virtual void Put(int byte, const char* description) { data_->Add(byte); }
-  virtual int Position() { return data_->length(); }
- private:
-  i::List<char>* data_;
-};
-
-
 class SnapshotWriter {
  public:
   explicit SnapshotWriter(const char* snapshot_file)
@@ -93,7 +82,7 @@ class SnapshotWriter {
       return;
 
     i::List<char> startup_blob;
-    ListSnapshotSink sink(&startup_blob);
+    i::ListSnapshotSink sink(&startup_blob);
 
     int spaces[] = {
         i::NEW_SPACE, i::OLD_POINTER_SPACE, i::OLD_DATA_SPACE, i::CODE_SPACE,
@@ -417,12 +406,12 @@ int main(int argc, char** argv) {
     // This results in a somewhat smaller snapshot, probably because it gets
     // rid of some things that are cached between garbage collections.
     i::List<char> snapshot_data;
-    ListSnapshotSink snapshot_sink(&snapshot_data);
+    i::ListSnapshotSink snapshot_sink(&snapshot_data);
     i::StartupSerializer ser(internal_isolate, &snapshot_sink);
     ser.SerializeStrongReferences();
 
     i::List<char> context_data;
-    ListSnapshotSink contex_sink(&context_data);
+    i::ListSnapshotSink contex_sink(&context_data);
     i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
     context_ser.Serialize(&raw_context);
     ser.SerializeWeakReferences();

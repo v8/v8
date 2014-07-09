@@ -714,6 +714,7 @@ enum InstanceType {
   FIXED_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
 
   FIXED_DOUBLE_ARRAY_TYPE,
+  CONSTANT_POOL_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -740,7 +741,6 @@ enum InstanceType {
   BREAK_POINT_INFO_TYPE,
 
   FIXED_ARRAY_TYPE,
-  CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
@@ -1557,15 +1557,15 @@ class Object {
   // Prints this object without details to a message accumulator.
   void ShortPrint(StringStream* accumulator);
 
-  // For our gdb macros, we should perhaps change these in the future.
-  void Print();
-
   DECLARE_CAST(Object)
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
 
 #ifdef OBJECT_PRINT
+  // For our gdb macros, we should perhaps change these in the future.
+  void Print();
+
   // Prints this object with details.
   void Print(OStream& os);  // NOLINT
 #endif
@@ -1715,6 +1715,10 @@ class HeapObject: public Object {
 
   // Returns the heap object's size in bytes
   inline int Size();
+
+  // Returns true if this heap object contains only references to other
+  // heap objects.
+  inline bool ContainsPointers();
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

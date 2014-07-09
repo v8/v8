@@ -32,6 +32,7 @@
 
 #include "src/compiler.h"
 #include "src/disasm.h"
+#include "src/parser.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -395,6 +396,46 @@ TEST(OptimizedCodeSharing) {
           || !CcTest::i_isolate()->use_crankshaft() || !fun2->IsOptimizable());
     CHECK_EQ(fun1->code(), fun2->code());
   }
+}
+
+
+TEST(SerializeToplevel) {
+  FLAG_serialize_toplevel = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Context::Scope context_scope(context);
+
+  const char* source1 = "1 + 1";
+  const char* source2 = "1 + 2";  // Use alternate string to verify caching.
+
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<String> source1_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source1))
+                                      .ToHandleChecked();
+  Handle<String> source2_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source2))
+                                      .ToHandleChecked();
+
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig =
+      Compiler::CompileScript(source1_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> info =
+      Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
+
+  CHECK_NE(*orig, *info);
+  Handle<JSFunction> fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          info, isolate->native_context());
+  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<Object> result =
+      Execution::Call(isolate, fun, global, 0, NULL).ToHandleChecked();
+  CHECK_EQ(2, Handle<Smi>::cast(result)->value());
 }
 
 

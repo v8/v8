@@ -17,7 +17,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef DEBUG
 char IC::TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
@@ -48,25 +47,43 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 }
 
 
-void IC::TraceIC(const char* type,
-                 Handle<Object> name) {
+#ifdef DEBUG
+
+#define TRACE_GENERIC_IC(isolate, type, reason)                \
+  do {                                                         \
+    if (FLAG_trace_ic) {                                       \
+      PrintF("[%s patching generic stub in ", type);           \
+      JavaScriptFrame::PrintTop(isolate, stdout, false, true); \
+      PrintF(" (%s)]\n", reason);                              \
+    }                                                          \
+  } while (false)
+
+#else
+
+#define TRACE_GENERIC_IC(isolate, type, reason)
+
+#endif  // DEBUG
+
+void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_trace_ic) {
     Code* new_target = raw_target();
     State new_state = new_target->ic_state();
     PrintF("[%s%s in ", new_target->is_keyed_stub() ? "Keyed" : "", type);
-    StackFrameIterator it(isolate());
-    while (it.frame()->fp() != this->fp()) it.Advance();
-    StackFrame* raw_frame = it.frame();
-    if (raw_frame->is_internal()) {
-      Code* apply_builtin = isolate()->builtins()->builtin(
-          Builtins::kFunctionApply);
-      if (raw_frame->unchecked_code() == apply_builtin) {
-        PrintF("apply from ");
-        it.Advance();
-        raw_frame = it.frame();
-      }
+
+    // TODO(jkummerow): Add support for "apply". The logic is roughly:
+    // marker = [fp_ + kMarkerOffset];
+    // if marker is smi and marker.value == INTERNAL and
+    //     the frame's code == builtin(Builtins::kFunctionApply):
+    // then print "apply from" and advance one frame
+
+    Object* maybe_function =
+        Memory::Object_at(fp_ + JavaScriptFrameConstants::kFunctionOffset);
+    if (maybe_function->IsJSFunction()) {
+      JSFunction* function = JSFunction::cast(maybe_function);
+      JavaScriptFrame::PrintFunctionAndOffset(function, function->code(), pc(),
+                                              stdout, true);
     }
-    JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
+
     ExtraICState extra_state = new_target->extra_ic_state();
     const char* modifier = "";
     if (new_target->kind() == Code::KEYED_STORE_IC) {
@@ -77,27 +94,18 @@ void IC::TraceIC(const char* type,
            TransitionMarkFromState(state()),
            TransitionMarkFromState(new_state),
            modifier);
+#ifdef OBJECT_PRINT
     OFStream os(stdout);
     name->Print(os);
+#else
+    name->ShortPrint(stdout);
+#endif
     PrintF("]\n");
   }
 }
 
-#define TRACE_GENERIC_IC(isolate, type, reason)                 \
-  do {                                                          \
-    if (FLAG_trace_ic) {                                        \
-      PrintF("[%s patching generic stub in ", type);            \
-      JavaScriptFrame::PrintTop(isolate, stdout, false, true);  \
-      PrintF(" (%s)]\n", reason);                               \
-    }                                                           \
-  } while (false)
+#define TRACE_IC(type, name) TraceIC(type, name)
 
-#else
-#define TRACE_GENERIC_IC(isolate, type, reason)
-#endif  // DEBUG
-
-#define TRACE_IC(type, name)             \
-  ASSERT((TraceIC(type, name), true))
 
 IC::IC(FrameDepth depth, Isolate* isolate)
     : isolate_(isolate),
@@ -599,9 +607,11 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
       } else if (state() == PREMONOMORPHIC) {
         FunctionPrototypeStub function_prototype_stub(isolate(), kind());
         stub = function_prototype_stub.GetCode();
-      } else if (state() != MEGAMORPHIC) {
+      } else if (!FLAG_compiled_keyed_generic_loads && state() != MEGAMORPHIC) {
         ASSERT(state() != GENERIC);
         stub = megamorphic_stub();
+      } else if (FLAG_compiled_keyed_generic_loads && state() != GENERIC) {
+        stub = generic_stub();
       }
       if (!stub.is_null()) {
         set_target(*stub);
@@ -616,7 +626,11 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
   uint32_t index;
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
-    if (FLAG_use_ic) set_target(*generic_stub());
+    if (FLAG_use_ic) {
+      set_target(*generic_stub());
+      TRACE_IC("LoadIC", name);
+      TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
+    }
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(),
@@ -822,6 +836,10 @@ void IC::PatchCache(Handle<HeapType> type,
         if (UpdatePolymorphicIC(type, name, code)) break;
         CopyICToMegamorphicCache(name);
       }
+      if (FLAG_compiled_keyed_generic_loads && (kind() == Code::LOAD_IC)) {
+        set_target(*generic_stub());
+        break;
+      }
       set_target(*megamorphic_stub());
       // Fall through.
     case MEGAMORPHIC:
@@ -850,6 +868,11 @@ Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
 
 Handle<Code> LoadIC::megamorphic_stub() {
   return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
+}
+
+
+Handle<Code> LoadIC::generic_stub() const {
+  return KeyedLoadGenericElementStub(isolate()).GetCode();
 }
 
 
