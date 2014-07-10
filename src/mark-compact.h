@@ -663,7 +663,7 @@ class MarkCompactCollector {
   // to a value larger than 0, then sweeping returns after a block of at least
   // required_freed_bytes was freed. If required_freed_bytes was set to zero
   // then the whole given space is swept.
-  int SweepInParallel(PagedSpace* space, int required_freed_bytes);
+  int SweepInParallel(PagedSpace* space, intptr_t required_freed_bytes);
 
   void WaitUntilSweepingCompleted();
 

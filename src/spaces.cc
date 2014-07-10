@@ -2578,13 +2578,12 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 }
 
 
-HeapObject* PagedSpace::EnsureSweepingProgress(
-    int size_in_bytes) {
+HeapObject* PagedSpace::EnsureSweepingProgress(intptr_t size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
 
   if (collector->IsConcurrentSweepingInProgress(this)) {
     // If sweeping is still in progress try to sweep pages on the main thread.
-    int free_chunk =
+    intptr_t free_chunk =
         collector->SweepInParallel(this, size_in_bytes);
     if (free_chunk >= size_in_bytes) {
       HeapObject* object = free_list_.Allocate(size_in_bytes);

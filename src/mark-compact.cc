@@ -4068,14 +4068,14 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
 
 
 int MarkCompactCollector::SweepInParallel(PagedSpace* space,
-                                          int required_freed_bytes) {
+                                          intptr_t required_freed_bytes) {
   PageIterator it(space);
   FreeList* free_list = space == heap()->old_pointer_space()
                             ? free_list_old_pointer_space_.get()
                             : free_list_old_data_space_.get();
   FreeList private_free_list(space);
-  int max_freed = 0;
-  int max_freed_overall = 0;
+  intptr_t max_freed = 0;
+  intptr_t max_freed_overall = 0;
   while (it.has_next()) {
     Page* p = it.next();
 
