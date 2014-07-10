@@ -1401,8 +1401,6 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   //
   // TODO(ES6): implement structuring ExportSpecifiers
 
-  ASSERT(strict_mode() == STRICT);
-
   Expect(Token::EXPORT, CHECK_OK);
 
   Statement* result = NULL;
