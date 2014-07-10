@@ -1296,7 +1296,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "with error:\n"
         "\t%s\n"
         "However, the parser succeeded",
-        source->ToCString().get(), FormatMessage(log.ErrorMessageData()));
+        source->ToCString().get(),
+        FormatMessage(log.ErrorMessageData())->ToCString().get());
     CHECK(false);
   } else if (result == kError) {
     v8::base::OS::Print(
