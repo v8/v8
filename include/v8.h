@@ -4760,28 +4760,6 @@ class V8_EXPORT V8 {
   /** Get the version string. */
   static const char* GetVersion();
 
-  /**
-   * Enables the host application to provide a mechanism for recording
-   * statistics counters.
-   *
-   * Deprecated, use Isolate::SetCounterFunction instead.
-   */
-  static void SetCounterFunction(CounterLookupCallback);
-
-  /**
-   * Enables the host application to provide a mechanism for recording
-   * histograms. The CreateHistogram function returns a
-   * histogram which will later be passed to the AddHistogramSample
-   * function.
-   *
-   * Deprecated, use Isolate::SetCreateHistogramFunction instead.
-   * Isolate::SetAddHistogramSampleFunction instead.
-   */
-  static void SetCreateHistogramFunction(CreateHistogramCallback);
-
-  /** Deprecated, use Isolate::SetAddHistogramSampleFunction instead. */
-  static void SetAddHistogramSampleFunction(AddHistogramSampleCallback);
-
   /** Callback function for reporting failed access checks.*/
   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
 

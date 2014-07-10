@@ -179,6 +179,15 @@
             'test-macro-assembler-mips.cc'
           ],
         }],
+        ['v8_target_arch=="mips64el"', {
+          'sources': [
+            'test-assembler-mips64.cc',
+            'test-code-stubs.cc',
+            'test-code-stubs-mips64.cc',
+            'test-disasm-mips64.cc',
+            'test-macro-assembler-mips64.cc'
+          ],
+        }],
         ['v8_target_arch=="x87"', {
           'sources': [  ### gcmole(arch:x87) ###
             'test-assembler-x87.cc',

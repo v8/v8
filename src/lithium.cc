@@ -23,6 +23,9 @@
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/lithium-arm64.h"  // NOLINT
 #include "src/arm64/lithium-codegen-arm64.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/lithium-mips64.h"  // NOLINT
+#include "src/mips64/lithium-codegen-mips64.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/lithium-x87.h"  // NOLINT
 #include "src/x87/lithium-codegen-x87.h"  // NOLINT

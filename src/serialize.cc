@@ -561,8 +561,8 @@ uint32_t ExternalReferenceEncoder::Encode(Address key) const {
 
 const char* ExternalReferenceEncoder::NameOfAddress(Address key) const {
   int index = IndexOf(key);
-  return index >= 0 ?
-      ExternalReferenceTable::instance(isolate_)->name(index) : NULL;
+  return index >= 0 ? ExternalReferenceTable::instance(isolate_)->name(index)
+                    : "<unknown>";
 }
 
 
@@ -1108,7 +1108,8 @@ void Deserializer::ReadChunk(Object** current,
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
       ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
-#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL
+#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
+    defined(V8_TARGET_ARCH_MIPS64)
       // Deserialize a new object from pointer found in code and write
       // a pointer to it to the current object. Required only for MIPS or ARM
       // with ool constant pool, and omitted on the other architectures because
@@ -1326,7 +1327,8 @@ int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
   for (int i = 0; i < root_index_wave_front_; i++) {
     Object* root = heap->roots_array_start()[i];
     if (!root->IsSmi() && root == heap_object) {
-#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL
+#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
+    defined(V8_TARGET_ARCH_MIPS64)
       if (from == kFromCode) {
         // In order to avoid code bloat in the deserializer we don't have
         // support for the encoding that specifies a particular root should

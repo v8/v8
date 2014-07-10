@@ -27,7 +27,7 @@
 
 // Tests the object.defineProperty method - ES 15.2.3.6
 
-// Flags: --allow-natives-syntax --es5-readonly
+// Flags: --allow-natives-syntax
 
 // Check that an exception is thrown when null is passed as object.
 var exception = false;

@@ -104,9 +104,9 @@ class Runner(object):
     return Job(command, dep_command, test.id, timeout, self.context.verbose)
 
   def _MaybeRerun(self, pool, test):
-    if test.run <= self.context.rerun_failures_count + 1:
+    if test.run <= self.context.rerun_failures_count:
       # Possibly rerun this test if its run count is below the maximum per
-      # test. +1 as the flag controls reruns not including the first run.
+      # test. <= as the flag controls reruns not including the first run.
       if test.run == 1:
         # Count the overall number of reran tests on the first rerun.
         if self.reran_tests < self.context.rerun_failures_max:
@@ -138,7 +138,10 @@ class Runner(object):
     else:
       self.succeeded += 1
     self.remaining -= 1
-    self.indicator.HasRun(test, has_unexpected_output)
+    # For the indicator, everything that happens after the first run is treated
+    # as unexpected even if it flakily passes in order to include it in the
+    # output.
+    self.indicator.HasRun(test, has_unexpected_output or test.run > 1)
     if has_unexpected_output:
       # Rerun test failures after the indicator has processed the results.
       self._MaybeRerun(pool, test)

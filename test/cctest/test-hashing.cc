@@ -114,11 +114,11 @@ void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   __ Pop(xzr, root);
   __ Ret();
   __ SetStackPointer(old_stack_pointer);
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   __ push(kRootRegister);
   __ InitializeRootRegister();
 
-  __ li(v0, Operand(0));
+  __ mov(v0, zero_reg);
   __ li(t1, Operand(string.at(0)));
   StringHelper::GenerateHashInit(masm, v0, t1);
   for (int i = 1; i < string.length(); i++) {
@@ -170,7 +170,7 @@ void generate(MacroAssembler* masm, uint32_t key) {
   __ Pop(xzr, root);
   __ Ret();
   __ SetStackPointer(old_stack_pointer);
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
   __ push(kRootRegister);
   __ InitializeRootRegister();
   __ li(v0, Operand(key));

@@ -2462,6 +2462,15 @@ int ConstantPoolArray::number_of_entries(Type type, LayoutSection section) {
 }
 
 
+bool ConstantPoolArray::offset_is_type(int offset, Type type) {
+  return (offset >= OffsetOfElementAt(first_index(type, SMALL_SECTION)) &&
+          offset <= OffsetOfElementAt(last_index(type, SMALL_SECTION))) ||
+         (is_extended_layout() &&
+          offset >= OffsetOfElementAt(first_index(type, EXTENDED_SECTION)) &&
+          offset <= OffsetOfElementAt(last_index(type, EXTENDED_SECTION)));
+}
+
+
 ConstantPoolArray::Type ConstantPoolArray::get_type(int index) {
   LayoutSection section;
   if (is_extended_layout() && index >= first_extended_section_index()) {
@@ -2549,6 +2558,43 @@ void ConstantPoolArray::set(int index, int32_t value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
   ASSERT(get_type(index) == INT32);
   WRITE_INT32_FIELD(this, OffsetOfElementAt(index), value);
+}
+
+
+void ConstantPoolArray::set_at_offset(int offset, int32_t value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(offset_is_type(offset, INT32));
+  WRITE_INT32_FIELD(this, offset, value);
+}
+
+
+void ConstantPoolArray::set_at_offset(int offset, int64_t value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(offset_is_type(offset, INT64));
+  WRITE_INT64_FIELD(this, offset, value);
+}
+
+
+void ConstantPoolArray::set_at_offset(int offset, double value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(offset_is_type(offset, INT64));
+  WRITE_DOUBLE_FIELD(this, offset, value);
+}
+
+
+void ConstantPoolArray::set_at_offset(int offset, Address value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(offset_is_type(offset, CODE_PTR));
+  WRITE_FIELD(this, offset, reinterpret_cast<Object*>(value));
+  WRITE_BARRIER(GetHeap(), this, offset, reinterpret_cast<Object*>(value));
+}
+
+
+void ConstantPoolArray::set_at_offset(int offset, Object* value) {
+  ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(offset_is_type(offset, HEAP_PTR));
+  WRITE_FIELD(this, offset, value);
+  WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
 

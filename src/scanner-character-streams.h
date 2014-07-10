@@ -29,7 +29,7 @@ class BufferedUtf16CharacterStream: public Utf16CharacterStream {
   virtual void SlowPushBack(uc16 character);
 
   virtual unsigned BufferSeekForward(unsigned delta) = 0;
-  virtual unsigned FillBuffer(unsigned position, unsigned length) = 0;
+  virtual unsigned FillBuffer(unsigned position) = 0;
 
   const uc16* pushback_limit_;
   uc16 buffer_[kBufferSize];
@@ -46,7 +46,7 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
 
  protected:
   virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned position, unsigned length);
+  virtual unsigned FillBuffer(unsigned position);
 
   Handle<String> string_;
   unsigned length_;
@@ -61,7 +61,7 @@ class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
 
  protected:
   virtual unsigned BufferSeekForward(unsigned delta);
-  virtual unsigned FillBuffer(unsigned char_position, unsigned length);
+  virtual unsigned FillBuffer(unsigned char_position);
   void SetRawPosition(unsigned char_position);
 
   const byte* raw_data_;

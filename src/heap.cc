@@ -39,6 +39,10 @@
 #include "src/regexp-macro-assembler.h"  // NOLINT
 #include "src/mips/regexp-macro-assembler-mips.h"  // NOLINT
 #endif
+#if V8_TARGET_ARCH_MIPS64 && !V8_INTERPRETED_REGEXP
+#include "src/regexp-macro-assembler.h"
+#include "src/mips64/regexp-macro-assembler-mips64.h"
+#endif
 
 namespace v8 {
 namespace internal {

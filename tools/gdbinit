@@ -21,7 +21,7 @@ Usage: jco pc
 end
 
 # Print JavaScript stack trace.
-define jst 
+define jst
 print v8::internal::Isolate::Current()->PrintStack(stdout)
 end
 document jst
@@ -30,4 +30,4 @@ Usage: jst
 end
 
 set disassembly-flavor intel
-set disable-randomization off 
+set disable-randomization off

@@ -115,6 +115,9 @@ class FullCodeGenerator: public AstVisitor {
 #elif V8_TARGET_ARCH_MIPS
   static const int kCodeSizeMultiplier = 149;
   static const int kBootCodeSizeMultiplier = 120;
+#elif V8_TARGET_ARCH_MIPS64
+  static const int kCodeSizeMultiplier = 149;
+  static const int kBootCodeSizeMultiplier = 120;
 #else
 #error Unsupported target architecture.
 #endif
@@ -314,6 +317,13 @@ class FullCodeGenerator: public AstVisitor {
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
 #if V8_TARGET_ARCH_MIPS
+  void Split(Condition cc,
+             Register lhs,
+             const Operand&  rhs,
+             Label* if_true,
+             Label* if_false,
+             Label* fall_through);
+#elif V8_TARGET_ARCH_MIPS64
   void Split(Condition cc,
              Register lhs,
              const Operand&  rhs,

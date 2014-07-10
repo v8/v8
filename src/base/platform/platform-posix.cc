@@ -290,6 +290,8 @@ void OS::DebugBreak() {
   asm("brk 0");
 #elif V8_HOST_ARCH_MIPS
   asm("break");
+#elif V8_HOST_ARCH_MIPS64
+  asm("break");
 #elif V8_HOST_ARCH_IA32
 #if defined(__native_client__)
   asm("hlt");

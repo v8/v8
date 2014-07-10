@@ -6351,32 +6351,6 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
 }
 
 
-void V8::SetCounterFunction(CounterLookupCallback callback) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  // TODO(svenpanne) The Isolate should really be a parameter.
-  if (isolate == NULL) return;
-  isolate->stats_table()->SetCounterFunction(callback);
-}
-
-
-void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  // TODO(svenpanne) The Isolate should really be a parameter.
-  if (isolate == NULL) return;
-  isolate->stats_table()->SetCreateHistogramFunction(callback);
-  isolate->InitializeLoggingAndCounters();
-  isolate->counters()->ResetHistograms();
-}
-
-
-void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
-  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
-  // TODO(svenpanne) The Isolate should really be a parameter.
-  if (isolate == NULL) return;
-  isolate->stats_table()->
-      SetAddHistogramSampleFunction(callback);
-}
-
 void V8::SetFailedAccessCheckCallbackFunction(
     FailedAccessCheckCallback callback) {
   i::Isolate* isolate = i::Isolate::Current();

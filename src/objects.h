@@ -25,6 +25,8 @@
 #include "src/arm64/constants-arm64.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS
 #include "src/mips/constants-mips.h"  // NOLINT
+#elif V8_TARGET_ARCH_MIPS64
+#include "src/mips64/constants-mips64.h"  // NOLINT
 #endif
 
 
@@ -3125,7 +3127,8 @@ class ConstantPoolArray: public HeapObject {
 
   enum LayoutSection {
     SMALL_SECTION = 0,
-    EXTENDED_SECTION
+    EXTENDED_SECTION,
+    NUMBER_OF_LAYOUT_SECTIONS
   };
 
   class NumberOfEntries BASE_EMBEDDED {
@@ -3204,6 +3207,7 @@ class ConstantPoolArray: public HeapObject {
 
   // Returns the type of the entry at the given index.
   inline Type get_type(int index);
+  inline bool offset_is_type(int offset, Type type);
 
   // Setter and getter for pool elements.
   inline Address get_code_ptr_entry(int index);
@@ -3217,6 +3221,13 @@ class ConstantPoolArray: public HeapObject {
   inline void set(int index, int64_t value);
   inline void set(int index, double value);
   inline void set(int index, int32_t value);
+
+  // Setters which take a raw offset rather than an index (for code generation).
+  inline void set_at_offset(int offset, int32_t value);
+  inline void set_at_offset(int offset, int64_t value);
+  inline void set_at_offset(int offset, double value);
+  inline void set_at_offset(int offset, Address value);
+  inline void set_at_offset(int offset, Object* value);
 
   // Setter and getter for weak objects state
   inline void set_weak_object_state(WeakObjectState state);
@@ -4351,6 +4362,9 @@ class OrderedHashTable: public FixedArray {
       bool* was_present);
 
   // Returns kNotFound if the key isn't present.
+  int FindEntry(Handle<Object> key, int hash);
+
+  // Like the above, but doesn't require the caller to provide a hash.
   int FindEntry(Handle<Object> key);
 
   int NumberOfElements() {

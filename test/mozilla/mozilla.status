@@ -862,7 +862,7 @@
 }],  # 'arch ==  arm64'
 
 
-['arch == mipsel', {
+['arch == mipsel or arch == mips64el', {
 
   # BUG(3251229): Times out when running new crankshaft test script.
   'ecma_3/RegExp/regress-311414': [SKIP],
@@ -879,7 +879,7 @@
 
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
-}],  # 'arch == mipsel'
+}],  # 'arch == mipsel or arch == mips64el'
 
 ['arch == mips', {
 

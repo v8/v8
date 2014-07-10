@@ -51,6 +51,8 @@ def DoMain(_):
     host_arch = 'arm'
   elif host_arch == 'aarch64':
     host_arch = 'arm64'
+  elif host_arch == 'mips64':
+    host_arch = 'mips64el'
   elif host_arch.startswith('mips'):
     host_arch = 'mipsel'
 

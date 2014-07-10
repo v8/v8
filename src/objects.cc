@@ -9012,8 +9012,8 @@ static inline bool CompareRawStringContents(const Char* const a,
   // then we have to check that the strings are aligned before
   // comparing them blockwise.
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
-  uint32_t pa_addr = reinterpret_cast<uint32_t>(a);
-  uint32_t pb_addr = reinterpret_cast<uint32_t>(b);
+  uintptr_t pa_addr = reinterpret_cast<uintptr_t>(a);
+  uintptr_t pb_addr = reinterpret_cast<uintptr_t>(b);
   if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
@@ -16138,17 +16138,14 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
 }
 
 
-template<class Derived, class Iterator, int entrysize>
+template <class Derived, class Iterator, int entrysize>
 int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
-    Handle<Object> key) {
+    Handle<Object> key, int hash) {
   ASSERT(!IsObsolete());
 
   DisallowHeapAllocation no_gc;
   ASSERT(!key->IsTheHole());
-  Object* hash = key->GetHash();
-  if (hash->IsUndefined()) return kNotFound;
-  for (int entry = HashToEntry(Smi::cast(hash)->value());
-       entry != kNotFound;
+  for (int entry = HashToEntry(hash); entry != kNotFound;
        entry = ChainAt(entry)) {
     Object* candidate = KeyAt(entry);
     if (candidate->SameValueZero(*key))
@@ -16158,7 +16155,17 @@ int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
 }
 
 
-template<class Derived, class Iterator, int entrysize>
+template <class Derived, class Iterator, int entrysize>
+int OrderedHashTable<Derived, Iterator, entrysize>::FindEntry(
+    Handle<Object> key) {
+  DisallowHeapAllocation no_gc;
+  Object* hash = key->GetHash();
+  if (!hash->IsSmi()) return kNotFound;
+  return FindEntry(key, Smi::cast(hash)->value());
+}
+
+
+template <class Derived, class Iterator, int entrysize>
 int OrderedHashTable<Derived, Iterator, entrysize>::AddEntry(int hash) {
   ASSERT(!IsObsolete());
 
@@ -16206,8 +16213,9 @@ template Handle<OrderedHashSet>
 OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Remove(
     Handle<OrderedHashSet> table, Handle<Object> key, bool* was_present);
 
-template int
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
+template int OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
+    Handle<Object> key, int hash);
+template int OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::FindEntry(
     Handle<Object> key);
 
 template int
@@ -16237,8 +16245,9 @@ template Handle<OrderedHashMap>
 OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Remove(
     Handle<OrderedHashMap> table, Handle<Object> key, bool* was_present);
 
-template int
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
+template int OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
+    Handle<Object> key, int hash);
+template int OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::FindEntry(
     Handle<Object> key);
 
 template int
@@ -16255,12 +16264,12 @@ bool OrderedHashSet::Contains(Handle<Object> key) {
 
 Handle<OrderedHashSet> OrderedHashSet::Add(Handle<OrderedHashSet> table,
                                            Handle<Object> key) {
-  if (table->FindEntry(key) != kNotFound) return table;
+  int hash = GetOrCreateHash(table->GetIsolate(), key)->value();
+  if (table->FindEntry(key, hash) != kNotFound) return table;
 
   table = EnsureGrowable(table);
 
-  Handle<Smi> hash = GetOrCreateHash(table->GetIsolate(), key);
-  int index = table->AddEntry(hash->value());
+  int index = table->AddEntry(hash);
   table->set(index, *key);
   return table;
 }
@@ -16279,7 +16288,8 @@ Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
                                            Handle<Object> value) {
   ASSERT(!key->IsTheHole());
 
-  int entry = table->FindEntry(key);
+  int hash = GetOrCreateHash(table->GetIsolate(), key)->value();
+  int entry = table->FindEntry(key, hash);
 
   if (entry != kNotFound) {
     table->set(table->EntryToIndex(entry) + kValueOffset, *value);
@@ -16288,8 +16298,7 @@ Handle<OrderedHashMap> OrderedHashMap::Put(Handle<OrderedHashMap> table,
 
   table = EnsureGrowable(table);
 
-  Handle<Smi> hash = GetOrCreateHash(table->GetIsolate(), key);
-  int index = table->AddEntry(hash->value());
+  int index = table->AddEntry(hash);
   table->set(index, *key);
   table->set(index + kValueOffset, *value);
   return table;

@@ -1,3 +1,14 @@
+2014-07-10: Version 3.28.20
+
+        Remove deprecate counter/histogram methods.
+
+        Fixed printing of external references (Chromium issue 392068).
+
+        Fix several issues with ES6 redeclaration checks (issue 3426).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-09: Version 3.28.19
 
         Performance and stability improvements on all platforms.

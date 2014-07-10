@@ -859,7 +859,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
-    if (!info->context().is_null()) {
+    if (!info->context().is_null() && !info->context()->IsNativeContext()) {
       scope = Scope::DeserializeScopeChain(*info->context(), scope, zone());
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
@@ -1709,15 +1709,14 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
       // Declare the name.
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), proxy->interface());
-    } else if ((mode != VAR || var->mode() != VAR) &&
-               (!declaration_scope->is_global_scope() ||
-                IsLexicalVariableMode(mode) ||
-                IsLexicalVariableMode(var->mode()))) {
+    } else if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(var->mode())
+               || ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
+                   !declaration_scope->is_global_scope())) {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
       // not a var (in the global scope, we also have to ignore legacy const for
       // compatibility). There is similar code in runtime.cc in the Declare
-      // functions. The function CheckNonConflictingScope checks for conflicting
+      // functions. The function CheckConflictingVarDeclarations checks for
       // var and let bindings from different scopes whereas this is a check for
       // conflicting declarations within the same scope. This check also covers
       // the special case
@@ -1900,11 +1899,12 @@ Statement* Parser::ParseFunctionDeclaration(
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
-  // In extended mode, a function behaves as a lexical binding, except in the
-  // global scope.
+  // In ES6, a function behaves as a lexical binding, except in the
+  // global scope, or the initial scope of eval or another function.
   VariableMode mode =
-      allow_harmony_scoping() &&
-      strict_mode() == STRICT && !scope_->is_global_scope() ? LET : VAR;
+      allow_harmony_scoping() && strict_mode() == STRICT &&
+      !(scope_->is_global_scope() || scope_->is_eval_scope() ||
+          scope_->is_function_scope()) ? LET : VAR;
   VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, mode, fun, scope_, pos);
@@ -2213,9 +2213,8 @@ Block* Parser::ParseVariableDeclarations(
     // executed.
     //
     // Executing the variable declaration statement will always
-    // guarantee to give the global object a "local" variable; a
-    // variable defined in the global object and not in any
-    // prototype. This way, global variable declarations can shadow
+    // guarantee to give the global object an own property.
+    // This way, global variable declarations can shadow
     // properties in the prototype chain, but only after the variable
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
@@ -3002,7 +3001,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
   }
 
   // Make statement: if (flag == 1) { flag = 0; } else { next; }.
-  {
+  if (next) {
     Expression* compare = NULL;
     // Make compare expresion: flag == 1.
     {
@@ -3027,7 +3026,7 @@ Statement* Parser::DesugarLetBindingsInForStatement(
 
 
   // Make statement: if (cond) { } else { break; }.
-  {
+  if (cond) {
     Statement* empty = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
     BreakableStatement* t = LookupBreakTarget(NULL, CHECK_OK);
     Statement* stop = factory()->NewBreakStatement(t, RelocInfo::kNoPosition);
@@ -3249,11 +3248,31 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     scope_ = saved_scope;
     for_scope->set_end_position(scanner()->location().end_pos);
   } else {
-    loop->Initialize(init, cond, next, body);
-    result = loop;
     scope_ = saved_scope;
     for_scope->set_end_position(scanner()->location().end_pos);
-    for_scope->FinalizeBlockScope();
+    for_scope = for_scope->FinalizeBlockScope();
+    if (for_scope) {
+      // Rewrite a for statement of the form
+      //   for (const x = i; c; n) b
+      //
+      // into
+      //
+      //   {
+      //     const x = i;
+      //     for (; c; n) b
+      //   }
+      ASSERT(init != NULL);
+      Block* block =
+          factory()->NewBlock(NULL, 2, false, RelocInfo::kNoPosition);
+      block->AddStatement(init, zone());
+      block->AddStatement(loop, zone());
+      block->set_scope(for_scope);
+      loop->Initialize(NULL, cond, next, body);
+      result = block;
+    } else {
+      loop->Initialize(init, cond, next, body);
+      result = loop;
+    }
   }
   return result;
 }
@@ -3557,10 +3576,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     ast_properties = *factory()->visitor()->ast_properties();
     dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
-  }
 
-  if (allow_harmony_scoping() && strict_mode() == STRICT) {
-    CheckConflictingVarDeclarations(scope, CHECK_OK);
+    if (allow_harmony_scoping() && strict_mode() == STRICT) {
+      CheckConflictingVarDeclarations(scope, CHECK_OK);
+    }
   }
 
   FunctionLiteral::IsGeneratorFlag generator = is_generator
