@@ -1097,11 +1097,16 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractJSGlobalProxyReferences(entry, JSGlobalProxy::cast(obj));
   } else if (obj->IsJSArrayBuffer()) {
     ExtractJSArrayBufferReferences(entry, JSArrayBuffer::cast(obj));
-  } else if (obj->IsJSWeakSet()) {
-    ExtractJSWeakCollectionReferences(entry, JSWeakSet::cast(obj));
-  } else if (obj->IsJSWeakMap()) {
-    ExtractJSWeakCollectionReferences(entry, JSWeakMap::cast(obj));
   } else if (obj->IsJSObject()) {
+    if (obj->IsJSWeakSet()) {
+      ExtractJSWeakCollectionReferences(entry, JSWeakSet::cast(obj));
+    } else if (obj->IsJSWeakMap()) {
+      ExtractJSWeakCollectionReferences(entry, JSWeakMap::cast(obj));
+    } else if (obj->IsJSSet()) {
+      ExtractJSCollectionReferences(entry, JSSet::cast(obj));
+    } else if (obj->IsJSMap()) {
+      ExtractJSCollectionReferences(entry, JSMap::cast(obj));
+    }
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
     ExtractStringReferences(entry, String::cast(obj));
@@ -1257,6 +1262,13 @@ void V8HeapExplorer::ExtractSymbolReferences(int entry, Symbol* symbol) {
   SetInternalReference(symbol, entry,
                        "name", symbol->name(),
                        Symbol::kNameOffset);
+}
+
+
+void V8HeapExplorer::ExtractJSCollectionReferences(int entry,
+                                                   JSCollection* collection) {
+  SetInternalReference(collection, entry, "table", collection->table(),
+                       JSCollection::kTableOffset);
 }
 
 

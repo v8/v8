@@ -44,8 +44,9 @@
 //         - JSArrayBufferView
 //           - JSTypedArray
 //           - JSDataView
-//         - JSSet
-//         - JSMap
+//         - JSCollection
+//           - JSSet
+//           - JSMap
 //         - JSSetIterator
 //         - JSMapIterator
 //         - JSWeakCollection
@@ -10078,20 +10079,27 @@ class JSFunctionProxy: public JSProxy {
 };
 
 
-// The JSSet describes EcmaScript Harmony sets
-class JSSet: public JSObject {
+class JSCollection : public JSObject {
  public:
-  // [set]: the backing hash set containing keys.
+  // [table]: the backing hash table
   DECL_ACCESSORS(table, Object)
 
+  static const int kTableOffset = JSObject::kHeaderSize;
+  static const int kSize = kTableOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollection);
+};
+
+
+// The JSSet describes EcmaScript Harmony sets
+class JSSet : public JSCollection {
+ public:
   DECLARE_CAST(JSSet)
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSSet)
   DECLARE_VERIFIER(JSSet)
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
@@ -10099,19 +10107,13 @@ class JSSet: public JSObject {
 
 
 // The JSMap describes EcmaScript Harmony maps
-class JSMap: public JSObject {
+class JSMap : public JSCollection {
  public:
-  // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, Object)
-
   DECLARE_CAST(JSMap)
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSMap)
   DECLARE_VERIFIER(JSMap)
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
