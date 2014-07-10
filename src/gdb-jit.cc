@@ -899,6 +899,32 @@ class ELFSymbolTable : public ELFSection {
 #endif  // defined(__ELF)
 
 
+class LineInfo : public Malloced {
+ public:
+  LineInfo() : pc_info_(10) {}
+
+  void SetPosition(intptr_t pc, int pos, bool is_statement) {
+    AddPCInfo(PCInfo(pc, pos, is_statement));
+  }
+
+  struct PCInfo {
+    PCInfo(intptr_t pc, int pos, bool is_statement)
+        : pc_(pc), pos_(pos), is_statement_(is_statement) {}
+
+    intptr_t pc_;
+    int pos_;
+    bool is_statement_;
+  };
+
+  List<PCInfo>* pc_info() { return &pc_info_; }
+
+ private:
+  void AddPCInfo(const PCInfo& pc_info) { pc_info_.Add(pc_info); }
+
+  List<PCInfo> pc_info_;
+};
+
+
 class CodeDescription BASE_EMBEDDED {
  public:
 #if V8_TARGET_ARCH_X64
@@ -910,27 +936,21 @@ class CodeDescription BASE_EMBEDDED {
   };
 #endif
 
-  CodeDescription(const char* name,
-                  Code* code,
-                  Handle<Script> script,
-                  GDBJITLineInfo* lineinfo,
-                  GDBJITInterface::CodeTag tag,
+  CodeDescription(const char* name, Code* code, Handle<Script> script,
+                  LineInfo* lineinfo, GDBJITInterface::CodeTag tag,
                   CompilationInfo* info)
       : name_(name),
         code_(code),
         script_(script),
         lineinfo_(lineinfo),
         tag_(tag),
-        info_(info) {
-  }
+        info_(info) {}
 
   const char* name() const {
     return name_;
   }
 
-  GDBJITLineInfo* lineinfo() const {
-    return lineinfo_;
-  }
+  LineInfo* lineinfo() const { return lineinfo_; }
 
   GDBJITInterface::CodeTag tag() const {
     return tag_;
@@ -989,7 +1009,7 @@ class CodeDescription BASE_EMBEDDED {
   const char* name_;
   Code* code_;
   Handle<Script> script_;
-  GDBJITLineInfo* lineinfo_;
+  LineInfo* lineinfo_;
   GDBJITInterface::CodeTag tag_;
   CompilationInfo* info_;
 #if V8_TARGET_ARCH_X64
@@ -1451,12 +1471,12 @@ class DebugLineSection : public DebugSection {
     intptr_t line = 1;
     bool is_statement = true;
 
-    List<GDBJITLineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
+    List<LineInfo::PCInfo>* pc_info = desc_->lineinfo()->pc_info();
     pc_info->Sort(&ComparePCInfo);
 
     int pc_info_length = pc_info->length();
     for (int i = 0; i < pc_info_length; i++) {
-      GDBJITLineInfo::PCInfo* info = &pc_info->at(i);
+      LineInfo::PCInfo* info = &pc_info->at(i);
       ASSERT(info->pc_ >= pc);
 
       // Reduce bloating in the debug line table by removing duplicate line
@@ -1527,8 +1547,8 @@ class DebugLineSection : public DebugSection {
     w->Write<uint8_t>(op);
   }
 
-  static int ComparePCInfo(const GDBJITLineInfo::PCInfo* a,
-                           const GDBJITLineInfo::PCInfo* b) {
+  static int ComparePCInfo(const LineInfo::PCInfo* a,
+                           const LineInfo::PCInfo* b) {
     if (a->pc_ == b->pc_) {
       if (a->is_statement_ != b->is_statement_) {
         return b->is_statement_ ? +1 : -1;
@@ -1967,15 +1987,15 @@ static bool IsLineInfoTagged(void* ptr) {
 }
 
 
-static void* TagLineInfo(GDBJITLineInfo* ptr) {
+static void* TagLineInfo(LineInfo* ptr) {
   return reinterpret_cast<void*>(
       reinterpret_cast<intptr_t>(ptr) | kLineInfoTag);
 }
 
 
-static GDBJITLineInfo* UntagLineInfo(void* ptr) {
-  return reinterpret_cast<GDBJITLineInfo*>(
-      reinterpret_cast<intptr_t>(ptr) & ~kLineInfoTag);
+static LineInfo* UntagLineInfo(void* ptr) {
+  return reinterpret_cast<LineInfo*>(reinterpret_cast<intptr_t>(ptr) &
+                                     ~kLineInfoTag);
 }
 
 
@@ -2051,7 +2071,7 @@ void GDBJITInterface::AddCode(const char* name,
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   if (e->value != NULL && !IsLineInfoTagged(e->value)) return;
 
-  GDBJITLineInfo* lineinfo = UntagLineInfo(e->value);
+  LineInfo* lineinfo = UntagLineInfo(e->value);
   CodeDescription code_desc(name,
                             code,
                             script != NULL ? Handle<Script>(script)
@@ -2167,13 +2187,43 @@ void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
 }
 
 
-void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
-                                               GDBJITLineInfo* line_info) {
+static void RegisterDetailedLineInfo(Code* code, LineInfo* line_info) {
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   ASSERT(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);
   e->value = TagLineInfo(line_info);
+}
+
+
+void GDBJITInterface::EventHandler(const v8::JitCodeEvent* event) {
+  if (!FLAG_gdbjit) return;
+  switch (event->type) {
+    case v8::JitCodeEvent::CODE_ADDED:
+    case v8::JitCodeEvent::CODE_MOVED:
+    case v8::JitCodeEvent::CODE_REMOVED:
+      break;
+    case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
+      LineInfo* line_info = reinterpret_cast<LineInfo*>(event->user_data);
+      line_info->SetPosition(static_cast<intptr_t>(event->line_info.offset),
+                             static_cast<int>(event->line_info.pos),
+                             event->line_info.position_type ==
+                                 v8::JitCodeEvent::STATEMENT_POSITION);
+      break;
+    }
+    case v8::JitCodeEvent::CODE_START_LINE_INFO_RECORDING: {
+      v8::JitCodeEvent* mutable_event = const_cast<v8::JitCodeEvent*>(event);
+      mutable_event->user_data = new LineInfo();
+      break;
+    }
+    case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
+      LineInfo* line_info = reinterpret_cast<LineInfo*>(event->user_data);
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      RegisterDetailedLineInfo(code, line_info);
+      break;
+    }
+  }
 }
 
 
