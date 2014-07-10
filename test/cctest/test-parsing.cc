@@ -1749,9 +1749,43 @@ TEST(ErrorsReservedWords) {
 }
 
 
+TEST(NoErrorsLetSloppyAllModes) {
+  // In sloppy mode, it's okay to use "let" as identifier.
+  const char* context_data[][2] = {
+    { "", "" },
+    { "function f() {", "}" },
+    { "(function f() {", "})" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var let;",
+    "var foo, let;",
+    "try { } catch (let) { }",
+    "function let() { }",
+    "(function let() { })",
+    "function foo(let) { }",
+    "function foo(bar, let) { }",
+    "let = 1;",
+    "var foo = let = 1;",
+    "let * 2;",
+    "++let;",
+    "let++;",
+    "let: 34",
+    "function let(let) { let: let(let + let(0)); }",
+    "({ let: 1 })",
+    "({ get let() { 1 } })",
+    "let(100)",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
 TEST(NoErrorsYieldSloppyAllModes) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
-  // generator (see next test).
+  // generator (see other test).
   const char* context_data[][2] = {
     { "", "" },
     { "function not_gen() {", "}" },
@@ -1769,19 +1803,19 @@ TEST(NoErrorsYieldSloppyAllModes) {
     "function foo(bar, yield) { }",
     "yield = 1;",
     "var foo = yield = 1;",
+    "yield * 2;",
     "++yield;",
     "yield++;",
     "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "function yield(yield) { yield: yield (yield + yield(0)); }",
     "({ yield: 1 })",
     "({ get yield() { 1 } })",
-    "yield (100)",
+    "yield(100)",
+    "yield[100]",
     NULL
   };
 
-  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -1809,20 +1843,20 @@ TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
     "(function * yield() { })",
     "yield = 1;",
     "var foo = yield = 1;",
+    "yield * 2;",
     "++yield;",
     "yield++;",
     "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "function yield(yield) { yield: yield (yield + yield(0)); }",
     "({ yield: 1 })",
     "({ get yield() { 1 } })",
-    "yield (100)",
+    "yield(100)",
+    "yield[100]",
     NULL
   };
 
   // This test requires kAllowGenerators to succeed.
-  static const ParserFlag always_true_flags[] = {
-    kAllowGenerators
-  };
+  static const ParserFlag always_true_flags[] = { kAllowGenerators };
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_true_flags, 1);
 }

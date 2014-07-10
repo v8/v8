@@ -2013,6 +2013,7 @@ Block* Parser::ParseVariableDeclarations(
     is_const = true;
     needs_init = true;
   } else if (peek() == Token::LET && strict_mode() == STRICT) {
+    ASSERT(allow_harmony_scoping());
     Consume(Token::LET);
     if (var_context == kStatement) {
       // Let declarations are only allowed in source element positions.
@@ -3052,6 +3053,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         init = variable_statement;
       }
     } else if (peek() == Token::LET && strict_mode() == STRICT) {
+      ASSERT(allow_harmony_scoping());
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
