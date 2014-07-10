@@ -717,7 +717,6 @@ enum InstanceType {
   FIXED_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
 
   FIXED_DOUBLE_ARRAY_TYPE,
-  CONSTANT_POOL_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
@@ -744,6 +743,7 @@ enum InstanceType {
   BREAK_POINT_INFO_TYPE,
 
   FIXED_ARRAY_TYPE,
+  CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
@@ -1718,10 +1718,6 @@ class HeapObject: public Object {
 
   // Returns the heap object's size in bytes
   inline int Size();
-
-  // Returns true if this heap object contains only references to other
-  // heap objects.
-  inline bool ContainsPointers();
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.

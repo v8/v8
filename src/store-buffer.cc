@@ -11,7 +11,6 @@
 #include "src/base/atomicops.h"
 #include "src/counters.h"
 #include "src/store-buffer-inl.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -23,13 +22,10 @@ StoreBuffer::StoreBuffer(Heap* heap)
       old_start_(NULL),
       old_limit_(NULL),
       old_top_(NULL),
-      old_regular_limit_(NULL),
       old_reserved_limit_(NULL),
-      old_virtual_memory_(NULL),
-      old_store_buffer_length_(0),
       old_buffer_is_sorted_(false),
       old_buffer_is_filtered_(false),
-      allow_overflow_(false),
+      during_gc_(false),
       store_buffer_rebuilding_enabled_(false),
       callback_(NULL),
       may_move_store_buffer_entries_(true),
@@ -48,16 +44,8 @@ void StoreBuffer::SetUp() {
       reinterpret_cast<Address*>(RoundUp(start_as_int, kStoreBufferSize * 2));
   limit_ = start_ + (kStoreBufferSize / kPointerSize);
 
-  // We set the maximum store buffer size to the maximum size of a semi-space.
-  // The store buffer may reach this limit during a full garbage collection.
-  // Note that half of the semi-space should be good enough since half of the
-  // memory in the semi-space are not object pointers.
-  old_store_buffer_length_ =
-      Max(static_cast<int>(heap_->MaxSemiSpaceSize() / sizeof(Address)),
-          kOldRegularStoreBufferLength);
-
   old_virtual_memory_ =
-      new base::VirtualMemory(old_store_buffer_length_ * kPointerSize);
+      new base::VirtualMemory(kOldStoreBufferLength * kPointerSize);
   old_top_ = old_start_ =
       reinterpret_cast<Address*>(old_virtual_memory_->address());
   // Don't know the alignment requirements of the OS, but it is certainly not
@@ -66,12 +54,9 @@ void StoreBuffer::SetUp() {
   int initial_length =
       static_cast<int>(base::OS::CommitPageSize() / kPointerSize);
   ASSERT(initial_length > 0);
-  ASSERT(initial_length <= kOldRegularStoreBufferLength);
-  ASSERT(initial_length <= old_store_buffer_length_);
-  ASSERT(kOldRegularStoreBufferLength <= old_store_buffer_length_);
+  ASSERT(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;
-  old_regular_limit_ = old_start_ + kOldRegularStoreBufferLength;
-  old_reserved_limit_ = old_start_ + old_store_buffer_length_;
+  old_reserved_limit_ = old_start_ + kOldStoreBufferLength;
 
   CHECK(old_virtual_memory_->Commit(
             reinterpret_cast<void*>(old_start_),
@@ -108,13 +93,8 @@ void StoreBuffer::TearDown() {
   delete old_virtual_memory_;
   delete[] hash_set_1_;
   delete[] hash_set_2_;
-  old_start_ = NULL;
-  old_top_ = NULL;
-  old_limit_ = NULL;
-  old_reserved_limit_ = NULL;
-  old_regular_limit_ = NULL;
-  start_ = NULL;
-  limit_ = NULL;
+  old_start_ = old_top_ = old_limit_ = old_reserved_limit_ = NULL;
+  start_ = limit_ = NULL;
   heap_->public_set_store_buffer_top(start_);
 }
 
@@ -148,35 +128,9 @@ bool StoreBuffer::SpaceAvailable(intptr_t space_needed) {
 }
 
 
-template<StoreBuffer::ExemptPopularPagesMode mode>
-void StoreBuffer::IterativelyExemptPopularPages(intptr_t space_needed) {
-  // Sample 1 entry in 97 and filter out the pages where we estimate that more
-  // than 1 in 8 pointers are to new space.
-  static const int kSampleFinenesses = 5;
-  static const struct Samples {
-    int prime_sample_step;
-    int threshold;
-  } samples[kSampleFinenesses] =  {
-    { 97, ((Page::kPageSize / kPointerSize) / 97) / 8 },
-    { 23, ((Page::kPageSize / kPointerSize) / 23) / 16 },
-    { 7, ((Page::kPageSize / kPointerSize) / 7) / 32 },
-    { 3, ((Page::kPageSize / kPointerSize) / 3) / 256 },
-    { 1, 0}
-  };
-  for (int i = 0; i < kSampleFinenesses; i++) {
-    ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
-    // As a last resort we mark all pages as being exempt from the store buffer.
-    ASSERT(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
-    if (mode == ENSURE_SPACE && SpaceAvailable(space_needed)) return;
-    else if (mode == SHRINK_TO_REGULAR_SIZE && old_top_ < old_limit_) return;
-  }
-}
-
-
 void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   while (old_limit_ - old_top_ < space_needed &&
-      ((!allow_overflow_ && old_limit_ < old_regular_limit_) ||
-          (allow_overflow_ && old_limit_ < old_reserved_limit_))) {
+         old_limit_ < old_reserved_limit_) {
     size_t grow = old_limit_ - old_start_;  // Double size.
     CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
                                       grow * kPointerSize,
@@ -208,8 +162,26 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
 
   if (SpaceAvailable(space_needed)) return;
 
-  IterativelyExemptPopularPages<ENSURE_SPACE>(space_needed);
-  ASSERT(SpaceAvailable(space_needed));
+  // Sample 1 entry in 97 and filter out the pages where we estimate that more
+  // than 1 in 8 pointers are to new space.
+  static const int kSampleFinenesses = 5;
+  static const struct Samples {
+    int prime_sample_step;
+    int threshold;
+  } samples[kSampleFinenesses] =  {
+    { 97, ((Page::kPageSize / kPointerSize) / 97) / 8 },
+    { 23, ((Page::kPageSize / kPointerSize) / 23) / 16 },
+    { 7, ((Page::kPageSize / kPointerSize) / 7) / 32 },
+    { 3, ((Page::kPageSize / kPointerSize) / 3) / 256 },
+    { 1, 0}
+  };
+  for (int i = 0; i < kSampleFinenesses; i++) {
+    ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
+    // As a last resort we mark all pages as being exempt from the store buffer.
+    ASSERT(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
+    if (SpaceAvailable(space_needed)) return;
+  }
+  UNREACHABLE();
 }
 
 
@@ -356,9 +328,9 @@ void StoreBuffer::ClearFilteringHashSets() {
 }
 
 
-void StoreBuffer::GCPrologue(bool allow_overflow) {
+void StoreBuffer::GCPrologue() {
   ClearFilteringHashSets();
-  allow_overflow_ = allow_overflow;
+  during_gc_ = true;
 }
 
 
@@ -394,13 +366,7 @@ void StoreBuffer::Verify() {
 
 
 void StoreBuffer::GCEpilogue() {
-  if (allow_overflow_ && old_limit_ > old_regular_limit_) {
-    IterativelyExemptPopularPages<SHRINK_TO_REGULAR_SIZE>(0);
-    ASSERT(old_limit_ < old_regular_limit_);
-    old_virtual_memory_->Uncommit(old_limit_, old_regular_limit_ - old_limit_);
-  }
-
-  allow_overflow_ = false;
+  during_gc_ = false;
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -522,22 +488,25 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
           FindPointersToNewSpaceInRegion(start, end, slot_callback, clear_maps);
         } else {
           Page* page = reinterpret_cast<Page*>(chunk);
-          ASSERT(page->owner() == heap_->map_space() ||
-                 page->owner() == heap_->old_pointer_space());
-          CHECK(!page->WasSweptConservatively());
-
-          HeapObjectIterator iterator(page, NULL);
-          for (HeapObject* heap_object = iterator.Next();
-               heap_object != NULL;
-               heap_object = iterator.Next()) {
-            // We iterate over objects that contain pointers only.
-            if (heap_object->ContainsPointers()) {
-              FindPointersToNewSpaceInRegion(
-                  heap_object->address() + HeapObject::kHeaderSize,
-                  heap_object->address() + heap_object->Size(),
-                  slot_callback,
-                  clear_maps);
+          PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
+          Address start = page->area_start();
+          Address end = page->area_end();
+          if (owner == heap_->map_space()) {
+            ASSERT(page->WasSweptPrecisely());
+            HeapObjectIterator iterator(page, NULL);
+            for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
+                 heap_object = iterator.Next()) {
+              // We skip free space objects.
+              if (!heap_object->IsFiller()) {
+                FindPointersToNewSpaceInRegion(
+                    heap_object->address() + HeapObject::kHeaderSize,
+                    heap_object->address() + heap_object->Size(), slot_callback,
+                    clear_maps);
+              }
             }
+          } else {
+            FindPointersToNewSpaceInRegion(
+                start, end, slot_callback, clear_maps);
           }
         }
       }
