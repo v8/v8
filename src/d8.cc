@@ -29,7 +29,7 @@
 #include "include/v8-testing.h"
 #endif  // V8_SHARED
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
+#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
 #include "src/gdb-jit.h"
 #endif
 
@@ -1581,7 +1581,7 @@ int Shell::Main(int argc, char* argv[]) {
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
-#ifdef ENABLE_GDB_JIT_INTERFACE
+#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
     v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
                                    i::GDBJITInterface::EventHandler);
 #endif
