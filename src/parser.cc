@@ -718,6 +718,7 @@ Parser::Parser(CompilationInfo* info)
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
+  set_allow_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -3267,6 +3268,57 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 }
 
 
+bool CheckAndCollectArrowParameter(ParserTraits* traits,
+                                   Collector<VariableProxy*>* collector,
+                                   Expression* expression) {
+  // Case for empty parameter lists:
+  //   () => ...
+  if (expression == NULL) return true;
+
+  // Too many parentheses around expression:
+  //   (( ... )) => ...
+  if (expression->parenthesization_level() > 1) return false;
+
+  // Case for a single parameter:
+  //   (foo) => ...
+  //   foo => ...
+  if (expression->IsVariableProxy()) {
+    if (expression->AsVariableProxy()->is_this()) return false;
+
+    const AstRawString* raw_name = expression->AsVariableProxy()->raw_name();
+    if (traits->IsEvalOrArguments(raw_name) ||
+        traits->IsFutureStrictReserved(raw_name))
+      return false;
+
+    collector->Add(expression->AsVariableProxy());
+    return true;
+  }
+
+  // Case for more than one parameter:
+  //   (foo, bar [, ...]) => ...
+  if (expression->IsBinaryOperation()) {
+    BinaryOperation* binop = expression->AsBinaryOperation();
+    if (binop->op() != Token::COMMA || binop->left()->is_parenthesized() ||
+        binop->right()->is_parenthesized())
+      return false;
+
+    return CheckAndCollectArrowParameter(traits, collector, binop->left()) &&
+           CheckAndCollectArrowParameter(traits, collector, binop->right());
+  }
+
+  // Any other kind of expression is not a valid parameter list.
+  return false;
+}
+
+
+Vector<VariableProxy*> ParserTraits::ParameterListFromExpression(
+    Expression* expression, bool* ok) {
+  Collector<VariableProxy*> collector;
+  *ok = CheckAndCollectArrowParameter(this, &collector, expression);
+  return collector.ToVector();
+}
+
+
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name,
     Scanner::Location function_name_location,
@@ -3676,6 +3728,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_generators(allow_generators());
     reusable_preparser_->set_allow_for_of(allow_for_of());
+    reusable_preparser_->set_allow_arrow_functions(allow_arrow_functions());
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
   }
