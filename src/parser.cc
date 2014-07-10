@@ -1091,13 +1091,18 @@ Statement* Parser::ParseModuleElement(ZoneList<const AstRawString*>* labels,
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
-    case Token::LET:
-    case Token::CONST:
-      return ParseVariableStatement(kModuleElement, NULL, ok);
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
+    case Token::CONST:
+      return ParseVariableStatement(kModuleElement, NULL, ok);
+    case Token::LET:
+      ASSERT(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kModuleElement, NULL, ok);
+      }
+      // Fall through.
     default: {
       Statement* stmt = ParseStatement(labels, CHECK_OK);
       // Handle 'module' as a context-sensitive keyword.
@@ -1396,6 +1401,8 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
   //
   // TODO(ES6): implement structuring ExportSpecifiers
 
+  ASSERT(strict_mode() == STRICT);
+
   Expect(Token::EXPORT, CHECK_OK);
 
   Statement* result = NULL;
@@ -1478,9 +1485,14 @@ Statement* Parser::ParseBlockElement(ZoneList<const AstRawString*>* labels,
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
-    case Token::LET:
     case Token::CONST:
       return ParseVariableStatement(kModuleElement, NULL, ok);
+    case Token::LET:
+      ASSERT(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kModuleElement, NULL, ok);
+      }
+      // Fall through.
     default:
       return ParseStatement(labels, ok);
   }
@@ -1515,11 +1527,6 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
   switch (peek()) {
     case Token::LBRACE:
       return ParseBlock(labels, ok);
-
-    case Token::CONST:  // fall through
-    case Token::LET:
-    case Token::VAR:
-      return ParseVariableStatement(kStatement, NULL, ok);
 
     case Token::SEMICOLON:
       Next();
@@ -1592,6 +1599,16 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
+    case Token::VAR:
+    case Token::CONST:
+      return ParseVariableStatement(kStatement, NULL, ok);
+
+    case Token::LET:
+      ASSERT(allow_harmony_scoping());
+      if (strict_mode() == STRICT) {
+        return ParseVariableStatement(kStatement, NULL, ok);
+      }
+      // Fall through.
     default:
       return ParseExpressionOrLabelledStatement(labels, ok);
   }
@@ -1995,20 +2012,7 @@ Block* Parser::ParseVariableDeclarations(
     }
     is_const = true;
     needs_init = true;
-  } else if (peek() == Token::LET) {
-    // ES6 Draft Rev4 section 12.2.1:
-    //
-    // LetDeclaration : let LetBindingList ;
-    //
-    // * It is a Syntax Error if the code that matches this production is not
-    //   contained in extended code.
-    //
-    // TODO(rossberg): make 'let' a legal identifier in sloppy mode.
-    if (!allow_harmony_scoping() || strict_mode() == SLOPPY) {
-      ReportMessage("illegal_let");
-      *ok = false;
-      return NULL;
-    }
+  } else if (peek() == Token::LET && strict_mode() == STRICT) {
     Consume(Token::LET);
     if (var_context == kStatement) {
       // Let declarations are only allowed in source element positions.
@@ -3047,7 +3051,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       } else {
         init = variable_statement;
       }
-    } else if (peek() == Token::LET) {
+    } else if (peek() == Token::LET && strict_mode() == STRICT) {
       const AstRawString* name = NULL;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
@@ -3478,8 +3482,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         fvar_init_op = Token::INIT_CONST;
       }
       VariableMode fvar_mode =
-          allow_harmony_scoping() && strict_mode() == STRICT ? CONST
-                                                             : CONST_LEGACY;
+          allow_harmony_scoping() && strict_mode() == STRICT
+              ? CONST : CONST_LEGACY;
       ASSERT(function_name != NULL);
       fvar = new(zone()) Variable(scope_,
          function_name, fvar_mode, true /* is valid LHS */,
