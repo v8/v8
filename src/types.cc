@@ -181,10 +181,10 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case ODDBALL_TYPE: {
       Heap* heap = map->GetHeap();
       if (map == heap->undefined_map()) return kUndefined;
-      if (map == heap->the_hole_map()) return kAny;  // TODO(rossberg): kNone?
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      ASSERT(map == heap->uninitialized_map() ||
+      ASSERT(map == heap->the_hole_map() ||
+             map == heap->uninitialized_map() ||
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
              map == heap->arguments_marker_map());
