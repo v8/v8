@@ -583,6 +583,16 @@ class StoreIC: public IC {
   static const ExtraICState kStrictModeState =
       1 << StrictModeState::kShift;
 
+  enum RegisterInfo {
+    kReceiverIndex,
+    kNameIndex,
+    kValueIndex,
+    kRegisterArgumentCount
+  };
+  static const Register ReceiverRegister();
+  static const Register NameRegister();
+  static const Register ValueRegister();
+
   StoreIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate) {
     ASSERT(IsStoreStub());
@@ -690,6 +700,10 @@ class KeyedStoreIC: public StoreIC {
       ExtraICState extra_state) {
     return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
   }
+
+  static const Register ReceiverRegister();
+  static const Register NameRegister();
+  static const Register ValueRegister();
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate)
       : StoreIC(depth, isolate) {

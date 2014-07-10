@@ -1682,8 +1682,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
-            __ Mov(x2, Operand(key->value()));
-            __ Peek(x1, 0);
+            ASSERT(StoreIC::ValueRegister().is(x0));
+            __ Mov(StoreIC::NameRegister(), Operand(key->value()));
+            __ Peek(StoreIC::ReceiverRegister(), 0);
             CallStoreIC(key->LiteralFeedbackId());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -2104,9 +2105,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForAccumulatorValue(prop->obj());
       // TODO(all): We could introduce a VisitForRegValue(reg, expr) to avoid
       // this copy.
-      __ Mov(x1, x0);
-      __ Pop(x0);  // Restore value.
-      __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
+      __ Mov(StoreIC::ReceiverRegister(), x0);
+      __ Pop(StoreIC::ValueRegister());  // Restore value.
+      __ Mov(StoreIC::NameRegister(),
+             Operand(prop->key()->AsLiteral()->value()));
       CallStoreIC();
       break;
     }
@@ -2114,8 +2116,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ Push(x0);  // Preserve value.
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
-      __ Mov(x1, x0);
-      __ Pop(x2, x0);
+      __ Mov(KeyedStoreIC::NameRegister(), x0);
+      __ Pop(KeyedStoreIC::ReceiverRegister(), KeyedStoreIC::ValueRegister());
       Handle<Code> ic = strict_mode() == SLOPPY
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
@@ -2158,8 +2160,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
   ASM_LOCATION("FullCodeGenerator::EmitVariableAssignment");
   if (var->IsUnallocated()) {
     // Global var, const, or let.
-    __ Mov(x2, Operand(var->name()));
-    __ Ldr(x1, GlobalObjectMemOperand());
+    __ Mov(StoreIC::NameRegister(), Operand(var->name()));
+    __ Ldr(StoreIC::ReceiverRegister(), GlobalObjectMemOperand());
     CallStoreIC();
 
   } else if (op == Token::INIT_CONST_LEGACY) {
@@ -2226,9 +2228,8 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
-  __ Pop(x1);
-
+  __ Mov(StoreIC::NameRegister(), Operand(prop->key()->AsLiteral()->value()));
+  __ Pop(StoreIC::ReceiverRegister());
   CallStoreIC(expr->AssignmentFeedbackId());
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
@@ -2243,7 +2244,8 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
   // TODO(all): Could we pass this in registers rather than on the stack?
-  __ Pop(x1, x2);  // Key and object holding the property.
+  __ Pop(KeyedStoreIC::NameRegister(), KeyedStoreIC::ReceiverRegister());
+  ASSERT(KeyedStoreIC::ValueRegister().is(x0));
 
   Handle<Code> ic = strict_mode() == SLOPPY
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
@@ -4043,8 +4045,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     case NAMED_PROPERTY: {
-      __ Mov(x2, Operand(prop->key()->AsLiteral()->value()));
-      __ Pop(x1);
+      __ Mov(StoreIC::NameRegister(),
+             Operand(prop->key()->AsLiteral()->value()));
+      __ Pop(StoreIC::ReceiverRegister());
       CallStoreIC(expr->CountStoreFeedbackId());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -4057,8 +4060,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
-      __ Pop(x1);  // Key.
-      __ Pop(x2);  // Receiver.
+      __ Pop(KeyedStoreIC::NameRegister());
+      __ Pop(KeyedStoreIC::ReceiverRegister());
       Handle<Code> ic = strict_mode() == SLOPPY
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();

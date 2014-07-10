@@ -603,7 +603,9 @@ Handle<Code> StringLengthStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
-      GetParameter(0), GetParameter(1), GetParameter(2),
+      GetParameter(StoreIC::kReceiverIndex),
+      GetParameter(StoreIC::kNameIndex),
+      GetParameter(StoreIC::kValueIndex),
       casted_stub()->is_js_array(), casted_stub()->elements_kind(),
       STORE, NEVER_RETURN_HOLE, casted_stub()->store_mode());
 
@@ -1028,7 +1030,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   Handle<PropertyCell> placeholder_cell =
       isolate()->factory()->NewPropertyCell(placeholer_value);
 
-  HParameter* value = GetParameter(2);
+  HParameter* value = GetParameter(StoreIC::kValueIndex);
 
   if (stub->check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
