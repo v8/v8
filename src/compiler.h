@@ -13,7 +13,6 @@ namespace v8 {
 namespace internal {
 
 class AstValueFactory;
-class ScriptData;
 class HydrogenCodeStub;
 
 // ParseRestriction is used to restrict the set of valid statements in a
@@ -34,6 +33,36 @@ struct OffsetRange {
   int from;
   int to;
 };
+
+
+class ScriptData {
+ public:
+  ScriptData(const byte* data, int length);
+  ~ScriptData() {
+    if (owns_data_) DeleteArray(data_);
+  }
+
+  const byte* data() const { return data_; }
+  int length() const { return length_; }
+
+  void AcquireDataOwnership() {
+    ASSERT(!owns_data_);
+    owns_data_ = true;
+  }
+
+  void ReleaseDataOwnership() {
+    ASSERT(owns_data_);
+    owns_data_ = false;
+  }
+
+ private:
+  bool owns_data_;
+  const byte* data_;
+  int length_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScriptData);
+};
+
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
@@ -721,7 +750,6 @@ class CompilationPhase BASE_EMBEDDED {
 
   DISALLOW_COPY_AND_ASSIGN(CompilationPhase);
 };
-
 
 } }  // namespace v8::internal
 

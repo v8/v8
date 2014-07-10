@@ -4,6 +4,7 @@
 
 #include "include/v8stdint.h"
 #include "src/base/logging.h"
+#include "src/compiler.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
 #include "src/preparse-data.h"
@@ -34,7 +35,7 @@ void CompleteParserRecorder::LogMessage(int start_pos,
                                         const char* message,
                                         const char* arg_opt,
                                         bool is_reference_error) {
-  if (has_error()) return;
+  if (HasError()) return;
   preamble_[PreparseDataConstants::kHasErrorOffset] = true;
   function_store_.Reset();
   STATIC_ASSERT(PreparseDataConstants::kMessageStartPos == 0);
@@ -59,17 +60,21 @@ void CompleteParserRecorder::WriteString(Vector<const char> str) {
 }
 
 
-Vector<unsigned> CompleteParserRecorder::ExtractData() {
+ScriptData* CompleteParserRecorder::GetScriptData() {
   int function_size = function_store_.size();
   int total_size = PreparseDataConstants::kHeaderSize + function_size;
-  Vector<unsigned> data = Vector<unsigned>::New(total_size);
+  unsigned* data = NewArray<unsigned>(total_size);
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = function_size;
-  MemCopy(data.start(), preamble_, sizeof(preamble_));
+  MemCopy(data, preamble_, sizeof(preamble_));
   if (function_size > 0) {
-    function_store_.WriteTo(data.SubVector(PreparseDataConstants::kHeaderSize,
-                                           total_size));
+    function_store_.WriteTo(Vector<unsigned>(
+        data + PreparseDataConstants::kHeaderSize, function_size));
   }
-  return data;
+  ASSERT(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
+  ScriptData* result = new ScriptData(reinterpret_cast<byte*>(data),
+                                      total_size * sizeof(unsigned));
+  result->AcquireDataOwnership();
+  return result;
 }
 
 
