@@ -2017,7 +2017,7 @@ class PagedSpace : public Space {
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
   // allocation.
-  MUST_USE_RESULT HeapObject* EnsureSweepingProgress(intptr_t size_in_bytes);
+  MUST_USE_RESULT HeapObject* EnsureSweepingProgress(int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
   MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
