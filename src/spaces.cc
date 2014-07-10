@@ -2581,12 +2581,23 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 }
 
 
-HeapObject* PagedSpace::WaitForSweeperThreadsAndRetryAllocation(
+HeapObject* PagedSpace::EnsureSweepingProgress(
     int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
 
-  // If sweeper threads are still running, wait for them.
   if (collector->IsConcurrentSweepingInProgress(this)) {
+    // If sweeping is still in progress try to sweep pages on the main thread.
+    int free_chunk =
+        collector->SweepInParallel(this, size_in_bytes);
+    if (free_chunk >= size_in_bytes) {
+      HeapObject* object = free_list_.Allocate(size_in_bytes);
+      // We should be able to allocate an object here since we just freed that
+      // much memory.
+      ASSERT(object != NULL);
+      if (object != NULL) return object;
+    }
+
+    // Wait for the sweeper threads here and complete the sweeping phase.
     collector->WaitUntilSweepingCompleted();
 
     // After waiting for the sweeper threads, there may be new free-list
@@ -2617,7 +2628,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
       && heap()->OldGenerationAllocationLimitReached()) {
     // If sweeper threads are active, wait for them at that point and steal
     // elements form their free-lists.
-    HeapObject* object = WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
+    HeapObject* object = EnsureSweepingProgress(size_in_bytes);
     if (object != NULL) return object;
   }
 
@@ -2630,7 +2641,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // If sweeper threads are active, wait for them at that point and steal
   // elements form their free-lists. Allocation may still fail their which
   // would indicate that there is not enough memory for the given allocation.
-  return WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
+  return EnsureSweepingProgress(size_in_bytes);
 }
 
 

@@ -41,8 +41,8 @@ void SweeperThread::Run() {
       return;
     }
 
-    collector_->SweepInParallel(heap_->old_data_space());
-    collector_->SweepInParallel(heap_->old_pointer_space());
+    collector_->SweepInParallel(heap_->old_data_space(), 0);
+    collector_->SweepInParallel(heap_->old_pointer_space(), 0);
     end_sweeping_semaphore_.Signal();
   }
 }
