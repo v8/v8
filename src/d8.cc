@@ -1582,8 +1582,10 @@ int Shell::Main(int argc, char* argv[]) {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
 #if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-    v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
-                                   i::GDBJITInterface::EventHandler);
+    if (i::FLAG_gdbjit) {
+      v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                     i::GDBJITInterface::EventHandler);
+    }
 #endif
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
     vTune::InitializeVtuneForV8();
