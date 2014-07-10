@@ -561,6 +561,8 @@ class Parser : public ParserBase<ParserTraits> {
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
+    delete cached_parse_data_;
+    cached_parse_data_ = NULL;
   }
 
   // Parses the source code represented by the compilation info and sets its
