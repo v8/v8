@@ -6032,7 +6032,8 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 }
 
 
-ACCESSORS(JSCollection, table, Object, kTableOffset)
+ACCESSORS(JSSet, table, Object, kTableOffset)
+ACCESSORS(JSMap, table, Object, kTableOffset)
 
 
 #define ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(name, type, offset)    \
