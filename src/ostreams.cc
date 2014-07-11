@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "src/base/platform/platform.h"  // For isinf/isnan with MSVC
 #include "src/ostreams.h"
 
 #if V8_OS_WIN
