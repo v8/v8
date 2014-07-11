@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <cmath>
 
 #include "src/ostreams.h"
 
@@ -63,6 +64,8 @@ OStream& OStream::operator<<(unsigned long long x) {  // NOLINT(runtime/int)
 
 
 OStream& OStream::operator<<(double x) {
+  if (std::isinf(x)) return *this << (x < 0 ? "-inf" : "inf");
+  if (std::isnan(x)) return *this << "nan";
   return print("%g", x);
 }
 
