@@ -324,45 +324,74 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateDeoptJumpTable() {
   if (deopt_jump_table_.length() > 0) {
+    Label needs_frame, call_deopt_entry;
+
     Comment(";;; -------------------- Jump table --------------------");
-  }
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-  Label table_start;
-  __ bind(&table_start);
-  Label needs_frame;
-  for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    __ bind(&deopt_jump_table_[i].label);
-    Address entry = deopt_jump_table_[i].address;
-    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
-    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    if (id == Deoptimizer::kNotDeoptimizationEntry) {
-      Comment(";;; jump table entry %d.", i);
-    } else {
+    Address base = deopt_jump_table_[0].address;
+
+    Register entry_offset = t9;
+
+    int length = deopt_jump_table_.length();
+    for (int i = 0; i < length; i++) {
+      __ bind(&deopt_jump_table_[i].label);
+
+      Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
+      ASSERT(type == deopt_jump_table_[0].bailout_type);
+      Address entry = deopt_jump_table_[i].address;
+      int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
+      ASSERT(id != Deoptimizer::kNotDeoptimizationEntry);
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-    }
-    __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
-    if (deopt_jump_table_[i].needs_frame) {
-      ASSERT(!info()->saves_caller_doubles());
-      if (needs_frame.is_bound()) {
-        __ Branch(&needs_frame);
+
+      // Second-level deopt table entries are contiguous and small, so instead
+      // of loading the full, absolute address of each one, load an immediate
+      // offset which will be added to the base address later.
+      __ li(entry_offset, Operand(entry - base));
+
+      if (deopt_jump_table_[i].needs_frame) {
+        ASSERT(!info()->saves_caller_doubles());
+        if (needs_frame.is_bound()) {
+          __ Branch(&needs_frame);
+        } else {
+          __ bind(&needs_frame);
+          Comment(";;; call deopt with frame");
+          __ MultiPush(cp.bit() | fp.bit() | ra.bit());
+          // This variant of deopt can only be used with stubs. Since we don't
+          // have a function pointer to install in the stack frame that we're
+          // building, install a special marker there instead.
+          ASSERT(info()->IsStub());
+          __ li(at, Operand(Smi::FromInt(StackFrame::STUB)));
+          __ push(at);
+          __ Addu(fp, sp,
+                  Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
+          __ bind(&call_deopt_entry);
+          // Add the base address to the offset previously loaded in
+          // entry_offset.
+          __ Addu(entry_offset, entry_offset,
+                  Operand(ExternalReference::ForDeoptEntry(base)));
+          __ Call(entry_offset);
+        }
       } else {
-        __ bind(&needs_frame);
-        __ MultiPush(cp.bit() | fp.bit() | ra.bit());
-        // This variant of deopt can only be used with stubs. Since we don't
-        // have a function pointer to install in the stack frame that we're
-        // building, install a special marker there instead.
-        ASSERT(info()->IsStub());
-        __ li(scratch0(), Operand(Smi::FromInt(StackFrame::STUB)));
-        __ push(scratch0());
-        __ Addu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-        __ Call(t9);
+        // The last entry can fall through into `call_deopt_entry`, avoiding a
+        // branch.
+        bool need_branch = ((i + 1) != length) || call_deopt_entry.is_bound();
+
+        if (need_branch) __ Branch(&call_deopt_entry);
       }
-    } else {
+    }
+
+    if (!call_deopt_entry.is_bound()) {
+      Comment(";;; call deopt");
+      __ bind(&call_deopt_entry);
+
       if (info()->saves_caller_doubles()) {
         ASSERT(info()->IsStub());
         RestoreCallerDoubles();
       }
-      __ Call(t9);
+
+      // Add the base address to the offset previously loaded in entry_offset.
+      __ Addu(entry_offset, entry_offset,
+              Operand(ExternalReference::ForDeoptEntry(base)));
+      __ Call(entry_offset);
     }
   }
   __ RecordComment("]");
