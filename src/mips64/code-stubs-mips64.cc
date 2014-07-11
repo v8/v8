@@ -87,15 +87,6 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { a2, a1, a0 };
-  descriptor->Initialize(
-      ARRAY_SIZE(registers), registers,
-      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
-}
-
-
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { a0, a1 };
@@ -227,14 +218,6 @@ void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
 void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   InitializeInternalArrayConstructorDescriptor(descriptor, -1);
-}
-
-
-void StoreGlobalStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { a1, a2, a0 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(StoreIC_MissFromStubFailure));
 }
 
 
