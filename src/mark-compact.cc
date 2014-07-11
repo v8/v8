@@ -4315,11 +4315,6 @@ void MarkCompactCollector::EnableCodeFlushing(bool enable) {
 // code objects. We should either reenable it or change our tools.
 void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
                                                 Isolate* isolate) {
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (obj->IsCode()) {
-    GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
-  }
-#endif
   if (obj->IsCode()) {
     PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }

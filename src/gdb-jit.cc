@@ -2063,8 +2063,6 @@ void GDBJITInterface::AddCode(const char* name,
                               GDBJITInterface::CodeTag tag,
                               Script* script,
                               CompilationInfo* info) {
-  if (!FLAG_gdbjit) return;
-
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
   DisallowHeapAllocation no_gc;
 
@@ -2106,45 +2104,6 @@ void GDBJITInterface::AddCode(const char* name,
     }
   }
   RegisterCodeEntry(entry, should_dump, name_hint);
-}
-
-
-void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
-                              const char* name,
-                              Code* code) {
-  if (!FLAG_gdbjit) return;
-
-  EmbeddedVector<char, 256> buffer;
-  StringBuilder builder(buffer.start(), buffer.length());
-
-  builder.AddString(Tag2String(tag));
-  if ((name != NULL) && (*name != '\0')) {
-    builder.AddString(": ");
-    builder.AddString(name);
-  } else {
-    builder.AddFormatted(": code object %p", static_cast<void*>(code));
-  }
-
-  AddCode(builder.Finalize(), code, tag, NULL, NULL);
-}
-
-
-void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
-                              Name* name,
-                              Code* code) {
-  if (!FLAG_gdbjit) return;
-  if (name != NULL && name->IsString()) {
-    AddCode(tag, String::cast(name)->ToCString(DISALLOW_NULLS).get(), code);
-  } else {
-    AddCode(tag, "", code);
-  }
-}
-
-
-void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
-  if (!FLAG_gdbjit) return;
-
-  AddCode(tag, "", code);
 }
 
 
@@ -2199,10 +2158,27 @@ static void RegisterDetailedLineInfo(Code* code, LineInfo* line_info) {
 void GDBJITInterface::EventHandler(const v8::JitCodeEvent* event) {
   if (!FLAG_gdbjit) return;
   switch (event->type) {
-    case v8::JitCodeEvent::CODE_ADDED:
-    case v8::JitCodeEvent::CODE_MOVED:
-    case v8::JitCodeEvent::CODE_REMOVED:
+    case v8::JitCodeEvent::CODE_ADDED: {
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      if (code->kind() == Code::OPTIMIZED_FUNCTION ||
+          code->kind() == Code::FUNCTION) {
+        break;
+      }
+      EmbeddedVector<char, 256> buffer;
+      StringBuilder builder(buffer.start(), buffer.length());
+      builder.AddSubstring(event->name.str, static_cast<int>(event->name.len));
+      AddCode(builder.Finalize(), code, NON_FUNCTION, NULL, NULL);
       break;
+    }
+    case v8::JitCodeEvent::CODE_MOVED:
+      break;
+    case v8::JitCodeEvent::CODE_REMOVED: {
+      Code* code = Code::GetCodeFromTargetAddress(
+          reinterpret_cast<Address>(event->code_start));
+      RemoveCode(code);
+      break;
+    }
     case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
       LineInfo* line_info = reinterpret_cast<LineInfo*>(event->user_data);
       line_info->SetPosition(static_cast<intptr_t>(event->line_info.offset),

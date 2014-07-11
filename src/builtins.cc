@@ -1635,7 +1635,6 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // Log the event and add the code to the builtins array.
       PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG, *code, functions[i].s_name));
-      GDBJIT(AddCode(GDBJITInterface::BUILTIN, functions[i].s_name, *code));
       builtins_[i] = *code;
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
