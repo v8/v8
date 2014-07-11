@@ -154,7 +154,6 @@ var kMessages = {
   strict_cannot_assign:          ["Cannot assign to read only '", "%0", "' in strict mode"],
   strict_poison_pill:            ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
   strict_caller:                 ["Illegal access to a strict mode caller function."],
-  malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
   unprotected_let:               ["Illegal let declaration in unprotected statement context."],
   unprotected_const:             ["Illegal const declaration in unprotected statement context."],
