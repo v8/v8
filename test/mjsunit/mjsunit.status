@@ -404,6 +404,11 @@
   # Random failures on HW, need investigation.
   'debug-*': [SKIP],
 }],
+##############################################################################
+['system == windows', {
+  # BUG(v8:3435)
+  'debug-script-breakpoints': [PASS, FAIL],
+}],  # 'system == windows'
 
 ##############################################################################
 # Native Client uses the ARM simulator so will behave similarly to arm
