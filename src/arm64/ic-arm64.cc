@@ -506,8 +506,8 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register value = ValueRegister();
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(key.is(x2));
+  ASSERT(receiver.is(x2));
+  ASSERT(key.is(x1));
   ASSERT(value.is(x0));
 
   Register map = x3;
@@ -574,24 +574,9 @@ const Register StoreIC::NameRegister() { return x2; }
 const Register StoreIC::ValueRegister() { return x0; }
 
 
-const Register KeyedStoreIC::ReceiverRegister() {
-  return StoreIC::ReceiverRegister();
-}
-
-
-const Register KeyedStoreIC::NameRegister() {
-  return StoreIC::NameRegister();
-}
-
-
-const Register KeyedStoreIC::ValueRegister() {
-  return StoreIC::ValueRegister();
-}
-
-
-const Register KeyedStoreIC::MapRegister() {
-  return x3;
-}
+const Register KeyedStoreIC::ReceiverRegister() { return x2; }
+const Register KeyedStoreIC::NameRegister() { return x1; }
+const Register KeyedStoreIC::ValueRegister() { return x0; }
 
 
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
@@ -1082,8 +1067,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register value = ValueRegister();
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(key.is(x2));
+  ASSERT(receiver.is(x2));
+  ASSERT(key.is(x1));
   ASSERT(value.is(x0));
 
   Register receiver_map = x3;

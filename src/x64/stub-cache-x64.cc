@@ -1253,11 +1253,10 @@ Register* StoreStubCompiler::registers() {
 
 
 Register* KeyedStoreStubCompiler::registers() {
-  // receiver, name, scratch1/map, scratch2, scratch3.
+  // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = KeyedStoreIC::ReceiverRegister();
   Register name = KeyedStoreIC::NameRegister();
-  Register map = KeyedStoreIC::MapRegister();
-  static Register registers[] = { receiver, name, map, rdi, r8 };
+  static Register registers[] = { receiver, name, rbx, rdi, r8 };
   return registers;
 }
 
@@ -1362,10 +1361,7 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target);
 
-  // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
-  ASSERT(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(KeyedStoreIC::MapRegister()));
   __ movp(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
