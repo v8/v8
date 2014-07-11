@@ -3964,10 +3964,10 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
 
 void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->object()).is(edx));
-  ASSERT(ToRegister(instr->value()).is(eax));
+  ASSERT(ToRegister(instr->object()).is(StoreIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->value()).is(StoreIC::ValueRegister()));
 
-  __ mov(ecx, instr->name());
+  __ mov(StoreIC::NameRegister(), instr->name());
   Handle<Code> ic = StoreIC::initialize_stub(isolate(), instr->strict_mode());
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -4175,9 +4175,9 @@ void LCodeGen::DoStoreKeyed(LStoreKeyed* instr) {
 
 void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(esi));
-  ASSERT(ToRegister(instr->object()).is(edx));
-  ASSERT(ToRegister(instr->key()).is(ecx));
-  ASSERT(ToRegister(instr->value()).is(eax));
+  ASSERT(ToRegister(instr->object()).is(KeyedStoreIC::ReceiverRegister()));
+  ASSERT(ToRegister(instr->key()).is(KeyedStoreIC::NameRegister()));
+  ASSERT(ToRegister(instr->value()).is(KeyedStoreIC::ValueRegister()));
 
   Handle<Code> ic = instr->strict_mode() == STRICT
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
