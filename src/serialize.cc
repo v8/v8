@@ -1799,13 +1799,12 @@ int Serializer::SpaceAreaSize(int space) {
 }
 
 
-void Serializer::PadByte() { sink_->Put(kNop, "Padding"); }
-
-
 void Serializer::Pad() {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
-  for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) PadByte();
+  for (unsigned i = 0; i < sizeof(int32_t) - 1; i++) {
+    sink_->Put(kNop, "Padding");
+  }
 }
 
 
@@ -1817,33 +1816,16 @@ void Serializer::InitializeCodeAddressMap() {
 
 ScriptData* CodeSerializer::Serialize(Handle<SharedFunctionInfo> info) {
   // Serialize code object.
-  List<char> payload;
-  ListSnapshotSink listsink(&payload);
-  CodeSerializer ser(info->GetIsolate(), &listsink);
+  List<byte> payload;
+  ListSnapshotSink list_sink(&payload);
+  CodeSerializer cs(info->GetIsolate(), &list_sink);
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
-  ser.VisitPointer(location);
-  ser.Pad();
+  cs.VisitPointer(location);
+  cs.Pad();
 
-  // Allocate storage.  The payload length may not be aligned.  Round up.
-  // TODO(yangguo) replace ScriptData with a more generic super class.
-  int payload_length = payload.length();
-  int raw_length = payload_length / sizeof(unsigned) + kHeaderSize;
-  if (!IsAligned(payload_length, sizeof(unsigned))) raw_length++;
-  unsigned* raw_data = i::NewArray<unsigned>(raw_length);
-  char* payload_data = reinterpret_cast<char*>(raw_data + kHeaderSize);
-
-  // Write header.
-  raw_data[kVersionHashOffset] = Version::Hash();
-  raw_data[kPayloadLengthOffset] = payload_length;
-  STATIC_ASSERT(NEW_SPACE == 0);
-  for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
-    raw_data[kReservationsOffset + i] = ser.CurrentAllocationAddress(i);
-  }
-
-  CopyBytes(payload_data, payload.begin(), static_cast<size_t>(payload_length));
-
-  return new ScriptData(Vector<unsigned>(raw_data, raw_length), true);
+  SerializedCodeData data(&payload, &cs);
+  return data.GetScriptData();
 }
 
 
@@ -1892,25 +1874,41 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
 
 Object* CodeSerializer::Deserialize(Isolate* isolate, ScriptData* data) {
-  const unsigned* raw_data = reinterpret_cast<const unsigned*>(data->Data());
-  CHECK_EQ(Version::Hash(), raw_data[kVersionHashOffset]);
-  int payload_length = raw_data[kPayloadLengthOffset];
-  const byte* payload_data =
-      reinterpret_cast<const byte*>(raw_data + kHeaderSize);
-  ASSERT_LE(payload_length, data->Length() - kHeaderSize);
-
-  SnapshotByteSource payload(payload_data, payload_length);
+  SerializedCodeData scd(data);
+  SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
   Deserializer deserializer(&payload);
   STATIC_ASSERT(NEW_SPACE == 0);
   // TODO(yangguo) what happens if remaining new space is too small?
   for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
-    deserializer.set_reservation(
-        i, raw_data[CodeSerializer::kReservationsOffset + i]);
+    deserializer.set_reservation(i, scd.GetReservation(i));
   }
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   deserializer.FlushICacheForNewCodeObjects();
   ASSERT(root->IsSharedFunctionInfo());
   return root;
+}
+
+
+SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
+    : owns_script_data_(true) {
+  int data_length = payload->length() + kHeaderEntries * kIntSize;
+  byte* data = NewArray<byte>(data_length);
+  ASSERT(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
+  CopyBytes(data + kHeaderEntries * kIntSize, payload->begin(),
+            static_cast<size_t>(payload->length()));
+  script_data_ = new ScriptData(data, data_length);
+  script_data_->AcquireDataOwnership();
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
+  STATIC_ASSERT(NEW_SPACE == 0);
+  for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
+    SetHeaderValue(kReservationsOffset + i, cs->CurrentAllocationAddress(i));
+  }
+}
+
+
+bool SerializedCodeData::IsSane() {
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
+         PayloadLength() >= SharedFunctionInfo::kSize;
 }
 } }  // namespace v8::internal

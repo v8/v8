@@ -188,13 +188,11 @@ void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 
 void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
   // Register state for IC store call (from ic-ia32.cc).
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  // -----------------------------------
+  Register receiver = StoreIC::ReceiverRegister();
+  Register name = StoreIC::NameRegister();
+  Register value = StoreIC::ValueRegister();
   Generate_DebugBreakCallHelper(
-      masm, eax.bit() | ecx.bit() | edx.bit(), 0, false);
+      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
 }
 
 
@@ -205,14 +203,12 @@ void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
-  // Register state for keyed IC load call (from ic-ia32.cc).
-  // ----------- S t a t e -------------
-  //  -- eax    : value
-  //  -- ecx    : key
-  //  -- edx    : receiver
-  // -----------------------------------
+  // Register state for keyed IC store call (from ic-ia32.cc).
+  Register receiver = KeyedStoreIC::ReceiverRegister();
+  Register name = KeyedStoreIC::NameRegister();
+  Register value = KeyedStoreIC::ValueRegister();
   Generate_DebugBreakCallHelper(
-      masm, eax.bit() | ecx.bit() | edx.bit(), 0, false);
+      masm, receiver.bit() | name.bit() | value.bit(), 0, false);
 }
 
 

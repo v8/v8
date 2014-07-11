@@ -2339,17 +2339,22 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(Handle<Map> map,
 
   // Unless the instance is being migrated, ensure that modify_index is a field.
   PropertyDetails details = descriptors->GetDetails(modify_index);
-  if (store_mode == FORCE_FIELD && details.type() != FIELD) {
+  if (store_mode == FORCE_FIELD &&
+      (details.type() != FIELD || details.attributes() != attributes)) {
+    int field_index = details.type() == FIELD ? details.field_index()
+                                              : new_map->NumberOfFields();
     FieldDescriptor d(handle(descriptors->GetKey(modify_index), isolate),
-                      new_map->NumberOfFields(),
-                      attributes,
-                      Representation::Tagged());
+                      field_index, attributes, Representation::Tagged());
     descriptors->Replace(modify_index, &d);
-    int unused_property_fields = new_map->unused_property_fields() - 1;
-    if (unused_property_fields < 0) {
-      unused_property_fields += JSObject::kFieldsAdded;
+    if (details.type() != FIELD) {
+      int unused_property_fields = new_map->unused_property_fields() - 1;
+      if (unused_property_fields < 0) {
+        unused_property_fields += JSObject::kFieldsAdded;
+      }
+      new_map->set_unused_property_fields(unused_property_fields);
     }
-    new_map->set_unused_property_fields(unused_property_fields);
+  } else {
+    ASSERT(details.attributes() == attributes);
   }
 
   if (FLAG_trace_generalization) {

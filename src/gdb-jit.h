@@ -34,37 +34,6 @@ class CompilationInfo;
   V(EVAL)                                       \
   V(FUNCTION)
 
-class GDBJITLineInfo : public Malloced {
- public:
-  GDBJITLineInfo()
-      : pc_info_(10) { }
-
-  void SetPosition(intptr_t pc, int pos, bool is_statement) {
-    AddPCInfo(PCInfo(pc, pos, is_statement));
-  }
-
-  struct PCInfo {
-    PCInfo(intptr_t pc, int pos, bool is_statement)
-        : pc_(pc), pos_(pos), is_statement_(is_statement) { }
-
-    intptr_t pc_;
-    int pos_;
-    bool is_statement_;
-  };
-
-  List<PCInfo>* pc_info() {
-    return &pc_info_;
-  }
-
- private:
-  void AddPCInfo(const PCInfo& pc_info) {
-    pc_info_.Add(pc_info);
-  }
-
-  List<PCInfo> pc_info_;
-};
-
-
 class GDBJITInterface: public AllStatic {
  public:
   enum CodeTag {
@@ -83,6 +52,9 @@ class GDBJITInterface: public AllStatic {
         return NULL;
     }
   }
+
+  // Main entry point into GDB JIT realized as a JitCodeEventHandler.
+  static void EventHandler(const v8::JitCodeEvent* event);
 
   static void AddCode(const char* name,
                       Code* code,
@@ -104,8 +76,6 @@ class GDBJITInterface: public AllStatic {
   static void RemoveCode(Code* code);
 
   static void RemoveCodeRange(Address start, Address end);
-
-  static void RegisterDetailedLineInfo(Code* code, GDBJITLineInfo* line_info);
 };
 
 #define GDBJIT(action) GDBJITInterface::action

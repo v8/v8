@@ -1262,20 +1262,24 @@ Register* KeyedLoadStubCompiler::registers() {
 
 
 Register StoreStubCompiler::value() {
-  return x0;
+  return StoreIC::ValueRegister();
 }
 
 
 Register* StoreStubCompiler::registers() {
   // receiver, value, scratch1, scratch2, scratch3.
-  static Register registers[] = { x1, x2, x3, x4, x5 };
+  Register receiver = StoreIC::ReceiverRegister();
+  Register name = StoreIC::NameRegister();
+  static Register registers[] = { receiver, name, x3, x4, x5 };
   return registers;
 }
 
 
 Register* KeyedStoreStubCompiler::registers() {
   // receiver, name, scratch1, scratch2, scratch3.
-  static Register registers[] = { x2, x1, x3, x4, x5 };
+  Register receiver = KeyedStoreIC::ReceiverRegister();
+  Register name = KeyedStoreIC::NameRegister();
+  static Register registers[] = { receiver, name, x3, x4, x5 };
   return registers;
 }
 

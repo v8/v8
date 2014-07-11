@@ -29,6 +29,10 @@
 #include "include/v8-testing.h"
 #endif  // V8_SHARED
 
+#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
+#include "src/gdb-jit.h"
+#endif
+
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
@@ -1577,6 +1581,12 @@ int Shell::Main(int argc, char* argv[]) {
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
+#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
+    if (i::FLAG_gdbjit) {
+      v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                     i::GDBJITInterface::EventHandler);
+    }
+#endif
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
     vTune::InitializeVtuneForV8();
 #endif

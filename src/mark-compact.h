@@ -577,7 +577,7 @@ class MarkCompactCollector {
   };
 
   enum SweepingParallelism {
-    SWEEP_SEQUENTIALLY,
+    SWEEP_ON_MAIN_THREAD,
     SWEEP_IN_PARALLEL
   };
 
@@ -590,7 +590,7 @@ class MarkCompactCollector {
 #endif
 
   // Sweep a single page from the given space conservatively.
-  // Return a number of reclaimed bytes.
+  // Returns the size of the biggest continuous freed memory chunk in bytes.
   template<SweepingParallelism type>
   static intptr_t SweepConservatively(PagedSpace* space,
                                       FreeList* free_list,
@@ -659,8 +659,11 @@ class MarkCompactCollector {
 
   MarkingParity marking_parity() { return marking_parity_; }
 
-  // Concurrent and parallel sweeping support.
-  void SweepInParallel(PagedSpace* space);
+  // Concurrent and parallel sweeping support. If required_freed_bytes was set
+  // to a value larger than 0, then sweeping returns after a block of at least
+  // required_freed_bytes was freed. If required_freed_bytes was set to zero
+  // then the whole given space is swept.
+  int SweepInParallel(PagedSpace* space, int required_freed_bytes);
 
   void WaitUntilSweepingCompleted();
 

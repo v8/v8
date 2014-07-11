@@ -634,6 +634,27 @@ void KeyedStringLengthStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { KeyedStoreIC::ReceiverRegister(),
+                           KeyedStoreIC::NameRegister(),
+                           KeyedStoreIC::ValueRegister() };
+  descriptor->Initialize(
+      ARRAY_SIZE(registers), registers,
+      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
+}
+
+
+void StoreGlobalStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { StoreIC::ReceiverRegister(),
+                           StoreIC::NameRegister(),
+                           StoreIC::ValueRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(StoreIC_MissFromStubFailure));
+}
+
+
 void KeyedLoadDictionaryElementPlatformStub::Generate(
     MacroAssembler* masm) {
   KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);

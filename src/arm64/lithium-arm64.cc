@@ -2358,9 +2358,10 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), x2);
-  LOperand* key = UseFixed(instr->key(), x1);
-  LOperand* value = UseFixed(instr->value(), x0);
+  LOperand* object = UseFixed(instr->object(),
+                              KeyedStoreIC::ReceiverRegister());
+  LOperand* key = UseFixed(instr->key(), KeyedStoreIC::NameRegister());
+  LOperand* value = UseFixed(instr->value(), KeyedStoreIC::ValueRegister());
 
   ASSERT(instr->object()->representation().IsTagged());
   ASSERT(instr->key()->representation().IsTagged());
@@ -2402,8 +2403,9 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
 LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object = UseFixed(instr->object(), x1);
-  LOperand* value = UseFixed(instr->value(), x0);
+  LOperand* object = UseFixed(instr->object(), StoreIC::ReceiverRegister());
+  LOperand* value = UseFixed(instr->value(), StoreIC::ValueRegister());
+
   LInstruction* result = new(zone()) LStoreNamedGeneric(context, object, value);
   return MarkAsCall(result, instr);
 }

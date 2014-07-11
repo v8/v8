@@ -301,6 +301,7 @@ class ParserBase : public Traits {
     return next == Token::IDENTIFIER ||
         next == Token::FUTURE_RESERVED_WORD ||
         next == Token::FUTURE_STRICT_RESERVED_WORD ||
+        next == Token::LET ||
         next == Token::YIELD;
   }
 
@@ -548,6 +549,9 @@ class PreParserIdentifier {
   static PreParserIdentifier FutureStrictReserved() {
     return PreParserIdentifier(kFutureStrictReservedIdentifier);
   }
+  static PreParserIdentifier Let() {
+    return PreParserIdentifier(kLetIdentifier);
+  }
   static PreParserIdentifier Yield() {
     return PreParserIdentifier(kYieldIdentifier);
   }
@@ -566,6 +570,7 @@ class PreParserIdentifier {
     kUnknownIdentifier,
     kFutureReservedIdentifier,
     kFutureStrictReservedIdentifier,
+    kLetIdentifier,
     kYieldIdentifier,
     kEvalIdentifier,
     kArgumentsIdentifier
@@ -1271,6 +1276,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
       return ReportMessageAt(source_location, "unexpected_token_identifier");
     case Token::FUTURE_RESERVED_WORD:
       return ReportMessageAt(source_location, "unexpected_reserved");
+    case Token::LET:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
       return ReportMessageAt(source_location, strict_mode() == SLOPPY
@@ -1298,6 +1304,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     return name;
   } else if (strict_mode() == SLOPPY &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+             (next == Token::LET) ||
              (next == Token::YIELD && !is_generator()))) {
     return this->GetSymbol(scanner());
   } else {
@@ -1316,6 +1323,7 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
   if (next == Token::IDENTIFIER) {
     *is_strict_reserved = false;
   } else if (next == Token::FUTURE_STRICT_RESERVED_WORD ||
+             next == Token::LET ||
              (next == Token::YIELD && !this->is_generator())) {
     *is_strict_reserved = true;
   } else {
@@ -1332,6 +1340,7 @@ typename ParserBase<Traits>::IdentifierT
 ParserBase<Traits>::ParseIdentifierName(bool* ok) {
   Token::Value next = Next();
   if (next != Token::IDENTIFIER && next != Token::FUTURE_RESERVED_WORD &&
+      next != Token::LET && next != Token::YIELD &&
       next != Token::FUTURE_STRICT_RESERVED_WORD && !Token::IsKeyword(next)) {
     this->ReportUnexpectedToken(next);
     *ok = false;
@@ -1427,6 +1436,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
       break;
 
     case Token::IDENTIFIER:
+    case Token::LET:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       // Using eval or arguments in this context is OK even in strict mode.
@@ -1564,6 +1574,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     switch (next) {
       case Token::FUTURE_RESERVED_WORD:
       case Token::FUTURE_STRICT_RESERVED_WORD:
+      case Token::LET:
+      case Token::YIELD:
       case Token::IDENTIFIER: {
         bool is_getter = false;
         bool is_setter = false;
@@ -1579,6 +1591,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
           if (next != i::Token::IDENTIFIER &&
               next != i::Token::FUTURE_RESERVED_WORD &&
               next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
+              next != i::Token::LET &&
+              next != i::Token::YIELD &&
               next != i::Token::NUMBER &&
               next != i::Token::STRING &&
               !Token::IsKeyword(next)) {

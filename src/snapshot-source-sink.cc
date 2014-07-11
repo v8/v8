@@ -92,9 +92,9 @@ bool SnapshotByteSource::GetBlob(const byte** data, int* number_of_bytes) {
 }
 
 
-void DebugSnapshotSink::Put(int byte, const char* description) {
-  PrintF("%24s: %x\n", description, byte);
-  sink_->Put(byte, description);
+void DebugSnapshotSink::Put(byte b, const char* description) {
+  PrintF("%24s: %x\n", description, b);
+  sink_->Put(b, description);
 }
 
 }  // namespace v8::internal

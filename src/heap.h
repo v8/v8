@@ -1698,7 +1698,7 @@ class Heap {
 
   // Code that should be run before and after each GC.  Includes some
   // reporting/verification activities when compiled with DEBUG set.
-  void GarbageCollectionPrologue(GarbageCollector collector);
+  void GarbageCollectionPrologue();
   void GarbageCollectionEpilogue();
 
   // Pretenuring decisions are made based on feedback collected during new

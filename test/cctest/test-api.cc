@@ -14814,131 +14814,18 @@ TEST(PreCompileSerialization) {
                               v8::ScriptCompiler::kProduceDataToCache);
   // Serialize.
   const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
-  char* serialized_data = i::NewArray<char>(cd->length);
+  i::byte* serialized_data = i::NewArray<i::byte>(cd->length);
   i::MemCopy(serialized_data, cd->data, cd->length);
 
   // Deserialize.
-  i::ScriptData* deserialized = i::ScriptData::New(serialized_data, cd->length);
+  i::ScriptData* deserialized = new i::ScriptData(serialized_data, cd->length);
 
   // Verify that the original is the same as the deserialized.
-  CHECK_EQ(cd->length, deserialized->Length());
-  CHECK_EQ(0, memcmp(cd->data, deserialized->Data(), cd->length));
+  CHECK_EQ(cd->length, deserialized->length());
+  CHECK_EQ(0, memcmp(cd->data, deserialized->data(), cd->length));
 
   delete deserialized;
   i::DeleteArray(serialized_data);
-}
-
-
-// Attempts to deserialize bad data.
-TEST(PreCompileDeserializationError) {
-  v8::V8::Initialize();
-  const char* data = "DONT CARE";
-  int invalid_size = 3;
-  i::ScriptData* sd = i::ScriptData::New(data, invalid_size);
-  CHECK_EQ(NULL, sd);
-}
-
-
-TEST(CompileWithInvalidCachedData) {
-  v8::V8::Initialize();
-  v8::Isolate* isolate = CcTest::isolate();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  i::FLAG_min_preparse_length = 0;
-
-  const char* script = "function foo(){ return 5;}\n"
-      "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptCompiler::Source source(v8_str(script));
-  v8::ScriptCompiler::Compile(isolate, &source,
-                              v8::ScriptCompiler::kProduceDataToCache);
-  // source owns its cached data. Create a ScriptData based on it. The user
-  // never needs to create ScriptDatas any more; we only need it here because we
-  // want to modify the data before passing it back.
-  const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
-  // ScriptData does not take ownership of the buffers passed to it.
-  i::ScriptData* sd =
-      i::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
-  CHECK(!sd->HasError());
-  // ScriptData private implementation details
-  const int kHeaderSize = i::PreparseDataConstants::kHeaderSize;
-  const int kFunctionEntrySize = i::FunctionEntry::kSize;
-  const int kFunctionEntryStartOffset = 0;
-  const int kFunctionEntryEndOffset = 1;
-  unsigned* sd_data =
-      reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
-
-  // Overwrite function bar's end position with 0.
-  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryEndOffset] = 0;
-  v8::TryCatch try_catch;
-
-  // Make the script slightly different so that we don't hit the compilation
-  // cache. Don't change the lenghts of tokens.
-  const char* script2 = "function foo(){ return 6;}\n"
-      "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptCompiler::Source source2(
-      v8_str(script2),
-      // CachedData doesn't take ownership of the buffers, Source takes
-      // ownership of CachedData.
-      new v8::ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
-  Local<v8::UnboundScript> compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, &source2);
-
-  CHECK(try_catch.HasCaught());
-  {
-    String::Utf8Value exception_value(try_catch.Message()->Get());
-    CHECK_EQ("Uncaught SyntaxError: Invalid cached data for function bar",
-             *exception_value);
-  }
-
-  try_catch.Reset();
-  delete sd;
-
-  // Overwrite function bar's start position with 200. The function entry will
-  // not be found when searching for it by position, and the compilation fails.
-
-  // ScriptData does not take ownership of the buffers passed to it.
-  sd = i::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
-  sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
-  sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
-      200;
-  const char* script3 = "function foo(){ return 7;}\n"
-      "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptCompiler::Source source3(
-      v8_str(script3),
-      new v8::ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length()));
-  compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, &source3);
-  CHECK(try_catch.HasCaught());
-  {
-    String::Utf8Value exception_value(try_catch.Message()->Get());
-    CHECK_EQ("Uncaught SyntaxError: Invalid cached data for function bar",
-             *exception_value);
-  }
-  CHECK(compiled_script.IsEmpty());
-  try_catch.Reset();
-  delete sd;
-
-  // Try passing in cached data which is obviously invalid (wrong length).
-  sd = i::ScriptData::New(reinterpret_cast<const char*>(cd->data), cd->length);
-  const char* script4 =
-      "function foo(){ return 8;}\n"
-      "function bar(){ return 6 + 7;}  foo();";
-  v8::ScriptCompiler::Source source4(
-      v8_str(script4),
-      new v8::ScriptCompiler::CachedData(
-          reinterpret_cast<const uint8_t*>(sd->Data()), sd->Length() - 1));
-  compiled_script =
-      v8::ScriptCompiler::CompileUnbound(isolate, &source4);
-  CHECK(try_catch.HasCaught());
-  {
-    String::Utf8Value exception_value(try_catch.Message()->Get());
-    CHECK_EQ("Uncaught SyntaxError: Invalid cached data",
-             *exception_value);
-  }
-  CHECK(compiled_script.IsEmpty());
-  delete sd;
 }
 
 

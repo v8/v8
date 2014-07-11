@@ -1022,29 +1022,9 @@ class PositionsRecorder BASE_EMBEDDED {
  public:
   explicit PositionsRecorder(Assembler* assembler)
       : assembler_(assembler) {
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    gdbjit_lineinfo_ = NULL;
-#endif
     jit_handler_data_ = NULL;
   }
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  ~PositionsRecorder() {
-    delete gdbjit_lineinfo_;
-  }
-
-  void StartGDBJITLineInfoRecording() {
-    if (FLAG_gdbjit) {
-      gdbjit_lineinfo_ = new GDBJITLineInfo();
-    }
-  }
-
-  GDBJITLineInfo* DetachGDBJITLineInfo() {
-    GDBJITLineInfo* lineinfo = gdbjit_lineinfo_;
-    gdbjit_lineinfo_ = NULL;  // To prevent deallocation in destructor.
-    return lineinfo;
-  }
-#endif
   void AttachJITHandlerData(void* user_data) {
     jit_handler_data_ = user_data;
   }
@@ -1072,9 +1052,6 @@ class PositionsRecorder BASE_EMBEDDED {
  private:
   Assembler* assembler_;
   PositionState state_;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  GDBJITLineInfo* gdbjit_lineinfo_;
-#endif
 
   // Currently jit_handler_data_ is used to store JITHandler-specific data
   // over the lifetime of a PositionsRecorder

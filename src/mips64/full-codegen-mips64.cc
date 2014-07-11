@@ -1686,9 +1686,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->value()->IsInternalizedString()) {
           if (property->emit_store()) {
             VisitForAccumulatorValue(value);
-            __ mov(a0, result_register());
-            __ li(a2, Operand(key->value()));
-            __ ld(a1, MemOperand(sp));
+            __ mov(StoreIC::ValueRegister(), result_register());
+            ASSERT(StoreIC::ValueRegister().is(a0));
+            __ li(StoreIC::NameRegister(), Operand(key->value()));
+            __ ld(StoreIC::ReceiverRegister(), MemOperand(sp));
             CallStoreIC(key->LiteralFeedbackId());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -2409,9 +2410,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
     case NAMED_PROPERTY: {
       __ push(result_register());  // Preserve value.
       VisitForAccumulatorValue(prop->obj());
-      __ mov(a1, result_register());
-      __ pop(a0);  // Restore value.
-      __ li(a2, Operand(prop->key()->AsLiteral()->value()));
+      __ mov(StoreIC::ReceiverRegister(), result_register());
+      __ pop(StoreIC::ValueRegister());  // Restore value.
+      __ li(StoreIC::NameRegister(),
+            Operand(prop->key()->AsLiteral()->value()));
       CallStoreIC();
       break;
     }
@@ -2419,8 +2421,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ push(result_register());  // Preserve value.
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
-      __ mov(a1, result_register());
-      __ Pop(a0, a2);  // a0 = restored value.
+      __ Move(KeyedStoreIC::NameRegister(), result_register());
+      __ Pop(KeyedStoreIC::ValueRegister(), KeyedStoreIC::ReceiverRegister());
       Handle<Code> ic = strict_mode() == SLOPPY
         ? isolate()->builtins()->KeyedStoreIC_Initialize()
         : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
@@ -2457,9 +2459,9 @@ void FullCodeGenerator::EmitCallStoreContextSlot(
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
-    __ mov(a0, result_register());
-    __ li(a2, Operand(var->name()));
-    __ ld(a1, GlobalObjectOperand());
+    __ mov(StoreIC::ValueRegister(), result_register());
+    __ li(StoreIC::NameRegister(), Operand(var->name()));
+    __ ld(StoreIC::ReceiverRegister(), GlobalObjectOperand());
     CallStoreIC();
   } else if (op == Token::INIT_CONST_LEGACY) {
     // Const initializers need a write barrier.
@@ -2527,10 +2529,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  __ mov(a0, result_register());  // Load the value.
-  __ li(a2, Operand(prop->key()->AsLiteral()->value()));
-  __ pop(a1);
-
+  __ mov(StoreIC::ValueRegister(), result_register());
+  __ li(StoreIC::NameRegister(), Operand(prop->key()->AsLiteral()->value()));
+  __ pop(StoreIC::ReceiverRegister());
   CallStoreIC(expr->AssignmentFeedbackId());
 
   PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
@@ -2548,8 +2549,9 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // - a0 is the value,
   // - a1 is the key,
   // - a2 is the receiver.
-  __ mov(a0, result_register());
-  __ Pop(a2, a1);  // a1 = key.
+  __ mov(KeyedStoreIC::ValueRegister(), result_register());
+  __ Pop(KeyedStoreIC::ReceiverRegister(), KeyedStoreIC::NameRegister());
+  ASSERT(KeyedStoreIC::ValueRegister().is(a0));
 
   Handle<Code> ic = strict_mode() == SLOPPY
       ? isolate()->builtins()->KeyedStoreIC_Initialize()
@@ -4380,9 +4382,10 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       }
       break;
     case NAMED_PROPERTY: {
-      __ mov(a0, result_register());  // Value.
-      __ li(a2, Operand(prop->key()->AsLiteral()->value()));  // Name.
-      __ pop(a1);  // Receiver.
+      __ mov(StoreIC::ValueRegister(), result_register());
+      __ li(StoreIC::NameRegister(),
+            Operand(prop->key()->AsLiteral()->value()));
+      __ pop(StoreIC::ReceiverRegister());
       CallStoreIC(expr->CountStoreFeedbackId());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -4395,8 +4398,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       break;
     }
     case KEYED_PROPERTY: {
-      __ mov(a0, result_register());  // Value.
-      __ Pop(a2, a1);  // a1 = key, a2 = receiver.
+      __ mov(KeyedStoreIC::ValueRegister(), result_register());
+      __ Pop(KeyedStoreIC::ReceiverRegister(), KeyedStoreIC::NameRegister());
       Handle<Code> ic = strict_mode() == SLOPPY
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
           : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();

@@ -243,16 +243,12 @@ void DebugCodegen::GenerateLoadICDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateStoreICDebugBreak(MacroAssembler* masm) {
-  // Calling convention for IC store (from ic-arm.cc).
-  // ----------- S t a t e -------------
-  //  -- x0    : value
-  //  -- x1    : receiver
-  //  -- x2    : name
-  //  -- lr    : return address
-  // -----------------------------------
-  // Registers x0, x1, and x2 contain objects that need to be pushed on the
-  // expression stack of the fake JS frame.
-  Generate_DebugBreakCallHelper(masm, x0.Bit() | x1.Bit() | x2.Bit(), 0, x10);
+  // Calling convention for IC store (from ic-arm64.cc).
+  Register receiver = StoreIC::ReceiverRegister();
+  Register name = StoreIC::NameRegister();
+  Register value = StoreIC::ValueRegister();
+  Generate_DebugBreakCallHelper(
+      masm, receiver.Bit() | name.Bit() | value.Bit(), 0, x10);
 }
 
 
@@ -263,12 +259,12 @@ void DebugCodegen::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
 
 
 void DebugCodegen::GenerateKeyedStoreICDebugBreak(MacroAssembler* masm) {
-  // ---------- S t a t e --------------
-  //  -- x0     : value
-  //  -- x1     : key
-  //  -- x2     : receiver
-  //  -- lr     : return address
-  Generate_DebugBreakCallHelper(masm, x0.Bit() | x1.Bit() | x2.Bit(), 0, x10);
+  // Calling convention for IC keyed store call (from ic-arm64.cc).
+  Register receiver = KeyedStoreIC::ReceiverRegister();
+  Register name = KeyedStoreIC::NameRegister();
+  Register value = KeyedStoreIC::ValueRegister();
+  Generate_DebugBreakCallHelper(
+      masm, receiver.Bit() | name.Bit() | value.Bit(), 0, x10);
 }
 
 

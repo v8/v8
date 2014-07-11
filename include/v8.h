@@ -1087,6 +1087,12 @@ class V8_EXPORT ScriptCompiler {
 
   /**
    * Compiles the specified script (context-independent).
+   * Cached data as part of the source object can be optionally produced to be
+   * consumed later to speed up compilation of identical source scripts.
+   *
+   * Note that when producing cached data, the source must point to NULL for
+   * cached data. When consuming cached data, the cached data must have been
+   * produced by the same version of V8.
    *
    * \param source Script source code.
    * \return Compiled script object (context independent; for running it must be

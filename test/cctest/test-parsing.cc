@@ -157,8 +157,7 @@ TEST(ScanHTMLEndComments) {
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptData data(log.ExtractData());
-    CHECK(!data.has_error());
+    CHECK(!log.HasError());
   }
 
   for (int i = 0; fail_tests[i]; i++) {
@@ -173,8 +172,7 @@ TEST(ScanHTMLEndComments) {
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     // Even in the case of a syntax error, kPreParseSuccess is returned.
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptData data(log.ExtractData());
-    CHECK(data.has_error());
+    CHECK(log.HasError());
   }
 }
 
@@ -306,8 +304,7 @@ TEST(StandAlonePreParser) {
     preparser.set_allow_natives_syntax(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptData data(log.ExtractData());
-    CHECK(!data.has_error());
+    CHECK(!log.HasError());
   }
 }
 
@@ -339,9 +336,7 @@ TEST(StandAlonePreParserNoNatives) {
     preparser.set_allow_lazy(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-    i::ScriptData data(log.ExtractData());
-    // Data contains syntax error.
-    CHECK(data.has_error());
+    CHECK(log.HasError());
   }
 }
 
@@ -407,8 +402,7 @@ TEST(RegressChromium62639) {
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  i::ScriptData data(log.ExtractData());
-  CHECK(data.has_error());
+  CHECK(log.HasError());
 }
 
 
@@ -438,15 +432,15 @@ TEST(Regress928) {
   preparser.set_allow_lazy(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
-  i::ScriptData data(log.ExtractData());
-  CHECK(!data.has_error());
-  data.Initialize();
+  i::ScriptData* sd = log.GetScriptData();
+  i::ParseData pd(sd);
+  pd.Initialize();
 
   int first_function =
       static_cast<int>(strstr(program, "function") - program);
   int first_lbrace = first_function + i::StrLength("function () ");
   CHECK_EQ('{', program[first_lbrace]);
-  i::FunctionEntry entry1 = data.GetFunctionEntry(first_lbrace);
+  i::FunctionEntry entry1 = pd.GetFunctionEntry(first_lbrace);
   CHECK(!entry1.is_valid());
 
   int second_function =
@@ -454,9 +448,10 @@ TEST(Regress928) {
   int second_lbrace =
       second_function + i::StrLength("function () ");
   CHECK_EQ('{', program[second_lbrace]);
-  i::FunctionEntry entry2 = data.GetFunctionEntry(second_lbrace);
+  i::FunctionEntry entry2 = pd.GetFunctionEntry(second_lbrace);
   CHECK(entry2.is_valid());
   CHECK_EQ('}', program[entry2.end_pos() - 1]);
+  delete sd;
 }
 
 
@@ -1134,20 +1129,41 @@ TEST(ScopePositions) {
 }
 
 
-i::Handle<i::String> FormatMessage(i::ScriptData* data) {
+const char* ReadString(unsigned* start) {
+  int length = start[0];
+  char* result = i::NewArray<char>(length + 1);
+  for (int i = 0; i < length; i++) {
+    result[i] = start[i + 1];
+  }
+  result[length] = '\0';
+  return result;
+}
+
+
+i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
-  const char* message = data->BuildMessage();
+  const char* message =
+      ReadString(&data[i::PreparseDataConstants::kMessageTextPos]);
   i::Handle<i::String> format = v8::Utils::OpenHandle(
       *v8::String::NewFromUtf8(CcTest::isolate(), message));
-  const char* arg = data->BuildArg();
-  i::Handle<i::JSArray> args_array = factory->NewJSArray(arg == NULL ? 0 : 1);
-  if (arg != NULL) {
-    i::JSArray::SetElement(
-        args_array, 0, v8::Utils::OpenHandle(*v8::String::NewFromUtf8(
-                                                  CcTest::isolate(), arg)),
-        NONE, i::SLOPPY).Check();
+  int arg_count = data[i::PreparseDataConstants::kMessageArgCountPos];
+  const char* arg = NULL;
+  i::Handle<i::JSArray> args_array;
+  if (arg_count == 1) {
+    // Position after text found by skipping past length field and
+    // length field content words.
+    int pos = i::PreparseDataConstants::kMessageTextPos + 1 +
+              data[i::PreparseDataConstants::kMessageTextPos];
+    arg = ReadString(&data[pos]);
+    args_array = factory->NewJSArray(1);
+    i::JSArray::SetElement(args_array, 0, v8::Utils::OpenHandle(*v8_str(arg)),
+                           NONE, i::SLOPPY).Check();
+  } else {
+    CHECK_EQ(0, arg_count);
+    args_array = factory->NewJSArray(0);
   }
+
   i::Handle<i::JSObject> builtins(isolate->js_builtins_object());
   i::Handle<i::Object> format_fun = i::Object::GetProperty(
       isolate, builtins, "FormatMessage").ToHandleChecked();
@@ -1157,6 +1173,7 @@ i::Handle<i::String> FormatMessage(i::ScriptData* data) {
   CHECK(result->IsString());
   i::DeleteArray(message);
   i::DeleteArray(arg);
+  data.Dispose();
   return i::Handle<i::String>::cast(result);
 }
 
@@ -1211,7 +1228,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
-  i::ScriptData data(log.ExtractData());
+
+  bool preparse_error = log.HasError();
 
   // Parse the data
   i::FunctionLiteral* function;
@@ -1246,7 +1264,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
 
-    if (!data.has_error()) {
+    if (!preparse_error) {
       v8::base::OS::Print(
           "Parser failed on:\n"
           "\t%s\n"
@@ -1257,7 +1275,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
-    i::Handle<i::String> preparser_message = FormatMessage(&data);
+    i::Handle<i::String> preparser_message =
+        FormatMessage(log.ErrorMessageData());
     if (!i::String::Equals(message_string, preparser_message)) {
       v8::base::OS::Print(
           "Expected parser and preparser to produce the same error on:\n"
@@ -1270,14 +1289,15 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
           preparser_message->ToCString().get());
       CHECK(false);
     }
-  } else if (data.has_error()) {
+  } else if (preparse_error) {
     v8::base::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
         "with error:\n"
         "\t%s\n"
         "However, the parser succeeded",
-        source->ToCString().get(), FormatMessage(&data)->ToCString().get());
+        source->ToCString().get(),
+        FormatMessage(log.ErrorMessageData())->ToCString().get());
     CHECK(false);
   } else if (result == kError) {
     v8::base::OS::Print(
@@ -1708,9 +1728,43 @@ TEST(ErrorsReservedWords) {
 }
 
 
+TEST(NoErrorsLetSloppyAllModes) {
+  // In sloppy mode, it's okay to use "let" as identifier.
+  const char* context_data[][2] = {
+    { "", "" },
+    { "function f() {", "}" },
+    { "(function f() {", "})" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "var let;",
+    "var foo, let;",
+    "try { } catch (let) { }",
+    "function let() { }",
+    "(function let() { })",
+    "function foo(let) { }",
+    "function foo(bar, let) { }",
+    "let = 1;",
+    "var foo = let = 1;",
+    "let * 2;",
+    "++let;",
+    "let++;",
+    "let: 34",
+    "function let(let) { let: let(let + let(0)); }",
+    "({ let: 1 })",
+    "({ get let() { 1 } })",
+    "let(100)",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+
 TEST(NoErrorsYieldSloppyAllModes) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
-  // generator (see next test).
+  // generator (see other test).
   const char* context_data[][2] = {
     { "", "" },
     { "function not_gen() {", "}" },
@@ -1728,13 +1782,15 @@ TEST(NoErrorsYieldSloppyAllModes) {
     "function foo(bar, yield) { }",
     "yield = 1;",
     "var foo = yield = 1;",
+    "yield * 2;",
     "++yield;",
     "yield++;",
     "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "function yield(yield) { yield: yield (yield + yield(0)); }",
     "({ yield: 1 })",
     "({ get yield() { 1 } })",
-    "yield (100)",
+    "yield(100)",
+    "yield[100]",
     NULL
   };
 
@@ -1766,20 +1822,20 @@ TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
     "(function * yield() { })",
     "yield = 1;",
     "var foo = yield = 1;",
+    "yield * 2;",
     "++yield;",
     "yield++;",
     "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield (0)); }",
+    "function yield(yield) { yield: yield (yield + yield(0)); }",
     "({ yield: 1 })",
     "({ get yield() { 1 } })",
-    "yield (100)",
+    "yield(100)",
+    "yield[100]",
     NULL
   };
 
   // This test requires kAllowGenerators to succeed.
-  static const ParserFlag always_true_flags[] = {
-    kAllowGenerators
-  };
+  static const ParserFlag always_true_flags[] = { kAllowGenerators };
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
                     always_true_flags, 1);
 }
@@ -2165,22 +2221,20 @@ TEST(DontRegressPreParserDataSizes) {
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::ScriptData* data = NULL;
-    info.SetCachedData(&data, i::PRODUCE_CACHED_DATA);
+    i::ScriptData* sd = NULL;
+    info.SetCachedData(&sd, i::PRODUCE_CACHED_DATA);
     i::Parser::Parse(&info, true);
-    CHECK(data);
-    CHECK(!data->HasError());
+    i::ParseData pd(sd);
 
-    if (data->function_count() != test_cases[i].functions) {
+    if (pd.FunctionCount() != test_cases[i].functions) {
       v8::base::OS::Print(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
-          program, test_cases[i].functions,
-          data->function_count());
+          program, test_cases[i].functions, pd.FunctionCount());
       CHECK(false);
     }
-    delete data;
+    delete sd;
   }
 }
 

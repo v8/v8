@@ -27,8 +27,8 @@ using namespace v8;
 class Compressor {
  public:
   virtual ~Compressor() {}
-  virtual bool Compress(i::Vector<char> input) = 0;
-  virtual i::Vector<char>* output() = 0;
+  virtual bool Compress(i::Vector<i::byte> input) = 0;
+  virtual i::Vector<i::byte>* output() = 0;
 };
 
 
@@ -63,9 +63,9 @@ class SnapshotWriter {
       startup_blob_file_ = GetFileDescriptorOrDie(startup_blob_file);
   }
 
-  void WriteSnapshot(const i::List<char>& snapshot_data,
+  void WriteSnapshot(const i::List<i::byte>& snapshot_data,
                      const i::Serializer& serializer,
-                     const i::List<char>& context_snapshot_data,
+                     const i::List<i::byte>& context_snapshot_data,
                      const i::Serializer& context_serializer) const {
     WriteSnapshotFile(snapshot_data, serializer,
                       context_snapshot_data, context_serializer);
@@ -74,14 +74,14 @@ class SnapshotWriter {
   }
 
  private:
-  void MaybeWriteStartupBlob(const i::List<char>& snapshot_data,
+  void MaybeWriteStartupBlob(const i::List<i::byte>& snapshot_data,
                              const i::Serializer& serializer,
-                             const i::List<char>& context_snapshot_data,
+                             const i::List<i::byte>& context_snapshot_data,
                              const i::Serializer& context_serializer) const {
     if (!startup_blob_file_)
       return;
 
-    i::List<char> startup_blob;
+    i::List<i::byte> startup_blob;
     i::ListSnapshotSink sink(&startup_blob);
 
     int spaces[] = {
@@ -89,13 +89,12 @@ class SnapshotWriter {
         i::MAP_SPACE, i::CELL_SPACE,  i::PROPERTY_CELL_SPACE
     };
 
-    i::byte* snapshot_bytes = reinterpret_cast<i::byte*>(snapshot_data.begin());
+    i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
     for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
       sink.PutInt(serializer.CurrentAllocationAddress(spaces[i]), "spaces");
 
-    i::byte* context_bytes =
-        reinterpret_cast<i::byte*>(context_snapshot_data.begin());
+    i::byte* context_bytes = context_snapshot_data.begin();
     sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
     for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
       sink.PutInt(context_serializer.CurrentAllocationAddress(spaces[i]),
@@ -109,9 +108,9 @@ class SnapshotWriter {
     }
   }
 
-  void WriteSnapshotFile(const i::List<char>& snapshot_data,
+  void WriteSnapshotFile(const i::List<i::byte>& snapshot_data,
                          const i::Serializer& serializer,
-                         const i::List<char>& context_snapshot_data,
+                         const i::List<i::byte>& context_snapshot_data,
                          const i::Serializer& context_serializer) const {
     WriteFilePrefix();
     WriteData("", snapshot_data, raw_file_);
@@ -135,11 +134,10 @@ class SnapshotWriter {
     fprintf(fp_, "}  // namespace v8\n");
   }
 
-  void WriteData(const char* prefix,
-                 const i::List<char>& source_data,
+  void WriteData(const char* prefix, const i::List<i::byte>& source_data,
                  FILE* raw_file) const {
-    const i::List <char>* data_to_be_written = NULL;
-    i::List<char> compressed_data;
+    const i::List<i::byte>* data_to_be_written = NULL;
+    i::List<i::byte> compressed_data;
     if (!compressor_) {
       data_to_be_written = &source_data;
     } else if (compressor_->Compress(source_data.ToVector())) {
@@ -155,7 +153,7 @@ class SnapshotWriter {
     WriteData(prefix, source_data, data_to_be_written);
   }
 
-  void MaybeWriteRawFile(const i::List<char>* data, FILE* raw_file) const {
+  void MaybeWriteRawFile(const i::List<i::byte>* data, FILE* raw_file) const {
     if (!data || !raw_file)
       return;
 
@@ -170,9 +168,8 @@ class SnapshotWriter {
     }
   }
 
-  void WriteData(const char* prefix,
-                 const i::List<char>& source_data,
-                 const i::List<char>* data_to_be_written) const {
+  void WriteData(const char* prefix, const i::List<i::byte>& source_data,
+                 const i::List<i::byte>* data_to_be_written) const {
     fprintf(fp_, "const byte Snapshot::%sdata_[] = {\n", prefix);
     WriteSnapshotData(data_to_be_written);
     fprintf(fp_, "};\n");
@@ -209,7 +206,7 @@ class SnapshotWriter {
             prefix, name, ser.CurrentAllocationAddress(space));
   }
 
-  void WriteSnapshotData(const i::List<char>* data) const {
+  void WriteSnapshotData(const i::List<i::byte>* data) const {
     for (int i = 0; i < data->length(); i++) {
       if ((i & 0x1f) == 0x1f)
         fprintf(fp_, "\n");
@@ -405,12 +402,12 @@ int main(int argc, char** argv) {
 
     // This results in a somewhat smaller snapshot, probably because it gets
     // rid of some things that are cached between garbage collections.
-    i::List<char> snapshot_data;
+    i::List<i::byte> snapshot_data;
     i::ListSnapshotSink snapshot_sink(&snapshot_data);
     i::StartupSerializer ser(internal_isolate, &snapshot_sink);
     ser.SerializeStrongReferences();
 
-    i::List<char> context_data;
+    i::List<i::byte> context_data;
     i::ListSnapshotSink contex_sink(&context_data);
     i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
     context_ser.Serialize(&raw_context);

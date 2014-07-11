@@ -1572,11 +1572,6 @@ void PositionsRecorder::RecordPosition(int pos) {
   ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
   state_.current_position = pos;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (gdbjit_lineinfo_ != NULL) {
-    gdbjit_lineinfo_->SetPosition(assembler_->pc_offset(), pos, false);
-  }
-#endif
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddPositionEvent(jit_handler_data_,
                                                  assembler_->pc_offset(),
@@ -1588,11 +1583,6 @@ void PositionsRecorder::RecordStatementPosition(int pos) {
   ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
   state_.current_statement_position = pos;
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (gdbjit_lineinfo_ != NULL) {
-    gdbjit_lineinfo_->SetPosition(assembler_->pc_offset(), pos, true);
-  }
-#endif
   LOG_CODE_EVENT(assembler_->isolate(),
                  CodeLinePosInfoAddStatementPositionEvent(
                      jit_handler_data_,
