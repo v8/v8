@@ -705,6 +705,11 @@ class KeyedStoreIC: public StoreIC {
   static const Register NameRegister();
   static const Register ValueRegister();
 
+  // The map register isn't part of the normal call specification, but
+  // ElementsTransitionAndStoreStub, used in polymorphic keyed store
+  // stub implementations requires it to be initialized.
+  static const Register MapRegister();
+
   KeyedStoreIC(FrameDepth depth, Isolate* isolate)
       : StoreIC(depth, isolate) {
     ASSERT(target()->is_keyed_store_stub());

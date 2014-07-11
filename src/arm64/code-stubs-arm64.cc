@@ -238,18 +238,6 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 }
 
 
-void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x0: value
-  // x3: target map
-  // x1: key
-  // x2: receiver
-  Register registers[] = { x0, x3, x1, x2 };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
-}
-
-
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   // x1: left operand

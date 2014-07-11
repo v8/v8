@@ -644,6 +644,17 @@ void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { ValueRegister(),
+                           MapRegister(),
+                           KeyRegister(),
+                           ObjectRegister() };
+  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
+}
+
+
 void StoreGlobalStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { StoreIC::ReceiverRegister(),

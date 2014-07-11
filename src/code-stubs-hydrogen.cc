@@ -1077,10 +1077,10 @@ Handle<Code> StoreGlobalStub::GenerateCode() {
 
 template<>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* value = GetParameter(0);
-  HValue* map = GetParameter(1);
-  HValue* key = GetParameter(2);
-  HValue* object = GetParameter(3);
+  HValue* value = GetParameter(ElementsTransitionAndStoreStub::kValueIndex);
+  HValue* map = GetParameter(ElementsTransitionAndStoreStub::kMapIndex);
+  HValue* key = GetParameter(ElementsTransitionAndStoreStub::kKeyIndex);
+  HValue* object = GetParameter(ElementsTransitionAndStoreStub::kObjectIndex);
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
