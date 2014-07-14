@@ -1067,6 +1067,11 @@ const Register KeyedStoreIC::ValueRegister() {
 }
 
 
+const Register KeyedStoreIC::MapRegister() {
+  return rbx;
+}
+
+
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is on the stack.
 
