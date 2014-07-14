@@ -826,9 +826,7 @@ bool Debug::Load() {
   Handle<JSBuiltinsObject> builtin =
       Handle<JSBuiltinsObject>(global->builtins(), isolate_);
   RETURN_ON_EXCEPTION_VALUE(
-      isolate_,
-      JSReceiver::SetProperty(global, key, builtin, NONE, SLOPPY),
-      false);
+      isolate_, JSReceiver::SetProperty(global, key, builtin, SLOPPY), false);
 
   // Compile the JavaScript for the debugger in the debugger context.
   bool caught_exception =
@@ -2454,12 +2452,10 @@ void Debug::ClearMirrorCache() {
   JSObject::SetProperty(global,
       factory->NewStringFromAsciiChecked("next_handle_"),
       handle(Smi::FromInt(0), isolate_),
-      NONE,
       SLOPPY).Check();
   JSObject::SetProperty(global,
       factory->NewStringFromAsciiChecked("mirror_cache_"),
       factory->NewJSArray(0, FAST_ELEMENTS),
-      NONE,
       SLOPPY).Check();
 }
 

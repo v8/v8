@@ -1934,7 +1934,6 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
@@ -2020,7 +2019,6 @@ class JSReceiver: public HeapObject {
       LookupResult* result,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_from_keyed);
 
@@ -2139,7 +2137,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyForResult(
@@ -2147,7 +2144,6 @@ class JSObject: public JSReceiver {
       LookupResult* result,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
@@ -2744,14 +2740,12 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       bool* done);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyPostInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
       Handle<JSObject> object,
@@ -9959,7 +9953,6 @@ class JSProxy: public JSReceiver {
       Handle<JSReceiver> receiver,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       bool* done);
 
@@ -10015,7 +10008,6 @@ class JSProxy: public JSReceiver {
       Handle<JSReceiver> receiver,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
       Handle<JSProxy> proxy,

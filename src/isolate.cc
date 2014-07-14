@@ -424,8 +424,7 @@ void Isolate::CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object) {
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    JSObject::SetProperty(
-        error_object, key, stack_trace, NONE, STRICT).Assert();
+    JSObject::SetProperty(error_object, key, stack_trace, STRICT).Assert();
   }
 }
 
@@ -435,7 +434,7 @@ void Isolate::CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
-  JSObject::SetProperty(error_object, key, stack_trace, NONE, STRICT).Assert();
+  JSObject::SetProperty(error_object, key, stack_trace, STRICT).Assert();
 }
 
 
@@ -2207,7 +2206,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
       JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
-      JSObject::SetProperty(registry, name, obj, NONE, STRICT).Assert();
+      JSObject::SetProperty(registry, name, obj, STRICT).Assert();
     }
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());

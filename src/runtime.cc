@@ -641,7 +641,7 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
     ASSERT(symbol->IsUndefined());
     symbol = isolate->factory()->NewPrivateSymbol();
     Handle<Symbol>::cast(symbol)->set_name(*name);
-    JSObject::SetProperty(Handle<JSObject>::cast(privates), name, symbol, NONE,
+    JSObject::SetProperty(Handle<JSObject>::cast(privates), name, symbol,
                           STRICT).Assert();
   }
   return *symbol;
@@ -2228,7 +2228,7 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      JSReceiver::SetProperty(global, name, value, NONE, strict_mode));
+      JSReceiver::SetProperty(global, name, value, strict_mode));
   return *result;
 }
 
@@ -2550,7 +2550,7 @@ static void InstallBuiltin(Isolate* isolate,
   Handle<JSFunction> optimized =
       isolate->factory()->NewFunctionWithoutPrototype(key, code);
   optimized->shared()->DontAdaptArguments();
-  JSReceiver::SetProperty(holder, key, optimized, NONE, STRICT).Assert();
+  JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
 
@@ -4945,9 +4945,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   // Take special care when attributes are different and there is already
   // a property. For simplicity we normalize the property which enables us
   // to not worry about changing the instance_descriptor and creating a new
-  // map. The current version of SetObjectProperty does not handle attributes
-  // correctly in the case where a property is a field and is reset with
-  // new attributes.
+  // map.
   if (lookup.IsFound() &&
       (attr != lookup.GetAttributes() || lookup.IsPropertyCallbacks())) {
     // New attributes - normalize to avoid writing to instance descriptor
@@ -5001,8 +4999,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
                                                Handle<Object> value,
-                                               StrictMode strict_mode,
-                                               PropertyAttributes attrs) {
+                                               StrictMode strict_mode) {
   if (object->IsUndefined() || object->IsNull()) {
     Handle<Object> args[2] = { key, object };
     Handle<Object> error =
@@ -5021,7 +5018,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
     Handle<Name> name = Handle<Name>::cast(name_object);
     return JSReceiver::SetProperty(Handle<JSProxy>::cast(object), name, value,
-                                   attrs, strict_mode);
+                                   strict_mode);
   }
 
   // If the object isn't a JavaScript object, we ignore the store.
@@ -5053,7 +5050,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
     }
 
     MaybeHandle<Object> result = JSObject::SetElement(
-        js_object, index, value, attrs, strict_mode, true, SET_PROPERTY);
+        js_object, index, value, NONE, strict_mode, true, SET_PROPERTY);
     JSObject::ValidateElements(js_object);
 
     return result.is_null() ? result : value;
@@ -5068,12 +5065,11 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
               isolate, value, Execution::ToNumber(isolate, value), Object);
         }
       }
-      return JSObject::SetElement(js_object, index, value, attrs,
-                                  strict_mode, true, SET_PROPERTY);
+      return JSObject::SetElement(js_object, index, value, NONE, strict_mode,
+                                  true, SET_PROPERTY);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-      return JSReceiver::SetProperty(
-          js_object, name, value, attrs, strict_mode);
+      return JSReceiver::SetProperty(js_object, name, value, strict_mode);
     }
   }
 
@@ -5084,10 +5080,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return JSObject::SetElement(js_object, index, value, attrs,
-                                strict_mode, true, SET_PROPERTY);
+    return JSObject::SetElement(js_object, index, value, NONE, strict_mode,
+                                true, SET_PROPERTY);
   } else {
-    return JSReceiver::SetProperty(js_object, name, value, attrs, strict_mode);
+    return JSReceiver::SetProperty(js_object, name, value, strict_mode);
   }
 }
 
@@ -8961,7 +8957,8 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
         case MODULE: {
           Object* referenced_context = Context::cast(host_context)->get(index);
           Handle<JSModule> value(Context::cast(referenced_context)->module());
-          JSReceiver::SetProperty(module, name, value, FROZEN, STRICT).Assert();
+          JSObject::SetOwnPropertyIgnoreAttributes(module, name, value, FROZEN)
+              .Assert();
           break;
         }
         case INTERNAL:
@@ -9255,7 +9252,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSReceiver::SetProperty(object, name, value, NONE, strict_mode));
+      isolate, JSReceiver::SetProperty(object, name, value, strict_mode));
 
   return *value;
 }

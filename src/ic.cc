@@ -1287,10 +1287,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(),
-        result,
-        JSReceiver::SetProperty(receiver, name, value, NONE, strict_mode()),
-        Object);
+        isolate(), result,
+        JSReceiver::SetProperty(receiver, name, value, strict_mode()), Object);
     return result;
   }
 
@@ -1328,10 +1326,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   if (receiver->map()->is_observed()) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(),
-        result,
-        JSReceiver::SetProperty(
-            receiver, name, value, NONE, strict_mode(), store_mode),
+        isolate(), result, JSReceiver::SetProperty(receiver, name, value,
+                                                   strict_mode(), store_mode),
         Object);
     return result;
   }
@@ -1362,10 +1358,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   // Set the property.
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(),
-      result,
-      JSReceiver::SetProperty(
-          receiver, name, value, NONE, strict_mode(), store_mode),
+      isolate(), result,
+      JSReceiver::SetProperty(receiver, name, value, strict_mode(), store_mode),
       Object);
   return result;
 }

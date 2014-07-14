@@ -2096,9 +2096,7 @@ enum AccessControl {
  */
 class V8_EXPORT Object : public Value {
  public:
-  bool Set(Handle<Value> key,
-           Handle<Value> value,
-           PropertyAttribute attribs = None);
+  bool Set(Handle<Value> key, Handle<Value> value);
 
   bool Set(uint32_t index, Handle<Value> value);
 

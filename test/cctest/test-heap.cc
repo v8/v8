@@ -262,13 +262,11 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
     Handle<JSFunction> function = factory->NewFunction(name);
-    JSReceiver::SetProperty(global, name, function, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(global, name, function, SLOPPY).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(
-        obj, prop_name, twenty_three, NONE, SLOPPY).Check();
-    JSReceiver::SetProperty(
-        obj, prop_namex, twenty_four, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_namex, twenty_four, SLOPPY).Check();
 
     CHECK_EQ(Smi::FromInt(23),
              *Object::GetProperty(obj, prop_name).ToHandleChecked());
@@ -290,9 +288,8 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    JSReceiver::SetProperty(global, obj_name, obj, NONE, SLOPPY).Check();
-    JSReceiver::SetProperty(
-        obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+    JSReceiver::SetProperty(global, obj_name, obj, SLOPPY).Check();
+    JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   }
 
   // After gc, it should survive.
@@ -627,12 +624,11 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(obj, prop_name).ToHandleChecked());
   // Check that we can add properties to function objects.
-  JSReceiver::SetProperty(
-      function, prop_name, twenty_four, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(function, prop_name, twenty_four, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(24),
            *Object::GetProperty(function, prop_name).ToHandleChecked());
 }
@@ -659,7 +655,7 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasOwnProperty(obj, first));
 
   // add first
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
   CHECK(JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
@@ -667,8 +663,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, SLOPPY).Check();
   CHECK(JSReceiver::HasOwnProperty(obj, first));
   CHECK(JSReceiver::HasOwnProperty(obj, second));
 
@@ -680,8 +676,8 @@ TEST(ObjectProperties) {
   CHECK(!JSReceiver::HasOwnProperty(obj, second));
 
   // add first and then second
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, SLOPPY).Check();
   CHECK(JSReceiver::HasOwnProperty(obj, first));
   CHECK(JSReceiver::HasOwnProperty(obj, second));
 
@@ -695,14 +691,14 @@ TEST(ObjectProperties) {
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
-  JSReceiver::SetProperty(obj, s1, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, s1, one, SLOPPY).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(JSReceiver::HasOwnProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  JSReceiver::SetProperty(obj, s2_string, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, s2_string, one, SLOPPY).Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(JSReceiver::HasOwnProperty(obj, s2));
 }
@@ -723,7 +719,7 @@ TEST(JSObjectMaps) {
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  JSReceiver::SetProperty(obj, prop_name, twenty_three, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(obj, prop_name).ToHandleChecked());
 
@@ -801,8 +797,8 @@ TEST(JSObjectCopy) {
   Handle<Smi> one(Smi::FromInt(1), isolate);
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
-  JSReceiver::SetProperty(obj, first, one, NONE, SLOPPY).Check();
-  JSReceiver::SetProperty(obj, second, two, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, first, one, SLOPPY).Check();
+  JSReceiver::SetProperty(obj, second, two, SLOPPY).Check();
 
   JSReceiver::SetElement(obj, 0, first, NONE, SLOPPY).Check();
   JSReceiver::SetElement(obj, 1, second, NONE, SLOPPY).Check();
@@ -827,8 +823,8 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*value1, *value2);
 
   // Flip the values.
-  JSReceiver::SetProperty(clone, first, two, NONE, SLOPPY).Check();
-  JSReceiver::SetProperty(clone, second, one, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(clone, first, two, SLOPPY).Check();
+  JSReceiver::SetProperty(clone, second, one, SLOPPY).Check();
 
   JSReceiver::SetElement(clone, 0, second, NONE, SLOPPY).Check();
   JSReceiver::SetElement(clone, 1, first, NONE, SLOPPY).Check();
@@ -2764,8 +2760,7 @@ static void AddPropertyTo(
   i::FLAG_gc_interval = gc_count;
   i::FLAG_gc_global = true;
   CcTest::heap()->set_allocation_timeout(gc_count);
-  JSReceiver::SetProperty(
-      object, prop_name, twenty_three, NONE, SLOPPY).Check();
+  JSReceiver::SetProperty(object, prop_name, twenty_three, SLOPPY).Check();
 }
 
 

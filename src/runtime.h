@@ -802,15 +802,9 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       uint32_t index);
 
-  // Do not use SetObjectProperty to configure a property with specific
-  // attributes. The argument will be removed once the API is adapted.
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      PropertyAttributes attributes = NONE);
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      Handle<Object> value, StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
       Handle<JSObject> object,
