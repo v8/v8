@@ -211,6 +211,7 @@ function NoSideEffectToString(obj) {
     }
     return str;
   }
+  if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
