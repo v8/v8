@@ -852,7 +852,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
         __ mov(a0, zero_reg);  // Smi::FromInt(0) indicates no initial value.
         __ Push(cp, a2, a1, a0);
       }
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
       break;
     }
   }
@@ -908,7 +908,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       __ Push(cp, a2, a1);
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      __ CallRuntime(Runtime::kDeclareLookupSlot, 4);
       break;
     }
   }
@@ -2447,15 +2447,6 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 }
 
 
-void FullCodeGenerator::EmitCallStoreContextSlot(
-    Handle<String> name, StrictMode strict_mode) {
-  __ li(a1, Operand(name));
-  __ li(a0, Operand(Smi::FromInt(strict_mode)));
-  __ Push(v0, cp, a1, a0);  // Value, context, name, strict mode.
-  __ CallRuntime(Runtime::kStoreContextSlot, 4);
-}
-
-
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
@@ -2469,7 +2460,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
     if (var->IsLookupSlot()) {
       __ li(a0, Operand(var->name()));
       __ Push(v0, cp, a0);  // Context and name.
-      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
     } else {
       ASSERT(var->IsStackAllocated() || var->IsContextSlot());
       Label skip;
@@ -2483,29 +2474,36 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op) {
 
   } else if (var->mode() == LET && op != Token::INIT_LET) {
     // Non-initializing assignment to let variable needs a write barrier.
-    if (var->IsLookupSlot()) {
-      EmitCallStoreContextSlot(var->name(), strict_mode());
-    } else {
-      ASSERT(var->IsStackAllocated() || var->IsContextSlot());
-      Label assign;
-      MemOperand location = VarOperand(var, a1);
-      __ ld(a3, location);
-      __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
-      __ Branch(&assign, ne, a3, Operand(a4));
-      __ li(a3, Operand(var->name()));
-      __ push(a3);
-      __ CallRuntime(Runtime::kThrowReferenceError, 1);
-      // Perform the assignment.
-      __ bind(&assign);
-      EmitStoreToStackLocalOrContextSlot(var, location);
-    }
+    ASSERT(!var->IsLookupSlot());
+    ASSERT(var->IsStackAllocated() || var->IsContextSlot());
+    Label assign;
+    MemOperand location = VarOperand(var, a1);
+    __ ld(a3, location);
+    __ LoadRoot(a4, Heap::kTheHoleValueRootIndex);
+    __ Branch(&assign, ne, a3, Operand(a4));
+    __ li(a3, Operand(var->name()));
+    __ push(a3);
+    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    // Perform the assignment.
+    __ bind(&assign);
+    EmitStoreToStackLocalOrContextSlot(var, location);
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
-    // Assignment to var or initializing assignment to let/const
-    // in harmony mode.
     if (var->IsLookupSlot()) {
-      EmitCallStoreContextSlot(var->name(), strict_mode());
+      ASSERT(op == Token::ASSIGN || op == Token::INIT_VAR ||
+             op == Token::ASSIGN_ADD);
+      // Assignment to var.
+      __ li(a4, Operand(var->name()));
+      __ li(a3, Operand(Smi::FromInt(strict_mode())));
+      // jssp[0]  : mode.
+      // jssp[8]  : name.
+      // jssp[16] : context.
+      // jssp[24] : value.
+      __ Push(v0, cp, a4, a3);
+      __ CallRuntime(Runtime::kStoreLookupSlot, 4);
     } else {
+      // Assignment to var or initializing assignment to let/const in harmony
+      // mode.
       ASSERT((var->IsStackAllocated() || var->IsContextSlot()));
       MemOperand location = VarOperand(var, a1);
       if (generate_debug_code_ && op == Token::INIT_LET) {
