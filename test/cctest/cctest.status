@@ -75,6 +75,9 @@
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
   'test-cpu-profiler/*': [PASS, FLAKY],
 
+  # BUG(crbug/386492). This will be fixed by r22029.
+  'test-debug/ThreadedDebugging': [PASS, FAIL],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

@@ -1036,7 +1036,7 @@ template <class C> inline bool Is(Object* obj);
   V(kCopyBuffersOverlap, "Copy buffers overlap")                              \
   V(kCouldNotGenerateZero, "Could not generate +0.0")                         \
   V(kCouldNotGenerateNegativeZero, "Could not generate -0.0")                 \
-  V(kDebuggerIsActive, "Debugger is active")                                  \
+  V(kDebuggerHasBreakPoints, "Debugger has break points")                     \
   V(kDebuggerStatement, "DebuggerStatement")                                  \
   V(kDeclarationInCatchContext, "Declaration in catch context")               \
   V(kDeclarationInWithContext, "Declaration in with context")                 \
