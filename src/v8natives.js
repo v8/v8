@@ -1171,11 +1171,19 @@ function ObjectDefineProperty(obj, p, attributes) {
 }
 
 
-function GetOwnEnumerablePropertyNames(properties) {
+function GetOwnEnumerablePropertyNames(object) {
   var names = new InternalArray();
-  for (var key in properties) {
-    if (%HasOwnProperty(properties, key)) {
+  for (var key in object) {
+    if (%HasOwnProperty(object, key)) {
       names.push(key);
+    }
+  }
+  // FLAG_harmony_symbols may be on, but symbols aren't included by for-in.
+  var symbols = ObjectGetOwnPropertyKeys(object, true);
+  for (var i in symbols) {
+    var symbol = symbols[i];
+    if (ObjectGetOwnPropertyDescriptor(object, symbol).enumerable) {
+      names.push(symbol);
     }
   }
   return names;
