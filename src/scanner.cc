@@ -466,10 +466,12 @@ void Scanner::Scan() {
         break;
 
       case '=':
-        // = == ===
+        // = == === =>
         Advance();
         if (c0_ == '=') {
           token = Select('=', Token::EQ_STRICT, Token::EQ);
+        } else if (c0_ == '>') {
+          token = Select(Token::ARROW);
         } else {
           token = Token::ASSIGN;
         }
@@ -1003,6 +1005,16 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
     KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
   }
   return Token::IDENTIFIER;
+}
+
+
+bool Scanner::IdentifierIsFutureStrictReserved(
+    const AstRawString* string) const {
+  // Keywords are always 1-byte strings.
+  return string->is_one_byte() &&
+         Token::FUTURE_STRICT_RESERVED_WORD ==
+             KeywordOrIdentifierToken(string->raw_data(), string->length(),
+                                      harmony_scoping_, harmony_modules_);
 }
 
 

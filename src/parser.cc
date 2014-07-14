@@ -718,6 +718,7 @@ Parser::Parser(CompilationInfo* info)
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
   set_allow_for_of(FLAG_harmony_iteration);
+  set_allow_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -3271,6 +3272,68 @@ Handle<FixedArray> CompileTimeValue::GetElements(Handle<FixedArray> value) {
 }
 
 
+bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
+                                   Scope* scope, int* num_params,
+                                   Scanner::Location* dupe_loc) {
+  // Case for empty parameter lists:
+  //   () => ...
+  if (expression == NULL) return true;
+
+  // Too many parentheses around expression:
+  //   (( ... )) => ...
+  if (expression->parenthesization_level() > 1) return false;
+
+  // Case for a single parameter:
+  //   (foo) => ...
+  //   foo => ...
+  if (expression->IsVariableProxy()) {
+    if (expression->AsVariableProxy()->is_this()) return false;
+
+    const AstRawString* raw_name = expression->AsVariableProxy()->raw_name();
+    if (traits->IsEvalOrArguments(raw_name) ||
+        traits->IsFutureStrictReserved(raw_name))
+      return false;
+
+    if (scope->IsDeclared(raw_name)) {
+      *dupe_loc = Scanner::Location(
+          expression->position(), expression->position() + raw_name->length());
+      return false;
+    }
+
+    scope->DeclareParameter(raw_name, VAR);
+    ++(*num_params);
+    return true;
+  }
+
+  // Case for more than one parameter:
+  //   (foo, bar [, ...]) => ...
+  if (expression->IsBinaryOperation()) {
+    BinaryOperation* binop = expression->AsBinaryOperation();
+    if (binop->op() != Token::COMMA || binop->left()->is_parenthesized() ||
+        binop->right()->is_parenthesized())
+      return false;
+
+    return CheckAndDeclareArrowParameter(traits, binop->left(), scope,
+                                         num_params, dupe_loc) &&
+           CheckAndDeclareArrowParameter(traits, binop->right(), scope,
+                                         num_params, dupe_loc);
+  }
+
+  // Any other kind of expression is not a valid parameter list.
+  return false;
+}
+
+
+int ParserTraits::DeclareArrowParametersFromExpression(
+    Expression* expression, Scope* scope, Scanner::Location* dupe_loc,
+    bool* ok) {
+  int num_params = 0;
+  *ok = CheckAndDeclareArrowParameter(this, expression, scope, &num_params,
+                                      dupe_loc);
+  return num_params;
+}
+
+
 FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name,
     Scanner::Location function_name_location,
@@ -3680,6 +3743,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_generators(allow_generators());
     reusable_preparser_->set_allow_for_of(allow_for_of());
+    reusable_preparser_->set_allow_arrow_functions(allow_arrow_functions());
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
   }
