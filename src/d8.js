@@ -1980,7 +1980,7 @@ function Stringify(x, depth) {
     case "string":
       return "\"" + x.toString() + "\"";
     case "symbol":
-      return "Symbol(" + (x.name ? Stringify(x.name, depth) : "") + ")"
+      return x.toString();
     case "object":
       if (IS_NULL(x)) return "null";
       if (x.constructor && x.constructor.name === "Array") {
@@ -1996,18 +1996,25 @@ function Stringify(x, depth) {
         if (string && string !== "[object Object]") return string;
       } catch(e) {}
       var props = [];
-      for (var name in x) {
+      var names = Object.getOwnPropertyNames(x);
+      if (Object.getOwnPropertySymbols) {
+        // FLAG_harmony_symbols is turned on.
+        names = names.concat(Object.getOwnPropertySymbols(x));
+      }
+      for (var i in names) {
+        var name = names[i];
         var desc = Object.getOwnPropertyDescriptor(x, name);
         if (IS_UNDEFINED(desc)) continue;
+        if (IS_SYMBOL(name)) name = "[" + Stringify(name) + "]";
         if ("value" in desc) {
           props.push(name + ": " + Stringify(desc.value, depth - 1));
         }
-        if ("get" in desc) {
-          var getter = desc.get.toString();
+        if (desc.get) {
+          var getter = Stringify(desc.get);
           props.push("get " + name + getter.slice(getter.indexOf('(')));
         }
-        if ("set" in desc) {
-          var setter = desc.set.toString();
+        if (desc.set) {
+          var setter = Stringify(desc.set);
           props.push("set " + name + setter.slice(setter.indexOf('(')));
         }
       }
