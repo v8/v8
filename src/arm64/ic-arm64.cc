@@ -1013,10 +1013,10 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          x11,
                                          slow);
-  ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
   AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
                                                     FAST_DOUBLE_ELEMENTS);
-  ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(
+      masm, receiver, key, value, receiver_map, mode, slow);
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ B(&fast_double_without_map_check);
 
@@ -1028,10 +1028,11 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          x11,
                                          slow);
-  ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
+
   mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
-  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
-                                                                   slow);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+      masm, receiver, key, value, receiver_map, mode, slow);
+
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ B(&finish_store);
 
@@ -1045,9 +1046,9 @@ static void KeyedStoreGenerateGenericHelper(
                                          x10,
                                          x11,
                                          slow);
-  ASSERT(receiver_map.Is(x3));  // Transition code expects map in x3.
   mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
-  ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(
+      masm, receiver, key, value, receiver_map, mode, slow);
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ B(&finish_store);
 }
