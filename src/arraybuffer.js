@@ -74,7 +74,8 @@ function SetUpArrayBuffer() {
   %FunctionSetPrototype($ArrayBuffer, new $Object());
 
   // Set up the constructor property on the ArrayBuffer prototype object.
-  %AddProperty($ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
+  %AddNamedProperty(
+      $ArrayBuffer.prototype, "constructor", $ArrayBuffer, DONT_ENUM);
 
   InstallGetter($ArrayBuffer.prototype, "byteLength", ArrayBufferGetByteLen);
 

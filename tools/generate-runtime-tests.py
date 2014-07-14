@@ -211,7 +211,7 @@ _NUMBER_FORMAT = (
 # Format: "FunctionName": ["arg0", "arg1", ..., argslength].
 # None means "fall back to autodetected value".
 CUSTOM_KNOWN_GOOD_INPUT = {
-  "AddProperty": [None, 10, None, None, None],
+  "AddNamedProperty": [None, "\"bla\"", None, None, None],
   "AddPropertyForTemplate": [None, 10, None, None, None],
   "Apply": ["function() {}", None, None, None, None, None],
   "ArrayBufferSliceImpl": [None, None, 0, None],

@@ -5195,12 +5195,12 @@ RUNTIME_FUNCTION(Runtime_SetHiddenProperty) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_AddProperty) {
+RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 4);
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
   RUNTIME_ASSERT(
@@ -5210,27 +5210,17 @@ RUNTIME_FUNCTION(Runtime_AddProperty) {
       static_cast<PropertyAttributes>(unchecked_attributes);
 
 #ifdef DEBUG
-  bool duplicate;
   uint32_t index = 0;
-  if (key->IsName() || !key->ToArrayIndex(&index)) {
-    if (key->IsNumber()) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
-                                         Execution::ToString(isolate, key));
-    }
-    LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::CHECK_OWN_REAL);
-    JSReceiver::GetPropertyAttributes(&it);
-    duplicate = it.IsFound();
-  } else {
-    duplicate = JSReceiver::HasOwnElement(object, index);
-  }
-  RUNTIME_ASSERT(!duplicate);
+  ASSERT(!key->ToArrayIndex(&index));
+  LookupIterator it(object, key, LookupIterator::CHECK_OWN_REAL);
+  JSReceiver::GetPropertyAttributes(&it);
+  RUNTIME_ASSERT(!it.IsFound());
 #endif
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::DefineObjectProperty(object, key, value, attributes));
+      JSObject::SetOwnPropertyIgnoreAttributes(object, key, value, attributes));
   return *result;
 }
 

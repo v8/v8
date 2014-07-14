@@ -1460,7 +1460,7 @@ function SetUpArray() {
 
   // Set up non-enumerable constructor property on the Array.prototype
   // object.
-  %AddProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+  %AddNamedProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
   // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(

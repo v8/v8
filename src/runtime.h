@@ -224,7 +224,7 @@ namespace internal {
   F(GlobalProxy, 1, 1)                                 \
   F(IsAttachedGlobal, 1, 1)                            \
                                                        \
-  F(AddProperty, 4, 1)                                 \
+  F(AddNamedProperty, 4, 1)                            \
   F(AddPropertyForTemplate, 4, 1)                      \
   F(SetProperty, 4, 1)                                 \
   F(DefineDataPropertyUnchecked, 4, 1)                 \

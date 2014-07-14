@@ -63,13 +63,13 @@ function SetUpGenerators() {
                    ["next", GeneratorObjectNext,
                     "throw", GeneratorObjectThrow]);
   %FunctionSetName(GeneratorObjectIterator, '[Symbol.iterator]');
-  %AddProperty(GeneratorObjectPrototype, symbolIterator,
+  %AddNamedProperty(GeneratorObjectPrototype, symbolIterator,
       GeneratorObjectIterator, DONT_ENUM | DONT_DELETE | READ_ONLY);
-  %AddProperty(GeneratorObjectPrototype, "constructor",
+  %AddNamedProperty(GeneratorObjectPrototype, "constructor",
       GeneratorFunctionPrototype, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunctionPrototype, $Function.prototype);
   %SetCode(GeneratorFunctionPrototype, GeneratorFunctionPrototypeConstructor);
-  %AddProperty(GeneratorFunctionPrototype, "constructor",
+  %AddNamedProperty(GeneratorFunctionPrototype, "constructor",
       GeneratorFunction, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetPrototype(GeneratorFunction, $Function);
   %SetCode(GeneratorFunction, GeneratorFunctionConstructor);
