@@ -1704,7 +1704,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
   // same variable if it is declared several times. This is not a
   // semantic issue as long as we keep the source order, but it may be
   // a performance issue since it may lead to repeated
-  // RuntimeHidden_DeclareContextSlot calls.
+  // RuntimeHidden_DeclareLookupSlot calls.
   declaration_scope->AddDeclaration(declaration);
 
   if (mode == CONST_LEGACY && declaration_scope->is_global_scope()) {
@@ -1718,7 +1718,7 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
              declaration_scope->strict_mode() == SLOPPY) {
     // For variable declarations in a sloppy eval scope the proxy is bound
     // to a lookup variable to force a dynamic declaration using the
-    // DeclareContextSlot runtime function.
+    // DeclareLookupSlot runtime function.
     Variable::Kind kind = Variable::NORMAL;
     var = new(zone()) Variable(
         declaration_scope, name, mode, true, kind,
@@ -2189,21 +2189,22 @@ Block* Parser::ParseVariableDeclarations(
         if (value != NULL && !inside_with()) {
           arguments->Add(value, zone());
           value = NULL;  // zap the value to avoid the unnecessary assignment
+          // Construct the call to Runtime_InitializeVarGlobal
+          // and add it to the initialization statement block.
+          initialize = factory()->NewCallRuntime(
+              ast_value_factory_->initialize_var_global_string(),
+              Runtime::FunctionForId(Runtime::kInitializeVarGlobal), arguments,
+              pos);
+        } else {
+          initialize = NULL;
         }
-
-        // Construct the call to Runtime_InitializeVarGlobal
-        // and add it to the initialization statement block.
-        // Note that the function does different things depending on
-        // the number of arguments (2 or 3).
-        initialize = factory()->NewCallRuntime(
-            ast_value_factory_->initialize_var_global_string(),
-            Runtime::FunctionForId(Runtime::kInitializeVarGlobal),
-            arguments, pos);
       }
 
-      block->AddStatement(
-          factory()->NewExpressionStatement(initialize, RelocInfo::kNoPosition),
-          zone());
+      if (initialize != NULL) {
+        block->AddStatement(factory()->NewExpressionStatement(
+                                initialize, RelocInfo::kNoPosition),
+                            zone());
+      }
     } else if (needs_init) {
       // Constant initializations always assign to the declared constant which
       // is always at the function scope level. This is only relevant for
