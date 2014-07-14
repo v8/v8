@@ -1570,6 +1570,7 @@ class Object {
 #endif
 
  private:
+  friend class LookupIterator;
   friend class PrototypeIterator;
 
   // Return the map of the root of object's prototype chain.
