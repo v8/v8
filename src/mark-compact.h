@@ -570,7 +570,6 @@ class MarkCompactCollector {
   void EnableCodeFlushing(bool enable);
 
   enum SweeperType {
-    CONSERVATIVE,
     PARALLEL_CONSERVATIVE,
     CONCURRENT_CONSERVATIVE,
     PRECISE
@@ -665,18 +664,19 @@ class MarkCompactCollector {
   // then the whole given space is swept.
   int SweepInParallel(PagedSpace* space, int required_freed_bytes);
 
-  void WaitUntilSweepingCompleted();
+  void EnsureSweepingCompleted();
 
+  // If sweeper threads are not active this method will return true. If
+  // this is a latency issue we should be smarter here. Otherwise, it will
+  // return true if the sweeper threads are done processing the pages.
   bool IsSweepingCompleted();
 
   void RefillFreeList(PagedSpace* space);
 
   bool AreSweeperThreadsActivated();
 
-  // If a paged space is passed in, this method checks if the given space is
-  // swept concurrently. Otherwise, this method checks if concurrent sweeping
-  // is in progress right now on any space.
-  bool IsConcurrentSweepingInProgress(PagedSpace* space = NULL);
+  // Checks if sweeping is in progress right now on any space.
+  bool sweeping_in_progress() { return sweeping_in_progress_; }
 
   void set_sequential_sweeping(bool sequential_sweeping) {
     sequential_sweeping_ = sequential_sweeping;
@@ -739,7 +739,7 @@ class MarkCompactCollector {
   bool was_marked_incrementally_;
 
   // True if concurrent or parallel sweeping is currently in progress.
-  bool sweeping_pending_;
+  bool sweeping_in_progress_;
 
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
