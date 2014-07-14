@@ -1171,13 +1171,25 @@ function ObjectDefineProperty(obj, p, attributes) {
 }
 
 
-function GetOwnEnumerablePropertyNames(properties) {
+function GetOwnEnumerablePropertyNames(object) {
   var names = new InternalArray();
-  for (var key in properties) {
-    if (%HasOwnProperty(properties, key)) {
+  for (var key in object) {
+    if (%HasOwnProperty(object, key)) {
       names.push(key);
     }
   }
+
+  // FLAG_harmony_symbols may be on, but symbols aren't included by for-in.
+  var filter = PROPERTY_ATTRIBUTES_STRING | PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
+  var symbols = %GetOwnPropertyNames(object, filter);
+  for (var i = 0; i < symbols.length; ++i) {
+    var symbol = symbols[i];
+    if (IS_SYMBOL(symbol)) {
+      var desc = ObjectGetOwnPropertyDescriptor(object, symbol);
+      if (desc.enumerable) names.push(symbol);
+    }
+  }
+
   return names;
 }
 

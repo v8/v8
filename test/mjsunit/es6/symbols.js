@@ -367,6 +367,34 @@ for (var i in objs) {
 }
 
 
+function TestDefineProperties() {
+  var properties = {}
+  for (var i in symbols) {
+    Object.defineProperty(
+        properties, symbols[i], {value: {value: i}, enumerable: i % 2 === 0})
+  }
+  var o = Object.defineProperties({}, properties)
+  for (var i in symbols) {
+    assertEquals(i % 2 === 0, symbols[i] in o)
+  }
+}
+TestDefineProperties()
+
+
+function TestCreate() {
+  var properties = {}
+  for (var i in symbols) {
+    Object.defineProperty(
+      properties, symbols[i], {value: {value: i}, enumerable: i % 2 === 0})
+  }
+  var o = Object.create(Object.prototype, properties)
+  for (var i in symbols) {
+    assertEquals(i % 2 === 0, symbols[i] in o)
+  }
+}
+TestCreate()
+
+
 function TestCachedKeyAfterScavenge() {
   gc();
   // Keyed property lookup are cached.  Hereby we assume that the keys are
