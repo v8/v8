@@ -219,6 +219,10 @@ void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
 
 void Log::MessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
+  // Assert that we do not already have a new line at the end.
+  ASSERT(pos_ == 0 || log_->message_buffer_[pos_ - 1] != '\n');
+  if (pos_ == Log::kMessageBufferSize) pos_--;
+  log_->message_buffer_[pos_++] = '\n';
   const int written = log_->WriteToFile(log_->message_buffer_, pos_);
   if (written != pos_) {
     log_->stop();
