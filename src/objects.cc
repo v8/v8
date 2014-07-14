@@ -28,6 +28,7 @@
 #include "src/mark-compact.h"
 #include "src/objects-inl.h"
 #include "src/objects-visiting-inl.h"
+#include "src/prototype.h"
 #include "src/safepoint-table.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
@@ -801,30 +802,30 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
                                                    Handle<Object> object,
                                                    Handle<Object> receiver,
                                                    uint32_t index) {
-  Handle<Object> holder;
+  if (object->IsUndefined()) {
+    // TODO(verwaest): Why is this check here?
+    UNREACHABLE();
+    return isolate->factory()->undefined_value();
+  }
 
   // Iterate up the prototype chain until an element is found or the null
   // prototype is encountered.
-  for (holder = object;
-       !holder->IsNull();
-       holder = Handle<Object>(holder->GetPrototype(isolate), isolate)) {
-    if (!holder->IsJSObject()) {
-      if (holder->IsJSProxy()) {
-        return JSProxy::GetElementWithHandler(
-            Handle<JSProxy>::cast(holder), receiver, index);
-      } else if (holder->IsUndefined()) {
-        // Undefined has no indexed properties.
-        return isolate->factory()->undefined_value();
-      } else {
-        holder = Handle<Object>(holder->GetPrototype(isolate), isolate);
-        ASSERT(holder->IsJSObject());
-      }
+  for (PrototypeIterator iter(isolate, object,
+                              object->IsJSProxy() || object->IsJSObject()
+                                  ? PrototypeIterator::START_AT_RECEIVER
+                                  : PrototypeIterator::START_AT_PROTOTYPE);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return JSProxy::GetElementWithHandler(
+          Handle<JSProxy>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
+          index);
     }
 
     // Inline the case for JSObjects. Doing so significantly improves the
     // performance of fetching elements where checking the prototype chain is
     // necessary.
-    Handle<JSObject> js_object = Handle<JSObject>::cast(holder);
+    Handle<JSObject> js_object =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
 
     // Check access rights if needed.
     if (js_object->IsAccessCheckNeeded()) {
@@ -853,11 +854,11 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 }
 
 
-Object* Object::GetPrototype(Isolate* isolate) {
+Map* Object::GetRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
     Context* context = isolate->context()->native_context();
-    return context->number_function()->instance_prototype();
+    return context->number_function()->initial_map();
   }
 
   HeapObject* heap_object = HeapObject::cast(this);
@@ -865,30 +866,23 @@ Object* Object::GetPrototype(Isolate* isolate) {
   // The object is either a number, a string, a boolean,
   // a real JS object, or a Harmony proxy.
   if (heap_object->IsJSReceiver()) {
-    return heap_object->map()->prototype();
+    return heap_object->map();
   }
   Context* context = isolate->context()->native_context();
 
   if (heap_object->IsHeapNumber()) {
-    return context->number_function()->instance_prototype();
+    return context->number_function()->initial_map();
   }
   if (heap_object->IsString()) {
-    return context->string_function()->instance_prototype();
+    return context->string_function()->initial_map();
   }
   if (heap_object->IsSymbol()) {
-    return context->symbol_function()->instance_prototype();
+    return context->symbol_function()->initial_map();
   }
   if (heap_object->IsBoolean()) {
-    return context->boolean_function()->instance_prototype();
-  } else {
-    return isolate->heap()->null_value();
+    return context->boolean_function()->initial_map();
   }
-}
-
-
-Handle<Object> Object::GetPrototype(Isolate* isolate,
-                                    Handle<Object> object) {
-  return handle(object->GetPrototype(isolate), isolate);
+  return isolate->heap()->null_value()->map();
 }
 
 
@@ -3033,20 +3027,16 @@ MaybeHandle<Object> JSObject::SetElementWithCallbackSetterInPrototypes(
     bool* found,
     StrictMode strict_mode) {
   Isolate *isolate = object->GetIsolate();
-  for (Handle<Object> proto = handle(object->GetPrototype(), isolate);
-       !proto->IsNull();
-       proto = handle(proto->GetPrototype(isolate), isolate)) {
-    if (proto->IsJSProxy()) {
+  for (PrototypeIterator iter(isolate, object); !iter.IsAtEnd();
+       iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
       return JSProxy::SetPropertyViaPrototypesWithHandler(
-          Handle<JSProxy>::cast(proto),
-          object,
+          Handle<JSProxy>::cast(PrototypeIterator::GetCurrent(iter)), object,
           isolate->factory()->Uint32ToString(index),  // name
-          value,
-          NONE,
-          strict_mode,
-          found);
+          value, NONE, strict_mode, found);
     }
-    Handle<JSObject> js_proto = Handle<JSObject>::cast(proto);
+    Handle<JSObject> js_proto =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
     if (!js_proto->HasDictionaryElements()) {
       continue;
     }
@@ -3524,14 +3514,11 @@ void JSObject::LookupRealNamedPropertyInPrototypes(Handle<Name> name,
                                                    LookupResult* result) {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
-  Heap* heap = isolate->heap();
-  for (Object* pt = GetPrototype();
-       pt != heap->null_value();
-       pt = pt->GetPrototype(isolate)) {
-    if (pt->IsJSProxy()) {
-      return result->HandlerResult(JSProxy::cast(pt));
+  for (PrototypeIterator iter(isolate, this); !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSProxy()) {
+      return result->HandlerResult(JSProxy::cast(iter.GetCurrent()));
     }
-    JSObject::cast(pt)->LookupOwnRealNamedProperty(name, result);
+    JSObject::cast(iter.GetCurrent())->LookupOwnRealNamedProperty(name, result);
     ASSERT(!(result->IsFound() && result->type() == INTERCEPTOR));
     if (result->IsFound()) return;
   }
@@ -6374,11 +6361,12 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       JSFunction::cast(isolate->sloppy_arguments_map()->constructor()));
 
   // Only collect keys if access is permitted.
-  for (Handle<Object> p = object;
-       *p != isolate->heap()->null_value();
-       p = Handle<Object>(p->GetPrototype(isolate), isolate)) {
-    if (p->IsJSProxy()) {
-      Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
+  for (PrototypeIterator iter(isolate, object,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      Handle<JSProxy> proxy(JSProxy::cast(*PrototypeIterator::GetCurrent(iter)),
+                            isolate);
       Handle<Object> args[] = { proxy };
       Handle<Object> names;
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -6397,7 +6385,8 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
       break;
     }
 
-    Handle<JSObject> current(JSObject::cast(*p), isolate);
+    Handle<JSObject> current =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
 
     // Check access rights if required.
     if (current->IsAccessCheckNeeded() &&
@@ -6615,22 +6604,18 @@ void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
 
 
 bool Map::DictionaryElementsInPrototypeChainOnly() {
-  Heap* heap = GetHeap();
-
   if (IsDictionaryElementsKind(elements_kind())) {
     return false;
   }
 
-  for (Object* prototype = this->prototype();
-       prototype != heap->null_value();
-       prototype = prototype->GetPrototype(GetIsolate())) {
-    if (prototype->IsJSProxy()) {
+  for (PrototypeIterator iter(this); !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSProxy()) {
       // Be conservative, don't walk into proxies.
       return true;
     }
 
     if (IsDictionaryElementsKind(
-            JSObject::cast(prototype)->map()->elements_kind())) {
+            JSObject::cast(iter.GetCurrent())->map()->elements_kind())) {
       return true;
     }
   }
@@ -10131,9 +10116,14 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   Handle<Object> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
-    for (Handle<Object> p = prototype; !p->IsNull() && !p->IsJSProxy();
-         p = Object::GetPrototype(isolate, p)) {
-      JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(p));
+    for (PrototypeIterator iter(isolate, prototype,
+                                PrototypeIterator::START_AT_RECEIVER);
+         !iter.IsAtEnd(); iter.Advance()) {
+      if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+        break;
+      }
+      JSObject::OptimizeAsPrototype(
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
     }
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
@@ -12203,10 +12193,10 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   // prototype cycles are prevented.
   // It is sufficient to validate that the receiver is not in the new prototype
   // chain.
-  for (Object* pt = *value;
-       pt != heap->null_value();
-       pt = pt->GetPrototype(isolate)) {
-    if (JSReceiver::cast(pt) == *object) {
+  for (PrototypeIterator iter(isolate, *value,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (JSReceiver::cast(iter.GetCurrent()) == *object) {
       // Cycle detected.
       Handle<Object> error = isolate->factory()->NewError(
           "cyclic_proto", HandleVector<Object>(NULL, 0));
@@ -12221,11 +12211,11 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   if (skip_hidden_prototypes) {
     // Find the first object in the chain whose prototype object is not
     // hidden and set the new prototype on that object.
-    Object* current_proto = real_receiver->GetPrototype();
-    while (current_proto->IsJSObject() &&
-          JSObject::cast(current_proto)->map()->is_hidden_prototype()) {
-      real_receiver = handle(JSObject::cast(current_proto), isolate);
-      current_proto = current_proto->GetPrototype(isolate);
+    PrototypeIterator iter(isolate, real_receiver);
+    while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+      real_receiver =
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      iter.Advance();
     }
   }
 

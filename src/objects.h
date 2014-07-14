@@ -1514,10 +1514,6 @@ class Object {
       Handle<Object> receiver,
       uint32_t index);
 
-  // Return the object's prototype (might be Heap::null_value()).
-  Object* GetPrototype(Isolate* isolate);
-  static Handle<Object> GetPrototype(Isolate* isolate, Handle<Object> object);
-
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();
@@ -1574,6 +1570,11 @@ class Object {
 #endif
 
  private:
+  friend class PrototypeIterator;
+
+  // Return the map of the root of object's prototype chain.
+  Map* GetRootMap(Isolate* isolate);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
 

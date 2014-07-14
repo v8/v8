@@ -11,6 +11,7 @@
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/ic-inl.h"
+#include "src/prototype.h"
 #include "src/runtime.h"
 #include "src/stub-cache.h"
 
@@ -248,7 +249,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
       break;
     case PROTOTYPE_MAP:
       // IC::GetCodeCacheHolder is not applicable.
-      if (receiver->GetPrototype(isolate())->IsNull()) return false;
+      PrototypeIterator iter(isolate(), receiver);
+      if (iter.IsAtEnd()) return false;
       break;
   }
 

@@ -36,6 +36,7 @@
 #include "src/profile-generator-inl.h"
 #include "src/property.h"
 #include "src/property-details.h"
+#include "src/prototype.h"
 #include "src/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
@@ -3191,8 +3192,8 @@ Local<Value> v8::Object::GetPrototype() {
   ON_BAILOUT(isolate, "v8::Object::GetPrototype()", return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result(self->GetPrototype(isolate), isolate);
-  return Utils::ToLocal(result);
+  i::PrototypeIterator iter(isolate, self);
+  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
 }
 
 

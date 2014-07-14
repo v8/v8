@@ -15,6 +15,7 @@
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/property-details.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -67,8 +68,10 @@ Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
 
 template <class C>
 static C* FindInstanceOf(Isolate* isolate, Object* obj) {
-  for (Object* cur = obj; !cur->IsNull(); cur = cur->GetPrototype(isolate)) {
-    if (Is<C>(cur)) return C::cast(cur);
+  for (PrototypeIterator iter(isolate, obj,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (Is<C>(iter.GetCurrent())) return C::cast(iter.GetCurrent());
   }
   return NULL;
 }

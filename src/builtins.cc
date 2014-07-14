@@ -14,6 +14,7 @@
 #include "src/heap-profiler.h"
 #include "src/ic-inl.h"
 #include "src/mark-compact.h"
+#include "src/prototype.h"
 #include "src/stub-cache.h"
 #include "src/vm-state-inl.h"
 
@@ -1091,11 +1092,12 @@ BUILTIN(GeneratorPoisonPill) {
 static inline Object* FindHidden(Heap* heap,
                                  Object* object,
                                  FunctionTemplateInfo* type) {
-  if (type->IsTemplateFor(object)) return object;
-  Object* proto = object->GetPrototype(heap->isolate());
-  if (proto->IsJSObject() &&
-      JSObject::cast(proto)->map()->is_hidden_prototype()) {
-    return FindHidden(heap, proto, type);
+  for (PrototypeIterator iter(heap->isolate(), object,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+    if (type->IsTemplateFor(iter.GetCurrent())) {
+      return iter.GetCurrent();
+    }
   }
   return heap->null_value();
 }

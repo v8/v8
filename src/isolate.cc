@@ -21,6 +21,7 @@
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
+#include "src/prototype.h"
 #include "src/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
@@ -982,10 +983,10 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
       js_builtins_object(), error_key).ToHandleChecked();
 
   DisallowHeapAllocation no_gc;
-  for (Object* prototype = *obj; !prototype->IsNull();
-       prototype = prototype->GetPrototype(this)) {
-    if (!prototype->IsJSObject()) return false;
-    if (JSObject::cast(prototype)->map()->constructor() ==
+  for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSProxy()) return false;
+    if (JSObject::cast(iter.GetCurrent())->map()->constructor() ==
         *error_constructor) {
       return true;
     }

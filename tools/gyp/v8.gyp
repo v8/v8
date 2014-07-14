@@ -585,6 +585,7 @@
         '../../src/property-details.h',
         '../../src/property.cc',
         '../../src/property.h',
+        '../../src/prototype.h',
         '../../src/regexp-macro-assembler-irregexp-inl.h',
         '../../src/regexp-macro-assembler-irregexp.cc',
         '../../src/regexp-macro-assembler-irregexp.h',

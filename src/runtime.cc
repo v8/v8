@@ -34,6 +34,7 @@
 #include "src/liveedit.h"
 #include "src/misc-intrinsics.h"
 #include "src/parser.h"
+#include "src/prototype.h"
 #include "src/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
@@ -1808,31 +1809,37 @@ RUNTIME_FUNCTION(Runtime_GetPrototype) {
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   // We don't expect access checks to be needed on JSProxy objects.
   ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
+  PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
   do {
-    if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(Handle<JSObject>::cast(obj),
-                                 isolate->factory()->proto_string(),
-                                 v8::ACCESS_GET)) {
-      isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(obj),
-                                       v8::ACCESS_GET);
+    if (PrototypeIterator::GetCurrent(iter)->IsAccessCheckNeeded() &&
+        !isolate->MayNamedAccess(
+            Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
+            isolate->factory()->proto_string(), v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
+          v8::ACCESS_GET);
       RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return isolate->heap()->undefined_value();
     }
-    obj = Object::GetPrototype(isolate, obj);
-  } while (obj->IsJSObject() &&
-           JSObject::cast(*obj)->map()->is_hidden_prototype());
-  return *obj;
+    iter.AdvanceIgnoringProxies();
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return *PrototypeIterator::GetCurrent(iter);
+    }
+  } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
+  return *PrototypeIterator::GetCurrent(iter);
 }
 
 
 static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
     Isolate* isolate, Handle<Object> receiver) {
-  Handle<Object> current = Object::GetPrototype(isolate, receiver);
-  while (current->IsJSObject() &&
-         JSObject::cast(*current)->map()->is_hidden_prototype()) {
-    current = Object::GetPrototype(isolate, current);
+  PrototypeIterator iter(isolate, receiver);
+  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return PrototypeIterator::GetCurrent(iter);
+    }
+    iter.Advance();
   }
-  return current;
+  return PrototypeIterator::GetCurrent(iter);
 }
 
 
@@ -1877,11 +1884,11 @@ RUNTIME_FUNCTION(Runtime_IsInPrototypeChain) {
   // See ECMA-262, section 15.3.5.3, page 88 (steps 5 - 8).
   CONVERT_ARG_HANDLE_CHECKED(Object, O, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, V, 1);
+  PrototypeIterator iter(isolate, V, PrototypeIterator::START_AT_RECEIVER);
   while (true) {
-    Handle<Object> prototype = Object::GetPrototype(isolate, V);
-    if (prototype->IsNull()) return isolate->heap()->false_value();
-    if (*O == *prototype) return isolate->heap()->true_value();
-    V = prototype;
+    iter.AdvanceIgnoringProxies();
+    if (iter.IsAtEnd()) return isolate->heap()->false_value();
+    if (iter.IsAtEnd(O)) return isolate->heap()->true_value();
   }
 }
 
@@ -4803,8 +4810,9 @@ MaybeHandle<Object> Runtime::GetElementOrCharAt(Isolate* isolate,
 
   Handle<Object> result;
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    Handle<Object> proto(object->GetPrototype(isolate), isolate);
-    return Object::GetElement(isolate, proto, index);
+    PrototypeIterator iter(isolate, object);
+    return Object::GetElement(isolate, PrototypeIterator::GetCurrent(iter),
+                              index);
   } else {
     return Object::GetElement(isolate, object, index);
   }
@@ -10688,15 +10696,18 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
   if (array->elements()->IsDictionary()) {
     Handle<FixedArray> keys = isolate->factory()->empty_fixed_array();
-    for (Handle<Object> p = array;
-         !p->IsNull();
-         p = Handle<Object>(p->GetPrototype(isolate), isolate)) {
-      if (p->IsJSProxy() || JSObject::cast(*p)->HasIndexedInterceptor()) {
+    for (PrototypeIterator iter(isolate, array,
+                                PrototypeIterator::START_AT_RECEIVER);
+         !iter.IsAtEnd(); iter.Advance()) {
+      if (PrototypeIterator::GetCurrent(iter)->IsJSProxy() ||
+          JSObject::cast(*PrototypeIterator::GetCurrent(iter))
+              ->HasIndexedInterceptor()) {
         // Bail out if we find a proxy or interceptor, likely not worth
         // collecting keys in that case.
         return *isolate->factory()->NewNumberFromUint(length);
       }
-      Handle<JSObject> current = Handle<JSObject>::cast(p);
+      Handle<JSObject> current =
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       Handle<FixedArray> current_keys =
           isolate->factory()->NewFixedArray(current->NumberOfOwnElements(NONE));
       current->GetOwnElementKeys(*current_keys, NONE);
@@ -12859,7 +12870,9 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
   if (result->IsJSGlobalProxy()) {
-    result = Handle<JSObject>(JSObject::cast(result->GetPrototype(isolate)));
+    PrototypeIterator iter(isolate, result);
+    // TODO(verwaest): This will crash when the global proxy is detached.
+    result = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
   // Clear the oneshot breakpoints so that the debugger does not step further.
@@ -13035,17 +13048,12 @@ static int DebugReferencedBy(HeapIterator* iterator,
         // Check instance filter if supplied. This is normally used to avoid
         // references from mirror objects (see Runtime_IsInPrototypeChain).
         if (!instance_filter->IsUndefined()) {
-          Object* V = obj;
-          while (true) {
-            Object* prototype = V->GetPrototype(isolate);
-            if (prototype->IsNull()) {
-              break;
-            }
-            if (instance_filter == prototype) {
+          for (PrototypeIterator iter(isolate, obj); !iter.IsAtEnd();
+               iter.Advance()) {
+            if (iter.GetCurrent() == instance_filter) {
               obj = NULL;  // Don't add this object.
               break;
             }
-            V = prototype;
           }
         }
 

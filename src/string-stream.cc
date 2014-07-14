@@ -5,6 +5,7 @@
 #include "src/string-stream.h"
 
 #include "src/handles-inl.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -499,11 +500,11 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  for (Object* p = receiver;
-       p != isolate->heap()->null_value();
-       p = p->GetPrototype(isolate)) {
-    if (p->IsJSObject()) {
-      Object* key = JSObject::cast(p)->SlowReverseLookup(fun);
+  for (PrototypeIterator iter(isolate, receiver,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSObject()) {
+      Object* key = JSObject::cast(iter.GetCurrent())->SlowReverseLookup(fun);
       if (key != isolate->heap()->undefined_value()) {
         if (!name->IsString() ||
             !key->IsString() ||
