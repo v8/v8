@@ -469,9 +469,10 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
   }
   for (int i = 0; i < current_profiles_.length(); ++i) {
     if (strcmp(current_profiles_[i]->title(), title) == 0) {
-      // Ignore attempts to start profile with the same title.
+      // Ignore attempts to start profile with the same title...
       current_profiles_semaphore_.Signal();
-      return false;
+      // ... though return true to force it collect a sample.
+      return true;
     }
   }
   current_profiles_.Add(new CpuProfile(title, record_samples));

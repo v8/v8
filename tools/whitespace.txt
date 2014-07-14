@@ -4,4 +4,5 @@ Try to write something funny. And please don't add trailing whitespace.
 
 A Smi walks into a bar and says:
 "I'm so deoptimized today!"
-The doubles heard this...
+The doubles heard this and started to unbox.
+The Smi looked at them and......

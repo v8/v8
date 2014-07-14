@@ -35,8 +35,7 @@ ScriptData::ScriptData(const byte* data, int length)
     : owns_data_(false), data_(data), length_(length) {
   if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
     byte* copy = NewArray<byte>(length);
-    // TODO(yangguo): find out why this is not always the case.
-    // ASSERT(IsAligned(reinterpret_cast<intptr_t>(data_), kPointerAlignment));
+    ASSERT(IsAligned(reinterpret_cast<intptr_t>(copy), kPointerAlignment));
     CopyBytes(copy, data, length);
     data_ = copy;
     AcquireDataOwnership();

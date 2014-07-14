@@ -7009,9 +7009,12 @@ RUNTIME_FUNCTION(Runtime_NumberImul) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
-  CONVERT_NUMBER_CHECKED(int32_t, x, Int32, args[0]);
-  CONVERT_NUMBER_CHECKED(int32_t, y, Int32, args[1]);
-  return *isolate->factory()->NewNumberFromInt(x * y);
+  // We rely on implementation-defined behavior below, but at least not on
+  // undefined behavior.
+  CONVERT_NUMBER_CHECKED(uint32_t, x, Int32, args[0]);
+  CONVERT_NUMBER_CHECKED(uint32_t, y, Int32, args[1]);
+  int32_t product = static_cast<int32_t>(x * y);
+  return *isolate->factory()->NewNumberFromInt(product);
 }
 
 

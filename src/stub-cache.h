@@ -486,7 +486,6 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
           ? Logger::KEYED_STORE_IC_TAG : Logger::KEYED_STORE_POLYMORPHIC_IC_TAG;
     }
   }
-  void JitEvent(Handle<Name> name, Handle<Code> code);
 
   Register receiver() { return registers_[0]; }
   Register name()     { return registers_[1]; }

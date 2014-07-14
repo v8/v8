@@ -23,59 +23,25 @@ namespace internal {
 
 class CompilationInfo;
 
-#define CODE_TAGS_LIST(V)                       \
-  V(LOAD_IC)                                    \
-  V(KEYED_LOAD_IC)                              \
-  V(STORE_IC)                                   \
-  V(KEYED_STORE_IC)                             \
-  V(STUB)                                       \
-  V(BUILTIN)                                    \
-  V(SCRIPT)                                     \
-  V(EVAL)                                       \
-  V(FUNCTION)
-
 class GDBJITInterface: public AllStatic {
  public:
-  enum CodeTag {
-#define V(x) x,
-    CODE_TAGS_LIST(V)
-#undef V
-    TAG_COUNT
-  };
-
-  static const char* Tag2String(CodeTag tag) {
-    switch (tag) {
-#define V(x) case x: return #x;
-      CODE_TAGS_LIST(V)
-#undef V
-      default:
-        return NULL;
-    }
-  }
+  enum CodeTag { NON_FUNCTION, FUNCTION };
 
   // Main entry point into GDB JIT realized as a JitCodeEventHandler.
   static void EventHandler(const v8::JitCodeEvent* event);
-
-  static void AddCode(const char* name,
-                      Code* code,
-                      CodeTag tag,
-                      Script* script,
-                      CompilationInfo* info);
 
   static void AddCode(Handle<Name> name,
                       Handle<Script> script,
                       Handle<Code> code,
                       CompilationInfo* info);
 
-  static void AddCode(CodeTag tag, Name* name, Code* code);
+  static void RemoveCodeRange(Address start, Address end);
 
-  static void AddCode(CodeTag tag, const char* name, Code* code);
-
-  static void AddCode(CodeTag tag, Code* code);
+ private:
+  static void AddCode(const char* name, Code* code, CodeTag tag, Script* script,
+                      CompilationInfo* info);
 
   static void RemoveCode(Code* code);
-
-  static void RemoveCodeRange(Address start, Address end);
 };
 
 #define GDBJIT(action) GDBJITInterface::action

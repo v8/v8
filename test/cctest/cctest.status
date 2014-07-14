@@ -70,11 +70,6 @@
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
 
-  # The cpu profiler tests are notoriously flaky.
-  # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
-  # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
-  'test-cpu-profiler/*': [PASS, FLAKY],
-
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
@@ -104,6 +99,9 @@
 
   # BUG(v8:3247).
   'test-mark-compact/NoPromotion': [SKIP],
+
+  # BUG(v8:3434)
+  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP]
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
@@ -160,6 +158,9 @@
 
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
+
+  # BUG(v8:3433). Crashes on windows.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
 
 }],  # 'system == windows'
 

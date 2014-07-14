@@ -116,7 +116,6 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
   OStringStream os;
   os << *this;
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, os.c_str()));
-  GDBJIT(AddCode(GDBJITInterface::STUB, os.c_str(), *code));
   Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }

@@ -1,3 +1,8 @@
+2014-07-14: Version 3.28.22
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-11: Version 3.28.21
 
         Make `let` usable as an identifier in ES6 sloppy mode (issue 2198).

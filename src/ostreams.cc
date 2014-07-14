@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <cmath>
 
+#include "src/base/platform/platform.h"  // For isinf/isnan with MSVC
 #include "src/ostreams.h"
 
 #if V8_OS_WIN
@@ -63,6 +65,8 @@ OStream& OStream::operator<<(unsigned long long x) {  // NOLINT(runtime/int)
 
 
 OStream& OStream::operator<<(double x) {
+  if (std::isinf(x)) return *this << (x < 0 ? "-inf" : "inf");
+  if (std::isnan(x)) return *this << "nan";
   return print("%g", x);
 }
 

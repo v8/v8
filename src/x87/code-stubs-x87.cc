@@ -92,15 +92,6 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { edx, ecx, eax };
-  descriptor->Initialize(
-      ARRAY_SIZE(registers), registers,
-      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
-}
-
-
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { eax, ebx };
@@ -231,14 +222,6 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
                          FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
-}
-
-
-void StoreGlobalStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { edx, ecx, eax };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(StoreIC_MissFromStubFailure));
 }
 
 

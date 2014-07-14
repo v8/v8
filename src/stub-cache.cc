@@ -607,7 +607,6 @@ Handle<Code> StubCompiler::CompileLoadInitialize(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
   return code;
 }
 
@@ -617,7 +616,6 @@ Handle<Code> StubCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadPreMonomorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_PREMONOMORPHIC_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
   return code;
 }
 
@@ -627,7 +625,6 @@ Handle<Code> StubCompiler::CompileLoadMegamorphic(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *code));
   return code;
 }
 
@@ -637,7 +634,6 @@ Handle<Code> StubCompiler::CompileStoreInitialize(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
   return code;
 }
 
@@ -647,7 +643,6 @@ Handle<Code> StubCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStorePreMonomorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
   return code;
 }
 
@@ -659,7 +654,6 @@ Handle<Code> StubCompiler::CompileStoreGeneric(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
   return code;
 }
 
@@ -669,7 +663,6 @@ Handle<Code> StubCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
   PROFILE(isolate(),
           CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
-  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *code));
   return code;
 }
 
@@ -1166,23 +1159,6 @@ void StubCompiler::TailCallBuiltin(MacroAssembler* masm, Builtins::Name name) {
 }
 
 
-void BaseLoadStoreStubCompiler::JitEvent(Handle<Name> name, Handle<Code> code) {
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  GDBJITInterface::CodeTag tag;
-  if (kind_ == Code::LOAD_IC) {
-    tag = GDBJITInterface::LOAD_IC;
-  } else if (kind_ == Code::KEYED_LOAD_IC) {
-    tag = GDBJITInterface::KEYED_LOAD_IC;
-  } else if (kind_ == Code::STORE_IC) {
-    tag = GDBJITInterface::STORE_IC;
-  } else {
-    tag = GDBJITInterface::KEYED_STORE_IC;
-  }
-  GDBJIT(AddCode(tag, *name, *code));
-#endif
-}
-
-
 void BaseLoadStoreStubCompiler::InitializeRegisters() {
   if (kind_ == Code::LOAD_IC) {
     registers_ = LoadStubCompiler::registers();
@@ -1204,7 +1180,6 @@ Handle<Code> BaseLoadStoreStubCompiler::GetICCode(Code::Kind kind,
   Handle<Code> code = GetCodeWithFlags(flags, name);
   IC::RegisterWeakMapDependency(code);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
-  JitEvent(name, code);
   return code;
 }
 
@@ -1216,7 +1191,6 @@ Handle<Code> BaseLoadStoreStubCompiler::GetCode(Code::Kind kind,
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder_);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
-  JitEvent(name, code);
   return code;
 }
 

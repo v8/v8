@@ -140,13 +140,6 @@ T Abs(T a) {
 }
 
 
-// Returns the negative absolute value of its argument.
-template <typename T>
-T NegAbs(T a) {
-  return a < 0 ? a : -a;
-}
-
-
 // TODO(svenpanne) Clean up the whole power-of-2 mess.
 inline int32_t WhichPowerOf2Abs(int32_t x) {
   return (x == kMinInt) ? 31 : WhichPowerOf2(Abs(x));
