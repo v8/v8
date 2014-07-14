@@ -3312,8 +3312,9 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
          page->WasSwept() ||
-         (page->parallel_sweeping() <=
-             MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
+         (mark_compact_collector()->AreSweeperThreadsActivated() &&
+              page->parallel_sweeping() <=
+                  MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
 }
 
 
@@ -4338,8 +4339,8 @@ bool Heap::IdleNotification(int hint) {
   // If the IdleNotifcation is called with a large hint we will wait for
   // the sweepter threads here.
   if (hint >= kMinHintForFullGC &&
-      mark_compact_collector()->sweeping_in_progress()) {
-    mark_compact_collector()->EnsureSweepingCompleted();
+      mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+    mark_compact_collector()->WaitUntilSweepingCompleted();
   }
 
   return false;

@@ -1559,8 +1559,8 @@ void Isolate::Deinit() {
     sweeper_thread_ = NULL;
 
     if (FLAG_job_based_sweeping &&
-        heap_.mark_compact_collector()->sweeping_in_progress()) {
-      heap_.mark_compact_collector()->EnsureSweepingCompleted();
+        heap_.mark_compact_collector()->IsConcurrentSweepingInProgress()) {
+      heap_.mark_compact_collector()->WaitUntilSweepingCompleted();
     }
 
     if (FLAG_hydrogen_stats) GetHStatistics()->Print();
