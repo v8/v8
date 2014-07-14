@@ -2185,8 +2185,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
 
   } else if (!var->is_const_mode() || op == Token::INIT_CONST) {
     if (var->IsLookupSlot()) {
-      ASSERT(op == Token::ASSIGN || op == Token::INIT_VAR ||
-             op == Token::ASSIGN_ADD);
       // Assignment to var.
       __ Mov(x11, Operand(var->name()));
       __ Mov(x10, Smi::FromInt(strict_mode()));
