@@ -804,7 +804,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          slow);
   AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
                                                     FAST_DOUBLE_ELEMENTS);
-  ElementsTransitionGenerator::GenerateSmiToDouble(masm, mode, slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(
+      masm, receiver, key, value, ebx, mode, slow);
   __ mov(ebx, FieldOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
@@ -816,8 +817,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          edi,
                                          slow);
   mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
-  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm, mode,
-                                                                   slow);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+      masm, receiver, key, value, ebx, mode, slow);
   __ mov(ebx, FieldOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
@@ -832,7 +833,8 @@ static void KeyedStoreGenerateGenericHelper(
                                          edi,
                                          slow);
   mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
-  ElementsTransitionGenerator::GenerateDoubleToObject(masm, mode, slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(
+      masm, receiver, key, value, ebx, mode, slow);
   __ mov(ebx, FieldOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 }
