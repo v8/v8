@@ -811,6 +811,7 @@ Deserializer::~Deserializer() {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
   }
+  if (attached_objects_) attached_objects_->Dispose();
 }
 
 
@@ -2003,8 +2004,8 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
   DisallowHeapAllocation no_gc;
 
   // Prepare and register list of attached objects.
-  List<Object*> attached_objects(1);
-  attached_objects.Set(kSourceObjectIndex, *source);
+  Vector<Object*> attached_objects = Vector<Object*>::New(1);
+  attached_objects[kSourceObjectIndex] = *source;
   deserializer.SetAttachedObjects(&attached_objects);
 
   Object* root;

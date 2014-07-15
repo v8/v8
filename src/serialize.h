@@ -254,7 +254,7 @@ class Deserializer: public SerializerDeserializer {
 
   // Serialized user code reference certain objects that are provided in a list
   // By calling this method, we assume that we are deserializing user code.
-  void SetAttachedObjects(List<Object*>* attached_objects) {
+  void SetAttachedObjects(Vector<Object*>* attached_objects) {
     attached_objects_ = attached_objects;
   }
 
@@ -303,7 +303,7 @@ class Deserializer: public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  List<Object*>* attached_objects_;
+  Vector<Object*>* attached_objects_;
 
   SnapshotByteSource* source_;
   // This is the address of the next object that will be allocated in each
