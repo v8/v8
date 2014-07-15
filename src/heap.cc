@@ -2193,10 +2193,6 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  static inline bool IsShortcutCandidate(int type) {
-    return ((type & kShortcutTypeMask) == kShortcutTypeTag);
-  }
-
   static inline void EvacuateShortcutCandidate(Map* map,
                                                HeapObject** slot,
                                                HeapObject* object) {

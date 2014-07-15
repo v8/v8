@@ -1355,7 +1355,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   if (!FLAG_clever_optimizations) return object;
   Map* map = object->map();
   InstanceType type = map->instance_type();
-  if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
+  if (!IsShortcutCandidate(type)) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->second();
   Heap* heap = map->GetHeap();

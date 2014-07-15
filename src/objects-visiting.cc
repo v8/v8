@@ -11,11 +11,6 @@ namespace v8 {
 namespace internal {
 
 
-static inline bool IsShortcutCandidate(int type) {
-  return ((type & kShortcutTypeMask) == kShortcutTypeTag);
-}
-
-
 StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     int instance_type,
     int instance_size) {
