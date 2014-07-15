@@ -36,47 +36,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 }
 
 
-// Generated code falls through if the receiver is a regular non-global
-// JS object with slow properties and no interceptors.
-static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
-                                                Register receiver,
-                                                Register elements,
-                                                Register scratch0,
-                                                Register scratch1,
-                                                Label* miss) {
-  // Register usage:
-  //   receiver: holds the receiver on entry and is unchanged.
-  //   elements: holds the property dictionary on fall through.
-  // Scratch registers:
-  //   scratch0: used to holds the receiver map.
-  //   scratch1: used to holds the receiver instance type, receiver bit mask
-  //     and elements map.
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the receiver is a valid JS object.
-  __ GetObjectType(receiver, scratch0, scratch1);
-  __ Branch(miss, lt, scratch1, Operand(FIRST_SPEC_OBJECT_TYPE));
-
-  // If this assert fails, we have to check upper bound too.
-  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
-
-  GenerateGlobalInstanceTypeCheck(masm, scratch1, miss);
-
-  // Check that the global object does not require access checks.
-  __ lbu(scratch1, FieldMemOperand(scratch0, Map::kBitFieldOffset));
-  __ And(scratch1, scratch1, Operand((1 << Map::kIsAccessCheckNeeded) |
-                           (1 << Map::kHasNamedInterceptor)));
-  __ Branch(miss, ne, scratch1, Operand(zero_reg));
-
-  __ ld(elements, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-  __ ld(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ LoadRoot(scratch0, Heap::kHashTableMapRootIndex);
-  __ Branch(miss, ne, scratch1, Operand(scratch0));
-}
-
-
 // Helper function used from LoadIC GenerateNormal.
 //
 // elements: Property dictionary. It is not clobbered if a jump to the miss
@@ -334,29 +293,19 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- lr    : return address
-  //  -- a1    : receiver
-  // -----------------------------------
-  ASSERT(a1.is(ReceiverRegister()));
-  ASSERT(a2.is(NameRegister()));
+  Register dictionary = a0;
+  ASSERT(!dictionary.is(ReceiverRegister()));
+  ASSERT(!dictionary.is(NameRegister()));
+  Label slow;
 
-  Label miss, slow;
-
-  GenerateNameDictionaryReceiverCheck(masm, a1, a0, a3, a4, &miss);
-
-  // a0: elements
-  GenerateDictionaryLoad(masm, &slow, a0, a2, v0, a3, a4);
+  __ ld(dictionary,
+        FieldMemOperand(ReceiverRegister(), JSObject::kPropertiesOffset));
+  GenerateDictionaryLoad(masm, &slow, dictionary, NameRegister(), v0, a3, a4);
   __ Ret();
 
   // Dictionary load failed, go slow (but don't miss).
   __ bind(&slow);
   GenerateRuntimeGetProperty(masm);
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  GenerateMiss(masm);
 }
 
 
@@ -1188,11 +1137,10 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
   Register value = ValueRegister();
-  ASSERT(receiver.is(a1));
-  ASSERT(name.is(a2));
-  ASSERT(value.is(a0));
+  Register dictionary = a3;
+  ASSERT(!AreAliased(value, receiver, name, dictionary, a4, a5));
 
-  GenerateNameDictionaryReceiverCheck(masm, receiver, a3, a4, a5, &miss);
+  __ ld(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
   GenerateDictionaryStore(masm, &miss, a3, name, value, a4, a5);
   Counters* counters = masm->isolate()->counters();
