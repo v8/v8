@@ -576,7 +576,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kRegisterArgumentCount == 2);
+  STATIC_ASSERT(LoadIC::kParameterCount == 2);
   descriptor->Initialize(ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -586,7 +586,7 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kRegisterArgumentCount == 2);
+  STATIC_ASSERT(LoadIC::kParameterCount == 2);
   descriptor->Initialize(ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -596,7 +596,7 @@ void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kRegisterArgumentCount == 2);
+  STATIC_ASSERT(LoadIC::kParameterCount == 2);
   descriptor->Initialize(
       ARRAY_SIZE(registers), registers,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);

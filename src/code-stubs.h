@@ -2455,12 +2455,13 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
-  enum RegisterInfo {
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  enum ParameterIndices {
     kValueIndex,
     kMapIndex,
     kKeyIndex,
     kObjectIndex,
-    kRegisterArgumentCount
+    kParameterCount
   };
 
   static const Register ValueRegister() {

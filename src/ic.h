@@ -396,10 +396,10 @@ class LoadIC: public IC {
   class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
   STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
 
-  enum RegisterInfo {
+  enum ParameterIndices {
     kReceiverIndex,
     kNameIndex,
-    kRegisterArgumentCount
+    kParameterCount
   };
   static const Register ReceiverRegister();
   static const Register NameRegister();
@@ -583,11 +583,11 @@ class StoreIC: public IC {
   static const ExtraICState kStrictModeState =
       1 << StrictModeState::kShift;
 
-  enum RegisterInfo {
+  enum ParameterIndices {
     kReceiverIndex,
     kNameIndex,
     kValueIndex,
-    kRegisterArgumentCount
+    kParameterCount
   };
   static const Register ReceiverRegister();
   static const Register NameRegister();
