@@ -351,8 +351,12 @@ class ParserTraits {
 
     // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
+    typedef v8::internal::Scope* ScopePtr;
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
+
+    typedef v8::internal::AstProperties AstProperties;
+    typedef Vector<VariableProxy*> ParameterIdentifierVector;
 
     // Return types for traversing functions.
     typedef const AstRawString* Identifier;
@@ -388,6 +392,7 @@ class ParserTraits {
 
   // Helper functions for recursive descent.
   bool IsEvalOrArguments(const AstRawString* identifier) const;
+  V8_INLINE bool IsFutureStrictReserved(const AstRawString* identifier) const;
 
   // Returns true if the expression is of type "this.foo".
   static bool IsThisProperty(Expression* expression);
@@ -501,13 +506,18 @@ class ParserTraits {
   static Expression* EmptyExpression() {
     return NULL;
   }
+  static Expression* EmptyArrowParamList() { return NULL; }
   static Literal* EmptyLiteral() {
     return NULL;
   }
+
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
     return NULL;
   }
+
+  // Non-NULL empty string.
+  V8_INLINE const AstRawString* EmptyIdentifierString();
 
   // Odd-ball literal creators.
   Literal* GetLiteralTheHole(int position,
@@ -537,6 +547,13 @@ class ParserTraits {
   ZoneList<v8::internal::Statement*>* NewStatementList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Statement*>(size, zone);
   }
+  V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type);
+
+  // Utility functions
+  int DeclareArrowParametersFromExpression(Expression* expression, Scope* scope,
+                                           Scanner::Location* dupe_loc,
+                                           bool* ok);
+  V8_INLINE AstValueFactory* ast_value_factory();
 
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
@@ -549,6 +566,14 @@ class ParserTraits {
       FunctionLiteral::FunctionType type,
       FunctionLiteral::ArityRestriction arity_restriction,
       bool* ok);
+  V8_INLINE void SkipLazyFunctionBody(const AstRawString* name,
+                                      int* materialized_literal_count,
+                                      int* expected_property_count, bool* ok);
+  V8_INLINE ZoneList<Statement*>* ParseEagerFunctionBody(
+      const AstRawString* name, int pos, Variable* fvar,
+      Token::Value fvar_init_op, bool is_generator, bool* ok);
+  V8_INLINE void CheckConflictingVarDeclarations(v8::internal::Scope* scope,
+                                                 bool* ok);
 
  private:
   Parser* parser_;
@@ -780,6 +805,50 @@ class Parser : public ParserBase<ParserTraits> {
 
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
 };
+
+
+bool ParserTraits::IsFutureStrictReserved(
+    const AstRawString* identifier) const {
+  return identifier->IsOneByteEqualTo("yield") ||
+         parser_->scanner()->IdentifierIsFutureStrictReserved(identifier);
+}
+
+
+Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type) {
+  return parser_->NewScope(parent_scope, scope_type);
+}
+
+
+const AstRawString* ParserTraits::EmptyIdentifierString() {
+  return parser_->ast_value_factory_->empty_string();
+}
+
+
+void ParserTraits::SkipLazyFunctionBody(const AstRawString* function_name,
+                                        int* materialized_literal_count,
+                                        int* expected_property_count,
+                                        bool* ok) {
+  return parser_->SkipLazyFunctionBody(
+      function_name, materialized_literal_count, expected_property_count, ok);
+}
+
+
+ZoneList<Statement*>* ParserTraits::ParseEagerFunctionBody(
+    const AstRawString* name, int pos, Variable* fvar,
+    Token::Value fvar_init_op, bool is_generator, bool* ok) {
+  return parser_->ParseEagerFunctionBody(name, pos, fvar, fvar_init_op,
+                                         is_generator, ok);
+}
+
+void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
+                                                   bool* ok) {
+  parser_->CheckConflictingVarDeclarations(scope, ok);
+}
+
+
+AstValueFactory* ParserTraits::ast_value_factory() {
+  return parser_->ast_value_factory_;
+}
 
 
 // Support for handling complex values (array and object literals) that

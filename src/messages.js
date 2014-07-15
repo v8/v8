@@ -154,6 +154,7 @@ var kMessages = {
   strict_cannot_assign:          ["Cannot assign to read only '", "%0", "' in strict mode"],
   strict_poison_pill:            ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
   strict_caller:                 ["Illegal access to a strict mode caller function."],
+  malformed_arrow_function_parameter_list: ["Malformed arrow function parameter list"],
   generator_poison_pill:         ["'caller' and 'arguments' properties may not be accessed on generator functions."],
   unprotected_let:               ["Illegal let declaration in unprotected statement context."],
   unprotected_const:             ["Illegal const declaration in unprotected statement context."],
@@ -210,6 +211,7 @@ function NoSideEffectToString(obj) {
     }
     return str;
   }
+  if (IS_SYMBOL(obj)) return %_CallFunction(obj, SymbolToString);
   if (IS_OBJECT(obj) && %GetDataProperty(obj, "toString") === ObjectToString) {
     var constructor = %GetDataProperty(obj, "constructor");
     if (typeof constructor == "function") {
@@ -284,8 +286,8 @@ function MakeGenericError(constructor, type, args) {
  * Set up the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%AddProperty(Script.prototype, 'constructor', Script,
-             DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddNamedProperty(Script.prototype, 'constructor', Script,
+                  DONT_ENUM | DONT_DELETE | READ_ONLY);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
   throw new $Error("Not supported");
@@ -1158,9 +1160,9 @@ function SetUpError() {
     // effects when overwriting the error functions from
     // user code.
     var name = f.name;
-    %AddProperty(global, name, f, DONT_ENUM);
-    %AddProperty(builtins, '$' + name, f,
-                 DONT_ENUM | DONT_DELETE | READ_ONLY);
+    %AddNamedProperty(global, name, f, DONT_ENUM);
+    %AddNamedProperty(builtins, '$' + name, f,
+                      DONT_ENUM | DONT_DELETE | READ_ONLY);
     // Configure the error function.
     if (name == 'Error') {
       // The prototype of the Error object must itself be an error.
@@ -1175,16 +1177,16 @@ function SetUpError() {
       %FunctionSetPrototype(f, new $Error());
     }
     %FunctionSetInstanceClassName(f, 'Error');
-    %AddProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    %AddProperty(f.prototype, "name", name, DONT_ENUM);
+    %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
+    %AddNamedProperty(f.prototype, "name", name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
         // Define all the expected properties directly on the error
         // object. This avoids going through getters and setters defined
         // on prototype objects.
-        %AddProperty(this, 'stack', UNDEFINED, DONT_ENUM);
+        %AddNamedProperty(this, 'stack', UNDEFINED, DONT_ENUM);
         if (!IS_UNDEFINED(m)) {
-          %AddProperty(this, 'message', ToString(m), DONT_ENUM);
+          %AddNamedProperty(this, 'message', ToString(m), DONT_ENUM);
         }
         try { captureStackTrace(this, f); } catch (e) { }
       } else {
@@ -1207,7 +1209,7 @@ SetUpError();
 
 $Error.captureStackTrace = captureStackTrace;
 
-%AddProperty($Error.prototype, 'message', '', DONT_ENUM);
+%AddNamedProperty($Error.prototype, 'message', '', DONT_ENUM);
 
 // Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.

@@ -889,83 +889,88 @@ void Deserializer::ReadChunk(Object** current,
     STATIC_ASSERT((space_number & ~kSpaceMask) == 0);
 
 #define CASE_BODY(where, how, within, space_number_if_any)                     \
-      {                                                                        \
-        bool emit_write_barrier = false;                                       \
-        bool current_was_incremented = false;                                  \
-        int space_number =  space_number_if_any == kAnyOldSpace ?              \
-                            (data & kSpaceMask) : space_number_if_any;         \
-        if (where == kNewObject && how == kPlain && within == kStartOfObject) {\
-          ReadObject(space_number, current);                                   \
-          emit_write_barrier = (space_number == NEW_SPACE);                    \
-        } else {                                                               \
-          Object* new_object = NULL;  /* May not be a real Object pointer. */  \
-          if (where == kNewObject) {                                           \
-            ReadObject(space_number, &new_object);                             \
-          } else if (where == kRootArray) {                                    \
-            int root_id = source_->GetInt();                                   \
-            new_object = isolate->heap()->roots_array_start()[root_id];        \
-            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
-          } else if (where == kPartialSnapshotCache) {                         \
-            int cache_index = source_->GetInt();                               \
-            new_object = isolate->serialize_partial_snapshot_cache()           \
-                [cache_index];                                                 \
-            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
-          } else if (where == kExternalReference) {                            \
-            int skip = source_->GetInt();                                      \
-            current = reinterpret_cast<Object**>(reinterpret_cast<Address>(    \
-                current) + skip);                                              \
-            int reference_id = source_->GetInt();                              \
-            Address address = external_reference_decoder_->                    \
-                Decode(reference_id);                                          \
-            new_object = reinterpret_cast<Object*>(address);                   \
-          } else if (where == kBackref) {                                      \
-            emit_write_barrier = (space_number == NEW_SPACE);                  \
-            new_object = GetAddressFromEnd(data & kSpaceMask);                 \
-          } else {                                                             \
-            ASSERT(where == kBackrefWithSkip);                                 \
-            int skip = source_->GetInt();                                      \
-            current = reinterpret_cast<Object**>(                              \
-                reinterpret_cast<Address>(current) + skip);                    \
-            emit_write_barrier = (space_number == NEW_SPACE);                  \
-            new_object = GetAddressFromEnd(data & kSpaceMask);                 \
-          }                                                                    \
-          if (within == kInnerPointer) {                                       \
-            if (space_number != CODE_SPACE || new_object->IsCode()) {          \
-              Code* new_code_object = reinterpret_cast<Code*>(new_object);     \
-              new_object = reinterpret_cast<Object*>(                          \
-                  new_code_object->instruction_start());                       \
-            } else {                                                           \
-              ASSERT(space_number == CODE_SPACE);                              \
-              Cell* cell = Cell::cast(new_object);                             \
-              new_object = reinterpret_cast<Object*>(                          \
-                  cell->ValueAddress());                                       \
-            }                                                                  \
-          }                                                                    \
-          if (how == kFromCode) {                                              \
-            Address location_of_branch_data =                                  \
-                reinterpret_cast<Address>(current);                            \
-            Assembler::deserialization_set_special_target_at(                  \
-                location_of_branch_data,                                       \
-                Code::cast(HeapObject::FromAddress(current_object_address)),   \
-                reinterpret_cast<Address>(new_object));                        \
-            location_of_branch_data += Assembler::kSpecialTargetSize;          \
-            current = reinterpret_cast<Object**>(location_of_branch_data);     \
-            current_was_incremented = true;                                    \
-          } else {                                                             \
-            *current = new_object;                                             \
-          }                                                                    \
-        }                                                                      \
-        if (emit_write_barrier && write_barrier_needed) {                      \
-          Address current_address = reinterpret_cast<Address>(current);        \
-          isolate->heap()->RecordWrite(                                        \
-              current_object_address,                                          \
-              static_cast<int>(current_address - current_object_address));     \
-        }                                                                      \
-        if (!current_was_incremented) {                                        \
-          current++;                                                           \
-        }                                                                      \
-        break;                                                                 \
+  {                                                                            \
+    bool emit_write_barrier = false;                                           \
+    bool current_was_incremented = false;                                      \
+    int space_number = space_number_if_any == kAnyOldSpace                     \
+                           ? (data & kSpaceMask)                               \
+                           : space_number_if_any;                              \
+    if (where == kNewObject && how == kPlain && within == kStartOfObject) {    \
+      ReadObject(space_number, current);                                       \
+      emit_write_barrier = (space_number == NEW_SPACE);                        \
+    } else {                                                                   \
+      Object* new_object = NULL; /* May not be a real Object pointer. */       \
+      if (where == kNewObject) {                                               \
+        ReadObject(space_number, &new_object);                                 \
+      } else if (where == kRootArray) {                                        \
+        int root_id = source_->GetInt();                                       \
+        new_object = isolate->heap()->roots_array_start()[root_id];            \
+        emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
+      } else if (where == kPartialSnapshotCache) {                             \
+        int cache_index = source_->GetInt();                                   \
+        new_object = isolate->serialize_partial_snapshot_cache()[cache_index]; \
+        emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
+      } else if (where == kExternalReference) {                                \
+        int skip = source_->GetInt();                                          \
+        current = reinterpret_cast<Object**>(                                  \
+            reinterpret_cast<Address>(current) + skip);                        \
+        int reference_id = source_->GetInt();                                  \
+        Address address = external_reference_decoder_->Decode(reference_id);   \
+        new_object = reinterpret_cast<Object*>(address);                       \
+      } else if (where == kBackref) {                                          \
+        emit_write_barrier = (space_number == NEW_SPACE);                      \
+        new_object = GetAddressFromEnd(data & kSpaceMask);                     \
+      } else if (where == kBuiltin) {                                          \
+        int builtin_id = source_->GetInt();                                    \
+        ASSERT_LE(0, builtin_id);                                              \
+        ASSERT_LT(builtin_id, Builtins::builtin_count);                        \
+        Builtins::Name name = static_cast<Builtins::Name>(builtin_id);         \
+        new_object = isolate->builtins()->builtin(name);                       \
+        emit_write_barrier = false;                                            \
+        PrintF("BUILTIN how within %d, %d\n", how, within);                    \
+      } else {                                                                 \
+        ASSERT(where == kBackrefWithSkip);                                     \
+        int skip = source_->GetInt();                                          \
+        current = reinterpret_cast<Object**>(                                  \
+            reinterpret_cast<Address>(current) + skip);                        \
+        emit_write_barrier = (space_number == NEW_SPACE);                      \
+        new_object = GetAddressFromEnd(data & kSpaceMask);                     \
       }                                                                        \
+      if (within == kInnerPointer) {                                           \
+        if (space_number != CODE_SPACE || new_object->IsCode()) {              \
+          Code* new_code_object = reinterpret_cast<Code*>(new_object);         \
+          new_object =                                                         \
+              reinterpret_cast<Object*>(new_code_object->instruction_start()); \
+        } else {                                                               \
+          ASSERT(space_number == CODE_SPACE);                                  \
+          Cell* cell = Cell::cast(new_object);                                 \
+          new_object = reinterpret_cast<Object*>(cell->ValueAddress());        \
+        }                                                                      \
+      }                                                                        \
+      if (how == kFromCode) {                                                  \
+        Address location_of_branch_data = reinterpret_cast<Address>(current);  \
+        Assembler::deserialization_set_special_target_at(                      \
+            location_of_branch_data,                                           \
+            Code::cast(HeapObject::FromAddress(current_object_address)),       \
+            reinterpret_cast<Address>(new_object));                            \
+        location_of_branch_data += Assembler::kSpecialTargetSize;              \
+        current = reinterpret_cast<Object**>(location_of_branch_data);         \
+        current_was_incremented = true;                                        \
+      } else {                                                                 \
+        *current = new_object;                                                 \
+      }                                                                        \
+    }                                                                          \
+    if (emit_write_barrier && write_barrier_needed) {                          \
+      Address current_address = reinterpret_cast<Address>(current);            \
+      isolate->heap()->RecordWrite(                                            \
+          current_object_address,                                              \
+          static_cast<int>(current_address - current_object_address));         \
+    }                                                                          \
+    if (!current_was_incremented) {                                            \
+      current++;                                                               \
+    }                                                                          \
+    break;                                                                     \
+  }
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with 8 fall-through
@@ -1161,6 +1166,12 @@ void Deserializer::ReadChunk(Object** current,
                 kFromCode,
                 kStartOfObject,
                 0)
+      // Find a builtin and write a pointer to it to the current object.
+      CASE_STATEMENT(kBuiltin, kPlain, kStartOfObject, 0)
+      CASE_BODY(kBuiltin, kPlain, kStartOfObject, 0)
+      // Find a builtin and write a pointer to it in the current code object.
+      CASE_STATEMENT(kBuiltin, kFromCode, kInnerPointer, 0)
+      CASE_BODY(kBuiltin, kFromCode, kInnerPointer, 0)
 
 #undef CASE_STATEMENT
 #undef CASE_BODY
@@ -1717,7 +1728,7 @@ int Serializer::ObjectSerializer::OutputRawData(
   int up_to_offset = static_cast<int>(up_to - object_start);
   int to_skip = up_to_offset - bytes_processed_so_far_;
   int bytes_to_output = to_skip;
-  bytes_processed_so_far_ +=  to_skip;
+  bytes_processed_so_far_ += to_skip;
   // This assert will fail if the reloc info gives us the target_address_address
   // locations in a non-ascending order.  Luckily that doesn't happen.
   ASSERT(to_skip >= 0);
@@ -1846,13 +1857,20 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
     return;
   }
 
-  // TODO(yangguo) wire up builtins.
   // TODO(yangguo) wire up stubs from stub cache.
   // TODO(yangguo) wire up script source.
   // TODO(yangguo) wire up internalized strings
   ASSERT(!heap_object->IsInternalizedString());
   // TODO(yangguo) We cannot deal with different hash seeds yet.
   ASSERT(!heap_object->IsHashTable());
+
+  if (heap_object->IsCode()) {
+    Code* code_object = Code::cast(heap_object);
+    if (code_object->kind() == Code::BUILTIN) {
+      SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
+      return;
+    }
+  }
 
   if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfObject(heap_object);
@@ -1870,6 +1888,27 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
   ObjectSerializer serializer(this, heap_object, sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
+}
+
+
+void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
+                                      WhereToPoint where_to_point, int skip) {
+  if (skip != 0) {
+    sink_->Put(kSkip, "SkipFromSerializeBuiltin");
+    sink_->PutInt(skip, "SkipDistanceFromSerializeBuiltin");
+  }
+
+  ASSERT((how_to_code == kPlain && where_to_point == kStartOfObject) ||
+         (how_to_code == kFromCode && where_to_point == kInnerPointer));
+  int id = 0;
+  do {  // Look for existing builtins in the list.
+    Code* b = isolate()->builtins()->builtin(static_cast<Builtins::Name>(id));
+    if (builtin == b) break;
+  } while (++id < Builtins::builtin_count);
+  ASSERT(id < Builtins::builtin_count);  // We must have found a one.
+
+  sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
+  sink_->PutInt(id, "builtin_index");
 }
 
 

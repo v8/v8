@@ -286,6 +286,7 @@ TEST(StandAlonePreParser) {
       "function foo(x, y) { return x + y; }",
       "%ArgleBargle(glop);",
       "var x = new new Function('this.x = 42');",
+      "var f = (x, y) => x + y;",
       NULL
   };
 
@@ -302,6 +303,7 @@ TEST(StandAlonePreParser) {
     i::PreParser preparser(&scanner, &log, stack_limit);
     preparser.set_allow_lazy(true);
     preparser.set_allow_natives_syntax(true);
+    preparser.set_allow_arrow_functions(true);
     i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
     CHECK(!log.HasError());
@@ -1185,7 +1187,8 @@ enum ParserFlag {
   kAllowModules,
   kAllowGenerators,
   kAllowForOf,
-  kAllowHarmonyNumericLiterals
+  kAllowHarmonyNumericLiterals,
+  kAllowArrowFunctions
 };
 
 
@@ -1206,6 +1209,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_for_of(flags.Contains(kAllowForOf));
   parser->set_allow_harmony_numeric_literals(
       flags.Contains(kAllowHarmonyNumericLiterals));
+  parser->set_allow_arrow_functions(flags.Contains(kAllowArrowFunctions));
 }
 
 
@@ -1412,7 +1416,7 @@ TEST(ParserSync) {
 
   static const ParserFlag flags1[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf
+    kAllowForOf, kAllowArrowFunctions
   };
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
@@ -1489,7 +1493,7 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag default_flags[] = {
     kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf, kAllowNativesSyntax
+    kAllowForOf, kAllowNativesSyntax, kAllowArrowFunctions
   };
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
@@ -1566,6 +1570,10 @@ TEST(ErrorsEvalAndArguments) {
     "function foo(arguments) { }",
     "function foo(bar, eval) { }",
     "function foo(bar, arguments) { }",
+    "(eval) => { }",
+    "(arguments) => { }",
+    "(foo, eval) => { }",
+    "(foo, arguments) => { }",
     "eval = 1;",
     "arguments = 1;",
     "var foo = eval = 1;",
@@ -1622,6 +1630,7 @@ TEST(NoErrorsEvalAndArgumentsStrict) {
   const char* context_data[][2] = {
     { "\"use strict\";", "" },
     { "function test_func() { \"use strict\";", "}" },
+    { "() => { \"use strict\"; ", "}" },
     { NULL, NULL }
   };
 
@@ -1637,7 +1646,9 @@ TEST(NoErrorsEvalAndArgumentsStrict) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
 }
 
 
@@ -1649,6 +1660,7 @@ TEST(ErrorsFutureStrictReservedWords) {
   const char* context_data[][2] = {
     { "\"use strict\";", "" },
     { "function test_func() {\"use strict\"; ", "}"},
+    { "() => { \"use strict\"; ", "}" },
     { NULL, NULL }
   };
 
@@ -1667,7 +1679,9 @@ TEST(ErrorsFutureStrictReservedWords) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kError);
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
+                    ARRAY_SIZE(always_flags));
 }
 
 
@@ -1675,6 +1689,7 @@ TEST(NoErrorsFutureStrictReservedWords) {
   const char* context_data[][2] = {
     { "", "" },
     { "function test_func() {", "}"},
+    { "() => {", "}" },
     { NULL, NULL }
   };
 
@@ -1693,7 +1708,9 @@ TEST(NoErrorsFutureStrictReservedWords) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
 }
 
 
@@ -1706,6 +1723,8 @@ TEST(ErrorsReservedWords) {
     { "\"use strict\";", "" },
     { "var eval; function test_func() {", "}"},
     { "var eval; function test_func() {\"use strict\"; ", "}"},
+    { "var eval; () => {", "}"},
+    { "var eval; () => {\"use strict\"; ", "}"},
     { NULL, NULL }
   };
 
@@ -1716,6 +1735,8 @@ TEST(ErrorsReservedWords) {
     "function super() { }",
     "function foo(super) { }",
     "function foo(bar, super) { }",
+    "(super) => { }",
+    "(bar, super) => { }",
     "super = 1;",
     "var foo = super = 1;",
     "++super;",
@@ -1794,7 +1815,9 @@ TEST(NoErrorsYieldSloppyAllModes) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
 }
 
 
@@ -1849,6 +1872,7 @@ TEST(ErrorsYieldStrict) {
     { "\"use strict\"; function * gen() { function not_gen() {", "} }" },
     { "\"use strict\"; (function not_gen() {", "})" },
     { "\"use strict\"; (function * gen() { (function not_gen() {", "}) })" },
+    { "() => {\"use strict\"; ", "}" },
     { NULL, NULL }
   };
 
@@ -2059,6 +2083,7 @@ TEST(ErrorsIllegalWordsAsLabelsSloppy) {
   const char* context_data[][2] = {
     { "", ""},
     { "function test_func() {", "}" },
+    { "() => {", "}" },
     { NULL, NULL }
   };
 
@@ -2076,6 +2101,7 @@ TEST(ErrorsIllegalWordsAsLabelsStrict) {
   const char* context_data[][2] = {
     { "\"use strict\";", "" },
     { "function test_func() {\"use strict\"; ", "}"},
+    { "() => {\"use strict\"; ", "}" },
     { NULL, NULL }
   };
 
@@ -2095,8 +2121,10 @@ TEST(NoErrorsIllegalWordsAsLabels) {
   const char* context_data[][2] = {
     { "", ""},
     { "function test_func() {", "}" },
+    { "() => {", "}" },
     { "\"use strict\";", "" },
     { "\"use strict\"; function test_func() {", "}" },
+    { "\"use strict\"; () => {", "}" },
     { NULL, NULL }
   };
 
@@ -2107,7 +2135,9 @@ TEST(NoErrorsIllegalWordsAsLabels) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kSuccess);
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
 }
 
 
@@ -2116,6 +2146,7 @@ TEST(ErrorsParenthesizedLabels) {
   const char* context_data[][2] = {
     { "", ""},
     { "function test_func() {", "}" },
+    { "() => {", "}" },
     { NULL, NULL }
   };
 
@@ -2955,4 +2986,161 @@ TEST(UseAsmUseCount) {
              "\"use asm\";\n"  // Only the first one counts.
              "function bar() { \"use asm\"; var baz = 1; }");
   CHECK_EQ(2, use_counts[v8::Isolate::kUseAsm]);
+}
+
+
+TEST(ErrorsArrowFunctions) {
+  // Tests that parser and preparser generate the same kind of errors
+  // on invalid arrow function syntax.
+  const char* context_data[][2] = {
+    {"", ";"},
+    {"v = ", ";"},
+    {"bar ? (", ") : baz;"},
+    {"bar ? baz : (", ");"},
+    {"bar[", "];"},
+    {"bar, ", ";"},
+    {"", ", bar;"},
+    {NULL, NULL}
+  };
+
+  const char* statement_data[] = {
+    "=> 0",
+    "=>",
+    "() =>",
+    "=> {}",
+    ") => {}",
+    ", => {}",
+    "(,) => {}",
+    "return => {}",
+    "() => {'value': 42}",
+
+    // Check that the early return introduced in ParsePrimaryExpression
+    // does not accept stray closing parentheses.
+    ")",
+    ") => 0",
+    "foo[()]",
+    "()",
+
+    // Parameter lists with extra parens should be recognized as errors.
+    "(()) => 0",
+    "((x)) => 0",
+    "((x, y)) => 0",
+    "(x, (y)) => 0",
+    "((x, y, z)) => 0",
+    "(x, (y, z)) => 0",
+    "((x, y), z) => 0",
+
+    // Parameter lists are always validated as strict, so those are errors.
+    "eval => {}",
+    "arguments => {}",
+    "yield => {}",
+    "interface => {}",
+    "(eval) => {}",
+    "(arguments) => {}",
+    "(yield) => {}",
+    "(interface) => {}",
+    "(eval, bar) => {}",
+    "(bar, eval) => {}",
+    "(bar, arguments) => {}",
+    "(bar, yield) => {}",
+    "(bar, interface) => {}",
+    // TODO(aperez): Detecting duplicates does not work in PreParser.
+    // "(bar, bar) => {}",
+
+    // The parameter list is parsed as an expression, but only
+    // a comma-separated list of identifier is valid.
+    "32 => {}",
+    "(32) => {}",
+    "(a, 32) => {}",
+    "if => {}",
+    "(if) => {}",
+    "(a, if) => {}",
+    "a + b => {}",
+    "(a + b) => {}",
+    "(a + b, c) => {}",
+    "(a, b - c) => {}",
+    "\"a\" => {}",
+    "(\"a\") => {}",
+    "(\"a\", b) => {}",
+    "(a, \"b\") => {}",
+    "-a => {}",
+    "(-a) => {}",
+    "(-a, b) => {}",
+    "(a, -b) => {}",
+    "{} => {}",
+    "({}) => {}",
+    "(a, {}) => {}",
+    "({}, a) => {}",
+    "a++ => {}",
+    "(a++) => {}",
+    "(a++, b) => {}",
+    "(a, b++) => {}",
+    "[] => {}",
+    "([]) => {}",
+    "(a, []) => {}",
+    "([], a) => {}",
+    "(a = b) => {}",
+    "(a = b, c) => {}",
+    "(a, b = c) => {}",
+    "(foo ? bar : baz) => {}",
+    "(a, foo ? bar : baz) => {}",
+    "(foo ? bar : baz, a) => {}",
+    NULL
+  };
+
+  RunParserSyncTest(context_data, statement_data, kError);
+}
+
+
+TEST(NoErrorsArrowFunctions) {
+  // Tests that parser and preparser accept valid arrow functions syntax.
+  const char* context_data[][2] = {
+    {"", ";"},
+    {"bar ? (", ") : baz;"},
+    {"bar ? baz : (", ");"},
+    {"bar, ", ";"},
+    {"", ", bar;"},
+    {NULL, NULL}
+  };
+
+  const char* statement_data[] = {
+    "() => {}",
+    "() => { return 42 }",
+    "x => { return x; }",
+    "(x) => { return x; }",
+    "(x, y) => { return x + y; }",
+    "(x, y, z) => { return x + y + z; }",
+    "(x, y) => { x.a = y; }",
+    "() => 42",
+    "x => x",
+    "x => x * x",
+    "(x) => x",
+    "(x) => x * x",
+    "(x, y) => x + y",
+    "(x, y, z) => x, y, z",
+    "(x, y) => x.a = y",
+    "() => ({'value': 42})",
+    "x => y => x + y",
+    "(x, y) => (u, v) => x*u + y*v",
+    "(x, y) => z => z * (x + y)",
+    "x => (y, z) => z * (x + y)",
+
+    // Those are comma-separated expressions, with arrow functions as items.
+    // They stress the code for validating arrow function parameter lists.
+    "a, b => 0",
+    "a, b, (c, d) => 0",
+    "(a, b, (c, d) => 0)",
+    "(a, b) => 0, (c, d) => 1",
+    "(a, b => {}, a => a + 1)",
+    "((a, b) => {}, (a => a + 1))",
+    "(a, (a, (b, c) => 0))",
+
+    // Arrow has more precedence, this is the same as: foo ? bar : (baz = {})
+    "foo ? bar : baz => {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
 }

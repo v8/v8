@@ -177,310 +177,310 @@ namespace internal {
   F(IsValidSmi, 1, 1)
 
 
-#define RUNTIME_FUNCTION_LIST_ALWAYS_2(F) \
-  /* Reflection */ \
-  F(FunctionSetInstanceClassName, 2, 1) \
-  F(FunctionSetLength, 2, 1) \
-  F(FunctionSetPrototype, 2, 1) \
-  F(FunctionGetName, 1, 1) \
-  F(FunctionSetName, 2, 1) \
-  F(FunctionNameShouldPrintAsAnonymous, 1, 1) \
-  F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1) \
-  F(FunctionIsGenerator, 1, 1) \
-  F(FunctionBindArguments, 4, 1) \
-  F(BoundFunctionGetBindings, 1, 1) \
-  F(FunctionRemovePrototype, 1, 1) \
-  F(FunctionGetSourceCode, 1, 1) \
-  F(FunctionGetScript, 1, 1) \
-  F(FunctionGetScriptSourcePosition, 1, 1) \
-  F(FunctionGetPositionForOffset, 2, 1) \
-  F(FunctionIsAPIFunction, 1, 1) \
-  F(FunctionIsBuiltin, 1, 1) \
-  F(GetScript, 1, 1) \
-  F(CollectStackTrace, 2, 1) \
-  F(GetV8Version, 0, 1) \
-  \
-  F(SetCode, 2, 1) \
-  \
-  F(CreateApiFunction, 2, 1) \
-  F(IsTemplate, 1, 1) \
-  F(GetTemplateField, 2, 1) \
-  F(DisableAccessChecks, 1, 1) \
-  F(EnableAccessChecks, 1, 1) \
-  \
-  /* Dates */ \
-  F(DateCurrentTime, 0, 1) \
-  F(DateParseString, 2, 1) \
-  F(DateLocalTimezone, 1, 1) \
-  F(DateToUTC, 1, 1) \
-  F(DateMakeDay, 2, 1) \
-  F(DateSetValue, 3, 1) \
-  F(DateCacheVersion, 0, 1) \
-  \
-  /* Globals */ \
-  F(CompileString, 2, 1) \
-  \
-  /* Eval */ \
-  F(GlobalProxy, 1, 1) \
-  F(IsAttachedGlobal, 1, 1) \
-  \
-  F(AddProperty, 4, 1) \
-  F(AddPropertyForTemplate, 4, 1) \
-  F(SetProperty, 4, 1) \
-  F(DefineDataPropertyUnchecked, 4, 1) \
-  F(DefineAccessorPropertyUnchecked, 5, 1) \
-  F(GetDataProperty, 2, 1) \
-  F(SetHiddenProperty, 3, 1) \
-  \
-  /* Arrays */ \
-  F(RemoveArrayHoles, 2, 1) \
-  F(GetArrayKeys, 2, 1) \
-  F(MoveArrayContents, 2, 1) \
-  F(EstimateNumberOfElements, 1, 1) \
-  \
-  /* Getters and Setters */ \
-  F(LookupAccessor, 3, 1) \
-  \
-  /* ES5 */ \
-  F(ObjectFreeze, 1, 1) \
-  \
-  /* Harmony modules */ \
-  F(IsJSModule, 1, 1) \
-  \
-  /* Harmony symbols */ \
-  F(CreateSymbol, 1, 1) \
-  F(CreatePrivateSymbol, 1, 1) \
-  F(CreateGlobalPrivateSymbol, 1, 1) \
-  F(NewSymbolWrapper, 1, 1) \
-  F(SymbolDescription, 1, 1) \
-  F(SymbolRegistry, 0, 1) \
-  F(SymbolIsPrivate, 1, 1) \
-  \
-  /* Harmony proxies */ \
-  F(CreateJSProxy, 2, 1) \
-  F(CreateJSFunctionProxy, 4, 1) \
-  F(IsJSProxy, 1, 1) \
-  F(IsJSFunctionProxy, 1, 1) \
-  F(GetHandler, 1, 1) \
-  F(GetCallTrap, 1, 1) \
-  F(GetConstructTrap, 1, 1) \
-  F(Fix, 1, 1) \
-  \
-  /* Harmony sets */ \
-  F(SetInitialize, 1, 1) \
-  F(SetAdd, 2, 1) \
-  F(SetHas, 2, 1) \
-  F(SetDelete, 2, 1) \
-  F(SetClear, 1, 1) \
-  F(SetGetSize, 1, 1) \
-  \
-  F(SetIteratorInitialize, 3, 1) \
-  F(SetIteratorNext, 2, 1) \
-  \
-  /* Harmony maps */ \
-  F(MapInitialize, 1, 1) \
-  F(MapGet, 2, 1) \
-  F(MapHas, 2, 1) \
-  F(MapDelete, 2, 1) \
-  F(MapClear, 1, 1) \
-  F(MapSet, 3, 1) \
-  F(MapGetSize, 1, 1) \
-  \
-  F(MapIteratorInitialize, 3, 1) \
-  F(MapIteratorNext, 2, 1) \
-  \
-  /* Harmony weak maps and sets */ \
-  F(WeakCollectionInitialize, 1, 1) \
-  F(WeakCollectionGet, 2, 1) \
-  F(WeakCollectionHas, 2, 1) \
-  F(WeakCollectionDelete, 2, 1) \
-  F(WeakCollectionSet, 3, 1) \
-  \
-  /* Harmony events */ \
-  F(EnqueueMicrotask, 1, 1) \
-  F(RunMicrotasks, 0, 1) \
-  \
-  /* Harmony observe */ \
-  F(IsObserved, 1, 1) \
-  F(SetIsObserved, 1, 1) \
-  F(GetObservationState, 0, 1) \
-  F(ObservationWeakMapCreate, 0, 1) \
-  F(ObserverObjectAndRecordHaveSameOrigin, 3, 1) \
-  F(ObjectWasCreatedInCurrentOrigin, 1, 1) \
-  F(GetObjectContextObjectObserve, 1, 1) \
-  F(GetObjectContextObjectGetNotifier, 1, 1) \
-  F(GetObjectContextNotifierPerformChange, 1, 1) \
-  \
-  /* Harmony typed arrays */ \
-  F(ArrayBufferInitialize, 2, 1)\
-  F(ArrayBufferSliceImpl, 3, 1) \
-  F(ArrayBufferIsView, 1, 1) \
-  F(ArrayBufferNeuter, 1, 1) \
-  \
-  F(TypedArrayInitializeFromArrayLike, 4, 1) \
-  F(TypedArrayGetBuffer, 1, 1) \
-  F(TypedArraySetFastCases, 3, 1) \
-  \
-  F(DataViewGetBuffer, 1, 1) \
-  F(DataViewGetInt8, 3, 1) \
-  F(DataViewGetUint8, 3, 1) \
-  F(DataViewGetInt16, 3, 1) \
-  F(DataViewGetUint16, 3, 1) \
-  F(DataViewGetInt32, 3, 1) \
-  F(DataViewGetUint32, 3, 1) \
-  F(DataViewGetFloat32, 3, 1) \
-  F(DataViewGetFloat64, 3, 1) \
-  \
-  F(DataViewSetInt8, 4, 1) \
-  F(DataViewSetUint8, 4, 1) \
-  F(DataViewSetInt16, 4, 1) \
-  F(DataViewSetUint16, 4, 1) \
-  F(DataViewSetInt32, 4, 1) \
-  F(DataViewSetUint32, 4, 1) \
-  F(DataViewSetFloat32, 4, 1) \
-  F(DataViewSetFloat64, 4, 1) \
-  \
-  /* Statements */ \
-  F(NewObjectFromBound, 1, 1) \
-  \
-  /* Declarations and initialization */ \
-  F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
-  F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
-  \
-  /* Debugging */ \
-  F(DebugPrint, 1, 1) \
-  F(GlobalPrint, 1, 1) \
-  F(DebugTrace, 0, 1) \
-  F(TraceEnter, 0, 1) \
-  F(TraceExit, 1, 1) \
-  F(Abort, 1, 1) \
-  F(AbortJS, 1, 1) \
-  /* ES5 */ \
-  F(OwnKeys, 1, 1) \
-  \
-  /* Message objects */ \
-  F(MessageGetStartPosition, 1, 1) \
-  F(MessageGetScript, 1, 1) \
-  \
+#define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)              \
+  /* Reflection */                                     \
+  F(FunctionSetInstanceClassName, 2, 1)                \
+  F(FunctionSetLength, 2, 1)                           \
+  F(FunctionSetPrototype, 2, 1)                        \
+  F(FunctionGetName, 1, 1)                             \
+  F(FunctionSetName, 2, 1)                             \
+  F(FunctionNameShouldPrintAsAnonymous, 1, 1)          \
+  F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1)      \
+  F(FunctionIsGenerator, 1, 1)                         \
+  F(FunctionBindArguments, 4, 1)                       \
+  F(BoundFunctionGetBindings, 1, 1)                    \
+  F(FunctionRemovePrototype, 1, 1)                     \
+  F(FunctionGetSourceCode, 1, 1)                       \
+  F(FunctionGetScript, 1, 1)                           \
+  F(FunctionGetScriptSourcePosition, 1, 1)             \
+  F(FunctionGetPositionForOffset, 2, 1)                \
+  F(FunctionIsAPIFunction, 1, 1)                       \
+  F(FunctionIsBuiltin, 1, 1)                           \
+  F(GetScript, 1, 1)                                   \
+  F(CollectStackTrace, 2, 1)                           \
+  F(GetV8Version, 0, 1)                                \
+                                                       \
+  F(SetCode, 2, 1)                                     \
+                                                       \
+  F(CreateApiFunction, 2, 1)                           \
+  F(IsTemplate, 1, 1)                                  \
+  F(GetTemplateField, 2, 1)                            \
+  F(DisableAccessChecks, 1, 1)                         \
+  F(EnableAccessChecks, 1, 1)                          \
+                                                       \
+  /* Dates */                                          \
+  F(DateCurrentTime, 0, 1)                             \
+  F(DateParseString, 2, 1)                             \
+  F(DateLocalTimezone, 1, 1)                           \
+  F(DateToUTC, 1, 1)                                   \
+  F(DateMakeDay, 2, 1)                                 \
+  F(DateSetValue, 3, 1)                                \
+  F(DateCacheVersion, 0, 1)                            \
+                                                       \
+  /* Globals */                                        \
+  F(CompileString, 2, 1)                               \
+                                                       \
+  /* Eval */                                           \
+  F(GlobalProxy, 1, 1)                                 \
+  F(IsAttachedGlobal, 1, 1)                            \
+                                                       \
+  F(AddNamedProperty, 4, 1)                            \
+  F(AddPropertyForTemplate, 4, 1)                      \
+  F(SetProperty, 4, 1)                                 \
+  F(DefineDataPropertyUnchecked, 4, 1)                 \
+  F(DefineAccessorPropertyUnchecked, 5, 1)             \
+  F(GetDataProperty, 2, 1)                             \
+  F(SetHiddenProperty, 3, 1)                           \
+                                                       \
+  /* Arrays */                                         \
+  F(RemoveArrayHoles, 2, 1)                            \
+  F(GetArrayKeys, 2, 1)                                \
+  F(MoveArrayContents, 2, 1)                           \
+  F(EstimateNumberOfElements, 1, 1)                    \
+                                                       \
+  /* Getters and Setters */                            \
+  F(LookupAccessor, 3, 1)                              \
+                                                       \
+  /* ES5 */                                            \
+  F(ObjectFreeze, 1, 1)                                \
+                                                       \
+  /* Harmony modules */                                \
+  F(IsJSModule, 1, 1)                                  \
+                                                       \
+  /* Harmony symbols */                                \
+  F(CreateSymbol, 1, 1)                                \
+  F(CreatePrivateSymbol, 1, 1)                         \
+  F(CreateGlobalPrivateSymbol, 1, 1)                   \
+  F(NewSymbolWrapper, 1, 1)                            \
+  F(SymbolDescription, 1, 1)                           \
+  F(SymbolRegistry, 0, 1)                              \
+  F(SymbolIsPrivate, 1, 1)                             \
+                                                       \
+  /* Harmony proxies */                                \
+  F(CreateJSProxy, 2, 1)                               \
+  F(CreateJSFunctionProxy, 4, 1)                       \
+  F(IsJSProxy, 1, 1)                                   \
+  F(IsJSFunctionProxy, 1, 1)                           \
+  F(GetHandler, 1, 1)                                  \
+  F(GetCallTrap, 1, 1)                                 \
+  F(GetConstructTrap, 1, 1)                            \
+  F(Fix, 1, 1)                                         \
+                                                       \
+  /* Harmony sets */                                   \
+  F(SetInitialize, 1, 1)                               \
+  F(SetAdd, 2, 1)                                      \
+  F(SetHas, 2, 1)                                      \
+  F(SetDelete, 2, 1)                                   \
+  F(SetClear, 1, 1)                                    \
+  F(SetGetSize, 1, 1)                                  \
+                                                       \
+  F(SetIteratorInitialize, 3, 1)                       \
+  F(SetIteratorNext, 2, 1)                             \
+                                                       \
+  /* Harmony maps */                                   \
+  F(MapInitialize, 1, 1)                               \
+  F(MapGet, 2, 1)                                      \
+  F(MapHas, 2, 1)                                      \
+  F(MapDelete, 2, 1)                                   \
+  F(MapClear, 1, 1)                                    \
+  F(MapSet, 3, 1)                                      \
+  F(MapGetSize, 1, 1)                                  \
+                                                       \
+  F(MapIteratorInitialize, 3, 1)                       \
+  F(MapIteratorNext, 2, 1)                             \
+                                                       \
+  /* Harmony weak maps and sets */                     \
+  F(WeakCollectionInitialize, 1, 1)                    \
+  F(WeakCollectionGet, 2, 1)                           \
+  F(WeakCollectionHas, 2, 1)                           \
+  F(WeakCollectionDelete, 2, 1)                        \
+  F(WeakCollectionSet, 3, 1)                           \
+                                                       \
+  /* Harmony events */                                 \
+  F(EnqueueMicrotask, 1, 1)                            \
+  F(RunMicrotasks, 0, 1)                               \
+                                                       \
+  /* Harmony observe */                                \
+  F(IsObserved, 1, 1)                                  \
+  F(SetIsObserved, 1, 1)                               \
+  F(GetObservationState, 0, 1)                         \
+  F(ObservationWeakMapCreate, 0, 1)                    \
+  F(ObserverObjectAndRecordHaveSameOrigin, 3, 1)       \
+  F(ObjectWasCreatedInCurrentOrigin, 1, 1)             \
+  F(GetObjectContextObjectObserve, 1, 1)               \
+  F(GetObjectContextObjectGetNotifier, 1, 1)           \
+  F(GetObjectContextNotifierPerformChange, 1, 1)       \
+                                                       \
+  /* Harmony typed arrays */                           \
+  F(ArrayBufferInitialize, 2, 1)                       \
+  F(ArrayBufferSliceImpl, 3, 1)                        \
+  F(ArrayBufferIsView, 1, 1)                           \
+  F(ArrayBufferNeuter, 1, 1)                           \
+                                                       \
+  F(TypedArrayInitializeFromArrayLike, 4, 1)           \
+  F(TypedArrayGetBuffer, 1, 1)                         \
+  F(TypedArraySetFastCases, 3, 1)                      \
+                                                       \
+  F(DataViewGetBuffer, 1, 1)                           \
+  F(DataViewGetInt8, 3, 1)                             \
+  F(DataViewGetUint8, 3, 1)                            \
+  F(DataViewGetInt16, 3, 1)                            \
+  F(DataViewGetUint16, 3, 1)                           \
+  F(DataViewGetInt32, 3, 1)                            \
+  F(DataViewGetUint32, 3, 1)                           \
+  F(DataViewGetFloat32, 3, 1)                          \
+  F(DataViewGetFloat64, 3, 1)                          \
+                                                       \
+  F(DataViewSetInt8, 4, 1)                             \
+  F(DataViewSetUint8, 4, 1)                            \
+  F(DataViewSetInt16, 4, 1)                            \
+  F(DataViewSetUint16, 4, 1)                           \
+  F(DataViewSetInt32, 4, 1)                            \
+  F(DataViewSetUint32, 4, 1)                           \
+  F(DataViewSetFloat32, 4, 1)                          \
+  F(DataViewSetFloat64, 4, 1)                          \
+                                                       \
+  /* Statements */                                     \
+  F(NewObjectFromBound, 1, 1)                          \
+                                                       \
+  /* Declarations and initialization */                \
+  F(InitializeVarGlobal, 3, 1)                         \
+  F(OptimizeObjectForAddingMultipleProperties, 2, 1)   \
+                                                       \
+  /* Debugging */                                      \
+  F(DebugPrint, 1, 1)                                  \
+  F(GlobalPrint, 1, 1)                                 \
+  F(DebugTrace, 0, 1)                                  \
+  F(TraceEnter, 0, 1)                                  \
+  F(TraceExit, 1, 1)                                   \
+  F(Abort, 1, 1)                                       \
+  F(AbortJS, 1, 1)                                     \
+  /* ES5 */                                            \
+  F(OwnKeys, 1, 1)                                     \
+                                                       \
+  /* Message objects */                                \
+  F(MessageGetStartPosition, 1, 1)                     \
+  F(MessageGetScript, 1, 1)                            \
+                                                       \
   /* Pseudo functions - handled as macros by parser */ \
-  F(IS_VAR, 1, 1) \
-  \
-  /* expose boolean functions from objects-inl.h */ \
-  F(HasFastSmiElements, 1, 1) \
-  F(HasFastSmiOrObjectElements, 1, 1) \
-  F(HasFastObjectElements, 1, 1) \
-  F(HasFastDoubleElements, 1, 1) \
-  F(HasFastHoleyElements, 1, 1) \
-  F(HasDictionaryElements, 1, 1) \
-  F(HasSloppyArgumentsElements, 1, 1) \
-  F(HasExternalUint8ClampedElements, 1, 1) \
-  F(HasExternalArrayElements, 1, 1) \
-  F(HasExternalInt8Elements, 1, 1) \
-  F(HasExternalUint8Elements, 1, 1) \
-  F(HasExternalInt16Elements, 1, 1) \
-  F(HasExternalUint16Elements, 1, 1) \
-  F(HasExternalInt32Elements, 1, 1) \
-  F(HasExternalUint32Elements, 1, 1) \
-  F(HasExternalFloat32Elements, 1, 1) \
-  F(HasExternalFloat64Elements, 1, 1) \
-  F(HasFixedUint8ClampedElements, 1, 1) \
-  F(HasFixedInt8Elements, 1, 1) \
-  F(HasFixedUint8Elements, 1, 1) \
-  F(HasFixedInt16Elements, 1, 1) \
-  F(HasFixedUint16Elements, 1, 1) \
-  F(HasFixedInt32Elements, 1, 1) \
-  F(HasFixedUint32Elements, 1, 1) \
-  F(HasFixedFloat32Elements, 1, 1) \
-  F(HasFixedFloat64Elements, 1, 1) \
-  F(HasFastProperties, 1, 1) \
-  F(TransitionElementsKind, 2, 1) \
-  F(HaveSameMap, 2, 1) \
+  F(IS_VAR, 1, 1)                                      \
+                                                       \
+  /* expose boolean functions from objects-inl.h */    \
+  F(HasFastSmiElements, 1, 1)                          \
+  F(HasFastSmiOrObjectElements, 1, 1)                  \
+  F(HasFastObjectElements, 1, 1)                       \
+  F(HasFastDoubleElements, 1, 1)                       \
+  F(HasFastHoleyElements, 1, 1)                        \
+  F(HasDictionaryElements, 1, 1)                       \
+  F(HasSloppyArgumentsElements, 1, 1)                  \
+  F(HasExternalUint8ClampedElements, 1, 1)             \
+  F(HasExternalArrayElements, 1, 1)                    \
+  F(HasExternalInt8Elements, 1, 1)                     \
+  F(HasExternalUint8Elements, 1, 1)                    \
+  F(HasExternalInt16Elements, 1, 1)                    \
+  F(HasExternalUint16Elements, 1, 1)                   \
+  F(HasExternalInt32Elements, 1, 1)                    \
+  F(HasExternalUint32Elements, 1, 1)                   \
+  F(HasExternalFloat32Elements, 1, 1)                  \
+  F(HasExternalFloat64Elements, 1, 1)                  \
+  F(HasFixedUint8ClampedElements, 1, 1)                \
+  F(HasFixedInt8Elements, 1, 1)                        \
+  F(HasFixedUint8Elements, 1, 1)                       \
+  F(HasFixedInt16Elements, 1, 1)                       \
+  F(HasFixedUint16Elements, 1, 1)                      \
+  F(HasFixedInt32Elements, 1, 1)                       \
+  F(HasFixedUint32Elements, 1, 1)                      \
+  F(HasFixedFloat32Elements, 1, 1)                     \
+  F(HasFixedFloat64Elements, 1, 1)                     \
+  F(HasFastProperties, 1, 1)                           \
+  F(TransitionElementsKind, 2, 1)                      \
+  F(HaveSameMap, 2, 1)                                 \
   F(IsJSGlobalProxy, 1, 1)
 
 
-#define RUNTIME_FUNCTION_LIST_ALWAYS_3(F) \
-  /* String and Regexp */ \
-  F(NumberToStringRT, 1, 1) \
-  F(RegExpConstructResult, 3, 1) \
-  F(RegExpExecRT, 4, 1) \
-  F(StringAdd, 2, 1)  \
-  F(SubString, 3, 1) \
-  F(InternalizeString, 1, 1) \
-  F(StringCompare, 2, 1) \
-  F(StringCharCodeAtRT, 2, 1) \
-  F(GetFromCache, 2, 1) \
-  \
-  /* Compilation */ \
-  F(CompileUnoptimized, 1, 1) \
-  F(CompileOptimized, 2, 1) \
-  F(TryInstallOptimizedCode, 1, 1) \
-  F(NotifyDeoptimized, 1, 1) \
-  F(NotifyStubFailure, 0, 1) \
-  \
-  /* Utilities */ \
-  F(AllocateInNewSpace, 1, 1) \
-  F(AllocateInTargetSpace, 2, 1) \
-  F(AllocateHeapNumber, 0, 1) \
-  F(NumberToSmi, 1, 1) \
-  F(NumberToStringSkipCache, 1, 1) \
-  \
-  F(NewSloppyArguments, 3, 1) \
-  F(NewStrictArguments, 3, 1) \
-  \
-  /* Harmony generators */ \
-  F(CreateJSGeneratorObject, 0, 1) \
-  F(SuspendJSGeneratorObject, 1, 1) \
-  F(ResumeJSGeneratorObject, 3, 1) \
-  F(ThrowGeneratorStateError, 1, 1) \
-  \
-  /* Arrays */ \
-  F(ArrayConstructor, -1, 1) \
-  F(InternalArrayConstructor, -1, 1) \
-  \
-  /* Literals */ \
-  F(MaterializeRegExpLiteral, 4, 1)\
-  F(CreateObjectLiteral, 4, 1) \
-  F(CreateArrayLiteral, 4, 1) \
-  F(CreateArrayLiteralStubBailout, 3, 1) \
-  \
-  /* Statements */ \
-  F(NewClosure, 3, 1) \
-  F(NewClosureFromStubFailure, 1, 1) \
-  F(NewObject, 1, 1) \
-  F(NewObjectWithAllocationSite, 2, 1) \
-  F(FinalizeInstanceSize, 1, 1) \
-  F(Throw, 1, 1) \
-  F(ReThrow, 1, 1) \
-  F(ThrowReferenceError, 1, 1) \
-  F(ThrowNotDateError, 0, 1) \
-  F(StackGuard, 0, 1) \
-  F(Interrupt, 0, 1) \
-  F(PromoteScheduledException, 0, 1) \
-  \
-  /* Contexts */ \
-  F(NewGlobalContext, 2, 1) \
-  F(NewFunctionContext, 1, 1) \
-  F(PushWithContext, 2, 1) \
-  F(PushCatchContext, 3, 1) \
-  F(PushBlockContext, 2, 1) \
-  F(PushModuleContext, 2, 1) \
-  F(DeleteContextSlot, 2, 1) \
-  F(LoadContextSlot, 2, 2) \
+#define RUNTIME_FUNCTION_LIST_ALWAYS_3(F)  \
+  /* String and Regexp */                  \
+  F(NumberToStringRT, 1, 1)                \
+  F(RegExpConstructResult, 3, 1)           \
+  F(RegExpExecRT, 4, 1)                    \
+  F(StringAdd, 2, 1)                       \
+  F(SubString, 3, 1)                       \
+  F(InternalizeString, 1, 1)               \
+  F(StringCompare, 2, 1)                   \
+  F(StringCharCodeAtRT, 2, 1)              \
+  F(GetFromCache, 2, 1)                    \
+                                           \
+  /* Compilation */                        \
+  F(CompileUnoptimized, 1, 1)              \
+  F(CompileOptimized, 2, 1)                \
+  F(TryInstallOptimizedCode, 1, 1)         \
+  F(NotifyDeoptimized, 1, 1)               \
+  F(NotifyStubFailure, 0, 1)               \
+                                           \
+  /* Utilities */                          \
+  F(AllocateInNewSpace, 1, 1)              \
+  F(AllocateInTargetSpace, 2, 1)           \
+  F(AllocateHeapNumber, 0, 1)              \
+  F(NumberToSmi, 1, 1)                     \
+  F(NumberToStringSkipCache, 1, 1)         \
+                                           \
+  F(NewSloppyArguments, 3, 1)              \
+  F(NewStrictArguments, 3, 1)              \
+                                           \
+  /* Harmony generators */                 \
+  F(CreateJSGeneratorObject, 0, 1)         \
+  F(SuspendJSGeneratorObject, 1, 1)        \
+  F(ResumeJSGeneratorObject, 3, 1)         \
+  F(ThrowGeneratorStateError, 1, 1)        \
+                                           \
+  /* Arrays */                             \
+  F(ArrayConstructor, -1, 1)               \
+  F(InternalArrayConstructor, -1, 1)       \
+                                           \
+  /* Literals */                           \
+  F(MaterializeRegExpLiteral, 4, 1)        \
+  F(CreateObjectLiteral, 4, 1)             \
+  F(CreateArrayLiteral, 4, 1)              \
+  F(CreateArrayLiteralStubBailout, 3, 1)   \
+                                           \
+  /* Statements */                         \
+  F(NewClosure, 3, 1)                      \
+  F(NewClosureFromStubFailure, 1, 1)       \
+  F(NewObject, 1, 1)                       \
+  F(NewObjectWithAllocationSite, 2, 1)     \
+  F(FinalizeInstanceSize, 1, 1)            \
+  F(Throw, 1, 1)                           \
+  F(ReThrow, 1, 1)                         \
+  F(ThrowReferenceError, 1, 1)             \
+  F(ThrowNotDateError, 0, 1)               \
+  F(StackGuard, 0, 1)                      \
+  F(Interrupt, 0, 1)                       \
+  F(PromoteScheduledException, 0, 1)       \
+                                           \
+  /* Contexts */                           \
+  F(NewGlobalContext, 2, 1)                \
+  F(NewFunctionContext, 1, 1)              \
+  F(PushWithContext, 2, 1)                 \
+  F(PushCatchContext, 3, 1)                \
+  F(PushBlockContext, 2, 1)                \
+  F(PushModuleContext, 2, 1)               \
+  F(DeleteContextSlot, 2, 1)               \
+  F(LoadContextSlot, 2, 2)                 \
   F(LoadContextSlotNoReferenceError, 2, 2) \
-  F(StoreContextSlot, 4, 1) \
-  \
-  /* Declarations and initialization */ \
-  F(DeclareGlobals, 3, 1) \
-  F(DeclareModules, 1, 1) \
-  F(DeclareContextSlot, 4, 1) \
-  F(InitializeConstGlobal, 2, 1) \
-  F(InitializeConstContextSlot, 3, 1) \
-  \
-  /* Eval */ \
-  F(ResolvePossiblyDirectEval, 5, 2) \
-  \
-  /* Maths */ \
-  F(MathPowSlow, 2, 1) \
+  F(StoreLookupSlot, 4, 1)                 \
+                                           \
+  /* Declarations and initialization */    \
+  F(DeclareGlobals, 3, 1)                  \
+  F(DeclareModules, 1, 1)                  \
+  F(DeclareLookupSlot, 4, 1)               \
+  F(InitializeConstGlobal, 2, 1)           \
+  F(InitializeLegacyConstLookupSlot, 3, 1) \
+                                           \
+  /* Eval */                               \
+  F(ResolvePossiblyDirectEval, 5, 2)       \
+                                           \
+  /* Maths */                              \
+  F(MathPowSlow, 2, 1)                     \
   F(MathPowRT, 2, 1)
 
 
@@ -802,15 +802,9 @@ class Runtime : public AllStatic {
       Handle<Object> object,
       uint32_t index);
 
-  // Do not use SetObjectProperty to configure a property with specific
-  // attributes. The argument will be removed once the API is adapted.
   MUST_USE_RESULT static MaybeHandle<Object> SetObjectProperty(
-      Isolate* isolate,
-      Handle<Object> object,
-      Handle<Object> key,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      PropertyAttributes attributes = NONE);
+      Isolate* isolate, Handle<Object> object, Handle<Object> key,
+      Handle<Object> value, StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
       Handle<JSObject> object,

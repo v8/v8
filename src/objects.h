@@ -1514,10 +1514,6 @@ class Object {
       Handle<Object> receiver,
       uint32_t index);
 
-  // Return the object's prototype (might be Heap::null_value()).
-  Object* GetPrototype(Isolate* isolate);
-  static Handle<Object> GetPrototype(Isolate* isolate, Handle<Object> object);
-
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();
@@ -1574,6 +1570,12 @@ class Object {
 #endif
 
  private:
+  friend class LookupIterator;
+  friend class PrototypeIterator;
+
+  // Return the map of the root of object's prototype chain.
+  Map* GetRootMap(Isolate* isolate);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
 
@@ -1932,7 +1934,6 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
@@ -2018,7 +2019,6 @@ class JSReceiver: public HeapObject {
       LookupResult* result,
       Handle<Name> key,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_from_keyed);
 
@@ -2137,7 +2137,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyForResult(
@@ -2145,7 +2144,6 @@ class JSObject: public JSReceiver {
       LookupResult* result,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
 
@@ -2742,14 +2740,12 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       bool* done);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyPostInterceptor(
       Handle<JSObject> object,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
       Handle<JSObject> object,
@@ -9957,7 +9953,6 @@ class JSProxy: public JSReceiver {
       Handle<JSReceiver> receiver,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode,
       bool* done);
 
@@ -10013,7 +10008,6 @@ class JSProxy: public JSReceiver {
       Handle<JSReceiver> receiver,
       Handle<Name> name,
       Handle<Object> value,
-      PropertyAttributes attributes,
       StrictMode strict_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
       Handle<JSProxy> proxy,

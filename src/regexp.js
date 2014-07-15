@@ -381,7 +381,7 @@ var lastMatchInfoOverride = null;
 function SetUpRegExp() {
   %CheckIsBootstrapping();
   %FunctionSetInstanceClassName($RegExp, 'RegExp');
-  %AddProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
+  %AddNamedProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
   %SetCode($RegExp, RegExpConstructor);
 
   InstallFunctions($RegExp.prototype, DONT_ENUM, $Array(

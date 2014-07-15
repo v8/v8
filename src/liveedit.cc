@@ -885,12 +885,12 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);
       Handle<JSObject> script_obj =
           Script::GetWrapper(message_location.script());
-      JSReceiver::SetProperty(
-          rethrow_exception, start_pos_key, start_pos, NONE, SLOPPY).Assert();
-      JSReceiver::SetProperty(
-          rethrow_exception, end_pos_key, end_pos, NONE, SLOPPY).Assert();
-      JSReceiver::SetProperty(
-          rethrow_exception, script_obj_key, script_obj, NONE, SLOPPY).Assert();
+      JSReceiver::SetProperty(rethrow_exception, start_pos_key, start_pos,
+                              SLOPPY).Assert();
+      JSReceiver::SetProperty(rethrow_exception, end_pos_key, end_pos, SLOPPY)
+          .Assert();
+      JSReceiver::SetProperty(rethrow_exception, script_obj_key, script_obj,
+                              SLOPPY).Assert();
     }
   }
 

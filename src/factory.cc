@@ -2098,11 +2098,9 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   ASSERT(!isolate()->has_pending_exception());
   Handle<JSObject> result = NewJSObjectFromMap(map);
   Handle<Smi> value(Smi::FromInt(length), isolate());
-  JSReceiver::SetProperty(result, length_string(), value, NONE, STRICT)
-      .Assert();
+  JSReceiver::SetProperty(result, length_string(), value, STRICT).Assert();
   if (!strict_mode_callee) {
-    JSReceiver::SetProperty(result, callee_string(), callee, NONE, STRICT)
-        .Assert();
+    JSReceiver::SetProperty(result, callee_string(), callee, STRICT).Assert();
   }
   return result;
 }

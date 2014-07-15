@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-__defineSetter__('x', function() { });
+Object.defineProperty(this, 'x', {set: function() { }});
 Object.freeze(this);
-eval('const x = 1');
+eval('"use strict"; x = 20;');

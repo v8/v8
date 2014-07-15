@@ -642,10 +642,6 @@
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
 
-  # We do not throw an exception when a const is redeclared.
-  # (We only fail section 1 of the test.)
-  'js1_5/Regress/regress-103602': [FAIL],
-
   ##################### MOZILLA EXTENSION TESTS #####################
 
   'ecma/extensions/15.1.2.1-1': [FAIL_OK],

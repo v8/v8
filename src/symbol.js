@@ -113,7 +113,7 @@ function SetUpSymbol() {
     "keyFor", SymbolKeyFor
   ));
 
-  %AddProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
+  %AddNamedProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
   InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
     "toString", SymbolToString,
     "valueOf", SymbolValueOf

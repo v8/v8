@@ -10,6 +10,7 @@
 #include "src/compiler.h"
 #include "src/debug.h"
 #include "src/macro-assembler.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {
@@ -132,9 +133,11 @@ HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
                                    Object* object,
                                    InlineCacheHolderFlag holder) {
   if (object->IsSmi()) holder = PROTOTYPE_MAP;
-  Object* map_owner = holder == OWN_MAP
-      ? object : object->GetPrototype(isolate);
-  return HeapObject::cast(map_owner);
+  PrototypeIterator iter(isolate, object,
+                         holder == OWN_MAP
+                             ? PrototypeIterator::START_AT_RECEIVER
+                             : PrototypeIterator::START_AT_PROTOTYPE);
+  return HeapObject::cast(iter.GetCurrent());
 }
 
 

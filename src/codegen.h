@@ -117,15 +117,30 @@ class ElementsTransitionGenerator : public AllStatic {
  public:
   // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,
   // |allocation_memento_found| may be NULL.
-  static void GenerateMapChangeElementsTransition(MacroAssembler* masm,
+  static void GenerateMapChangeElementsTransition(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
       AllocationSiteMode mode,
       Label* allocation_memento_found);
-  static void GenerateSmiToDouble(MacroAssembler* masm,
-                                  AllocationSiteMode mode,
-                                  Label* fail);
-  static void GenerateDoubleToObject(MacroAssembler* masm,
-                                     AllocationSiteMode mode,
-                                     Label* fail);
+  static void GenerateSmiToDouble(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
+      AllocationSiteMode mode,
+      Label* fail);
+  static void GenerateDoubleToObject(
+      MacroAssembler* masm,
+      Register receiver,
+      Register key,
+      Register value,
+      Register target_map,
+      AllocationSiteMode mode,
+      Label* fail);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);

@@ -4373,7 +4373,7 @@ THREADED_TEST(PropertyAttributes) {
   CHECK_EQ(v8::None, context->Global()->GetPropertyAttributes(prop));
   // read-only
   prop = v8_str("read_only");
-  context->Global()->Set(prop, v8_num(7), v8::ReadOnly);
+  context->Global()->ForceSet(prop, v8_num(7), v8::ReadOnly);
   CHECK_EQ(7, context->Global()->Get(prop)->Int32Value());
   CHECK_EQ(v8::ReadOnly, context->Global()->GetPropertyAttributes(prop));
   CompileRun("read_only = 9");
@@ -4382,14 +4382,14 @@ THREADED_TEST(PropertyAttributes) {
   CHECK_EQ(7, context->Global()->Get(prop)->Int32Value());
   // dont-delete
   prop = v8_str("dont_delete");
-  context->Global()->Set(prop, v8_num(13), v8::DontDelete);
+  context->Global()->ForceSet(prop, v8_num(13), v8::DontDelete);
   CHECK_EQ(13, context->Global()->Get(prop)->Int32Value());
   CompileRun("delete dont_delete");
   CHECK_EQ(13, context->Global()->Get(prop)->Int32Value());
   CHECK_EQ(v8::DontDelete, context->Global()->GetPropertyAttributes(prop));
   // dont-enum
   prop = v8_str("dont_enum");
-  context->Global()->Set(prop, v8_num(28), v8::DontEnum);
+  context->Global()->ForceSet(prop, v8_num(28), v8::DontEnum);
   CHECK_EQ(v8::DontEnum, context->Global()->GetPropertyAttributes(prop));
   // absent
   prop = v8_str("absent");
@@ -15147,8 +15147,10 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   v8::Handle<v8::Object> global = context->Global();
   v8::Handle<v8::Object> global_proto =
       v8::Handle<v8::Object>::Cast(global->Get(v8_str("__proto__")));
-  global_proto->Set(v8_str("x"), v8::Integer::New(isolate, 0), v8::ReadOnly);
-  global_proto->Set(v8_str("y"), v8::Integer::New(isolate, 0), v8::ReadOnly);
+  global_proto->ForceSet(v8_str("x"), v8::Integer::New(isolate, 0),
+                         v8::ReadOnly);
+  global_proto->ForceSet(v8_str("y"), v8::Integer::New(isolate, 0),
+                         v8::ReadOnly);
   // Check without 'eval' or 'with'.
   v8::Handle<v8::Value> res =
       CompileRun("function f() { x = 42; return x; }; f()");
@@ -15206,7 +15208,7 @@ TEST(ForceSet) {
   // Ordinary properties
   v8::Handle<v8::String> simple_property =
       v8::String::NewFromUtf8(isolate, "p");
-  global->Set(simple_property, v8::Int32::New(isolate, 4), v8::ReadOnly);
+  global->ForceSet(simple_property, v8::Int32::New(isolate, 4), v8::ReadOnly);
   CHECK_EQ(4, global->Get(simple_property)->Int32Value());
   // This should fail because the property is read-only
   global->Set(simple_property, v8::Int32::New(isolate, 5));
@@ -15294,7 +15296,7 @@ THREADED_TEST(ForceDelete) {
   // Ordinary properties
   v8::Handle<v8::String> simple_property =
       v8::String::NewFromUtf8(isolate, "p");
-  global->Set(simple_property, v8::Int32::New(isolate, 4), v8::DontDelete);
+  global->ForceSet(simple_property, v8::Int32::New(isolate, 4), v8::DontDelete);
   CHECK_EQ(4, global->Get(simple_property)->Int32Value());
   // This should fail because the property is dont-delete.
   CHECK(!global->Delete(simple_property));
@@ -15331,7 +15333,8 @@ THREADED_TEST(ForceDeleteWithInterceptor) {
 
   v8::Handle<v8::String> some_property =
       v8::String::NewFromUtf8(isolate, "a");
-  global->Set(some_property, v8::Integer::New(isolate, 42), v8::DontDelete);
+  global->ForceSet(some_property, v8::Integer::New(isolate, 42),
+                   v8::DontDelete);
 
   // Deleting a property should get intercepted and nothing should
   // happen.
@@ -19584,7 +19587,7 @@ TEST(DontDeleteCellLoadICAPI) {
   // cell created using the API.
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  context->Global()->Set(v8_str("cell"), v8_str("value"), v8::DontDelete);
+  context->Global()->ForceSet(v8_str("cell"), v8_str("value"), v8::DontDelete);
   ExpectBoolean("delete cell", false);
   CompileRun(function_code);
   ExpectString("readCell()", "value");
@@ -20181,15 +20184,15 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
   LocalContext context;
   Local<v8::Object> obj = templ->NewInstance();
   context->Global()->Set(v8_str("obj"), obj);
-  obj->Set(v8_str("1"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->ForceSet(v8_str("1"), v8_str("DONT_CHANGE"), v8::ReadOnly);
   obj->Set(v8_str("1"), v8_str("foobar"));
   CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("1")));
-  obj->Set(v8_num(2), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->ForceSet(v8_num(2), v8_str("DONT_CHANGE"), v8::ReadOnly);
   obj->Set(v8_num(2), v8_str("foobar"));
   CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_num(2)));
 
   // Test non-smi case.
-  obj->Set(v8_str("2000000000"), v8_str("DONT_CHANGE"), v8::ReadOnly);
+  obj->ForceSet(v8_str("2000000000"), v8_str("DONT_CHANGE"), v8::ReadOnly);
   obj->Set(v8_str("2000000000"), v8_str("foobar"));
   CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("2000000000")));
 }
@@ -21634,7 +21637,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("has_own_property(other, 'x')");
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetProperty(other, 'x', 'foo', 0)");
-  CheckCorrectThrow("%AddProperty(other, 'x', 'foo', 1)");
+  CheckCorrectThrow("%AddNamedProperty(other, 'x', 'foo', 1)");
   CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");
   CheckCorrectThrow("%DeleteProperty(other, '1', 0)");
   CheckCorrectThrow("%HasOwnProperty(other, 'x')");

@@ -21,6 +21,7 @@
 #include "src/lithium-allocator.h"
 #include "src/log.h"
 #include "src/messages.h"
+#include "src/prototype.h"
 #include "src/regexp-stack.h"
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
@@ -423,8 +424,7 @@ void Isolate::CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object) {
     Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    JSObject::SetProperty(
-        error_object, key, stack_trace, NONE, STRICT).Assert();
+    JSObject::SetProperty(error_object, key, stack_trace, STRICT).Assert();
   }
 }
 
@@ -434,7 +434,7 @@ void Isolate::CaptureAndSetSimpleStackTrace(Handle<JSObject> error_object,
   // Capture stack trace for simple stack trace string formatting.
   Handle<Name> key = factory()->stack_trace_symbol();
   Handle<Object> stack_trace = CaptureSimpleStackTrace(error_object, caller);
-  JSObject::SetProperty(error_object, key, stack_trace, NONE, STRICT).Assert();
+  JSObject::SetProperty(error_object, key, stack_trace, STRICT).Assert();
 }
 
 
@@ -982,10 +982,10 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
       js_builtins_object(), error_key).ToHandleChecked();
 
   DisallowHeapAllocation no_gc;
-  for (Object* prototype = *obj; !prototype->IsNull();
-       prototype = prototype->GetPrototype(this)) {
-    if (!prototype->IsJSObject()) return false;
-    if (JSObject::cast(prototype)->map()->constructor() ==
+  for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent()->IsJSProxy()) return false;
+    if (JSObject::cast(iter.GetCurrent())->map()->constructor() ==
         *error_constructor) {
       return true;
     }
@@ -2206,7 +2206,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
       JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);
-      JSObject::SetProperty(registry, name, obj, NONE, STRICT).Assert();
+      JSObject::SetProperty(registry, name, obj, STRICT).Assert();
     }
   }
   return Handle<JSObject>::cast(factory()->symbol_registry());

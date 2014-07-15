@@ -661,3 +661,62 @@ DEPENDENT_TEST(DependentTestThatAlwaysFails, TestThatAlwaysSucceeds) {
   bool ArtificialFailure2 = false;
   CHECK(ArtificialFailure2);
 }
+
+
+int CountBuiltins() {
+  // Check that we have not deserialized any additional builtin.
+  HeapIterator iterator(CcTest::heap());
+  DisallowHeapAllocation no_allocation;
+  int counter = 0;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (obj->IsCode() && Code::cast(obj)->kind() == Code::BUILTIN) counter++;
+  }
+  return counter;
+}
+
+
+TEST(SerializeToplevel) {
+  FLAG_serialize_toplevel = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Context::Scope context_scope(context);
+
+  const char* source1 = "1 + 1";
+  const char* source2 = "1 + 2";  // Use alternate string to verify caching.
+
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<String> source1_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source1))
+                                      .ToHandleChecked();
+
+  Handle<String> source2_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source2))
+                                      .ToHandleChecked();
+
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig =
+      Compiler::CompileScript(source1_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+
+  int builtins_count = CountBuiltins();
+
+  Handle<SharedFunctionInfo> info =
+      Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
+
+  CHECK_NE(*orig, *info);
+  Handle<JSFunction> fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          info, isolate->native_context());
+  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<Object> result =
+      Execution::Call(isolate, fun, global, 0, NULL).ToHandleChecked();
+  CHECK_EQ(2, Handle<Smi>::cast(result)->value());
+
+  CHECK_EQ(builtins_count, CountBuiltins());
+
+  delete cache;
+}

@@ -58,7 +58,9 @@ bool AreAliased(Register reg1,
                 Register reg3 = no_reg,
                 Register reg4 = no_reg,
                 Register reg5 = no_reg,
-                Register reg6 = no_reg);
+                Register reg6 = no_reg,
+                Register reg7 = no_reg,
+                Register reg8 = no_reg);
 #endif
 
 

@@ -260,7 +260,7 @@ function SetUpMath() {
   %CheckIsBootstrapping();
 
   %SetPrototype($Math, $Object.prototype);
-  %AddProperty(global, "Math", $Math, DONT_ENUM);
+  %AddNamedProperty(global, "Math", $Math, DONT_ENUM);
   %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
   // Set up math constants.

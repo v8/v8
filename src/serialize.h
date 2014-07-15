@@ -148,17 +148,18 @@ class SerializerDeserializer: public ObjectVisitor {
  protected:
   // Where the pointed-to object can be found:
   enum Where {
-    kNewObject = 0,                 // Object is next in snapshot.
+    kNewObject = 0,  // Object is next in snapshot.
     // 1-6                             One per space.
-    kRootArray = 0x9,               // Object is found in root array.
-    kPartialSnapshotCache = 0xa,    // Object is in the cache.
-    kExternalReference = 0xb,       // Pointer to an external reference.
-    kSkip = 0xc,                    // Skip n bytes.
-    kNop = 0xd,                     // Does nothing, used to pad.
-    // 0xe-0xf                         Free.
-    kBackref = 0x10,                // Object is described relative to end.
+    kRootArray = 0x9,             // Object is found in root array.
+    kPartialSnapshotCache = 0xa,  // Object is in the cache.
+    kExternalReference = 0xb,     // Pointer to an external reference.
+    kSkip = 0xc,                  // Skip n bytes.
+    kBuiltin = 0xd,               // Builtin code object.
+    // 0xe                             Free.
+    kNop = 0xf,       // Does nothing, used to pad.
+    kBackref = 0x10,  // Object is described relative to end.
     // 0x11-0x16                       One per space.
-    kBackrefWithSkip = 0x18,        // Object is described relative to end.
+    kBackrefWithSkip = 0x18,  // Object is described relative to end.
     // 0x19-0x1e                       One per space.
     // 0x20-0x3f                       Used by misc. tags below.
     kPointedToMask = 0x3f
@@ -566,14 +567,9 @@ class CodeSerializer : public Serializer {
 
   static Object* Deserialize(Isolate* isolate, ScriptData* data);
 
-  // The data header consists of int-sized entries:
-  // [0] version hash
-  // [1] length in bytes
-  // [2..8] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
-  static const int kHeaderSize = 9;
-  static const int kVersionHashOffset = 0;
-  static const int kPayloadLengthOffset = 1;
-  static const int kReservationsOffset = 2;
+ private:
+  void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
+                        WhereToPoint where_to_point, int skip);
 };
 
 

@@ -50,7 +50,16 @@ class SmiOperationExecutionMode : public EnumSet<SmiOperationConstraint, byte> {
       : EnumSet<SmiOperationConstraint, byte>(bits) { }
 };
 
-bool AreAliased(Register r1, Register r2, Register r3, Register r4);
+#ifdef DEBUG
+bool AreAliased(Register reg1,
+                Register reg2,
+                Register reg3 = no_reg,
+                Register reg4 = no_reg,
+                Register reg5 = no_reg,
+                Register reg6 = no_reg,
+                Register reg7 = no_reg,
+                Register reg8 = no_reg);
+#endif
 
 // Forward declaration.
 class JumpTarget;

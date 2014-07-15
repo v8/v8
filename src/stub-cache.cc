@@ -579,12 +579,10 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
   ASSERT(receiver->HasNamedInterceptor());
-  PropertyAttributes attr = NONE;
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetPropertyWithInterceptor(
-          receiver, name, value, attr, ic.strict_mode()));
+      isolate, result, JSObject::SetPropertyWithInterceptor(
+                           receiver, name, value, ic.strict_mode()));
   return *result;
 }
 

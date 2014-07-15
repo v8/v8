@@ -22,21 +22,10 @@ void LookupIterator::Next() {
 Handle<JSReceiver> LookupIterator::GetRoot() const {
   Handle<Object> receiver = GetReceiver();
   if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
-  Context* native_context = isolate_->context()->native_context();
-  JSFunction* function;
-  if (receiver->IsNumber()) {
-    function = native_context->number_function();
-  } else if (receiver->IsString()) {
-    function = native_context->string_function();
-  } else if (receiver->IsSymbol()) {
-    function = native_context->symbol_function();
-  } else if (receiver->IsBoolean()) {
-    function = native_context->boolean_function();
-  } else {
-    UNREACHABLE();
-    function = NULL;
-  }
-  return handle(JSReceiver::cast(function->instance_prototype()));
+  Handle<Object> root =
+      handle(receiver->GetRootMap(isolate_)->prototype(), isolate_);
+  CHECK(!root->IsNull());
+  return Handle<JSReceiver>::cast(root);
 }
 
 

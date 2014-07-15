@@ -325,7 +325,7 @@ var lastMicrotaskId = 0;
   // Install exported functions.
 
   %CheckIsBootstrapping();
-  %AddProperty(global, 'Promise', $Promise, DONT_ENUM);
+  %AddNamedProperty(global, 'Promise', $Promise, DONT_ENUM);
   InstallFunctions($Promise, DONT_ENUM, [
     "defer", PromiseDeferred,
     "accept", PromiseResolved,

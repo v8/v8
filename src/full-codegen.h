@@ -550,7 +550,6 @@ class FullCodeGenerator: public AstVisitor {
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
                                           MemOperand location);
-  void EmitCallStoreContextSlot(Handle<String> name, StrictMode strict_mode);
 
   // Complete a named property assignment.  The receiver is expected on top
   // of the stack and the right-hand-side value in the accumulator.

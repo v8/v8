@@ -37,10 +37,10 @@ function func1(){}
 function func2(){}
 
 var object = {__proto__:{}};
-%AddProperty(object, "foo", func1, DONT_ENUM | DONT_DELETE);
-%AddProperty(object, "bar", func1, DONT_ENUM | READ_ONLY);
-%AddProperty(object, "baz", func1, DONT_DELETE | READ_ONLY);
-%AddProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE);
+%AddNamedProperty(object, "foo", func1, DONT_ENUM | DONT_DELETE);
+%AddNamedProperty(object, "bar", func1, DONT_ENUM | READ_ONLY);
+%AddNamedProperty(object, "baz", func1, DONT_DELETE | READ_ONLY);
+%AddNamedProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE);
 object.bif = func2;
 
 function enumerable(obj) {

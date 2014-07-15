@@ -28,7 +28,7 @@ function InstallFunctions(object, attributes, functions) {
     var f = functions[i + 1];
     %FunctionSetName(f, key);
     %FunctionRemovePrototype(f);
-    %AddProperty(object, key, f, attributes);
+    %AddNamedProperty(object, key, f, attributes);
     %SetNativeFlag(f);
   }
   %ToFastProperties(object);
@@ -65,7 +65,7 @@ function InstallConstants(object, constants) {
   for (var i = 0; i < constants.length; i += 2) {
     var name = constants[i];
     var k = constants[i + 1];
-    %AddProperty(object, name, k, attributes);
+    %AddNamedProperty(object, name, k, attributes);
   }
   %ToFastProperties(object);
 }
@@ -86,13 +86,14 @@ function SetUpLockedPrototype(constructor, fields, methods) {
   }
   if (fields) {
     for (var i = 0; i < fields.length; i++) {
-      %AddProperty(prototype, fields[i], UNDEFINED, DONT_ENUM | DONT_DELETE);
+      %AddNamedProperty(prototype, fields[i],
+                        UNDEFINED, DONT_ENUM | DONT_DELETE);
     }
   }
   for (var i = 0; i < methods.length; i += 2) {
     var key = methods[i];
     var f = methods[i + 1];
-    %AddProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
+    %AddNamedProperty(prototype, key, f, DONT_ENUM | DONT_DELETE | READ_ONLY);
     %SetNativeFlag(f);
   }
   %SetPrototype(prototype, null);
@@ -190,13 +191,13 @@ function SetUpGlobal() {
   var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
   // ECMA 262 - 15.1.1.1.
-  %AddProperty(global, "NaN", NAN, attributes);
+  %AddNamedProperty(global, "NaN", NAN, attributes);
 
   // ECMA-262 - 15.1.1.2.
-  %AddProperty(global, "Infinity", INFINITY, attributes);
+  %AddNamedProperty(global, "Infinity", INFINITY, attributes);
 
   // ECMA-262 - 15.1.1.3.
-  %AddProperty(global, "undefined", UNDEFINED, attributes);
+  %AddNamedProperty(global, "undefined", UNDEFINED, attributes);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -386,22 +387,22 @@ function FromGenericPropertyDescriptor(desc) {
   var obj = new $Object();
 
   if (desc.hasValue()) {
-    %AddProperty(obj, "value", desc.getValue(), NONE);
+    %AddNamedProperty(obj, "value", desc.getValue(), NONE);
   }
   if (desc.hasWritable()) {
-    %AddProperty(obj, "writable", desc.isWritable(), NONE);
+    %AddNamedProperty(obj, "writable", desc.isWritable(), NONE);
   }
   if (desc.hasGetter()) {
-    %AddProperty(obj, "get", desc.getGet(), NONE);
+    %AddNamedProperty(obj, "get", desc.getGet(), NONE);
   }
   if (desc.hasSetter()) {
-    %AddProperty(obj, "set", desc.getSet(), NONE);
+    %AddNamedProperty(obj, "set", desc.getSet(), NONE);
   }
   if (desc.hasEnumerable()) {
-    %AddProperty(obj, "enumerable", desc.isEnumerable(), NONE);
+    %AddNamedProperty(obj, "enumerable", desc.isEnumerable(), NONE);
   }
   if (desc.hasConfigurable()) {
-    %AddProperty(obj, "configurable", desc.isConfigurable(), NONE);
+    %AddNamedProperty(obj, "configurable", desc.isConfigurable(), NONE);
   }
   return obj;
 }
@@ -1171,13 +1172,25 @@ function ObjectDefineProperty(obj, p, attributes) {
 }
 
 
-function GetOwnEnumerablePropertyNames(properties) {
+function GetOwnEnumerablePropertyNames(object) {
   var names = new InternalArray();
-  for (var key in properties) {
-    if (%HasOwnProperty(properties, key)) {
+  for (var key in object) {
+    if (%HasOwnProperty(object, key)) {
       names.push(key);
     }
   }
+
+  // FLAG_harmony_symbols may be on, but symbols aren't included by for-in.
+  var filter = PROPERTY_ATTRIBUTES_STRING | PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
+  var symbols = %GetOwnPropertyNames(object, filter);
+  for (var i = 0; i < symbols.length; ++i) {
+    var symbol = symbols[i];
+    if (IS_SYMBOL(symbol)) {
+      var desc = ObjectGetOwnPropertyDescriptor(object, symbol);
+      if (desc.enumerable) names.push(symbol);
+    }
+  }
+
   return names;
 }
 
@@ -1395,7 +1408,7 @@ function SetUpObject() {
   %SetNativeFlag($Object);
   %SetCode($Object, ObjectConstructor);
 
-  %AddProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
+  %AddNamedProperty($Object.prototype, "constructor", $Object, DONT_ENUM);
 
   // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
@@ -1482,7 +1495,7 @@ function SetUpBoolean () {
 
   %SetCode($Boolean, BooleanConstructor);
   %FunctionSetPrototype($Boolean, new $Boolean(false));
-  %AddProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
+  %AddNamedProperty($Boolean.prototype, "constructor", $Boolean, DONT_ENUM);
 
   InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
     "toString", BooleanToString,
@@ -1665,7 +1678,7 @@ function SetUpNumber() {
 
   %OptimizeObjectForAddingMultipleProperties($Number.prototype, 8);
   // Set up the constructor property on the Number prototype object.
-  %AddProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
+  %AddNamedProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
   InstallConstants($Number, $Array(
       // ECMA-262 section 15.7.3.1.
@@ -1848,7 +1861,7 @@ function SetUpFunction() {
   %CheckIsBootstrapping();
 
   %SetCode($Function, FunctionConstructor);
-  %AddProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
+  %AddNamedProperty($Function.prototype, "constructor", $Function, DONT_ENUM);
 
   InstallFunctions($Function.prototype, DONT_ENUM, $Array(
     "bind", FunctionBind,

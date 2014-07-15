@@ -458,6 +458,8 @@ class Scanner {
     return &source_mapping_url_;
   }
 
+  bool IdentifierIsFutureStrictReserved(const AstRawString* string) const;
+
  private:
   // The current and look-ahead token.
   struct TokenDesc {

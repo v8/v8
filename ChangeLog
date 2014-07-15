@@ -1,3 +1,13 @@
+2014-07-15: Version 3.28.23
+
+        Fix error message about read-only symbol properties (issue 3441).
+
+        Include symbol properties in Object.{create,defineProperties} (issue
+        3440).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-14: Version 3.28.22
 
         Performance and stability improvements on all platforms.

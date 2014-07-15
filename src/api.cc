@@ -36,6 +36,7 @@
 #include "src/profile-generator-inl.h"
 #include "src/property.h"
 #include "src/property-details.h"
+#include "src/prototype.h"
 #include "src/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
@@ -3022,11 +3023,7 @@ uint32_t Value::Uint32Value() const {
 }
 
 
-// TODO(verwaest): Remove the attribs argument, since it doesn't make sense for
-// existing properties. Use ForceSet instead to define or redefine properties
-// with specific attributes.
-bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
-                     v8::PropertyAttribute attribs) {
+bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Set()", return false);
   ENTER_V8(isolate);
@@ -3035,9 +3032,9 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   EXCEPTION_PREAMBLE(isolate);
-  has_pending_exception = i::Runtime::SetObjectProperty(
-      isolate, self, key_obj, value_obj, i::SLOPPY,
-      static_cast<PropertyAttributes>(attribs)).is_null();
+  has_pending_exception =
+      i::Runtime::SetObjectProperty(isolate, self, key_obj, value_obj,
+                                    i::SLOPPY).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
@@ -3191,8 +3188,8 @@ Local<Value> v8::Object::GetPrototype() {
   ON_BAILOUT(isolate, "v8::Object::GetPrototype()", return Local<v8::Value>());
   ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> result(self->GetPrototype(isolate), isolate);
-  return Utils::ToLocal(result);
+  i::PrototypeIterator iter(isolate, self);
+  return Utils::ToLocal(i::PrototypeIterator::GetCurrent(iter));
 }
 
 
@@ -6172,8 +6169,7 @@ Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(
-        symbols, i_name, symbol, NONE, i::STRICT).Assert();
+    i::JSObject::SetProperty(symbols, i_name, symbol, i::STRICT).Assert();
   }
   return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
 }
@@ -6193,8 +6189,7 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(
-        symbols, i_name, symbol, NONE, i::STRICT).Assert();
+    i::JSObject::SetProperty(symbols, i_name, symbol, i::STRICT).Assert();
   }
   return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
 }
@@ -6226,8 +6221,7 @@ Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
     ASSERT(symbol->IsUndefined());
     symbol = i_isolate->factory()->NewPrivateSymbol();
     i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(
-        privates, i_name, symbol, NONE, i::STRICT).Assert();
+    i::JSObject::SetProperty(privates, i_name, symbol, i::STRICT).Assert();
   }
   Local<Symbol> result = Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
   return v8::Handle<Private>(reinterpret_cast<Private*>(*result));

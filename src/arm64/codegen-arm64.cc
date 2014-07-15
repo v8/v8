@@ -102,14 +102,16 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 // Code generators
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm, AllocationSiteMode mode,
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
     Label* allocation_memento_found) {
-  // ----------- S t a t e -------------
-  //  -- x2    : receiver
-  //  -- x3    : target map
-  // -----------------------------------
-  Register receiver = x2;
-  Register map = x3;
+  ASM_LOCATION(
+      "ElementsTransitionGenerator::GenerateMapChangeElementsTransition");
+  ASSERT(!AreAliased(receiver, key, value, target_map));
 
   if (mode == TRACK_ALLOCATION_SITE) {
     ASSERT(allocation_memento_found != NULL);
@@ -118,10 +120,10 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
   }
 
   // Set transitioned map.
-  __ Str(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      map,
+                      target_map,
                       x10,
                       kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
@@ -131,19 +133,25 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
   ASM_LOCATION("ElementsTransitionGenerator::GenerateSmiToDouble");
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  //  -- x0    : value
-  //  -- x1    : key
-  //  -- x2    : receiver
-  //  -- x3    : target map, scratch for subsequent call
-  // -----------------------------------
-  Register receiver = x2;
-  Register target_map = x3;
-
   Label gc_required, only_change_map;
+  Register elements = x4;
+  Register length = x5;
+  Register array_size = x6;
+  Register array = x7;
+
+  Register scratch = x6;
+
+  // Verify input registers don't conflict with locals.
+  ASSERT(!AreAliased(receiver, key, value, target_map,
+                     elements, length, array_size, array));
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
@@ -151,32 +159,28 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  Register elements = x4;
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ JumpIfRoot(elements, Heap::kEmptyFixedArrayRootIndex, &only_change_map);
 
   __ Push(lr);
-  Register length = x5;
   __ Ldrsw(length, UntagSmiFieldMemOperand(elements,
                                            FixedArray::kLengthOffset));
 
   // Allocate new FixedDoubleArray.
-  Register array_size = x6;
-  Register array = x7;
   __ Lsl(array_size, length, kDoubleSizeLog2);
   __ Add(array_size, array_size, FixedDoubleArray::kHeaderSize);
   __ Allocate(array_size, array, x10, x11, &gc_required, DOUBLE_ALIGNMENT);
   // Register array is non-tagged heap object.
 
   // Set the destination FixedDoubleArray's length and map.
-  Register map_root = x6;
+  Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedDoubleArrayMapRootIndex);
   __ SmiTag(x11, length);
   __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
   __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
 
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
                       kLRHasBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
 
@@ -184,7 +188,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ Add(x10, array, kHeapObjectTag);
   __ Str(x10, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ RecordWriteField(receiver, JSObject::kElementsOffset, x10,
-                      x6, kLRHasBeenSaved, kDontSaveFPRegs,
+                      scratch, kLRHasBeenSaved, kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
@@ -203,7 +207,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ Bind(&only_change_map);
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, x6,
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ B(&done);
@@ -235,20 +239,22 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
   ASM_LOCATION("ElementsTransitionGenerator::GenerateDoubleToObject");
-  // ----------- S t a t e -------------
-  //  -- x0    : value
-  //  -- x1    : key
-  //  -- x2    : receiver
-  //  -- lr    : return address
-  //  -- x3    : target map, scratch for subsequent call
-  //  -- x4    : scratch (elements)
-  // -----------------------------------
-  Register value = x0;
-  Register key = x1;
-  Register receiver = x2;
-  Register target_map = x3;
+  Register elements = x4;
+  Register array_size = x6;
+  Register array = x7;
+  Register length = x5;
+
+  // Verify input registers don't conflict with locals.
+  ASSERT(!AreAliased(receiver, key, value, target_map,
+                     elements, array_size, array, length));
 
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(receiver, x10, x11, fail);
@@ -257,7 +263,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
   Label only_change_map;
-  Register elements = x4;
+
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ JumpIfRoot(elements, Heap::kEmptyFixedArrayRootIndex, &only_change_map);
 
@@ -265,20 +271,16 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // TODO(all): These registers may not need to be pushed. Examine
   // RecordWriteStub and check whether it's needed.
   __ Push(target_map, receiver, key, value);
-  Register length = x5;
   __ Ldrsw(length, UntagSmiFieldMemOperand(elements,
                                            FixedArray::kLengthOffset));
-
   // Allocate new FixedArray.
-  Register array_size = x6;
-  Register array = x7;
   Label gc_required;
   __ Mov(array_size, FixedDoubleArray::kHeaderSize);
   __ Add(array_size, array_size, Operand(length, LSL, kPointerSizeLog2));
   __ Allocate(array_size, array, x10, x11, &gc_required, NO_ALLOCATION_FLAGS);
 
   // Set destination FixedDoubleArray's length and map.
-  Register map_root = x6;
+  Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedArrayMapRootIndex);
   __ SmiTag(x11, length);
   __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
@@ -316,8 +318,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     __ B(eq, &convert_hole);
 
     // Non-hole double, copy value into a heap number.
-    Register heap_num = x5;
-    __ AllocateHeapNumber(heap_num, &gc_required, x6, x4,
+    Register heap_num = length;
+    Register scratch = array_size;
+    Register scratch2 = elements;
+    __ AllocateHeapNumber(heap_num, &gc_required, scratch, scratch2,
                           x13, heap_num_map);
     __ Mov(x13, dst_elements);
     __ Str(heap_num, MemOperand(dst_elements, kPointerSize, PostIndex));

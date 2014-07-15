@@ -11,6 +11,7 @@
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/ic-inl.h"
+#include "src/prototype.h"
 #include "src/runtime.h"
 #include "src/stub-cache.h"
 
@@ -248,7 +249,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
       break;
     case PROTOTYPE_MAP:
       // IC::GetCodeCacheHolder is not applicable.
-      if (receiver->GetPrototype(isolate())->IsNull()) return false;
+      PrototypeIterator iter(isolate(), receiver);
+      if (iter.IsAtEnd()) return false;
       break;
   }
 
@@ -1285,10 +1287,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(),
-        result,
-        JSReceiver::SetProperty(receiver, name, value, NONE, strict_mode()),
-        Object);
+        isolate(), result,
+        JSReceiver::SetProperty(receiver, name, value, strict_mode()), Object);
     return result;
   }
 
@@ -1326,10 +1326,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   if (receiver->map()->is_observed()) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(),
-        result,
-        JSReceiver::SetProperty(
-            receiver, name, value, NONE, strict_mode(), store_mode),
+        isolate(), result, JSReceiver::SetProperty(receiver, name, value,
+                                                   strict_mode(), store_mode),
         Object);
     return result;
   }
@@ -1360,10 +1358,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   // Set the property.
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(),
-      result,
-      JSReceiver::SetProperty(
-          receiver, name, value, NONE, strict_mode(), store_mode),
+      isolate(), result,
+      JSReceiver::SetProperty(receiver, name, value, strict_mode(), store_mode),
       Object);
   return result;
 }
