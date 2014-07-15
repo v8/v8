@@ -786,7 +786,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       HeapObject::kMapOffset,
                       target_map,
                       scratch2,
-                      kRAHasNotBeenSaved,
+                      kRAHasBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -794,8 +794,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
+  __ lw(ra, MemOperand(sp, 0));
   __ Branch(USE_DELAY_SLOT, fail);
-  __ pop(ra);
+  __ addiu(sp, sp, kPointerSize);  // In delay slot.
 
   // Convert and copy elements.
   __ bind(&loop);
@@ -825,12 +826,12 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // exponent
   __ sw(hole_upper, MemOperand(scratch3, Register::kExponentOffset));
   __ bind(&entry);
-  __ addiu(scratch3, scratch3, kDoubleSize);  // In delay slot.
+  __ addiu(scratch3, scratch3, kDoubleSize);
 
   __ Branch(&loop, lt, scratch3, Operand(array_end));
 
-  __ pop(ra);
   __ bind(&done);
+  __ pop(ra);
 }
 
 
