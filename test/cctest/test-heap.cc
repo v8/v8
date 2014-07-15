@@ -44,8 +44,8 @@ using namespace v8::internal;
 static void SimulateIncrementalMarking() {
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
   IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  if (collector->IsConcurrentSweepingInProgress()) {
-    collector->WaitUntilSweepingCompleted();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
@@ -1591,8 +1591,8 @@ TEST(TestSizeOfObjects) {
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
   MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
-  if (collector->IsConcurrentSweepingInProgress()) {
-    collector->WaitUntilSweepingCompleted();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
   }
   int initial_size = static_cast<int>(CcTest::heap()->SizeOfObjects());
 
@@ -1618,8 +1618,8 @@ TEST(TestSizeOfObjects) {
   CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
 
   // Waiting for sweeper threads should not change heap size.
-  if (collector->IsConcurrentSweepingInProgress()) {
-    collector->WaitUntilSweepingCompleted();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
   }
   CHECK_EQ(initial_size, static_cast<int>(CcTest::heap()->SizeOfObjects()));
 }
