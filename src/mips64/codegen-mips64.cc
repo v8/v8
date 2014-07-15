@@ -551,26 +551,27 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
-    MacroAssembler* masm, AllocationSiteMode mode,
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
     Label* allocation_memento_found) {
-  // ----------- S t a t e -------------
-  //  -- a0    : value
-  //  -- a1    : key
-  //  -- a2    : receiver
-  //  -- ra    : return address
-  //  -- a3    : target map, scratch for subsequent call
-  //  -- a4    : scratch (elements)
-  // -----------------------------------
+  Register scratch_elements = a4;
+  ASSERT(!AreAliased(receiver, key, value, target_map,
+                     scratch_elements));
+
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_memento_found != NULL);
-    __ JumpIfJSArrayHasAllocationMemento(a2, a4, allocation_memento_found);
+    __ JumpIfJSArrayHasAllocationMemento(
+        receiver, scratch_elements, allocation_memento_found);
   }
 
   // Set transitioned map.
-  __ sd(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
+  __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(a2,
                       HeapObject::kMapOffset,
-                      a3,
+                      target_map,
                       t1,
                       kRAHasNotBeenSaved,
                       kDontSaveFPRegs,
@@ -580,61 +581,73 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
 
 void ElementsTransitionGenerator::GenerateSmiToDouble(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  // ----------- S t a t e -------------
-  //  -- a0    : value
-  //  -- a1    : key
-  //  -- a2    : receiver
-  //  -- ra    : return address
-  //  -- a3    : target map, scratch for subsequent call
-  //  -- a4    : scratch (elements)
-  // -----------------------------------
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
+  // Register ra contains the return address.
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
+  Register elements = a4;
+  Register length = a5;
+  Register array = a6;
+  Register array_end = array;
+
+  // target_map parameter can be clobbered.
+  Register scratch1 = target_map;
+  Register scratch2 = t1;
+  Register scratch3 = a7;
+
+  // Verify input registers don't conflict with locals.
+  ASSERT(!AreAliased(receiver, key, value, target_map,
+                     elements, length, array, scratch2));
 
   Register scratch = t2;
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ JumpIfJSArrayHasAllocationMemento(a2, a4, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ ld(a4, FieldMemOperand(a2, JSObject::kElementsOffset));
+  __ ld(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ LoadRoot(at, Heap::kEmptyFixedArrayRootIndex);
-  __ Branch(&only_change_map, eq, at, Operand(a4));
+  __ Branch(&only_change_map, eq, at, Operand(elements));
 
   __ push(ra);
-  __ ld(a5, FieldMemOperand(a4, FixedArray::kLengthOffset));
-  // a4: source FixedArray
-  // a5: number of elements (smi-tagged)
+  __ ld(length, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  // elements: source FixedArray
+  // length: number of elements (smi-tagged)
 
   // Allocate new FixedDoubleArray.
-  __ SmiScale(scratch, a5, kDoubleSizeLog2);
+  __ SmiScale(scratch, length, kDoubleSizeLog2);
   __ Daddu(scratch, scratch, FixedDoubleArray::kHeaderSize);
-  __ Allocate(scratch, a6, a7, t1, &gc_required, DOUBLE_ALIGNMENT);
-  // a6: destination FixedDoubleArray, not tagged as heap object
+  __ Allocate(scratch, array, t3, scratch2, &gc_required, DOUBLE_ALIGNMENT);
+  // array: destination FixedDoubleArray, not tagged as heap object
 
   // Set destination FixedDoubleArray's length and map.
-  __ LoadRoot(t1, Heap::kFixedDoubleArrayMapRootIndex);
-  __ sd(a5, MemOperand(a6, FixedDoubleArray::kLengthOffset));
-  __ sd(t1, MemOperand(a6, HeapObject::kMapOffset));
+  __ LoadRoot(scratch2, Heap::kFixedDoubleArrayMapRootIndex);
+  __ sd(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
   // Update receiver's map.
+  __ sd(scratch2, MemOperand(array, HeapObject::kMapOffset));
 
-  __ sd(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
-  __ RecordWriteField(a2,
+  __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      a3,
-                      t1,
+                      target_map,
+                      scratch2,
                       kRAHasBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created FixedDoubleArray.
-  __ Daddu(a3, a6, Operand(kHeapObjectTag));
-  __ sd(a3, FieldMemOperand(a2, JSObject::kElementsOffset));
-  __ RecordWriteField(a2,
+  __ Daddu(scratch1, array, Operand(kHeapObjectTag));
+  __ sd(scratch1, FieldMemOperand(a2, JSObject::kElementsOffset));
+  __ RecordWriteField(receiver,
                       JSObject::kElementsOffset,
-                      a3,
-                      t1,
+                      scratch1,
+                      scratch2,
                       kRAHasBeenSaved,
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
@@ -642,25 +655,30 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
   // Prepare for conversion loop.
-  __ Daddu(a3, a4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ Daddu(a7, a6, Operand(FixedDoubleArray::kHeaderSize));
-  __ SmiScale(a6, a5, kDoubleSizeLog2);
-  __ Daddu(a6, a6, a7);
-  __ li(a4, Operand(kHoleNanLower32));
-  __ li(a5, Operand(kHoleNanUpper32));
-  // a4: kHoleNanLower32
-  // a5: kHoleNanUpper32
-  // a6: end of destination FixedDoubleArray, not tagged
-  // a7: begin of FixedDoubleArray element fields, not tagged
+  __ Daddu(scratch1, elements,
+      Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Daddu(scratch3, array, Operand(FixedDoubleArray::kHeaderSize));
+  __ SmiScale(array_end, length, kDoubleSizeLog2);
+  __ Daddu(array_end, array_end, scratch3);
 
+// Repurpose registers no longer in use.
+  Register hole_lower = elements;
+  Register hole_upper = length;
+  __ li(hole_lower, Operand(kHoleNanLower32));
+  __ li(hole_upper, Operand(kHoleNanUpper32));
+  // scratch1: begin of source FixedArray element fields, not tagged
+  // hole_lower: kHoleNanLower32
+  // hole_upper: kHoleNanUpper32
+  // array_end: end of destination FixedDoubleArray, not tagged
+  // scratch3: begin of FixedDoubleArray element fields, not tagged
   __ Branch(&entry);
 
   __ bind(&only_change_map);
-  __ sd(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
-  __ RecordWriteField(a2,
+  __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      a3,
-                      t1,
+                      target_map,
+                      scratch2,
                       kRAHasNotBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
@@ -674,17 +692,17 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Convert and copy elements.
   __ bind(&loop);
-  __ ld(t1, MemOperand(a3));
-  __ Daddu(a3, a3, kIntSize);
-  // t1: current element
-  __ JumpIfNotSmi(t1, &convert_hole);
-  __ SmiUntag(t1);
+  __ ld(scratch2, MemOperand(scratch1));
+  __ Daddu(scratch1, scratch1, kIntSize);
+  // scratch2: current element
+  __ JumpIfNotSmi(scratch2, &convert_hole);
+  __ SmiUntag(scratch2);
 
   // Normal smi, convert to double and store.
-  __ mtc1(t1, f0);
+  __ mtc1(scratch2, f0);
   __ cvt_d_w(f0, f0);
-  __ sdc1(f0, MemOperand(a7));
-  __ Daddu(a7, a7, kDoubleSize);
+  __ sdc1(f0, MemOperand(scratch3));
+  __ Daddu(scratch3, scratch3, kDoubleSize);
 
   __ Branch(&entry);
 
@@ -692,16 +710,18 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
     // Restore a "smi-untagged" heap object.
-    __ Or(t1, t1, Operand(1));
+    __ Or(scratch2, scratch2, Operand(1));
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    __ Assert(eq, kObjectFoundInSmiOnlyArray, at, Operand(t1));
+    __ Assert(eq, kObjectFoundInSmiOnlyArray, at, Operand(scratch2));
   }
-  __ sw(a4, MemOperand(a7));  // mantissa
-  __ sw(a5, MemOperand(a7, kIntSize));  // exponent
-  __ Daddu(a7, a7, kDoubleSize);
+  // mantissa
+  __ sw(hole_lower, MemOperand(scratch3));
+  // exponent
+  __ sw(hole_upper, MemOperand(scratch3, kIntSize));
+  __ Daddu(scratch3, scratch3, kDoubleSize);
 
   __ bind(&entry);
-  __ Branch(&loop, lt, a7, Operand(a6));
+  __ Branch(&loop, lt, scratch3, Operand(array_end));
 
   __ pop(ra);
   __ bind(&done);
@@ -709,84 +729,109 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
 
 void ElementsTransitionGenerator::GenerateDoubleToObject(
-    MacroAssembler* masm, AllocationSiteMode mode, Label* fail) {
-  // ----------- S t a t e -------------
-  //  -- a0    : value
-  //  -- a1    : key
-  //  -- a2    : receiver
-  //  -- ra    : return address
-  //  -- a3    : target map, scratch for subsequent call
-  //  -- a4    : scratch (elements)
-  // -----------------------------------
+    MacroAssembler* masm,
+    Register receiver,
+    Register key,
+    Register value,
+    Register target_map,
+    AllocationSiteMode mode,
+    Label* fail) {
+  // Register ra contains the return address.
   Label entry, loop, convert_hole, gc_required, only_change_map;
+  Register elements = a4;
+  Register array = a6;
+  Register length = a5;
+  Register scratch = t1;
+
+  // Verify input registers don't conflict with locals.
+  ASSERT(!AreAliased(receiver, key, value, target_map,
+                     elements, array, length, scratch));
   if (mode == TRACK_ALLOCATION_SITE) {
-    __ JumpIfJSArrayHasAllocationMemento(a2, a4, fail);
+    __ JumpIfJSArrayHasAllocationMemento(receiver, elements, fail);
   }
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
-  __ ld(a4, FieldMemOperand(a2, JSObject::kElementsOffset));
+  __ ld(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ LoadRoot(at, Heap::kEmptyFixedArrayRootIndex);
-  __ Branch(&only_change_map, eq, at, Operand(a4));
+  __ Branch(&only_change_map, eq, at, Operand(elements));
 
-  __ MultiPush(a0.bit() | a1.bit() | a2.bit() | a3.bit() | ra.bit());
+  __ MultiPush(
+      value.bit() | key.bit() | receiver.bit() | target_map.bit() | ra.bit());
 
-  __ ld(a5, FieldMemOperand(a4, FixedArray::kLengthOffset));
-  // a4: source FixedArray
-  // a5: number of elements (smi-tagged)
+  __ ld(length, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  // elements: source FixedArray
+  // length: number of elements (smi-tagged)
 
   // Allocate new FixedArray.
-  __ SmiScale(a0, a5, kPointerSizeLog2);
-  __ Daddu(a0, a0, FixedDoubleArray::kHeaderSize);
-  __ Allocate(a0, a6, a7, t1, &gc_required, NO_ALLOCATION_FLAGS);
-  // a6: destination FixedArray, not tagged as heap object
+  // Re-use value and target_map registers, as they have been saved on the
+  // stack.
+  Register array_size = value;
+  Register allocate_scratch = target_map;
+  __ SmiScale(array_size, length, kPointerSizeLog2);
+  __ Daddu(array_size, array_size, FixedDoubleArray::kHeaderSize);
+  __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
+              NO_ALLOCATION_FLAGS);
+  // array: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
-  __ LoadRoot(t1, Heap::kFixedArrayMapRootIndex);
-  __ sd(a5, MemOperand(a6, FixedDoubleArray::kLengthOffset));
-  __ sd(t1, MemOperand(a6, HeapObject::kMapOffset));
+  __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
+  __ sd(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ sd(scratch, MemOperand(array, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
-  __ Daddu(a4, a4, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
-  __ Daddu(a3, a6, Operand(FixedArray::kHeaderSize));
-  __ Daddu(a6, a6, Operand(kHeapObjectTag));
-  __ SmiScale(a5, a5, kPointerSizeLog2);
-  __ Daddu(a5, a3, a5);
-  __ LoadRoot(a7, Heap::kTheHoleValueRootIndex);
-  __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
+  Register src_elements = elements;
+  Register dst_elements = target_map;
+  Register dst_end = length;
+  Register heap_number_map = scratch;
+  __ Daddu(src_elements, src_elements,
+      Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
+  __ Daddu(dst_elements, array, Operand(FixedArray::kHeaderSize));
+  __ Daddu(array, array, Operand(kHeapObjectTag));
+  __ SmiScale(dst_end, dst_end, kPointerSizeLog2);
+  __ Daddu(dst_end, dst_elements, dst_end);
+  __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   // Using offsetted addresses.
-  // a3: begin of destination FixedArray element fields, not tagged
-  // a4: begin of source FixedDoubleArray element fields, not tagged, +4
-  // a5: end of destination FixedArray, not tagged
-  // a6: destination FixedArray
-  // a7: the-hole pointer
-  // t1: heap number map
+  // dst_elements: begin of destination FixedArray element fields, not tagged
+  // src_elements: begin of source FixedDoubleArray element fields, not tagged,
+  //               points to the exponent
+  // dst_end: end of destination FixedArray, not tagged
+  // array: destination FixedArray
+  // heap_number_map: heap number map
   __ Branch(&entry);
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ MultiPop(a0.bit() | a1.bit() | a2.bit() | a3.bit() | ra.bit());
+  __ MultiPop(
+      value.bit() | key.bit() | receiver.bit() | target_map.bit() | ra.bit());
 
   __ Branch(fail);
 
   __ bind(&loop);
-  __ lw(a1, MemOperand(a4));
-  __ Daddu(a4, a4, kDoubleSize);
-  // a1: current element's upper 32 bit
-  // a4: address of next element's upper 32 bit
+  Register upper_bits = key;
+  __ lw(upper_bits, MemOperand(src_elements));
+  __ Daddu(src_elements, src_elements, kDoubleSize);
+  // upper_bits: current element's upper 32 bit
+  // src_elements: address of next element's upper 32 bit
   __ Branch(&convert_hole, eq, a1, Operand(kHoleNanUpper32));
 
   // Non-hole double, copy value into a heap number.
-  __ AllocateHeapNumber(a2, a0, t2, t1, &gc_required);
-  // a2: new heap number
-  __ lw(a0, MemOperand(a4, -12));
-  __ sw(a0, FieldMemOperand(a2, HeapNumber::kMantissaOffset));
-  __ sw(a1, FieldMemOperand(a2, HeapNumber::kExponentOffset));
-  __ mov(a0, a3);
-  __ sd(a2, MemOperand(a3));
-  __ Daddu(a3, a3, kPointerSize);
-  __ RecordWrite(a6,
-                 a0,
-                 a2,
+  Register heap_number = receiver;
+  Register scratch2 = value;
+  Register scratch3 = t2;
+  __ AllocateHeapNumber(heap_number, scratch2, scratch3, heap_number_map,
+                        &gc_required);
+  // heap_number: new heap number
+  // Load mantissa of current element, src_elements
+  // point to exponent of next element.
+  __ lw(scratch2, MemOperand(heap_number, -12));
+  __ sw(scratch2, FieldMemOperand(heap_number, HeapNumber::kMantissaOffset));
+  __ sw(upper_bits, FieldMemOperand(heap_number, HeapNumber::kExponentOffset));
+  __ mov(scratch2, dst_elements);
+  __ sd(heap_number, MemOperand(dst_elements));
+  __ Daddu(dst_elements, dst_elements, kPointerSize);
+  __ RecordWrite(array,
+                 scratch2,
+                 heap_number,
                  kRAHasBeenSaved,
                  kDontSaveFPRegs,
                  EMIT_REMEMBERED_SET,
@@ -795,19 +840,20 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Replace the-hole NaN with the-hole pointer.
   __ bind(&convert_hole);
-  __ sd(a7, MemOperand(a3));
-  __ Daddu(a3, a3, kPointerSize);
+  __ LoadRoot(scratch2, Heap::kTheHoleValueRootIndex);
+  __ sd(scratch2, MemOperand(dst_elements));
+  __ Daddu(dst_elements, dst_elements, kPointerSize);
 
   __ bind(&entry);
-  __ Branch(&loop, lt, a3, Operand(a5));
+  __ Branch(&loop, lt, dst_elements, Operand(dst_end));
 
-  __ MultiPop(a2.bit() | a3.bit() | a0.bit() | a1.bit());
+  __ MultiPop(receiver.bit() | target_map.bit() | value.bit() | key.bit());
   // Replace receiver's backing store with newly created and filled FixedArray.
-  __ sd(a6, FieldMemOperand(a2, JSObject::kElementsOffset));
-  __ RecordWriteField(a2,
+  __ sd(array, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ RecordWriteField(receiver,
                       JSObject::kElementsOffset,
-                      a6,
-                      t1,
+                      array,
+                      scratch,
                       kRAHasBeenSaved,
                       kDontSaveFPRegs,
                       EMIT_REMEMBERED_SET,
@@ -816,11 +862,11 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   __ bind(&only_change_map);
   // Update receiver's map.
-  __ sd(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
-  __ RecordWriteField(a2,
+  __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
-                      a3,
-                      t1,
+                      target_map,
+                      scratch,
                       kRAHasNotBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
