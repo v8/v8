@@ -1385,12 +1385,12 @@ Handle<Code> BaseLoadStoreStubCompiler::CompilePolymorphicIC(
   }
 
   Label number_case;
-  Register match = scratch1();
+  Register match = scratch2();
   Label* smi_target = IncludesNumberType(types) ? &number_case : &miss;
   __ JumpIfSmi(receiver(), smi_target, match);  // Reg match is 0 if Smi.
 
   // Polymorphic keyed stores may use the map register
-  Register map_reg = scratch2();
+  Register map_reg = scratch1();
   ASSERT(kind() != Code::KEYED_STORE_IC ||
          map_reg.is(KeyedStoreIC::MapRegister()));
 
