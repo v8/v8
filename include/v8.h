@@ -4577,7 +4577,7 @@ struct JitCodeEvent {
   // Size of the instructions.
   size_t code_len;
   // Script info for CODE_ADDED event.
-  Handle<Script> script;
+  Handle<UnboundScript> script;
   // User-defined data for *_LINE_INFO_* event. It's used to hold the source
   // code line information which is returned from the
   // CODE_START_LINE_INFO_RECORDING event. And it's passed to subsequent
