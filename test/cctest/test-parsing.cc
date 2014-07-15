@@ -1815,9 +1815,7 @@ TEST(NoErrorsYieldSloppyAllModes) {
     NULL
   };
 
-  static const ParserFlag always_flags[] = {kAllowArrowFunctions};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -3088,7 +3086,13 @@ TEST(ErrorsArrowFunctions) {
     NULL
   };
 
-  RunParserSyncTest(context_data, statement_data, kError);
+  // The test is quite slow, so run it with a reduced set of flags.
+  static const ParserFlag flags[] = {
+    kAllowLazy, kAllowHarmonyScoping, kAllowGenerators
+  };
+  static const ParserFlag always_flags[] = { kAllowArrowFunctions };
+  RunParserSyncTest(context_data, statement_data, kError, flags,
+                    ARRAY_SIZE(flags), always_flags, ARRAY_SIZE(always_flags));
 }
 
 
