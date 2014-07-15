@@ -216,12 +216,6 @@ const int kCodeAlignmentBits = 5;
 const intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 const intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-// Tag information for Failure.
-// TODO(yangguo): remove this from space owner calculation.
-const int kFailureTag = 3;
-const int kFailureTagSize = 2;
-const intptr_t kFailureTagMask = (1 << kFailureTagSize) - 1;
-
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
@@ -536,9 +530,6 @@ enum StateTag {
 
 #define HAS_SMI_TAG(value) \
   ((reinterpret_cast<intptr_t>(value) & kSmiTagMask) == kSmiTag)
-
-#define HAS_FAILURE_TAG(value) \
-  ((reinterpret_cast<intptr_t>(value) & kFailureTagMask) == kFailureTag)
 
 // OBJECT_POINTER_ALIGN returns the value aligned as a HeapObject pointer
 #define OBJECT_POINTER_ALIGN(value)                             \

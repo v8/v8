@@ -312,20 +312,11 @@ class MemoryChunk {
   }
 
   Space* owner() const {
-    if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
-        kFailureTag) {
-      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
-                                      kFailureTag);
-    } else {
-      return NULL;
-    }
+    return owner_;
   }
 
   void set_owner(Space* space) {
-    ASSERT((reinterpret_cast<intptr_t>(space) & kFailureTagMask) == 0);
-    owner_ = reinterpret_cast<Address>(space) + kFailureTag;
-    ASSERT((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
-           kFailureTag);
+    owner_ = space;
   }
 
   base::VirtualMemory* reserved_memory() {
@@ -691,10 +682,7 @@ class MemoryChunk {
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   base::VirtualMemory reservation_;
-  // The identity of the owning space.  This is tagged as a failure pointer, but
-  // no failure can be in an object, so this can be distinguished from any entry
-  // in a fixed array.
-  Address owner_;
+  Space* owner_;
   Heap* heap_;
   // Used by the store buffer to keep track of which pages to mark scan-on-
   // scavenge.
