@@ -237,7 +237,6 @@ template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
     Heap* heap, RelocInfo* rinfo) {
   ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  ASSERT(!rinfo->target_object()->IsConsString());
   HeapObject* object = HeapObject::cast(rinfo->target_object());
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
   // TODO(ulan): It could be better to record slots only for strongly embedded

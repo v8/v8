@@ -992,9 +992,6 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
     }
     case CONSTANT: {
       Handle<Object> constant(lookup->GetConstant(), isolate());
-      // TODO(2803): Don't compute a stub for cons strings because they cannot
-      // be embedded into code.
-      if (constant->IsConsString()) break;
       return compiler.CompileLoadConstant(type, holder, name, constant);
     }
     case NORMAL:

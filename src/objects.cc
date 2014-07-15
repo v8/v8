@@ -16900,10 +16900,9 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                                            Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<HeapType> old_type(cell->type(), isolate);
-  // TODO(2803): Do not track ConsString as constant because they cannot be
-  // embedded into code.
-  Handle<HeapType> new_type = value->IsConsString() || value->IsTheHole()
-      ? HeapType::Any(isolate) : HeapType::Constant(value, isolate);
+  Handle<HeapType> new_type = value->IsTheHole()
+                                  ? HeapType::Any(isolate)
+                                  : HeapType::Constant(value, isolate);
 
   if (new_type->Is(old_type)) {
     return old_type;
