@@ -718,6 +718,7 @@ class CodeAddressMap: public CodeEventLogger {
 
 Deserializer::Deserializer(SnapshotByteSource* source)
     : isolate_(NULL),
+      deserialize_code_(false),
       source_(source),
       external_reference_decoder_(NULL) {
   for (int i = 0; i < LAST_SPACE + 1; i++) {
@@ -832,6 +833,54 @@ void Deserializer::RelinkAllocationSite(AllocationSite* site) {
 }
 
 
+// Used to insert a deserialized internalized string into the string table.
+class StringTableInsertionKey : public HashTableKey {
+ public:
+  explicit StringTableInsertionKey(String* string)
+      : string_(string), hash_(HashForObject(string)) {
+    ASSERT(string->IsInternalizedString());
+  }
+
+  virtual bool IsMatch(Object* string) {
+    // We know that all entries in a hash table had their hash keys created.
+    // Use that knowledge to have fast failure.
+    if (hash_ != HashForObject(string)) return false;
+    // We want to compare the content of two internalized strings here.
+    return string_->SlowEquals(String::cast(string));
+  }
+
+  virtual uint32_t Hash() V8_OVERRIDE { return hash_; }
+
+  virtual uint32_t HashForObject(Object* key) V8_OVERRIDE {
+    return String::cast(key)->Hash();
+  }
+
+  MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate)
+      V8_OVERRIDE {
+    return handle(string_, isolate);
+  }
+
+  String* string_;
+  uint32_t hash_;
+};
+
+
+HeapObject* Deserializer::ProcessObjectFromSerializedCode(HeapObject* obj) {
+  if (obj->IsString()) {
+    String* string = String::cast(obj);
+    // Uninitialize hash field as the hash seed may have changed.
+    string->set_hash_field(String::kEmptyHashField);
+    if (string->IsInternalizedString()) {
+      DisallowHeapAllocation no_gc;
+      HandleScope scope(isolate_);
+      StringTableInsertionKey key(string);
+      return *StringTable::LookupKey(isolate_, &key);
+    }
+  }
+  return obj;
+}
+
+
 // This routine writes the new object into the pointer provided and then
 // returns true if the new object was in young space and false otherwise.
 // The reason for this strange interface is that otherwise the object is
@@ -843,7 +892,6 @@ void Deserializer::ReadObject(int space_number,
   Address address = Allocate(space_number, size);
   HeapObject* obj = HeapObject::FromAddress(address);
   isolate_->heap()->OnAllocationEvent(obj, size);
-  *write_back = obj;
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
   if (FLAG_log_snapshot_positions) {
@@ -854,10 +902,12 @@ void Deserializer::ReadObject(int space_number,
   // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
   // as a (weak) root. If this root is relocated correctly,
   // RelinkAllocationSite() isn't necessary.
-  if (obj->IsAllocationSite()) {
-    RelinkAllocationSite(AllocationSite::cast(obj));
-  }
+  if (obj->IsAllocationSite()) RelinkAllocationSite(AllocationSite::cast(obj));
 
+  // Fix up strings from serialized user code.
+  if (deserialize_code_) obj = ProcessObjectFromSerializedCode(obj);
+
+  *write_back = obj;
 #ifdef DEBUG
   bool is_codespace = (space_number == CODE_SPACE);
   ASSERT(obj->IsCode() == is_codespace);
@@ -921,13 +971,13 @@ void Deserializer::ReadChunk(Object** current,
         emit_write_barrier = (space_number == NEW_SPACE);                      \
         new_object = GetAddressFromEnd(data & kSpaceMask);                     \
       } else if (where == kBuiltin) {                                          \
+        ASSERT(deserialize_code_);                                             \
         int builtin_id = source_->GetInt();                                    \
         ASSERT_LE(0, builtin_id);                                              \
         ASSERT_LT(builtin_id, Builtins::builtin_count);                        \
         Builtins::Name name = static_cast<Builtins::Name>(builtin_id);         \
         new_object = isolate->builtins()->builtin(name);                       \
         emit_write_barrier = false;                                            \
-        PrintF("BUILTIN how within %d, %d\n", how, within);                    \
       } else {                                                                 \
         ASSERT(where == kBackrefWithSkip);                                     \
         int skip = source_->GetInt();                                          \
@@ -1859,8 +1909,6 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
   // TODO(yangguo) wire up stubs from stub cache.
   // TODO(yangguo) wire up script source.
-  // TODO(yangguo) wire up internalized strings
-  ASSERT(!heap_object->IsInternalizedString());
   // TODO(yangguo) We cannot deal with different hash seeds yet.
   ASSERT(!heap_object->IsHashTable());
 
@@ -1916,6 +1964,7 @@ Object* CodeSerializer::Deserialize(Isolate* isolate, ScriptData* data) {
   SerializedCodeData scd(data);
   SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
   Deserializer deserializer(&payload);
+  deserializer.ExpectSerializedCode();
   STATIC_ASSERT(NEW_SPACE == 0);
   // TODO(yangguo) what happens if remaining new space is too small?
   for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {

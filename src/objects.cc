@@ -14053,33 +14053,6 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 }
 
 
-// StringKey simply carries a string object as key.
-class StringKey : public HashTableKey {
- public:
-  explicit StringKey(String* string) :
-      string_(string),
-      hash_(HashForObject(string)) { }
-
-  bool IsMatch(Object* string) {
-    // We know that all entries in a hash table had their hash keys created.
-    // Use that knowledge to have fast failure.
-    if (hash_ != HashForObject(string)) {
-      return false;
-    }
-    return string_->Equals(String::cast(string));
-  }
-
-  uint32_t Hash() { return hash_; }
-
-  uint32_t HashForObject(Object* other) { return String::cast(other)->Hash(); }
-
-  Object* AsObject(Heap* heap) { return string_; }
-
-  String* string_;
-  uint32_t hash_;
-};
-
-
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:

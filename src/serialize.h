@@ -252,6 +252,10 @@ class Deserializer: public SerializerDeserializer {
 
   void FlushICacheForNewCodeObjects();
 
+  // Call this to indicate that the serialized data represents user code.
+  // There are some more wiring up required in this case.
+  void ExpectSerializedCode() { deserialize_code_ = true; }
+
  private:
   virtual void VisitPointers(Object** start, Object** end);
 
@@ -272,6 +276,8 @@ class Deserializer: public SerializerDeserializer {
       Object** start, Object** end, int space, Address object_address);
   void ReadObject(int space_number, Object** write_back);
 
+  HeapObject* ProcessObjectFromSerializedCode(HeapObject* obj);
+
   // This routine both allocates a new object, and also keeps
   // track of where objects have been allocated so that we can
   // fix back references when deserializing.
@@ -291,6 +297,7 @@ class Deserializer: public SerializerDeserializer {
 
   // Cached current isolate.
   Isolate* isolate_;
+  bool deserialize_code_;
 
   SnapshotByteSource* source_;
   // This is the address of the next object that will be allocated in each
