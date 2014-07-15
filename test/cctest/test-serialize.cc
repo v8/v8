@@ -707,6 +707,8 @@ TEST(SerializeToplevelOnePlusOne) {
                               &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
 
   CHECK_NE(*orig, *copy);
+  CHECK(Script::cast(copy->script())->source() == *source2_string);
+
   Handle<JSFunction> copy_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           copy, isolate->native_context());
@@ -758,6 +760,8 @@ TEST(SerializeToplevelInternalizedString) {
                               Handle<Context>(isolate->native_context()), NULL,
                               &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
   CHECK_NE(*orig, *copy);
+  CHECK(Script::cast(copy->script())->source() == *source2_string);
+
   Handle<JSFunction> copy_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           copy, isolate->native_context());

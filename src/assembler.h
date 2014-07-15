@@ -974,17 +974,6 @@ class ExternalReference BASE_EMBEDDED {
       : address_(address) {}
 
   static void* Redirect(Isolate* isolate,
-                        void* address,
-                        Type type = ExternalReference::BUILTIN_CALL) {
-    ExternalReferenceRedirector* redirector =
-        reinterpret_cast<ExternalReferenceRedirector*>(
-            isolate->external_reference_redirector());
-    if (redirector == NULL) return address;
-    void* answer = (*redirector)(address, type);
-    return answer;
-  }
-
-  static void* Redirect(Isolate* isolate,
                         Address address_arg,
                         Type type = ExternalReference::BUILTIN_CALL) {
     ExternalReferenceRedirector* redirector =
