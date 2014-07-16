@@ -661,17 +661,17 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ SmiScale(array_end, length, kDoubleSizeLog2);
   __ Daddu(array_end, array_end, scratch3);
 
-// Repurpose registers no longer in use.
+  // Repurpose registers no longer in use.
   Register hole_lower = elements;
   Register hole_upper = length;
   __ li(hole_lower, Operand(kHoleNanLower32));
-  __ li(hole_upper, Operand(kHoleNanUpper32));
   // scratch1: begin of source FixedArray element fields, not tagged
   // hole_lower: kHoleNanLower32
   // hole_upper: kHoleNanUpper32
   // array_end: end of destination FixedDoubleArray, not tagged
   // scratch3: begin of FixedDoubleArray element fields, not tagged
-  __ Branch(&entry);
+  __ Branch(USE_DELAY_SLOT, &entry);
+  __ li(hole_upper, Operand(kHoleNanUpper32));  // In delay slot.
 
   __ bind(&only_change_map);
   __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -679,7 +679,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       HeapObject::kMapOffset,
                       target_map,
                       scratch2,
-                      kRAHasNotBeenSaved,
+                      kRAHasBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -687,8 +687,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ pop(ra);
-  __ Branch(fail);
+  __ ld(ra, MemOperand(sp, 0));
+  __ Branch(USE_DELAY_SLOT, fail);
+  __ daddiu(sp, sp, kPointerSize);  // In delay slot.
 
   // Convert and copy elements.
   __ bind(&loop);
@@ -702,9 +703,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ mtc1(scratch2, f0);
   __ cvt_d_w(f0, f0);
   __ sdc1(f0, MemOperand(scratch3));
-  __ Daddu(scratch3, scratch3, kDoubleSize);
-
-  __ Branch(&entry);
+  __ Branch(USE_DELAY_SLOT, &entry);
+  __ daddiu(scratch3, scratch3, kDoubleSize);  // In delay slot.
 
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
@@ -723,8 +723,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ bind(&entry);
   __ Branch(&loop, lt, scratch3, Operand(array_end));
 
-  __ pop(ra);
   __ bind(&done);
+  __ pop(ra);
 }
 
 
