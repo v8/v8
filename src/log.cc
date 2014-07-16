@@ -924,7 +924,7 @@ void Logger::CurrentTimeEvent() {
 }
 
 
-void Logger::TimerEvent(StartEnd se, const char* name) {
+void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
   ASSERT(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
@@ -937,39 +937,40 @@ void Logger::TimerEvent(StartEnd se, const char* name) {
 
 
 void Logger::EnterExternal(Isolate* isolate) {
-  LOG(isolate, TimerEvent(START, TimerEventScope::v8_external));
+  LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
   ASSERT(isolate->current_vm_state() == JS);
   isolate->set_current_vm_state(EXTERNAL);
 }
 
 
 void Logger::LeaveExternal(Isolate* isolate) {
-  LOG(isolate, TimerEvent(END, TimerEventScope::v8_external));
+  LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
   ASSERT(isolate->current_vm_state() == EXTERNAL);
   isolate->set_current_vm_state(JS);
 }
 
 
-void Logger::LogInternalEvents(const char* name, int se) {
+void Logger::DefaultTimerEventsLogger(const char* name, int se) {
   Isolate* isolate = Isolate::Current();
   LOG(isolate, TimerEvent(static_cast<StartEnd>(se), name));
 }
 
 
-void Logger::TimerEventScope::LogTimerEvent(StartEnd se) {
-  isolate_->event_logger()(name_, se);
+template <class TimerEvent>
+void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
+  if (TimerEvent::expose_to_api() ||
+      isolate_->event_logger() == Logger::DefaultTimerEventsLogger) {
+    isolate_->event_logger()(TimerEvent::name(), se);
+  }
 }
 
 
-const char* Logger::TimerEventScope::v8_recompile_synchronous =
-    "V8.RecompileSynchronous";
-const char* Logger::TimerEventScope::v8_recompile_concurrent =
-    "V8.RecompileConcurrent";
-const char* Logger::TimerEventScope::v8_compile_full_code =
-    "V8.CompileFullCode";
-const char* Logger::TimerEventScope::v8_execute = "V8.Execute";
-const char* Logger::TimerEventScope::v8_external = "V8.External";
-const char* Logger::TimerEventScope::v8_ic_miss = "V8.IcMiss";
+// Instantiate template methods.
+#define V(TimerName, expose)                                           \
+  template void TimerEventScope<TimerEvent##TimerName>::LogTimerEvent( \
+      Logger::StartEnd se);
+TIMER_EVENTS_LIST(V)
+#undef V
 
 
 void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {

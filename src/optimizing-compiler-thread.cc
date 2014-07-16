@@ -45,8 +45,7 @@ void OptimizingCompilerThread::Run() {
 
   while (true) {
     input_queue_semaphore_.Wait();
-    Logger::TimerEventScope timer(
-        isolate_, Logger::TimerEventScope::v8_recompile_concurrent);
+    TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
     if (FLAG_concurrent_recompilation_delay != 0) {
       base::OS::Sleep(FLAG_concurrent_recompilation_delay);

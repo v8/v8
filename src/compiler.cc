@@ -1132,8 +1132,7 @@ static bool CompileOptimizedPrologue(CompilationInfo* info) {
 static bool GetOptimizedCodeNow(CompilationInfo* info) {
   if (!CompileOptimizedPrologue(info)) return false;
 
-  Logger::TimerEventScope timer(
-      info->isolate(), Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob job(info);
   if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
@@ -1164,8 +1163,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   if (!CompileOptimizedPrologue(info)) return false;
   info->SaveHandles();  // Copy handles to the compilation handle scope.
 
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob* job = new(info->zone()) OptimizedCompileJob(info);
   OptimizedCompileJob::Status status = job->CreateGraph();
@@ -1238,8 +1236,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   Isolate* isolate = info->isolate();
 
   VMState<COMPILER> state(isolate);
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);

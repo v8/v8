@@ -40,8 +40,7 @@ template <StateTag Tag>
 VMState<Tag>::VMState(Isolate* isolate)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
   if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    LOG(isolate_,
-        TimerEvent(Logger::START, Logger::TimerEventScope::v8_external));
+    LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(Tag);
 }
@@ -50,8 +49,7 @@ VMState<Tag>::VMState(Isolate* isolate)
 template <StateTag Tag>
 VMState<Tag>::~VMState() {
   if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    LOG(isolate_,
-        TimerEvent(Logger::END, Logger::TimerEventScope::v8_external));
+    LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
   }
   isolate_->set_current_vm_state(previous_tag_);
 }
