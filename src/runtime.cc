@@ -8978,7 +8978,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DeleteContextSlot) {
+RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
 
@@ -9091,9 +9091,8 @@ static Object* ComputeReceiverForNonGlobal(Isolate* isolate,
 }
 
 
-static ObjectPair LoadContextSlotHelper(Arguments args,
-                                        Isolate* isolate,
-                                        bool throw_error) {
+static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
+                                       bool throw_error) {
   HandleScope scope(isolate);
   ASSERT_EQ(2, args.length());
 
@@ -9189,13 +9188,13 @@ static ObjectPair LoadContextSlotHelper(Arguments args,
 }
 
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadContextSlot) {
-  return LoadContextSlotHelper(args, isolate, true);
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlot) {
+  return LoadLookupSlotHelper(args, isolate, true);
 }
 
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadContextSlotNoReferenceError) {
-  return LoadContextSlotHelper(args, isolate, false);
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotNoReferenceError) {
+  return LoadLookupSlotHelper(args, isolate, false);
 }
 
 
