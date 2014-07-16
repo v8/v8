@@ -53,16 +53,6 @@ DEPS_RE = re.compile(r'^\s*(?:"v8_revision": "'
                       '([0-9]+)".*$', re.M)
 
 
-def SortingKey(version):
-  """Key for sorting version number strings: '3.11' > '3.2.1.1'"""
-  version_keys = map(int, version.split("."))
-  # Fill up to full version numbers to normalize comparison.
-  while len(version_keys) < 4:
-    version_keys.append(0)
-  # Fill digits.
-  return ".".join(map("{0:03d}".format, version_keys))
-
-
 def SortBranches(branches):
   """Sort branches with version number names."""
   return sorted(branches, key=SortingKey, reverse=True)

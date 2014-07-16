@@ -68,6 +68,9 @@ class GitRecipesMixin(object):
     assert name
     self.Git(MakeArgs(["reset --hard", name]))
 
+  def GitStash(self):
+    self.Git(MakeArgs(["stash"]))
+
   def GitRemotes(self):
     return map(str.strip, self.Git(MakeArgs(["branch -r"])).splitlines())
 
