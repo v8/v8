@@ -642,7 +642,9 @@ class Parser : public ParserBase<ParserTraits> {
   void SetCachedData();
 
   bool inside_with() const { return scope_->inside_with(); }
-  CachedDataMode cached_data_mode() const { return info_->cached_data_mode(); }
+  ScriptCompiler::CompileOptions compile_options() const {
+    return info_->compile_options();
+  }
   Scope* DeclarationScope(VariableMode mode) {
     return IsLexicalVariableMode(mode)
         ? scope_ : scope_->DeclarationScope();
@@ -790,7 +792,6 @@ class Parser : public ParserBase<ParserTraits> {
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
   ParseData* cached_parse_data_;
-  CachedDataMode cached_data_mode_;
   AstValueFactory* ast_value_factory_;
 
   CompilationInfo* info_;

@@ -7321,7 +7321,7 @@ TEST(PrecompiledFunction) {
       "};                              \n"
       "a = b = c = 2;                  \n"
       "bar();                          \n";
-  v8::Local<v8::Value> result = PreCompileCompileRun(source);
+  v8::Local<v8::Value> result = ParserCacheCompileRun(source);
   CHECK(result->IsString());
   v8::String::Utf8Value utf8(result);
   CHECK_EQ("bar", *utf8);

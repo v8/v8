@@ -254,11 +254,11 @@ int ParseData::FunctionsSize() {
 
 
 void Parser::SetCachedData() {
-  if (cached_data_mode() == NO_CACHED_DATA) {
+  if (compile_options() == ScriptCompiler::kNoCompileOptions) {
     cached_parse_data_ = NULL;
   } else {
     ASSERT(info_->cached_data() != NULL);
-    if (cached_data_mode() == CONSUME_CACHED_DATA) {
+    if (compile_options() == ScriptCompiler::kConsumeParserCache) {
       cached_parse_data_ = new ParseData(*info_->cached_data());
     }
   }
@@ -741,9 +741,10 @@ FunctionLiteral* Parser::ParseProgram() {
 
   // Initialize parser state.
   CompleteParserRecorder recorder;
-  if (cached_data_mode() == PRODUCE_CACHED_DATA) {
+
+  if (compile_options() == ScriptCompiler::kProduceParserCache) {
     log_ = &recorder;
-  } else if (cached_data_mode() == CONSUME_CACHED_DATA) {
+  } else if (compile_options() == ScriptCompiler::kConsumeParserCache) {
     cached_parse_data_->Initialize();
   }
 
@@ -776,7 +777,7 @@ FunctionLiteral* Parser::ParseProgram() {
     }
     PrintF(" - took %0.3f ms]\n", ms);
   }
-  if (cached_data_mode() == PRODUCE_CACHED_DATA) {
+  if (compile_options() == ScriptCompiler::kProduceParserCache) {
     if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
     log_ = NULL;
   }
@@ -3608,7 +3609,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
                                   int* expected_property_count,
                                   bool* ok) {
   int function_block_pos = position();
-  if (cached_data_mode() == CONSUME_CACHED_DATA) {
+  if (compile_options() == ScriptCompiler::kConsumeParserCache) {
     // If we have cached data, we use it to skip parsing the function body. The
     // data contains the information we need to construct the lazy function.
     FunctionEntry entry =
@@ -3658,7 +3659,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
     *materialized_literal_count = logger.literals();
     *expected_property_count = logger.properties();
     scope_->SetStrictMode(logger.strict_mode());
-    if (cached_data_mode() == PRODUCE_CACHED_DATA) {
+    if (compile_options() == ScriptCompiler::kProduceParserCache) {
       ASSERT(log_);
       // Position right after terminal '}'.
       int body_end = scanner()->location().end_pos;

@@ -697,21 +697,22 @@ TEST(SerializeToplevelOnePlusOne) {
 
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig =
-      Compiler::CompileScript(orig_source, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      orig_source, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
   int builtins_count = CountBuiltins();
 
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(copy_source, Handle<String>(), 0, 0, false,
-                                   Handle<Context>(isolate->native_context()),
-                                   NULL, &cache, CONSUME_CACHED_DATA,
-                                   NOT_NATIVES_CODE);
+    copy = Compiler::CompileScript(
+        copy_source, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
+
   CHECK_NE(*orig, *copy);
   CHECK(Script::cast(copy->script())->source() == *copy_source);
 
@@ -751,10 +752,10 @@ TEST(SerializeToplevelInternalizedString) {
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig =
-      Compiler::CompileScript(orig_source, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      orig_source, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   Handle<JSFunction> orig_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           orig, isolate->native_context());
@@ -767,10 +768,10 @@ TEST(SerializeToplevelInternalizedString) {
   Handle<SharedFunctionInfo> copy;
   {
     DisallowCompilation no_compile_expected(isolate);
-    copy = Compiler::CompileScript(copy_source, Handle<String>(), 0, 0, false,
-                                   Handle<Context>(isolate->native_context()),
-                                   NULL, &cache, CONSUME_CACHED_DATA,
-                                   NOT_NATIVES_CODE);
+    copy = Compiler::CompileScript(
+        copy_source, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
   }
   CHECK_NE(*orig, *copy);
   CHECK(Script::cast(copy->script())->source() == *copy_source);

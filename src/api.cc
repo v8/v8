@@ -1699,16 +1699,22 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     Isolate* v8_isolate,
     Source* source,
     CompileOptions options) {
-  i::ScriptData* script_data = NULL;
-  i::CachedDataMode cached_data_mode = i::NO_CACHED_DATA;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ON_BAILOUT(isolate, "v8::ScriptCompiler::CompileUnbound()",
              return Local<UnboundScript>());
-  if (options & kProduceDataToCache) {
-    cached_data_mode = i::PRODUCE_CACHED_DATA;
-    CHECK(source->cached_data == NULL);
-  } else if (source->cached_data) {
-    cached_data_mode = i::CONSUME_CACHED_DATA;
+
+  // Support the old API for a transition period:
+  // - kProduceToCache -> kProduceParserCache
+  // - kNoCompileOptions + cached_data != NULL -> kConsumeParserCache
+  if (options == kProduceDataToCache) {
+    options = kProduceParserCache;
+  } else if (options == kNoCompileOptions && source->cached_data) {
+    options = kConsumeParserCache;
+  }
+
+  i::ScriptData* script_data = NULL;
+  if (options == kConsumeParserCache || options == kConsumeCodeCache) {
+    ASSERT(source->cached_data);
     // ScriptData takes care of pointer-aligning the data.
     script_data = new i::ScriptData(source->cached_data->data,
                                     source->cached_data->length);
@@ -1741,10 +1747,10 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::SharedFunctionInfo> result = i::Compiler::CompileScript(
         str, name_obj, line_offset, column_offset, is_shared_cross_origin,
-        isolate->global_context(), NULL, &script_data, cached_data_mode,
+        isolate->global_context(), NULL, &script_data, options,
         i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
-    if (has_pending_exception && cached_data_mode == i::CONSUME_CACHED_DATA) {
+    if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
       // successfully and produced cached data, and but the second compilation
       // of the same source code fails.
@@ -1753,8 +1759,10 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(
     }
     EXCEPTION_BAILOUT_CHECK(isolate, Local<UnboundScript>());
     raw_result = *result;
-    if ((options & kProduceDataToCache) && script_data != NULL) {
-      // script_data_impl now contains the data that was generated. source will
+
+    if ((options == kProduceParserCache || options == kProduceCodeCache) &&
+        script_data != NULL) {
+      // script_data now contains the data that was generated. source will
       // take the ownership.
       source->cached_data = new CachedData(
           script_data->data(), script_data->length(), CachedData::BufferOwned);

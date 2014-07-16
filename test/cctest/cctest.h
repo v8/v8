@@ -371,14 +371,20 @@ static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
 }
 
 
-static inline v8::Local<v8::Value> PreCompileCompileRun(const char* source) {
+static inline v8::Local<v8::Value> ParserCacheCompileRun(const char* source) {
   // Compile once just to get the preparse data, then compile the second time
   // using the data.
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::ScriptCompiler::Source script_source(v8_str(source));
   v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kProduceDataToCache);
-  return v8::ScriptCompiler::Compile(isolate, &script_source)->Run();
+                              v8::ScriptCompiler::kProduceParserCache);
+
+  // Check whether we received cached data, and if so use it.
+  v8::ScriptCompiler::CompileOptions options =
+      script_source.GetCachedData() ? v8::ScriptCompiler::kConsumeParserCache
+                                    : v8::ScriptCompiler::kNoCompileOptions;
+
+  return v8::ScriptCompiler::Compile(isolate, &script_source, options)->Run();
 }
 
 

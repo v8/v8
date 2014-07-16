@@ -219,15 +219,17 @@ TEST(UsingCachedData) {
       isolate, new ScriptResource(source, source_length)));
   i::FLAG_min_preparse_length = 0;
   v8::ScriptCompiler::Compile(isolate, &script_source,
-                              v8::ScriptCompiler::kProduceDataToCache);
+                              v8::ScriptCompiler::kProduceParserCache);
   CHECK(script_source.GetCachedData());
 
   // Compile the script again, using the cached data.
   bool lazy_flag = i::FLAG_lazy;
   i::FLAG_lazy = true;
-  v8::ScriptCompiler::Compile(isolate, &script_source);
+  v8::ScriptCompiler::Compile(isolate, &script_source,
+                              v8::ScriptCompiler::kConsumeParserCache);
   i::FLAG_lazy = false;
-  v8::ScriptCompiler::CompileUnbound(isolate, &script_source);
+  v8::ScriptCompiler::CompileUnbound(isolate, &script_source,
+                                     v8::ScriptCompiler::kConsumeParserCache);
   i::FLAG_lazy = lazy_flag;
 }
 
@@ -255,7 +257,7 @@ TEST(PreparseFunctionDataIsUsed) {
 
   v8::ScriptCompiler::Source good_source(v8_str(good_code));
   v8::ScriptCompiler::Compile(isolate, &good_source,
-                              v8::ScriptCompiler::kProduceDataToCache);
+                              v8::ScriptCompiler::kProduceParserCache);
 
   const v8::ScriptCompiler::CachedData* cached_data =
       good_source.GetCachedData();
@@ -268,7 +270,8 @@ TEST(PreparseFunctionDataIsUsed) {
       v8_str(bad_code), new v8::ScriptCompiler::CachedData(
                             cached_data->data, cached_data->length));
   v8::Local<v8::Value> result =
-      v8::ScriptCompiler::Compile(isolate, &bad_source)->Run();
+      v8::ScriptCompiler::Compile(
+          isolate, &bad_source, v8::ScriptCompiler::kConsumeParserCache)->Run();
   CHECK(result->IsInt32());
   CHECK_EQ(25, result->Int32Value());
 }
@@ -355,7 +358,7 @@ TEST(PreparsingObjectLiterals) {
 
   {
     const char* source = "var myo = {if: \"foo\"}; myo.if;";
-    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
     CHECK_EQ("foo", *utf8);
@@ -363,7 +366,7 @@ TEST(PreparsingObjectLiterals) {
 
   {
     const char* source = "var myo = {\"bar\": \"foo\"}; myo[\"bar\"];";
-    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
     CHECK_EQ("foo", *utf8);
@@ -371,7 +374,7 @@ TEST(PreparsingObjectLiterals) {
 
   {
     const char* source = "var myo = {1: \"foo\"}; myo[1];";
-    v8::Local<v8::Value> result = PreCompileCompileRun(source);
+    v8::Local<v8::Value> result = ParserCacheCompileRun(source);
     CHECK(result->IsString());
     v8::String::Utf8Value utf8(result);
     CHECK_EQ("foo", *utf8);
@@ -2251,7 +2254,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
     i::ScriptData* sd = NULL;
-    info.SetCachedData(&sd, i::PRODUCE_CACHED_DATA);
+    info.SetCachedData(&sd, v8::ScriptCompiler::kProduceParserCache);
     i::Parser::Parse(&info, true);
     i::ParseData pd(sd);
 
