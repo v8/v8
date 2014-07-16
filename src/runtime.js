@@ -607,35 +607,37 @@ function IsPrimitive(x) {
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultNumber(x) {
-  var valueOf = x.valueOf;
-  if (IS_SPEC_FUNCTION(valueOf)) {
-    var v = %_CallFunction(x, valueOf);
-    if (%IsPrimitive(v)) return v;
-  }
+  if (!IS_SYMBOL_WRAPPER(x)) {
+    var valueOf = x.valueOf;
+    if (IS_SPEC_FUNCTION(valueOf)) {
+      var v = %_CallFunction(x, valueOf);
+      if (%IsPrimitive(v)) return v;
+    }
 
-  var toString = x.toString;
-  if (IS_SPEC_FUNCTION(toString)) {
-    var s = %_CallFunction(x, toString);
-    if (%IsPrimitive(s)) return s;
+    var toString = x.toString;
+    if (IS_SPEC_FUNCTION(toString)) {
+      var s = %_CallFunction(x, toString);
+      if (%IsPrimitive(s)) return s;
+    }
   }
-
   throw %MakeTypeError('cannot_convert_to_primitive', []);
 }
 
 // ECMA-262, section 8.6.2.6, page 28.
 function DefaultString(x) {
-  var toString = x.toString;
-  if (IS_SPEC_FUNCTION(toString)) {
-    var s = %_CallFunction(x, toString);
-    if (%IsPrimitive(s)) return s;
-  }
+  if (!IS_SYMBOL_WRAPPER(x)) {
+    var toString = x.toString;
+    if (IS_SPEC_FUNCTION(toString)) {
+      var s = %_CallFunction(x, toString);
+      if (%IsPrimitive(s)) return s;
+    }
 
-  var valueOf = x.valueOf;
-  if (IS_SPEC_FUNCTION(valueOf)) {
-    var v = %_CallFunction(x, valueOf);
-    if (%IsPrimitive(v)) return v;
+    var valueOf = x.valueOf;
+    if (IS_SPEC_FUNCTION(valueOf)) {
+      var v = %_CallFunction(x, valueOf);
+      if (%IsPrimitive(v)) return v;
+    }
   }
-
   throw %MakeTypeError('cannot_convert_to_primitive', []);
 }
 
