@@ -1144,7 +1144,8 @@ var StackTraceSetter = function(v) {
 var captureStackTrace = function captureStackTrace(obj, cons_opt) {
   // Define accessors first, as this may fail and throw.
   ObjectDefineProperty(obj, 'stack', { get: StackTraceGetter,
-                                       set: StackTraceSetter});
+                                       set: StackTraceSetter,
+                                       configurable: true });
   %CollectStackTrace(obj, cons_opt ? cons_opt : captureStackTrace);
 }
 
