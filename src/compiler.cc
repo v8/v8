@@ -631,6 +631,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
 
 
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
+  ASSERT(AllowCompilation::IsAllowed(info->isolate()));
   ASSERT(info->function() != NULL);
   if (!Rewriter::Rewrite(info)) return false;
   if (!Scope::Analyze(info)) return false;
@@ -1196,6 +1197,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
   Isolate* isolate = info->isolate();
+  ASSERT(AllowCompilation::IsAllowed(isolate));
   VMState<COMPILER> state(isolate);
   ASSERT(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);

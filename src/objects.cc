@@ -9332,38 +9332,6 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
 }
 
 
-class IteratingStringHasher: public StringHasher {
- public:
-  static inline uint32_t Hash(String* string, uint32_t seed) {
-    IteratingStringHasher hasher(string->length(), seed);
-    // Nothing to do.
-    if (hasher.has_trivial_hash()) return hasher.GetHashField();
-    ConsString* cons_string = String::VisitFlat(&hasher, string);
-    // The string was flat.
-    if (cons_string == NULL) return hasher.GetHashField();
-    // This is a ConsString, iterate across it.
-    ConsStringIteratorOp op(cons_string);
-    int offset;
-    while (NULL != (string = op.Next(&offset))) {
-      String::VisitFlat(&hasher, string, offset);
-    }
-    return hasher.GetHashField();
-  }
-  inline void VisitOneByteString(const uint8_t* chars, int length) {
-    AddCharacters(chars, length);
-  }
-  inline void VisitTwoByteString(const uint16_t* chars, int length) {
-    AddCharacters(chars, length);
-  }
-
- private:
-  inline IteratingStringHasher(int len, uint32_t seed)
-      : StringHasher(len, seed) {
-  }
-  DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
-};
-
-
 uint32_t String::ComputeAndSetHash() {
   // Should only be called if hash code has not yet been computed.
   ASSERT(!HasHashCode());

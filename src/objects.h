@@ -8854,6 +8854,19 @@ class StringHasher {
 };
 
 
+class IteratingStringHasher : public StringHasher {
+ public:
+  static inline uint32_t Hash(String* string, uint32_t seed);
+  inline void VisitOneByteString(const uint8_t* chars, int length);
+  inline void VisitTwoByteString(const uint16_t* chars, int length);
+
+ private:
+  inline IteratingStringHasher(int len, uint32_t seed)
+      : StringHasher(len, seed) {}
+  DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
+};
+
+
 // The characteristics of a string are stored in its map.  Retrieving these
 // few bits of information is moderately expensive, involving two memory
 // loads where the second is dependent on the first.  To improve efficiency

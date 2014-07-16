@@ -590,6 +590,11 @@ class CodeSerializer : public Serializer {
 
   static const int kSourceObjectIndex = 0;
 
+  String* source() {
+    ASSERT(!AllowHeapAllocation::IsAllowed());
+    return source_;
+  }
+
  private:
   void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
                         WhereToPoint where_to_point, int skip);
@@ -606,9 +611,10 @@ class CodeSerializer : public Serializer {
 class SerializedCodeData {
  public:
   // Used by when consuming.
-  explicit SerializedCodeData(ScriptData* data)
+  explicit SerializedCodeData(ScriptData* data, String* source)
       : script_data_(data), owns_script_data_(false) {
-    CHECK(IsSane());
+    DisallowHeapAllocation no_gc;
+    CHECK(IsSane(source));
   }
 
   // Used when producing.
@@ -649,12 +655,14 @@ class SerializedCodeData {
     return reinterpret_cast<const int*>(script_data_->data())[offset];
   }
 
-  bool IsSane();
+  bool IsSane(String* source);
+
+  int CheckSum(String* source);
 
   // The data header consists of int-sized entries:
   // [0] version hash
   // [1..7] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
-  static const int kVersionHashOffset = 0;
+  static const int kCheckSumOffset = 0;
   static const int kReservationsOffset = 1;
   static const int kHeaderEntries = 8;
 
