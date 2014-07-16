@@ -31,7 +31,7 @@
   'variables': {
     'msvs_use_common_release': 0,
     'gcc_version%': 'unknown',
-    'CXX%': '${CXX:-$(which g++)}',  # Used to assemble a shell command.
+    'clang%': 0,
     'v8_target_arch%': '<(target_arch)',
     # Native Client builds currently use the V8 ARM JIT and
     # arm/simulator-arm.cc to defer the significant effort required
@@ -83,6 +83,27 @@
     # Allow to suppress the array bounds warning (default is no suppression).
     'wno_array_bounds%': '',
   },
+  'conditions': [
+    ['host_arch=="ia32" or host_arch=="x64" or clang==1', {
+      'variables': {
+        'host_cxx_is_biarch%': 1,
+       },
+     }, {
+      'variables': {
+        'host_cxx_is_biarch%': 0,
+      },
+    }],
+    ['target_arch=="ia32" or target_arch=="x64" or target_arch=="x87" or \
+      clang==1', {
+      'variables': {
+        'target_cxx_is_biarch%': 1,
+       },
+     }, {
+      'variables': {
+        'target_cxx_is_biarch%': 0,
+      },
+    }],
+  ],
   'target_defaults': {
     'conditions': [
       ['v8_target_arch=="arm"', {
@@ -121,11 +142,9 @@
         ],
         'target_conditions': [
           ['_toolset=="host"', {
-            'variables': {
-              'armcompiler': '<!($(echo ${CXX_host:-$(which g++)}) -v 2>&1 | grep -q "^Target: arm" && echo "yes" || echo "no")',
-            },
             'conditions': [
-              ['armcompiler=="yes"', {
+              ['v8_target_arch==host_arch', {
+                # Host built with an Arm CXX compiler.
                 'conditions': [
                   [ 'arm_version==7', {
                     'cflags': ['-march=armv7-a',],
@@ -148,7 +167,8 @@
                   }],
                 ],
               }, {
-                # armcompiler=="no"
+                # 'v8_target_arch!=host_arch'
+                # Host not built with an Arm CXX compiler (simulator build).
                 'conditions': [
                   [ 'arm_float_abi=="hard"', {
                     'defines': [
@@ -165,11 +185,9 @@
             ],
           }],  # _toolset=="host"
           ['_toolset=="target"', {
-            'variables': {
-              'armcompiler': '<!($(echo ${CXX_target:-<(CXX)}) -v 2>&1 | grep -q "^Target: arm" && echo "yes" || echo "no")',
-            },
             'conditions': [
-              ['armcompiler=="yes"', {
+              ['v8_target_arch==target_arch', {
+                # Target built with an Arm CXX compiler.
                 'conditions': [
                   [ 'arm_version==7', {
                     'cflags': ['-march=armv7-a',],
@@ -192,7 +210,8 @@
                   }],
                 ],
               }, {
-                # armcompiler=="no"
+                # 'v8_target_arch!=target_arch'
+                # Target not built with an Arm CXX compiler (simulator build).
                 'conditions': [
                   [ 'arm_float_abi=="hard"', {
                     'defines': [
@@ -230,11 +249,9 @@
         'defines': [
           'V8_TARGET_ARCH_MIPS',
         ],
-        'variables': {
-          'mipscompiler': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
-        },
         'conditions': [
-          ['mipscompiler=="yes"', {
+          ['v8_target_arch==target_arch', {
+            # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': ['-EB'],
@@ -281,11 +298,9 @@
         'defines': [
           'V8_TARGET_ARCH_MIPS',
         ],
-        'variables': {
-          'mipscompiler': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
-        },
         'conditions': [
-          ['mipscompiler=="yes"', {
+          ['v8_target_arch==target_arch', {
+            # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': ['-EL'],
@@ -338,11 +353,9 @@
         'defines': [
           'V8_TARGET_ARCH_MIPS64',
         ],
-        'variables': {
-          'mipscompiler': '<!($(echo <(CXX)) -v 2>&1 | grep -q "^Target: mips" && echo "yes" || echo "no")',
-        },
         'conditions': [
-          ['mipscompiler=="yes"', {
+          ['v8_target_arch==target_arch', {
+            # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
                 'cflags': ['-EL'],
@@ -439,44 +452,28 @@
           },
         },
       }],
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="qnx"', {
-        'conditions': [
-          [ 'v8_no_strict_aliasing==1', {
-            'cflags': [ '-fno-strict-aliasing' ],
-          }],
-        ],  # conditions
-      }],
-      ['OS=="solaris"', {
-        'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
-      }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+      ['(OS=="linux" or OS=="freebsd"  or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (v8_target_arch=="arm" or v8_target_arch=="ia32" or v8_target_arch=="x87" or\
-         v8_target_arch=="mips" or v8_target_arch=="mipsel")', {
-        # Check whether the host compiler and target compiler support the
-        # '-m32' option and set it if so.
+        (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
+         v8_target_arch=="x87" or v8_target_arch=="mips" or \
+         v8_target_arch=="mipsel")', {
         'target_conditions': [
           ['_toolset=="host"', {
-            'variables': {
-              'm32flag': '<!(($(echo ${CXX_host:-$(which g++)}) -m32 -E - > /dev/null 2>&1 < /dev/null) && echo "-m32" || true)',
-            },
-            'cflags': [ '<(m32flag)' ],
-            'ldflags': [ '<(m32flag)' ],
+            'conditions': [
+              ['host_cxx_is_biarch==1', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ]
+              }],
+            ],
             'xcode_settings': {
               'ARCHS': [ 'i386' ],
             },
           }],
           ['_toolset=="target"', {
-            'variables': {
-              'm32flag': '<!(($(echo ${CXX_target:-<(CXX)}) -m32 -E - > /dev/null 2>&1 < /dev/null) && echo "-m32" || true)',
-              'clang%': 0,
-            },
             'conditions': [
-              ['((OS!="android" and OS!="qnx") or clang==1) and \
-                nacl_target_arch!="nacl_x64"', {
-                'cflags': [ '<(m32flag)' ],
-                'ldflags': [ '<(m32flag)' ],
+              ['target_cxx_is_biarch==1 and nacl_target_arch!="nacl_x64"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
               }],
             ],
             'xcode_settings': {
@@ -487,28 +484,35 @@
       }],
       ['(OS=="linux" or OS=="android") and \
         (v8_target_arch=="x64" or v8_target_arch=="arm64")', {
-        # Check whether the host compiler and target compiler support the
-        # '-m64' option and set it if so.
         'target_conditions': [
           ['_toolset=="host"', {
-            'variables': {
-              'm64flag': '<!(($(echo ${CXX_host:-$(which g++)}) -m64 -E - > /dev/null 2>&1 < /dev/null) && echo "-m64" || true)',
-            },
-            'cflags': [ '<(m64flag)' ],
-            'ldflags': [ '<(m64flag)' ],
-          }],
-          ['_toolset=="target"', {
-            'variables': {
-              'm64flag': '<!(($(echo ${CXX_target:-<(CXX)}) -m64 -E - > /dev/null 2>&1 < /dev/null) && echo "-m64" || true)',
-            },
             'conditions': [
-              ['((OS!="android" and OS!="qnx") or clang==1)', {
-                'cflags': [ '<(m64flag)' ],
-                'ldflags': [ '<(m64flag)' ],
+              ['host_cxx_is_biarch==1', {
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ]
               }],
-            ],
-          }]
-        ],
+             ],
+           }],
+           ['_toolset=="target"', {
+             'conditions': [
+               ['target_cxx_is_biarch==1', {
+                 'cflags': [ '-m64' ],
+                 'ldflags': [ '-m64' ],
+               }],
+             ]
+           }],
+         ],
+      }],
+      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
+         or OS=="netbsd" or OS=="qnx"', {
+        'conditions': [
+          [ 'v8_no_strict_aliasing==1', {
+            'cflags': [ '-fno-strict-aliasing' ],
+          }],
+        ],  # conditions
+      }],
+      ['OS=="solaris"', {
+        'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
       }],
       ['OS=="freebsd" or OS=="openbsd"', {
         'cflags': [ '-I/usr/local/include' ],
