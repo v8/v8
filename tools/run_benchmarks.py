@@ -192,14 +192,14 @@ class Graph(Node):
     # TODO(machenbach): Currently that makes only sense for the leaf level.
     # Multiple place holders for multiple levels are not supported.
     if parent.results_regexp:
-      regexp_default = parent.results_regexp % suite["name"]
+      regexp_default = parent.results_regexp % re.escape(suite["name"])
     else:
       regexp_default = None
     self.results_regexp = suite.get("results_regexp", regexp_default)
 
     # A similar regular expression for the standard deviation (optional).
     if parent.stddev_regexp:
-      stddev_default = parent.stddev_regexp % suite["name"]
+      stddev_default = parent.stddev_regexp % re.escape(suite["name"])
     else:
       stddev_default = None
     self.stddev_regexp = suite.get("stddev_regexp", stddev_default)
