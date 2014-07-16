@@ -265,8 +265,15 @@
       }],  # _toolset=="target"
       # Settings for building host targets using the system toolchain.
       ['_toolset=="host"', {
-        'cflags': [ '-pthread' ],
-        'ldflags': [ '-pthread' ],
+        'conditions': [
+          ['target_arch=="x64"', {
+            'cflags': [ '-m64', '-pthread' ],
+            'ldflags': [ '-m64', '-pthread' ],
+          }, {
+            'cflags': [ '-m32', '-pthread' ],
+            'ldflags': [ '-m32', '-pthread' ],
+          }],
+        ],
         'ldflags!': [
           '-Wl,-z,noexecstack',
           '-Wl,--gc-sections',
