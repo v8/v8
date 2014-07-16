@@ -155,9 +155,9 @@ class SerializerDeserializer: public ObjectVisitor {
     kExternalReference = 0xb,     // Pointer to an external reference.
     kSkip = 0xc,                  // Skip n bytes.
     kBuiltin = 0xd,               // Builtin code object.
-    // 0xe                             Free.
-    kNop = 0xf,       // Does nothing, used to pad.
-    kBackref = 0x10,  // Object is described relative to end.
+    kAttachedReference = 0xe,     // Object is described in an attached list.
+    kNop = 0xf,                   // Does nothing, used to pad.
+    kBackref = 0x10,              // Object is described relative to end.
     // 0x11-0x16                       One per space.
     kBackrefWithSkip = 0x18,  // Object is described relative to end.
     // 0x19-0x1e                       One per space.
@@ -252,6 +252,14 @@ class Deserializer: public SerializerDeserializer {
 
   void FlushICacheForNewCodeObjects();
 
+  // Serialized user code reference certain objects that are provided in a list
+  // By calling this method, we assume that we are deserializing user code.
+  void SetAttachedObjects(Vector<Object*>* attached_objects) {
+    attached_objects_ = attached_objects;
+  }
+
+  bool deserializing_user_code() { return attached_objects_ != NULL; }
+
  private:
   virtual void VisitPointers(Object** start, Object** end);
 
@@ -272,6 +280,8 @@ class Deserializer: public SerializerDeserializer {
       Object** start, Object** end, int space, Address object_address);
   void ReadObject(int space_number, Object** write_back);
 
+  HeapObject* ProcessObjectFromSerializedCode(HeapObject* obj);
+
   // This routine both allocates a new object, and also keeps
   // track of where objects have been allocated so that we can
   // fix back references when deserializing.
@@ -291,6 +301,9 @@ class Deserializer: public SerializerDeserializer {
 
   // Cached current isolate.
   Isolate* isolate_;
+
+  // Objects from the attached object descriptions in the serialized user code.
+  Vector<Object*>* attached_objects_;
 
   SnapshotByteSource* source_;
   // This is the address of the next object that will be allocated in each
@@ -550,26 +563,42 @@ class StartupSerializer : public Serializer {
     SerializeWeakReferences();
     Pad();
   }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 
 
 class CodeSerializer : public Serializer {
  public:
-  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink)
-      : Serializer(isolate, sink) {
+  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
+      : Serializer(isolate, sink), source_(source) {
     set_root_index_wave_front(Heap::kStrongRootListLength);
     InitializeCodeAddressMap();
   }
 
-  static ScriptData* Serialize(Handle<SharedFunctionInfo> info);
+  static ScriptData* Serialize(Isolate* isolate,
+                               Handle<SharedFunctionInfo> info,
+                               Handle<String> source);
+
   virtual void SerializeObject(Object* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);
 
-  static Object* Deserialize(Isolate* isolate, ScriptData* data);
+  static Handle<SharedFunctionInfo> Deserialize(Isolate* isolate,
+                                                ScriptData* data,
+                                                Handle<String> source);
+
+  static const int kSourceObjectIndex = 0;
 
  private:
   void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
                         WhereToPoint where_to_point, int skip);
+  void SerializeSourceObject(HowToCode how_to_code, WhereToPoint where_to_point,
+                             int skip);
+
+  DisallowHeapAllocation no_gc_;
+  String* source_;
+  DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
 

@@ -35,46 +35,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 }
 
 
-// Generated code falls through if the receiver is a regular non-global
-// JS object with slow properties and no interceptors.
-static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
-                                                Register receiver,
-                                                Register r0,
-                                                Register r1,
-                                                Label* miss) {
-  // Register usage:
-  //   receiver: holds the receiver on entry and is unchanged.
-  //   r0: used to hold receiver instance type.
-  //       Holds the property dictionary on fall through.
-  //   r1: used to hold receivers map.
-
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the receiver is a valid JS object.
-  __ movp(r1, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movb(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
-  __ cmpb(r0, Immediate(FIRST_SPEC_OBJECT_TYPE));
-  __ j(below, miss);
-
-  // If this assert fails, we have to check upper bound too.
-  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
-
-  GenerateGlobalInstanceTypeCheck(masm, r0, miss);
-
-  // Check for non-global object that requires access check.
-  __ testb(FieldOperand(r1, Map::kBitFieldOffset),
-           Immediate((1 << Map::kIsAccessCheckNeeded) |
-                     (1 << Map::kHasNamedInterceptor)));
-  __ j(not_zero, miss);
-
-  __ movp(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ CompareRoot(FieldOperand(r0, HeapObject::kMapOffset),
-                 Heap::kHashTableMapRootIndex);
-  __ j(not_equal, miss);
-}
-
-
-
 // Helper function used to load a property from a dictionary backing storage.
 // This function may return false negatives, so miss_label
 // must always call a backup property load that is complete.
@@ -959,29 +919,21 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rdx    : receiver
-  //  -- rcx    : name
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  ASSERT(rdx.is(ReceiverRegister()));
-  ASSERT(rcx.is(NameRegister()));
-  Label miss, slow;
+  Register dictionary = rax;
+  ASSERT(!dictionary.is(ReceiverRegister()));
+  ASSERT(!dictionary.is(NameRegister()));
 
-  GenerateNameDictionaryReceiverCheck(masm, rdx, rax, rbx, &miss);
+  Label slow;
 
-  //  rax: elements
-  // Search the dictionary placing the result in rax.
-  GenerateDictionaryLoad(masm, &slow, rax, rcx, rbx, rdi, rax);
+  __ movp(dictionary,
+          FieldOperand(ReceiverRegister(), JSObject::kPropertiesOffset));
+  GenerateDictionaryLoad(masm, &slow, dictionary, NameRegister(), rbx, rdi,
+                         rax);
   __ ret(0);
 
   // Dictionary load failed, go slow (but don't miss).
   __ bind(&slow);
   GenerateRuntimeGetProperty(masm);
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  GenerateMiss(masm);
 }
 
 
@@ -1067,6 +1019,11 @@ const Register KeyedStoreIC::ValueRegister() {
 }
 
 
+const Register KeyedStoreIC::MapRegister() {
+  return rbx;
+}
+
+
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is on the stack.
 
@@ -1120,16 +1077,15 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
-  // Return address is on the stack.
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
   Register value = ValueRegister();
+  Register dictionary = rbx;
 
   Label miss;
 
-  GenerateNameDictionaryReceiverCheck(masm, receiver, rbx, rdi, &miss);
-
-  GenerateDictionaryStore(masm, &miss, rbx, name, value, r8, r9);
+  __ movp(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
+  GenerateDictionaryStore(masm, &miss, dictionary, name, value, r8, r9);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->store_normal_hit(), 1);
   __ ret(0);

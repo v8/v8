@@ -967,8 +967,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         is_shared_cross_origin, context);
     if (maybe_result.is_null() && FLAG_serialize_toplevel &&
         cached_data_mode == CONSUME_CACHED_DATA) {
-      Object* des = CodeSerializer::Deserialize(isolate, *cached_data);
-      return handle(SharedFunctionInfo::cast(des), isolate);
+      return CodeSerializer::Deserialize(isolate, *cached_data, source);
     }
   }
 
@@ -1002,7 +1001,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
       if (FLAG_serialize_toplevel && cached_data_mode == PRODUCE_CACHED_DATA) {
-        *cached_data = CodeSerializer::Serialize(result);
+        *cached_data = CodeSerializer::Serialize(isolate, result, source);
       }
     }
     if (result.is_null()) isolate->ReportPendingMessages();

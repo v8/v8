@@ -1619,6 +1619,21 @@ class FreeList {
   // aligned, and the size should be a non-zero multiple of the word size.
   int Free(Address start, int size_in_bytes);
 
+  // This method returns how much memory can be allocated after freeing
+  // maximum_freed memory.
+  static inline int GuaranteedAllocatable(int maximum_freed) {
+    if (maximum_freed < kSmallListMin) {
+      return 0;
+    } else if (maximum_freed <= kSmallListMax) {
+      return kSmallAllocationMax;
+    } else if (maximum_freed <= kMediumListMax) {
+      return kMediumAllocationMax;
+    } else if (maximum_freed <= kLargeListMax) {
+      return kLargeAllocationMax;
+    }
+    return maximum_freed;
+  }
+
   // Allocate a block of size 'size_in_bytes' from the free list.  The block
   // is unitialized.  A failure is returned if no block is available.  The
   // number of bytes lost to fragmentation is returned in the output parameter
@@ -1905,9 +1920,6 @@ class PagedSpace : public Space {
   bool is_iterable() { return is_iterable_; }
   void set_is_iterable(bool b) { is_iterable_ = b; }
 
-  bool is_swept_concurrently() { return is_swept_concurrently_; }
-  void set_is_swept_concurrently(bool b) { is_swept_concurrently_ = b; }
-
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
   static bool ShouldBeSweptBySweeperThreads(Page* p) {
@@ -1992,9 +2004,6 @@ class PagedSpace : public Space {
   // This space was swept precisely, hence it is iterable.
   bool is_iterable_;
 
-  // This space is currently swept by sweeper threads.
-  bool is_swept_concurrently_;
-
   // The number of free bytes which could be reclaimed by advancing the
   // concurrent sweeper threads.  This is only an estimation because concurrent
   // sweeping is done conservatively.
@@ -2017,7 +2026,8 @@ class PagedSpace : public Space {
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and re-try free-list
   // allocation.
-  MUST_USE_RESULT HeapObject* EnsureSweepingProgress(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* WaitForSweeperThreadsAndRetryAllocation(
+      int size_in_bytes);
 
   // Slow path of AllocateRaw.  This function is space-dependent.
   MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);

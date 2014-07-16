@@ -619,15 +619,20 @@ const uint32_t kShortExternalStringTag = 0x10;
 
 
 // A ConsString with an empty string as the right side is a candidate
-// for being shortcut by the garbage collector unless it is internalized.
-// It's not common to have non-flat internalized strings, so we do not
-// shortcut them thereby avoiding turning internalized strings into strings.
-// See heap.cc and mark-compact.cc.
+// for being shortcut by the garbage collector. We don't allocate any
+// non-flat internalized strings, so we do not shortcut them thereby
+// avoiding turning internalized strings into strings. The bit-masks
+// below contain the internalized bit as additional safety.
+// See heap.cc, mark-compact.cc and objects-visiting.cc.
 const uint32_t kShortcutTypeMask =
     kIsNotStringMask |
     kIsNotInternalizedMask |
     kStringRepresentationMask;
 const uint32_t kShortcutTypeTag = kConsStringTag | kNotInternalizedTag;
+
+static inline bool IsShortcutCandidate(int type) {
+  return ((type & kShortcutTypeMask) == kShortcutTypeTag);
+}
 
 
 enum InstanceType {
@@ -9328,6 +9333,7 @@ class String: public Name {
 
  private:
   friend class Name;
+  friend class StringTableInsertionKey;
 
   static Handle<String> SlowFlatten(Handle<ConsString> cons,
                                     PretenureFlag tenure);

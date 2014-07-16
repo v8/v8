@@ -2455,6 +2455,24 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
+  // Parameters accessed via CodeStubGraphBuilder::GetParameter()
+  enum ParameterIndices {
+    kValueIndex,
+    kMapIndex,
+    kKeyIndex,
+    kObjectIndex,
+    kParameterCount
+  };
+
+  static const Register ValueRegister() {
+    return KeyedStoreIC::ValueRegister();
+  }
+  static const Register MapRegister() { return KeyedStoreIC::MapRegister(); }
+  static const Register KeyRegister() { return KeyedStoreIC::NameRegister(); }
+  static const Register ObjectRegister() {
+    return KeyedStoreIC::ReceiverRegister();
+  }
+
  private:
   class FromBits:      public BitField<ElementsKind,          0, 8> {};
   class ToBits:        public BitField<ElementsKind,          8, 8> {};

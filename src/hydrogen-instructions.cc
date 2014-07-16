@@ -4067,10 +4067,9 @@ HInstruction* HStringAdd::New(Zone* zone,
       Handle<String> right_string = c_right->StringValue();
       // Prevent possible exception by invalid string length.
       if (left_string->length() + right_string->length() < String::kMaxLength) {
-        Handle<String> concat = zone->isolate()->factory()->NewFlatConcatString(
+        MaybeHandle<String> concat = zone->isolate()->factory()->NewConsString(
             c_left->StringValue(), c_right->StringValue());
-        ASSERT(!concat.is_null());
-        return HConstant::New(zone, context, concat);
+        return HConstant::New(zone, context, concat.ToHandleChecked());
       }
     }
   }

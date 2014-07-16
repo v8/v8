@@ -35,45 +35,6 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 }
 
 
-// Generated code falls through if the receiver is a regular non-global
-// JS object with slow properties and no interceptors.
-static void GenerateNameDictionaryReceiverCheck(MacroAssembler* masm,
-                                                Register receiver,
-                                                Register r0,
-                                                Register r1,
-                                                Label* miss) {
-  // Register usage:
-  //   receiver: holds the receiver on entry and is unchanged.
-  //   r0: used to hold receiver instance type.
-  //       Holds the property dictionary on fall through.
-  //   r1: used to hold receivers map.
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, miss);
-
-  // Check that the receiver is a valid JS object.
-  __ mov(r1, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(r0, FieldOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r0, FIRST_SPEC_OBJECT_TYPE);
-  __ j(below, miss);
-
-  // If this assert fails, we have to check upper bound too.
-  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
-
-  GenerateGlobalInstanceTypeCheck(masm, r0, miss);
-
-  // Check for non-global object that requires access check.
-  __ test_b(FieldOperand(r1, Map::kBitFieldOffset),
-            (1 << Map::kIsAccessCheckNeeded) |
-            (1 << Map::kHasNamedInterceptor));
-  __ j(not_zero, miss);
-
-  __ mov(r0, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ CheckMap(r0, masm->isolate()->factory()->hash_table_map(), miss,
-              DONT_DO_SMI_CHECK);
-}
-
-
 // Helper function used to load a property from a dictionary backing
 // storage. This function may fail to load a property even though it is
 // in the dictionary, so code at miss_label must always call a backup
@@ -942,30 +903,21 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  ASSERT(edx.is(ReceiverRegister()));
-  ASSERT(ecx.is(NameRegister()));
+  Register dictionary = eax;
+  ASSERT(!dictionary.is(ReceiverRegister()));
+  ASSERT(!dictionary.is(NameRegister()));
 
-  Label miss, slow;
+  Label slow;
 
-  GenerateNameDictionaryReceiverCheck(masm, edx, eax, ebx, &miss);
-
-  // eax: elements
-  // Search the dictionary placing the result in eax.
-  GenerateDictionaryLoad(masm, &slow, eax, ecx, edi, ebx, eax);
+  __ mov(dictionary,
+         FieldOperand(ReceiverRegister(), JSObject::kPropertiesOffset));
+  GenerateDictionaryLoad(masm, &slow, dictionary, NameRegister(), edi, ebx,
+                         eax);
   __ ret(0);
 
   // Dictionary load failed, go slow (but don't miss).
   __ bind(&slow);
   GenerateRuntimeGetProperty(masm);
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  GenerateMiss(masm);
 }
 
 
@@ -1041,6 +993,11 @@ const Register KeyedStoreIC::ValueRegister() {
 }
 
 
+const Register KeyedStoreIC::MapRegister() {
+  return ebx;
+}
+
+
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // Return address is on the stack.
   LoadIC_PushArgs(masm);
@@ -1089,19 +1046,20 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label miss, restore_miss;
+  Label restore_miss;
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
   Register value = ValueRegister();
+  Register dictionary = ebx;
 
-  GenerateNameDictionaryReceiverCheck(masm, receiver, ebx, edi, &miss);
+  __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
 
   // A lot of registers are needed for storing to slow case
   // objects. Push and restore receiver but rely on
   // GenerateDictionaryStore preserving the value and name.
   __ push(receiver);
-  GenerateDictionaryStore(masm, &restore_miss, ebx, name, value, receiver, edi);
+  GenerateDictionaryStore(masm, &restore_miss, dictionary, name, value,
+                          receiver, edi);
   __ Drop(1);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->store_normal_hit(), 1);
@@ -1109,8 +1067,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 
   __ bind(&restore_miss);
   __ pop(receiver);
-
-  __ bind(&miss);
   __ IncrementCounter(counters->store_normal_miss(), 1);
   GenerateMiss(masm);
 }

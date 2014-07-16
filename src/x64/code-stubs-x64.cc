@@ -222,14 +222,6 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 }
 
 
-void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { rax, rbx, rcx, rdx };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
-                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
-}
-
-
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rdx, rax };

@@ -675,11 +675,10 @@ int CountBuiltins() {
 }
 
 
-TEST(SerializeToplevel) {
+TEST(SerializeToplevelOnePlusOne) {
   FLAG_serialize_toplevel = true;
+  LocalContext context;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
-  v8::Context::Scope context_scope(context);
 
   const char* source1 = "1 + 1";
   const char* source2 = "1 + 2";  // Use alternate string to verify caching.
@@ -702,20 +701,78 @@ TEST(SerializeToplevel) {
 
   int builtins_count = CountBuiltins();
 
-  Handle<SharedFunctionInfo> info =
+  Handle<SharedFunctionInfo> copy =
       Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
                               Handle<Context>(isolate->native_context()), NULL,
                               &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
 
-  CHECK_NE(*orig, *info);
-  Handle<JSFunction> fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          info, isolate->native_context());
-  Handle<JSObject> global(isolate->context()->global_object());
-  Handle<Object> result =
-      Execution::Call(isolate, fun, global, 0, NULL).ToHandleChecked();
-  CHECK_EQ(2, Handle<Smi>::cast(result)->value());
+  CHECK_NE(*orig, *copy);
+  CHECK(Script::cast(copy->script())->source() == *source2_string);
 
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+  Handle<JSObject> global(isolate->context()->global_object());
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+  CHECK_EQ(2, Handle<Smi>::cast(copy_result)->value());
+
+  CHECK_EQ(builtins_count, CountBuiltins());
+
+  delete cache;
+}
+
+
+TEST(SerializeToplevelInternalizedString) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source1 = "'string1'";
+  const char* source2 = "'string2'";  // Use alternate string to verify caching.
+
+  Isolate* isolate = CcTest::i_isolate();
+  Handle<String> source1_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source1))
+                                      .ToHandleChecked();
+
+  Handle<String> source2_string = isolate->factory()
+                                      ->NewStringFromUtf8(CStrVector(source2))
+                                      .ToHandleChecked();
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig =
+      Compiler::CompileScript(source1_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<JSFunction> orig_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          orig, isolate->native_context());
+  Handle<Object> orig_result =
+      Execution::Call(isolate, orig_fun, global, 0, NULL).ToHandleChecked();
+  CHECK(orig_result->IsInternalizedString());
+
+  int builtins_count = CountBuiltins();
+
+  Handle<SharedFunctionInfo> copy =
+      Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
+                              Handle<Context>(isolate->native_context()), NULL,
+                              &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
+  CHECK_NE(*orig, *copy);
+  CHECK(Script::cast(copy->script())->source() == *source2_string);
+
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+  CHECK_NE(*orig_fun, *copy_fun);
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+  CHECK(orig_result.is_identical_to(copy_result));
+  Handle<String> expected =
+      isolate->factory()->NewStringFromAsciiChecked("string1");
+
+  CHECK(Handle<String>::cast(copy_result)->Equals(*expected));
   CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cache;

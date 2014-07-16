@@ -543,19 +543,6 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
 }
 
 
-Handle<String> Factory::NewFlatConcatString(Handle<String> first,
-                                            Handle<String> second) {
-  int total_length = first->length() + second->length();
-  if (first->IsOneByteRepresentation() && second->IsOneByteRepresentation()) {
-    return ConcatStringContent<uint8_t>(
-        NewRawOneByteString(total_length).ToHandleChecked(), first, second);
-  } else {
-    return ConcatStringContent<uc16>(
-        NewRawTwoByteString(total_length).ToHandleChecked(), first, second);
-  }
-}
-
-
 Handle<String> Factory::NewProperSubString(Handle<String> str,
                                            int begin,
                                            int end) {

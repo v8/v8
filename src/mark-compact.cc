@@ -45,7 +45,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap) :  // NOLINT
       marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
-      sweeping_pending_(false),
+      sweeping_in_progress_(false),
       pending_sweeper_jobs_semaphore_(0),
       sequential_sweeping_(false),
       tracer_(NULL),
@@ -573,7 +573,7 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
 void MarkCompactCollector::StartSweeperThreads() {
   ASSERT(free_list_old_pointer_space_.get()->IsEmpty());
   ASSERT(free_list_old_data_space_.get()->IsEmpty());
-  sweeping_pending_ = true;
+  sweeping_in_progress_ = true;
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->StartSweeping();
   }
@@ -588,8 +588,17 @@ void MarkCompactCollector::StartSweeperThreads() {
 }
 
 
-void MarkCompactCollector::WaitUntilSweepingCompleted() {
-  ASSERT(sweeping_pending_ == true);
+void MarkCompactCollector::EnsureSweepingCompleted() {
+  ASSERT(sweeping_in_progress_ == true);
+
+  // If sweeping is not completed, we try to complete it here. If we do not
+  // have sweeper threads we have to complete since we do not have a good
+  // indicator for a swept space in that case.
+  if (!AreSweeperThreadsActivated() || !IsSweepingCompleted()) {
+    SweepInParallel(heap()->paged_space(OLD_DATA_SPACE), 0);
+    SweepInParallel(heap()->paged_space(OLD_POINTER_SPACE), 0);
+  }
+
   for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
     isolate()->sweeper_threads()[i]->WaitForSweeperThread();
   }
@@ -599,7 +608,7 @@ void MarkCompactCollector::WaitUntilSweepingCompleted() {
     pending_sweeper_jobs_semaphore_.Wait();
   }
   ParallelSweepSpacesComplete();
-  sweeping_pending_ = false;
+  sweeping_in_progress_ = false;
   RefillFreeList(heap()->paged_space(OLD_DATA_SPACE));
   RefillFreeList(heap()->paged_space(OLD_POINTER_SPACE));
   heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
@@ -613,6 +622,7 @@ bool MarkCompactCollector::IsSweepingCompleted() {
       return false;
     }
   }
+
   if (FLAG_job_based_sweeping) {
     if (!pending_sweeper_jobs_semaphore_.WaitFor(
             base::TimeDelta::FromSeconds(0))) {
@@ -620,6 +630,7 @@ bool MarkCompactCollector::IsSweepingCompleted() {
     }
     pending_sweeper_jobs_semaphore_.Signal();
   }
+
   return true;
 }
 
@@ -645,12 +656,6 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
 
 bool MarkCompactCollector::AreSweeperThreadsActivated() {
   return isolate()->sweeper_threads() != NULL || FLAG_job_based_sweeping;
-}
-
-
-bool MarkCompactCollector::IsConcurrentSweepingInProgress(PagedSpace* space) {
-  return (space == NULL || space->is_swept_concurrently()) &&
-      sweeping_pending_;
 }
 
 
@@ -959,9 +964,9 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
 
-  if (IsConcurrentSweepingInProgress()) {
+  if (sweeping_in_progress()) {
     // Instead of waiting we could also abort the sweeper threads here.
-    WaitUntilSweepingCompleted();
+    EnsureSweepingCompleted();
   }
 
   // Clear marking bits if incremental marking is aborted.
@@ -1350,7 +1355,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   if (!FLAG_clever_optimizations) return object;
   Map* map = object->map();
   InstanceType type = map->instance_type();
-  if ((type & kShortcutTypeMask) != kShortcutTypeTag) return object;
+  if (!IsShortcutCandidate(type)) return object;
 
   Object* second = reinterpret_cast<ConsString*>(object)->second();
   Heap* heap = map->GetHeap();
@@ -4006,7 +4011,7 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
                              static_cast<int>(size));
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     ASSERT_EQ(0, p->LiveBytes());
-    return freed_bytes;
+    return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
   }
 
   // Grow the size of the start-of-page free space a little to get up to the
@@ -4063,7 +4068,7 @@ intptr_t MarkCompactCollector::SweepConservatively(PagedSpace* space,
   }
 
   p->ResetLiveBytes();
-  return max_freed_bytes;
+  return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
 }
 
 
@@ -4097,7 +4102,6 @@ int MarkCompactCollector::SweepInParallel(PagedSpace* space,
 
 void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   space->set_is_iterable(sweeper == PRECISE);
-  space->set_is_swept_concurrently(sweeper == CONCURRENT_CONSERVATIVE);
   space->ClearStats();
 
   // We defensively initialize end_of_unswept_pages_ here with the first page
@@ -4142,15 +4146,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
     }
 
     switch (sweeper) {
-      case CONSERVATIVE: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " conservatively.\n",
-                 reinterpret_cast<intptr_t>(p));
-        }
-        SweepConservatively<SWEEP_ON_MAIN_THREAD>(space, NULL, p);
-        pages_swept++;
-        break;
-      }
       case CONCURRENT_CONSERVATIVE:
       case PARALLEL_CONSERVATIVE: {
         if (!parallel_sweeping_active) {
@@ -4212,11 +4207,10 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
-  SweeperType how_to_sweep = CONSERVATIVE;
-  if (AreSweeperThreadsActivated()) {
-    if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
-    if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
-  }
+  SweeperType how_to_sweep = CONCURRENT_CONSERVATIVE;
+  if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_CONSERVATIVE;
+  if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_CONSERVATIVE;
+
   if (sweep_precisely_) how_to_sweep = PRECISE;
 
   MoveEvacuationCandidatesToEndOfPagesList();
@@ -4238,7 +4232,7 @@ void MarkCompactCollector::SweepSpaces() {
     }
 
     if (how_to_sweep == PARALLEL_CONSERVATIVE) {
-      WaitUntilSweepingCompleted();
+      EnsureSweepingCompleted();
     }
   }
   RemoveDeadInvalidatedCode();

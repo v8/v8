@@ -508,11 +508,11 @@ void JitLogger::LogRecordedBuffer(Code* code,
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_start = code->instruction_start();
   event.code_len = code->instruction_size();
-  Handle<Script> script_handle;
+  Handle<SharedFunctionInfo> shared_function_handle;
   if (shared && shared->script()->IsScript()) {
-    script_handle = Handle<Script>(Script::cast(shared->script()));
+    shared_function_handle = Handle<SharedFunctionInfo>(shared);
   }
-  event.script = ToApiHandle<v8::Script>(script_handle);
+  event.script = ToApiHandle<v8::UnboundScript>(shared_function_handle);
   event.name.str = name;
   event.name.len = length;
   code_event_handler_(&event);

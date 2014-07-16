@@ -1,3 +1,10 @@
+2014-07-16: Version 3.28.24
+
+        Removed some copy-n-paste from StackFrame::Foo API entries (issue 3436).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-15: Version 3.28.23
 
         Fix error message about read-only symbol properties (issue 3441).

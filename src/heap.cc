@@ -2193,10 +2193,6 @@ class ScavengingVisitor : public StaticVisitorBase {
   }
 
 
-  static inline bool IsShortcutCandidate(int type) {
-    return ((type & kShortcutTypeMask) == kShortcutTypeTag);
-  }
-
   static inline void EvacuateShortcutCandidate(Map* map,
                                                HeapObject** slot,
                                                HeapObject* object) {
@@ -3312,9 +3308,8 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
          page->WasSwept() ||
-         (mark_compact_collector()->AreSweeperThreadsActivated() &&
-              page->parallel_sweeping() <=
-                  MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
+         (page->parallel_sweeping() <=
+             MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
 }
 
 
@@ -4339,8 +4334,8 @@ bool Heap::IdleNotification(int hint) {
   // If the IdleNotifcation is called with a large hint we will wait for
   // the sweepter threads here.
   if (hint >= kMinHintForFullGC &&
-      mark_compact_collector()->IsConcurrentSweepingInProgress()) {
-    mark_compact_collector()->WaitUntilSweepingCompleted();
+      mark_compact_collector()->sweeping_in_progress()) {
+    mark_compact_collector()->EnsureSweepingCompleted();
   }
 
   return false;
