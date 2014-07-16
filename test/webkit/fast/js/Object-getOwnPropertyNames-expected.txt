@@ -81,7 +81,7 @@ FAIL getSortedOwnPropertyNames(RegExp) should be $&,$',$*,$+,$1,$2,$3,$4,$5,$6,$
 PASS getSortedOwnPropertyNames(RegExp.prototype) is ['compile', 'constructor', 'exec', 'global', 'ignoreCase', 'lastIndex', 'multiline', 'source', 'test', 'toString']
 FAIL getSortedOwnPropertyNames(Error) should be length,name,prototype. Was arguments,caller,captureStackTrace,length,name,prototype,stackTraceLimit.
 PASS getSortedOwnPropertyNames(Error.prototype) is ['constructor', 'message', 'name', 'toString']
-FAIL getSortedOwnPropertyNames(Math) should be E,LN10,LN2,LOG10E,LOG2E,PI,SQRT1_2,SQRT2,abs,acos,asin,atan,atan2,ceil,cos,exp,floor,log,max,min,pow,random,round,sin,sqrt,tan. Was E,LN10,LN2,LOG10E,LOG2E,PI,SQRT1_2,SQRT2,abs,acos,asin,atan,atan2,ceil,cos,exp,floor,imul,log,max,min,pow,random,round,sin,sqrt,tan.
+FAIL getSortedOwnPropertyNames(Math) should be E,LN10,LN2,LOG10E,LOG2E,PI,SQRT1_2,SQRT2,abs,acos,asin,atan,atan2,ceil,cos,exp,floor,log,max,min,pow,random,round,sin,sqrt,tan. Was E,LN10,LN2,LOG10E,LOG2E,PI,SQRT1_2,SQRT2,abs,acos,acosh,asin,asinh,atan,atan2,atanh,cbrt,ceil,clz32,cos,cosh,exp,expm1,floor,fround,hypot,imul,log,log10,log1p,log2,max,min,pow,random,round,sign,sin,sinh,sqrt,tan,tanh,trunc.
 PASS getSortedOwnPropertyNames(JSON) is ['parse', 'stringify']
 PASS globalPropertyNames.indexOf('NaN') != -1 is true
 PASS globalPropertyNames.indexOf('Infinity') != -1 is true

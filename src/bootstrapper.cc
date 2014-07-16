@@ -202,7 +202,6 @@ class Genesis BASE_EMBEDDED {
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
-  void InstallExperimentalBuiltinFunctionIds();
   void InstallExperimentalNativeFunctions();
   Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
                                           const char* name,
@@ -2016,11 +2015,9 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, maths, "harmony-math.js")
   }
 
   InstallExperimentalNativeFunctions();
-  InstallExperimentalBuiltinFunctionIds();
   return true;
 }
 
@@ -2069,15 +2066,6 @@ void Genesis::InstallBuiltinFunctionIds() {
   }
   FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)
 #undef INSTALL_BUILTIN_ID
-}
-
-
-void Genesis::InstallExperimentalBuiltinFunctionIds() {
-  HandleScope scope(isolate());
-  if (FLAG_harmony_maths) {
-    Handle<JSObject> holder = ResolveBuiltinIdHolder(native_context(), "Math");
-    InstallBuiltinFunctionId(holder, "clz32", kMathClz32);
-  }
 }
 
 

@@ -1336,7 +1336,6 @@
           '../../src/string-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
-          '../../src/harmony-math.js'
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

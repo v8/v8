@@ -164,7 +164,6 @@ DEFINE_BOOL(harmony_numeric_literals, false,
             "enable harmony numeric literals (0o77, 0b11)")
 DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
-DEFINE_BOOL(harmony_maths, false, "enable harmony math functions")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
 DEFINE_BOOL(harmony, false, "enable all harmony features (except typeof)")
 
@@ -184,7 +183,6 @@ DEFINE_IMPLICATION(harmony_generators, harmony_symbols)
 DEFINE_IMPLICATION(harmony_iteration, harmony_symbols)
 
 DEFINE_IMPLICATION(harmony, es_staging)
-DEFINE_IMPLICATION(es_staging, harmony_maths)
 DEFINE_IMPLICATION(es_staging, harmony_symbols)
 DEFINE_IMPLICATION(es_staging, harmony_collections)
 
