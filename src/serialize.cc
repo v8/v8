@@ -1938,6 +1938,7 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
       SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
       return;
     }
+    // TODO(yangguo) figure out whether other code kinds can be handled smarter.
   }
 
   if (heap_object == source_) {
@@ -1965,15 +1966,11 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
 
   ASSERT((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  int id = 0;
-  do {  // Look for existing builtins in the list.
-    Code* b = isolate()->builtins()->builtin(static_cast<Builtins::Name>(id));
-    if (builtin == b) break;
-  } while (++id < Builtins::builtin_count);
-  ASSERT(id < Builtins::builtin_count);  // We must have found a one.
-
+  int builtin_index = builtin->builtin_index();
+  ASSERT_LT(builtin_index, Builtins::builtin_count);
+  ASSERT_LE(0, builtin_index);
   sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
-  sink_->PutInt(id, "builtin_index");
+  sink_->PutInt(builtin_index, "builtin_index");
 }
 
 

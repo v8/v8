@@ -5608,6 +5608,10 @@ class Code: public HeapObject {
   inline int profiler_ticks();
   inline void set_profiler_ticks(int ticks);
 
+  // [builtin_index]: For BUILTIN kind, tells which builtin index it has.
+  inline int builtin_index();
+  inline void set_builtin_index(int id);
+
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.
   inline unsigned stack_slots();

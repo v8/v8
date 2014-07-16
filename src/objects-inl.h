@@ -4800,6 +4800,18 @@ void Code::set_profiler_ticks(int ticks) {
 }
 
 
+int Code::builtin_index() {
+  ASSERT_EQ(BUILTIN, kind());
+  return READ_INT32_FIELD(this, kKindSpecificFlags1Offset);
+}
+
+
+void Code::set_builtin_index(int index) {
+  ASSERT_EQ(BUILTIN, kind());
+  WRITE_INT32_FIELD(this, kKindSpecificFlags1Offset, index);
+}
+
+
 unsigned Code::stack_slots() {
   ASSERT(is_crankshafted());
   return StackSlotsField::decode(
