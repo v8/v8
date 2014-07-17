@@ -290,8 +290,7 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_compile_full_code);
+  TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
 
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {

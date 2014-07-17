@@ -3947,6 +3947,7 @@ static intptr_t Free(PagedSpace* space,
   if (mode == MarkCompactCollector::SWEEP_ON_MAIN_THREAD) {
     return space->Free(start, size);
   } else {
+    // TODO(hpayer): account for wasted bytes in concurrent sweeping too.
     return size - free_list->Free(start, size);
   }
 }

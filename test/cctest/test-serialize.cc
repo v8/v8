@@ -32,6 +32,7 @@
 #include "src/v8.h"
 
 #include "src/bootstrapper.h"
+#include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/ic-inl.h"
 #include "src/natives.h"
@@ -678,36 +679,42 @@ int CountBuiltins() {
 TEST(SerializeToplevelOnePlusOne) {
   FLAG_serialize_toplevel = true;
   LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
   v8::HandleScope scope(CcTest::isolate());
 
-  const char* source1 = "1 + 1";
-  const char* source2 = "1 + 2";  // Use alternate string to verify caching.
+  const char* source = "1 + 1";
 
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<String> source1_string = isolate->factory()
-                                      ->NewStringFromUtf8(CStrVector(source1))
-                                      .ToHandleChecked();
-
-  Handle<String> source2_string = isolate->factory()
-                                      ->NewStringFromUtf8(CStrVector(source2))
-                                      .ToHandleChecked();
+  Handle<String> orig_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  Handle<String> copy_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  CHECK(!orig_source.is_identical_to(copy_source));
+  CHECK(orig_source->Equals(*copy_source));
 
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig =
-      Compiler::CompileScript(source1_string, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      orig_source, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
 
   int builtins_count = CountBuiltins();
 
-  Handle<SharedFunctionInfo> copy =
-      Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        copy_source, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
 
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script())->source() == *source2_string);
+  CHECK(Script::cast(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -726,26 +733,29 @@ TEST(SerializeToplevelOnePlusOne) {
 TEST(SerializeToplevelInternalizedString) {
   FLAG_serialize_toplevel = true;
   LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
   v8::HandleScope scope(CcTest::isolate());
 
-  const char* source1 = "'string1'";
-  const char* source2 = "'string2'";  // Use alternate string to verify caching.
+  const char* source = "'string1'";
 
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<String> source1_string = isolate->factory()
-                                      ->NewStringFromUtf8(CStrVector(source1))
-                                      .ToHandleChecked();
+  Handle<String> orig_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  Handle<String> copy_source = isolate->factory()
+                                   ->NewStringFromUtf8(CStrVector(source))
+                                   .ToHandleChecked();
+  CHECK(!orig_source.is_identical_to(copy_source));
+  CHECK(orig_source->Equals(*copy_source));
 
-  Handle<String> source2_string = isolate->factory()
-                                      ->NewStringFromUtf8(CStrVector(source2))
-                                      .ToHandleChecked();
   Handle<JSObject> global(isolate->context()->global_object());
   ScriptData* cache = NULL;
 
-  Handle<SharedFunctionInfo> orig =
-      Compiler::CompileScript(source1_string, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, PRODUCE_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      orig_source, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
   Handle<JSFunction> orig_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           orig, isolate->native_context());
@@ -755,12 +765,16 @@ TEST(SerializeToplevelInternalizedString) {
 
   int builtins_count = CountBuiltins();
 
-  Handle<SharedFunctionInfo> copy =
-      Compiler::CompileScript(source2_string, Handle<String>(), 0, 0, false,
-                              Handle<Context>(isolate->native_context()), NULL,
-                              &cache, CONSUME_CACHED_DATA, NOT_NATIVES_CODE);
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        copy_source, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script())->source() == *source2_string);
+  CHECK(Script::cast(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(

@@ -194,23 +194,24 @@ class BinaryResource : public v8::String::ExternalAsciiStringResource {
 
 class ShellOptions {
  public:
-  ShellOptions() :
-     script_executed(false),
-     last_run(true),
-     send_idle_notification(false),
-     invoke_weak_callbacks(false),
-     stress_opt(false),
-     stress_deopt(false),
-     interactive_shell(false),
-     test_shell(false),
-     dump_heap_constants(false),
-     expected_to_throw(false),
-     mock_arraybuffer_allocator(false),
-     num_isolates(1),
-     isolate_sources(NULL),
-     icu_data_file(NULL),
-     natives_blob(NULL),
-     snapshot_blob(NULL) { }
+  ShellOptions()
+      : script_executed(false),
+        last_run(true),
+        send_idle_notification(false),
+        invoke_weak_callbacks(false),
+        stress_opt(false),
+        stress_deopt(false),
+        interactive_shell(false),
+        test_shell(false),
+        dump_heap_constants(false),
+        expected_to_throw(false),
+        mock_arraybuffer_allocator(false),
+        num_isolates(1),
+        compile_options(v8::ScriptCompiler::kNoCompileOptions),
+        isolate_sources(NULL),
+        icu_data_file(NULL),
+        natives_blob(NULL),
+        snapshot_blob(NULL) {}
 
   ~ShellOptions() {
     delete[] isolate_sources;
@@ -232,6 +233,7 @@ class ShellOptions {
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
   int num_isolates;
+  v8::ScriptCompiler::CompileOptions compile_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
   const char* natives_blob;
@@ -245,6 +247,9 @@ class Shell : public i::AllStatic {
 #endif  // V8_SHARED
 
  public:
+  static Local<UnboundScript> CompileString(
+      Isolate* isolate, Local<String> source, Local<Value> name,
+      v8::ScriptCompiler::CompileOptions compile_options);
   static bool ExecuteString(Isolate* isolate,
                             Handle<String> source,
                             Handle<Value> name,

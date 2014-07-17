@@ -28,7 +28,8 @@ enum PerIsolateAssertType {
   JAVASCRIPT_EXECUTION_ASSERT,
   JAVASCRIPT_EXECUTION_THROWS,
   ALLOCATION_FAILURE_ASSERT,
-  DEOPTIMIZATION_ASSERT
+  DEOPTIMIZATION_ASSERT,
+  COMPILATION_ASSERT
 };
 
 
@@ -254,6 +255,13 @@ typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, false>
 typedef PerIsolateAssertScopeDebugOnly<DEOPTIMIZATION_ASSERT, true>
     AllowDeoptimization;
 
+// Scope to document where we do not expect deoptimization.
+typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, false>
+    DisallowCompilation;
+
+// Scope to introduce an exception to DisallowDeoptimization.
+typedef PerIsolateAssertScopeDebugOnly<COMPILATION_ASSERT, true>
+    AllowCompilation;
 } }  // namespace v8::internal
 
 #endif  // V8_ASSERT_SCOPE_H_

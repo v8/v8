@@ -1,3 +1,12 @@
+2014-07-17: Version 3.28.26
+
+        Ship ES6 Math functions (issue 2938).
+
+        Make ToPrimitive throw on symbol wrappers (issue 3442).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-16: Version 3.28.25
 
         Performance and stability improvements on all platforms.

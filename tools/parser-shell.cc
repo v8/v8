@@ -90,7 +90,8 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   {
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
-    info.SetCachedData(&cached_data_impl, i::PRODUCE_CACHED_DATA);
+    info.SetCachedData(&cached_data_impl,
+                       v8::ScriptCompiler::kProduceParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise we won't produce cached data.
@@ -105,7 +106,8 @@ std::pair<v8::base::TimeDelta, v8::base::TimeDelta> RunBaselineParser(
   {
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
-    info.SetCachedData(&cached_data_impl, i::CONSUME_CACHED_DATA);
+    info.SetCachedData(&cached_data_impl,
+                       v8::ScriptCompiler::kConsumeParserCache);
     v8::base::ElapsedTimer timer;
     timer.Start();
     // Allow lazy parsing; otherwise cached data won't help.

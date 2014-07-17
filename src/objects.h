@@ -5608,6 +5608,10 @@ class Code: public HeapObject {
   inline int profiler_ticks();
   inline void set_profiler_ticks(int ticks);
 
+  // [builtin_index]: For BUILTIN kind, tells which builtin index it has.
+  inline int builtin_index();
+  inline void set_builtin_index(int id);
+
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.
   inline unsigned stack_slots();
@@ -7015,27 +7019,28 @@ class Script: public Struct {
 //
 // Installation of ids for the selected builtin functions is handled
 // by the bootstrapper.
-#define FUNCTIONS_WITH_ID_LIST(V)                     \
-  V(Array.prototype, indexOf, ArrayIndexOf)           \
-  V(Array.prototype, lastIndexOf, ArrayLastIndexOf)   \
-  V(Array.prototype, push, ArrayPush)                 \
-  V(Array.prototype, pop, ArrayPop)                   \
-  V(Array.prototype, shift, ArrayShift)               \
-  V(Function.prototype, apply, FunctionApply)         \
-  V(String.prototype, charCodeAt, StringCharCodeAt)   \
-  V(String.prototype, charAt, StringCharAt)           \
-  V(String, fromCharCode, StringFromCharCode)         \
-  V(Math, floor, MathFloor)                           \
-  V(Math, round, MathRound)                           \
-  V(Math, ceil, MathCeil)                             \
-  V(Math, abs, MathAbs)                               \
-  V(Math, log, MathLog)                               \
-  V(Math, exp, MathExp)                               \
-  V(Math, sqrt, MathSqrt)                             \
-  V(Math, pow, MathPow)                               \
-  V(Math, max, MathMax)                               \
-  V(Math, min, MathMin)                               \
-  V(Math, imul, MathImul)
+#define FUNCTIONS_WITH_ID_LIST(V)                   \
+  V(Array.prototype, indexOf, ArrayIndexOf)         \
+  V(Array.prototype, lastIndexOf, ArrayLastIndexOf) \
+  V(Array.prototype, push, ArrayPush)               \
+  V(Array.prototype, pop, ArrayPop)                 \
+  V(Array.prototype, shift, ArrayShift)             \
+  V(Function.prototype, apply, FunctionApply)       \
+  V(String.prototype, charCodeAt, StringCharCodeAt) \
+  V(String.prototype, charAt, StringCharAt)         \
+  V(String, fromCharCode, StringFromCharCode)       \
+  V(Math, floor, MathFloor)                         \
+  V(Math, round, MathRound)                         \
+  V(Math, ceil, MathCeil)                           \
+  V(Math, abs, MathAbs)                             \
+  V(Math, log, MathLog)                             \
+  V(Math, exp, MathExp)                             \
+  V(Math, sqrt, MathSqrt)                           \
+  V(Math, pow, MathPow)                             \
+  V(Math, max, MathMax)                             \
+  V(Math, min, MathMin)                             \
+  V(Math, imul, MathImul)                           \
+  V(Math, clz32, MathClz32)
 
 enum BuiltinFunctionId {
   kArrayCode,
@@ -7045,9 +7050,7 @@ enum BuiltinFunctionId {
 #undef DECLARE_FUNCTION_ID
   // Fake id for a special case of Math.pow. Note, it continues the
   // list of math functions.
-  kMathPowHalf,
-  // Installed only on --harmony-maths.
-  kMathClz32
+  kMathPowHalf
 };
 
 
@@ -8851,6 +8854,19 @@ class StringHasher {
   bool is_array_index_;
   bool is_first_char_;
   DISALLOW_COPY_AND_ASSIGN(StringHasher);
+};
+
+
+class IteratingStringHasher : public StringHasher {
+ public:
+  static inline uint32_t Hash(String* string, uint32_t seed);
+  inline void VisitOneByteString(const uint8_t* chars, int length);
+  inline void VisitTwoByteString(const uint16_t* chars, int length);
+
+ private:
+  inline IteratingStringHasher(int len, uint32_t seed)
+      : StringHasher(len, seed) {}
+  DISALLOW_COPY_AND_ASSIGN(IteratingStringHasher);
 };
 
 

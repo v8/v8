@@ -170,6 +170,36 @@ const char* Shell::ToCString(const v8::String::Utf8Value& value) {
 }
 
 
+// Compile a string within the current v8 context.
+Local<UnboundScript> Shell::CompileString(
+    Isolate* isolate, Local<String> source, Local<Value> name,
+    v8::ScriptCompiler::CompileOptions compile_options) {
+  ScriptOrigin origin(name);
+  ScriptCompiler::Source script_source(source, origin);
+  Local<UnboundScript> script =
+      ScriptCompiler::CompileUnbound(isolate, &script_source, compile_options);
+
+  // Was caching requested & successful? Then compile again, now with cache.
+  if (script_source.GetCachedData()) {
+    if (compile_options == ScriptCompiler::kProduceCodeCache) {
+      compile_options = ScriptCompiler::kConsumeCodeCache;
+    } else if (compile_options == ScriptCompiler::kProduceParserCache) {
+      compile_options = ScriptCompiler::kConsumeParserCache;
+    } else {
+      ASSERT(false);  // A new compile option?
+    }
+    ScriptCompiler::Source cached_source(
+        source, origin, new v8::ScriptCompiler::CachedData(
+                            script_source.GetCachedData()->data,
+                            script_source.GetCachedData()->length,
+                            v8::ScriptCompiler::CachedData::BufferNotOwned));
+    script = ScriptCompiler::CompileUnbound(isolate, &cached_source,
+                                            compile_options);
+  }
+  return script;
+}
+
+
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate,
                           Handle<String> source,
@@ -188,10 +218,9 @@ bool Shell::ExecuteString(Isolate* isolate,
     // When debugging make exceptions appear to be uncaught.
     try_catch.SetVerbose(true);
   }
-  ScriptOrigin origin(name);
-  ScriptCompiler::Source script_source(source, origin);
+
   Handle<UnboundScript> script =
-      ScriptCompiler::CompileUnbound(isolate, &script_source);
+      Shell::CompileString(isolate, source, name, options.compile_options);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     if (report_exceptions && !FLAG_debugger)
@@ -1340,6 +1369,20 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.snapshot_blob = argv[i] + 16;
       argv[i] = NULL;
 #endif  // V8_USE_EXTERNAL_STARTUP_DATA
+    } else if (strcmp(argv[i], "--cache") == 0 ||
+               strncmp(argv[i], "--cache=", 8) == 0) {
+      const char* value = argv[i] + 7;
+      if (!*value || strncmp(value, "=code", 6) == 0) {
+        options.compile_options = v8::ScriptCompiler::kProduceCodeCache;
+      } else if (strncmp(value, "=parse", 7) == 0) {
+        options.compile_options = v8::ScriptCompiler::kProduceParserCache;
+      } else if (strncmp(value, "=none", 6) == 0) {
+        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+      } else {
+        printf("Unknown option to --cache.\n");
+        return false;
+      }
+      argv[i] = NULL;
     }
   }
 

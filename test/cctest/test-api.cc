@@ -14811,7 +14811,7 @@ TEST(PreCompileSerialization) {
   const char* script = "function foo(a) { return a+1; }";
   v8::ScriptCompiler::Source source(v8_str(script));
   v8::ScriptCompiler::Compile(isolate, &source,
-                              v8::ScriptCompiler::kProduceDataToCache);
+                              v8::ScriptCompiler::kProduceParserCache);
   // Serialize.
   const v8::ScriptCompiler::CachedData* cd = source.GetCachedData();
   i::byte* serialized_data = i::NewArray<i::byte>(cd->length);

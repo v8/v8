@@ -156,6 +156,7 @@ class DefaultSentinel(Node):
     self.flags = []
     self.resources = []
     self.results_regexp = None
+    self.stddev_regexp = None
     self.units = "score"
 
 
@@ -191,10 +192,17 @@ class Graph(Node):
     # TODO(machenbach): Currently that makes only sense for the leaf level.
     # Multiple place holders for multiple levels are not supported.
     if parent.results_regexp:
-      regexp_default = parent.results_regexp % suite["name"]
+      regexp_default = parent.results_regexp % re.escape(suite["name"])
     else:
       regexp_default = None
     self.results_regexp = suite.get("results_regexp", regexp_default)
+
+    # A similar regular expression for the standard deviation (optional).
+    if parent.stddev_regexp:
+      stddev_default = parent.stddev_regexp % re.escape(suite["name"])
+    else:
+      stddev_default = None
+    self.stddev_regexp = suite.get("stddev_regexp", stddev_default)
 
 
 class Trace(Graph):
@@ -207,6 +215,7 @@ class Trace(Graph):
     assert self.results_regexp
     self.results = []
     self.errors = []
+    self.stddev = ""
 
   def ConsumeOutput(self, stdout):
     try:
@@ -216,11 +225,22 @@ class Trace(Graph):
       self.errors.append("Regexp \"%s\" didn't match for benchmark %s."
                          % (self.results_regexp, self.graphs[-1]))
 
+    try:
+      if self.stddev_regexp and self.stddev:
+        self.errors.append("Benchmark %s should only run once since a stddev "
+                           "is provided by the benchmark." % self.graphs[-1])
+      if self.stddev_regexp:
+        self.stddev = re.search(self.stddev_regexp, stdout, re.M).group(1)
+    except:
+      self.errors.append("Regexp \"%s\" didn't match for benchmark %s."
+                         % (self.stddev_regexp, self.graphs[-1]))
+
   def GetResults(self):
     return Results([{
       "graphs": self.graphs,
       "units": self.units,
       "results": self.results,
+      "stddev": self.stddev,
     }], self.errors)
 
 

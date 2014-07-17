@@ -4800,6 +4800,18 @@ void Code::set_profiler_ticks(int ticks) {
 }
 
 
+int Code::builtin_index() {
+  ASSERT_EQ(BUILTIN, kind());
+  return READ_INT32_FIELD(this, kKindSpecificFlags1Offset);
+}
+
+
+void Code::set_builtin_index(int index) {
+  ASSERT_EQ(BUILTIN, kind());
+  WRITE_INT32_FIELD(this, kKindSpecificFlags1Offset, index);
+}
+
+
 unsigned Code::stack_slots() {
   ASSERT(is_crankshafted());
   return StackSlotsField::decode(
@@ -6559,6 +6571,35 @@ uint32_t StringHasher::HashSequentialString(const schar* chars,
   StringHasher hasher(length, seed);
   if (!hasher.has_trivial_hash()) hasher.AddCharacters(chars, length);
   return hasher.GetHashField();
+}
+
+
+uint32_t IteratingStringHasher::Hash(String* string, uint32_t seed) {
+  IteratingStringHasher hasher(string->length(), seed);
+  // Nothing to do.
+  if (hasher.has_trivial_hash()) return hasher.GetHashField();
+  ConsString* cons_string = String::VisitFlat(&hasher, string);
+  // The string was flat.
+  if (cons_string == NULL) return hasher.GetHashField();
+  // This is a ConsString, iterate across it.
+  ConsStringIteratorOp op(cons_string);
+  int offset;
+  while (NULL != (string = op.Next(&offset))) {
+    String::VisitFlat(&hasher, string, offset);
+  }
+  return hasher.GetHashField();
+}
+
+
+void IteratingStringHasher::VisitOneByteString(const uint8_t* chars,
+                                               int length) {
+  AddCharacters(chars, length);
+}
+
+
+void IteratingStringHasher::VisitTwoByteString(const uint16_t* chars,
+                                               int length) {
+  AddCharacters(chars, length);
 }
 
 

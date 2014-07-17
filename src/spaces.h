@@ -1457,9 +1457,8 @@ class AllocationStats BASE_EMBEDDED {
 
   // Waste free bytes (available -> waste).
   void WasteBytes(int size_in_bytes) {
-    size_ -= size_in_bytes;
+    ASSERT(size_in_bytes >= 0);
     waste_ += size_in_bytes;
-    ASSERT(size_ >= 0);
   }
 
  private:
@@ -1857,7 +1856,8 @@ class PagedSpace : public Space {
   // no attempt to add area to free list is made.
   int Free(Address start, int size_in_bytes) {
     int wasted = free_list_.Free(start, size_in_bytes);
-    accounting_stats_.DeallocateBytes(size_in_bytes - wasted);
+    accounting_stats_.DeallocateBytes(size_in_bytes);
+    accounting_stats_.WasteBytes(wasted);
     return size_in_bytes - wasted;
   }
 

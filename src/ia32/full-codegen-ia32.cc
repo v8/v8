@@ -1499,7 +1499,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ bind(&slow);
       __ push(esi);  // Context.
       __ push(Immediate(var->name()));
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+      __ CallRuntime(Runtime::kLoadLookupSlot, 2);
       __ bind(&done);
       context()->Plug(eax);
       break;
@@ -2687,7 +2687,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // the object holding it (returned in edx).
     __ push(context_register());
     __ push(Immediate(proxy->name()));
-    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    __ CallRuntime(Runtime::kLoadLookupSlot, 2);
     __ push(eax);  // Function.
     __ push(edx);  // Receiver.
 
@@ -4093,7 +4093,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           // context where the variable was introduced.
           __ push(context_register());
           __ push(Immediate(var->name()));
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          __ CallRuntime(Runtime::kDeleteLookupSlot, 2);
           context()->Plug(eax);
         }
       } else {
@@ -4386,7 +4386,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     __ bind(&slow);
     __ push(esi);
     __ push(Immediate(proxy->name()));
-    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    __ CallRuntime(Runtime::kLoadLookupSlotNoReferenceError, 2);
     PrepareForBailout(expr, TOS_REG);
     __ bind(&done);
 

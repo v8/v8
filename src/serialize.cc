@@ -13,6 +13,7 @@
 #include "src/global-handles.h"
 #include "src/ic-inl.h"
 #include "src/natives.h"
+#include "src/objects.h"
 #include "src/runtime.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
@@ -1937,6 +1938,7 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
       SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
       return;
     }
+    // TODO(yangguo) figure out whether other code kinds can be handled smarter.
   }
 
   if (heap_object == source_) {
@@ -1964,15 +1966,11 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
 
   ASSERT((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  int id = 0;
-  do {  // Look for existing builtins in the list.
-    Code* b = isolate()->builtins()->builtin(static_cast<Builtins::Name>(id));
-    if (builtin == b) break;
-  } while (++id < Builtins::builtin_count);
-  ASSERT(id < Builtins::builtin_count);  // We must have found a one.
-
+  int builtin_index = builtin->builtin_index();
+  ASSERT_LT(builtin_index, Builtins::builtin_count);
+  ASSERT_LE(0, builtin_index);
   sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
-  sink_->PutInt(id, "builtin_index");
+  sink_->PutInt(builtin_index, "builtin_index");
 }
 
 
@@ -1993,7 +1991,7 @@ void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
 Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
                                                        ScriptData* data,
                                                        Handle<String> source) {
-  SerializedCodeData scd(data);
+  SerializedCodeData scd(data, *source);
   SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
   Deserializer deserializer(&payload);
   STATIC_ASSERT(NEW_SPACE == 0);
@@ -2017,6 +2015,7 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
 
 SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
     : owns_script_data_(true) {
+  DisallowHeapAllocation no_gc;
   int data_length = payload->length() + kHeaderEntries * kIntSize;
   byte* data = NewArray<byte>(data_length);
   ASSERT(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
@@ -2024,7 +2023,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
             static_cast<size_t>(payload->length()));
   script_data_ = new ScriptData(data, data_length);
   script_data_->AcquireDataOwnership();
-  SetHeaderValue(kVersionHashOffset, Version::Hash());
+  SetHeaderValue(kCheckSumOffset, CheckSum(cs->source()));
   STATIC_ASSERT(NEW_SPACE == 0);
   for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
     SetHeaderValue(kReservationsOffset + i, cs->CurrentAllocationAddress(i));
@@ -2032,8 +2031,18 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
 }
 
 
-bool SerializedCodeData::IsSane() {
-  return GetHeaderValue(kVersionHashOffset) == Version::Hash() &&
+bool SerializedCodeData::IsSane(String* source) {
+  return GetHeaderValue(kCheckSumOffset) == CheckSum(source) &&
          PayloadLength() >= SharedFunctionInfo::kSize;
+}
+
+
+int SerializedCodeData::CheckSum(String* string) {
+  int checksum = Version::Hash();
+#ifdef DEBUG
+  uint32_t seed = static_cast<uint32_t>(checksum);
+  checksum = static_cast<int>(IteratingStringHasher::Hash(string, seed));
+#endif  // DEBUG
+  return checksum;
 }
 } }  // namespace v8::internal

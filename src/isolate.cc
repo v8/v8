@@ -1878,9 +1878,9 @@ bool Isolate::Init(Deserializer* des) {
   builtins_.SetUp(this, create_heap_objects);
 
   if (FLAG_log_internal_timer_events) {
-    set_event_logger(Logger::LogInternalEvents);
+    set_event_logger(Logger::DefaultTimerEventsLogger);
   } else {
-    set_event_logger(Logger::EmptyLogInternalEvents);
+    set_event_logger(Logger::EmptyTimerEventsLogger);
   }
 
   // Set default value if not yet set.

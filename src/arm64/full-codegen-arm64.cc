@@ -1556,7 +1556,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, "Lookup variable");
       __ Mov(x1, Operand(var->name()));
       __ Push(cp, x1);  // Context and name.
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+      __ CallRuntime(Runtime::kLoadLookupSlot, 2);
       __ Bind(&done);
       context()->Plug(x0);
       break;
@@ -2460,7 +2460,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     // and the object holding it (returned in x1).
     __ Mov(x10, Operand(proxy->name()));
     __ Push(context_register(), x10);
-    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    __ CallRuntime(Runtime::kLoadLookupSlot, 2);
     __ Push(x0, x1);  // Receiver, function.
 
     // If fast case code has been generated, emit code to push the
@@ -3814,7 +3814,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           // context where the variable was introduced.
           __ Mov(x2, Operand(var->name()));
           __ Push(context_register(), x2);
-          __ CallRuntime(Runtime::kDeleteContextSlot, 2);
+          __ CallRuntime(Runtime::kDeleteLookupSlot, 2);
           context()->Plug(x0);
         }
       } else {
@@ -4095,7 +4095,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     __ Bind(&slow);
     __ Mov(x0, Operand(proxy->name()));
     __ Push(cp, x0);
-    __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    __ CallRuntime(Runtime::kLoadLookupSlotNoReferenceError, 2);
     PrepareForBailout(expr, TOS_REG);
     __ Bind(&done);
 

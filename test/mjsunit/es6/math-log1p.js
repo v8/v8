@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-maths
-
 assertTrue(isNaN(Math.log1p(NaN)));
 assertTrue(isNaN(Math.log1p(function() {})));
 assertTrue(isNaN(Math.log1p({ toString: function() { return NaN; } })));

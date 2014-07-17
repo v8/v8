@@ -49,9 +49,9 @@ EXPAND_MACROS = [
 # to parse them!
 EXPECTED_FUNCTION_COUNT = 417
 EXPECTED_FUZZABLE_COUNT = 332
-EXPECTED_CCTEST_COUNT = 9
+EXPECTED_CCTEST_COUNT = 8
 EXPECTED_UNKNOWN_COUNT = 4
-EXPECTED_BUILTINS_COUNT = 810
+EXPECTED_BUILTINS_COUNT = 809
 
 
 # Don't call these at all.
@@ -152,10 +152,10 @@ BLACKLISTED = [
   "PushCatchContext",
   "PushBlockContext",
   "PushModuleContext",
-  "DeleteContextSlot",
-  "LoadContextSlot",
-  "LoadContextSlotNoReferenceError",
-  "StoreContextSlot",
+  "DeleteLookupSlot",
+  "LoadLookupSlot",
+  "LoadLookupSlotNoReferenceError",
+  "StoreLookupSlot",
 
   # Declarations
   "DeclareGlobals",

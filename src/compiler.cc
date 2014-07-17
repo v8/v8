@@ -113,7 +113,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   global_scope_ = NULL;
   extension_ = NULL;
   cached_data_ = NULL;
-  cached_data_mode_ = NO_CACHED_DATA;
+  compile_options_ = ScriptCompiler::kNoCompileOptions;
   zone_ = zone;
   deferred_handles_ = NULL;
   code_stub_ = NULL;
@@ -631,6 +631,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
 
 
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
+  ASSERT(AllowCompilation::IsAllowed(info->isolate()));
   ASSERT(info->function() != NULL);
   if (!Rewriter::Rewrite(info)) return false;
   if (!Scope::Analyze(info)) return false;
@@ -799,18 +800,20 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   ASSERT(info->is_eval() || info->is_global());
 
   bool parse_allow_lazy =
-      (info->cached_data_mode() == CONSUME_CACHED_DATA ||
+      (info->compile_options() == ScriptCompiler::kConsumeParserCache ||
        String::cast(script->source())->length() > FLAG_min_preparse_length) &&
       !DebuggerWantsEagerCompilation(info);
 
-  if (!parse_allow_lazy && info->cached_data_mode() != NO_CACHED_DATA) {
+  if (!parse_allow_lazy &&
+      (info->compile_options() == ScriptCompiler::kProduceParserCache ||
+       info->compile_options() == ScriptCompiler::kConsumeParserCache)) {
     // We are going to parse eagerly, but we either 1) have cached data produced
     // by lazy parsing or 2) are asked to generate cached data. We cannot use
     // the existing data, since it won't contain all the symbols we need for
     // eager parsing. In addition, it doesn't make sense to produce the data
     // when parsing eagerly. That data would contain all symbols, but no
     // functions, so it cannot be used to aid lazy parsing later.
-    info->SetCachedData(NULL, NO_CACHED_DATA);
+    info->SetCachedData(NULL, ScriptCompiler::kNoCompileOptions);
   }
 
   Handle<SharedFunctionInfo> result;
@@ -931,23 +934,19 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
 
 Handle<SharedFunctionInfo> Compiler::CompileScript(
-    Handle<String> source,
-    Handle<Object> script_name,
-    int line_offset,
-    int column_offset,
-    bool is_shared_cross_origin,
-    Handle<Context> context,
-    v8::Extension* extension,
-    ScriptData** cached_data,
-    CachedDataMode cached_data_mode,
-    NativesFlag natives) {
-  if (cached_data_mode == NO_CACHED_DATA) {
+    Handle<String> source, Handle<Object> script_name, int line_offset,
+    int column_offset, bool is_shared_cross_origin, Handle<Context> context,
+    v8::Extension* extension, ScriptData** cached_data,
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
+  if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
-  } else if (cached_data_mode == PRODUCE_CACHED_DATA) {
+  } else if (compile_options == ScriptCompiler::kProduceParserCache ||
+             compile_options == ScriptCompiler::kProduceCodeCache) {
     ASSERT(cached_data && !*cached_data);
     ASSERT(extension == NULL);
   } else {
-    ASSERT(cached_data_mode == CONSUME_CACHED_DATA);
+    ASSERT(compile_options == ScriptCompiler::kConsumeParserCache ||
+           compile_options == ScriptCompiler::kConsumeCodeCache);
     ASSERT(cached_data && *cached_data);
     ASSERT(extension == NULL);
   }
@@ -966,7 +965,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         source, script_name, line_offset, column_offset,
         is_shared_cross_origin, context);
     if (maybe_result.is_null() && FLAG_serialize_toplevel &&
-        cached_data_mode == CONSUME_CACHED_DATA) {
+        compile_options == ScriptCompiler::kConsumeCodeCache) {
       return CodeSerializer::Deserialize(isolate, *cached_data, source);
     }
   }
@@ -989,10 +988,11 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     // Compile the function and add it to the cache.
     CompilationInfoWithZone info(script);
     info.MarkAsGlobal();
-    info.SetCachedData(cached_data, cached_data_mode);
+    info.SetCachedData(cached_data, compile_options);
     info.SetExtension(extension);
     info.SetContext(context);
-    if (FLAG_serialize_toplevel && cached_data_mode == PRODUCE_CACHED_DATA) {
+    if (FLAG_serialize_toplevel &&
+        compile_options == ScriptCompiler::kProduceCodeCache) {
       info.PrepareForSerializing();
     }
     if (FLAG_use_strict) info.SetStrictMode(STRICT);
@@ -1000,10 +1000,12 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null() && !result->dont_cache()) {
       compilation_cache->PutScript(source, context, result);
-      if (FLAG_serialize_toplevel && cached_data_mode == PRODUCE_CACHED_DATA) {
+      if (FLAG_serialize_toplevel &&
+          compile_options == ScriptCompiler::kProduceCodeCache) {
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
       }
     }
+
     if (result.is_null()) isolate->ReportPendingMessages();
   } else if (result->ic_age() != isolate->heap()->global_ic_age()) {
     result->ResetForNewContext(isolate->heap()->global_ic_age());
@@ -1131,8 +1133,7 @@ static bool CompileOptimizedPrologue(CompilationInfo* info) {
 static bool GetOptimizedCodeNow(CompilationInfo* info) {
   if (!CompileOptimizedPrologue(info)) return false;
 
-  Logger::TimerEventScope timer(
-      info->isolate(), Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob job(info);
   if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
@@ -1163,8 +1164,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   if (!CompileOptimizedPrologue(info)) return false;
   info->SaveHandles();  // Copy handles to the compilation handle scope.
 
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob* job = new(info->zone()) OptimizedCompileJob(info);
   OptimizedCompileJob::Status status = job->CreateGraph();
@@ -1196,6 +1196,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(function));
   Isolate* isolate = info->isolate();
+  ASSERT(AllowCompilation::IsAllowed(isolate));
   VMState<COMPILER> state(isolate);
   ASSERT(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
@@ -1236,8 +1237,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   Isolate* isolate = info->isolate();
 
   VMState<COMPILER> state(isolate);
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
+  TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);

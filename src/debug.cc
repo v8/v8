@@ -738,12 +738,9 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
 
   // Compile the script.
   Handle<SharedFunctionInfo> function_info;
-  function_info = Compiler::CompileScript(source_code,
-                                          script_name, 0, 0,
-                                          false,
-                                          context,
-                                          NULL, NULL, NO_CACHED_DATA,
-                                          NATIVES_CODE);
+  function_info = Compiler::CompileScript(
+      source_code, script_name, 0, 0, false, context, NULL, NULL,
+      ScriptCompiler::kNoCompileOptions, NATIVES_CODE);
 
   // Silently ignore stack overflows during compilation.
   if (function_info.is_null()) {

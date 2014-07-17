@@ -1074,15 +1074,21 @@ class V8_EXPORT ScriptCompiler {
     Handle<Integer> resource_column_offset;
     Handle<Boolean> resource_is_shared_cross_origin;
 
-    // Cached data from previous compilation (if any), or generated during
-    // compilation (if the generate_cached_data flag is passed to
-    // ScriptCompiler).
+    // Cached data from previous compilation (if a kConsume*Cache flag is
+    // set), or hold newly generated cache data (kProduce*Cache flags) are
+    // set when calling a compile method.
     CachedData* cached_data;
   };
 
   enum CompileOptions {
-    kNoCompileOptions,
-    kProduceDataToCache = 1 << 0
+    kNoCompileOptions = 0,
+    kProduceParserCache,
+    kConsumeParserCache,
+    kProduceCodeCache,
+    kConsumeCodeCache,
+
+    // Support the previous API for a transition period.
+    kProduceDataToCache
   };
 
   /**

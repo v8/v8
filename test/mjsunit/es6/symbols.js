@@ -102,7 +102,9 @@ TestConstructor()
 
 function TestValueOf() {
   for (var i in symbols) {
+    assertTrue(symbols[i] === Object(symbols[i]).valueOf())
     assertTrue(symbols[i] === symbols[i].valueOf())
+    assertTrue(Symbol.prototype.valueOf.call(Object(symbols[i])) === symbols[i])
     assertTrue(Symbol.prototype.valueOf.call(symbols[i]) === symbols[i])
   }
 }
@@ -113,7 +115,7 @@ function TestToString() {
   for (var i in symbols) {
     assertThrows(function() { String(symbols[i]) }, TypeError)
     assertThrows(function() { symbols[i] + "" }, TypeError)
-    assertTrue(isValidSymbolString(String(Object(symbols[i]))))
+    assertThrows(function() { String(Object(symbols[i])) }, TypeError)
     assertTrue(isValidSymbolString(symbols[i].toString()))
     assertTrue(isValidSymbolString(Object(symbols[i]).toString()))
     assertTrue(
@@ -127,6 +129,8 @@ TestToString()
 
 function TestToBoolean() {
   for (var i in symbols) {
+    assertTrue(Boolean(Object(symbols[i])))
+    assertFalse(!Object(symbols[i]))
     assertTrue(Boolean(symbols[i]).valueOf())
     assertFalse(!symbols[i])
     assertTrue(!!symbols[i])
@@ -144,6 +148,8 @@ TestToBoolean()
 
 function TestToNumber() {
   for (var i in symbols) {
+    assertThrows(function() { Number(Object(symbols[i])) }, TypeError)
+    assertThrows(function() { +Object(symbols[i]) }, TypeError)
     assertSame(NaN, Number(symbols[i]).valueOf())
     assertSame(NaN, symbols[i] + 0)
   }

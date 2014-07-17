@@ -662,7 +662,6 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
   steps_took_since_last_gc_ = 0;
   steps_count_since_last_gc_ = 0;
-  longest_step_ = 0.0;
 }
 
 

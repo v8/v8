@@ -135,8 +135,9 @@ class BenchmarksTest(unittest.TestCase):
     self.assertEquals([
       {"units": units,
        "graphs": [suite, trace["name"]],
-       "results": trace["results"]} for trace in traces],
-        self._LoadResults()["traces"])
+       "results": trace["results"],
+       "stddev": trace["stddev"]} for trace in traces],
+      self._LoadResults()["traces"])
 
   def _VerifyErrors(self, errors):
     self.assertEquals(errors, self._LoadResults()["errors"])
@@ -159,8 +160,8 @@ class BenchmarksTest(unittest.TestCase):
     self._MockCommand(["."], ["x\nRichards: 1.234\nDeltaBlue: 10657567\ny\n"])
     self.assertEquals(0, self._CallMain())
     self._VerifyResults("test", "score", [
-      {"name": "Richards", "results": ["1.234"]},
-      {"name": "DeltaBlue", "results": ["10657567"]},
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
     ])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
@@ -176,8 +177,8 @@ class BenchmarksTest(unittest.TestCase):
                        "Richards: 50\nDeltaBlue: 300\n"])
     self.assertEquals(0, self._CallMain())
     self._VerifyResults("v8", "ms", [
-      {"name": "Richards", "results": ["50", "100"]},
-      {"name": "DeltaBlue", "results": ["300", "200"]},
+      {"name": "Richards", "results": ["50", "100"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["300", "200"], "stddev": ""},
     ])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
@@ -194,8 +195,8 @@ class BenchmarksTest(unittest.TestCase):
                        "Richards: 50\nDeltaBlue: 300\n"])
     self.assertEquals(0, self._CallMain())
     self._VerifyResults("test", "score", [
-      {"name": "Richards", "results": ["50", "100"]},
-      {"name": "DeltaBlue", "results": ["300", "200"]},
+      {"name": "Richards", "results": ["50", "100"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["300", "200"], "stddev": ""},
     ])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
@@ -213,13 +214,16 @@ class BenchmarksTest(unittest.TestCase):
     self.assertEquals([
       {"units": "score",
        "graphs": ["test", "Richards"],
-       "results": ["50", "100"]},
+       "results": ["50", "100"],
+       "stddev": ""},
       {"units": "ms",
        "graphs": ["test", "Sub", "Leaf"],
-       "results": ["3", "2", "1"]},
+       "results": ["3", "2", "1"],
+       "stddev": ""},
       {"units": "score",
        "graphs": ["test", "DeltaBlue"],
-       "results": ["200"]},
+       "results": ["200"],
+       "stddev": ""},
       ], self._LoadResults()["traces"])
     self._VerifyErrors([])
     self._VerifyMockMultiple(
@@ -232,13 +236,50 @@ class BenchmarksTest(unittest.TestCase):
         (path.join("out", "x64.release", "d8"), "--flag", "run.js"),
         (path.join("out", "x64.release", "d8"), "--flag", "--flag2", "run.js"))
 
+  def testOneRunStdDevRegExp(self):
+    test_input = dict(V8_JSON)
+    test_input["stddev_regexp"] = "^%s\-stddev: (.+)$"
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["Richards: 1.234\nRichards-stddev: 0.23\n"
+                              "DeltaBlue: 10657567\nDeltaBlue-stddev: 106\n"])
+    self.assertEquals(0, self._CallMain())
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["1.234"], "stddev": "0.23"},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": "106"},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
+
+  def testTwoRunsStdDevRegExp(self):
+    test_input = dict(V8_JSON)
+    test_input["stddev_regexp"] = "^%s\-stddev: (.+)$"
+    test_input["run_count"] = 2
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["Richards: 3\nRichards-stddev: 0.7\n"
+                              "DeltaBlue: 6\nDeltaBlue-boom: 0.9\n",
+                              "Richards: 2\nRichards-stddev: 0.5\n"
+                              "DeltaBlue: 5\nDeltaBlue-stddev: 0.8\n"])
+    self.assertEquals(1, self._CallMain())
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["2", "3"], "stddev": "0.7"},
+      {"name": "DeltaBlue", "results": ["5", "6"], "stddev": "0.8"},
+    ])
+    self._VerifyErrors(
+        ["Benchmark Richards should only run once since a stddev is provided "
+         "by the benchmark.",
+         "Benchmark DeltaBlue should only run once since a stddev is provided "
+         "by the benchmark.",
+         "Regexp \"^DeltaBlue\-stddev: (.+)$\" didn't match for benchmark "
+         "DeltaBlue."])
+    self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
+
   def testBuildbot(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(["."], ["Richards: 1.234\nDeltaBlue: 10657567\n"])
     self.assertEquals(0, self._CallMain("--buildbot"))
     self._VerifyResults("test", "score", [
-      {"name": "Richards", "results": ["1.234"]},
-      {"name": "DeltaBlue", "results": ["10657567"]},
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
     ])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "Release", "d7"), "--flag", "run.js")
@@ -248,8 +289,8 @@ class BenchmarksTest(unittest.TestCase):
     self._MockCommand(["."], ["x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n"])
     self.assertEquals(1, self._CallMain())
     self._VerifyResults("test", "score", [
-      {"name": "Richards", "results": []},
-      {"name": "DeltaBlue", "results": ["10657567"]},
+      {"name": "Richards", "results": [], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
     ])
     self._VerifyErrors(
         ["Regexp \"^Richards: (.+)$\" didn't match for benchmark Richards."])
