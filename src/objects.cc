@@ -472,7 +472,6 @@ MaybeHandle<Object> Object::SetPropertyWithCallback(Handle<Object> receiver,
 
   // We should never get here to initialize a const with the hole
   // value since a const declaration would conflict with the setter.
-  ASSERT(!value->IsTheHole());
   ASSERT(!structure->IsForeign());
   if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
@@ -670,7 +669,8 @@ Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
   Handle<Object> value(object->property_dictionary()->ValueAt(
       result->GetDictionaryEntry()), isolate);
   if (object->IsGlobalObject()) {
-    value = Handle<Object>(Handle<PropertyCell>::cast(value)->value(), isolate);
+    value = handle(Handle<PropertyCell>::cast(value)->value(), isolate);
+    ASSERT(!value->IsTheHole());
   }
   ASSERT(!value->IsPropertyCell() && !value->IsCell());
   return value;
@@ -2989,11 +2989,8 @@ MaybeHandle<Object> JSObject::SetPropertyWithInterceptor(
         isolate, interceptor->data(), *object, *object);
     v8::NamedPropertySetterCallback setter =
         v8::ToCData<v8::NamedPropertySetterCallback>(interceptor->setter());
-    Handle<Object> value_unhole = value->IsTheHole()
-        ? Handle<Object>(isolate->factory()->undefined_value()) : value;
-    v8::Handle<v8::Value> result = args.Call(setter,
-                                             v8::Utils::ToLocal(name_string),
-                                             v8::Utils::ToLocal(value_unhole));
+    v8::Handle<v8::Value> result = args.Call(
+        setter, v8::Utils::ToLocal(name_string), v8::Utils::ToLocal(value));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) return value;
   }
@@ -3462,13 +3459,6 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
     // properties where map transitions are handled.
     ASSERT(!result->IsFound() ||
            (result->holder() == this && result->IsFastPropertyType()));
-    // Disallow caching for uninitialized constants. These can only
-    // occur as fields.
-    if (result->IsField() &&
-        result->IsReadOnly() &&
-        RawFastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
-      result->DisallowCaching();
-    }
     return;
   }
 
@@ -3477,15 +3467,12 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
     Object* value = property_dictionary()->ValueAt(entry);
     if (IsGlobalObject()) {
       PropertyDetails d = property_dictionary()->DetailsAt(entry);
-      if (d.IsDeleted()) {
+      if (d.IsDeleted() || PropertyCell::cast(value)->value()->IsTheHole()) {
         result->NotFound();
         return;
       }
       value = PropertyCell::cast(value)->value();
     }
-    // Make sure to disallow caching for uninitialized constants
-    // found in the dictionary-mode objects.
-    if (value->IsTheHole()) result->DisallowCaching();
     result->DictionaryResult(this, entry);
     return;
   }
@@ -4053,6 +4040,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
     Handle<Object> value,
     StrictMode strict_mode,
     StoreFromKeyed store_mode) {
+  ASSERT(!value->IsTheHole());
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4209,6 +4197,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     ExtensibilityCheck extensibility_check,
     StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
+  ASSERT(!value->IsTheHole());
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -5154,8 +5143,7 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     if (result.IsFound()) {
       ASSERT(result.IsNormal());
       ASSERT(result.holder() == this);
-      Object* value = GetNormalizedProperty(&result);
-      if (!value->IsTheHole()) return value;
+      return GetNormalizedProperty(&result);
     }
     return GetHeap()->undefined_value();
   }
@@ -16868,13 +16856,9 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                                            Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<HeapType> old_type(cell->type(), isolate);
-  Handle<HeapType> new_type = value->IsTheHole()
-                                  ? HeapType::Any(isolate)
-                                  : HeapType::Constant(value, isolate);
+  Handle<HeapType> new_type = HeapType::Constant(value, isolate);
 
-  if (new_type->Is(old_type)) {
-    return old_type;
-  }
+  if (new_type->Is(old_type)) return old_type;
 
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);

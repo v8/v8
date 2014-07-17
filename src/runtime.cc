@@ -4805,11 +4805,8 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         int index = keyed_lookup_cache->Lookup(receiver_map, key);
         if (index != -1) {
           // Doubles are not cached, so raw read the value.
-          Object* value = receiver->RawFastPropertyAt(
+          return receiver->RawFastPropertyAt(
               FieldIndex::ForKeyedLookupCacheIndex(*receiver_map, index));
-          return value->IsTheHole()
-              ? isolate->heap()->undefined_value()
-              : value;
         }
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
@@ -4837,7 +4834,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
           if (!receiver->IsGlobalObject()) return value;
           value = PropertyCell::cast(value)->value();
           if (!value->IsTheHole()) return value;
-          // If value is the hole do the general lookup.
+          // If value is the hole (meaning, absent) do the general lookup.
         }
       }
     } else if (FLAG_smi_only_arrays && key_obj->IsSmi()) {
@@ -10640,14 +10637,12 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
   if  (!result->IsFound()) return value;
   switch (result->type()) {
     case NORMAL:
-      value = JSObject::GetNormalizedProperty(
-          handle(result->holder(), isolate), result);
-      break;
+      return JSObject::GetNormalizedProperty(handle(result->holder(), isolate),
+                                             result);
     case FIELD:
-      value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
-                                       result->representation(),
-                                       result->GetFieldIndex());
-      break;
+      return JSObject::FastPropertyAt(handle(result->holder(), isolate),
+                                      result->representation(),
+                                      result->GetFieldIndex());
     case CONSTANT:
       return handle(result->GetConstant(), isolate);
     case CALLBACKS: {
@@ -10672,9 +10667,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       UNREACHABLE();
       break;
   }
-  ASSERT(!value->IsTheHole() || result->IsReadOnly());
-  return value->IsTheHole()
-      ? Handle<Object>::cast(isolate->factory()->undefined_value()) : value;
+  return value;
 }
 
 

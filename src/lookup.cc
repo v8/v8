@@ -114,10 +114,9 @@ bool LookupIterator::HasProperty() {
     if (number_ == NameDictionary::kNotFound) return false;
 
     property_details_ = GetHolder()->property_dictionary()->DetailsAt(number_);
-    // Holes in dictionary cells are absent values unless marked as read-only.
+    // Holes in dictionary cells are absent values.
     if (holder->IsGlobalObject() &&
-        (property_details_.IsDeleted() ||
-         (!property_details_.IsReadOnly() && FetchValue()->IsTheHole()))) {
+        (property_details_.IsDeleted() || FetchValue()->IsTheHole())) {
       return false;
     }
   } else {
@@ -178,10 +177,6 @@ Handle<Object> LookupIterator::GetDataValue() const {
   ASSERT(has_property_);
   ASSERT_EQ(DATA, property_kind_);
   Handle<Object> value = FetchValue();
-  if (value->IsTheHole()) {
-    ASSERT(property_details_.IsReadOnly());
-    return factory()->undefined_value();
-  }
   return value;
 }
 

@@ -5792,9 +5792,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
       Handle<JSObject>::cast(object)->Lookup(info->name(), &lookup);
       Handle<Object> value(lookup.GetLazyValue(), isolate());
 
-      if (!value->IsTheHole()) {
-        return New<HConstant>(value);
-      }
+      ASSERT(!value->IsTheHole());
+      return New<HConstant>(value);
     }
   }
 
