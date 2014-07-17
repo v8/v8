@@ -10652,6 +10652,7 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
 
 
 void Code::InvalidateRelocation() {
+  InvalidateEmbeddedObjects();
   set_relocation_info(GetHeap()->empty_byte_array());
 }
 
