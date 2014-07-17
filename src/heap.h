@@ -1182,6 +1182,18 @@ class Heap {
     semi_space_copied_object_size_ += object_size;
   }
 
+  inline void IncrementNodesDiedInNewSpace() {
+    nodes_died_in_new_space_++;
+  }
+
+  inline void IncrementNodesCopiedInNewSpace() {
+    nodes_copied_in_new_space_++;
+  }
+
+  inline void IncrementNodesPromoted() {
+    nodes_promoted_++;
+  }
+
   inline void IncrementYoungSurvivorsCounter(int survived) {
     ASSERT(survived >= 0);
     survived_since_last_expansion_ += survived;
@@ -2026,6 +2038,9 @@ class Heap {
   double promotion_rate_;
   intptr_t semi_space_copied_object_size_;
   double semi_space_copied_rate_;
+  int nodes_died_in_new_space_;
+  int nodes_copied_in_new_space_;
+  int nodes_promoted_;
 
   // This is the pretenuring trigger for allocation sites that are in maybe
   // tenure state. When we switched to the maximum new space size we deoptimize
@@ -2569,18 +2584,6 @@ class GCTracer BASE_EMBEDDED {
                     const char* collector_reason);
   ~GCTracer();
 
-  void increment_nodes_died_in_new_space() {
-    nodes_died_in_new_space_++;
-  }
-
-  void increment_nodes_copied_in_new_space() {
-    nodes_copied_in_new_space_++;
-  }
-
-  void increment_nodes_promoted() {
-    nodes_promoted_++;
-  }
-
  private:
   // Returns a string matching the collector.
   const char* CollectorString() const;
@@ -2626,15 +2629,6 @@ class GCTracer BASE_EMBEDDED {
   // Amount of time spent in mutator that is time elapsed between end of the
   // previous collection and the beginning of the current one.
   double spent_in_mutator_;
-
-  // Number of died nodes in the new space.
-  int nodes_died_in_new_space_;
-
-  // Number of copied nodes to the new space.
-  int nodes_copied_in_new_space_;
-
-  // Number of promoted nodes to the old space.
-  int nodes_promoted_;
 
   // Incremental marking steps counters.
   int steps_count_;

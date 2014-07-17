@@ -105,6 +105,9 @@ Heap::Heap()
       promotion_rate_(0),
       semi_space_copied_object_size_(0),
       semi_space_copied_rate_(0),
+      nodes_died_in_new_space_(0),
+      nodes_copied_in_new_space_(0),
+      nodes_promoted_(0),
       maximum_size_scavenges_(0),
       max_gc_pause_(0.0),
       total_gc_time_ms_(0.0),
@@ -428,6 +431,9 @@ void Heap::GarbageCollectionPrologue() {
   // Reset GC statistics.
   promoted_objects_size_ = 0;
   semi_space_copied_object_size_ = 0;
+  nodes_died_in_new_space_ = 0;
+  nodes_copied_in_new_space_ = 0;
+  nodes_promoted_ = 0;
 
   UpdateMaximumCommitted();
 
@@ -1115,8 +1121,7 @@ bool Heap::PerformGarbageCollection(
   { AllowHeapAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     freed_global_handles =
-        isolate_->global_handles()->PostGarbageCollectionProcessing(
-            collector, tracer);
+        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
   gc_post_processing_depth_--;
 
@@ -5985,9 +5990,6 @@ GCTracer::GCTracer(Heap* heap,
       collector_(collector),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
-      nodes_died_in_new_space_(0),
-      nodes_copied_in_new_space_(0),
-      nodes_promoted_(0),
       heap_(heap),
       gc_reason_(gc_reason),
       collector_reason_(collector_reason) {
@@ -6135,9 +6137,9 @@ void GCTracer::PrintNVP() const {
   PrintF("promoted=%" V8_PTR_PREFIX "d ", heap_->promoted_objects_size_);
   PrintF("semi_space_copied=%" V8_PTR_PREFIX "d ",
          heap_->semi_space_copied_object_size_);
-  PrintF("nodes_died_in_new=%d ", nodes_died_in_new_space_);
-  PrintF("nodes_copied_in_new=%d ", nodes_copied_in_new_space_);
-  PrintF("nodes_promoted=%d ", nodes_promoted_);
+  PrintF("nodes_died_in_new=%d ", heap_->nodes_died_in_new_space_);
+  PrintF("nodes_copied_in_new=%d ", heap_->nodes_copied_in_new_space_);
+  PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
   PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
   PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
 
