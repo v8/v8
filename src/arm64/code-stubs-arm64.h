@@ -459,9 +459,9 @@ class StringCompareStub: public PlatformCodeStub {
 };
 
 
-class PlatformCallInterfaceDescriptor {
+class PlatformInterfaceDescriptor {
  public:
-  explicit PlatformCallInterfaceDescriptor(
+  explicit PlatformInterfaceDescriptor(
       TargetAddressStorageMode storage_mode)
       : storage_mode_(storage_mode) { }
 

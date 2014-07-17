@@ -39,14 +39,15 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         info_(stub, isolate),
         context_(NULL) {
     descriptor_ = stub->GetInterfaceDescriptor();
-    parameters_.Reset(new HParameter*[descriptor_->register_param_count()]);
+    int parameter_count = descriptor_->GetEnvironmentParameterCount();
+    parameters_.Reset(new HParameter*[parameter_count]);
   }
   virtual bool BuildGraph();
 
  protected:
   virtual HValue* BuildCodeStub() = 0;
   HParameter* GetParameter(int parameter) {
-    ASSERT(parameter < descriptor_->register_param_count());
+    ASSERT(parameter < descriptor_->GetEnvironmentParameterCount());
     return parameters_[parameter];
   }
   HValue* GetArgumentsLength() {
@@ -116,7 +117,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     isolate()->GetHTracer()->TraceCompilation(&info_);
   }
 
-  int param_count = descriptor_->register_param_count();
+  int param_count = descriptor_->GetEnvironmentParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
@@ -126,11 +127,12 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   bool runtime_stack_params = descriptor_->stack_parameter_count().is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r = descriptor_->GetRegisterParameterRepresentation(i);
-    HParameter* param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
+    Representation r = descriptor_->GetEnvironmentParameterRepresentation(i);
+    HParameter* param = Add<HParameter>(i,
+                                        HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);
     parameters_[i] = param;
-    if (descriptor_->IsParameterCountRegister(i)) {
+    if (descriptor_->IsEnvironmentParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
@@ -251,7 +253,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
       static_cast<HydrogenCodeStub*>(stub)->MajorKey();
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
-  if (!descriptor->initialized()) {
+  if (!descriptor->IsInitialized()) {
     stub->InitializeInterfaceDescriptor(descriptor);
   }
 

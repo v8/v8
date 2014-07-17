@@ -2322,9 +2322,9 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
   static HCallWithDescriptor* New(Zone* zone, HValue* context,
       HValue* target,
       int argument_count,
-      const CallInterfaceDescriptor* descriptor,
+      const InterfaceDescriptor* descriptor,
       const Vector<HValue*>& operands) {
-    ASSERT(operands.length() == descriptor->environment_length());
+    ASSERT(operands.length() == descriptor->GetEnvironmentLength());
     HCallWithDescriptor* res =
         new(zone) HCallWithDescriptor(target, argument_count,
                                       descriptor, operands, zone);
@@ -2344,7 +2344,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
       return Representation::Tagged();
     } else {
       int par_index = index - 1;
-      ASSERT(par_index < descriptor_->environment_length());
+      ASSERT(par_index < descriptor_->GetEnvironmentLength());
       return descriptor_->GetParameterRepresentation(par_index);
     }
   }
@@ -2363,7 +2363,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
     return -argument_count_;
   }
 
-  const CallInterfaceDescriptor* descriptor() const {
+  const InterfaceDescriptor* descriptor() const {
     return descriptor_;
   }
 
@@ -2377,11 +2377,11 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
   // The argument count includes the receiver.
   HCallWithDescriptor(HValue* target,
                       int argument_count,
-                      const CallInterfaceDescriptor* descriptor,
+                      const InterfaceDescriptor* descriptor,
                       const Vector<HValue*>& operands,
                       Zone* zone)
     : descriptor_(descriptor),
-      values_(descriptor->environment_length() + 1, zone) {
+      values_(descriptor->GetEnvironmentLength() + 1, zone) {
     argument_count_ = argument_count;
     AddOperand(target, zone);
     for (int i = 0; i < operands.length(); i++) {
@@ -2401,7 +2401,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
     values_[index] = value;
   }
 
-  const CallInterfaceDescriptor* descriptor_;
+  const InterfaceDescriptor* descriptor_;
   ZoneList<HValue*> values_;
   int argument_count_;
 };

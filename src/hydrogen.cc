@@ -3431,8 +3431,8 @@ HGraph::HGraph(CompilationInfo* info)
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor = stub->GetInterfaceDescriptor();
-    start_environment_ =
-        new(zone_) HEnvironment(zone_, descriptor->environment_length());
+    start_environment_ = new(zone_) HEnvironment(
+        zone_, descriptor->GetEnvironmentParameterCount());
   } else {
     TraceInlinedFunction(info->shared_info(), HSourcePosition::Unknown());
     start_environment_ =
@@ -7349,7 +7349,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
 
   HValue* arity = Add<HConstant>(argument_count - 1);
 
-  HValue* op_vals[] = { fun, context, arity, expected_param_count };
+  HValue* op_vals[] = { context, fun, arity, expected_param_count };
 
   Handle<Code> adaptor =
       isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -7357,7 +7357,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
 
   return New<HCallWithDescriptor>(
       adaptor_value, argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
+      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
 }
 
 
@@ -8587,11 +8587,11 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
 
   HValue* op_vals[] = {
+    context(),
     Add<HConstant>(function),
     call_data,
     holder,
-    api_function_address,
-    context()
+    api_function_address
   };
 
   CallInterfaceDescriptor* descriptor =
@@ -8602,11 +8602,11 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   HConstant* code_value = Add<HConstant>(code);
 
   ASSERT((sizeof(op_vals) / kPointerSize) ==
-         descriptor->environment_length());
+         descriptor->GetEnvironmentLength());
 
   HInstruction* call = New<HCallWithDescriptor>(
       code_value, argc + 1, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
+      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
 
   if (drop_extra) Drop(1);  // Drop function.
   ast_context()->ReturnInstruction(call, ast_id);

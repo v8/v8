@@ -271,7 +271,81 @@ class PlatformCodeStub : public CodeStub {
 enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
-class CodeStubInterfaceDescriptor {
+
+class PlatformInterfaceDescriptor;
+
+
+class InterfaceDescriptor {
+ public:
+  bool IsInitialized() const { return register_param_count_ >= 0; }
+
+  int GetEnvironmentLength() const { return register_param_count_; }
+
+  int GetRegisterParameterCount() const { return register_param_count_; }
+
+  Register GetParameterRegister(int index) const {
+    return register_params_[index];
+  }
+
+  Representation GetParameterRepresentation(int index) const {
+    ASSERT(index < register_param_count_);
+    if (register_param_representations_.get() == NULL) {
+      return Representation::Tagged();
+    }
+
+    return register_param_representations_[index];
+  }
+
+  // "Environment" versions of parameter functions. The first register
+  // parameter (context) is not included.
+  int GetEnvironmentParameterCount() const {
+    return GetEnvironmentLength() - 1;
+  }
+
+  Register GetEnvironmentParameterRegister(int index) const {
+    return GetParameterRegister(index + 1);
+  }
+
+  Representation GetEnvironmentParameterRepresentation(int index) const {
+    return GetParameterRepresentation(index + 1);
+  }
+
+  // Some platforms have extra information to associate with the descriptor.
+  PlatformInterfaceDescriptor* platform_specific_descriptor() const {
+    return platform_specific_descriptor_;
+  }
+
+  static const Register ContextRegister();
+
+ protected:
+  InterfaceDescriptor();
+  virtual ~InterfaceDescriptor() {}
+
+  void Initialize(int register_parameter_count, Register* registers,
+                  Representation* register_param_representations,
+                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
+
+ private:
+  int register_param_count_;
+
+  // The Register params are allocated dynamically by the
+  // InterfaceDescriptor, and freed on destruction. This is because static
+  // arrays of Registers cause creation of runtime static initializers
+  // which we don't want.
+  SmartArrayPointer<Register> register_params_;
+  // Specifies Representations for the stub's parameter. Points to an array of
+  // Representations of the same length of the numbers of parameters to the
+  // stub, or if NULL (the default value), Representation of each parameter
+  // assumed to be Tagged().
+  SmartArrayPointer<Representation> register_param_representations_;
+
+  PlatformInterfaceDescriptor* platform_specific_descriptor_;
+
+  DISALLOW_COPY_AND_ASSIGN(InterfaceDescriptor);
+};
+
+
+class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
  public:
   CodeStubInterfaceDescriptor();
 
@@ -287,11 +361,6 @@ class CodeStubInterfaceDescriptor {
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE,
                   HandlerArgumentsMode handler_mode = DONT_PASS_ARGUMENTS);
-  bool initialized() const { return register_param_count_ >= 0; }
-
-  int environment_length() const {
-    return register_param_count_;
-  }
 
   void SetMissHandler(ExternalReference handler) {
     miss_handler_ = handler;
@@ -310,78 +379,41 @@ class CodeStubInterfaceDescriptor {
     return has_miss_handler_;
   }
 
-  Register GetParameterRegister(int index) const {
-    return register_params_[index];
-  }
-
-  Representation GetRegisterParameterRepresentation(int index) const {
-    ASSERT(index < register_param_count_);
-    if (register_param_representations_.get() == NULL) {
-      return Representation::Tagged();
-    }
-
-    return register_param_representations_[index];
-  }
-
-  bool IsParameterCountRegister(int index) const {
-    return GetParameterRegister(index).is(stack_parameter_count_);
+  bool IsEnvironmentParameterCountRegister(int index) const {
+    return GetEnvironmentParameterRegister(index).is(stack_parameter_count_);
   }
 
   int GetHandlerParameterCount() const {
-    int params = environment_length();
+    int params = GetEnvironmentParameterCount();
     if (handler_arguments_mode_ == PASS_ARGUMENTS) {
       params += 1;
     }
     return params;
   }
 
-  int register_param_count() const { return register_param_count_; }
   int hint_stack_parameter_count() const { return hint_stack_parameter_count_; }
   Register stack_parameter_count() const { return stack_parameter_count_; }
   StubFunctionMode function_mode() const { return function_mode_; }
   Address deoptimization_handler() const { return deoptimization_handler_; }
-  Representation* register_param_representations() const {
-    return register_param_representations_.get();
-  }
 
  private:
-  int register_param_count_;
-
   Register stack_parameter_count_;
   // If hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
   int hint_stack_parameter_count_;
   StubFunctionMode function_mode_;
-  // The Register params are allocated dynamically by the
-  // CodeStubInterfaceDescriptor, and freed on destruction. This is because
-  // static arrays of Registers cause creation of runtime static initializers
-  // which we don't want.
-  SmartArrayPointer<Register> register_params_;
-  // Specifies Representations for the stub's parameter. Points to an array of
-  // Representations of the same length of the numbers of parameters to the
-  // stub, or if NULL (the default value), Representation of each parameter
-  // assumed to be Tagged().
-  SmartArrayPointer<Representation> register_param_representations_;
 
   Address deoptimization_handler_;
   HandlerArgumentsMode handler_arguments_mode_;
 
   ExternalReference miss_handler_;
   bool has_miss_handler_;
-  DISALLOW_COPY_AND_ASSIGN(CodeStubInterfaceDescriptor);
 };
 
 
-class PlatformCallInterfaceDescriptor;
-
-
-class CallInterfaceDescriptor {
+class CallInterfaceDescriptor: public InterfaceDescriptor {
  public:
-  CallInterfaceDescriptor()
-      : register_param_count_(-1),
-        register_params_(NULL),
-        param_representations_(NULL),
-        platform_specific_descriptor_(NULL) { }
+  CallInterfaceDescriptor() { }
 
   // A copy of the passed in registers and param_representations is made
   // and owned by the CallInterfaceDescriptor.
@@ -392,31 +424,7 @@ class CallInterfaceDescriptor {
   // The same should go for the CodeStubInterfaceDescriptor class.
   void Initialize(int register_parameter_count, Register* registers,
                   Representation* param_representations,
-                  PlatformCallInterfaceDescriptor* platform_descriptor = NULL);
-
-  bool initialized() const { return register_param_count_ >= 0; }
-
-  int environment_length() const {
-    return register_param_count_;
-  }
-
-  Representation GetParameterRepresentation(int index) const {
-    return param_representations_[index];
-  }
-
-  Register GetParameterRegister(int index) const {
-    return register_params_[index];
-  }
-
-  PlatformCallInterfaceDescriptor* platform_specific_descriptor() const {
-    return platform_specific_descriptor_;
-  }
-
- private:
-  int register_param_count_;
-  SmartArrayPointer<Register> register_params_;
-  SmartArrayPointer<Representation> param_representations_;
-  PlatformCallInterfaceDescriptor* platform_specific_descriptor_;
+                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
 };
 
 
