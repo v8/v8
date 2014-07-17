@@ -52,6 +52,11 @@ class PrototypeIterator {
       : did_jump_to_prototype_chain_(true),
         object_(receiver_map->prototype()),
         isolate_(receiver_map->GetIsolate()) {}
+  explicit PrototypeIterator(Handle<Map> receiver_map)
+      : did_jump_to_prototype_chain_(true),
+        object_(NULL),
+        handle_(handle(receiver_map->prototype(), receiver_map->GetIsolate())),
+        isolate_(receiver_map->GetIsolate()) {}
   ~PrototypeIterator() {}
 
   Object* GetCurrent() const {

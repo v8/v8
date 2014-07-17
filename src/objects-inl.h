@@ -26,6 +26,7 @@
 #include "src/objects.h"
 #include "src/objects-visiting.h"
 #include "src/property.h"
+#include "src/prototype.h"
 #include "src/spaces.h"
 #include "src/store-buffer.h"
 #include "src/transitions-inl.h"
@@ -6617,11 +6618,6 @@ bool String::AsArrayIndex(uint32_t* index) {
 }
 
 
-Object* JSReceiver::GetPrototype() const {
-  return map()->prototype();
-}
-
-
 Object* JSReceiver::GetConstructor() {
   return map()->constructor();
 }
@@ -6674,7 +6670,9 @@ bool JSGlobalObject::IsDetached() {
 
 
 bool JSGlobalProxy::IsDetachedFrom(GlobalObject* global) const {
-  return GetPrototype() != global;
+  const PrototypeIterator iter(this->GetIsolate(),
+                               const_cast<JSGlobalProxy*>(this));
+  return iter.GetCurrent() != global;
 }
 
 

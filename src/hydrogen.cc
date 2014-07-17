@@ -6828,14 +6828,16 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     // monomorphic stores need a prototype chain check because shape
     // changes could allow callbacks on elements in the chain that
     // aren't compatible with monomorphic keyed stores.
-    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
-    JSObject* holder = JSObject::cast(map->prototype());
-    while (!holder->GetPrototype()->IsNull()) {
-      holder = JSObject::cast(holder->GetPrototype());
+    PrototypeIterator iter(map);
+    JSObject* holder = NULL;
+    while (!iter.IsAtEnd()) {
+      holder = JSObject::cast(*PrototypeIterator::GetCurrent(iter));
+      iter.Advance();
     }
+    ASSERT(holder && holder->IsJSObject());
 
-    BuildCheckPrototypeMaps(prototype,
-                            Handle<JSObject>(JSObject::cast(holder)));
+    BuildCheckPrototypeMaps(handle(JSObject::cast(map->prototype())),
+                            Handle<JSObject>(holder));
   }
 
   LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
@@ -7307,14 +7309,19 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant) {
 
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                                      Handle<JSObject> holder) {
-  while (holder.is_null() || !prototype.is_identical_to(holder)) {
-    BuildConstantMapCheck(prototype);
-    Object* next_prototype = prototype->GetPrototype();
-    if (next_prototype->IsNull()) return NULL;
-    CHECK(next_prototype->IsJSObject());
-    prototype = handle(JSObject::cast(next_prototype));
+  PrototypeIterator iter(isolate(), prototype,
+                         PrototypeIterator::START_AT_RECEIVER);
+  while (holder.is_null() ||
+         !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
+    BuildConstantMapCheck(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    iter.Advance();
+    if (iter.IsAtEnd()) {
+      return NULL;
+    }
   }
-  return BuildConstantMapCheck(prototype);
+  return BuildConstantMapCheck(
+      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
 }
 
 

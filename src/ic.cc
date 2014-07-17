@@ -223,13 +223,13 @@ static void LookupForRead(Handle<Object> object,
       return;
     }
 
-    Handle<Object> proto(holder->GetPrototype(), lookup->isolate());
-    if (proto->IsNull()) {
+    PrototypeIterator iter(lookup->isolate(), holder);
+    if (iter.IsAtEnd()) {
       ASSERT(!lookup->IsFound());
       return;
     }
 
-    object = proto;
+    object = PrototypeIterator::GetCurrent(iter);
   }
 }
 
@@ -1233,7 +1233,8 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     // goes into the runtime if access checks are needed, so this is always
     // safe.
     if (receiver->IsJSGlobalProxy()) {
-      return lookup->holder() == receiver->GetPrototype();
+      PrototypeIterator iter(lookup->isolate(), receiver);
+      return lookup->holder() == *PrototypeIterator::GetCurrent(iter);
     }
     // Currently normal holders in the prototype chain are not supported. They
     // would require a runtime positive lookup and verification that the details
@@ -1453,9 +1454,12 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
           // The stub generated for the global object picks the value directly
           // from the property cell. So the property must be directly on the
           // global object.
-          Handle<GlobalObject> global = receiver->IsJSGlobalProxy()
-              ? handle(GlobalObject::cast(receiver->GetPrototype()))
-              : Handle<GlobalObject>::cast(receiver);
+          PrototypeIterator iter(isolate(), receiver);
+          Handle<GlobalObject> global =
+              receiver->IsJSGlobalProxy()
+                  ? Handle<GlobalObject>::cast(
+                        PrototypeIterator::GetCurrent(iter))
+                  : Handle<GlobalObject>::cast(receiver);
           Handle<PropertyCell> cell(global->GetPropertyCell(lookup), isolate());
           Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
           StoreGlobalStub stub(

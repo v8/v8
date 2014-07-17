@@ -389,10 +389,11 @@ void JSObject::JSObjectPrint(OStream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSObject");
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
+  PrototypeIterator iter(GetIsolate(), this);
   os << " - map = " << reinterpret_cast<void*>(map()) << " ["
      << ElementsKindToString(this->map()->elements_kind())
-     << "]\n - prototype = " << reinterpret_cast<void*>(GetPrototype()) << "\n"
-     << " {\n";
+     << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent())
+     << "\n {\n";
   PrintProperties(os);
   PrintTransitions(os);
   PrintElements(os);

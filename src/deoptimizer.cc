@@ -459,9 +459,11 @@ void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
         reinterpret_cast<intptr_t>(object));
   }
   if (object->IsJSGlobalProxy()) {
-    Object* proto = object->GetPrototype();
-    CHECK(proto->IsJSGlobalObject());
-    Context* native_context = GlobalObject::cast(proto)->native_context();
+    PrototypeIterator iter(object->GetIsolate(), object);
+    // TODO(verwaest): This CHECK will be hit if the global proxy is detached.
+    CHECK(iter.GetCurrent()->IsJSGlobalObject());
+    Context* native_context =
+        GlobalObject::cast(iter.GetCurrent())->native_context();
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
   } else if (object->IsGlobalObject()) {

@@ -3193,14 +3193,17 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
              "v8::Object::FindInstanceInPrototypeChain()",
              return Local<v8::Object>());
   ENTER_V8(isolate);
-  i::JSObject* object = *Utils::OpenHandle(this);
+  i::PrototypeIterator iter(isolate, *Utils::OpenHandle(this),
+                            i::PrototypeIterator::START_AT_RECEIVER);
   i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
-  while (!tmpl_info->IsTemplateFor(object)) {
-    i::Object* prototype = object->GetPrototype();
-    if (!prototype->IsJSObject()) return Local<Object>();
-    object = i::JSObject::cast(prototype);
+  while (!tmpl_info->IsTemplateFor(iter.GetCurrent())) {
+    iter.Advance();
+    if (iter.IsAtEnd()) {
+      return Local<Object>();
+    }
   }
-  return Utils::ToLocal(i::Handle<i::JSObject>(object));
+  return Utils::ToLocal(
+      i::handle(i::JSObject::cast(iter.GetCurrent()), isolate));
 }
 
 

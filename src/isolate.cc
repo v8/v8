@@ -2156,13 +2156,16 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 
   // Check that the object prototype hasn't been altered WRT empty elements.
   JSObject* initial_object_proto = JSObject::cast(*initial_object_prototype());
-  Object* root_array_map_proto = initial_array_proto->GetPrototype();
-  if (root_array_map_proto != initial_object_proto) return false;
+  PrototypeIterator iter(this, initial_array_proto);
+  if (iter.IsAtEnd() || iter.GetCurrent() != initial_object_proto) {
+    return false;
+  }
   if (initial_object_proto->elements() != heap()->empty_fixed_array()) {
     return false;
   }
 
-  return initial_object_proto->GetPrototype()->IsNull();
+  iter.Advance();
+  return iter.IsAtEnd();
 }
 
 

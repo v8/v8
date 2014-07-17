@@ -1989,9 +1989,6 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object,
       uint32_t index);
 
-  // Return the object's prototype (might be Heap::null_value()).
-  inline Object* GetPrototype() const;
-
   // Return the constructor function (may be Heap::null_value()).
   inline Object* GetConstructor();
 
