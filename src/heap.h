@@ -1236,6 +1236,12 @@ class Heap {
     }
   }
 
+  // Update GC statistics that are tracked on the Heap.
+  void UpdateGCStatistics(double start_time,
+                          double end_time,
+                          double spent_in_mutator,
+                          double marking_time);
+
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }
 
@@ -2535,7 +2541,7 @@ class GCTracer BASE_EMBEDDED {
       MC_WEAKCOLLECTION_PROCESS,
       MC_WEAKCOLLECTION_CLEAR,
       MC_FLUSH_CODE,
-      kNumberOfScopes
+      NUMBER_OF_SCOPES
     };
 
     Scope(GCTracer* tracer, ScopeId scope)
@@ -2545,7 +2551,7 @@ class GCTracer BASE_EMBEDDED {
     }
 
     ~Scope() {
-      ASSERT(scope_ < kNumberOfScopes);  // scope_ is unsigned.
+      ASSERT(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
       tracer_->scopes_[scope_] += base::OS::TimeCurrentMillis() - start_time_;
     }
 
@@ -2553,21 +2559,15 @@ class GCTracer BASE_EMBEDDED {
     GCTracer* tracer_;
     ScopeId scope_;
     double start_time_;
+
+    DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   explicit GCTracer(Heap* heap,
+                    GarbageCollector collector,
                     const char* gc_reason,
                     const char* collector_reason);
   ~GCTracer();
-
-  // Sets the collector.
-  void set_collector(GarbageCollector collector) { collector_ = collector; }
-
-  // Sets the GC count.
-  void set_gc_count(unsigned int count) { gc_count_ = count; }
-
-  // Sets the full GC count.
-  void set_full_gc_count(int count) { full_gc_count_ = count; }
 
   void increment_nodes_died_in_new_space() {
     nodes_died_in_new_space_++;
@@ -2583,32 +2583,37 @@ class GCTracer BASE_EMBEDDED {
 
  private:
   // Returns a string matching the collector.
-  const char* CollectorString();
+  const char* CollectorString() const;
 
-  // Returns size of object in heap (in MB).
-  inline double SizeOfHeapObjects();
+  // Print one detailed trace line in name=value format.
+  void PrintNVP() const;
+
+  // Print one trace line.
+  void Print() const;
 
   // Timestamp set in the constructor.
   double start_time_;
 
+  // Timestamp set in the destructor.
+  double end_time_;
+
   // Size of objects in heap set in constructor.
   intptr_t start_object_size_;
+
+  // Size of objects in heap set in destructor.
+  intptr_t end_object_size_;
 
   // Size of memory allocated from OS set in constructor.
   intptr_t start_memory_size_;
 
+  // Size of memory allocated from OS set in destructor.
+  intptr_t end_memory_size_;
+
   // Type of collector.
   GarbageCollector collector_;
 
-  // A count (including this one, e.g. the first collection is 1) of the
-  // number of garbage collections.
-  unsigned int gc_count_;
-
-  // A count (including this one) of the number of full garbage collections.
-  int full_gc_count_;
-
   // Amounts of time spent in different scopes during GC.
-  double scopes_[Scope::kNumberOfScopes];
+  double scopes_[Scope::NUMBER_OF_SCOPES];
 
   // Total amount of space either wasted or contained in one of free lists
   // before the current GC.
@@ -2642,6 +2647,8 @@ class GCTracer BASE_EMBEDDED {
 
   const char* gc_reason_;
   const char* collector_reason_;
+
+  DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
 
 
