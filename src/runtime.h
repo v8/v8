@@ -296,8 +296,6 @@ namespace internal {
   F(WeakCollectionDelete, 2, 1)                        \
   F(WeakCollectionSet, 3, 1)                           \
                                                        \
-  F(GetWeakMapEntries, 1, 1)                           \
-                                                       \
   /* Harmony events */                                 \
   F(EnqueueMicrotask, 1, 1)                            \
   F(RunMicrotasks, 0, 1)                               \

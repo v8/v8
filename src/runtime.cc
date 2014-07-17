@@ -1706,29 +1706,6 @@ RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
-  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
-  Handle<FixedArray> entries =
-      isolate->factory()->NewFixedArray(table->NumberOfElements() * 2);
-  {
-    DisallowHeapAllocation no_gc;
-    int number_of_non_hole_elements = 0;
-    for (int i = 0; i < table->Capacity(); i++) {
-      Handle<Object> key(table->KeyAt(i), isolate);
-      if (table->IsKey(*key)) {
-        entries->set(number_of_non_hole_elements++, *key);
-        entries->set(number_of_non_hole_elements++, table->Lookup(key));
-      }
-    }
-    ASSERT_EQ(table->NumberOfElements() * 2, number_of_non_hole_elements);
-  }
-  return *isolate->factory()->NewJSArrayWithElements(entries);
-}
-
-
 RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
