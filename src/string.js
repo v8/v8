@@ -61,13 +61,13 @@ function StringCharCodeAt(pos) {
 
 
 // ECMA-262, section 15.5.4.6
-function StringConcat() {
+function StringConcat(other /* and more */) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
 
   var len = %_ArgumentsLength();
   var this_as_string = TO_STRING_INLINE(this);
   if (len === 1) {
-    return this_as_string + %_Arguments(0);
+    return this_as_string + other;
   }
   var parts = new InternalArray(len + 1);
   parts[0] = this_as_string;
@@ -77,9 +77,6 @@ function StringConcat() {
   }
   return %StringBuilderConcat(parts, len + 1, "");
 }
-
-// Match ES3 and Safari
-%FunctionSetLength(StringConcat, 1);
 
 
 // ECMA-262 section 15.5.4.7
