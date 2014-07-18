@@ -4524,6 +4524,11 @@ void Heap::Verify() {
 
   store_buffer()->Verify();
 
+  if (mark_compact_collector()->sweeping_in_progress()) {
+    // We have to wait here for the sweeper threads to have an iterable heap.
+    mark_compact_collector()->EnsureSweepingCompleted();
+  }
+
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
