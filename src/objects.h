@@ -5634,6 +5634,9 @@ class Code: public HeapObject {
   // enough handlers can be found.
   bool FindHandlers(CodeHandleList* code_list, int length = -1);
 
+  // Find the handler for |map|.
+  MaybeHandle<Code> FindHandlerForMap(Map* map);
+
   // Find the first name in an IC stub.
   Name* FindFirstName();
 
@@ -5655,30 +5658,26 @@ class Code: public HeapObject {
 
   // Flags operations.
   static inline Flags ComputeFlags(
-      Kind kind,
-      InlineCacheState ic_state = UNINITIALIZED,
-      ExtraICState extra_ic_state = kNoExtraICState,
-      StubType type = NORMAL,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      Kind kind, InlineCacheState ic_state = UNINITIALIZED,
+      ExtraICState extra_ic_state = kNoExtraICState, StubType type = NORMAL,
+      CacheHolderFlag holder = kCacheOnReceiver);
 
   static inline Flags ComputeMonomorphicFlags(
-      Kind kind,
-      ExtraICState extra_ic_state = kNoExtraICState,
-      InlineCacheHolderFlag holder = OWN_MAP,
-      StubType type = NORMAL);
+      Kind kind, ExtraICState extra_ic_state = kNoExtraICState,
+      CacheHolderFlag holder = kCacheOnReceiver, StubType type = NORMAL);
 
   static inline Flags ComputeHandlerFlags(
-      Kind handler_kind,
-      StubType type = NORMAL,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      Kind handler_kind, StubType type = NORMAL,
+      CacheHolderFlag holder = kCacheOnReceiver);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
+  static inline CacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
-  static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
+  static inline Flags RemoveTypeAndHolderFromFlags(Flags flags);
 
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
@@ -5844,7 +5843,7 @@ class Code: public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
   class TypeField: public BitField<StubType, 3, 1> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
+  class CacheHolderField : public BitField<CacheHolderFlag, 4, 2> {};
   class KindField: public BitField<Kind, 6, 4> {};
   // TODO(bmeurer): Bit 10 is available for free use. :-)
   class ExtraICStateField: public BitField<ExtraICState, 11,

@@ -775,7 +775,12 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
       __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
     } else {
       bool in_new_space = heap()->InNewSpace(*prototype);
-      if (in_new_space) {
+      // Two possible reasons for loading the prototype from the map:
+      // (1) Can't store references to new space in code.
+      // (2) Handler is shared for all receivers with the same prototype
+      //     map (but not necessarily the same prototype instance).
+      bool load_prototype_from_map = in_new_space || depth == 1;
+      if (load_prototype_from_map) {
         // Save the map in scratch1 for later.
         __ movp(scratch1, FieldOperand(reg, HeapObject::kMapOffset));
       }
@@ -795,12 +800,9 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
       }
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      if (in_new_space) {
-        // The prototype is in new space; we cannot store a reference to it
-        // in the code.  Load it from the map.
+      if (load_prototype_from_map) {
         __ movp(reg, FieldOperand(scratch1, Map::kPrototypeOffset));
       } else {
-        // The prototype is in old space; load it directly.
         __ Move(reg, prototype);
       }
     }

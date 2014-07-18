@@ -75,13 +75,10 @@ class IC {
   // Compute the current IC state based on the target stub, receiver and name.
   void UpdateState(Handle<Object> receiver, Handle<Object> name);
 
-  bool IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name);
-  bool TryMarkMonomorphicPrototypeFailure(Handle<Object> name) {
-    if (IsNameCompatibleWithMonomorphicPrototypeFailure(name)) {
-      state_ = MONOMORPHIC_PROTOTYPE_FAILURE;
-      return true;
-    }
-    return false;
+  bool IsNameCompatibleWithPrototypeFailure(Handle<Object> name);
+  void MarkPrototypeFailure(Handle<Object> name) {
+    ASSERT(IsNameCompatibleWithPrototypeFailure(name));
+    state_ = PROTOTYPE_FAILURE;
   }
 
   // If the stub contains weak maps then this function adds the stub to
@@ -111,20 +108,15 @@ class IC {
   }
 #endif
 
-  // Determines which map must be used for keeping the code stub.
-  // These methods should not be called with undefined or null.
-  static inline InlineCacheHolderFlag GetCodeCacheForObject(Object* object);
-  // TODO(verwaest): This currently returns a HeapObject rather than JSObject*
-  // since loading the IC for loading the length from strings are stored on
-  // the string map directly, rather than on the JSObject-typed prototype.
-  static inline HeapObject* GetCodeCacheHolder(Isolate* isolate,
-                                               Object* object,
-                                               InlineCacheHolderFlag holder);
-
-  static inline InlineCacheHolderFlag GetCodeCacheFlag(HeapType* type);
-  static inline Handle<Map> GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                               HeapType* type,
-                                               Isolate* isolate);
+  template <class TypeClass>
+  static JSFunction* GetRootConstructor(TypeClass* type,
+                                        Context* native_context);
+  static inline Handle<Map> GetHandlerCacheHolder(HeapType* type,
+                                                  bool receiver_is_holder,
+                                                  Isolate* isolate,
+                                                  CacheHolderFlag* flag);
+  static inline Handle<Map> GetICCacheHolder(HeapType* type, Isolate* isolate,
+                                             CacheHolderFlag* flag);
 
   static bool IsCleared(Code* code) {
     InlineCacheState state = code->ic_state();
@@ -193,28 +185,21 @@ class IC {
                               Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
                                       Handle<Object> object,
-                                      Handle<String> name,
-                                      Handle<Object> value,
-                                      InlineCacheHolderFlag cache_holder) {
+                                      Handle<String> name, Handle<Object> value,
+                                      CacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<HeapType> type,
-                           Handle<Code> handler,
-                           Handle<String> name);
+  void UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name);
 
-  bool UpdatePolymorphicIC(Handle<HeapType> type,
-                           Handle<String> name,
-                           Handle<Code> code);
+  bool UpdatePolymorphicIC(Handle<String> name, Handle<Code> code);
 
   virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<HeapType> type,
-                  Handle<String> name,
-                  Handle<Code> code);
+  void PatchCache(Handle<String> name, Handle<Code> code);
   virtual Code::Kind kind() const {
     UNREACHABLE();
     return Code::STUB;
@@ -234,12 +219,13 @@ class IC {
 
   bool TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                               Handle<String> name);
-  void TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
   void set_extra_ic_state(ExtraICState state) {
     extra_ic_state_ = state;
   }
+
+  Handle<HeapType> receiver_type() { return receiver_type_; }
 
   void TargetMaps(MapHandleList* list) {
     FindTargetMaps();
@@ -300,8 +286,10 @@ class IC {
 
   // The original code target that missed.
   Handle<Code> target_;
-  State state_;
   bool target_set_;
+  State state_;
+  Handle<HeapType> receiver_type_;
+  MaybeHandle<Code> maybe_handler_;
 
   ExtraICState extra_ic_state_;
   MapHandleList target_maps_;
@@ -476,7 +464,7 @@ class LoadIC: public IC {
                                       Handle<Object> object,
                                       Handle<String> name,
                                       Handle<Object> unused,
-                                      InlineCacheHolderFlag cache_holder);
+                                      CacheHolderFlag cache_holder);
 
  private:
   // Stub accessors.
@@ -650,9 +638,8 @@ class StoreIC: public IC {
                     Handle<Object> value);
   virtual Handle<Code> CompileHandler(LookupResult* lookup,
                                       Handle<Object> object,
-                                      Handle<String> name,
-                                      Handle<Object> value,
-                                      InlineCacheHolderFlag cache_holder);
+                                      Handle<String> name, Handle<Object> value,
+                                      CacheHolderFlag cache_holder);
 
  private:
   void set_target(Code* code) {

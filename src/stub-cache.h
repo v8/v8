@@ -57,17 +57,13 @@ class StubCache {
   Handle<JSObject> StubHolder(Handle<JSObject> receiver,
                               Handle<JSObject> holder);
 
-  Handle<Code> FindIC(Handle<Name> name,
-                      Handle<Map> stub_holder_map,
+  Handle<Code> FindIC(Handle<Name> name, Handle<Map> stub_holder_map,
                       Code::Kind kind,
                       ExtraICState extra_state = kNoExtraICState,
-                      InlineCacheHolderFlag cache_holder = OWN_MAP);
+                      CacheHolderFlag cache_holder = kCacheOnReceiver);
 
-  Handle<Code> FindHandler(Handle<Name> name,
-                           Handle<Map> map,
-                           Code::Kind kind,
-                           InlineCacheHolderFlag cache_holder,
-                           Code::StubType type);
+  Handle<Code> FindHandler(Handle<Name> name, Handle<Map> map, Code::Kind kind,
+                           CacheHolderFlag cache_holder, Code::StubType type);
 
   Handle<Code> ComputeMonomorphicIC(Code::Kind kind,
                                     Handle<Name> name,
@@ -113,6 +109,8 @@ class StubCache {
 
   // Update cache for entry hash(name, map).
   Code* Set(Name* name, Map* map, Code* code);
+
+  Code* Get(Name* name, Map* map, Code::Flags flags);
 
   // Clear the lookup table (@ mark compact collection).
   void Clear();
@@ -415,10 +413,9 @@ enum FrontendCheckType { PERFORM_INITIAL_CHECKS, SKIP_INITIAL_CHECKS };
 
 class BaseLoadStoreStubCompiler: public StubCompiler {
  public:
-  BaseLoadStoreStubCompiler(Isolate* isolate,
-                            Code::Kind kind,
+  BaseLoadStoreStubCompiler(Isolate* isolate, Code::Kind kind,
                             ExtraICState extra_ic_state = kNoExtraICState,
-                            InlineCacheHolderFlag cache_holder = OWN_MAP)
+                            CacheHolderFlag cache_holder = kCacheOnReceiver)
       : StubCompiler(isolate, extra_ic_state),
         kind_(kind),
         cache_holder_(cache_holder) {
@@ -499,7 +496,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   bool IncludesNumberType(TypeHandleList* types);
 
   Code::Kind kind_;
-  InlineCacheHolderFlag cache_holder_;
+  CacheHolderFlag cache_holder_;
   Register* registers_;
 };
 
@@ -508,10 +505,10 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
   LoadStubCompiler(Isolate* isolate,
                    ExtraICState extra_ic_state = kNoExtraICState,
-                   InlineCacheHolderFlag cache_holder = OWN_MAP,
+                   CacheHolderFlag cache_holder = kCacheOnReceiver,
                    Code::Kind kind = Code::LOAD_IC)
-      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state,
-                                  cache_holder) { }
+      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state, cache_holder) {
+  }
   virtual ~LoadStubCompiler() { }
 
   Handle<Code> CompileLoadField(Handle<HeapType> type,
@@ -616,9 +613,9 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
  public:
   KeyedLoadStubCompiler(Isolate* isolate,
                         ExtraICState extra_ic_state = kNoExtraICState,
-                        InlineCacheHolderFlag cache_holder = OWN_MAP)
+                        CacheHolderFlag cache_holder = kCacheOnReceiver)
       : LoadStubCompiler(isolate, extra_ic_state, cache_holder,
-                         Code::KEYED_LOAD_IC) { }
+                         Code::KEYED_LOAD_IC) {}
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 

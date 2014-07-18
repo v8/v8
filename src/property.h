@@ -460,6 +460,12 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
     return map->FindFieldOwner(number_);
   }
 
+  bool ReceiverIsHolder(Handle<Object> receiver) {
+    if (*receiver == holder()) return true;
+    if (lookup_type_ == TRANSITION_TYPE) return true;
+    return false;
+  }
+
   void Iterate(ObjectVisitor* visitor);
 
  private:

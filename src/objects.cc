@@ -10908,6 +10908,26 @@ bool Code::FindHandlers(CodeHandleList* code_list, int length) {
 }
 
 
+MaybeHandle<Code> Code::FindHandlerForMap(Map* map) {
+  ASSERT(is_inline_cache_stub());
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+             RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
+  bool return_next = false;
+  for (RelocIterator it(this, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    if (info->rmode() == RelocInfo::EMBEDDED_OBJECT) {
+      Object* object = info->target_object();
+      if (object == map) return_next = true;
+    } else if (return_next) {
+      Code* code = Code::GetCodeFromTargetAddress(info->target_address());
+      ASSERT(code->kind() == Code::HANDLER);
+      return handle(code);
+    }
+  }
+  return MaybeHandle<Code>();
+}
+
+
 Name* Code::FindFirstName() {
   ASSERT(is_inline_cache_stub());
   DisallowHeapAllocation no_allocation;
@@ -11371,7 +11391,8 @@ const char* Code::ICState2String(InlineCacheState state) {
     case UNINITIALIZED: return "UNINITIALIZED";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
-    case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
+    case PROTOTYPE_FAILURE:
+      return "PROTOTYPE_FAILURE";
     case POLYMORPHIC: return "POLYMORPHIC";
     case MEGAMORPHIC: return "MEGAMORPHIC";
     case GENERIC: return "GENERIC";

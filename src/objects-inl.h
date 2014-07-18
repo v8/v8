@@ -4955,11 +4955,9 @@ void Code::set_constant_pool(Object* value) {
 }
 
 
-Code::Flags Code::ComputeFlags(Kind kind,
-                               InlineCacheState ic_state,
-                               ExtraICState extra_ic_state,
-                               StubType type,
-                               InlineCacheHolderFlag holder) {
+Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
+                               ExtraICState extra_ic_state, StubType type,
+                               CacheHolderFlag holder) {
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
@@ -4972,15 +4970,14 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
-                                          InlineCacheHolderFlag holder,
+                                          CacheHolderFlag holder,
                                           StubType type) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
 }
 
 
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
-                                      StubType type,
-                                      InlineCacheHolderFlag holder) {
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind, StubType type,
+                                      CacheHolderFlag holder) {
   return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
 }
 
@@ -5005,13 +5002,19 @@ Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
 }
 
 
-InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
+CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
   return CacheHolderField::decode(flags);
 }
 
 
 Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
   int bits = flags & ~TypeField::kMask;
+  return static_cast<Flags>(bits);
+}
+
+
+Code::Flags Code::RemoveTypeAndHolderFromFlags(Flags flags) {
+  int bits = flags & ~TypeField::kMask & ~CacheHolderField::kMask;
   return static_cast<Flags>(bits);
 }
 
