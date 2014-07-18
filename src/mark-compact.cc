@@ -3974,14 +3974,14 @@ static inline Address StartOfLiveObject(Address block_address, uint32_t cell) {
 
 // Force instantiation of templatized SweepConservatively method for
 // SWEEP_ON_MAIN_THREAD mode.
-template intptr_t MarkCompactCollector::
+template int MarkCompactCollector::
     SweepConservatively<MarkCompactCollector::SWEEP_ON_MAIN_THREAD>(
         PagedSpace*, FreeList*, Page*);
 
 
 // Force instantiation of templatized SweepConservatively method for
 // SWEEP_IN_PARALLEL mode.
-template intptr_t MarkCompactCollector::
+template int MarkCompactCollector::
     SweepConservatively<MarkCompactCollector::SWEEP_IN_PARALLEL>(
         PagedSpace*, FreeList*, Page*);
 
