@@ -336,9 +336,6 @@ MUST_USE_RESULT static MaybeHandle<Object> TransitionElements(
 }
 
 
-static const int kSmiLiteralMinimumLength = 1024;
-
-
 MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
