@@ -177,7 +177,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ Add(scratch, scratch, extra);
   __ Eor(scratch, scratch, flags);
   // We shift out the last two bits because they are not part of the hash.
-  __ Ubfx(scratch, scratch, kHeapObjectTagSize,
+  __ Ubfx(scratch, scratch, kCacheIndexShift,
           CountTrailingZeros(kPrimaryTableSize, 64));
 
   // Probe the primary table.
@@ -185,8 +185,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
       scratch, extra, extra2, extra3);
 
   // Primary miss: Compute hash for secondary table.
-  __ Sub(scratch, scratch, Operand(name, LSR, kHeapObjectTagSize));
-  __ Add(scratch, scratch, flags >> kHeapObjectTagSize);
+  __ Sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
+  __ Add(scratch, scratch, flags >> kCacheIndexShift);
   __ And(scratch, scratch, kSecondaryTableSize - 1);
 
   // Probe the secondary table.

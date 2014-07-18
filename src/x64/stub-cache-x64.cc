@@ -24,13 +24,13 @@ static void ProbeTable(Isolate* isolate,
                        Register receiver,
                        Register name,
                        // The offset is scaled by 4, based on
-                       // kHeapObjectTagSize, which is two bits
+                       // kCacheIndexShift, which is two bits
                        Register offset) {
   // We need to scale up the pointer by 2 when the offset is scaled by less
   // than the pointer size.
   ASSERT(kPointerSize == kInt64Size
-      ? kPointerSizeLog2 == kHeapObjectTagSize + 1
-      : kPointerSizeLog2 == kHeapObjectTagSize);
+      ? kPointerSizeLog2 == StubCache::kCacheIndexShift + 1
+      : kPointerSizeLog2 == StubCache::kCacheIndexShift);
   ScaleFactor scale_factor = kPointerSize == kInt64Size ? times_2 : times_1;
 
   ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
@@ -175,7 +175,7 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ xorp(scratch, Immediate(flags));
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
-  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
   ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch);
@@ -184,10 +184,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ movl(scratch, FieldOperand(name, Name::kHashFieldOffset));
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xorp(scratch, Immediate(flags));
-  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kPrimaryTableSize - 1) << kCacheIndexShift));
   __ subl(scratch, name);
   __ addl(scratch, Immediate(flags));
-  __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+  __ andp(scratch, Immediate((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
   ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch);

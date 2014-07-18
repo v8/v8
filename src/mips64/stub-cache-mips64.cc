@@ -197,8 +197,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   uint64_t mask = kPrimaryTableSize - 1;
   // We shift out the last two bits because they are not part of the hash and
   // they are always 01 for maps.
-  __ dsrl(scratch, scratch, kHeapObjectTagSize);
-  __ Xor(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask));
+  __ dsrl(scratch, scratch, kCacheIndexShift);
+  __ Xor(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
   __ And(scratch, scratch, Operand(mask));
 
   // Probe the primary table.
@@ -214,10 +214,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
              extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ dsrl(at, name, kHeapObjectTagSize);
+  __ dsrl(at, name, kCacheIndexShift);
   __ Dsubu(scratch, scratch, at);
   uint64_t mask2 = kSecondaryTableSize - 1;
-  __ Daddu(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask2));
+  __ Daddu(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
   __ And(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
