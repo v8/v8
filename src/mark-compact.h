@@ -18,7 +18,6 @@ typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 
 // Forward declarations.
 class CodeFlusher;
-class GCTracer;
 class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
@@ -528,7 +527,7 @@ class MarkCompactCollector {
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
-  void Prepare(GCTracer* tracer);
+  void Prepare();
 
   // Performs a global garbage collection.
   void CollectGarbage();
@@ -541,10 +540,6 @@ class MarkCompactCollector {
   bool StartCompaction(CompactionMode mode);
 
   void AbortCompaction();
-
-  // During a full GC, there is a stack-allocated GCTracer that is used for
-  // bookkeeping information.  Return a pointer to that tracer.
-  GCTracer* tracer() { return tracer_; }
 
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
@@ -744,10 +739,6 @@ class MarkCompactCollector {
   base::Semaphore pending_sweeper_jobs_semaphore_;
 
   bool sequential_sweeping_;
-
-  // A pointer to the current stack-allocated GC tracer object during a full
-  // collection (NULL before and after).
-  GCTracer* tracer_;
 
   SlotsBufferAllocator slots_buffer_allocator_;
 
