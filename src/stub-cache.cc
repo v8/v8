@@ -581,8 +581,8 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
   ASSERT(receiver->HasNamedInterceptor());
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::SetPropertyWithInterceptor(
-                           receiver, name, value, ic.strict_mode()));
+      isolate, result,
+      JSObject::SetProperty(receiver, name, value, ic.strict_mode()));
   return *result;
 }
 

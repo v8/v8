@@ -92,11 +92,13 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Handle<Object> GetReceiver() const {
     return Handle<Object>::cast(maybe_receiver_.ToHandleChecked());
   }
+  Handle<Map> holder_map() const { return holder_map_; }
   Handle<JSObject> GetHolder() const {
     ASSERT(IsFound() && state_ != JSPROXY);
     return Handle<JSObject>::cast(maybe_holder_.ToHandleChecked());
   }
   Handle<JSReceiver> GetRoot() const;
+  bool HolderIsReceiver() const;
 
   /* Dynamically reduce the trapped types. */
   void skip_interceptor() {
@@ -116,6 +118,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   // below can be used. It ensures that we are able to provide a definite
   // answer, and loads extra information about the property.
   bool HasProperty();
+  void PrepareForDataProperty(Handle<Object> value);
+  void TransitionToDataProperty(Handle<Object> value,
+                                PropertyAttributes attributes,
+                                Object::StoreFromKeyed store_mode);
   PropertyKind property_kind() const {
     ASSERT(has_property_);
     return property_kind_;
@@ -124,11 +130,18 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     ASSERT(has_property_);
     return property_details_;
   }
+  int descriptor_number() const {
+    ASSERT(has_property_);
+    ASSERT_EQ(DESCRIPTOR, property_encoding_);
+    return number_;
+  }
   Handle<Object> GetAccessors() const;
   Handle<Object> GetDataValue() const;
+  void WriteDataValue(Handle<Object> value);
+
+  void InternalizeName();
 
   /* JSPROXY */
-
   Handle<JSProxy> GetJSProxy() const {
     return Handle<JSProxy>::cast(maybe_holder_.ToHandleChecked());
   }

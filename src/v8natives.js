@@ -1322,7 +1322,9 @@ function ObjectIsSealed(obj) {
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
     var desc = GetOwnPropertyJS(obj, name);
-    if (desc.isConfigurable()) return false;
+    if (desc.isConfigurable()) {
+      return false;
+    }
   }
   return true;
 }

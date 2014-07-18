@@ -1281,6 +1281,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
                                    Handle<String> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
+  // TODO(verwaest): Let SetProperty do the migration, since storing a property
+  // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object) || object->IsJSProxy()) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     Handle<Object> result;
@@ -1757,6 +1759,8 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
 MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value) {
+  // TODO(verwaest): Let SetProperty do the migration, since storing a property
+  // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
