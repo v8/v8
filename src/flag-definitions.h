@@ -187,8 +187,6 @@ DEFINE_IMPLICATION(es_staging, harmony_symbols)
 DEFINE_IMPLICATION(es_staging, harmony_collections)
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(packed_arrays, true, "optimizes arrays that have no holes")
-DEFINE_BOOL(smi_only_arrays, true, "tracks arrays with only smi values")
 DEFINE_BOOL(compiled_keyed_dictionary_loads, true,
             "use optimizing compiler to generate keyed dictionary load stubs")
 DEFINE_BOOL(compiled_keyed_generic_loads, false,

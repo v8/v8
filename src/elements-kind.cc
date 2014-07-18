@@ -65,15 +65,6 @@ const char* ElementsKindToString(ElementsKind kind) {
 }
 
 
-ElementsKind GetInitialFastElementsKind() {
-  if (FLAG_packed_arrays) {
-    return FAST_SMI_ELEMENTS;
-  } else {
-    return FAST_HOLEY_SMI_ELEMENTS;
-  }
-}
-
-
 struct InitializeFastElementsKindSequence {
   static void Construct(
       ElementsKind** fast_elements_kind_sequence_ptr) {

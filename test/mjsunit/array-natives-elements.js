@@ -25,22 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
-
-// Test element kind of objects.
-// Since --smi-only-arrays affects builtins, its default setting at compile time
-// sticks if built with snapshot. If --smi-only-arrays is deactivated by
-// default, only a no-snapshot build actually has smi-only arrays enabled in
-// this test case. Depending on whether smi-only arrays are actually enabled,
-// this test takes the appropriate code path to check smi-only arrays.
-
-support_smi_only_arrays = %HasFastSmiElements([1,2,3,4,5,6,7,8,9,10]);
-
-if (support_smi_only_arrays) {
-  print("Tests include smi-only arrays.");
-} else {
-  print("Tests do NOT include smi-only arrays.");
-}
+// Flags: --allow-natives-syntax
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
@@ -308,10 +293,8 @@ function array_natives_test() {
   assertEquals([1.1,{},2,3], a4);
 }
 
-if (support_smi_only_arrays) {
-  for (var i = 0; i < 3; i++) {
-    array_natives_test();
-  }
-  %OptimizeFunctionOnNextCall(array_natives_test);
+for (var i = 0; i < 3; i++) {
   array_natives_test();
 }
+%OptimizeFunctionOnNextCall(array_natives_test);
+array_natives_test();

@@ -12647,15 +12647,11 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
     } else {
       new_length = dictionary->max_number_key() + 1;
     }
-    SetFastElementsCapacitySmiMode smi_mode = FLAG_smi_only_arrays
-        ? kAllowSmiElements
-        : kDontAllowSmiElements;
     bool has_smi_only_elements = false;
     bool should_convert_to_fast_double_elements =
         object->ShouldConvertToFastDoubleElements(&has_smi_only_elements);
-    if (has_smi_only_elements) {
-      smi_mode = kForceSmiElements;
-    }
+    SetFastElementsCapacitySmiMode smi_mode =
+        has_smi_only_elements ? kForceSmiElements : kAllowSmiElements;
 
     if (should_convert_to_fast_double_elements) {
       SetFastDoubleElementsCapacityAndLength(object, new_length, new_length);
