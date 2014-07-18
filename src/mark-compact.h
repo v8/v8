@@ -567,6 +567,8 @@ class MarkCompactCollector {
   enum SweeperType {
     PARALLEL_CONSERVATIVE,
     CONCURRENT_CONSERVATIVE,
+    PARALLEL_PRECISE,
+    CONCURRENT_PRECISE,
     PRECISE
   };
 
@@ -586,7 +588,7 @@ class MarkCompactCollector {
   // Sweep a single page from the given space conservatively.
   // Returns the size of the biggest continuous freed memory chunk in bytes.
   template<SweepingParallelism type>
-  static intptr_t SweepConservatively(PagedSpace* space,
+  static int SweepConservatively(PagedSpace* space,
                                       FreeList* free_list,
                                       Page* p);
 

@@ -450,18 +450,17 @@ class MemoryChunk {
   intptr_t GetFlags() { return flags_; }
 
 
-  // PARALLEL_SWEEPING_DONE - The page state when sweeping is complete or
-  // sweeping must not be performed on that page.
-  // PARALLEL_SWEEPING_FINALIZE - A sweeper thread is done sweeping this
-  // page and will not touch the page memory anymore.
-  // PARALLEL_SWEEPING_IN_PROGRESS - This page is currently swept by a
-  // sweeper thread.
-  // PARALLEL_SWEEPING_PENDING - This page is ready for parallel sweeping.
+  // SWEEPING_DONE - The page state when sweeping is complete or sweeping must
+  // not be performed on that page.
+  // SWEEPING_FINALIZE - A sweeper thread is done sweeping this page and will
+  // not touch the page memory anymore.
+  // SWEEPING_IN_PROGRESS - This page is currently swept by a sweeper thread.
+  // SWEEPING_PENDING - This page is ready for parallel sweeping.
   enum ParallelSweepingState {
-    PARALLEL_SWEEPING_DONE,
-    PARALLEL_SWEEPING_FINALIZE,
-    PARALLEL_SWEEPING_IN_PROGRESS,
-    PARALLEL_SWEEPING_PENDING
+    SWEEPING_DONE,
+    SWEEPING_FINALIZE,
+    SWEEPING_IN_PROGRESS,
+    SWEEPING_PENDING
   };
 
   ParallelSweepingState parallel_sweeping() {
@@ -475,8 +474,8 @@ class MemoryChunk {
 
   bool TryParallelSweeping() {
     return base::Acquire_CompareAndSwap(
-               &parallel_sweeping_, PARALLEL_SWEEPING_PENDING,
-               PARALLEL_SWEEPING_IN_PROGRESS) == PARALLEL_SWEEPING_PENDING;
+        &parallel_sweeping_, SWEEPING_PENDING, SWEEPING_IN_PROGRESS) ==
+            SWEEPING_PENDING;
   }
 
   // Manage live byte count (count of bytes known to be live,
@@ -1917,8 +1916,8 @@ class PagedSpace : public Space {
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  bool is_iterable() { return is_iterable_; }
-  void set_is_iterable(bool b) { is_iterable_ = b; }
+  bool swept_precisely() { return swept_precisely_; }
+  void set_swept_precisely(bool b) { swept_precisely_ = b; }
 
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
@@ -2002,7 +2001,7 @@ class PagedSpace : public Space {
   AllocationInfo allocation_info_;
 
   // This space was swept precisely, hence it is iterable.
-  bool is_iterable_;
+  bool swept_precisely_;
 
   // The number of free bytes which could be reclaimed by advancing the
   // concurrent sweeper threads.  This is only an estimation because concurrent
