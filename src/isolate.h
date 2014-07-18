@@ -750,6 +750,8 @@ class Isolate {
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
+  // Un-schedule an exception that was caught by a TryCatch handler.
+  void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
   void ReportPendingMessages();
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
