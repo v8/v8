@@ -3431,8 +3431,8 @@ HGraph::HGraph(CompilationInfo* info)
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
     CodeStubInterfaceDescriptor* descriptor = stub->GetInterfaceDescriptor();
-    start_environment_ =
-        new(zone_) HEnvironment(zone_, descriptor->environment_length());
+    start_environment_ = new(zone_) HEnvironment(
+        zone_, descriptor->GetEnvironmentParameterCount());
   } else {
     TraceInlinedFunction(info->shared_info(), HSourcePosition::Unknown());
     start_environment_ =
@@ -5792,9 +5792,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
       Handle<JSObject>::cast(object)->Lookup(info->name(), &lookup);
       Handle<Object> value(lookup.GetLazyValue(), isolate());
 
-      if (!value->IsTheHole()) {
-        return New<HConstant>(value);
-      }
+      ASSERT(!value->IsTheHole());
+      return New<HConstant>(value);
     }
   }
 
@@ -6829,14 +6828,16 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
     // monomorphic stores need a prototype chain check because shape
     // changes could allow callbacks on elements in the chain that
     // aren't compatible with monomorphic keyed stores.
-    Handle<JSObject> prototype(JSObject::cast(map->prototype()));
-    JSObject* holder = JSObject::cast(map->prototype());
-    while (!holder->GetPrototype()->IsNull()) {
-      holder = JSObject::cast(holder->GetPrototype());
+    PrototypeIterator iter(map);
+    JSObject* holder = NULL;
+    while (!iter.IsAtEnd()) {
+      holder = JSObject::cast(*PrototypeIterator::GetCurrent(iter));
+      iter.Advance();
     }
+    ASSERT(holder && holder->IsJSObject());
 
-    BuildCheckPrototypeMaps(prototype,
-                            Handle<JSObject>(JSObject::cast(holder)));
+    BuildCheckPrototypeMaps(handle(JSObject::cast(map->prototype())),
+                            Handle<JSObject>(holder));
   }
 
   LoadKeyedHoleMode load_mode = BuildKeyedHoleMode(map);
@@ -7308,14 +7309,19 @@ HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant) {
 
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
                                                      Handle<JSObject> holder) {
-  while (holder.is_null() || !prototype.is_identical_to(holder)) {
-    BuildConstantMapCheck(prototype);
-    Object* next_prototype = prototype->GetPrototype();
-    if (next_prototype->IsNull()) return NULL;
-    CHECK(next_prototype->IsJSObject());
-    prototype = handle(JSObject::cast(next_prototype));
+  PrototypeIterator iter(isolate(), prototype,
+                         PrototypeIterator::START_AT_RECEIVER);
+  while (holder.is_null() ||
+         !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
+    BuildConstantMapCheck(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
+    iter.Advance();
+    if (iter.IsAtEnd()) {
+      return NULL;
+    }
   }
-  return BuildConstantMapCheck(prototype);
+  return BuildConstantMapCheck(
+      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
 }
 
 
@@ -7343,7 +7349,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
 
   HValue* arity = Add<HConstant>(argument_count - 1);
 
-  HValue* op_vals[] = { fun, context, arity, expected_param_count };
+  HValue* op_vals[] = { context, fun, arity, expected_param_count };
 
   Handle<Code> adaptor =
       isolate()->builtins()->ArgumentsAdaptorTrampoline();
@@ -7351,7 +7357,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
 
   return New<HCallWithDescriptor>(
       adaptor_value, argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
+      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
 }
 
 
@@ -8581,11 +8587,11 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
 
   HValue* op_vals[] = {
+    context(),
     Add<HConstant>(function),
     call_data,
     holder,
-    api_function_address,
-    context()
+    api_function_address
   };
 
   CallInterfaceDescriptor* descriptor =
@@ -8596,11 +8602,11 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   HConstant* code_value = Add<HConstant>(code);
 
   ASSERT((sizeof(op_vals) / kPointerSize) ==
-         descriptor->environment_length());
+         descriptor->GetEnvironmentLength());
 
   HInstruction* call = New<HCallWithDescriptor>(
       code_value, argc + 1, descriptor,
-      Vector<HValue*>(op_vals, descriptor->environment_length()));
+      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
 
   if (drop_extra) Drop(1);  // Drop function.
   ast_context()->ReturnInstruction(call, ast_id);

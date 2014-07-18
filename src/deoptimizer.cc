@@ -459,9 +459,11 @@ void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
         reinterpret_cast<intptr_t>(object));
   }
   if (object->IsJSGlobalProxy()) {
-    Object* proto = object->GetPrototype();
-    CHECK(proto->IsJSGlobalObject());
-    Context* native_context = GlobalObject::cast(proto)->native_context();
+    PrototypeIterator iter(object->GetIsolate(), object);
+    // TODO(verwaest): This CHECK will be hit if the global proxy is detached.
+    CHECK(iter.GetCurrent()->IsJSGlobalObject());
+    Context* native_context =
+        GlobalObject::cast(iter.GetCurrent())->native_context();
     MarkAllCodeForContext(native_context);
     DeoptimizeMarkedCodeForContext(native_context);
   } else if (object->IsGlobalObject()) {
@@ -1555,9 +1557,11 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
-  CHECK_GE(descriptor->register_param_count(), 0);
-  int height_in_bytes = kPointerSize * descriptor->register_param_count() +
-      sizeof(Arguments) + kPointerSize;
+  int param_count = descriptor->GetEnvironmentParameterCount();
+  CHECK_GE(param_count, 0);
+
+  int height_in_bytes = kPointerSize * param_count + sizeof(Arguments) +
+      kPointerSize;
   int fixed_frame_size = StandardFrameConstants::kFixedFrameSize;
   int input_frame_size = input_->GetFrameSize();
   int output_frame_size = height_in_bytes + fixed_frame_size;
@@ -1699,11 +1703,12 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Copy the register parameters to the failure frame.
   int arguments_length_offset = -1;
-  for (int i = 0; i < descriptor->register_param_count(); ++i) {
+  for (int i = 0; i < param_count; ++i) {
     output_frame_offset -= kPointerSize;
     DoTranslateCommand(iterator, 0, output_frame_offset);
 
-    if (!arg_count_known && descriptor->IsParameterCountRegister(i)) {
+    if (!arg_count_known &&
+        descriptor->IsEnvironmentParameterCountRegister(i)) {
       arguments_length_offset = output_frame_offset;
     }
   }

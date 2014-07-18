@@ -100,7 +100,10 @@
   # BUG(v8:3247).
   'test-mark-compact/NoPromotion': [SKIP],
 
-  # BUG(v8:3434)
+  # BUG(v8:3446).
+  'test-mark-compact/Promotion': [PASS, FAIL],
+
+  # BUG(v8:3434).
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP]
 }],  # 'arch == arm64'
 

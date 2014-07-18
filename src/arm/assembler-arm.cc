@@ -3685,7 +3685,8 @@ void ConstantPoolBuilder::Populate(Assembler* assm,
       if (type == ConstantPoolArray::INT64) {
         constant_pool->set_at_offset(offset, rinfo.data64());
       } else if (type == ConstantPoolArray::INT32) {
-        constant_pool->set_at_offset(offset, rinfo.data());
+        constant_pool->set_at_offset(offset,
+                                     static_cast<int32_t>(rinfo.data()));
       } else if (type == ConstantPoolArray::CODE_PTR) {
         constant_pool->set_at_offset(offset,
                                      reinterpret_cast<Address>(rinfo.data()));

@@ -700,8 +700,9 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          LookupResult* lookup) {
   holder->LookupOwnRealNamedProperty(name, lookup);
   if (lookup->IsFound()) return;
-  if (holder->GetPrototype()->IsNull()) return;
-  holder->GetPrototype()->Lookup(name, lookup);
+  PrototypeIterator iter(holder->GetIsolate(), holder);
+  if (iter.IsAtEnd()) return;
+  PrototypeIterator::GetCurrent(iter)->Lookup(name, lookup);
 }
 
 
@@ -971,17 +972,18 @@ Handle<Code> StoreStubCompiler::CompileStoreTransition(
   __ CheckMapDeprecated(transition, scratch1(), &miss);
 
   // Check that we are allowed to write this.
-  if (object->GetPrototype()->IsJSObject()) {
+  PrototypeIterator iter(object->GetIsolate(), object);
+  if (!iter.IsAtEnd()) {
     Handle<JSObject> holder;
     // holder == object indicates that no property was found.
     if (lookup->holder() != *object) {
       holder = Handle<JSObject>(lookup->holder());
     } else {
       // Find the top object.
-      holder = object;
       do {
-        holder = Handle<JSObject>(JSObject::cast(holder->GetPrototype()));
-      } while (holder->GetPrototype()->IsJSObject());
+        holder = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+        iter.Advance();
+      } while (!iter.IsAtEnd());
     }
 
     Register holder_reg = HandlerFrontendHeader(

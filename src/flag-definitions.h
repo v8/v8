@@ -456,9 +456,9 @@ DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
 // execution.cc
-// Slightly less than 1MB on 64-bit, since Windows' default stack size for
+// Slightly less than 1MB, since Windows' default stack size for
 // the main execution thread is 1MB for both 32 and 64-bit.
-DEFINE_INT(stack_size, kPointerSize * 123,
+DEFINE_INT(stack_size, 984,
            "default size of stack region v8 is allowed to use (in kBytes)")
 
 // frames.cc

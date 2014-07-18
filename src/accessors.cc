@@ -846,8 +846,8 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
     JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
     if (function_raw == NULL) return isolate->factory()->undefined_value();
     while (!function_raw->should_have_prototype()) {
-      function_raw = FindInstanceOf<JSFunction>(isolate,
-                                                function_raw->GetPrototype());
+      PrototypeIterator iter(isolate, function_raw);
+      function_raw = FindInstanceOf<JSFunction>(isolate, iter.GetCurrent());
       // There has to be one because we hit the getter.
       ASSERT(function_raw != NULL);
     }

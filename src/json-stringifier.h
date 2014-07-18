@@ -442,7 +442,8 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
       } else if (object->IsJSObject()) {
-        if (object->IsAccessCheckNeeded()) break;
+        // Go to slow path for global proxy and objects requiring access checks.
+        if (object->IsAccessCheckNeeded() || object->IsJSGlobalProxy()) break;
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         return SerializeJSObject(Handle<JSObject>::cast(object));
       }
@@ -630,11 +631,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  if (object->IsJSGlobalProxy()) {
-    object = Handle<JSObject>(
-                 JSObject::cast(object->GetPrototype()), isolate_);
-    ASSERT(object->IsGlobalObject());
-  }
+  ASSERT(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
 
   Append('{');
   bool comma = false;

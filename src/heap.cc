@@ -105,6 +105,9 @@ Heap::Heap()
       promotion_rate_(0),
       semi_space_copied_object_size_(0),
       semi_space_copied_rate_(0),
+      nodes_died_in_new_space_(0),
+      nodes_copied_in_new_space_(0),
+      nodes_promoted_(0),
       maximum_size_scavenges_(0),
       max_gc_pause_(0.0),
       total_gc_time_ms_(0.0),
@@ -428,6 +431,9 @@ void Heap::GarbageCollectionPrologue() {
   // Reset GC statistics.
   promoted_objects_size_ = 0;
   semi_space_copied_object_size_ = 0;
+  nodes_died_in_new_space_ = 0;
+  nodes_copied_in_new_space_ = 0;
+  nodes_promoted_ = 0;
 
   UpdateMaximumCommitted();
 
@@ -834,16 +840,10 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   bool next_gc_likely_to_collect_more = false;
 
-  { GCTracer tracer(this, gc_reason, collector_reason);
+  { GCTracer tracer(this, collector, gc_reason, collector_reason);
     ASSERT(AllowHeapAllocation::IsAllowed());
     DisallowHeapAllocation no_allocation_during_gc;
     GarbageCollectionPrologue();
-    // The GC count was incremented in the prologue.  Tell the tracer about
-    // it.
-    tracer.set_gc_count(gc_count_);
-
-    // Tell the tracer which collector we've selected.
-    tracer.set_collector(collector);
 
     {
       HistogramTimerScope histogram_timer_scope(
@@ -1121,8 +1121,7 @@ bool Heap::PerformGarbageCollection(
   { AllowHeapAllocation allow_allocation;
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     freed_global_handles =
-        isolate_->global_handles()->PostGarbageCollectionProcessing(
-            collector, tracer);
+        isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
   gc_post_processing_depth_--;
 
@@ -1205,7 +1204,6 @@ void Heap::MarkCompact(GCTracer* tracer) {
   mark_compact_collector_.Prepare(tracer);
 
   ms_count_++;
-  tracer->set_full_gc_count(ms_count_);
 
   MarkCompactPrologue();
 
@@ -5956,28 +5954,52 @@ static intptr_t CountTotalHolesSize(Heap* heap) {
 }
 
 
+void Heap::UpdateGCStatistics(double start_time,
+                              double end_time,
+                              double spent_in_mutator,
+                              double marking_time) {
+  double duration = end_time - start_time;
+  alive_after_last_gc_ = SizeOfObjects();
+  bool first_gc = (last_gc_end_timestamp_ == 0);
+  last_gc_end_timestamp_ = end_time;
+
+  if (FLAG_print_cumulative_gc_stat) {
+    total_gc_time_ms_ += duration;
+    max_gc_pause_ = Max(max_gc_pause_, duration);
+    max_alive_after_gc_ = Max(max_alive_after_gc_, alive_after_last_gc_);
+    if (!first_gc)
+      min_in_mutator_ = Min(min_in_mutator_, spent_in_mutator);
+  } else if (FLAG_trace_gc_verbose) {
+    total_gc_time_ms_ += duration;
+  }
+
+  marking_time_ += marking_time;
+}
+
+
 GCTracer::GCTracer(Heap* heap,
+                   GarbageCollector collector,
                    const char* gc_reason,
                    const char* collector_reason)
     : start_time_(0.0),
+      end_time_(0.0),
       start_object_size_(0),
+      end_object_size_(0),
       start_memory_size_(0),
-      gc_count_(0),
-      full_gc_count_(0),
+      end_memory_size_(0),
+      collector_(collector),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
-      nodes_died_in_new_space_(0),
-      nodes_copied_in_new_space_(0),
-      nodes_promoted_(0),
       heap_(heap),
       gc_reason_(gc_reason),
       collector_reason_(collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
+
   start_time_ = base::OS::TimeCurrentMillis();
   start_object_size_ = heap_->SizeOfObjects();
   start_memory_size_ = heap_->isolate()->memory_allocator()->Size();
 
-  for (int i = 0; i < Scope::kNumberOfScopes; i++) {
+  for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     scopes_[i] = 0;
   }
 
@@ -6001,146 +6023,140 @@ GCTracer::GCTracer(Heap* heap,
 
 
 GCTracer::~GCTracer() {
-  // Printf ONE line iff flag is set.
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
-  bool first_gc = (heap_->last_gc_end_timestamp_ == 0);
+  end_time_ = base::OS::TimeCurrentMillis();
+  end_object_size_ = heap_->SizeOfObjects();
+  end_memory_size_ = heap_->isolate()->memory_allocator()->Size();
 
-  heap_->alive_after_last_gc_ = heap_->SizeOfObjects();
-  heap_->last_gc_end_timestamp_ = base::OS::TimeCurrentMillis();
-
-  double time = heap_->last_gc_end_timestamp_ - start_time_;
-
-  // Update cumulative GC statistics if required.
-  if (FLAG_print_cumulative_gc_stat) {
-    heap_->total_gc_time_ms_ += time;
-    heap_->max_gc_pause_ = Max(heap_->max_gc_pause_, time);
-    heap_->max_alive_after_gc_ = Max(heap_->max_alive_after_gc_,
-                                     heap_->alive_after_last_gc_);
-    if (!first_gc) {
-      heap_->min_in_mutator_ = Min(heap_->min_in_mutator_,
-                                   spent_in_mutator_);
-    }
-  } else if (FLAG_trace_gc_verbose) {
-    heap_->total_gc_time_ms_ += time;
-  }
+  heap_->UpdateGCStatistics(start_time_,
+                            end_time_,
+                            spent_in_mutator_,
+                            scopes_[Scope::MC_MARK]);
 
   if (collector_ == SCAVENGER && FLAG_trace_gc_ignore_scavenger) return;
 
-  heap_->AddMarkingTime(scopes_[Scope::MC_MARK]);
+  if (FLAG_trace_gc) {
+    if (FLAG_trace_gc_nvp)
+      PrintNVP();
+    else
+      Print();
 
-  if (FLAG_print_cumulative_gc_stat && !FLAG_trace_gc) return;
-  PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
-
-  if (!FLAG_trace_gc_nvp) {
-    int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
-
-    double end_memory_size_mb =
-        static_cast<double>(heap_->isolate()->memory_allocator()->Size()) / MB;
-
-    PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ",
-           CollectorString(),
-           static_cast<double>(start_object_size_) / MB,
-           static_cast<double>(start_memory_size_) / MB,
-           SizeOfHeapObjects(),
-           end_memory_size_mb);
-
-    if (external_time > 0) PrintF("%d / ", external_time);
-    PrintF("%.1f ms", time);
-    if (steps_count_ > 0) {
-      if (collector_ == SCAVENGER) {
-        PrintF(" (+ %.1f ms in %d steps since last GC)",
-               steps_took_since_last_gc_,
-               steps_count_since_last_gc_);
-      } else {
-        PrintF(" (+ %.1f ms in %d steps since start of marking, "
-                   "biggest step %.1f ms)",
-               steps_took_,
-               steps_count_,
-               longest_step_);
-      }
-    }
-
-    if (gc_reason_ != NULL) {
-      PrintF(" [%s]", gc_reason_);
-    }
-
-    if (collector_reason_ != NULL) {
-      PrintF(" [%s]", collector_reason_);
-    }
-
-    PrintF(".\n");
-  } else {
-    PrintF("pause=%.1f ", time);
-    PrintF("mutator=%.1f ", spent_in_mutator_);
-    PrintF("gc=");
-    switch (collector_) {
-      case SCAVENGER:
-        PrintF("s");
-        break;
-      case MARK_COMPACTOR:
-        PrintF("ms");
-        break;
-      default:
-        UNREACHABLE();
-    }
-    PrintF(" ");
-
-    PrintF("external=%.1f ", scopes_[Scope::EXTERNAL]);
-    PrintF("mark=%.1f ", scopes_[Scope::MC_MARK]);
-    PrintF("sweep=%.2f ", scopes_[Scope::MC_SWEEP]);
-    PrintF("sweepns=%.2f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
-    PrintF("sweepos=%.2f ", scopes_[Scope::MC_SWEEP_OLDSPACE]);
-    PrintF("sweepcode=%.2f ", scopes_[Scope::MC_SWEEP_CODE]);
-    PrintF("sweepcell=%.2f ", scopes_[Scope::MC_SWEEP_CELL]);
-    PrintF("sweepmap=%.2f ", scopes_[Scope::MC_SWEEP_MAP]);
-    PrintF("evacuate=%.1f ", scopes_[Scope::MC_EVACUATE_PAGES]);
-    PrintF("new_new=%.1f ", scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
-    PrintF("root_new=%.1f ", scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
-    PrintF("old_new=%.1f ", scopes_[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
-    PrintF("compaction_ptrs=%.1f ",
-        scopes_[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
-    PrintF("intracompaction_ptrs=%.1f ",
-        scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
-    PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
-    PrintF("weakcollection_process=%.1f ",
-        scopes_[Scope::MC_WEAKCOLLECTION_PROCESS]);
-    PrintF("weakcollection_clear=%.1f ",
-        scopes_[Scope::MC_WEAKCOLLECTION_CLEAR]);
-
-    PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
-    PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());
-    PrintF("holes_size_before=%" V8_PTR_PREFIX "d ",
-           in_free_list_or_wasted_before_gc_);
-    PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize(heap_));
-
-    PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
-    PrintF("promoted=%" V8_PTR_PREFIX "d ", heap_->promoted_objects_size_);
-    PrintF("semi_space_copied=%" V8_PTR_PREFIX "d ",
-        heap_->semi_space_copied_object_size_);
-    PrintF("nodes_died_in_new=%d ", nodes_died_in_new_space_);
-    PrintF("nodes_copied_in_new=%d ", nodes_copied_in_new_space_);
-    PrintF("nodes_promoted=%d ", nodes_promoted_);
-    PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
-    PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
-
-    if (collector_ == SCAVENGER) {
-      PrintF("stepscount=%d ", steps_count_since_last_gc_);
-      PrintF("stepstook=%.1f ", steps_took_since_last_gc_);
-    } else {
-      PrintF("stepscount=%d ", steps_count_);
-      PrintF("stepstook=%.1f ", steps_took_);
-      PrintF("longeststep=%.1f ", longest_step_);
-    }
-
-    PrintF("\n");
+    heap_->PrintShortHeapStatistics();
   }
-
-  heap_->PrintShortHeapStatistics();
 }
 
 
-const char* GCTracer::CollectorString() {
+void GCTracer::Print() const {
+  PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
+  PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ",
+         CollectorString(),
+         static_cast<double>(start_object_size_) / MB,
+         static_cast<double>(start_memory_size_) / MB,
+         static_cast<double>(end_object_size_) / MB,
+         static_cast<double>(end_memory_size_) / MB);
+
+  int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
+  if (external_time > 0) PrintF("%d / ", external_time);
+
+  PrintF("%.1f ms", end_time_ - start_time_);
+  if (steps_count_ > 0) {
+    if (collector_ == SCAVENGER) {
+      PrintF(" (+ %.1f ms in %d steps since last GC)",
+             steps_took_since_last_gc_,
+             steps_count_since_last_gc_);
+    } else {
+      PrintF(" (+ %.1f ms in %d steps since start of marking, "
+             "biggest step %.1f ms)",
+             steps_took_,
+             steps_count_,
+             longest_step_);
+    }
+  }
+
+  if (gc_reason_ != NULL) {
+    PrintF(" [%s]", gc_reason_);
+  }
+
+  if (collector_reason_ != NULL) {
+    PrintF(" [%s]", collector_reason_);
+  }
+
+  PrintF(".\n");
+}
+
+
+void GCTracer::PrintNVP() const {
+  PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
+  PrintF("pause=%.1f ", end_time_ - start_time_);
+  PrintF("mutator=%.1f ", spent_in_mutator_);
+  PrintF("gc=");
+  switch (collector_) {
+    case SCAVENGER:
+      PrintF("s");
+      break;
+    case MARK_COMPACTOR:
+      PrintF("ms");
+      break;
+    default:
+      UNREACHABLE();
+  }
+  PrintF(" ");
+
+  PrintF("external=%.1f ", scopes_[Scope::EXTERNAL]);
+  PrintF("mark=%.1f ", scopes_[Scope::MC_MARK]);
+  PrintF("sweep=%.2f ", scopes_[Scope::MC_SWEEP]);
+  PrintF("sweepns=%.2f ", scopes_[Scope::MC_SWEEP_NEWSPACE]);
+  PrintF("sweepos=%.2f ", scopes_[Scope::MC_SWEEP_OLDSPACE]);
+  PrintF("sweepcode=%.2f ", scopes_[Scope::MC_SWEEP_CODE]);
+  PrintF("sweepcell=%.2f ", scopes_[Scope::MC_SWEEP_CELL]);
+  PrintF("sweepmap=%.2f ", scopes_[Scope::MC_SWEEP_MAP]);
+  PrintF("evacuate=%.1f ", scopes_[Scope::MC_EVACUATE_PAGES]);
+  PrintF("new_new=%.1f ", scopes_[Scope::MC_UPDATE_NEW_TO_NEW_POINTERS]);
+  PrintF("root_new=%.1f ", scopes_[Scope::MC_UPDATE_ROOT_TO_NEW_POINTERS]);
+  PrintF("old_new=%.1f ", scopes_[Scope::MC_UPDATE_OLD_TO_NEW_POINTERS]);
+  PrintF("compaction_ptrs=%.1f ",
+         scopes_[Scope::MC_UPDATE_POINTERS_TO_EVACUATED]);
+  PrintF("intracompaction_ptrs=%.1f ",
+         scopes_[Scope::MC_UPDATE_POINTERS_BETWEEN_EVACUATED]);
+  PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
+  PrintF("weakcollection_process=%.1f ",
+         scopes_[Scope::MC_WEAKCOLLECTION_PROCESS]);
+  PrintF("weakcollection_clear=%.1f ",
+         scopes_[Scope::MC_WEAKCOLLECTION_CLEAR]);
+
+  PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
+  PrintF("total_size_after=%" V8_PTR_PREFIX "d ", end_object_size_);
+  PrintF("holes_size_before=%" V8_PTR_PREFIX "d ",
+         in_free_list_or_wasted_before_gc_);
+  PrintF("holes_size_after=%" V8_PTR_PREFIX "d ", CountTotalHolesSize(heap_));
+
+  PrintF("allocated=%" V8_PTR_PREFIX "d ", allocated_since_last_gc_);
+  PrintF("promoted=%" V8_PTR_PREFIX "d ", heap_->promoted_objects_size_);
+  PrintF("semi_space_copied=%" V8_PTR_PREFIX "d ",
+         heap_->semi_space_copied_object_size_);
+  PrintF("nodes_died_in_new=%d ", heap_->nodes_died_in_new_space_);
+  PrintF("nodes_copied_in_new=%d ", heap_->nodes_copied_in_new_space_);
+  PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
+  PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
+  PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
+
+  if (collector_ == SCAVENGER) {
+    PrintF("stepscount=%d ", steps_count_since_last_gc_);
+    PrintF("stepstook=%.1f ", steps_took_since_last_gc_);
+  } else {
+    PrintF("stepscount=%d ", steps_count_);
+    PrintF("stepstook=%.1f ", steps_took_);
+    PrintF("longeststep=%.1f ", longest_step_);
+  }
+
+  PrintF("\n");
+}
+
+
+const char* GCTracer::CollectorString() const {
   switch (collector_) {
     case SCAVENGER:
       return "Scavenge";

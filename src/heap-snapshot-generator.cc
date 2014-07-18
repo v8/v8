@@ -1164,8 +1164,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
   ExtractPropertyReferences(js_obj, entry);
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
-  SetPropertyReference(
-      obj, entry, heap_->proto_string(), js_obj->GetPrototype());
+  PrototypeIterator iter(heap_->isolate(), js_obj);
+  SetPropertyReference(obj, entry, heap_->proto_string(), iter.GetCurrent());
   if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
     Object* proto_or_map = js_fun->prototype_or_initial_map();

@@ -2012,10 +2012,10 @@ RUNTIME_FUNCTION(Runtime_IsExtensible) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   if (obj->IsJSGlobalProxy()) {
-    Object* proto = obj->GetPrototype();
-    if (proto->IsNull()) return isolate->heap()->false_value();
-    ASSERT(proto->IsJSGlobalObject());
-    obj = JSObject::cast(proto);
+    PrototypeIterator iter(isolate, obj);
+    if (iter.IsAtEnd()) return isolate->heap()->false_value();
+    ASSERT(iter.GetCurrent()->IsJSGlobalObject());
+    obj = JSObject::cast(iter.GetCurrent());
   }
   return isolate->heap()->ToBoolean(obj->map()->is_extensible());
 }
@@ -4805,11 +4805,8 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         int index = keyed_lookup_cache->Lookup(receiver_map, key);
         if (index != -1) {
           // Doubles are not cached, so raw read the value.
-          Object* value = receiver->RawFastPropertyAt(
+          return receiver->RawFastPropertyAt(
               FieldIndex::ForKeyedLookupCacheIndex(*receiver_map, index));
-          return value->IsTheHole()
-              ? isolate->heap()->undefined_value()
-              : value;
         }
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
@@ -4837,7 +4834,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
           if (!receiver->IsGlobalObject()) return value;
           value = PropertyCell::cast(value)->value();
           if (!value->IsTheHole()) return value;
-          // If value is the hole do the general lookup.
+          // If value is the hole (meaning, absent) do the general lookup.
         }
       }
     } else if (FLAG_smi_only_arrays && key_obj->IsSmi()) {
@@ -4952,7 +4949,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     if (js_object->IsJSGlobalProxy()) {
       // Since the result is a property, the prototype will exist so
       // we don't have to check for null.
-      js_object = Handle<JSObject>(JSObject::cast(js_object->GetPrototype()));
+      PrototypeIterator iter(isolate, js_object);
+      js_object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
     }
 
     if (attr != lookup.GetAttributes() ||
@@ -5473,12 +5471,16 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
   // look like they are on this object.
-  Handle<Object> proto(object->GetPrototype(), isolate);
-  if (proto->IsJSObject() &&
-      Handle<JSObject>::cast(proto)->map()->is_hidden_prototype()) {
-    return HasOwnPropertyImplementation(isolate,
-                                        Handle<JSObject>::cast(proto),
-                                        key);
+  PrototypeIterator iter(isolate, object);
+  if (!iter.IsAtEnd() &&
+      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter))
+          ->map()
+          ->is_hidden_prototype()) {
+    // TODO(verwaest): The recursion is not necessary for keys that are array
+    // indicies. Removing this.
+    return HasOwnPropertyImplementation(
+        isolate, Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
+        key);
   }
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->false_value();
@@ -5616,11 +5618,9 @@ RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
 // is prototype for.
 static int OwnPrototypeChainLength(JSObject* obj) {
   int count = 1;
-  Object* proto = obj->GetPrototype();
-  while (proto->IsJSObject() &&
-         JSObject::cast(proto)->map()->is_hidden_prototype()) {
+  for (PrototypeIterator iter(obj->GetIsolate(), obj);
+       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
     count++;
-    proto = JSObject::cast(proto)->GetPrototype();
   }
   return count;
 }
@@ -5650,7 +5650,8 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
       RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
       return *isolate->factory()->NewJSArray(0);
     }
-    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+    PrototypeIterator iter(isolate, obj);
+    obj = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
   // Find the number of objects making up this.
@@ -5659,22 +5660,26 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   // Find the number of own properties for each of the objects.
   ScopedVector<int> own_property_count(length);
   int total_property_count = 0;
-  Handle<JSObject> jsproto = obj;
-  for (int i = 0; i < length; i++) {
-    // Only collect names if access is permitted.
-    if (jsproto->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(
-            jsproto, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(jsproto, v8::ACCESS_KEYS);
-      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-      return *isolate->factory()->NewJSArray(0);
-    }
-    int n;
-    n = jsproto->NumberOfOwnProperties(filter);
-    own_property_count[i] = n;
-    total_property_count += n;
-    if (i < length - 1) {
-      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+  {
+    PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
+    for (int i = 0; i < length; i++) {
+      ASSERT(!iter.IsAtEnd());
+      Handle<JSObject> jsproto =
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      // Only collect names if access is permitted.
+      if (jsproto->IsAccessCheckNeeded() &&
+          !isolate->MayNamedAccess(jsproto,
+                                   isolate->factory()->undefined_value(),
+                                   v8::ACCESS_KEYS)) {
+        isolate->ReportFailedAccessCheck(jsproto, v8::ACCESS_KEYS);
+        RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+        return *isolate->factory()->NewJSArray(0);
+      }
+      int n;
+      n = jsproto->NumberOfOwnProperties(filter);
+      own_property_count[i] = n;
+      total_property_count += n;
+      iter.Advance();
     }
   }
 
@@ -5683,39 +5688,41 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
       isolate->factory()->NewFixedArray(total_property_count);
 
   // Get the property names.
-  jsproto = obj;
   int next_copy_index = 0;
   int hidden_strings = 0;
-  for (int i = 0; i < length; i++) {
-    jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
-    if (i > 0) {
-      // Names from hidden prototypes may already have been added
-      // for inherited function template instances. Count the duplicates
-      // and stub them out; the final copy pass at the end ignores holes.
-      for (int j = next_copy_index;
-           j < next_copy_index + own_property_count[i];
-           j++) {
-        Object* name_from_hidden_proto = names->get(j);
-        for (int k = 0; k < next_copy_index; k++) {
-          if (names->get(k) != isolate->heap()->hidden_string()) {
-            Object* name = names->get(k);
-            if (name_from_hidden_proto == name) {
-              names->set(j, isolate->heap()->hidden_string());
-              hidden_strings++;
-              break;
+  {
+    PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
+    for (int i = 0; i < length; i++) {
+      ASSERT(!iter.IsAtEnd());
+      Handle<JSObject> jsproto =
+          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
+      if (i > 0) {
+        // Names from hidden prototypes may already have been added
+        // for inherited function template instances. Count the duplicates
+        // and stub them out; the final copy pass at the end ignores holes.
+        for (int j = next_copy_index;
+             j < next_copy_index + own_property_count[i]; j++) {
+          Object* name_from_hidden_proto = names->get(j);
+          for (int k = 0; k < next_copy_index; k++) {
+            if (names->get(k) != isolate->heap()->hidden_string()) {
+              Object* name = names->get(k);
+              if (name_from_hidden_proto == name) {
+                names->set(j, isolate->heap()->hidden_string());
+                hidden_strings++;
+                break;
+              }
             }
           }
         }
       }
-    }
-    next_copy_index += own_property_count[i];
+      next_copy_index += own_property_count[i];
 
-    // Hidden properties only show up if the filter does not skip strings.
-    if ((filter & STRING) == 0 && JSObject::HasHiddenProperties(jsproto)) {
-      hidden_strings++;
-    }
-    if (i < length - 1) {
-      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+      // Hidden properties only show up if the filter does not skip strings.
+      if ((filter & STRING) == 0 && JSObject::HasHiddenProperties(jsproto)) {
+        hidden_strings++;
+      }
+      iter.Advance();
     }
   }
 
@@ -5826,10 +5833,10 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
       return *isolate->factory()->NewJSArray(0);
     }
 
-    Handle<Object> proto(object->GetPrototype(), isolate);
+    PrototypeIterator iter(isolate, object);
     // If proxy is detached we simply return an empty array.
-    if (proto->IsNull()) return *isolate->factory()->NewJSArray(0);
-    object = Handle<JSObject>::cast(proto);
+    if (iter.IsAtEnd()) return *isolate->factory()->NewJSArray(0);
+    object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
   Handle<FixedArray> contents;
@@ -10102,11 +10109,13 @@ static void CollectElementIndices(Handle<JSObject> object,
     }
   }
 
-  Handle<Object> prototype(object->GetPrototype(), isolate);
-  if (prototype->IsJSObject()) {
+  PrototypeIterator iter(isolate, object);
+  if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
-    CollectElementIndices(Handle<JSObject>::cast(prototype), range, indices);
+    CollectElementIndices(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), range,
+        indices);
   }
 }
 
@@ -10640,14 +10649,12 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
   if  (!result->IsFound()) return value;
   switch (result->type()) {
     case NORMAL:
-      value = JSObject::GetNormalizedProperty(
-          handle(result->holder(), isolate), result);
-      break;
+      return JSObject::GetNormalizedProperty(handle(result->holder(), isolate),
+                                             result);
     case FIELD:
-      value = JSObject::FastPropertyAt(handle(result->holder(), isolate),
-                                       result->representation(),
-                                       result->GetFieldIndex());
-      break;
+      return JSObject::FastPropertyAt(handle(result->holder(), isolate),
+                                      result->representation(),
+                                      result->GetFieldIndex());
     case CONSTANT:
       return handle(result->GetConstant(), isolate);
     case CALLBACKS: {
@@ -10672,9 +10679,7 @@ static Handle<Object> DebugLookupResultValue(Isolate* isolate,
       UNREACHABLE();
       break;
   }
-  ASSERT(!value->IsTheHole() || result->IsReadOnly());
-  return value->IsTheHole()
-      ? Handle<Object>::cast(isolate->factory()->undefined_value()) : value;
+  return value;
 }
 
 
@@ -10728,8 +10733,11 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   int length = OwnPrototypeChainLength(*obj);
 
   // Try own lookup on each of the objects.
-  Handle<JSObject> jsproto = obj;
+  PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
   for (int i = 0; i < length; i++) {
+    ASSERT(!iter.IsAtEnd());
+    Handle<JSObject> jsproto =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
     LookupResult result(isolate);
     jsproto->LookupOwn(name, &result);
     if (result.IsFound()) {
@@ -10764,9 +10772,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
 
       return *isolate->factory()->NewJSArrayWithElements(details);
     }
-    if (i < length - 1) {
-      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
-    }
+    iter.Advance();
   }
 
   return isolate->heap()->undefined_value();

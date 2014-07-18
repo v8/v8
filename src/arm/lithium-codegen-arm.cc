@@ -3970,7 +3970,7 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     LConstantOperand* target = LConstantOperand::cast(instr->target());
     Handle<Code> code = Handle<Code>::cast(ToHandle(target));
     generator.BeforeCall(__ CallSize(code, RelocInfo::CODE_TARGET));
-    PlatformCallInterfaceDescriptor* call_descriptor =
+    PlatformInterfaceDescriptor* call_descriptor =
         instr->descriptor()->platform_specific_descriptor();
     __ Call(code, RelocInfo::CODE_TARGET, TypeFeedbackId::None(), al,
             call_descriptor->storage_mode());

@@ -1059,9 +1059,9 @@ source_set("v8_libbase") {
     # TODO(jochen): Add support for cygwin.
     sources += [
       "src/base/platform/platform-win32.cc",
-      "src/base/platform/win32-headers.h",
-      "src/base/platform/win32-math.cc",
-      "src/base/platform/win32-math.h",
+      "src/base/win32-headers.h",
+      "src/base/win32-math.cc",
+      "src/base/win32-math.h",
     ]
 
     defines += [ "_CRT_RAND_S" ]  # for rand_s()

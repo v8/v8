@@ -1,3 +1,8 @@
+2014-07-18: Version 3.28.28
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-17: Version 3.28.26
 
         Ship ES6 Math functions (issue 2938).

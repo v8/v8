@@ -15,7 +15,6 @@
 namespace v8 {
 namespace internal {
 
-class GCTracer;
 class HeapStats;
 class ObjectVisitor;
 
@@ -156,8 +155,7 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  int PostGarbageCollectionProcessing(GarbageCollector collector,
-                                      GCTracer* tracer);
+  int PostGarbageCollectionProcessing(GarbageCollector collector);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);

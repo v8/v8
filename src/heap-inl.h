@@ -804,11 +804,6 @@ void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
 }
 
 
-double GCTracer::SizeOfHeapObjects() {
-  return (static_cast<double>(heap_->SizeOfObjects())) / MB;
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_INL_H_

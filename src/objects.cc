@@ -472,7 +472,6 @@ MaybeHandle<Object> Object::SetPropertyWithCallback(Handle<Object> receiver,
 
   // We should never get here to initialize a const with the hole
   // value since a const declaration would conflict with the setter.
-  ASSERT(!value->IsTheHole());
   ASSERT(!structure->IsForeign());
   if (structure->IsExecutableAccessorInfo()) {
     // api style callbacks
@@ -670,7 +669,8 @@ Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
   Handle<Object> value(object->property_dictionary()->ValueAt(
       result->GetDictionaryEntry()), isolate);
   if (object->IsGlobalObject()) {
-    value = Handle<Object>(Handle<PropertyCell>::cast(value)->value(), isolate);
+    value = handle(Handle<PropertyCell>::cast(value)->value(), isolate);
+    ASSERT(!value->IsTheHole());
   }
   ASSERT(!value->IsPropertyCell() && !value->IsCell());
   return value;
@@ -2989,11 +2989,8 @@ MaybeHandle<Object> JSObject::SetPropertyWithInterceptor(
         isolate, interceptor->data(), *object, *object);
     v8::NamedPropertySetterCallback setter =
         v8::ToCData<v8::NamedPropertySetterCallback>(interceptor->setter());
-    Handle<Object> value_unhole = value->IsTheHole()
-        ? Handle<Object>(isolate->factory()->undefined_value()) : value;
-    v8::Handle<v8::Value> result = args.Call(setter,
-                                             v8::Utils::ToLocal(name_string),
-                                             v8::Utils::ToLocal(value_unhole));
+    v8::Handle<v8::Value> result = args.Call(
+        setter, v8::Utils::ToLocal(name_string), v8::Utils::ToLocal(value));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (!result.IsEmpty()) return value;
   }
@@ -3449,10 +3446,11 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
                                           LookupResult* result) {
   DisallowHeapAllocation no_gc;
   if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return result->NotFound();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->LookupOwnRealNamedProperty(name, result);
+    PrototypeIterator iter(GetIsolate(), this);
+    if (iter.IsAtEnd()) return result->NotFound();
+    ASSERT(iter.GetCurrent()->IsJSGlobalObject());
+    return JSObject::cast(iter.GetCurrent())
+        ->LookupOwnRealNamedProperty(name, result);
   }
 
   if (HasFastProperties()) {
@@ -3462,13 +3460,6 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
     // properties where map transitions are handled.
     ASSERT(!result->IsFound() ||
            (result->holder() == this && result->IsFastPropertyType()));
-    // Disallow caching for uninitialized constants. These can only
-    // occur as fields.
-    if (result->IsField() &&
-        result->IsReadOnly() &&
-        RawFastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
-      result->DisallowCaching();
-    }
     return;
   }
 
@@ -3477,15 +3468,12 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
     Object* value = property_dictionary()->ValueAt(entry);
     if (IsGlobalObject()) {
       PropertyDetails d = property_dictionary()->DetailsAt(entry);
-      if (d.IsDeleted()) {
+      if (d.IsDeleted() || PropertyCell::cast(value)->value()->IsTheHole()) {
         result->NotFound();
         return;
       }
       value = PropertyCell::cast(value)->value();
     }
-    // Make sure to disallow caching for uninitialized constants
-    // found in the dictionary-mode objects.
-    if (value->IsTheHole()) result->DisallowCaching();
     result->DictionaryResult(this, entry);
     return;
   }
@@ -4053,6 +4041,7 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
     Handle<Object> value,
     StrictMode strict_mode,
     StoreFromKeyed store_mode) {
+  ASSERT(!value->IsTheHole());
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4076,11 +4065,12 @@ MaybeHandle<Object> JSObject::SetPropertyForResult(
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return value;
-    ASSERT(proto->IsJSGlobalObject());
-    return SetPropertyForResult(Handle<JSObject>::cast(proto), lookup, name,
-                                value, strict_mode, store_mode);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return value;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return SetPropertyForResult(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), lookup,
+        name, value, strict_mode, store_mode);
   }
 
   ASSERT(!lookup->IsFound() || lookup->holder() == *object ||
@@ -4209,6 +4199,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     ExtensibilityCheck extensibility_check,
     StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
+  ASSERT(!value->IsTheHole());
   Isolate* isolate = object->GetIsolate();
 
   // Make sure that the top context does not change when doing callbacks or
@@ -4230,12 +4221,12 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return value;
-    ASSERT(proto->IsJSGlobalObject());
-    return SetOwnPropertyIgnoreAttributes(Handle<JSObject>::cast(proto), name,
-                                          value, attributes, mode,
-                                          extensibility_check);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return value;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return SetOwnPropertyIgnoreAttributes(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
+        value, attributes, mode, extensibility_check);
   }
 
   if (lookup.IsInterceptor() ||
@@ -4465,11 +4456,12 @@ PropertyAttributes JSObject::GetElementAttributeWithReceiver(
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return ABSENT;
-    ASSERT(proto->IsJSGlobalObject());
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return ABSENT;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return JSObject::GetElementAttributeWithReceiver(
-        Handle<JSObject>::cast(proto), receiver, index, check_prototype);
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
+        index, check_prototype);
   }
 
   // Check for lookup interceptor except when bootstrapping.
@@ -4537,15 +4529,17 @@ PropertyAttributes JSObject::GetElementAttributeWithoutInterceptor(
 
   if (!check_prototype) return ABSENT;
 
-  Handle<Object> proto(object->GetPrototype(), object->GetIsolate());
-  if (proto->IsJSProxy()) {
+  PrototypeIterator iter(object->GetIsolate(), object);
+  if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
     // We need to follow the spec and simulate a call to [[GetOwnProperty]].
     return JSProxy::GetElementAttributeWithHandler(
-        Handle<JSProxy>::cast(proto), receiver, index);
+        Handle<JSProxy>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
+        index);
   }
-  if (proto->IsNull()) return ABSENT;
+  if (iter.IsAtEnd()) return ABSENT;
   return GetElementAttributeWithReceiver(
-      Handle<JSObject>::cast(proto), receiver, index, true);
+      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), receiver,
+      index, true);
 }
 
 
@@ -5023,11 +5017,11 @@ Object* JSObject::GetHiddenProperty(Handle<Name> key) {
     // JSGlobalProxies store their hash internally.
     ASSERT(*key != GetHeap()->identity_hash_string());
     // For a proxy, use the prototype as target object.
-    Object* proxy_parent = GetPrototype();
+    PrototypeIterator iter(GetIsolate(), this);
     // If the proxy is detached, return undefined.
-    if (proxy_parent->IsNull()) return GetHeap()->the_hole_value();
-    ASSERT(proxy_parent->IsJSGlobalObject());
-    return JSObject::cast(proxy_parent)->GetHiddenProperty(key);
+    if (iter.IsAtEnd()) return GetHeap()->the_hole_value();
+    ASSERT(iter.GetCurrent()->IsJSGlobalObject());
+    return JSObject::cast(iter.GetCurrent())->GetHiddenProperty(key);
   }
   ASSERT(!IsJSGlobalProxy());
   Object* inline_value = GetHiddenPropertiesHashTable();
@@ -5059,11 +5053,13 @@ Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> object,
     // JSGlobalProxies store their hash internally.
     ASSERT(*key != *isolate->factory()->identity_hash_string());
     // For a proxy, use the prototype as target object.
-    Handle<Object> proxy_parent(object->GetPrototype(), isolate);
+    PrototypeIterator iter(isolate, object);
     // If the proxy is detached, return undefined.
-    if (proxy_parent->IsNull()) return isolate->factory()->undefined_value();
-    ASSERT(proxy_parent->IsJSGlobalObject());
-    return SetHiddenProperty(Handle<JSObject>::cast(proxy_parent), key, value);
+    if (iter.IsAtEnd()) return isolate->factory()->undefined_value();
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return SetHiddenProperty(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), key,
+        value);
   }
   ASSERT(!object->IsJSGlobalProxy());
 
@@ -5098,10 +5094,11 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
   ASSERT(key->IsUniqueName());
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return;
-    ASSERT(proto->IsJSGlobalObject());
-    return DeleteHiddenProperty(Handle<JSObject>::cast(proto), key);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return DeleteHiddenProperty(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), key);
   }
 
   Object* inline_value = object->GetHiddenPropertiesHashTable();
@@ -5154,8 +5151,7 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     if (result.IsFound()) {
       ASSERT(result.IsNormal());
       ASSERT(result.holder() == this);
-      Object* value = GetNormalizedProperty(&result);
-      if (!value->IsTheHole()) return value;
+      return GetNormalizedProperty(&result);
     }
     return GetHeap()->undefined_value();
   }
@@ -5332,10 +5328,12 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return factory->false_value();
-    ASSERT(proto->IsJSGlobalObject());
-    return DeleteElement(Handle<JSObject>::cast(proto), index, mode);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return factory->false_value();
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return DeleteElement(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index,
+        mode);
   }
 
   Handle<Object> old_value;
@@ -5387,11 +5385,12 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalProxy()) {
-    Object* proto = object->GetPrototype();
-    if (proto->IsNull()) return isolate->factory()->false_value();
-    ASSERT(proto->IsJSGlobalObject());
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return isolate->factory()->false_value();
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return JSGlobalObject::DeleteProperty(
-        handle(JSGlobalObject::cast(proto)), name, mode);
+        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
+        mode);
   }
 
   uint32_t index = 0;
@@ -5620,10 +5619,11 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return object;
-    ASSERT(proto->IsJSGlobalObject());
-    return PreventExtensions(Handle<JSObject>::cast(proto));
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return object;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return PreventExtensions(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
   }
 
   // It's not possible to seal objects with external array elements
@@ -5703,10 +5703,10 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return object;
-    ASSERT(proto->IsJSGlobalObject());
-    return Freeze(Handle<JSObject>::cast(proto));
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return object;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return Freeze(Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
   }
 
   // It's not possible to freeze objects with external array elements
@@ -6091,12 +6091,11 @@ Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
 // - This object has no elements.
 // - No prototype has enumerable properties/elements.
 bool JSReceiver::IsSimpleEnum() {
-  Heap* heap = GetHeap();
-  for (Object* o = this;
-       o != heap->null_value();
-       o = JSObject::cast(o)->GetPrototype()) {
-    if (!o->IsJSObject()) return false;
-    JSObject* curr = JSObject::cast(o);
+  for (PrototypeIterator iter(GetIsolate(), this,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (!iter.GetCurrent()->IsJSObject()) return false;
+    JSObject* curr = JSObject::cast(iter.GetCurrent());
     int enum_length = curr->map()->EnumLength();
     if (enum_length == kInvalidEnumCacheSentinel) return false;
     if (curr->IsAccessCheckNeeded()) return false;
@@ -6164,11 +6163,11 @@ void JSReceiver::LookupOwn(
   ASSERT(name->IsName());
 
   if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return result->NotFound();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSReceiver::cast(proto)->LookupOwn(
-        name, result, search_hidden_prototypes);
+    PrototypeIterator iter(GetIsolate(), this);
+    if (iter.IsAtEnd()) return result->NotFound();
+    ASSERT(iter.GetCurrent()->IsJSGlobalObject());
+    return JSReceiver::cast(iter.GetCurrent())
+        ->LookupOwn(name, result, search_hidden_prototypes);
   }
 
   if (IsJSProxy()) {
@@ -6194,9 +6193,9 @@ void JSReceiver::LookupOwn(
   js_object->LookupOwnRealNamedProperty(name, result);
   if (result->IsFound() || !search_hidden_prototypes) return;
 
-  Object* proto = js_object->GetPrototype();
-  if (!proto->IsJSReceiver()) return;
-  JSReceiver* receiver = JSReceiver::cast(proto);
+  PrototypeIterator iter(GetIsolate(), js_object);
+  if (!iter.GetCurrent()->IsJSReceiver()) return;
+  JSReceiver* receiver = JSReceiver::cast(iter.GetCurrent());
   if (receiver->map()->is_hidden_prototype()) {
     receiver->LookupOwn(name, result, search_hidden_prototypes);
   }
@@ -6206,11 +6205,10 @@ void JSReceiver::LookupOwn(
 void JSReceiver::Lookup(Handle<Name> name, LookupResult* result) {
   DisallowHeapAllocation no_gc;
   // Ecma-262 3rd 8.6.2.4
-  Handle<Object> null_value = GetIsolate()->factory()->null_value();
-  for (Object* current = this;
-       current != *null_value;
-       current = JSObject::cast(current)->GetPrototype()) {
-    JSReceiver::cast(current)->LookupOwn(name, result, false);
+  for (PrototypeIterator iter(GetIsolate(), this,
+                              PrototypeIterator::START_AT_RECEIVER);
+       !iter.IsAtEnd(); iter.Advance()) {
+    JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result, false);
     if (result->IsFound()) return;
   }
   result->NotFound();
@@ -6690,14 +6688,11 @@ void JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return;
-    ASSERT(proto->IsJSGlobalObject());
-    DefineAccessor(Handle<JSObject>::cast(proto),
-                   name,
-                   getter,
-                   setter,
-                   attributes);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    DefineAccessor(Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
+                   name, getter, setter, attributes);
     return;
   }
 
@@ -6866,10 +6861,11 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return object;
-    ASSERT(proto->IsJSGlobalObject());
-    return SetAccessor(Handle<JSObject>::cast(proto), info);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return object;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return SetAccessor(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), info);
   }
 
   // Make sure that the top context does not change when doing callbacks or
@@ -6950,11 +6946,14 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
   // Make the lookup and include prototypes.
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    for (Handle<Object> obj = object;
-         !obj->IsNull();
-         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
-      if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
-        JSObject* js_object = JSObject::cast(*obj);
+    for (PrototypeIterator iter(isolate, object,
+                                PrototypeIterator::START_AT_RECEIVER);
+         !iter.IsAtEnd(); iter.Advance()) {
+      if (PrototypeIterator::GetCurrent(iter)->IsJSObject() &&
+          JSObject::cast(*PrototypeIterator::GetCurrent(iter))
+              ->HasDictionaryElements()) {
+        JSObject* js_object =
+            JSObject::cast(*PrototypeIterator::GetCurrent(iter));
         SeededNumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
         if (entry != SeededNumberDictionary::kNotFound) {
@@ -6968,11 +6967,12 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
       }
     }
   } else {
-    for (Handle<Object> obj = object;
-         !obj->IsNull();
-         obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+    for (PrototypeIterator iter(isolate, object,
+                                PrototypeIterator::START_AT_RECEIVER);
+         !iter.IsAtEnd(); iter.Advance()) {
       LookupResult result(isolate);
-      JSReceiver::cast(*obj)->LookupOwn(name, &result);
+      JSReceiver::cast(*PrototypeIterator::GetCurrent(iter))
+          ->LookupOwn(name, &result);
       if (result.IsFound()) {
         if (result.IsReadOnly()) return isolate->factory()->undefined_value();
         if (result.IsPropertyCallbacks()) {
@@ -10652,6 +10652,7 @@ void ObjectVisitor::VisitExternalReference(RelocInfo* rinfo) {
 
 
 void Code::InvalidateRelocation() {
+  InvalidateEmbeddedObjects();
   set_relocation_info(GetHeap()->empty_byte_array());
 }
 
@@ -12217,10 +12218,11 @@ MaybeHandle<AccessorPair> JSObject::GetOwnElementAccessorPair(
     Handle<JSObject> object,
     uint32_t index) {
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), object->GetIsolate());
-    if (proto->IsNull()) return MaybeHandle<AccessorPair>();
-    ASSERT(proto->IsJSGlobalObject());
-    return GetOwnElementAccessorPair(Handle<JSObject>::cast(proto), index);
+    PrototypeIterator iter(object->GetIsolate(), object);
+    if (iter.IsAtEnd()) return MaybeHandle<AccessorPair>();
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return GetOwnElementAccessorPair(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index);
   }
 
   // Check for lookup interceptor.
@@ -12823,13 +12825,12 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
   }
 
   if (object->IsJSGlobalProxy()) {
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return value;
-    ASSERT(proto->IsJSGlobalObject());
-    return SetElement(Handle<JSObject>::cast(proto), index, value, attributes,
-                      strict_mode,
-                      check_prototype,
-                      set_mode);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return value;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return SetElement(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index,
+        value, attributes, strict_mode, check_prototype, set_mode);
   }
 
   // Don't allow element properties to be redefined for external arrays.
@@ -13327,9 +13328,10 @@ MaybeHandle<Object> JSObject::GetElementWithInterceptor(
       Object);
   if (!result->IsTheHole()) return result;
 
-  Handle<Object> proto(object->GetPrototype(), isolate);
-  if (proto->IsNull()) return isolate->factory()->undefined_value();
-  return Object::GetElementWithReceiver(isolate, proto, receiver, index);
+  PrototypeIterator iter(isolate, object);
+  if (iter.IsAtEnd()) return isolate->factory()->undefined_value();
+  return Object::GetElementWithReceiver(
+      isolate, PrototypeIterator::GetCurrent(iter), receiver, index);
 }
 
 
@@ -13690,10 +13692,11 @@ bool JSObject::HasRealElementProperty(Handle<JSObject> object, uint32_t index) {
 
   if (object->IsJSGlobalProxy()) {
     HandleScope scope(isolate);
-    Handle<Object> proto(object->GetPrototype(), isolate);
-    if (proto->IsNull()) return false;
-    ASSERT(proto->IsJSGlobalObject());
-    return HasRealElementProperty(Handle<JSObject>::cast(proto), index);
+    PrototypeIterator iter(isolate, object);
+    if (iter.IsAtEnd()) return false;
+    ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
+    return HasRealElementProperty(
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), index);
   }
 
   return GetElementAttributeWithoutInterceptor(
@@ -16868,13 +16871,9 @@ Handle<HeapType> PropertyCell::UpdatedType(Handle<PropertyCell> cell,
                                            Handle<Object> value) {
   Isolate* isolate = cell->GetIsolate();
   Handle<HeapType> old_type(cell->type(), isolate);
-  Handle<HeapType> new_type = value->IsTheHole()
-                                  ? HeapType::Any(isolate)
-                                  : HeapType::Constant(value, isolate);
+  Handle<HeapType> new_type = HeapType::Constant(value, isolate);
 
-  if (new_type->Is(old_type)) {
-    return old_type;
-  }
+  if (new_type->Is(old_type)) return old_type;
 
   cell->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kPropertyCellChangedGroup);

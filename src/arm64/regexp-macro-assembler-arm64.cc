@@ -397,11 +397,14 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     }
 
     // Check if function returned non-zero for success or zero for failure.
-    CompareAndBranchOrBacktrack(x0, 0, eq, on_no_match);
+    // x0 is one of the registers used as a cache so it must be tested before
+    // the cache is restored.
+    __ Cmp(x0, 0);
+    __ PopCPURegList(cached_registers);
+    BranchOrBacktrack(eq, on_no_match);
+
     // On success, increment position by length of capture.
     __ Add(current_input_offset(), current_input_offset(), capture_length);
-    // Reset the cached registers.
-    __ PopCPURegList(cached_registers);
   }
 
   __ Bind(&fallthrough);
