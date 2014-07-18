@@ -52,6 +52,7 @@ import bump_up_version
 from bump_up_version import BumpUpVersion
 from bump_up_version import LastChangeBailout
 from bump_up_version import LKGRVersionUpToDateBailout
+from auto_tag import AutoTag
 
 
 TEST_CONFIG = {
@@ -400,6 +401,9 @@ class ScriptTest(unittest.TestCase):
 
   def GetDate(self):
     return "1999-07-31"
+
+  def GetUTCStamp(self):
+    return "100000"
 
   def ExpectGit(self, *args):
     """Convenience wrapper."""
@@ -1322,6 +1326,57 @@ LOG=N
     ])
 
     BumpUpVersion(TEST_CONFIG, self).Run(["-a", "author@chromium.org"])
+
+  def testAutoTag(self):
+    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
+    self.WriteFakeVersionFile()
+
+    def ResetVersion(minor, build, patch=0):
+      return lambda: self.WriteFakeVersionFile(minor=minor,
+                                               build=build,
+                                               patch=patch)
+
+    self.ExpectGit([
+      Git("status -s -uno", ""),
+      Git("status -s -b -uno", "## some_branch\n"),
+      Git("svn fetch", ""),
+      Git("branch", "  branch1\n* branch2\n"),
+      Git("checkout -f master", ""),
+      Git("svn rebase", ""),
+      Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], "",
+          cb=ResetVersion(4, 5)),
+      Git("branch -r", "svn/tags/3.4.2\nsvn/tags/3.2.1.0\nsvn/branches/3.4"),
+      Git("log --format=%H --grep=\"\\[Auto\\-roll\\] Bump up version to\"",
+          "hash125\nhash118\nhash111\nhash101"),
+      Git("checkout -f hash125 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 4)),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 5)),
+      Git("checkout -f hash118 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 3)),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 5)),
+      Git("checkout -f hash111 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 2)),
+      Git("checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+          cb=ResetVersion(4, 5)),
+      Git("svn find-rev hash118", "118"),
+      Git("svn find-rev hash125", "125"),
+      Git("svn find-rev r123", "hash123"),
+      Git("log -1 --format=%at hash123", "1"),
+      Git("reset --hard hash123", ""),
+      Git("svn tag 3.4.3 -m \"Tagging version 3.4.3\"", ""),
+      Git("checkout -f some_branch", ""),
+      Git("branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
+    ])
+
+    self.ExpectReadURL([
+      URL("https://v8-status.appspot.com/revisions?format=json",
+          "[{\"revision\": \"123\", \"status\": true},"
+           "{\"revision\": \"112\", \"status\": true}]"),
+    ])
+
+    AutoTag(TEST_CONFIG, self).Run(["-a", "author@chromium.org"])
 
   # Test that we bail out if the last change was a version change.
   def testBumpUpVersionBailout1(self):

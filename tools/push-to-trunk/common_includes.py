@@ -244,6 +244,9 @@ class SideEffectHandler(object):  # pragma: no cover
   def GetDate(self):
     return datetime.date.today().strftime("%Y-%m-%d")
 
+  def GetUTCStamp(self):
+    time.mktime(datetime.datetime.utcnow().timetuple())
+
 DEFAULT_SIDE_EFFECT_HANDLER = SideEffectHandler()
 
 
