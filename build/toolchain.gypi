@@ -143,7 +143,7 @@
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
-              ['v8_target_arch==host_arch', {
+              ['v8_target_arch==host_arch and android_webview_build==0', {
                 # Host built with an Arm CXX compiler.
                 'conditions': [
                   [ 'arm_version==7', {
@@ -186,7 +186,7 @@
           }],  # _toolset=="host"
           ['_toolset=="target"', {
             'conditions': [
-              ['v8_target_arch==target_arch', {
+              ['v8_target_arch==target_arch and android_webview_build==0', {
                 # Target built with an Arm CXX compiler.
                 'conditions': [
                   [ 'arm_version==7', {
@@ -250,7 +250,7 @@
           'V8_TARGET_ARCH_MIPS',
         ],
         'conditions': [
-          ['v8_target_arch==target_arch', {
+          ['v8_target_arch==target_arch and android_webview_build==0', {
             # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
@@ -299,7 +299,7 @@
           'V8_TARGET_ARCH_MIPS',
         ],
         'conditions': [
-          ['v8_target_arch==target_arch', {
+          ['v8_target_arch==target_arch and android_webview_build==0', {
             # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
@@ -354,7 +354,7 @@
           'V8_TARGET_ARCH_MIPS64',
         ],
         'conditions': [
-          ['v8_target_arch==target_arch', {
+          ['v8_target_arch==target_arch and android_webview_build==0', {
             # Target built with a Mips CXX compiler.
             'target_conditions': [
               ['_toolset=="target"', {
