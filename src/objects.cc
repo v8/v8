@@ -7325,6 +7325,13 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   // Dictionaries can store any property value.
   if (map->is_dictionary_map()) return map;
 
+  // Migrate to the newest map before storing the property.
+  if (map->is_deprecated()) {
+    map = GeneralizeRepresentation(map, 0, Representation::None(),
+                                   HeapType::None(map->GetIsolate()),
+                                   ALLOW_AS_CONSTANT);
+  }
+
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
   if (descriptors->CanHoldValue(descriptor, *value)) return map;
@@ -7342,10 +7349,15 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StoreFromKeyed store_mode) {
-  // Cannot currently handle deprecated maps.
-  ASSERT(!map->is_deprecated());
   // Dictionary maps can always have additional data properties.
   if (map->is_dictionary_map()) return map;
+
+  // Migrate to the newest map before transitioning to the new property.
+  if (map->is_deprecated()) {
+    map = GeneralizeRepresentation(map, 0, Representation::None(),
+                                   HeapType::None(map->GetIsolate()),
+                                   ALLOW_AS_CONSTANT);
+  }
 
   int index = map->SearchTransition(*name);
   if (index != TransitionArray::kNotFound) {
